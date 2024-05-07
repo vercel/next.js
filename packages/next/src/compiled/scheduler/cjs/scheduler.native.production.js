@@ -1,6 +1,6 @@
 /**
  * @license React
- * scheduler.native.production.min.js
+ * scheduler.native.production.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -8,521 +8,322 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-'use strict';
-
-const enableSchedulerDebugging = false;
-const enableProfiling = false;
-const frameYieldMs = 5;
-const userBlockingPriorityTimeout = 250;
-const normalPriorityTimeout = 5000;
-const lowPriorityTimeout = 10000;
-
+"use strict";
 function push(heap, node) {
-  const index = heap.length;
+  var index = heap.length;
   heap.push(node);
-  siftUp(heap, node, index);
+  a: for (; 0 < index; ) {
+    var parentIndex = (index - 1) >>> 1,
+      parent = heap[parentIndex];
+    if (0 < compare(parent, node))
+      (heap[parentIndex] = node), (heap[index] = parent), (index = parentIndex);
+    else break a;
+  }
 }
 function peek(heap) {
-  return heap.length === 0 ? null : heap[0];
+  return 0 === heap.length ? null : heap[0];
 }
 function pop(heap) {
-  if (heap.length === 0) {
-    return null;
-  }
-
-  const first = heap[0];
-  const last = heap.pop();
-
+  if (0 === heap.length) return null;
+  var first = heap[0],
+    last = heap.pop();
   if (last !== first) {
     heap[0] = last;
-    siftDown(heap, last, 0);
-  }
+    a: for (
+      var index = 0, length = heap.length, halfLength = length >>> 1;
+      index < halfLength;
 
+    ) {
+      var leftIndex = 2 * (index + 1) - 1,
+        left = heap[leftIndex],
+        rightIndex = leftIndex + 1,
+        right = heap[rightIndex];
+      if (0 > compare(left, last))
+        rightIndex < length && 0 > compare(right, left)
+          ? ((heap[index] = right),
+            (heap[rightIndex] = last),
+            (index = rightIndex))
+          : ((heap[index] = left),
+            (heap[leftIndex] = last),
+            (index = leftIndex));
+      else if (rightIndex < length && 0 > compare(right, last))
+        (heap[index] = right), (heap[rightIndex] = last), (index = rightIndex);
+      else break a;
+    }
+  }
   return first;
 }
-
-function siftUp(heap, node, i) {
-  let index = i;
-
-  while (index > 0) {
-    const parentIndex = index - 1 >>> 1;
-    const parent = heap[parentIndex];
-
-    if (compare(parent, node) > 0) {
-      // The parent is larger. Swap positions.
-      heap[parentIndex] = node;
-      heap[index] = parent;
-      index = parentIndex;
-    } else {
-      // The parent is smaller. Exit.
-      return;
-    }
-  }
-}
-
-function siftDown(heap, node, i) {
-  let index = i;
-  const length = heap.length;
-  const halfLength = length >>> 1;
-
-  while (index < halfLength) {
-    const leftIndex = (index + 1) * 2 - 1;
-    const left = heap[leftIndex];
-    const rightIndex = leftIndex + 1;
-    const right = heap[rightIndex]; // If the left or right node is smaller, swap with the smaller of those.
-
-    if (compare(left, node) < 0) {
-      if (rightIndex < length && compare(right, left) < 0) {
-        heap[index] = right;
-        heap[rightIndex] = node;
-        index = rightIndex;
-      } else {
-        heap[index] = left;
-        heap[leftIndex] = node;
-        index = leftIndex;
-      }
-    } else if (rightIndex < length && compare(right, node) < 0) {
-      heap[index] = right;
-      heap[rightIndex] = node;
-      index = rightIndex;
-    } else {
-      // Neither child is smaller. Exit.
-      return;
-    }
-  }
-}
-
 function compare(a, b) {
-  // Compare sort index first, then task id.
-  const diff = a.sortIndex - b.sortIndex;
-  return diff !== 0 ? diff : a.id - b.id;
+  var diff = a.sortIndex - b.sortIndex;
+  return 0 !== diff ? diff : a.id - b.id;
 }
-
-// TODO: Use symbols?
-const ImmediatePriority = 1;
-const UserBlockingPriority = 2;
-const NormalPriority = 3;
-const LowPriority = 4;
-const IdlePriority = 5;
-
-function markTaskErrored(task, ms) {
-}
-
-/* eslint-disable no-var */
-let getCurrentTime;
-const hasPerformanceNow = // $FlowFixMe[method-unbinding]
-typeof performance === 'object' && typeof performance.now === 'function';
-
-if (hasPerformanceNow) {
-  const localPerformance = performance;
-
-  getCurrentTime = () => localPerformance.now();
+var getCurrentTime;
+if ("object" === typeof performance && "function" === typeof performance.now) {
+  var localPerformance = performance;
+  getCurrentTime = function () {
+    return localPerformance.now();
+  };
 } else {
-  const localDate = Date;
-  const initialTime = localDate.now();
-
-  getCurrentTime = () => localDate.now() - initialTime;
-} // Max 31 bit integer. The max integer size in V8 for 32-bit systems.
-// Math.pow(2, 30) - 1
-// 0b111111111111111111111111111111
-
-
-var maxSigned31BitInt = 1073741823; // Tasks are stored on a min heap
-
-var taskQueue = [];
-var timerQueue = []; // Incrementing id counter. Used to maintain insertion order.
-
-var taskIdCounter = 1; // Pausing the scheduler is useful for debugging.
-var currentTask = null;
-var currentPriorityLevel = NormalPriority; // This is set while performing work, to prevent re-entrance.
-
-var isPerformingWork = false;
-var isHostCallbackScheduled = false;
-var isHostTimeoutScheduled = false; // Capture local references to native APIs, in case a polyfill overrides them.
-
-const localSetTimeout = typeof setTimeout === 'function' ? setTimeout : null;
-const localClearTimeout = typeof clearTimeout === 'function' ? clearTimeout : null;
-const localSetImmediate = typeof setImmediate !== 'undefined' ? setImmediate : null; // IE and Node.js + jsdom
-
+  var localDate = Date,
+    initialTime = localDate.now();
+  getCurrentTime = function () {
+    return localDate.now() - initialTime;
+  };
+}
+var taskQueue = [],
+  timerQueue = [],
+  taskIdCounter = 1,
+  currentTask = null,
+  currentPriorityLevel = 3,
+  isPerformingWork = !1,
+  isHostCallbackScheduled = !1,
+  isHostTimeoutScheduled = !1,
+  localSetTimeout = "function" === typeof setTimeout ? setTimeout : null,
+  localClearTimeout = "function" === typeof clearTimeout ? clearTimeout : null,
+  localSetImmediate = "undefined" !== typeof setImmediate ? setImmediate : null;
 function advanceTimers(currentTime) {
-  // Check for tasks that are no longer delayed and add them to the queue.
-  let timer = peek(timerQueue);
-
-  while (timer !== null) {
-    if (timer.callback === null) {
-      // Timer was cancelled.
-      pop(timerQueue);
-    } else if (timer.startTime <= currentTime) {
-      // Timer fired. Transfer to the task queue.
-      pop(timerQueue);
-      timer.sortIndex = timer.expirationTime;
-      push(taskQueue, timer);
-    } else {
-      // Remaining timers are pending.
-      return;
-    }
-
+  for (var timer = peek(timerQueue); null !== timer; ) {
+    if (null === timer.callback) pop(timerQueue);
+    else if (timer.startTime <= currentTime)
+      pop(timerQueue),
+        (timer.sortIndex = timer.expirationTime),
+        push(taskQueue, timer);
+    else break;
     timer = peek(timerQueue);
   }
 }
-
 function handleTimeout(currentTime) {
-  isHostTimeoutScheduled = false;
+  isHostTimeoutScheduled = !1;
   advanceTimers(currentTime);
-
-  if (!isHostCallbackScheduled) {
-    if (peek(taskQueue) !== null) {
-      isHostCallbackScheduled = true;
-      requestHostCallback();
-    } else {
-      const firstTimer = peek(timerQueue);
-
-      if (firstTimer !== null) {
+  if (!isHostCallbackScheduled)
+    if (null !== peek(taskQueue))
+      (isHostCallbackScheduled = !0),
+        isMessageLoopRunning ||
+          ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline());
+    else {
+      var firstTimer = peek(timerQueue);
+      null !== firstTimer &&
         requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-      }
     }
-  }
 }
-
-function flushWork(initialTime) {
-
-
-  isHostCallbackScheduled = false;
-
-  if (isHostTimeoutScheduled) {
-    // We scheduled a timeout but it's no longer needed. Cancel it.
-    isHostTimeoutScheduled = false;
-    cancelHostTimeout();
-  }
-
-  isPerformingWork = true;
-  const previousPriorityLevel = currentPriorityLevel;
-
-  try {
-    if (enableProfiling) ; else {
-      // No catch in prod code path.
-      return workLoop(initialTime);
-    }
-  } finally {
-    currentTask = null;
-    currentPriorityLevel = previousPriorityLevel;
-    isPerformingWork = false;
-  }
-}
-
-function workLoop(initialTime) {
-  let currentTime = initialTime;
-  advanceTimers(currentTime);
-  currentTask = peek(taskQueue);
-
-  while (currentTask !== null && !(enableSchedulerDebugging )) {
-    if (currentTask.expirationTime > currentTime && shouldYieldToHost()) {
-      // This currentTask hasn't expired, and we've reached the deadline.
-      break;
-    } // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-
-    const callback = currentTask.callback;
-
-    if (typeof callback === 'function') {
-      // $FlowFixMe[incompatible-use] found when upgrading Flow
-      currentTask.callback = null; // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-      currentPriorityLevel = currentTask.priorityLevel; // $FlowFixMe[incompatible-use] found when upgrading Flow
-
-      const didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
-
-      const continuationCallback = callback(didUserCallbackTimeout);
-      currentTime = getCurrentTime();
-
-      if (typeof continuationCallback === 'function') {
-        // If a continuation is returned, immediately yield to the main thread
-        // regardless of how much time is left in the current time slice.
-        // $FlowFixMe[incompatible-use] found when upgrading Flow
-        currentTask.callback = continuationCallback;
-
-        advanceTimers(currentTime);
-        return true;
-      } else {
-
-        if (currentTask === peek(taskQueue)) {
-          pop(taskQueue);
-        }
-
-        advanceTimers(currentTime);
-      }
-    } else {
-      pop(taskQueue);
-    }
-
-    currentTask = peek(taskQueue);
-  } // Return whether there's additional work
-
-
-  if (currentTask !== null) {
-    return true;
-  } else {
-    const firstTimer = peek(timerQueue);
-
-    if (firstTimer !== null) {
-      requestHostTimeout(handleTimeout, firstTimer.startTime - currentTime);
-    }
-
-    return false;
-  }
-}
-
 function unstable_scheduleCallback$1(priorityLevel, callback, options) {
   var currentTime = getCurrentTime();
-  var startTime;
-
-  if (typeof options === 'object' && options !== null) {
-    var delay = options.delay;
-
-    if (typeof delay === 'number' && delay > 0) {
-      startTime = currentTime + delay;
-    } else {
-      startTime = currentTime;
-    }
-  } else {
-    startTime = currentTime;
-  }
-
-  var timeout;
-
+  "object" === typeof options && null !== options
+    ? ((options = options.delay),
+      (options =
+        "number" === typeof options && 0 < options
+          ? currentTime + options
+          : currentTime))
+    : (options = currentTime);
   switch (priorityLevel) {
-    case ImmediatePriority:
-      // Times out immediately
-      timeout = -1;
+    case 1:
+      var timeout = -1;
       break;
-
-    case UserBlockingPriority:
-      // Eventually times out
-      timeout = userBlockingPriorityTimeout;
+    case 2:
+      timeout = 250;
       break;
-
-    case IdlePriority:
-      // Never times out
-      timeout = maxSigned31BitInt;
+    case 5:
+      timeout = 1073741823;
       break;
-
-    case LowPriority:
-      // Eventually times out
-      timeout = lowPriorityTimeout;
+    case 4:
+      timeout = 1e4;
       break;
-
-    case NormalPriority:
     default:
-      // Eventually times out
-      timeout = normalPriorityTimeout;
-      break;
+      timeout = 5e3;
   }
-
-  var expirationTime = startTime + timeout;
-  var newTask = {
+  timeout = options + timeout;
+  priorityLevel = {
     id: taskIdCounter++,
-    callback,
-    priorityLevel,
-    startTime,
-    expirationTime,
+    callback: callback,
+    priorityLevel: priorityLevel,
+    startTime: options,
+    expirationTime: timeout,
     sortIndex: -1
   };
-
-  if (startTime > currentTime) {
-    // This is a delayed task.
-    newTask.sortIndex = startTime;
-    push(timerQueue, newTask);
-
-    if (peek(taskQueue) === null && newTask === peek(timerQueue)) {
-      // All tasks are delayed, and this is the task with the earliest delay.
-      if (isHostTimeoutScheduled) {
-        // Cancel an existing timeout.
-        cancelHostTimeout();
-      } else {
-        isHostTimeoutScheduled = true;
-      } // Schedule a timeout.
-
-
-      requestHostTimeout(handleTimeout, startTime - currentTime);
-    }
-  } else {
-    newTask.sortIndex = expirationTime;
-    push(taskQueue, newTask);
-    // wait until the next time we yield.
-
-
-    if (!isHostCallbackScheduled && !isPerformingWork) {
-      isHostCallbackScheduled = true;
-      requestHostCallback();
-    }
-  }
-
-  return newTask;
+  options > currentTime
+    ? ((priorityLevel.sortIndex = options),
+      push(timerQueue, priorityLevel),
+      null === peek(taskQueue) &&
+        priorityLevel === peek(timerQueue) &&
+        (isHostTimeoutScheduled
+          ? (localClearTimeout(taskTimeoutID), (taskTimeoutID = -1))
+          : (isHostTimeoutScheduled = !0),
+        requestHostTimeout(handleTimeout, options - currentTime)))
+    : ((priorityLevel.sortIndex = timeout),
+      push(taskQueue, priorityLevel),
+      isHostCallbackScheduled ||
+        isPerformingWork ||
+        ((isHostCallbackScheduled = !0),
+        isMessageLoopRunning ||
+          ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline())));
+  return priorityLevel;
 }
-
 function unstable_cancelCallback$1(task) {
-  // remove from the queue because you can't remove arbitrary nodes from an
-  // array based heap, only the first one.)
-
-
   task.callback = null;
 }
-
 function unstable_getCurrentPriorityLevel$1() {
   return currentPriorityLevel;
 }
-
-let isMessageLoopRunning = false;
-let taskTimeoutID = -1; // Scheduler periodically yields in case there is other work on the main
-// thread, like user events. By default, it yields multiple times per frame.
-// It does not attempt to align with frame boundaries, since most tasks don't
-// need to be frame aligned; for those that do, use requestAnimationFrame.
-
-let frameInterval = frameYieldMs;
-let startTime = -1;
-
+var isMessageLoopRunning = !1,
+  taskTimeoutID = -1,
+  startTime = -1;
 function shouldYieldToHost() {
-  const timeElapsed = getCurrentTime() - startTime;
-
-  if (timeElapsed < frameInterval) {
-    // The main thread has only been blocked for a really short amount of time;
-    // smaller than a single frame. Don't yield yet.
-    return false;
-  } // Yield now.
-
-
-  return true;
+  return 5 > getCurrentTime() - startTime ? !1 : !0;
 }
-
 function requestPaint() {}
-
-const performWorkUntilDeadline = () => {
+function performWorkUntilDeadline() {
   if (isMessageLoopRunning) {
-    const currentTime = getCurrentTime(); // Keep track of the start time so we can measure how long the main thread
-    // has been blocked.
-
-    startTime = currentTime; // If a scheduler task throws, exit the current browser task so the
-    // error can be observed.
-    //
-    // Intentionally not using a try-catch, since that makes some debugging
-    // techniques harder. Instead, if `flushWork` errors, then `hasMoreWork` will
-    // remain true, and we'll continue the work loop.
-
-    let hasMoreWork = true;
-
+    var currentTime = getCurrentTime();
+    startTime = currentTime;
+    var hasMoreWork = !0;
     try {
-      hasMoreWork = flushWork(currentTime);
-    } finally {
-      if (hasMoreWork) {
-        // If there's more work, schedule the next message event at the end
-        // of the preceding one.
-        schedulePerformWorkUntilDeadline();
-      } else {
-        isMessageLoopRunning = false;
+      a: {
+        isHostCallbackScheduled = !1;
+        isHostTimeoutScheduled &&
+          ((isHostTimeoutScheduled = !1),
+          localClearTimeout(taskTimeoutID),
+          (taskTimeoutID = -1));
+        isPerformingWork = !0;
+        var previousPriorityLevel = currentPriorityLevel;
+        try {
+          b: {
+            advanceTimers(currentTime);
+            for (
+              currentTask = peek(taskQueue);
+              null !== currentTask &&
+              !(
+                currentTask.expirationTime > currentTime && shouldYieldToHost()
+              );
+
+            ) {
+              var callback = currentTask.callback;
+              if ("function" === typeof callback) {
+                currentTask.callback = null;
+                currentPriorityLevel = currentTask.priorityLevel;
+                var continuationCallback = callback(
+                  currentTask.expirationTime <= currentTime
+                );
+                currentTime = getCurrentTime();
+                if ("function" === typeof continuationCallback) {
+                  currentTask.callback = continuationCallback;
+                  advanceTimers(currentTime);
+                  hasMoreWork = !0;
+                  break b;
+                }
+                currentTask === peek(taskQueue) && pop(taskQueue);
+                advanceTimers(currentTime);
+              } else pop(taskQueue);
+              currentTask = peek(taskQueue);
+            }
+            if (null !== currentTask) hasMoreWork = !0;
+            else {
+              var firstTimer = peek(timerQueue);
+              null !== firstTimer &&
+                requestHostTimeout(
+                  handleTimeout,
+                  firstTimer.startTime - currentTime
+                );
+              hasMoreWork = !1;
+            }
+          }
+          break a;
+        } finally {
+          (currentTask = null),
+            (currentPriorityLevel = previousPriorityLevel),
+            (isPerformingWork = !1);
+        }
+        hasMoreWork = void 0;
       }
+    } finally {
+      hasMoreWork
+        ? schedulePerformWorkUntilDeadline()
+        : (isMessageLoopRunning = !1);
     }
   }
-};
-
-let schedulePerformWorkUntilDeadline;
-
-if (typeof localSetImmediate === 'function') {
-  // Node.js and old IE.
-  // There's a few reasons for why we prefer setImmediate.
-  //
-  // Unlike MessageChannel, it doesn't prevent a Node.js process from exiting.
-  // (Even though this is a DOM fork of the Scheduler, you could get here
-  // with a mix of Node.js 15+, which has a MessageChannel, and jsdom.)
-  // https://github.com/facebook/react/issues/20756
-  //
-  // But also, it runs earlier which is the semantic we want.
-  // If other browsers ever implement it, it's better to use it.
-  // Although both of these would be inferior to native scheduling.
-  schedulePerformWorkUntilDeadline = () => {
+}
+var schedulePerformWorkUntilDeadline;
+if ("function" === typeof localSetImmediate)
+  schedulePerformWorkUntilDeadline = function () {
     localSetImmediate(performWorkUntilDeadline);
   };
-} else if (typeof MessageChannel !== 'undefined') {
-  // DOM and Worker environments.
-  // We prefer MessageChannel because of the 4ms setTimeout clamping.
-  const channel = new MessageChannel();
-  const port = channel.port2;
+else if ("undefined" !== typeof MessageChannel) {
+  var channel = new MessageChannel(),
+    port = channel.port2;
   channel.port1.onmessage = performWorkUntilDeadline;
-
-  schedulePerformWorkUntilDeadline = () => {
+  schedulePerformWorkUntilDeadline = function () {
     port.postMessage(null);
   };
-} else {
-  // We should only fallback here in non-browser environments.
-  schedulePerformWorkUntilDeadline = () => {
-    // $FlowFixMe[not-a-function] nullable value
+} else
+  schedulePerformWorkUntilDeadline = function () {
     localSetTimeout(performWorkUntilDeadline, 0);
   };
-}
-
-function requestHostCallback() {
-  if (!isMessageLoopRunning) {
-    isMessageLoopRunning = true;
-    schedulePerformWorkUntilDeadline();
-  }
-}
-
 function requestHostTimeout(callback, ms) {
-  // $FlowFixMe[not-a-function] nullable value
-  taskTimeoutID = localSetTimeout(() => {
+  taskTimeoutID = localSetTimeout(function () {
     callback(getCurrentTime());
   }, ms);
 }
-
-function cancelHostTimeout() {
-  // $FlowFixMe[not-a-function] nullable value
-  localClearTimeout(taskTimeoutID);
-  taskTimeoutID = -1;
-}
-
-// https://github.com/facebook/react-native/blob/main/packages/react-native/ReactCommon/react/renderer/runtimescheduler/RuntimeSchedulerBinding.cpp
-
-const unstable_UserBlockingPriority = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_UserBlockingPriority : UserBlockingPriority;
-const unstable_NormalPriority = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_NormalPriority : NormalPriority;
-const unstable_IdlePriority = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_IdlePriority : IdlePriority;
-const unstable_LowPriority = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_LowPriority : LowPriority;
-const unstable_ImmediatePriority = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_ImmediatePriority : ImmediatePriority;
-const unstable_scheduleCallback = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_scheduleCallback : unstable_scheduleCallback$1;
-const unstable_cancelCallback = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_cancelCallback : unstable_cancelCallback$1;
-const unstable_getCurrentPriorityLevel = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_getCurrentPriorityLevel : unstable_getCurrentPriorityLevel$1;
-const unstable_shouldYield = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_shouldYield : shouldYieldToHost;
-const unstable_requestPaint = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_requestPaint : requestPaint;
-const unstable_now = typeof nativeRuntimeScheduler !== 'undefined' ? nativeRuntimeScheduler.unstable_now : getCurrentTime; // These were never implemented on the native scheduler because React never calls them.
-// For consistency, let's disable them altogether and make them throw.
-
-const unstable_next = throwNotImplemented;
-const unstable_runWithPriority = throwNotImplemented;
-const unstable_wrapCallback = throwNotImplemented;
-const unstable_continueExecution = throwNotImplemented;
-const unstable_pauseExecution = throwNotImplemented;
-const unstable_getFirstCallbackNode = throwNotImplemented;
-const unstable_forceFrameRate = throwNotImplemented;
-const unstable_Profiling = null;
-
+var unstable_UserBlockingPriority =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_UserBlockingPriority
+      : 2,
+  unstable_NormalPriority =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_NormalPriority
+      : 3,
+  unstable_LowPriority =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_LowPriority
+      : 4,
+  unstable_ImmediatePriority =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_ImmediatePriority
+      : 1,
+  unstable_scheduleCallback =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_scheduleCallback
+      : unstable_scheduleCallback$1,
+  unstable_cancelCallback =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_cancelCallback
+      : unstable_cancelCallback$1,
+  unstable_getCurrentPriorityLevel =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_getCurrentPriorityLevel
+      : unstable_getCurrentPriorityLevel$1,
+  unstable_shouldYield =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_shouldYield
+      : shouldYieldToHost,
+  unstable_requestPaint =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_requestPaint
+      : requestPaint,
+  unstable_now =
+    "undefined" !== typeof nativeRuntimeScheduler
+      ? nativeRuntimeScheduler.unstable_now
+      : getCurrentTime;
 function throwNotImplemented() {
-  throw Error('Not implemented.');
-} // Flow magic to verify the exports of this file match the original version.
-
-exports.unstable_IdlePriority = unstable_IdlePriority;
+  throw Error("Not implemented.");
+}
+exports.unstable_IdlePriority =
+  "undefined" !== typeof nativeRuntimeScheduler
+    ? nativeRuntimeScheduler.unstable_IdlePriority
+    : 5;
 exports.unstable_ImmediatePriority = unstable_ImmediatePriority;
 exports.unstable_LowPriority = unstable_LowPriority;
 exports.unstable_NormalPriority = unstable_NormalPriority;
-exports.unstable_Profiling = unstable_Profiling;
+exports.unstable_Profiling = null;
 exports.unstable_UserBlockingPriority = unstable_UserBlockingPriority;
 exports.unstable_cancelCallback = unstable_cancelCallback;
-exports.unstable_continueExecution = unstable_continueExecution;
-exports.unstable_forceFrameRate = unstable_forceFrameRate;
+exports.unstable_continueExecution = throwNotImplemented;
+exports.unstable_forceFrameRate = throwNotImplemented;
 exports.unstable_getCurrentPriorityLevel = unstable_getCurrentPriorityLevel;
-exports.unstable_getFirstCallbackNode = unstable_getFirstCallbackNode;
-exports.unstable_next = unstable_next;
+exports.unstable_getFirstCallbackNode = throwNotImplemented;
+exports.unstable_next = throwNotImplemented;
 exports.unstable_now = unstable_now;
-exports.unstable_pauseExecution = unstable_pauseExecution;
+exports.unstable_pauseExecution = throwNotImplemented;
 exports.unstable_requestPaint = unstable_requestPaint;
-exports.unstable_runWithPriority = unstable_runWithPriority;
+exports.unstable_runWithPriority = throwNotImplemented;
 exports.unstable_scheduleCallback = unstable_scheduleCallback;
 exports.unstable_shouldYield = unstable_shouldYield;
-exports.unstable_wrapCallback = unstable_wrapCallback;
+exports.unstable_wrapCallback = throwNotImplemented;

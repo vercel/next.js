@@ -7,7 +7,7 @@ import React, { use } from 'react'
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
 import {
@@ -165,7 +165,9 @@ export function hydrate() {
   const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
 
-  const options = { onRecoverableError } satisfies ReactDOMClient.RootOptions
+  const options = {
+    onRecoverableError,
+  } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
 

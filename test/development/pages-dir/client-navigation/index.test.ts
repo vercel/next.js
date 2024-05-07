@@ -1672,30 +1672,42 @@ describe.each([[false], [true]])(
         await waitFor(2000)
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script defer />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
 
         await browser.elementByCss('#reverseScriptOrder').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
 
         await browser.elementByCss('#toggleScript').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
       } finally {
         if (browser) {
           await browser.close()
