@@ -30,7 +30,7 @@ use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 
 /// A [`EcmascriptClientReferenceProxyModule`] is used in RSC to represent
 /// a client or SSR asset.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct EcmascriptClientReferenceProxyModule {
     server_module_ident: Vc<AssetIdent>,
     server_asset_context: Vc<Box<dyn AssetContext>>,
