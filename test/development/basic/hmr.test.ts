@@ -32,15 +32,22 @@ describe.each([[''], ['/docs']])(
     afterAll(() => next.destroy())
 
     it('should show hydration error correctly', async () => {
-      const browser = await webdriver(next.url, basePath + '/hydration-error')
-      await check(async () => {
+      const browser = await webdriver(next.url, basePath + '/hydration-error', {
+        pushErrorAsConsoleLog: true,
+      })
+      await retry(async () => {
         const logs = await browser.log()
-        return logs.some((log) =>
-          log.message.includes('messages/react-hydration-error')
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
+              source: 'error',
+            },
+          ])
         )
-          ? 'success'
-          : JSON.stringify(logs, null, 2)
-      }, 'success')
+      })
     })
 
     it('should have correct router.isReady for auto-export page', async () => {

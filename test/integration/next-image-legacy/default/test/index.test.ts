@@ -134,6 +134,11 @@ function runTests(mode) {
         {
           imagesizes: '',
           imagesrcset:
+            '/_next/image?url=%2Ftest.gif&w=640&q=75 1x, /_next/image?url=%2Ftest.gif&w=828&q=75 2x',
+        },
+        {
+          imagesizes: '',
+          imagesrcset:
             '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
         },
         {
@@ -177,7 +182,7 @@ function runTests(mode) {
       // should preload with crossorigin
       expect(
         await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
+          'link[rel=preload][as=image][crossorigin=use-credentials][imagesrcset*="test.gif"]'
         )
       ).toHaveLength(1)
 
