@@ -25,6 +25,7 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         UnsupportedModulesResolvePlugin,
     },
@@ -98,6 +99,29 @@ pub async fn get_edge_resolve_options_context(
         get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
     let ty = ty.into_value();
+    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
+    let invalid_styled_jsx_client_only_resolve_plugin =
+        get_invalid_styled_jsx_resolve_plugin(project_path);
+
+    let plugins = match ty {
+        ServerContextType::Pages { .. } => {
+            vec![]
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation => {
+            vec![
+                Vc::upcast(invalid_client_only_resolve_plugin),
+                Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin),
+            ]
+        }
+        ServerContextType::AppSSR { .. } => {
+            vec![]
+        }
+    };
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![mode.await?.condition().to_string()];
@@ -137,6 +161,7 @@ pub async fn get_edge_resolve_options_context(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
         )],
+        plugins,
         ..resolve_options_context
     }
     .cell())
