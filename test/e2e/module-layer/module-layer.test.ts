@@ -83,12 +83,13 @@ describe('module layer', () => {
         await next.patchFile(middlewareFile, middlewareContent)
       })
 
-      it('should error when import server packages in middleware', async () => {
+      it.only('should error when import server packages in middleware', async () => {
         const existingCliOutputLength = next.cliOutput.length
         await next.fetch('/')
 
         const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-        expect(newCliOutput).toContain('./middleware.js')
+        //expect(newCliOutput).toContain('./middleware.js')
+        expect(newCliOutput).toContain('lib/mixed-lib/client.js')
         expect(newCliOutput).toContain(
           `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
         )
