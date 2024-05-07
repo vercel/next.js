@@ -232,6 +232,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
             plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
@@ -239,10 +240,9 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
             // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        }
-        ServerContextType::Middleware => {
-            //noop
-        }
+        } /* ServerContextType::Middleware => {
+           *     //noop
+           * } */
     }
 
     let resolve_options_context = ResolveOptionsContext {
