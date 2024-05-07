@@ -393,16 +393,15 @@ function resolveBundlingOptOutPackages({
   externalType: string
   request: string
 }) {
-  const shouldBeBundled =
-    isResourceInPackages(
-      resolvedRes,
-      config.transpilePackages,
-      resolvedExternalPackageDirs
-    ) ||
-    (!isAppLayer && config.experimental.bundlePagesExternals)
-
   if (nodeModulesRegex.test(resolvedRes)) {
-    if (!isAppLayer || !shouldBeBundled) {
+    const shouldBeBundled =
+      isResourceInPackages(
+        resolvedRes,
+        config.transpilePackages,
+        resolvedExternalPackageDirs
+      ) ||
+      (!isAppLayer && config.experimental.bundlePagesExternals)
+    if (!shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
     }
   }
