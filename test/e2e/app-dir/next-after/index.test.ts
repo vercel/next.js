@@ -6,6 +6,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as Log from './utils/log'
+import * as LogCLI from './utils/log-cli'
 
 describe('unstable_after()', () => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
@@ -127,7 +128,7 @@ describe('unstable_after()', () => {
     )
 
     expect(res.status).toBe(200)
-    const cliLogs = Log.readCliLogs(next.cliOutput)
+    const cliLogs = LogCLI.readCliLogs(next.cliOutput)
     await retry(() => {
       expect(cliLogs).toContainEqual({
         source: '[middleware] /middleware/redirect',
@@ -217,9 +218,53 @@ describe('unstable_after()', () => {
     })
   })
 
-  it.todo('does not allow modifying cookies')
+  const INVALID_CALL_MESSAGE =
+    'Invalid unstable_after() call. unstable_after() can only be called:\n' +
+    '  - from within a server component\n' +
+    '  - in a route handler\n' +
+    '  - in a server action\n' +
+    '  - in middleware\n'
+
+  describe('errors when used in pages dir', () => {
+    it.each(['/pages-dir/invalid-in-gssp', '/pages-dir/123/invalid-in-gsp'])(
+      '%s',
+      async (path) => {
+        const cliOutputIndex = next.cliOutput.length
+
+        const res = await next.fetch(path)
+        expect(res.status).toBe(500)
+
+        await retry(() => {
+          const newCliOutput = next.cliOutput.slice(cliOutputIndex)
+          expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
+          expect(getLogs()).not.toContainEqual({
+            source: `[pages-dir] ${path}`,
+          })
+        })
+      }
+    )
+
+    it('/invalid-in-page', async () => {
+      const path = '/pages-dir/invalid-in-page'
+      const cliOutputIndex = next.cliOutput.length
+
+      const res = await next.fetch(path)
+      expect(res.status).toBe(500)
+
+      await retry(() => {
+        const newCliOutput = next.cliOutput.slice(cliOutputIndex)
+        expect(newCliOutput).toContain(INVALID_CALL_MESSAGE)
+        const cliLogs = LogCLI.readCliLogs(newCliOutput)
+        expect(cliLogs).not.toContainEqual({
+          source: `[pages-dir] ${path}`,
+        })
+      })
+    })
+  })
+
   it.todo('errors when used in client modules')
-  it.todo('errors when used in pages dir')
+
+  it.todo('does not allow modifying cookies')
 })
 
 function promiseWithResolvers<T>() {

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse, unstable_after as after } from 'next/server'
-import { cliLog } from './utils/log'
+import { cliLog } from './utils/log-cli'
 
 export function middleware(
   /** @type {import ('next/server').NextRequest} */ request

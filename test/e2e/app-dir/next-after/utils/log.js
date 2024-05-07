@@ -36,20 +36,3 @@ export function readPersistentLog(file = getLogFile()) {
     .slice(0, -1)
     .map((line) => JSON.parse(line))
 }
-
-export function cliLog(/** @type {Record<string, any>} */ data) {
-  console.log('<test-log>' + JSON.stringify(data) + '</test-log>')
-}
-
-export function readCliLogs(/** @type {string} */ output) {
-  return output
-    .split('\n')
-    .map((line) => {
-      const match = line.match(/^<test-log>(?<value>.+?)<\/test-log>$/)
-      if (!match) {
-        return null
-      }
-      return JSON.parse(match.groups.value)
-    })
-    .filter(Boolean)
-}
