@@ -21,9 +21,8 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/client/app-call-server'
-declare module 'next/dist/compiled/react-dom/server'
-declare module 'next/dist/compiled/react-dom/server.edge'
-declare module 'next/dist/compiled/react-dom/server.browser'
+declare module 'react-dom/server'
+declare module 'react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
@@ -346,15 +345,6 @@ declare module 'next/dist/compiled/@edge-runtime/cookies' {
 
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
   import * as m from '@edge-runtime/primitives'
-  export = m
-}
-
-declare module 'next/dist/compiled/react' {
-  import * as m from 'react'
-  export = m
-}
-declare module 'next/dist/compiled/react-dom' {
-  import * as m from 'react-dom'
   export = m
 }
 

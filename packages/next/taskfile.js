@@ -1617,7 +1617,7 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDomDir, 'LICENSE'))
       .target(`src/compiled/react-dom${packageSuffix}`)
     yield task
-      .source(join(reactDomDir, 'cjs/**/*.{js,map}'))
+      .source(join(reactDomDir, '**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
@@ -1631,11 +1631,12 @@ export async function copy_vendor_react(task_) {
             /require\(["']react["']\)/g,
             `require("next/dist/compiled/react${packageSuffix}")`
           )
-
-        // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
-        // as it mighe be aliased to the server rendering stub.
+          .replace(
+            /require\(["']react-dom["']\)/g,
+            `require("next/dist/compiled/react-dom${packageSuffix}")`
+          )
       })
-      .target(`src/compiled/react-dom${packageSuffix}/cjs`)
+      .target(`src/compiled/react-dom${packageSuffix}`)
 
     // Remove unused files
     const reactDomCompiledDir = join(
@@ -1653,6 +1654,7 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
       'cjs/react-dom-test-utils.production.min.js',
+      'umd',
       'unstable_server-external-runtime.js',
     ]
     for (const item of itemsToRemove) {

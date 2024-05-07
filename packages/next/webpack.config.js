@@ -35,6 +35,7 @@ function makeAppAliases(reactChannel = '') {
     'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
     'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
+    'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
@@ -240,12 +241,14 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
+              'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
               'react-dom$': `next/dist/compiled/react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
               'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
+              'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
             },
           },
           layer: 'react-server',
@@ -261,12 +264,14 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
               }/react.react-server`,
+              'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
               'react-dom$': `next/dist/compiled/react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
               'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${
                 experimental ? '-experimental' : ''
               }/react-dom.react-server`,
+              'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
             },
           },
         },
