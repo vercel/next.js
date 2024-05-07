@@ -12,10 +12,6 @@ describe('app dir - basic', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
       files: __dirname,
-      env: {
-        // This won't take affect until PPR is also enabled for this build.
-        __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: '1',
-      },
       buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
         ? `pnpm next build --experimental-build-mode=compile`
         : undefined,
@@ -23,17 +19,6 @@ describe('app dir - basic', () => {
         nanoid: '4.0.1',
       },
     })
-
-  if (isPPREnabledByDefault) {
-    it('should allow returning just skeleton in dev with query', async () => {
-      const res = await next.fetch('/skeleton?__nextppronly=1')
-      expect(res.status).toBe(200)
-
-      const html = await res.text()
-      expect(html).toContain('Skeleton')
-      expect(html).not.toContain('suspended content')
-    })
-  }
 
   if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should provide query for getStaticProps page correctly', async () => {
