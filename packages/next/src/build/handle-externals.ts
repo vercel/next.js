@@ -303,6 +303,13 @@ export function makeExternalHandler({
       return
     }
 
+    const isOptOutBundling = optOutBundlingPackageRegex.test(res)
+    // Apply bundling rules to all app layers.
+    // Since handleExternals only handle the server layers, we don't need to exclude client here
+    if (!isOptOutBundling) {
+      return
+    }
+
     // ESM externals can only be imported (and not required).
     // Make an exception in loose mode.
     if (!isEsmRequested && isEsm && !looseEsmExternals && !isLocal) {
@@ -421,14 +428,7 @@ function resolveBundlingOptOutPackages({
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
   if (nodeModulesRegex.test(resolvedRes) || !resolvedRes.startsWith('.')) {
-    const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
-    // Apply bundling rules to all app layers.
-    // Since handleExternals only handle the server layers, we don't need to exclude client here
-    if (isAppLayer) {
-      if (isOptOutBundling) {
-        return `${externalType} ${request}` // Externalize if opted out
-      }
-    } else if (!shouldBeBundled || isOptOutBundling) {
+    if (!isAppLayer && !shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
     }
   }
