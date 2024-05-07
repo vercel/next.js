@@ -118,8 +118,6 @@ export function createWebpackAliases({
         }
       : undefined),
 
-    next: NEXT_PROJECT_ROOT,
-
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
@@ -259,9 +257,9 @@ export function createRSCAliases(
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
-    'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    // TODO: restore optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.edge$': `next/dist/compiled/react-dom${bundledReactChannel}/server.edge`,
+    'react-dom/server.browser$': `next/dist/compiled/react-dom${bundledReactChannel}/server.browser`,
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
@@ -292,23 +290,26 @@ export function createRSCAliases(
 
   if (isEdgeServer) {
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
-      alias[
-        'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
-      alias[
-        'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`
-    } else {
-      // x-ref: https://github.com/facebook/react/pull/25436
-      alias[
-        'react-dom$'
-      ] = `next/dist/compiled/react-dom${bundledReactChannel}/server-rendering-stub`
+      alias = Object.assign(alias, {
+        react$: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+        'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
+        'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
+        'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'next/dist/compiled/react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'next/dist/compiled/react-experimental/jsx-runtime$': `next/dist/compiled/react-experimental/jsx-runtime.react-server`,
+        'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+        'next/dist/compiled/react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+        'next/dist/compiled/react-experimental/jsx-dev-runtime$': `next/dist/compiled/react-experimental/jsx-dev-runtime.react-server`,
+        'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+        'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+        'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
+      })
     }
   }
 
   if (reactProductionProfiling) {
     alias[
-      'react-dom$'
+      'react-dom/client$'
     ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
@@ -375,6 +376,6 @@ function getBarrelOptimizationAliases(packages: string[]): CompilerAliases {
 }
 function getReactProfilingInProduction(): CompilerAliases {
   return {
-    'react-dom$': 'react-dom/profiling',
+    'react-dom/client$': 'react-dom/profiling',
   }
 }

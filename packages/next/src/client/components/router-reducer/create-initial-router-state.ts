@@ -47,7 +47,6 @@ export function createInitialRouterState({
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
     lazyDataResolved: false,
     loading: initialSeedData[3],
-    error: initialSeedData[4],
   }
 
   const canonicalUrl =

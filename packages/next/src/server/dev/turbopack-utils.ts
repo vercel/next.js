@@ -32,6 +32,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import type ws from 'next/dist/compiled/ws'
+import isInternal from '../../shared/lib/is-internal'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -61,10 +62,29 @@ export function isWellKnownError(issue: Issue): boolean {
   return false
 }
 
+const onceErrorSet = new Set()
+/**
+ * Check if given issue is a warning to be display only once.
+ * This miimics behavior of get-page-static-info's warnOnce.
+ * @param issue
+ * @returns
+ */
+function shouldEmitOnceWarning(issue: Issue): boolean {
+  const { severity, title } = issue
+  if (severity === 'warning' && title.value === 'Invalid page configuration') {
+    if (onceErrorSet.has(issue)) {
+      return false
+    }
+    onceErrorSet.add(issue)
+  }
+
+  return true
+}
+
 /// Print out an issue to the console which should not block
 /// the build by throwing out or blocking error overlay.
 export function printNonFatalIssue(issue: Issue) {
-  if (isRelevantWarning(issue)) {
+  if (isRelevantWarning(issue) && shouldEmitOnceWarning(issue)) {
     Log.warn(formatIssue(issue))
   }
 }
@@ -115,7 +135,12 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (source?.range && source.source.content) {
+  if (
+    source?.range &&
+    source.source.content &&
+    // ignore Next.js/React internals, as these can often be huge bundled files.
+    !isInternal(filePath)
+  ) {
     const { start, end } = source.range
     const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
 

@@ -9,13 +9,14 @@ import type { FetchMetric } from '../base-http'
 
 export type StaticGenerationContext = {
   urlPathname: string
+  requestEndedState?: { ended?: boolean }
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isServerAction?: boolean
     waitUntil?: Promise<any>
-    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+    experimental?: Pick<RenderOptsPartial['experimental'], 'isRoutePPREnabled'>
 
     /**
      * Fetch metrics attached in patch-fetch.ts
@@ -50,7 +51,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { urlPathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts, requestEndedState }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -76,7 +77,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       !renderOpts.isServerAction
 
     const prerenderState: StaticGenerationStore['prerenderState'] =
-      isStaticGeneration && renderOpts.experimental.ppr
+      isStaticGeneration && renderOpts.experimental?.isRoutePPREnabled
         ? createPrerenderState(renderOpts.isDebugPPRSkeleton)
         : null
 
@@ -96,6 +97,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isDraftMode: renderOpts.isDraftMode,
 
       prerenderState,
+      requestEndedState,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

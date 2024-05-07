@@ -1,4 +1,5 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { IncrementalCacheValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import {
@@ -125,10 +126,16 @@ export default class FetchCache implements CacheHandler {
     memoryCache?.reset()
   }
 
-  public async revalidateTag(tag: string) {
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
+    tags = typeof tags === 'string' ? [tags] : tags
     if (this.debug) {
-      console.log('revalidateTag', tag)
+      console.log('revalidateTag', tags)
     }
+
+    if (!tags.length) return
 
     if (Date.now() < rateLimitedUntil) {
       if (this.debug) {
@@ -139,9 +146,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${
-          this.cacheEndpoint
-        }/v1/suspense-cache/revalidate?tags=${encodeURIComponent(tag)}`,
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
+          .map((tag) => encodeURIComponent(tag))
+          .join(',')}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -159,7 +166,7 @@ export default class FetchCache implements CacheHandler {
         throw new Error(`Request failed with status ${res.status}.`)
       }
     } catch (err) {
-      console.warn(`Failed to revalidate tag ${tag}`, err)
+      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 
@@ -233,19 +240,19 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached = await res.json()
+        const cached: IncrementalCacheValue = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          throw new Error('invalid cache value')
         }
 
         // if new tags were specified, merge those tags to the existing tags
         if (cached.kind === 'FETCH') {
           cached.tags ??= []
           for (const tag of tags ?? []) {
-            if (!cached.tags.include(tag)) {
-              cached.tag.push(tag)
+            if (!cached.tags.includes(tag)) {
+              cached.tags.push(tag)
             }
           }
         }

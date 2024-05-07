@@ -8,7 +8,7 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
-use crate::next_config::{CrossOriginConfig, Rewrites};
+use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -44,30 +44,20 @@ impl Default for MiddlewaresManifest {
     }
 }
 
-#[derive(Serialize, Debug)]
-#[serde(tag = "type", rename_all = "kebab-case")]
-pub enum RouteHas {
-    Header {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Cookie {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Query {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Host {
-        value: String,
-    },
-}
-
-#[derive(Serialize, Default, Debug)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Default,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct MiddlewareMatcher {
     // When skipped next.js with fill that during merging.

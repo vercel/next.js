@@ -9,6 +9,7 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../../server/app-render/types'
+import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
@@ -33,6 +34,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -84,13 +86,21 @@ function walkAddRefetch(
   return treeToRecreate
 }
 
+const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
+  ReactDOM as any
+).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+
 // TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
 /**
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
-): ReturnType<typeof ReactDOM.findDOMNode> {
+  instance: React.ReactInstance | null | undefined
+): Element | Text | null {
+  // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
+  // We need to lazily reference it.
+  const internal_reactDOMfindDOMNode =
+    __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
   // Tree-shake for server bundle
   if (typeof window === 'undefined') return null
   // Only apply strict mode warning when not in production
@@ -103,12 +113,12 @@ function findDOMNode(
           originalConsoleError(...messages)
         }
       }
-      return ReactDOM.findDOMNode(instance)
+      return internal_reactDOMfindDOMNode(instance)
     } finally {
       console.error = originalConsoleError!
     }
   }
-  return ReactDOM.findDOMNode(instance)
+  return internal_reactDOMfindDOMNode(instance)
 }
 
 const rectProperties = [
@@ -357,7 +367,6 @@ function InnerLayoutRouter({
       parallelRoutes: new Map(),
       lazyDataResolved: false,
       loading: null,
-      error: null,
     }
 
     /**
@@ -408,10 +417,11 @@ function InnerLayoutRouter({
        */
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        context.nextUrl,
+        includeNextUrl ? context.nextUrl : null,
         buildId
       )
       childNode.lazyDataResolved = false
@@ -453,7 +463,6 @@ function InnerLayoutRouter({
         // TODO-APP: overriding of url for parallel routes
         url: url,
         loading: childNode.loading,
-        error: childNode.error,
       }}
     >
       {resolvedRsc}
@@ -508,6 +517,9 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
+  error,
+  errorStyles,
+  errorScripts,
   templateStyles,
   templateScripts,
   template,
@@ -517,6 +529,9 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
+  error: ErrorComponent | undefined
+  errorStyles: React.ReactNode | undefined
+  errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
@@ -529,7 +544,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url, loading, error } = context
+  const { childNodes, tree, url, loading } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -575,9 +590,9 @@ export default function OuterLayoutRouter({
             value={
               <ScrollAndFocusHandler segmentPath={segmentPath}>
                 <ErrorBoundary
-                  errorComponent={error?.[0]}
-                  errorStyles={error?.[1]}
-                  errorScripts={error?.[2]}
+                  errorComponent={error}
+                  errorStyles={errorStyles}
+                  errorScripts={errorScripts}
                 >
                   <LoadingBoundary
                     hasLoading={Boolean(loading)}

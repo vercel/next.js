@@ -414,6 +414,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeOrEdgeCompilation,
         distDir,
         pagesDir,
+        srcDir: path.dirname((appDir || pagesDir)!),
         cwd: dir,
         development: dev,
         hasReactRefresh: dev && isClient,
@@ -774,18 +775,15 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
-  // The `serverComponentsExternalPackages` should not conflict with
+  // The `serverExternalPackages` should not conflict with
   // the `transpilePackages`.
-  if (
-    config.experimental.serverComponentsExternalPackages &&
-    finalTranspilePackages
-  ) {
+  if (config.serverExternalPackages && finalTranspilePackages) {
     const externalPackageConflicts = finalTranspilePackages.filter((pkg) =>
-      config.experimental.serverComponentsExternalPackages?.includes(pkg)
+      config.serverExternalPackages?.includes(pkg)
     )
     if (externalPackageConflicts.length > 0) {
       throw new Error(
-        `The packages specified in the 'transpilePackages' conflict with the 'serverComponentsExternalPackages': ${externalPackageConflicts.join(
+        `The packages specified in the 'transpilePackages' conflict with the 'serverExternalPackages': ${externalPackageConflicts.join(
           ', '
         )}`
       )
@@ -794,7 +792,7 @@ export default async function getBaseWebpackConfig(
 
   // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
-    ...(config.experimental.serverComponentsExternalPackages || [])
+    ...(config.serverExternalPackages || [])
   ).filter((pkg) => !finalTranspilePackages?.includes(pkg))
   // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
@@ -819,6 +817,7 @@ export default async function getBaseWebpackConfig(
   const shouldIncludeExternalDirs =
     config.experimental.externalDir || !!config.transpilePackages
 
+  const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -839,6 +838,8 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
+
+  const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1326,7 +1327,7 @@ export default async function getBaseWebpackConfig(
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
                   and: [
-                    codeCondition.test,
+                    aliasCodeConditionTest,
                     {
                       not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                     },
@@ -1388,7 +1389,7 @@ export default async function getBaseWebpackConfig(
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
                       and: [
-                        codeCondition.test,
+                        aliasCodeConditionTest,
                         {
                           not: [optOutBundlingPackageRegex, asyncStoragesRegex],
                         },
@@ -1405,7 +1406,7 @@ export default async function getBaseWebpackConfig(
                     },
                   },
                   {
-                    test: codeCondition.test,
+                    test: aliasCodeConditionTest,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     resolve: {
                       alias: createRSCAliases(bundledReactChannel, {
@@ -1418,7 +1419,7 @@ export default async function getBaseWebpackConfig(
                 ],
               },
               {
-                test: codeCondition.test,
+                test: aliasCodeConditionTest,
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 resolve: {
                   alias: createRSCAliases(bundledReactChannel, {
@@ -1679,6 +1680,13 @@ export default async function getBaseWebpackConfig(
             ]
           },
         },
+        {
+          resolve: {
+            alias: {
+              next: NEXT_PROJECT_ROOT,
+            },
+          },
+        },
       ],
     },
     plugins: [
@@ -1759,6 +1767,8 @@ export default async function getBaseWebpackConfig(
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
+            flyingShuttle: !!config.experimental.flyingShuttle,
+            compilerType,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files

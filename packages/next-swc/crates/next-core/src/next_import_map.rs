@@ -45,11 +45,12 @@ use crate::{
 /// This is not identical to the list of entire node.js internals, refer
 /// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 /// for the allowed imports.
-const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 43] = [
+const EDGE_UNSUPPORTED_NODE_INTERNALS: [&str; 44] = [
     "child_process",
     "cluster",
     "console",
     "constants",
+    "crypto",
     "dgram",
     "diagnostics_channel",
     "dns",
@@ -727,16 +728,21 @@ async fn rsc_aliases(
         }
     }
 
-    if runtime == NextRuntime::Edge {
-        if matches!(ty, ServerContextType::AppRSC { .. }) {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
-        } else {
-            // x-ref: https://github.com/facebook/react/pull/25436
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
-        }
+    if runtime == NextRuntime::Edge && ty.supports_react_server() {
+        alias.extend(indexmap! {
+            "react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
+            "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
+            "next/dist/compiled/react-experimental" =>  format!("next/dist/compiled/react-experimental/react.react-server"),
+            "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "next/dist/compiled/react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "next/dist/compiled/react-experimental/jsx-runtime" => format!("next/dist/compiled/react-experimental/jsx-runtime.react-server"),
+            "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
+            "next/dist/compiled/react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
+            "next/dist/compiled/react-experimental/jsx-dev-runtime" => format!("next/dist/compiled/react-experimental/jsx-dev-runtime.react-server"),
+            "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
+            "next/dist/compiled/react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
+            "next/dist/compiled/react-dom-experimental" => format!("next/dist/compiled/react-dom-experimental/react-dom.react-server"),
+        })
     }
 
     insert_exact_alias_map(import_map, project_path, alias);
@@ -783,7 +789,7 @@ async fn insert_next_shared_aliases(
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
-    if *next_config.mdx_rs().await? {
+    if next_config.mdx_rs().await?.is_some() {
         insert_alias_to_alternatives(
             import_map,
             mdx_import_source_file(),
