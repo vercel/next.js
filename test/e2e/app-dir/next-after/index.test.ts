@@ -209,7 +209,14 @@ describe('unstable_after()', () => {
     })
   }
 
-  it.todo('runs in getMetadata()')
+  it('runs in generateMetadata()', async () => {
+    await next.browser('/123/with-metadata')
+    expect(getLogs()).toContainEqual({
+      source: '[metadata] /[id]/with-metadata',
+      value: '123',
+    })
+  })
+
   it.todo('does not allow modifying cookies')
   it.todo('errors when used in client modules')
   it.todo('errors when used in pages dir')
