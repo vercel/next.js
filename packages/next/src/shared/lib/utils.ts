@@ -9,6 +9,11 @@ import type { PreviewData } from '../../types'
 import type { COMPILER_NAMES } from './constants'
 import type fs from 'fs'
 
+export type GetInitialProps<
+  Context extends BaseContext = NextPageContext,
+  InitialProps = {}
+> = (context: Context) => InitialProps | Promise<InitialProps>
+
 export type NextComponentType<
   Context extends BaseContext = NextPageContext,
   InitialProps = {},
@@ -19,7 +24,15 @@ export type NextComponentType<
    * Make sure to return plain `Object` without using `Date`, `Map`, `Set`.
    * @param context Context of `page`
    */
-  getInitialProps?(context: Context): InitialProps | Promise<InitialProps>
+  getInitialProps?: GetInitialProps<Context, InitialProps>
+
+  /**
+   * The default implementation of getInitialProps. It's used to compare with
+   * the `App.getInitialProps` method.
+   *
+   * @internal - This is a internal variable for Next.js and should not be used directly
+   */
+  origGetInitialProps?: GetInitialProps<Context, InitialProps>
 }
 
 export type DocumentType = NextComponentType<
@@ -161,11 +174,11 @@ export interface NextPageContext {
   AppTree: AppTreeType
 }
 
-export type AppContextType<Router extends NextRouter = NextRouter> = {
+export type AppContextType<R extends NextRouter = NextRouter> = {
   Component: NextComponentType<NextPageContext>
   AppTree: AppTreeType
   ctx: NextPageContext
-  router: Router
+  router: R
 }
 
 export type AppInitialProps<PageProps = any> = {
@@ -173,11 +186,11 @@ export type AppInitialProps<PageProps = any> = {
 }
 
 export type AppPropsType<
-  Router extends NextRouter = NextRouter,
+  R extends NextRouter = NextRouter,
   PageProps = {}
 > = AppInitialProps<PageProps> & {
   Component: NextComponentType<NextPageContext, any, any>
-  router: Router
+  router: R
   __N_SSG?: boolean
   __N_SSP?: boolean
 }

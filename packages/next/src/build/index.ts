@@ -1872,7 +1872,6 @@ export default async function build(
                 page: '/_error',
                 distDir,
                 runtimeEnvConfig,
-                checkingApp: false,
               }))
           )
 
@@ -1893,18 +1892,15 @@ export default async function build(
             })
         )
 
-        const appPageToCheck = '/_app'
-
         const customAppGetInitialPropsPromise =
           pagesStaticWorkers.hasCustomGetInitialProps({
-            page: appPageToCheck,
+            page: '/_app',
             distDir,
             runtimeEnvConfig,
-            checkingApp: true,
           })
 
         const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports({
-          page: appPageToCheck,
+          page: '/_app',
           distDir,
           runtimeEnvConfig,
         })

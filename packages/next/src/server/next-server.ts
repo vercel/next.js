@@ -24,6 +24,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { AppPageModule } from './future/route-modules/app-page/module'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -290,7 +291,11 @@ export default class NextNodeServer extends BaseServer<
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+      await loadComponents<AppPageModule>({
+        distDir: this.distDir,
+        page,
+        isAppPath: true,
+      })
         .then(async ({ ComponentMod }) => {
           const webpackRequire = ComponentMod.__next_app__.require
           if (webpackRequire?.m) {

@@ -21,6 +21,7 @@ import type {
 } from './webpack/plugins/middleware-plugin'
 import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/future/route-modules/app-page/module'
+import type { AppRouteModule } from '../server/future/route-modules/app-route/module'
 import type { RouteModule } from '../server/future/route-modules/route-module'
 import type { LoaderTree } from '../server/lib/app-dir-module'
 import type { NextComponentType } from '../shared/lib/utils'
@@ -1345,7 +1346,7 @@ export async function buildAppStaticPaths({
   cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  ComponentMod: AppPageModule
+  ComponentMod: AppPageModule | AppRouteModule
 }) {
   ComponentMod.patchFetch()
 
@@ -1813,29 +1814,22 @@ export async function hasCustomGetInitialProps({
   page,
   distDir,
   runtimeEnvConfig,
-  checkingApp,
 }: {
   page: string
   distDir: string
   runtimeEnvConfig: any
-  checkingApp: boolean
 }): Promise<boolean> {
   require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents({
+  const {
+    Component: { getInitialProps, origGetInitialProps },
+  } = await loadComponents({
     distDir,
     page: page,
     isAppPath: false,
   })
-  let mod = components.ComponentMod
 
-  if (checkingApp) {
-    mod = (await mod._app) || mod.default || mod
-  } else {
-    mod = mod.default || mod
-  }
-  mod = await mod
-  return mod.getInitialProps !== mod.origGetInitialProps
+  return getInitialProps !== origGetInitialProps
 }
 
 export async function getDefinedNamedExports({
@@ -1854,7 +1848,11 @@ export async function getDefinedNamedExports({
     isAppPath: false,
   })
 
-  return Object.keys(components.ComponentMod).filter((key) => {
+  return (
+    Object.keys(components.ComponentMod) as Array<
+      keyof typeof components.ComponentMod
+    >
+  ).filter((key) => {
     return typeof components.ComponentMod[key] !== 'undefined'
   })
 }

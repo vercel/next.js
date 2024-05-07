@@ -13,6 +13,14 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import { isAppRouteRouteModule } from '../future/route-modules/checks'
+import type {
+  AppPageModule,
+  AppPageRouteModule,
+} from '../future/route-modules/app-page/module.compiled'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../future/route-modules/app-route/module.compiled'
 
 type RuntimeConfig = {
   configFileName: string
@@ -80,21 +88,25 @@ export async function loadStaticPaths({
   }
 
   if (isAppPath) {
-    const { routeModule } = components
-    const generateParams: GenerateParamsResults =
-      routeModule && isAppRouteRouteModule(routeModule)
-        ? [
-            {
-              config: {
-                revalidate: routeModule.userland.revalidate,
-                dynamic: routeModule.userland.dynamic,
-                dynamicParams: routeModule.userland.dynamicParams,
-              },
-              generateStaticParams: routeModule.userland.generateStaticParams,
-              segmentPath: pathname,
+    // TODO: constrain loaded types here automatically with `loadComponents` based on `isAppPath`
+    const routeModule = components.routeModule as
+      | AppPageRouteModule
+      | AppRouteRouteModule
+    const generateParams: GenerateParamsResults = isAppRouteRouteModule(
+      routeModule
+    )
+      ? [
+          {
+            config: {
+              revalidate: routeModule.userland.revalidate,
+              dynamic: routeModule.userland.dynamic,
+              dynamicParams: routeModule.userland.dynamicParams,
             },
-          ]
-        : await collectGenerateParams(components.ComponentMod.tree)
+            generateStaticParams: routeModule.userland.generateStaticParams,
+            segmentPath: pathname,
+          },
+        ]
+      : await collectGenerateParams(routeModule.userland.loaderTree)
 
     return await buildAppStaticPaths({
       dir,
@@ -107,7 +119,7 @@ export async function loadStaticPaths({
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
-      ComponentMod: components.ComponentMod,
+      ComponentMod: components.ComponentMod as AppPageModule | AppRouteModule,
     })
   }
 

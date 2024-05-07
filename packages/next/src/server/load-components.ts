@@ -13,6 +13,8 @@ import type {
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import type { NextComponentModule } from '../build/templates/types'
 
 import {
   BUILD_MANIFEST,
@@ -30,7 +32,10 @@ import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
-import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import {
+  isPagesAPIRouteModule,
+  isPagesRouteModule,
+} from './future/route-modules/checks'
 
 export type ManifestItem = {
   id: number | string
@@ -121,7 +126,9 @@ async function loadClientReferenceManifest(
   }
 }
 
-async function loadComponentsImpl<N = any>({
+async function loadComponentsImpl<
+  N extends NextComponentModule = NextComponentModule
+>({
   distDir,
   page,
   isAppPath,
@@ -186,14 +193,25 @@ async function loadComponentsImpl<N = any>({
     })
   }
 
-  const ComponentMod = await requirePage(page, distDir, isAppPath)
+  const ComponentMod: N = await requirePage(page, distDir, isAppPath)
+  const { routeModule } = ComponentMod
+
+  let pageConfig: PageConfig = {}
+  let getServerSideProps: GetServerSideProps | undefined
+  let getStaticProps: GetStaticProps | undefined
+  let getStaticPaths: GetStaticPaths | undefined
+  if (isPagesRouteModule(routeModule)) {
+    pageConfig = routeModule.userland.config ?? {}
+    getServerSideProps = routeModule.userland.getServerSideProps
+    getStaticProps = routeModule.userland.getStaticProps
+    getStaticPaths = routeModule.userland.getStaticPaths
+  } else if (isPagesAPIRouteModule(routeModule)) {
+    pageConfig = routeModule.userland.config ?? {}
+  }
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
   const App = interopDefault(AppMod)
-
-  const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
-    ComponentMod
 
   return {
     App,
@@ -201,7 +219,7 @@ async function loadComponentsImpl<N = any>({
     Component,
     buildManifest,
     reactLoadableManifest,
-    pageConfig: ComponentMod.config || {},
+    pageConfig,
     ComponentMod,
     getServerSideProps,
     getStaticProps,
