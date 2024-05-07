@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { getRedboxDescription, hasRedbox, retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -23,29 +23,21 @@ describe('unstable_after()', () => {
 
   it('runs in dynamic pages', async () => {
     await next.render('/123/dynamic')
-    await check(
-      () => {
-        expect(getLogs()).toContainEqual({
-          source: '[page] /[id]/dynamic',
-          value: '123',
-        })
-      },
-      undefined,
-      true
-    )
+    await retry(() => {
+      expect(getLogs()).toContainEqual({
+        source: '[page] /[id]/dynamic',
+        value: '123',
+      })
+    })
     expect(getLogs()).toContainEqual({ source: '[layout] /[id]' })
   })
 
   it('runs in dynamic route handlers', async () => {
     const res = await next.fetch('/route')
     expect(res.status).toBe(200)
-    await check(
-      () => {
-        expect(getLogs()).toContainEqual({ source: '[route handler] /route' })
-      },
-      undefined,
-      true
-    )
+    await retry(() => {
+      expect(getLogs()).toContainEqual({ source: '[route handler] /route' })
+    })
   })
 
   it('runs in server actions', async () => {
@@ -55,16 +47,12 @@ describe('unstable_after()', () => {
     })
     await browser.elementByCss('button[type="submit"]').click()
 
-    await check(
-      () => {
-        expect(getLogs()).toContainEqual({
-          source: '[action] /[id]/with-action',
-          value: '123',
-        })
-      },
-      undefined,
-      true
-    )
+    await retry(() => {
+      expect(getLogs()).toContainEqual({
+        source: '[action] /[id]/with-action',
+        value: '123',
+      })
+    })
     // TODO: server seems to close before the response fully returns?
   })
 
@@ -140,17 +128,13 @@ describe('unstable_after()', () => {
 
     expect(res.status).toBe(200)
     const cliLogs = Log.readCliLogs(next.cliOutput)
-    await check(
-      () => {
-        expect(cliLogs).toContainEqual({
-          source: '[middleware] /middleware/redirect',
-          requestId,
-          cookies: { testCookie: 'testValue' },
-        })
-      },
-      undefined,
-      true
-    )
+    await retry(() => {
+      expect(cliLogs).toContainEqual({
+        source: '[middleware] /middleware/redirect',
+        requestId,
+        cookies: { testCookie: 'testValue' },
+      })
+    })
   })
 
   if (!isNextDeploy) {
@@ -211,18 +195,14 @@ describe('unstable_after()', () => {
         await pendingReq.then((res) => res.text())
 
         // the request is finished, so after() should run, and the logs should appear now.
-        await check(
-          () => {
-            expect(getLogs()).toContainEqual({
-              source: '[page] /delay (Page)',
-            })
-            expect(getLogs()).toContainEqual({
-              source: '[page] /delay (Inner)',
-            })
-          },
-          undefined,
-          true
-        )
+        await retry(() => {
+          expect(getLogs()).toContainEqual({
+            source: '[page] /delay (Page)',
+          })
+          expect(getLogs()).toContainEqual({
+            source: '[page] /delay (Inner)',
+          })
+        })
       } finally {
         proxyServer.close()
       }
