@@ -25,15 +25,6 @@ const externalPattern = new RegExp(
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
 
-function containsImportInPackages(
-  request: string,
-  packages: string[]
-): boolean {
-  return packages.some(
-    (pkg) => request === pkg || request.startsWith(pkg + '/')
-  )
-}
-
 export function isResourceInPackages(
   resource: string,
   packageNames?: string[],
