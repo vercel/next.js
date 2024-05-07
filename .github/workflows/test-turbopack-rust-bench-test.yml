@@ -32,6 +32,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           save-cache: true
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Setup Node.js
         uses: ./.github/actions/setup-node
