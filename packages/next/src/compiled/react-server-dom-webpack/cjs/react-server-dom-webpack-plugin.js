@@ -1,24 +1,399 @@
-/*
- React
- react-server-dom-webpack-plugin.js
+/**
+ * @license React
+ * react-server-dom-webpack-plugin.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
 
- Copyright (c) Meta Platforms, Inc. and affiliates.
-
- This source code is licensed under the MIT license found in the
- LICENSE file in the root directory of this source tree.
-*/
-'use strict';var w=require("path"),x=require("url"),y=require("neo-async"),z=require("acorn-loose"),B=require("webpack/lib/dependencies/ModuleDependency"),C=require("webpack/lib/dependencies/NullDependency"),D=require("webpack/lib/Template"),E=require("webpack");
-function F(a,g){if(a){if("string"===typeof a)return G(a,g);var c=Object.prototype.toString.call(a).slice(8,-1);"Object"===c&&a.constructor&&(c=a.constructor.name);if("Map"===c||"Set"===c)return Array.from(a);if("Arguments"===c||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(c))return G(a,g)}}function G(a,g){if(null==g||g>a.length)g=a.length;for(var c=0,n=Array(g);c<g;c++)n[c]=a[c];return n}
-function H(a,g){var c;if("undefined"===typeof Symbol||null==a[Symbol.iterator]){if(Array.isArray(a)||(c=F(a))||g&&a&&"number"===typeof a.length){c&&(a=c);var n=0;g=function(){};return{s:g,n:function(){return n>=a.length?{done:!0}:{done:!1,value:a[n++]}},e:function(b){throw b;},f:g}}throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");}var d=!0,e=!1,p;return{s:function(){c=a[Symbol.iterator]()},
-n:function(){var b=c.next();d=b.done;return b},e:function(b){e=!0;p=b},f:function(){try{d||null==c.return||c.return()}finally{if(e)throw p;}}}}const I=Array.isArray;class J extends B{constructor(a){super(a)}get type(){return"client-reference"}}const K=require.resolve("../client.browser.js");
-class L{constructor(a){this.ssrManifestFilename=this.clientManifestFilename=this.chunkName=this.clientReferences=void 0;if(!a||"boolean"!==typeof a.isServer)throw Error("React Server Plugin: You must specify the isServer option as a boolean.");if(a.isServer)throw Error("TODO: Implement the server compiler.");a.clientReferences?"string"!==typeof a.clientReferences&&I(a.clientReferences)?this.clientReferences=a.clientReferences:this.clientReferences=[a.clientReferences]:this.clientReferences=[{directory:".",
-recursive:!0,include:/\.(js|ts|jsx|tsx)$/}];"string"===typeof a.chunkName?(this.chunkName=a.chunkName,/\[(index|request)\]/.test(this.chunkName)||(this.chunkName+="[index]")):this.chunkName="client[index]";this.clientManifestFilename=a.clientManifestFilename||"react-client-manifest.json";this.ssrManifestFilename=a.ssrManifestFilename||"react-ssr-manifest.json"}apply(a){const g=this;let c,n=!1;a.hooks.beforeCompile.tapAsync("React Server Plugin",(d,e)=>{d=d.contextModuleFactory;const p=a.resolverFactory.get("context",
-{}),b=a.resolverFactory.get("normal");g.resolveAllClientFiles(a.context,p,b,a.inputFileSystem,d,function(f,h){f?e(f):(c=h,e())})});a.hooks.thisCompilation.tap("React Server Plugin",(d,e)=>{e=e.normalModuleFactory;d.dependencyFactories.set(J,e);d.dependencyTemplates.set(J,new C.Template);d=p=>{p.hooks.program.tap("React Server Plugin",()=>{const b=p.state.module;if(b.resource===K&&(n=!0,c))for(let h=0;h<c.length;h++){const t=c[h];var f=g.chunkName.replace(/\[index\]/g,""+h).replace(/\[request\]/g,
-D.toPath(t.userRequest));f=new E.AsyncDependenciesBlock({name:f},null,t.request);f.addDependency(t);b.addBlock(f)}})};e.hooks.parser.for("javascript/auto").tap("HarmonyModulesPlugin",d);e.hooks.parser.for("javascript/esm").tap("HarmonyModulesPlugin",d);e.hooks.parser.for("javascript/dynamic").tap("HarmonyModulesPlugin",d)});a.hooks.make.tap("React Server Plugin",d=>{d.hooks.processAssets.tap({name:"React Server Plugin",stage:E.Compilation.PROCESS_ASSETS_STAGE_REPORT},function(){if(!1===n)d.warnings.push(new E.WebpackError("Client runtime at react-server-dom-webpack/client was not found. React Server Components module map file "+
-g.clientManifestFilename+" was not created."));else{var e=d.outputOptions.crossOriginLoading;e="string"===typeof e?"use-credentials"===e?e:"anonymous":null;var p=new Set((c||[]).map(m=>m.request)),b={},f={};e={moduleLoading:{prefix:d.outputOptions.publicPath||"",crossOrigin:e},moduleMap:f};var h=new Set;d.entrypoints.forEach(m=>{(m=m.getRuntimeChunk())&&m.files.forEach(v=>{h.add(v)})});d.chunkGroups.forEach(function(m){function v(k,l){if(p.has(l.resource)&&(l=x.pathToFileURL(l.resource).href,void 0!==
-l)){const q={};b[l]={id:k,chunks:u,name:"*"};q["*"]={specifier:l,name:"*"};f[k]=q}}const u=[];m.chunks.forEach(function(k){var l=H(k.files),q;try{for(l.s();!(q=l.n()).done;){const r=q.value;if(!r.endsWith(".js"))break;if(r.endsWith(".hot-update.js"))break;u.push(k.id,r);break}}catch(r){l.e(r)}finally{l.f()}});m.chunks.forEach(function(k){k=d.chunkGraph.getChunkModulesIterable(k);Array.from(k).forEach(function(l){const q=d.chunkGraph.getModuleId(l);v(q,l);l.modules&&l.modules.forEach(r=>{v(q,r)})})})});
-var t=JSON.stringify(b,null,2);d.emitAsset(g.clientManifestFilename,new E.sources.RawSource(t,!1));e=JSON.stringify(e,null,2);d.emitAsset(g.ssrManifestFilename,new E.sources.RawSource(e,!1))}})})}resolveAllClientFiles(a,g,c,n,d,e){function p(b){if(-1===b.indexOf("use client"))return!1;let f;try{f=z.parse(b,{ecmaVersion:"2024",sourceType:"module"}).body}catch(h){return!1}for(b=0;b<f.length;b++){const h=f[b];if("ExpressionStatement"!==h.type||!h.directive)break;if("use client"===h.directive)return!0}return!1}
-y.map(this.clientReferences,(b,f)=>{"string"===typeof b?f(null,[new J(b)]):g.resolve({},a,b.directory,{},(h,t)=>{if(h)return f(h);d.resolveDependencies(n,{resource:t,resourceQuery:"",recursive:void 0===b.recursive?!0:b.recursive,regExp:b.include,include:void 0,exclude:b.exclude},(m,v)=>{if(m)return f(m);m=v.map(u=>{var k=w.join(t,u.userRequest);k=new J(k);k.userRequest=u.userRequest;return k});y.filter(m,(u,k)=>{c.resolve({},a,u.request,{},(l,q)=>{if(l||"string"!==typeof q)return k(null,!1);n.readFile(q,
-"utf-8",(r,A)=>{if(r||"string"!==typeof A)return k(null,!1);r=p(A);k(null,r)})})},f)})})},(b,f)=>{if(b)return e(b);b=[];for(let h=0;h<f.length;h++)b.push.apply(b,f[h]);e(null,b)})}}module.exports=L;
-
-//# sourceMappingURL=react-server-dom-webpack-plugin.js.map
+"use strict";
+var path = require("path"),
+  url = require("url"),
+  asyncLib = require("neo-async"),
+  acorn = require("acorn-loose"),
+  ModuleDependency = require("webpack/lib/dependencies/ModuleDependency"),
+  NullDependency = require("webpack/lib/dependencies/NullDependency"),
+  Template = require("webpack/lib/Template"),
+  webpack = require("webpack");
+function _unsupportedIterableToArray(o, minLen) {
+  if (o) {
+    if ("string" === typeof o) return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    "Object" === n && o.constructor && (n = o.constructor.name);
+    if ("Map" === n || "Set" === n) return Array.from(o);
+    if ("Arguments" === n || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n))
+      return _arrayLikeToArray(o, minLen);
+  }
+}
+function _arrayLikeToArray(arr, len) {
+  if (null == len || len > arr.length) len = arr.length;
+  for (var i = 0, arr2 = Array(len); i < len; i++) arr2[i] = arr[i];
+  return arr2;
+}
+function _createForOfIteratorHelper(o, allowArrayLike) {
+  var it;
+  if ("undefined" === typeof Symbol || null == o[Symbol.iterator]) {
+    if (
+      Array.isArray(o) ||
+      (it = _unsupportedIterableToArray(o)) ||
+      (allowArrayLike && o && "number" === typeof o.length)
+    ) {
+      it && (o = it);
+      var i = 0;
+      allowArrayLike = function () {};
+      return {
+        s: allowArrayLike,
+        n: function () {
+          return i >= o.length ? { done: !0 } : { done: !1, value: o[i++] };
+        },
+        e: function (e) {
+          throw e;
+        },
+        f: allowArrayLike
+      };
+    }
+    throw new TypeError(
+      "Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
+    );
+  }
+  var normalCompletion = !0,
+    didErr = !1,
+    err;
+  return {
+    s: function () {
+      it = o[Symbol.iterator]();
+    },
+    n: function () {
+      var step = it.next();
+      normalCompletion = step.done;
+      return step;
+    },
+    e: function (e) {
+      didErr = !0;
+      err = e;
+    },
+    f: function () {
+      try {
+        normalCompletion || null == it.return || it.return();
+      } finally {
+        if (didErr) throw err;
+      }
+    }
+  };
+}
+const isArrayImpl = Array.isArray;
+class ClientReferenceDependency extends ModuleDependency {
+  constructor(request) {
+    super(request);
+  }
+  get type() {
+    return "client-reference";
+  }
+}
+const clientFileName = require.resolve("../client.browser.js");
+class ReactFlightWebpackPlugin {
+  constructor(options) {
+    this.ssrManifestFilename =
+      this.clientManifestFilename =
+      this.chunkName =
+      this.clientReferences =
+        void 0;
+    if (!options || "boolean" !== typeof options.isServer)
+      throw Error(
+        "React Server Plugin: You must specify the isServer option as a boolean."
+      );
+    if (options.isServer) throw Error("TODO: Implement the server compiler.");
+    options.clientReferences
+      ? "string" !== typeof options.clientReferences &&
+        isArrayImpl(options.clientReferences)
+        ? (this.clientReferences = options.clientReferences)
+        : (this.clientReferences = [options.clientReferences])
+      : (this.clientReferences = [
+          { directory: ".", recursive: !0, include: /\.(js|ts|jsx|tsx)$/ }
+        ]);
+    "string" === typeof options.chunkName
+      ? ((this.chunkName = options.chunkName),
+        /\[(index|request)\]/.test(this.chunkName) ||
+          (this.chunkName += "[index]"))
+      : (this.chunkName = "client[index]");
+    this.clientManifestFilename =
+      options.clientManifestFilename || "react-client-manifest.json";
+    this.ssrManifestFilename =
+      options.ssrManifestFilename || "react-ssr-manifest.json";
+  }
+  apply(compiler) {
+    const _this = this;
+    let resolvedClientReferences,
+      clientFileNameFound = !1;
+    compiler.hooks.beforeCompile.tapAsync(
+      "React Server Plugin",
+      (_ref, callback) => {
+        _ref = _ref.contextModuleFactory;
+        const contextResolver = compiler.resolverFactory.get("context", {}),
+          normalResolver = compiler.resolverFactory.get("normal");
+        _this.resolveAllClientFiles(
+          compiler.context,
+          contextResolver,
+          normalResolver,
+          compiler.inputFileSystem,
+          _ref,
+          function (err, resolvedClientRefs) {
+            err
+              ? callback(err)
+              : ((resolvedClientReferences = resolvedClientRefs), callback());
+          }
+        );
+      }
+    );
+    compiler.hooks.thisCompilation.tap(
+      "React Server Plugin",
+      (compilation, _ref2) => {
+        _ref2 = _ref2.normalModuleFactory;
+        compilation.dependencyFactories.set(ClientReferenceDependency, _ref2);
+        compilation.dependencyTemplates.set(
+          ClientReferenceDependency,
+          new NullDependency.Template()
+        );
+        compilation = parser => {
+          parser.hooks.program.tap("React Server Plugin", () => {
+            const module = parser.state.module;
+            if (
+              module.resource === clientFileName &&
+              ((clientFileNameFound = !0), resolvedClientReferences)
+            )
+              for (let i = 0; i < resolvedClientReferences.length; i++) {
+                const dep = resolvedClientReferences[i];
+                var chunkName = _this.chunkName
+                  .replace(/\[index\]/g, "" + i)
+                  .replace(/\[request\]/g, Template.toPath(dep.userRequest));
+                chunkName = new webpack.AsyncDependenciesBlock(
+                  { name: chunkName },
+                  null,
+                  dep.request
+                );
+                chunkName.addDependency(dep);
+                module.addBlock(chunkName);
+              }
+          });
+        };
+        _ref2.hooks.parser
+          .for("javascript/auto")
+          .tap("HarmonyModulesPlugin", compilation);
+        _ref2.hooks.parser
+          .for("javascript/esm")
+          .tap("HarmonyModulesPlugin", compilation);
+        _ref2.hooks.parser
+          .for("javascript/dynamic")
+          .tap("HarmonyModulesPlugin", compilation);
+      }
+    );
+    compiler.hooks.make.tap("React Server Plugin", compilation => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: "React Server Plugin",
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT
+        },
+        function () {
+          if (!1 === clientFileNameFound)
+            compilation.warnings.push(
+              new webpack.WebpackError(
+                "Client runtime at react-server-dom-webpack/client was not found. React Server Components module map file " +
+                  _this.clientManifestFilename +
+                  " was not created."
+              )
+            );
+          else {
+            var configuredCrossOriginLoading =
+              compilation.outputOptions.crossOriginLoading;
+            configuredCrossOriginLoading =
+              "string" === typeof configuredCrossOriginLoading
+                ? "use-credentials" === configuredCrossOriginLoading
+                  ? configuredCrossOriginLoading
+                  : "anonymous"
+                : null;
+            var resolvedClientFiles = new Set(
+                (resolvedClientReferences || []).map(ref => ref.request)
+              ),
+              clientManifest = {},
+              moduleMap = {};
+            configuredCrossOriginLoading = {
+              moduleLoading: {
+                prefix: compilation.outputOptions.publicPath || "",
+                crossOrigin: configuredCrossOriginLoading
+              },
+              moduleMap
+            };
+            var runtimeChunkFiles = new Set();
+            compilation.entrypoints.forEach(entrypoint => {
+              (entrypoint = entrypoint.getRuntimeChunk()) &&
+                entrypoint.files.forEach(runtimeFile => {
+                  runtimeChunkFiles.add(runtimeFile);
+                });
+            });
+            compilation.chunkGroups.forEach(function (chunkGroup) {
+              function recordModule(id, module) {
+                if (
+                  resolvedClientFiles.has(module.resource) &&
+                  ((module = url.pathToFileURL(module.resource).href),
+                  void 0 !== module)
+                ) {
+                  const ssrExports = {};
+                  clientManifest[module] = { id, chunks, name: "*" };
+                  ssrExports["*"] = { specifier: module, name: "*" };
+                  moduleMap[id] = ssrExports;
+                }
+              }
+              const chunks = [];
+              chunkGroup.chunks.forEach(function (c) {
+                var _iterator = _createForOfIteratorHelper(c.files),
+                  _step;
+                try {
+                  for (_iterator.s(); !(_step = _iterator.n()).done; ) {
+                    const file = _step.value;
+                    if (!file.endsWith(".js")) break;
+                    if (file.endsWith(".hot-update.js")) break;
+                    chunks.push(c.id, file);
+                    break;
+                  }
+                } catch (err) {
+                  _iterator.e(err);
+                } finally {
+                  _iterator.f();
+                }
+              });
+              chunkGroup.chunks.forEach(function (chunk) {
+                chunk = compilation.chunkGraph.getChunkModulesIterable(chunk);
+                Array.from(chunk).forEach(function (module) {
+                  const moduleId = compilation.chunkGraph.getModuleId(module);
+                  recordModule(moduleId, module);
+                  module.modules &&
+                    module.modules.forEach(concatenatedMod => {
+                      recordModule(moduleId, concatenatedMod);
+                    });
+                });
+              });
+            });
+            var clientOutput = JSON.stringify(clientManifest, null, 2);
+            compilation.emitAsset(
+              _this.clientManifestFilename,
+              new webpack.sources.RawSource(clientOutput, !1)
+            );
+            configuredCrossOriginLoading = JSON.stringify(
+              configuredCrossOriginLoading,
+              null,
+              2
+            );
+            compilation.emitAsset(
+              _this.ssrManifestFilename,
+              new webpack.sources.RawSource(configuredCrossOriginLoading, !1)
+            );
+          }
+        }
+      );
+    });
+  }
+  resolveAllClientFiles(
+    context,
+    contextResolver,
+    normalResolver,
+    fs,
+    contextModuleFactory,
+    callback
+  ) {
+    function hasUseClientDirective(source) {
+      if (-1 === source.indexOf("use client")) return !1;
+      let body;
+      try {
+        body = acorn.parse(source, {
+          ecmaVersion: "2024",
+          sourceType: "module"
+        }).body;
+      } catch (x) {
+        return !1;
+      }
+      for (source = 0; source < body.length; source++) {
+        const node = body[source];
+        if ("ExpressionStatement" !== node.type || !node.directive) break;
+        if ("use client" === node.directive) return !0;
+      }
+      return !1;
+    }
+    asyncLib.map(
+      this.clientReferences,
+      (clientReferencePath, cb) => {
+        "string" === typeof clientReferencePath
+          ? cb(null, [new ClientReferenceDependency(clientReferencePath)])
+          : contextResolver.resolve(
+              {},
+              context,
+              clientReferencePath.directory,
+              {},
+              (err, resolvedDirectory) => {
+                if (err) return cb(err);
+                contextModuleFactory.resolveDependencies(
+                  fs,
+                  {
+                    resource: resolvedDirectory,
+                    resourceQuery: "",
+                    recursive:
+                      void 0 === clientReferencePath.recursive
+                        ? !0
+                        : clientReferencePath.recursive,
+                    regExp: clientReferencePath.include,
+                    include: void 0,
+                    exclude: clientReferencePath.exclude
+                  },
+                  (err2, deps) => {
+                    if (err2) return cb(err2);
+                    err2 = deps.map(dep => {
+                      var request = path.join(
+                        resolvedDirectory,
+                        dep.userRequest
+                      );
+                      request = new ClientReferenceDependency(request);
+                      request.userRequest = dep.userRequest;
+                      return request;
+                    });
+                    asyncLib.filter(
+                      err2,
+                      (clientRefDep, filterCb) => {
+                        normalResolver.resolve(
+                          {},
+                          context,
+                          clientRefDep.request,
+                          {},
+                          (err3, resolvedPath) => {
+                            if (err3 || "string" !== typeof resolvedPath)
+                              return filterCb(null, !1);
+                            fs.readFile(
+                              resolvedPath,
+                              "utf-8",
+                              (err4, content) => {
+                                if (err4 || "string" !== typeof content)
+                                  return filterCb(null, !1);
+                                err4 = hasUseClientDirective(content);
+                                filterCb(null, err4);
+                              }
+                            );
+                          }
+                        );
+                      },
+                      cb
+                    );
+                  }
+                );
+              }
+            );
+      },
+      (err, result) => {
+        if (err) return callback(err);
+        err = [];
+        for (let i = 0; i < result.length; i++) err.push.apply(err, result[i]);
+        callback(null, err);
+      }
+    );
+  }
+}
+module.exports = ReactFlightWebpackPlugin;
