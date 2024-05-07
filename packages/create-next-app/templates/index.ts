@@ -186,8 +186,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "^18",
-      "react-dom": "^18",
+      react: "19.0.0-beta-4508873393-20240430",
+      "react-dom": "19.0.0-beta-4508873393-20240430",
       next: version,
     },
     devDependencies: {},
@@ -201,8 +201,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: "^5",
       "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
+      "@types/react": "npm:types-react@beta",
+      "@types/react-dom": "npm:types-react-dom@beta",
     };
   }
 
