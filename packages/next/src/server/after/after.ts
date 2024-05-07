@@ -76,6 +76,7 @@ export function createAfterContext({
   const afterCallbacks: AfterCallback[] = []
   const addCallback = (callback: AfterCallback) => {
     if (afterCallbacks.length === 0) {
+      keepAliveLock.acquire()
       firstCallbackAdded.resolve()
     }
     afterCallbacks.push(callback)
@@ -87,8 +88,8 @@ export function createAfterContext({
   //    but we can't know that at the point where we call `onClose`.)
   // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
   const firstCallbackAdded = new DetachedPromise<void>()
-  const onCloseLazy: typeof onClose = (callback) => {
-    firstCallbackAdded.promise.then(() => onClose(callback))
+  const onCloseLazy = (callback: () => void): Promise<void> => {
+    return firstCallbackAdded.promise.then(() => onClose(callback))
   }
 
   const afterImpl = (task: AfterTask) => {
@@ -96,7 +97,6 @@ export function createAfterContext({
       task.catch(() => {}) // avoid unhandled rejection crashes
       waitUntil(task)
     } else if (typeof task === 'function') {
-      keepAliveLock.acquire()
       // TODO(after): will this trace correctly?
       addCallback(() => getTracer().trace(BaseServerSpan.after, () => task()))
     } else {
@@ -105,7 +105,7 @@ export function createAfterContext({
   }
 
   const runCallbacks = (requestStore: RequestStore) => {
-    if (!afterCallbacks.length) return
+    if (afterCallbacks.length === 0) return
 
     const runCallbacksImpl = () => {
       while (afterCallbacks.length) {
@@ -129,12 +129,14 @@ export function createAfterContext({
           onError(err)
         }
       }
+
+      keepAliveLock.release()
     }
 
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
-    requestAsyncStorage.run(readonlyRequestStore, () =>
+    return requestAsyncStorage.run(readonlyRequestStore, () =>
       cacheScope ? cacheScope.run(runCallbacksImpl) : runCallbacksImpl()
     )
   }
@@ -144,17 +146,24 @@ export function createAfterContext({
     after: afterImpl,
     run: async <T>(requestStore: RequestStore, callback: () => T) => {
       try {
-        const res = await (cacheScope
+        return await (cacheScope
           ? cacheScope.run(() => callback())
           : callback())
-
-        // NOTE: if the callback is doing streaming rendering, there may still be components that'll execute later,
-        // which means that more `after()` callbacks can be added after this point.
-        onCloseLazy(() => runCallbacks(requestStore))
-        return res
       } finally {
-        // if something failed, make sure the request doesn't stay open forever.
-        keepAliveLock.release()
+        // NOTE: it's likely that the callback is doing streaming rendering,
+        // which means that nothing actually happened yet,
+        // and we have to wait until the request closes to do anything.
+        // (this also means that this outer try-finally may not catch much).
+
+        // don't await -- it may never resolve if no callbacks are passed.
+        void onCloseLazy(() => runCallbacks(requestStore)).catch(
+          (err: unknown) => {
+            console.error(err)
+            // as a last resort -- if something fails here, something's probably broken really badly,
+            // so make sure we release the lock -- at least we'll avoid hanging a `waitUntil` forever.
+            keepAliveLock.release()
+          }
+        )
       }
     },
   }
