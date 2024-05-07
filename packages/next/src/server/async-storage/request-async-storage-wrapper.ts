@@ -24,7 +24,7 @@ import {
   createAfterContext,
   createDisabledAfterContext,
   type AfterContext,
-} from '../after/after'
+} from '../after'
 import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
