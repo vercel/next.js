@@ -312,6 +312,23 @@ pub async fn get_server_compile_time_info(
     .cell()
 }
 
+/// Determins if the module is an internal asset (i.e overlay, fallback) coming
+/// from the embedded FS, don't apply user defined transforms.
+///
+/// [TODO] turbopack specific embed fs should be handled by internals of
+/// turbopack itself and user config should not try to leak this. However,
+/// currently we apply few transform options subject to next.js's configuration
+/// even if it's embedded assets.
+fn internal_assets_conditions() -> ContextCondition {
+    ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root()),
+        ContextCondition::InPath(
+            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
+        ),
+        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+    ])
+}
+
 #[turbo_tasks::function]
 pub async fn get_server_module_options_context(
     project_path: Vc<FileSystemPath>,
@@ -485,7 +502,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -537,7 +554,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -604,7 +621,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -667,7 +684,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -714,7 +731,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
