@@ -13,7 +13,7 @@
 var util = require('util');
 var crypto = require('crypto');
 var async_hooks = require('async_hooks');
-var React = require("next/dist/compiled/react");
+var React = require('react');
 var ReactDOM = require('react-dom');
 
 var ReactVersion = '18.3.0-canary-c3048aab4-20240326';

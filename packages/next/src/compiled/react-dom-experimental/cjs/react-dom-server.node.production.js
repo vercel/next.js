@@ -13,7 +13,7 @@
 var util = require('util');
 var crypto = require('crypto');
 var async_hooks = require('async_hooks');
-var React = require("next/dist/compiled/react-experimental");
+var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
