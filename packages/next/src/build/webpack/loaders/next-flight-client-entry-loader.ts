@@ -65,13 +65,5 @@ export default function transformSource(
     type: RSC_MODULE_TYPES.client,
   }
 
-  const asyncModuleCode = `
-  function deps() {
-    ${code}
-  }
-
-  export const __client = deps()
-  `
-  return asyncModuleCode
-  // return code
+  return code
 }

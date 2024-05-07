@@ -79,13 +79,7 @@ export async function resolveExternal(
   let isEsm: boolean = false
 
   const preferEsmOptions =
-    esmExternals && isEsmRequested
-      ? // For package that marked as externals that should be not bundled,
-        // we don't resolve them as ESM since it could be resolved as async module,
-        // such as `import(external package)` in the bundle, valued as a `Promise`.
-        // && !containsImportInPackages(request, optOutBundlingPackages)
-        [true, false]
-      : [false]
+    esmExternals && isEsmRequested ? [true, false] : [false]
 
   for (const preferEsm of preferEsmOptions) {
     const resolveOptions = preferEsm ? esmResolveOptions : nodeResolveOptions
@@ -318,25 +312,6 @@ export function makeExternalHandler({
       )
     }
 
-    // Early return if the request needs to be bundled, such as in the client layer.
-    // Treat react packages and next internals as external for SSR layer,
-    // also map react to builtin ones with require-hook.
-    // Otherwise keep continue the process to resolve the externals.
-    // if (layer === WEBPACK_LAYERS.serverSideRendering) {
-    //   const isRelative = request.startsWith('.')
-    //   const fullRequest = isRelative
-    //     ? normalizePathSep(path.join(context, request))
-    //     : request
-
-    // //   // Check if it's opt out bundling package first
-    // //   if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
-    // //     return fullRequest
-    // //   }
-    //   const nextExternalRes = resolveNextExternal(res)
-    //   if (nextExternalRes) return nextExternalRes
-    //   return undefined
-    // }
-
     const externalType = isEsm ? 'module' : 'commonjs'
 
     // Default pages have to be transpiled
@@ -424,7 +399,7 @@ function resolveBundlingOptOutPackages({
       config.transpilePackages,
       resolvedExternalPackageDirs
     ) ||
-    // (isEsm && isAppLayer) ||
+    (isEsm && isAppLayer) ||
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
   if (nodeModulesRegex.test(resolvedRes)) {
