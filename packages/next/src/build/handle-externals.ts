@@ -416,7 +416,7 @@ function resolveBundlingOptOutPackages({
       resolvedExternalPackageDirs
     ) ||
     (isEsm && isAppLayer) ||
-    (!isAppLayer && config.experimental.bundlePagesExternals)
+    (!isAppLayer && config.bundlePagesRouterDependencies)
 
   if (nodeModulesRegex.test(resolvedRes)) {
     const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)

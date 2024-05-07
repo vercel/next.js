@@ -1,4 +1,3 @@
-declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 
 // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L320

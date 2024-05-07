@@ -1,7 +1,13 @@
 import { useEffect } from 'react'
-import { hydrationErrorState } from './hydration-error-info'
+import {
+  hydrationErrorState,
+  getReactHydrationDiffSegments,
+} from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
-import { isHydrationError } from '../../../is-hydration-error'
+import {
+  isHydrationError,
+  getDefaultHydrationErrorMessage,
+} from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -40,19 +46,36 @@ if (typeof window !== 'undefined') {
         'https://nextjs.org/docs/messages/react-hydration-error'
       )
     ) {
-      // If there's any extra information in the error message to display,
-      // append it to the error message details property
-      if (hydrationErrorState.warning) {
-        // The patched console.error found hydration errors logged by React
-        // Append the logged warning to the error message
-        ;(error as any).details = {
+      const reactHydrationDiffSegments = getReactHydrationDiffSegments(
+        error.message
+      )
+      let parsedHydrationErrorState: typeof hydrationErrorState = {}
+      if (reactHydrationDiffSegments) {
+        parsedHydrationErrorState = {
           ...(error as any).details,
-          // It contains the warning, component stack, server and client tag names
           ...hydrationErrorState,
+          warning: hydrationErrorState.warning || [
+            getDefaultHydrationErrorMessage(),
+          ],
+          notes: reactHydrationDiffSegments[0],
+          reactOutputComponentDiff: reactHydrationDiffSegments[1],
         }
+      } else {
+        // If there's any extra information in the error message to display,
+        // append it to the error message details property
+        if (hydrationErrorState.warning) {
+          // The patched console.error found hydration errors logged by React
+          // Append the logged warning to the error message
+          parsedHydrationErrorState = {
+            ...(error as any).details,
+            // It contains the warning, component stack, server and client tag names
+            ...hydrationErrorState,
+          }
+        }
+        error.message +=
+          '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
       }
-      error.message +=
-        '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
+      ;(error as any).details = parsedHydrationErrorState
     }
 
     // Only queue one hydration every time

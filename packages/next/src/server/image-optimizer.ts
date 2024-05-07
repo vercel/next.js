@@ -138,6 +138,9 @@ export function detectContentType(buffer: Buffer) {
   if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
     return SVG
   }
+  if ([0x3c, 0x73, 0x76, 0x67].every((b, i) => buffer[i] === b)) {
+    return SVG
+  }
   if (
     [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
       (b, i) => !b || buffer[i] === b
@@ -183,6 +186,10 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter is required' }
     } else if (Array.isArray(url)) {
       return { errorMessage: '"url" parameter cannot be an array' }
+    }
+
+    if (url.length > 3072) {
+      return { errorMessage: '"url" parameter is too long' }
     }
 
     let isAbsolute: boolean
