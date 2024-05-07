@@ -188,6 +188,10 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter cannot be an array' }
     }
 
+    if (url.length > 3072) {
+      return { errorMessage: '"url" parameter is too long' }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
