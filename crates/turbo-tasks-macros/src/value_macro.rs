@@ -1,9 +1,12 @@
+use std::sync::OnceLock;
+
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
-use quote::quote;
+use quote::{quote, ToTokens};
+use regex::Regex;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input,
+    parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Error, Fields, FieldsUnnamed, Generics, Item, ItemEnum, ItemStruct, Lit, LitStr, Meta,
@@ -189,7 +192,7 @@ impl Parse for ValueArguments {
 }
 
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as Item);
+    let mut item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
         into_mode,
@@ -197,6 +200,58 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         manual_eq,
         transparent,
     } = parse_macro_input!(args as ValueArguments);
+
+    let mut inner_type = None;
+    if transparent {
+        if let Item::Struct(ItemStruct {
+            attrs,
+            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
+            ..
+        }) = &mut item
+        {
+            if unnamed.len() == 1 {
+                let field = unnamed.iter().next().unwrap();
+                inner_type = Some(field.ty.clone());
+
+                // generate a type string to add to the docs
+                let inner_type_string = inner_type.to_token_stream().to_string();
+
+                // HACK: proc_macro2 inserts whitespace between every token. It's ugly, so
+                // remove it, assuming these whitespace aren't syntatically important. Using
+                // prettyplease (or similar) would be more correct, but slower and add another
+                // dependency.
+                static WHITESPACE_RE: OnceLock<Regex> = OnceLock::new();
+                // Remove whitespace, as long as there is a non-word character (e.g. `>` or `,`)
+                // on either side. Try not to remove whitespace between `dyn Trait`.
+                let whitespace_re = WHITESPACE_RE.get_or_init(|| {
+                    Regex::new(r"\b \B|\B \b|\B \B").expect("WHITESPACE_RE is valid")
+                });
+                let inner_type_string = whitespace_re.replace_all(&inner_type_string, "");
+
+                // Add a couple blank lines in case there's already a doc comment we're
+                // effectively appending to. If there's not, rustdoc will strip
+                // the leading whitespace.
+                let doc_str = format!(
+                    "\n\nThis is a [transparent value type][::turbo_tasks::value#transparent] \
+                     wrapping [`{}`].",
+                    inner_type_string,
+                );
+
+                attrs.push(parse_quote! {
+                    #[doc = #doc_str]
+                });
+            }
+        }
+        if inner_type.is_none() {
+            item.span()
+                .unwrap()
+                .error(
+                    "#[turbo_tasks::value(transparent)] is only valid with single-item unit \
+                     structs",
+                )
+                .emit();
+        }
+    }
 
     let ident = match &item {
         Item::Enum(ItemEnum { ident, .. }) => ident,
@@ -211,20 +266,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut inner_type = None;
-    if transparent {
-        if let Item::Struct(ItemStruct {
-            fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
-            ..
-        }) = &item
-        {
-            if unnamed.len() == 1 {
-                let field = unnamed.iter().next().unwrap();
-                inner_type = Some(&field.ty);
-            }
-        }
-    }
-
     let cell_mode = match cell_mode {
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
@@ -234,7 +275,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
-    let (cell_prefix, cell_access_content, read) = if let Some(inner_type) = inner_type {
+    let (cell_prefix, cell_access_content, read) = if let Some(inner_type) = &inner_type {
         (
             quote! { pub },
             quote! {

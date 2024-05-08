@@ -54,7 +54,7 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(transparent, serialization = "custom")]
+#[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
     source: String,
     map: Option<String>,
