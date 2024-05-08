@@ -14527,6 +14527,13 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/deterministic-build/index.test.ts": {
+      "passed": [],
+      "failed": ["deterministic build should have same md5 file across build"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/dynamic-css/index.test.ts": {
       "passed": [],
       "failed": [

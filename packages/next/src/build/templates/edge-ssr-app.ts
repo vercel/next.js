@@ -78,7 +78,7 @@ const render = getRender({
   serverActions: isServerComponent ? serverActions : undefined,
   subresourceIntegrityManifest,
   config: nextConfig,
-  buildId: 'VAR_BUILD_ID',
+  buildId: process.env.__NEXT_BUILD_ID!,
   nextFontManifest,
   incrementalCacheHandler,
   interceptionRouteRewrites,
