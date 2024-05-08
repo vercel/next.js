@@ -600,36 +600,32 @@ describe('Client Navigation', () => {
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
 
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
           await browser.elementByCss('#via-top-hash').click()
 
-          const scrollPositionAfterTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterTopHash).toBe(0)
 
@@ -672,9 +668,8 @@ describe('Client Navigation', () => {
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
         } finally {

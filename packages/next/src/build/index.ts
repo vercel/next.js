@@ -1397,6 +1397,9 @@ export default async function build(
             // TODO: Implement
             middlewareMatchers: undefined,
           }),
+          buildId: NextBuildContext.buildId!,
+          encryptionKey: NextBuildContext.encryptionKey!,
+          previewProps: NextBuildContext.previewProps!,
         })
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
@@ -1920,18 +1923,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
-        const middlewareManifest: MiddlewareManifest = require(path.join(
-          distDir,
-          SERVER_DIRECTORY,
-          MIDDLEWARE_MANIFEST
-        ))
+        const middlewareManifest: MiddlewareManifest = require(
+          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
+        )
 
         const actionManifest = appDir
-          ? (require(path.join(
-              distDir,
-              SERVER_DIRECTORY,
-              SERVER_REFERENCE_MANIFEST + '.json'
-            )) as ActionManifest)
+          ? (require(
+              path.join(
+                distDir,
+                SERVER_DIRECTORY,
+                SERVER_REFERENCE_MANIFEST + '.json'
+              )
+            ) as ActionManifest)
           : null
         const entriesWithAction = actionManifest ? new Set() : null
         if (actionManifest && entriesWithAction) {
@@ -2750,7 +2753,8 @@ export default async function build(
               },
             ]
 
-            routes.forEach((route) => {
+            // Always sort the routes to get consistent output in manifests
+            getSortedRoutes(routes).forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 
@@ -3296,8 +3300,8 @@ export default async function build(
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
               : ssgStaticFallbackPages.has(tbdRoute)
-              ? `${normalizedRoute}.html`
-              : false,
+                ? `${normalizedRoute}.html`
+                : false,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, ''),

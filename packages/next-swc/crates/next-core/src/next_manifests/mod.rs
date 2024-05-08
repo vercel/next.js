@@ -4,7 +4,7 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
@@ -88,6 +88,7 @@ pub struct EdgeFunctionDefinition {
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
+    pub env: IndexMap<String, String>,
 }
 
 #[derive(Serialize, Default, Debug)]

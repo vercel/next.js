@@ -39,24 +39,30 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let sharp: typeof import('sharp')
+let _sharp: typeof import('sharp')
 
-try {
-  sharp = require('sharp')
-  if (sharp && sharp.concurrency() > 1) {
-    // Reducing concurrency should reduce the memory usage too.
-    // We more aggressively reduce in dev but also reduce in prod.
-    // https://sharp.pixelplumbing.com/api-utility#concurrency
-    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+function getSharp() {
+  if (_sharp) {
+    return _sharp
   }
-} catch (e: unknown) {
-  if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
-    throw new Error(
-      'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
-    )
+  try {
+    _sharp = require('sharp')
+    if (_sharp && _sharp.concurrency() > 1) {
+      // Reducing concurrency should reduce the memory usage too.
+      // We more aggressively reduce in dev but also reduce in prod.
+      // https://sharp.pixelplumbing.com/api-utility#concurrency
+      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+      _sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+    }
+  } catch (e: unknown) {
+    if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
+      )
+    }
+    throw e
   }
-  throw e
+  return _sharp
 }
 
 export interface ImageParamsResult {
@@ -431,14 +437,10 @@ export async function optimizeImage({
   height?: number
   nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
-  let optimizedBuffer = buffer
-
-  // Begin sharp transformation logic
-  const transformer = sharp(buffer, {
-    sequentialRead: true,
-  })
-
-  transformer.rotate()
+  const sharp = getSharp()
+  const transformer = sharp(buffer, { sequentialRead: true })
+    .timeout({ seconds: 10 })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -462,7 +464,7 @@ export async function optimizeImage({
     transformer.jpeg({ quality, progressive: true })
   }
 
-  optimizedBuffer = await transformer.toBuffer()
+  const optimizedBuffer = await transformer.toBuffer()
 
   return optimizedBuffer
 }

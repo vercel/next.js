@@ -1155,7 +1155,6 @@ async function renderToHTMLOrFlightImpl(
                 if (!(resumeStream instanceof ReadableStream)) {
                   throw new Error("Invariant: stream wasn't a ReadableStream")
                 }
-
                 // First we write everything from the prerender, then we write everything from the aborted resume render
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
@@ -1283,8 +1282,8 @@ async function renderToHTMLOrFlightImpl(
         const errorType = is404
           ? 'not-found'
           : hasRedirectError
-          ? 'redirect'
-          : undefined
+            ? 'redirect'
+            : undefined
 
         const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
           buildManifest,

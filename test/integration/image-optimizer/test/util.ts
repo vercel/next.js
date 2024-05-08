@@ -168,9 +168,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${
-        slowImageServer.port
-      }/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },

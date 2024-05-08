@@ -1435,6 +1435,7 @@ export default class NextNodeServer extends BaseServer<
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
+    env: { [key: string]: string }
     assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
@@ -1476,6 +1477,7 @@ export default class NextNodeServer extends BaseServer<
             filePath: join(this.distDir, binding.filePath),
           }
         }),
+      env: pageInfo.env,
     }
   }
 
@@ -1805,8 +1807,8 @@ export default class NextNodeServer extends BaseServer<
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+          ? `https://${req.headers.host || 'localhost'}${req.url}`
+          : req.url
 
     const isRSC = isRSCRequestCheck(req)
     if (isRSC) {

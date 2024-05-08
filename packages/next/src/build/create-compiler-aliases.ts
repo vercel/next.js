@@ -310,14 +310,12 @@ export function createRSCAliases(
   }
 
   if (reactProductionProfiling) {
-    alias[
-      'react-dom/client$'
-    ] = `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
+    alias['react-dom/client$'] =
+      `next/dist/compiled/react-dom${bundledReactChannel}/profiling`
   }
 
-  alias[
-    '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
-  ] = `next/dist/client/dev/noop-turbopack-hmr`
+  alias['@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'] =
+    `next/dist/client/dev/noop-turbopack-hmr`
 
   return alias
 }

@@ -16,7 +16,10 @@ export default function Clock() {
           padding: 15px;
           display: inline-block;
           color: #82fa58;
-          font: 50px menlo, monaco, monospace;
+          font:
+            50px menlo,
+            monaco,
+            monospace;
           background-color: #000;
         }
         .light {
