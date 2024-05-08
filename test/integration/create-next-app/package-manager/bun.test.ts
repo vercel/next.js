@@ -30,6 +30,7 @@ describe('create-next-app with package manager bun', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-empty',
         ],
         {
           cwd,
@@ -58,6 +59,7 @@ it('should use bun when user-agent is bun', async () => {
         '--no-src-dir',
         '--no-tailwind',
         '--no-import-alias',
+        '--no-empty',
       ],
       {
         cwd,
