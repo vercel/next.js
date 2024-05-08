@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    cmp::Ordering,
     collections::hash_map::RandomState,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
@@ -45,6 +46,16 @@ impl<T, H: Default> Default for CountHashSet<T, H> {
     }
 }
 
+impl<T: Eq + Hash, H: BuildHasher + Default> FromIterator<T> for CountHashSet<T, H> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut set = CountHashSet::default();
+        for item in iter {
+            set.add(item);
+        }
+        set
+    }
+}
+
 impl<T, H: Default> CountHashSet<T, H> {
     pub fn new() -> Self {
         Self::default()
@@ -69,6 +80,12 @@ pub enum RemoveIfEntryResult {
     PartiallyRemoved,
     Removed,
     NotPresent,
+}
+
+pub struct RemovePositiveCountResult {
+    pub removed: bool,
+    pub removed_count: usize,
+    pub count: isize,
 }
 
 impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
@@ -135,41 +152,6 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
         }
     }
 
-    /// Returns true when the value is no longer visible from outside
-    pub fn remove_count(&mut self, item: T, count: usize) -> bool {
-        if count == 0 {
-            return false;
-        }
-        match self.inner.entry(item) {
-            Entry::Occupied(mut e) => {
-                let value = e.get_mut();
-                let old = *value;
-                *value -= count as isize;
-                if *value > 0 {
-                    // It was and still is positive
-                    false
-                } else if *value == 0 {
-                    // It was positive and has become zero
-                    e.remove();
-                    true
-                } else if old > 0 {
-                    // It was positive and is negative now
-                    self.negative_entries += 1;
-                    true
-                } else {
-                    // It was and still is negative
-                    false
-                }
-            }
-            Entry::Vacant(e) => {
-                // It was zero and is negative now
-                e.insert(-(count as isize));
-                self.negative_entries += 1;
-                false
-            }
-        }
-    }
-
     /// Removes an item if it is present.
     pub fn remove_if_entry(&mut self, item: &T) -> RemoveIfEntryResult {
         match self.inner.raw_entry_mut(item) {
@@ -195,6 +177,13 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
         CountHashSetIter {
             inner: self.inner.iter().filter_map(filter),
             count: self.inner.len() - self.negative_entries,
+        }
+    }
+
+    pub fn get_count(&self, item: &T) -> isize {
+        match self.inner.get(item) {
+            Some(value) => *value,
+            None => 0,
         }
     }
 }
@@ -275,9 +264,71 @@ impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
         }
     }
 
-    /// Returns true, when the value is no longer visible from outside
-    pub fn remove_clonable(&mut self, item: &T) -> bool {
-        self.remove_clonable_count(item, 1)
+    /// Returns true when the value is no longer visible from outside
+    pub fn remove_positive_clonable_count(
+        &mut self,
+        item: &T,
+        count: usize,
+    ) -> RemovePositiveCountResult {
+        if count == 0 {
+            return RemovePositiveCountResult {
+                removed: false,
+                removed_count: 0,
+                count: self.inner.get(item).copied().unwrap_or(0),
+            };
+        }
+        match self.inner.raw_entry_mut(item) {
+            RawEntry::Occupied(mut e) => {
+                let value = e.get_mut();
+                let old = *value;
+                match old.cmp(&(count as isize)) {
+                    Ordering::Less => {
+                        if old < 0 {
+                            // It's already negative, can't remove anything
+                            RemovePositiveCountResult {
+                                removed: false,
+                                removed_count: 0,
+                                count: old,
+                            }
+                        } else {
+                            // It's removed completely with count remaining
+                            e.remove();
+                            RemovePositiveCountResult {
+                                removed: true,
+                                removed_count: old as usize,
+                                count: 0,
+                            }
+                        }
+                    }
+                    Ordering::Equal => {
+                        // It's perfectly removed
+                        e.remove();
+                        RemovePositiveCountResult {
+                            removed: true,
+                            removed_count: count,
+                            count: 0,
+                        }
+                    }
+                    Ordering::Greater => {
+                        // It's partially removed
+                        *value -= count as isize;
+                        RemovePositiveCountResult {
+                            removed: false,
+                            removed_count: count,
+                            count: *value,
+                        }
+                    }
+                }
+            }
+            RawEntry::Vacant(_) => {
+                // It's not present
+                RemovePositiveCountResult {
+                    removed: false,
+                    removed_count: 0,
+                    count: 0,
+                }
+            }
+        }
     }
 }
 
@@ -334,19 +385,19 @@ mod tests {
         assert_eq!(set.len(), 2);
         assert!(!set.is_empty());
 
-        assert!(set.remove_count(2, 2));
+        assert!(set.remove_clonable_count(&2, 2));
         assert_eq!(set.len(), 1);
         assert!(!set.is_empty());
 
-        assert!(!set.remove_count(2, 1));
+        assert!(!set.remove_clonable_count(&2, 1));
         assert_eq!(set.len(), 1);
         assert!(!set.is_empty());
 
-        assert!(!set.remove_count(1, 1));
+        assert!(!set.remove_clonable_count(&1, 1));
         assert_eq!(set.len(), 1);
         assert!(!set.is_empty());
 
-        assert!(set.remove_count(1, 1));
+        assert!(set.remove_clonable_count(&1, 1));
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 
@@ -366,15 +417,15 @@ mod tests {
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 
-        assert!(set.add_clonable(&1));
+        assert!(set.add_clonable_count(&1, 1));
         assert_eq!(set.len(), 1);
         assert!(!set.is_empty());
 
-        assert!(!set.add_clonable(&1));
+        assert!(!set.add_clonable_count(&1, 1));
         assert_eq!(set.len(), 1);
         assert!(!set.is_empty());
 
-        assert!(set.add_clonable(&2));
+        assert!(set.add_clonable_count(&2, 1));
         assert_eq!(set.len(), 2);
         assert!(!set.is_empty());
 
@@ -442,7 +493,7 @@ mod tests {
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 
-        assert!(!set.remove_count(1, 0));
+        assert!(!set.remove_clonable_count(&1, 0));
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 
@@ -454,7 +505,7 @@ mod tests {
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 
-        assert!(!set.remove_count(1, 1));
+        assert!(!set.remove_clonable_count(&1, 1));
         assert_eq!(set.len(), 0);
         assert!(set.is_empty());
 

@@ -188,12 +188,14 @@ impl MemoryBackend {
             }
             Entry::Occupied(entry) => {
                 // Safety: We have a fresh task id that nobody knows about yet
+                let task_id = *entry.get();
+                drop(entry);
                 unsafe {
                     self.memory_tasks.remove(*new_id);
                     let new_id = Unused::new_unchecked(new_id);
                     turbo_tasks.reuse_task_id(new_id);
                 }
-                *entry.get()
+                task_id
             }
         };
         self.connect_task_child(parent_task, result_task, turbo_tasks);
@@ -211,11 +213,15 @@ impl MemoryBackend {
         K: Borrow<Q> + Hash + Eq,
         Q: Hash + Eq + ?Sized,
     {
-        task_cache.get(key).map(|task| {
-            self.connect_task_child(parent_task, *task, turbo_tasks);
+        task_cache
+            .get(key)
+            // Avoid holding the lock for too long
+            .map(|task_ref| *task_ref)
+            .map(|task_id| {
+                self.connect_task_child(parent_task, task_id, turbo_tasks);
 
-            *task
-        })
+                task_id
+            })
     }
 
     pub(crate) fn schedule_when_dirty_from_aggregation(
