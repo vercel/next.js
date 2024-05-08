@@ -836,11 +836,12 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
    */
   bundlePagesRouterDependencies?: boolean
 
   /**
-   * A list of packages that should be treated as external in the RSC server build.
+   * A list of packages that should be treated as external in the server build.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
@@ -955,10 +956,10 @@ export const defaultConfig: NextConfig = {
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
       // has been set to `true`, enable the experimental PPR feature so long as it
       // wasn't explicitly disabled in the config.
-      process.env.__NEXT_TEST_MODE &&
-      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-        ? true
-        : false,
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ),
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
