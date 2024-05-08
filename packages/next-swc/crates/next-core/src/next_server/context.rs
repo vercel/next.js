@@ -45,6 +45,7 @@ use crate::{
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
     next_config::NextConfig,
+    next_font::local::NextFontLocalReplacerResolvePlugin,
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
@@ -279,6 +280,9 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
+        before_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
+            project_path,
+        ))],
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition,
