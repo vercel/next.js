@@ -6,6 +6,7 @@ import type { RenderOptsPartial } from '../app-render/types'
 
 import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
+import type { RequestLifecycleOpts } from '../base-server'
 
 export type StaticGenerationContext = {
   urlPathname: string
@@ -45,7 +46,8 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugPPRSkeleton'
-  >
+  > &
+    Partial<RequestLifecycleOpts>
 }
 
 export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<

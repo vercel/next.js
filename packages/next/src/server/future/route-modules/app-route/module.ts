@@ -250,13 +250,11 @@ export class AppRouteRouteModule extends RouteModule<
       req: rawRequest,
     }
 
-    ;(requestContext as any).renderOpts = {
-      // TODO: types for renderOpts should include previewProps
+    requestContext.renderOpts = {
       previewProps: context.prerenderManifest.preview,
-      // @ts-expect-error TODO(after): fix the typing here
       waitUntil: context.renderOpts.waitUntil,
-      // @ts-expect-error TODO(after): fix the typing here
       onClose: context.renderOpts.onClose,
+      // @ts-expect-error: not all required properties are available here for some reason
       experimental: context.renderOpts.experimental,
     }
 

@@ -51,7 +51,7 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-type WrapperRenderOpts = RenderOpts &
+export type WrapperRenderOpts = RenderOpts &
   Partial<RequestLifecycleOpts> &
   RenderOptsForRouteHandlerPartial &
   RenderOptsForWebServerPartial
@@ -64,7 +64,7 @@ type RenderOptsForRouteHandlerPartial = Partial<
 >
 
 type RenderOptsForWebServerPartial = {
-  experimental?: Partial<Pick<RenderOpts['experimental'], 'after'>> // can be undefined in middleware
+  experimental: Pick<RenderOpts['experimental'], 'after'>
 }
 
 export type RequestContext = {

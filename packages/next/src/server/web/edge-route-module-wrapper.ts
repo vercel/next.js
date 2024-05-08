@@ -14,6 +14,7 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import type { RequestLifecycleOpts } from '../base-server'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -87,6 +88,23 @@ export class EdgeRouteModuleWrapper {
         ? JSON.parse(self.__PRERENDER_MANIFEST)
         : undefined
 
+    const isAfterEnabled = !!process.env.__NEXT_AFTER
+
+    let waitUntil: RequestLifecycleOpts['waitUntil'] | undefined = undefined
+    let onClose: RequestLifecycleOpts['onClose'] | undefined = undefined
+    let dispatchClose: (() => void) | undefined = undefined
+    if (isAfterEnabled) {
+      waitUntil = evt.waitUntil.bind(evt)
+
+      const requestClosedTarget = new EventTarget()
+      onClose = (callback: () => void) => {
+        requestClosedTarget.addEventListener('close', callback)
+      }
+      dispatchClose = () => {
+        requestClosedTarget.dispatchEvent(new Event('close'))
+      }
+    }
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -104,22 +122,31 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
+        waitUntil,
+        onClose,
         experimental: {
-          // @ts-expect-error TODO(after): not sure what to do about this
-          after: undefined,
+          after: isAfterEnabled,
         },
       },
     }
 
-    // Get the response from the handler.
-    const res = await this.routeModule.handle(request, context)
+    try {
+      // Get the response from the handler.
+      const res = await this.routeModule.handle(request, context)
 
-    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
-    if (context.renderOpts.pendingWaitUntil) {
-      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
+      const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+      if (context.renderOpts.pendingWaitUntil) {
+        waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
+      }
+      evt.waitUntil(Promise.all(waitUntilPromises))
+
+      return res
+    } finally {
+      // TODO(after): this might be a streaming response, in which case this'll run too early.
+      // we should probably do the same thing as `WebNextResponse#onClose` here
+      if (dispatchClose) {
+        setTimeout(dispatchClose, 0)
+      }
     }
-    evt.waitUntil(Promise.all(waitUntilPromises))
-
-    return res
   }
 }

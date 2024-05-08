@@ -2376,7 +2376,6 @@ export default abstract class Server<
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
-              // @ts-expect-error TODO(after): fix the typing here
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
             },

@@ -71,7 +71,6 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicHTML: false,
       incrementalCache,
-      // @ts-expect-error TODO(after): fix the typing here
       waitUntil: function noWaitUntilInPrerender() {
         throw new Error('waitUntil cannot be called during prerendering.')
       },

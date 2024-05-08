@@ -13,11 +13,15 @@ import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import {
+  RequestAsyncStorageWrapper,
+  type WrapperRenderOpts,
+} from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
+import type { RenderOptsPartial } from '../app-render/types'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -204,19 +208,35 @@ export async function adapter(
   let response
   let cookiesFromResponse
 
-  const requestClosedTarget = new EventTarget()
-  const onRequestClose = (callback: () => void) => {
-    requestClosedTarget.addEventListener('close', callback)
-  }
-  const emitRequestClose = () => {
-    requestClosedTarget.dispatchEvent(new Event('close'))
-  }
-
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
+
     if (isMiddleware) {
+      // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
+      // so we have to inject it via DefinePlugin.
+      // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
+      const isAfterEnabled =
+        params.request.nextConfig?.experimental?.after ??
+        !!process.env.__NEXT_AFTER
+
+      let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
+      let onClose: WrapperRenderOpts['onClose'] = undefined
+      let dispatchClose: (() => void) | undefined = undefined
+
+      if (isAfterEnabled) {
+        waitUntil = event.waitUntil.bind(event)
+
+        const requestClosedTarget = new EventTarget()
+        onClose = (callback: () => void) => {
+          requestClosedTarget.addEventListener('close', callback)
+        }
+        dispatchClose = () => {
+          requestClosedTarget.dispatchEvent(new Event('close'))
+        }
+      }
+
       return getTracer().trace(
         MiddlewareSpan.execute,
         {
@@ -235,18 +255,32 @@ export async function adapter(
                 onUpdateCookies: (cookies) => {
                   cookiesFromResponse = cookies
                 },
+                // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
                 previewProps: prerenderManifest?.preview || {
                   previewModeId: 'development-id',
                   previewModeEncryptionKey: '',
                   previewModeSigningKey: '',
                 },
-                waitUntil: event.waitUntil.bind(event),
-                onClose: onRequestClose,
-                // @ts-expect-error TODO(after): not sure what to do about this
-                experimental: params.request.nextConfig?.experimental,
+                waitUntil,
+                onClose,
+                experimental: {
+                  after: isAfterEnabled,
+                } as RenderOptsPartial['experimental'],
               },
             },
-            () => params.handler(request, event)
+            async () => {
+              try {
+                return await params.handler(request, event)
+              } finally {
+                // middleware cannot stream, so we can consider the response closed
+                // as soon as the handler returns.
+                if (dispatchClose) {
+                  // we can delay running it until a bit later --
+                  // if it's needed, we'll have a `waitUntil` lock anyway.
+                  setTimeout(dispatchClose, 0)
+                }
+              }
+            }
           )
       )
     }
@@ -257,8 +291,6 @@ export async function adapter(
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
   }
-
-  emitRequestClose()
 
   if (response && cookiesFromResponse) {
     response.headers.set('set-cookie', cookiesFromResponse)
