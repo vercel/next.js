@@ -153,8 +153,6 @@ export async function createApp({
   const packageJsonPath = path.join(root, 'package.json')
   let hasPackageJson = false
 
-  console.log('[test] empty =', empty)
-
   if (example) {
     /**
      * If an example repository is provided, clone it.
