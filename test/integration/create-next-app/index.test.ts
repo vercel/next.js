@@ -24,7 +24,6 @@ describe('create-next-app', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -64,7 +63,6 @@ describe('create-next-app', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -94,7 +92,6 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
           '--skip-install',
-          '--no-empty',
         ],
         {
           cwd,

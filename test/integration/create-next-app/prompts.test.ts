@@ -25,7 +25,6 @@ describe('create-next-app prompts', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -63,7 +62,6 @@ describe('create-next-app prompts', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -99,7 +97,6 @@ describe('create-next-app prompts', () => {
           '--eslint',
           '--no-src-dir',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -135,7 +132,6 @@ describe('create-next-app prompts', () => {
           '--eslint',
           '--no-tailwind',
           '--no-src-dir',
-          '--no-empty',
         ],
         {
           cwd,

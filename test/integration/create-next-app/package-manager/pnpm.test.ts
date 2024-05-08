@@ -31,7 +31,6 @@ describe('create-next-app with package manager pnpm', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
-          '--no-empty',
         ],
         {
           cwd,
@@ -60,7 +59,6 @@ it('should use pnpm when user-agent is pnpm', async () => {
         '--no-src-dir',
         '--no-tailwind',
         '--no-import-alias',
-        '--no-empty',
       ],
       {
         cwd,
