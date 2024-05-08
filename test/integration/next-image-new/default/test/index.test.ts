@@ -373,7 +373,7 @@ function runTests(mode) {
     let browser = await webdriver(appPort, '/on-load')
 
     await browser.eval(
-      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+      `document.getElementById("msg1").scrollIntoView({behavior: "smooth"})`
     )
 
     await check(
@@ -1138,9 +1138,10 @@ function runTests(mode) {
       const warnings = (await browser.log()).filter(
         (log) => log.source === 'error'
       )
-      expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(warnings).toEqual([])
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1153,9 +1154,9 @@ function runTests(mode) {
       const warnings = (await browser.log()).filter(
         (log) => log.source === 'error'
       )
-      expect(warnings.length).toBe(0)
+      expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1571,7 +1572,6 @@ describe('Image Component Default Tests', () => {
       afterAll(async () => {
         await killApp(app)
       })
-
       runTests('server')
     }
   )

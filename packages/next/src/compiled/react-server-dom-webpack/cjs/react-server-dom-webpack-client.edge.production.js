@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-server-dom-webpack-client.edge.production.min.js
+ * react-server-dom-webpack-client.edge.production.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -8,1979 +8,1086 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-'use strict';
-
-var ReactDOM = require('react-dom');
-
-// -----------------------------------------------------------------------------
-const enableBinaryFlight = false;
-
-function createStringDecoder() {
-  return new TextDecoder();
-}
-const decoderOptions = {
-  stream: true
-};
-function readPartialStringChunk(decoder, buffer) {
-  return decoder.decode(buffer, decoderOptions);
-}
-function readFinalStringChunk(decoder, buffer) {
-  return decoder.decode(buffer);
-}
-
-// This is the parsed shape of the wire format which is why it is
-// condensed to only the essentialy information
-const ID = 0;
-const CHUNKS = 1;
-const NAME = 2; // export const ASYNC = 3;
-// This logic is correct because currently only include the 4th tuple member
-// when the module is async. If that changes we will need to actually assert
-// the value is true. We don't index into the 4th slot because flow does not
-// like the potential out of bounds access
-
-function isAsyncImport(metadata) {
-  return metadata.length === 4;
-}
-
-// The reason this function needs to defined here in this file instead of just
-// being exported directly from the WebpackDestination... file is because the
-// ClientReferenceMetadata is opaque and we can't unwrap it there.
-// This should get inlined and we could also just implement an unwrapping function
-// though that risks it getting used in places it shouldn't be. This is unfortunate
-// but currently it seems to be the best option we have.
-
-function prepareDestinationForModule(moduleLoading, nonce, metadata) {
-  prepareDestinationWithChunks(moduleLoading, metadata[CHUNKS], nonce);
-}
+"use strict";
+var ReactDOM = require("react-dom"),
+  decoderOptions = { stream: !0 };
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
-    const moduleExports = bundlerConfig[metadata[ID]];
-    let resolvedModuleData = moduleExports[metadata[NAME]];
-    let name;
-
-    if (resolvedModuleData) {
-      // The potentially aliased name.
-      name = resolvedModuleData.name;
-    } else {
-      // If we don't have this specific name, we might have the full module.
-      resolvedModuleData = moduleExports['*'];
-
-      if (!resolvedModuleData) {
-        throw new Error('Could not find the module "' + metadata[ID] + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
-      }
-
-      name = metadata[NAME];
+    var moduleExports = bundlerConfig[metadata[0]];
+    if ((bundlerConfig = moduleExports[metadata[2]]))
+      moduleExports = bundlerConfig.name;
+    else {
+      bundlerConfig = moduleExports["*"];
+      if (!bundlerConfig)
+        throw Error(
+          'Could not find the module "' +
+            metadata[0] +
+            '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+        );
+      moduleExports = metadata[2];
     }
-
-    if (isAsyncImport(metadata)) {
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name, 1
-      /* async */
-      ];
-    } else {
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
-    }
+    return 4 === metadata.length
+      ? [bundlerConfig.id, bundlerConfig.chunks, moduleExports, 1]
+      : [bundlerConfig.id, bundlerConfig.chunks, moduleExports];
   }
-
   return metadata;
 }
-// If they're still pending they're a thenable. This map also exists
-// in Webpack but unfortunately it's not exposed so we have to
-// replicate it in user space. null means that it has already loaded.
-
-const chunkCache = new Map();
-
+var chunkCache = new Map();
 function requireAsyncModule(id) {
-  // We've already loaded all the chunks. We can require the module.
-  const promise = globalThis.__next_require__(id);
-
-  if (typeof promise.then !== 'function') {
-    // This wasn't a promise after all.
+  var promise = globalThis.__next_require__(id);
+  if ("function" !== typeof promise.then || "fulfilled" === promise.status)
     return null;
-  } else if (promise.status === 'fulfilled') {
-    // This module was already resolved earlier.
-    return null;
-  } else {
-    // Instrument the Promise to stash the result.
-    promise.then(value => {
-      const fulfilledThenable = promise;
-      fulfilledThenable.status = 'fulfilled';
-      fulfilledThenable.value = value;
-    }, reason => {
-      const rejectedThenable = promise;
-      rejectedThenable.status = 'rejected';
-      rejectedThenable.reason = reason;
-    });
-    return promise;
-  }
+  promise.then(
+    function (value) {
+      promise.status = "fulfilled";
+      promise.value = value;
+    },
+    function (reason) {
+      promise.status = "rejected";
+      promise.reason = reason;
+    }
+  );
+  return promise;
 }
-
-function ignoreReject() {// We rely on rejected promises to be handled by another listener.
-} // Start preloading the modules since we might need them soon.
-// This function doesn't suspend.
-
-
+function ignoreReject() {}
 function preloadModule(metadata) {
-  const chunks = metadata[CHUNKS];
-  const promises = [];
-  let i = 0;
-
-  while (i < chunks.length) {
-    const chunkId = chunks[i++];
+  for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; ) {
+    var chunkId = chunks[i++];
     chunks[i++];
-    const entry = chunkCache.get(chunkId);
-
-    if (entry === undefined) {
-      const thenable = loadChunk(chunkId);
-      promises.push(thenable); // $FlowFixMe[method-unbinding]
-
-      const resolve = chunkCache.set.bind(chunkCache, chunkId, null);
-      thenable.then(resolve, ignoreReject);
-      chunkCache.set(chunkId, thenable);
-    } else if (entry !== null) {
+    var entry = chunkCache.get(chunkId);
+    if (void 0 === entry) {
+      entry = __webpack_chunk_load__(chunkId);
       promises.push(entry);
+      var resolve = chunkCache.set.bind(chunkCache, chunkId, null);
+      entry.then(resolve, ignoreReject);
+      chunkCache.set(chunkId, entry);
+    } else null !== entry && promises.push(entry);
+  }
+  return 4 === metadata.length
+    ? 0 === promises.length
+      ? requireAsyncModule(metadata[0])
+      : Promise.all(promises).then(function () {
+          return requireAsyncModule(metadata[0]);
+        })
+    : 0 < promises.length
+    ? Promise.all(promises)
+    : null;
+}
+function prepareDestinationWithChunks(moduleLoading, chunks, nonce$jscomp$0) {
+  if (null !== moduleLoading)
+    for (var i = 1; i < chunks.length; i += 2) {
+      var nonce = nonce$jscomp$0,
+        JSCompiler_temp_const = ReactDOMSharedInternals.d,
+        JSCompiler_temp_const$jscomp$0 = JSCompiler_temp_const.X,
+        JSCompiler_temp_const$jscomp$1 = moduleLoading.prefix + chunks[i];
+      var JSCompiler_inline_result = moduleLoading.crossOrigin;
+      JSCompiler_inline_result =
+        "string" === typeof JSCompiler_inline_result
+          ? "use-credentials" === JSCompiler_inline_result
+            ? JSCompiler_inline_result
+            : ""
+          : void 0;
+      JSCompiler_temp_const$jscomp$0.call(
+        JSCompiler_temp_const,
+        JSCompiler_temp_const$jscomp$1,
+        { crossOrigin: JSCompiler_inline_result, nonce: nonce }
+      );
     }
-  }
-
-  if (isAsyncImport(metadata)) {
-    if (promises.length === 0) {
-      return requireAsyncModule(metadata[ID]);
-    } else {
-      return Promise.all(promises).then(() => {
-        return requireAsyncModule(metadata[ID]);
-      });
-    }
-  } else if (promises.length > 0) {
-    return Promise.all(promises);
-  } else {
-    return null;
-  }
-} // Actually require the module or suspend if it's not yet ready.
-// Increase priority if necessary.
-
-function requireModule(metadata) {
-  let moduleExports = globalThis.__next_require__(metadata[ID]);
-
-  if (isAsyncImport(metadata)) {
-    if (typeof moduleExports.then !== 'function') ; else if (moduleExports.status === 'fulfilled') {
-      // This Promise should've been instrumented by preloadModule.
-      moduleExports = moduleExports.value;
-    } else {
-      throw moduleExports.reason;
-    }
-  }
-
-  if (metadata[NAME] === '*') {
-    // This is a placeholder value that represents that the caller imported this
-    // as a CommonJS module as is.
-    return moduleExports;
-  }
-
-  if (metadata[NAME] === '') {
-    // This is a placeholder value that represents that the caller accessed the
-    // default property of this if it was an ESM interop module.
-    return moduleExports.__esModule ? moduleExports.default : moduleExports;
-  }
-
-  return moduleExports[metadata[NAME]];
 }
-
-function loadChunk(chunkId, filename) {
-  return __webpack_chunk_load__(chunkId);
-}
-
-function prepareDestinationWithChunks(moduleLoading, // Chunks are double-indexed [..., idx, filenamex, idy, filenamey, ...]
-chunks, nonce) {
-  if (moduleLoading !== null) {
-    for (let i = 1; i < chunks.length; i += 2) {
-      preinitScriptForSSR(moduleLoading.prefix + chunks[i], nonce, moduleLoading.crossOrigin);
-    }
-  }
-}
-
-const ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-function getCrossOriginString(input) {
-  if (typeof input === 'string') {
-    return input === 'use-credentials' ? input : '';
-  }
-
-  return undefined;
-}
-
-// This client file is in the shared folder because it applies to both SSR and browser contexts.
-const ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
-function dispatchHint(code, model) {
-  const dispatcher = ReactDOMCurrentDispatcher.current;
-
-  switch (code) {
-    case 'D':
-      {
-        const refined = refineModel(code, model);
-        const href = refined;
-        dispatcher.prefetchDNS(href);
-        return;
-      }
-
-    case 'C':
-      {
-        const refined = refineModel(code, model);
-
-        if (typeof refined === 'string') {
-          const href = refined;
-          dispatcher.preconnect(href);
-        } else {
-          const href = refined[0];
-          const crossOrigin = refined[1];
-          dispatcher.preconnect(href, crossOrigin);
-        }
-
-        return;
-      }
-
-    case 'L':
-      {
-        const refined = refineModel(code, model);
-        const href = refined[0];
-        const as = refined[1];
-
-        if (refined.length === 3) {
-          const options = refined[2];
-          dispatcher.preload(href, as, options);
-        } else {
-          dispatcher.preload(href, as);
-        }
-
-        return;
-      }
-
-    case 'm':
-      {
-        const refined = refineModel(code, model);
-
-        if (typeof refined === 'string') {
-          const href = refined;
-          dispatcher.preloadModule(href);
-        } else {
-          const href = refined[0];
-          const options = refined[1];
-          dispatcher.preloadModule(href, options);
-        }
-
-        return;
-      }
-
-    case 'S':
-      {
-        const refined = refineModel(code, model);
-
-        if (typeof refined === 'string') {
-          const href = refined;
-          dispatcher.preinitStyle(href);
-        } else {
-          const href = refined[0];
-          const precedence = refined[1] === 0 ? undefined : refined[1];
-          const options = refined.length === 3 ? refined[2] : undefined;
-          dispatcher.preinitStyle(href, precedence, options);
-        }
-
-        return;
-      }
-
-    case 'X':
-      {
-        const refined = refineModel(code, model);
-
-        if (typeof refined === 'string') {
-          const href = refined;
-          dispatcher.preinitScript(href);
-        } else {
-          const href = refined[0];
-          const options = refined[1];
-          dispatcher.preinitScript(href, options);
-        }
-
-        return;
-      }
-
-    case 'M':
-      {
-        const refined = refineModel(code, model);
-
-        if (typeof refined === 'string') {
-          const href = refined;
-          dispatcher.preinitModuleScript(href);
-        } else {
-          const href = refined[0];
-          const options = refined[1];
-          dispatcher.preinitModuleScript(href, options);
-        }
-
-        return;
-      }
-  }
-} // Flow is having trouble refining the HintModels so we help it a bit.
-// This should be compiled out in the production build.
-
-function refineModel(code, model) {
-  return model;
-}
-function preinitScriptForSSR(href, nonce, crossOrigin) {
-  const dispatcher = ReactDOMCurrentDispatcher.current;
-
-  if (dispatcher) {
-    dispatcher.preinitScript(href, {
-      crossOrigin: getCrossOriginString(crossOrigin),
-      nonce
-    });
-  }
-}
-
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-const REACT_ELEMENT_TYPE = Symbol.for('react.element');
-const REACT_LAZY_TYPE = Symbol.for('react.lazy');
-const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
-const FAUX_ITERATOR_SYMBOL = '@@iterator';
+var ReactDOMSharedInternals =
+    ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+  REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
-  if (maybeIterable === null || typeof maybeIterable !== 'object') {
-    return null;
-  }
-
-  const maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
-
-  if (typeof maybeIterator === 'function') {
-    return maybeIterator;
-  }
-
-  return null;
+  if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
+  maybeIterable =
+    (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
+    maybeIterable["@@iterator"];
+  return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-
-const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
-}
-
-const getPrototypeOf = Object.getPrototypeOf;
-
-function createTemporaryReferenceSet() {
-  return [];
-}
+var isArrayImpl = Array.isArray,
+  getPrototypeOf = Object.getPrototypeOf;
 function writeTemporaryReference(set, object) {
-  // We always create a new entry regardless if we've already written the same
-  // object. This ensures that we always generate a deterministic encoding of
-  // each slot in the reply for cacheability.
-  const newId = set.length;
+  var newId = set.length;
   set.push(object);
   return newId;
 }
-function readTemporaryReference(set, id) {
-  if (id < 0 || id >= set.length) {
-    throw new Error("The RSC response contained a reference that doesn't exist in the temporary reference set. " + 'Always pass the matching set that was used to create the reply when parsing its response.');
-  }
-
-  return set[id];
-}
-
-const ObjectPrototype = Object.prototype;
-const knownServerReferences = new WeakMap(); // Serializable values
-// Thenable<ReactServerValue>
-
-function serializeByValueID(id) {
-  return '$' + id.toString(16);
-}
-
-function serializePromiseID(id) {
-  return '$@' + id.toString(16);
-}
-
-function serializeServerReferenceID(id) {
-  return '$F' + id.toString(16);
-}
-
-function serializeTemporaryReferenceID(id) {
-  return '$T' + id.toString(16);
-}
-
-function serializeFormDataReference(id) {
-  // Why K? F is "Function". D is "Date". What else?
-  return '$K' + id.toString(16);
-}
-
+var ObjectPrototype = Object.prototype,
+  knownServerReferences = new WeakMap();
 function serializeNumber(number) {
-  if (Number.isFinite(number)) {
-    if (number === 0 && 1 / number === -Infinity) {
-      return '$-0';
-    } else {
-      return number;
-    }
-  } else {
-    if (number === Infinity) {
-      return '$Infinity';
-    } else if (number === -Infinity) {
-      return '$-Infinity';
-    } else {
-      return '$NaN';
-    }
-  }
+  return Number.isFinite(number)
+    ? 0 === number && -Infinity === 1 / number
+      ? "$-0"
+      : number
+    : Infinity === number
+    ? "$Infinity"
+    : -Infinity === number
+    ? "$-Infinity"
+    : "$NaN";
 }
-
-function serializeUndefined() {
-  return '$undefined';
-}
-
-function serializeDateFromDateJSON(dateJSON) {
-  // JSON.stringify automatically calls Date.prototype.toJSON which calls toISOString.
-  // We need only tack on a $D prefix.
-  return '$D' + dateJSON;
-}
-
-function serializeBigInt(n) {
-  return '$n' + n.toString(10);
-}
-
-function serializeMapID(id) {
-  return '$Q' + id.toString(16);
-}
-
-function serializeSetID(id) {
-  return '$W' + id.toString(16);
-}
-
-function escapeStringValue(value) {
-  if (value[0] === '$') {
-    // We need to escape $ prefixed strings since we use those to encode
-    // references to IDs and as special symbol values.
-    return '$' + value;
-  } else {
-    return value;
-  }
-}
-
-function processReply(root, formFieldPrefix, temporaryReferences, resolve, reject) {
-  let nextPartId = 1;
-  let pendingParts = 0;
-  let formData = null;
-
+function processReply(
+  root,
+  formFieldPrefix,
+  temporaryReferences,
+  resolve,
+  reject
+) {
   function resolveToJSON(key, value) {
-    const parent = this; // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
-
-    if (value === null) {
-      return null;
-    }
-
-    if (typeof value === 'object') {
+    if (null === value) return null;
+    if ("object" === typeof value) {
       switch (value.$$typeof) {
         case REACT_ELEMENT_TYPE:
-          {
-            if (temporaryReferences === undefined) {
-              throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (''));
-            }
-
-            return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
-          }
-
+          if (void 0 === temporaryReferences)
+            throw Error(
+              "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
+            );
+          return (
+            "$T" +
+            writeTemporaryReference(temporaryReferences, value).toString(16)
+          );
         case REACT_LAZY_TYPE:
-          {
-            // Resolve lazy as if it wasn't here. In the future this will be encoded as a Promise.
-            const lazy = value;
-            const payload = lazy._payload;
-            const init = lazy._init;
-
-            if (formData === null) {
-              // Upgrade to use FormData to allow us to stream this value.
-              formData = new FormData();
-            }
-
-            pendingParts++;
-
-            try {
-              const resolvedModel = init(payload); // We always outline this as a separate part even though we could inline it
-              // because it ensures a more deterministic encoding.
-
-              const lazyId = nextPartId++;
-              const partJSON = JSON.stringify(resolvedModel, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
-
-              const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
-
-              data.append(formFieldPrefix + lazyId, partJSON);
-              return serializeByValueID(lazyId);
-            } catch (x) {
-              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
-                // Suspended
-                pendingParts++;
-                const lazyId = nextPartId++;
-                const thenable = x;
-
-                const retry = function () {
-                  // While the first promise resolved, its value isn't necessarily what we'll
-                  // resolve into because we might suspend again.
-                  try {
-                    const partJSON = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
-
-                    const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
-
-                    data.append(formFieldPrefix + lazyId, partJSON);
-                    pendingParts--;
-
-                    if (pendingParts === 0) {
-                      resolve(data);
-                    }
-                  } catch (reason) {
-                    reject(reason);
-                  }
-                };
-
-                thenable.then(retry, retry);
-                return serializeByValueID(lazyId);
-              } else {
-                // In the future we could consider serializing this as an error
-                // that throws on the server instead.
-                reject(x);
-                return null;
-              }
-            } finally {
-              pendingParts--;
-            }
-          }
-      } // $FlowFixMe[method-unbinding]
-
-
-      if (typeof value.then === 'function') {
-        // We assume that any object with a .then property is a "Thenable" type,
-        // or a Promise type. Either of which can be represented by a Promise.
-        if (formData === null) {
-          // Upgrade to use FormData to allow us to stream this value.
-          formData = new FormData();
-        }
-
-        pendingParts++;
-        const promiseId = nextPartId++;
-        const thenable = value;
-        thenable.then(partValue => {
+          key = value._payload;
+          var init = value._init;
+          null === formData && (formData = new FormData());
+          pendingParts++;
           try {
-            const partJSON = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
-
-            const data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
-
-            data.append(formFieldPrefix + promiseId, partJSON);
-            pendingParts--;
-
-            if (pendingParts === 0) {
-              resolve(data);
+            var resolvedModel = init(key),
+              lazyId = nextPartId++,
+              partJSON = JSON.stringify(resolvedModel, resolveToJSON);
+            formData.append(formFieldPrefix + lazyId, partJSON);
+            return "$" + lazyId.toString(16);
+          } catch (x) {
+            if (
+              "object" === typeof x &&
+              null !== x &&
+              "function" === typeof x.then
+            ) {
+              pendingParts++;
+              var lazyId$21 = nextPartId++;
+              resolvedModel = function () {
+                try {
+                  var partJSON$22 = JSON.stringify(value, resolveToJSON),
+                    data$23 = formData;
+                  data$23.append(formFieldPrefix + lazyId$21, partJSON$22);
+                  pendingParts--;
+                  0 === pendingParts && resolve(data$23);
+                } catch (reason) {
+                  reject(reason);
+                }
+              };
+              x.then(resolvedModel, resolvedModel);
+              return "$" + lazyId$21.toString(16);
             }
-          } catch (reason) {
+            reject(x);
+            return null;
+          } finally {
+            pendingParts--;
+          }
+      }
+      if ("function" === typeof value.then) {
+        null === formData && (formData = new FormData());
+        pendingParts++;
+        var promiseId = nextPartId++;
+        value.then(
+          function (partValue) {
+            try {
+              var partJSON$25 = JSON.stringify(partValue, resolveToJSON);
+              partValue = formData;
+              partValue.append(formFieldPrefix + promiseId, partJSON$25);
+              pendingParts--;
+              0 === pendingParts && resolve(partValue);
+            } catch (reason) {
+              reject(reason);
+            }
+          },
+          function (reason) {
             reject(reason);
           }
-        }, reason => {
-          // In the future we could consider serializing this as an error
-          // that throws on the server instead.
-          reject(reason);
-        });
-        return serializePromiseID(promiseId);
+        );
+        return "$@" + promiseId.toString(16);
       }
-
-      if (isArray(value)) {
-        // $FlowFixMe[incompatible-return]
-        return value;
-      } // TODO: Should we the Object.prototype.toString.call() to test for cross-realm objects?
-
-
+      if (isArrayImpl(value)) return value;
       if (value instanceof FormData) {
-        if (formData === null) {
-          // Upgrade to use FormData to allow us to use rich objects as its values.
-          formData = new FormData();
-        }
-
-        const data = formData;
-        const refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
-        // These must come first in the form order because we assume that all the
-        // fields are available before this is referenced.
-
-        const prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
-
-        value.forEach((originalValue, originalKey) => {
-          data.append(prefix + originalKey, originalValue);
+        null === formData && (formData = new FormData());
+        var data$27 = formData;
+        resolvedModel = nextPartId++;
+        var prefix = formFieldPrefix + resolvedModel + "_";
+        value.forEach(function (originalValue, originalKey) {
+          data$27.append(prefix + originalKey, originalValue);
         });
-        return serializeFormDataReference(refId);
+        return "$K" + resolvedModel.toString(16);
       }
-
-      if (value instanceof Map) {
-        const partJSON = JSON.stringify(Array.from(value), resolveToJSON);
-
-        if (formData === null) {
-          formData = new FormData();
-        }
-
-        const mapId = nextPartId++;
-        formData.append(formFieldPrefix + mapId, partJSON);
-        return serializeMapID(mapId);
+      if (value instanceof Map)
+        return (
+          (resolvedModel = JSON.stringify(Array.from(value), resolveToJSON)),
+          null === formData && (formData = new FormData()),
+          (lazyId = nextPartId++),
+          formData.append(formFieldPrefix + lazyId, resolvedModel),
+          "$Q" + lazyId.toString(16)
+        );
+      if (value instanceof Set)
+        return (
+          (resolvedModel = JSON.stringify(Array.from(value), resolveToJSON)),
+          null === formData && (formData = new FormData()),
+          (lazyId = nextPartId++),
+          formData.append(formFieldPrefix + lazyId, resolvedModel),
+          "$W" + lazyId.toString(16)
+        );
+      if ((resolvedModel = getIteratorFn(value)))
+        return (
+          (resolvedModel = resolvedModel.call(value)),
+          resolvedModel === value
+            ? ((resolvedModel = JSON.stringify(
+                Array.from(resolvedModel),
+                resolveToJSON
+              )),
+              null === formData && (formData = new FormData()),
+              (lazyId = nextPartId++),
+              formData.append(formFieldPrefix + lazyId, resolvedModel),
+              "$i" + lazyId.toString(16))
+            : Array.from(resolvedModel)
+        );
+      resolvedModel = getPrototypeOf(value);
+      if (
+        resolvedModel !== ObjectPrototype &&
+        (null === resolvedModel || null !== getPrototypeOf(resolvedModel))
+      ) {
+        if (void 0 === temporaryReferences)
+          throw Error(
+            "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
+          );
+        return (
+          "$T" +
+          writeTemporaryReference(temporaryReferences, value).toString(16)
+        );
       }
-
-      if (value instanceof Set) {
-        const partJSON = JSON.stringify(Array.from(value), resolveToJSON);
-
-        if (formData === null) {
-          formData = new FormData();
-        }
-
-        const setId = nextPartId++;
-        formData.append(formFieldPrefix + setId, partJSON);
-        return serializeSetID(setId);
-      }
-
-      const iteratorFn = getIteratorFn(value);
-
-      if (iteratorFn) {
-        return Array.from(value);
-      } // Verify that this is a simple plain object.
-
-
-      const proto = getPrototypeOf(value);
-
-      if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
-        if (temporaryReferences === undefined) {
-          throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
-        } // We can serialize class instances as temporary references.
-
-
-        return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
-      }
-
-
       return value;
     }
-
-    if (typeof value === 'string') {
-      // TODO: Maybe too clever. If we support URL there's no similar trick.
-      if (value[value.length - 1] === 'Z') {
-        // Possibly a Date, whose toJSON automatically calls toISOString
-        // $FlowFixMe[incompatible-use]
-        const originalValue = parent[key];
-
-        if (originalValue instanceof Date) {
-          return serializeDateFromDateJSON(value);
-        }
-      }
-
-      return escapeStringValue(value);
+    if ("string" === typeof value) {
+      if ("Z" === value[value.length - 1] && this[key] instanceof Date)
+        return "$D" + value;
+      resolvedModel = "$" === value[0] ? "$" + value : value;
+      return resolvedModel;
     }
-
-    if (typeof value === 'boolean') {
-      return value;
+    if ("boolean" === typeof value) return value;
+    if ("number" === typeof value) return serializeNumber(value);
+    if ("undefined" === typeof value) return "$undefined";
+    if ("function" === typeof value) {
+      resolvedModel = knownServerReferences.get(value);
+      if (void 0 !== resolvedModel)
+        return (
+          (resolvedModel = JSON.stringify(resolvedModel, resolveToJSON)),
+          null === formData && (formData = new FormData()),
+          (lazyId = nextPartId++),
+          formData.set(formFieldPrefix + lazyId, resolvedModel),
+          "$F" + lazyId.toString(16)
+        );
+      if (void 0 === temporaryReferences)
+        throw Error(
+          "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
+        );
+      return (
+        "$T" + writeTemporaryReference(temporaryReferences, value).toString(16)
+      );
     }
-
-    if (typeof value === 'number') {
-      return serializeNumber(value);
+    if ("symbol" === typeof value) {
+      if (void 0 === temporaryReferences)
+        throw Error(
+          "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options."
+        );
+      return (
+        "$T" + writeTemporaryReference(temporaryReferences, value).toString(16)
+      );
     }
-
-    if (typeof value === 'undefined') {
-      return serializeUndefined();
-    }
-
-    if (typeof value === 'function') {
-      const metaData = knownServerReferences.get(value);
-
-      if (metaData !== undefined) {
-        const metaDataJSON = JSON.stringify(metaData, resolveToJSON);
-
-        if (formData === null) {
-          // Upgrade to use FormData to allow us to stream this value.
-          formData = new FormData();
-        } // The reference to this function came from the same client so we can pass it back.
-
-
-        const refId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
-
-        formData.set(formFieldPrefix + refId, metaDataJSON);
-        return serializeServerReferenceID(refId);
-      }
-
-      if (temporaryReferences === undefined) {
-        throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
-      }
-
-      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
-    }
-
-    if (typeof value === 'symbol') {
-      if (temporaryReferences === undefined) {
-        throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (''));
-      }
-
-      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
-    }
-
-    if (typeof value === 'bigint') {
-      return serializeBigInt(value);
-    }
-
-    throw new Error("Type " + typeof value + " is not supported as an argument to a Server Function.");
-  } // $FlowFixMe[incompatible-type] it's not going to be undefined because we'll encode it.
-
-
-  const json = JSON.stringify(root, resolveToJSON);
-
-  if (formData === null) {
-    // If it's a simple data structure, we just use plain JSON.
-    resolve(json);
-  } else {
-    // Otherwise, we use FormData to let us stream in the result.
-    formData.set(formFieldPrefix + '0', json);
-
-    if (pendingParts === 0) {
-      // $FlowFixMe[incompatible-call] this has already been refined.
-      resolve(formData);
-    }
+    if ("bigint" === typeof value) return "$n" + value.toString(10);
+    throw Error(
+      "Type " +
+        typeof value +
+        " is not supported as an argument to a Server Function."
+    );
   }
+  var nextPartId = 1,
+    pendingParts = 0,
+    formData = null;
+  root = JSON.stringify(root, resolveToJSON);
+  null === formData
+    ? resolve(root)
+    : (formData.set(formFieldPrefix + "0", root),
+      0 === pendingParts && resolve(formData));
 }
-const boundCache = new WeakMap();
-
+var boundCache = new WeakMap();
 function encodeFormData(reference) {
-  let resolve, reject; // We need to have a handle on the thenable so that we can synchronously set
-  // its status from processReply, when it can complete synchronously.
-
-  const thenable = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  processReply(reference, '', undefined, // TODO: This means React Elements can't be used as state in progressive enhancement.
-  body => {
-    if (typeof body === 'string') {
-      const data = new FormData();
-      data.append('0', body);
-      body = data;
+  var resolve,
+    reject,
+    thenable = new Promise(function (res, rej) {
+      resolve = res;
+      reject = rej;
+    });
+  processReply(
+    reference,
+    "",
+    void 0,
+    function (body) {
+      if ("string" === typeof body) {
+        var data = new FormData();
+        data.append("0", body);
+        body = data;
+      }
+      thenable.status = "fulfilled";
+      thenable.value = body;
+      resolve(body);
+    },
+    function (e) {
+      thenable.status = "rejected";
+      thenable.reason = e;
+      reject(e);
     }
-
-    const fulfilled = thenable;
-    fulfilled.status = 'fulfilled';
-    fulfilled.value = body;
-    resolve(body);
-  }, e => {
-    const rejected = thenable;
-    rejected.status = 'rejected';
-    rejected.reason = e;
-    reject(e);
-  });
+  );
   return thenable;
 }
-
 function defaultEncodeFormAction(identifierPrefix) {
-  const reference = knownServerReferences.get(this);
-
-  if (!reference) {
-    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
-  }
-
-  let data = null;
-  let name;
-  const boundPromise = reference.bound;
-
-  if (boundPromise !== null) {
-    let thenable = boundCache.get(reference);
-
-    if (!thenable) {
-      thenable = encodeFormData(reference);
-      boundCache.set(reference, thenable);
-    }
-
-    if (thenable.status === 'rejected') {
-      throw thenable.reason;
-    } else if (thenable.status !== 'fulfilled') {
-      throw thenable;
-    }
-
-    const encodedFormData = thenable.value; // This is hacky but we need the identifier prefix to be added to
-    // all fields but the suspense cache would break since we might get
-    // a new identifier each time. So we just append it at the end instead.
-
-    const prefixedData = new FormData(); // $FlowFixMe[prop-missing]
-
-    encodedFormData.forEach((value, key) => {
-      prefixedData.append('$ACTION_' + identifierPrefix + ':' + key, value);
+  var reference = knownServerReferences.get(this);
+  if (!reference)
+    throw Error(
+      "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
+    );
+  var data = null;
+  if (null !== reference.bound) {
+    data = boundCache.get(reference);
+    data ||
+      ((data = encodeFormData(reference)), boundCache.set(reference, data));
+    if ("rejected" === data.status) throw data.reason;
+    if ("fulfilled" !== data.status) throw data;
+    reference = data.value;
+    var prefixedData = new FormData();
+    reference.forEach(function (value, key) {
+      prefixedData.append("$ACTION_" + identifierPrefix + ":" + key, value);
     });
-    data = prefixedData; // We encode the name of the prefix containing the data.
-
-    name = '$ACTION_REF_' + identifierPrefix;
-  } else {
-    // This is the simple case so we can just encode the ID.
-    name = '$ACTION_ID_' + reference.id;
-  }
-
+    data = prefixedData;
+    reference = "$ACTION_REF_" + identifierPrefix;
+  } else reference = "$ACTION_ID_" + reference.id;
   return {
-    name: name,
-    method: 'POST',
-    encType: 'multipart/form-data',
+    name: reference,
+    method: "POST",
+    encType: "multipart/form-data",
     data: data
   };
 }
-
-function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
-  const reference = knownServerReferences.get(proxy);
-
-  if (!reference) {
-    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
-  }
-
-  let boundPromise = reference.bound;
-
-  if (boundPromise === null) {
-    boundPromise = Promise.resolve([]);
-  }
-
-  return encodeFormAction(reference.id, boundPromise);
-}
-
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
-  const reference = knownServerReferences.get(this);
-
-  if (!reference) {
-    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
-  }
-
-  if (reference.id !== referenceId) {
-    // These are different functions.
-    return false;
-  } // Now check if the number of bound arguments is the same.
-
-
-  const boundPromise = reference.bound;
-
-  if (boundPromise === null) {
-    // No bound arguments.
-    return numberOfBoundArgs === 0;
-  } // Unwrap the bound arguments array by suspending, if necessary. As with
-  // encodeFormData, this means isSignatureEqual can only be called while React
-  // is rendering.
-
-
+  var reference = knownServerReferences.get(this);
+  if (!reference)
+    throw Error(
+      "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
+    );
+  if (reference.id !== referenceId) return !1;
+  var boundPromise = reference.bound;
+  if (null === boundPromise) return 0 === numberOfBoundArgs;
   switch (boundPromise.status) {
-    case 'fulfilled':
-      {
-        const boundArgs = boundPromise.value;
-        return boundArgs.length === numberOfBoundArgs;
-      }
-
-    case 'pending':
-      {
-        throw boundPromise;
-      }
-
-    case 'rejected':
-      {
-        throw boundPromise.reason;
-      }
-
+    case "fulfilled":
+      return boundPromise.value.length === numberOfBoundArgs;
+    case "pending":
+      throw boundPromise;
+    case "rejected":
+      throw boundPromise.reason;
     default:
-      {
-        if (typeof boundPromise.status === 'string') ; else {
-          const pendingThenable = boundPromise;
-          pendingThenable.status = 'pending';
-          pendingThenable.then(boundArgs => {
-            const fulfilledThenable = boundPromise;
-            fulfilledThenable.status = 'fulfilled';
-            fulfilledThenable.value = boundArgs;
-          }, error => {
-            const rejectedThenable = boundPromise;
-            rejectedThenable.status = 'rejected';
-            rejectedThenable.reason = error;
-          });
-        }
-
-        throw boundPromise;
-      }
+      throw (
+        ("string" !== typeof boundPromise.status &&
+          ((boundPromise.status = "pending"),
+          boundPromise.then(
+            function (boundArgs) {
+              boundPromise.status = "fulfilled";
+              boundPromise.value = boundArgs;
+            },
+            function (error) {
+              boundPromise.status = "rejected";
+              boundPromise.reason = error;
+            }
+          )),
+        boundPromise)
+      );
   }
 }
-
-function registerServerReference(proxy, reference, encodeFormAction) {
-  // Expose encoder for use by SSR, as well as a special bind that can be used to
-  // keep server capabilities.
-  {
-    // Only expose this in builds that would actually use it. Not needed on the client.
-    const $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
-      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
-    };
-    Object.defineProperties(proxy, {
-      $$FORM_ACTION: {
-        value: $$FORM_ACTION
-      },
-      $$IS_SIGNATURE_EQUAL: {
-        value: isSignatureEqual
-      },
-      bind: {
-        value: bind
-      }
-    });
-  }
-
-  knownServerReferences.set(proxy, reference);
-} // $FlowFixMe[method-unbinding]
-
-const FunctionBind = Function.prototype.bind; // $FlowFixMe[method-unbinding]
-
-const ArraySlice = Array.prototype.slice;
-
+function registerServerReference(proxy, reference$jscomp$0, encodeFormAction) {
+  Object.defineProperties(proxy, {
+    $$FORM_ACTION: {
+      value:
+        void 0 === encodeFormAction
+          ? defaultEncodeFormAction
+          : function () {
+              var reference = knownServerReferences.get(this);
+              if (!reference)
+                throw Error(
+                  "Tried to encode a Server Action from a different instance than the encoder is from. This is a bug in React."
+                );
+              var boundPromise = reference.bound;
+              null === boundPromise && (boundPromise = Promise.resolve([]));
+              return encodeFormAction(reference.id, boundPromise);
+            }
+    },
+    $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
+    bind: { value: bind }
+  });
+  knownServerReferences.set(proxy, reference$jscomp$0);
+}
+var FunctionBind = Function.prototype.bind,
+  ArraySlice = Array.prototype.slice;
 function bind() {
-  // $FlowFixMe[unsupported-syntax]
-  const newFn = FunctionBind.apply(this, arguments);
-  const reference = knownServerReferences.get(this);
-
+  var newFn = FunctionBind.apply(this, arguments),
+    reference = knownServerReferences.get(this);
   if (reference) {
-
-    const args = ArraySlice.call(arguments, 1);
-    let boundPromise = null;
-
-    if (reference.bound !== null) {
-      boundPromise = Promise.resolve(reference.bound).then(boundArgs => boundArgs.concat(args));
-    } else {
-      boundPromise = Promise.resolve(args);
-    } // Expose encoder for use by SSR, as well as a special bind that can be used to
-    // keep server capabilities.
-
-
-    {
-      // Only expose this in builds that would actually use it. Not needed on the client.
-      Object.defineProperties(newFn, {
-        $$FORM_ACTION: {
-          value: this.$$FORM_ACTION
-        },
-        $$IS_SIGNATURE_EQUAL: {
-          value: isSignatureEqual
-        },
-        bind: {
-          value: bind
-        }
-      });
-    }
-
-    knownServerReferences.set(newFn, {
-      id: reference.id,
-      bound: boundPromise
+    var args = ArraySlice.call(arguments, 1),
+      boundPromise = null;
+    boundPromise =
+      null !== reference.bound
+        ? Promise.resolve(reference.bound).then(function (boundArgs) {
+            return boundArgs.concat(args);
+          })
+        : Promise.resolve(args);
+    Object.defineProperties(newFn, {
+      $$FORM_ACTION: { value: this.$$FORM_ACTION },
+      $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
+      bind: { value: bind }
     });
+    knownServerReferences.set(newFn, { id: reference.id, bound: boundPromise });
   }
-
   return newFn;
 }
-
 function createServerReference$1(id, callServer, encodeFormAction) {
-  const proxy = function () {
-    // $FlowFixMe[method-unbinding]
-    const args = Array.prototype.slice.call(arguments);
+  function proxy() {
+    var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
-  };
-
-  registerServerReference(proxy, {
-    id,
-    bound: null
-  }, encodeFormAction);
+  }
+  registerServerReference(proxy, { id: id, bound: null }, encodeFormAction);
   return proxy;
 }
-
-const ROW_ID = 0;
-const ROW_TAG = 1;
-const ROW_LENGTH = 2;
-const ROW_CHUNK_BY_NEWLINE = 3;
-const ROW_CHUNK_BY_LENGTH = 4;
-const PENDING = 'pending';
-const BLOCKED = 'blocked';
-const CYCLIC = 'cyclic';
-const RESOLVED_MODEL = 'resolved_model';
-const RESOLVED_MODULE = 'resolved_module';
-const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
-
 function Chunk(status, value, reason, response) {
   this.status = status;
   this.value = value;
   this.reason = reason;
   this._response = response;
-} // We subclass Promise.prototype so that we get other methods like .catch
-
-
-Chunk.prototype = Object.create(Promise.prototype); // TODO: This doesn't return a new Promise chain unlike the real .then
-
+}
+Chunk.prototype = Object.create(Promise.prototype);
 Chunk.prototype.then = function (resolve, reject) {
-  const chunk = this; // If we have resolved content, we try to initialize it first which
-  // might put us back into one of the other states.
-
-  switch (chunk.status) {
-    case RESOLVED_MODEL:
-      initializeModelChunk(chunk);
+  switch (this.status) {
+    case "resolved_model":
+      initializeModelChunk(this);
       break;
-
-    case RESOLVED_MODULE:
-      initializeModuleChunk(chunk);
+    case "resolved_module":
+      initializeModuleChunk(this);
+  }
+  switch (this.status) {
+    case "fulfilled":
+      resolve(this.value);
       break;
-  } // The status might have changed after initialization.
-
-
-  switch (chunk.status) {
-    case INITIALIZED:
-      resolve(chunk.value);
+    case "pending":
+    case "blocked":
+    case "cyclic":
+      resolve &&
+        (null === this.value && (this.value = []), this.value.push(resolve));
+      reject &&
+        (null === this.reason && (this.reason = []), this.reason.push(reject));
       break;
-
-    case PENDING:
-    case BLOCKED:
-    case CYCLIC:
-      if (resolve) {
-        if (chunk.value === null) {
-          chunk.value = [];
-        }
-
-        chunk.value.push(resolve);
-      }
-
-      if (reject) {
-        if (chunk.reason === null) {
-          chunk.reason = [];
-        }
-
-        chunk.reason.push(reject);
-      }
-
-      break;
-
     default:
-      reject(chunk.reason);
-      break;
+      reject && reject(this.reason);
   }
 };
-
 function readChunk(chunk) {
-  // If we have resolved content, we try to initialize it first which
-  // might put us back into one of the other states.
   switch (chunk.status) {
-    case RESOLVED_MODEL:
+    case "resolved_model":
       initializeModelChunk(chunk);
       break;
-
-    case RESOLVED_MODULE:
+    case "resolved_module":
       initializeModuleChunk(chunk);
-      break;
-  } // The status might have changed after initialization.
-
-
+  }
   switch (chunk.status) {
-    case INITIALIZED:
+    case "fulfilled":
       return chunk.value;
-
-    case PENDING:
-    case BLOCKED:
-    case CYCLIC:
-      // eslint-disable-next-line no-throw-literal
+    case "pending":
+    case "blocked":
+    case "cyclic":
       throw chunk;
-
     default:
       throw chunk.reason;
   }
 }
-
-function getRoot(response) {
-  const chunk = getChunk(response, 0);
-  return chunk;
-}
-
-function createPendingChunk(response) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(PENDING, null, null, response);
-}
-
-function createBlockedChunk(response) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(BLOCKED, null, null, response);
-}
-
-function createErrorChunk(response, error) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(ERRORED, null, error, response);
-}
-
 function wakeChunk(listeners, value) {
-  for (let i = 0; i < listeners.length; i++) {
-    const listener = listeners[i];
-    listener(value);
-  }
+  for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
 }
-
 function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
   switch (chunk.status) {
-    case INITIALIZED:
+    case "fulfilled":
       wakeChunk(resolveListeners, chunk.value);
       break;
-
-    case PENDING:
-    case BLOCKED:
-    case CYCLIC:
+    case "pending":
+    case "blocked":
+    case "cyclic":
       chunk.value = resolveListeners;
       chunk.reason = rejectListeners;
       break;
-
-    case ERRORED:
-      if (rejectListeners) {
-        wakeChunk(rejectListeners, chunk.reason);
-      }
-
-      break;
+    case "rejected":
+      rejectListeners && wakeChunk(rejectListeners, chunk.reason);
   }
 }
-
 function triggerErrorOnChunk(chunk, error) {
-  if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  const listeners = chunk.reason;
-  const erroredChunk = chunk;
-  erroredChunk.status = ERRORED;
-  erroredChunk.reason = error;
-
-  if (listeners !== null) {
-    wakeChunk(listeners, error);
+  if ("pending" === chunk.status || "blocked" === chunk.status) {
+    var listeners = chunk.reason;
+    chunk.status = "rejected";
+    chunk.reason = error;
+    null !== listeners && wakeChunk(listeners, error);
   }
 }
-
-function createResolvedModelChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(RESOLVED_MODEL, value, null, response);
-}
-
-function createResolvedModuleChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(RESOLVED_MODULE, value, null, response);
-}
-
-function createInitializedTextChunk(response, value) {
-  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
-  return new Chunk(INITIALIZED, value, null, response);
-}
-
-function resolveModelChunk(chunk, value) {
-  if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  const resolveListeners = chunk.value;
-  const rejectListeners = chunk.reason;
-  const resolvedChunk = chunk;
-  resolvedChunk.status = RESOLVED_MODEL;
-  resolvedChunk.value = value;
-
-  if (resolveListeners !== null) {
-    // This is unfortunate that we're reading this eagerly if
-    // we already have listeners attached since they might no
-    // longer be rendered or might not be the highest pri.
-    initializeModelChunk(resolvedChunk); // The status might have changed after initialization.
-
-    wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
-  }
-}
-
 function resolveModuleChunk(chunk, value) {
-  if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
-    // We already resolved. We didn't expect to see this.
-    return;
-  }
-
-  const resolveListeners = chunk.value;
-  const rejectListeners = chunk.reason;
-  const resolvedChunk = chunk;
-  resolvedChunk.status = RESOLVED_MODULE;
-  resolvedChunk.value = value;
-
-  if (resolveListeners !== null) {
-    initializeModuleChunk(resolvedChunk);
-    wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
+  if ("pending" === chunk.status || "blocked" === chunk.status) {
+    var resolveListeners = chunk.value,
+      rejectListeners = chunk.reason;
+    chunk.status = "resolved_module";
+    chunk.value = value;
+    null !== resolveListeners &&
+      (initializeModuleChunk(chunk),
+      wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners));
   }
 }
-
-let initializingChunk = null;
-let initializingChunkBlockedModel = null;
-
+var initializingChunk = null,
+  initializingChunkBlockedModel = null;
 function initializeModelChunk(chunk) {
-  const prevChunk = initializingChunk;
-  const prevBlocked = initializingChunkBlockedModel;
+  var prevChunk = initializingChunk,
+    prevBlocked = initializingChunkBlockedModel;
   initializingChunk = chunk;
   initializingChunkBlockedModel = null;
-  const resolvedModel = chunk.value; // We go to the CYCLIC state until we've fully resolved this.
-  // We do this before parsing in case we try to initialize the same chunk
-  // while parsing the model. Such as in a cyclic reference.
-
-  const cyclicChunk = chunk;
-  cyclicChunk.status = CYCLIC;
-  cyclicChunk.value = null;
-  cyclicChunk.reason = null;
-
+  var resolvedModel = chunk.value;
+  chunk.status = "cyclic";
+  chunk.value = null;
+  chunk.reason = null;
   try {
-    const value = parseModel(chunk._response, resolvedModel);
-
-    if (initializingChunkBlockedModel !== null && initializingChunkBlockedModel.deps > 0) {
-      initializingChunkBlockedModel.value = value; // We discovered new dependencies on modules that are not yet resolved.
-      // We have to go the BLOCKED state until they're resolved.
-
-      const blockedChunk = chunk;
-      blockedChunk.status = BLOCKED;
-      blockedChunk.value = null;
-      blockedChunk.reason = null;
-    } else {
-      const resolveListeners = cyclicChunk.value;
-      const initializedChunk = chunk;
-      initializedChunk.status = INITIALIZED;
-      initializedChunk.value = value;
-
-      if (resolveListeners !== null) {
-        wakeChunk(resolveListeners, value);
-      }
+    var value = JSON.parse(resolvedModel, chunk._response._fromJSON);
+    if (
+      null !== initializingChunkBlockedModel &&
+      0 < initializingChunkBlockedModel.deps
+    )
+      (initializingChunkBlockedModel.value = value),
+        (chunk.status = "blocked"),
+        (chunk.value = null),
+        (chunk.reason = null);
+    else {
+      var resolveListeners = chunk.value;
+      chunk.status = "fulfilled";
+      chunk.value = value;
+      null !== resolveListeners && wakeChunk(resolveListeners, value);
     }
   } catch (error) {
-    const erroredChunk = chunk;
-    erroredChunk.status = ERRORED;
-    erroredChunk.reason = error;
+    (chunk.status = "rejected"), (chunk.reason = error);
   } finally {
-    initializingChunk = prevChunk;
-    initializingChunkBlockedModel = prevBlocked;
+    (initializingChunk = prevChunk),
+      (initializingChunkBlockedModel = prevBlocked);
   }
 }
-
 function initializeModuleChunk(chunk) {
   try {
-    const value = requireModule(chunk.value);
-    const initializedChunk = chunk;
-    initializedChunk.status = INITIALIZED;
-    initializedChunk.value = value;
+    var metadata = chunk.value,
+      moduleExports = globalThis.__next_require__(metadata[0]);
+    if (4 === metadata.length && "function" === typeof moduleExports.then)
+      if ("fulfilled" === moduleExports.status)
+        moduleExports = moduleExports.value;
+      else throw moduleExports.reason;
+    var JSCompiler_inline_result =
+      "*" === metadata[2]
+        ? moduleExports
+        : "" === metadata[2]
+        ? moduleExports.__esModule
+          ? moduleExports.default
+          : moduleExports
+        : moduleExports[metadata[2]];
+    chunk.status = "fulfilled";
+    chunk.value = JSCompiler_inline_result;
   } catch (error) {
-    const erroredChunk = chunk;
-    erroredChunk.status = ERRORED;
-    erroredChunk.reason = error;
+    (chunk.status = "rejected"), (chunk.reason = error);
   }
-} // Report that any missing chunks in the model is now going to throw this
-// error upon read. Also notify any pending promises.
-
-
+}
 function reportGlobalError(response, error) {
-  response._chunks.forEach(chunk => {
-    // If this chunk was already resolved or errored, it won't
-    // trigger an error but if it wasn't then we need to
-    // because we won't be getting any new data to resolve it.
-    if (chunk.status === PENDING) {
-      triggerErrorOnChunk(chunk, error);
-    }
+  response._chunks.forEach(function (chunk) {
+    "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
 }
-
-function createElement(type, key, props) {
-  let element;
-
-  {
-    element = {
-      // This tag allows us to uniquely identify this as a React Element
-      $$typeof: REACT_ELEMENT_TYPE,
-      type,
-      key,
-      ref: null,
-      props,
-      // Record the component responsible for creating this element.
-      _owner: null
-    };
-  }
-
-  return element;
-}
-
-function createLazyChunkWrapper(chunk) {
-  const lazyType = {
-    $$typeof: REACT_LAZY_TYPE,
-    _payload: chunk,
-    _init: readChunk
-  };
-
-  return lazyType;
-}
-
 function getChunk(response, id) {
-  const chunks = response._chunks;
-  let chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunk = createPendingChunk(response);
-    chunks.set(id, chunk);
-  }
-
+  var chunks = response._chunks,
+    chunk = chunks.get(id);
+  chunk ||
+    ((chunk = new Chunk("pending", null, null, response)),
+    chunks.set(id, chunk));
   return chunk;
 }
-
-function createModelResolver(chunk, parentObject, key, cyclic) {
-  let blocked;
-
+function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   if (initializingChunkBlockedModel) {
-    blocked = initializingChunkBlockedModel;
-
-    if (!cyclic) {
-      blocked.deps++;
-    }
-  } else {
+    var blocked = initializingChunkBlockedModel;
+    cyclic || blocked.deps++;
+  } else
     blocked = initializingChunkBlockedModel = {
       deps: cyclic ? 0 : 1,
       value: null
     };
-  }
-
-  return value => {
-    parentObject[key] = value;
+  return function (value) {
+    parentObject[key] = map(response, value);
+    "" === key && null === blocked.value && (blocked.value = parentObject[key]);
     blocked.deps--;
-
-    if (blocked.deps === 0) {
-      if (chunk.status !== BLOCKED) {
-        return;
-      }
-
-      const resolveListeners = chunk.value;
-      const initializedChunk = chunk;
-      initializedChunk.status = INITIALIZED;
-      initializedChunk.value = blocked.value;
-
-      if (resolveListeners !== null) {
-        wakeChunk(resolveListeners, blocked.value);
-      }
-    }
+    0 === blocked.deps &&
+      "blocked" === chunk.status &&
+      ((value = chunk.value),
+      (chunk.status = "fulfilled"),
+      (chunk.value = blocked.value),
+      null !== value && wakeChunk(value, blocked.value));
   };
 }
-
 function createModelReject(chunk) {
-  return error => triggerErrorOnChunk(chunk, error);
-}
-
-function createServerReferenceProxy(response, metaData) {
-  const callServer = response._callServer;
-
-  const proxy = function () {
-    // $FlowFixMe[method-unbinding]
-    const args = Array.prototype.slice.call(arguments);
-    const p = metaData.bound;
-
-    if (!p) {
-      return callServer(metaData.id, args);
-    }
-
-    if (p.status === INITIALIZED) {
-      const bound = p.value;
-      return callServer(metaData.id, bound.concat(args));
-    } // Since this is a fake Promise whose .then doesn't chain, we have to wrap it.
-    // TODO: Remove the wrapper once that's fixed.
-
-
-    return Promise.resolve(p).then(function (bound) {
-      return callServer(metaData.id, bound.concat(args));
-    });
+  return function (error) {
+    return triggerErrorOnChunk(chunk, error);
   };
-
+}
+function createServerReferenceProxy(response, metaData) {
+  function proxy() {
+    var args = Array.prototype.slice.call(arguments),
+      p = metaData.bound;
+    return p
+      ? "fulfilled" === p.status
+        ? callServer(metaData.id, p.value.concat(args))
+        : Promise.resolve(p).then(function (bound) {
+            return callServer(metaData.id, bound.concat(args));
+          })
+      : callServer(metaData.id, args);
+  }
+  var callServer = response._callServer;
   registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
-
-function getOutlinedModel(response, id) {
-  const chunk = getChunk(response, id);
-
-  switch (chunk.status) {
-    case RESOLVED_MODEL:
-      initializeModelChunk(chunk);
+function getOutlinedModel(response, id, parentObject, key, map) {
+  id = getChunk(response, id);
+  switch (id.status) {
+    case "resolved_model":
+      initializeModelChunk(id);
       break;
-  } // The status might have changed after initialization.
-
-
-  switch (chunk.status) {
-    case INITIALIZED:
-      {
-        return chunk.value;
-      }
-    // We always encode it first in the stream so it won't be pending.
-
+    case "resolved_module":
+      initializeModuleChunk(id);
+  }
+  switch (id.status) {
+    case "fulfilled":
+      return map(response, id.value);
+    case "pending":
+    case "blocked":
+    case "cyclic":
+      var parentChunk = initializingChunk;
+      id.then(
+        createModelResolver(
+          parentChunk,
+          parentObject,
+          key,
+          "cyclic" === id.status,
+          response,
+          map
+        ),
+        createModelReject(parentChunk)
+      );
+      return null;
     default:
-      throw chunk.reason;
+      throw id.reason;
   }
 }
-
+function createMap(response, model) {
+  return new Map(model);
+}
+function createSet(response, model) {
+  return new Set(model);
+}
+function createFormData(response, model) {
+  response = new FormData();
+  for (var i = 0; i < model.length; i++)
+    response.append(model[i][0], model[i][1]);
+  return response;
+}
+function extractIterator(response, model) {
+  return model[Symbol.iterator]();
+}
+function createModel(response, model) {
+  return model;
+}
 function parseModelString(response, parentObject, key, value) {
-  if (value[0] === '$') {
-    if (value === '$') {
-      // A very common symbol.
-      return REACT_ELEMENT_TYPE;
-    }
-
+  if ("$" === value[0]) {
+    if ("$" === value) return REACT_ELEMENT_TYPE;
     switch (value[1]) {
-      case '$':
-        {
-          // This was an escaped string value.
-          return value.slice(1);
-        }
-
-      case 'L':
-        {
-          // Lazy node
-          const id = parseInt(value.slice(2), 16);
-          const chunk = getChunk(response, id); // We create a React.lazy wrapper around any lazy values.
-          // When passed into React, we'll know how to suspend on this.
-
-          return createLazyChunkWrapper(chunk);
-        }
-
-      case '@':
-        {
-          // Promise
-          if (value.length === 2) {
-            // Infinite promise that never resolves.
-            return new Promise(() => {});
-          }
-
-          const id = parseInt(value.slice(2), 16);
-          const chunk = getChunk(response, id);
-          return chunk;
-        }
-
-      case 'S':
-        {
-          // Symbol
-          return Symbol.for(value.slice(2));
-        }
-
-      case 'F':
-        {
-          // Server Reference
-          const id = parseInt(value.slice(2), 16);
-          const metadata = getOutlinedModel(response, id);
-          return createServerReferenceProxy(response, metadata);
-        }
-
-      case 'T':
-        {
-          // Temporary Reference
-          const id = parseInt(value.slice(2), 16);
-          const temporaryReferences = response._tempRefs;
-
-          if (temporaryReferences == null) {
-            throw new Error('Missing a temporary reference set but the RSC response returned a temporary reference. ' + 'Pass a temporaryReference option with the set that was used with the reply.');
-          }
-
-          return readTemporaryReference(temporaryReferences, id);
-        }
-
-      case 'Q':
-        {
-          // Map
-          const id = parseInt(value.slice(2), 16);
-          const data = getOutlinedModel(response, id);
-          return new Map(data);
-        }
-
-      case 'W':
-        {
-          // Set
-          const id = parseInt(value.slice(2), 16);
-          const data = getOutlinedModel(response, id);
-          return new Set(data);
-        }
-
-      case 'I':
-        {
-          // $Infinity
-          return Infinity;
-        }
-
-      case '-':
-        {
-          // $-0 or $-Infinity
-          if (value === '$-0') {
-            return -0;
-          } else {
-            return -Infinity;
-          }
-        }
-
-      case 'N':
-        {
-          // $NaN
-          return NaN;
-        }
-
-      case 'u':
-        {
-          // matches "$undefined"
-          // Special encoding for `undefined` which can't be serialized as JSON otherwise.
-          return undefined;
-        }
-
-      case 'D':
-        {
-          // Date
-          return new Date(Date.parse(value.slice(2)));
-        }
-
-      case 'n':
-        {
-          // BigInt
-          return BigInt(value.slice(2));
-        }
-
-      case 'E':
-
+      case "$":
+        return value.slice(1);
+      case "L":
+        return (
+          (parentObject = parseInt(value.slice(2), 16)),
+          (response = getChunk(response, parentObject)),
+          { $$typeof: REACT_LAZY_TYPE, _payload: response, _init: readChunk }
+        );
+      case "@":
+        if (2 === value.length) return new Promise(function () {});
+        parentObject = parseInt(value.slice(2), 16);
+        return getChunk(response, parentObject);
+      case "S":
+        return Symbol.for(value.slice(2));
+      case "F":
+        return (
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(
+            response,
+            value,
+            parentObject,
+            key,
+            createServerReferenceProxy
+          )
+        );
+      case "T":
+        parentObject = parseInt(value.slice(2), 16);
+        response = response._tempRefs;
+        if (null == response)
+          throw Error(
+            "Missing a temporary reference set but the RSC response returned a temporary reference. Pass a temporaryReference option with the set that was used with the reply."
+          );
+        if (0 > parentObject || parentObject >= response.length)
+          throw Error(
+            "The RSC response contained a reference that doesn't exist in the temporary reference set. Always pass the matching set that was used to create the reply when parsing its response."
+          );
+        return response[parentObject];
+      case "Q":
+        return (
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, parentObject, key, createMap)
+        );
+      case "W":
+        return (
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, parentObject, key, createSet)
+        );
+      case "B":
+        return;
+      case "K":
+        return (
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, parentObject, key, createFormData)
+        );
+      case "i":
+        return (
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, parentObject, key, extractIterator)
+        );
+      case "I":
+        return Infinity;
+      case "-":
+        return "$-0" === value ? -0 : -Infinity;
+      case "N":
+        return NaN;
+      case "u":
+        return;
+      case "D":
+        return new Date(Date.parse(value.slice(2)));
+      case "n":
+        return BigInt(value.slice(2));
       default:
-        {
-          // We assume that anything else is a reference ID.
-          const id = parseInt(value.slice(1), 16);
-          const chunk = getChunk(response, id);
-
-          switch (chunk.status) {
-            case RESOLVED_MODEL:
-              initializeModelChunk(chunk);
-              break;
-
-            case RESOLVED_MODULE:
-              initializeModuleChunk(chunk);
-              break;
-          } // The status might have changed after initialization.
-
-
-          switch (chunk.status) {
-            case INITIALIZED:
-              const chunkValue = chunk.value;
-
-              return chunkValue;
-
-            case PENDING:
-            case BLOCKED:
-            case CYCLIC:
-              const parentChunk = initializingChunk;
-              chunk.then(createModelResolver(parentChunk, parentObject, key, chunk.status === CYCLIC), createModelReject(parentChunk));
-              return null;
-
-            default:
-              throw chunk.reason;
-          }
-        }
+        return (
+          (value = parseInt(value.slice(1), 16)),
+          getOutlinedModel(response, value, parentObject, key, createModel)
+        );
     }
   }
-
   return value;
 }
-
-function parseModelTuple(response, value) {
-  const tuple = value;
-
-  if (tuple[0] === REACT_ELEMENT_TYPE) {
-    // TODO: Consider having React just directly accept these arrays as elements.
-    // Or even change the ReactElement type to be an array.
-    return createElement(tuple[1], tuple[2], tuple[3]);
-  }
-
-  return value;
-}
-
 function missingCall() {
-  throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
+  throw Error(
+    'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
+  );
 }
-
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
-  const chunks = new Map();
-  const response = {
+function resolveModule(response, id, model) {
+  var chunks = response._chunks,
+    chunk = chunks.get(id);
+  model = JSON.parse(model, response._fromJSON);
+  var clientReference = resolveClientReference(response._bundlerConfig, model);
+  prepareDestinationWithChunks(
+    response._moduleLoading,
+    model[1],
+    response._nonce
+  );
+  if ((model = preloadModule(clientReference))) {
+    if (chunk) {
+      var blockedChunk = chunk;
+      blockedChunk.status = "blocked";
+    } else
+      (blockedChunk = new Chunk("blocked", null, null, response)),
+        chunks.set(id, blockedChunk);
+    model.then(
+      function () {
+        return resolveModuleChunk(blockedChunk, clientReference);
+      },
+      function (error) {
+        return triggerErrorOnChunk(blockedChunk, error);
+      }
+    );
+  } else
+    chunk
+      ? resolveModuleChunk(chunk, clientReference)
+      : chunks.set(
+          id,
+          new Chunk("resolved_module", clientReference, null, response)
+        );
+}
+function createFromJSONCallback(response) {
+  return function (key, value) {
+    return "string" === typeof value
+      ? parseModelString(response, this, key, value)
+      : "object" === typeof value && null !== value
+      ? ((key =
+          value[0] === REACT_ELEMENT_TYPE
+            ? {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: value[1],
+                key: value[2],
+                ref: null,
+                props: value[3]
+              }
+            : value),
+        key)
+      : value;
+  };
+}
+function noServerCall() {
+  throw Error(
+    "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
+  );
+}
+function createResponseFromOptions(options) {
+  var bundlerConfig = options.ssrManifest.moduleMap,
+    moduleLoading = options.ssrManifest.moduleLoading,
+    encodeFormAction = options.encodeFormAction,
+    nonce = "string" === typeof options.nonce ? options.nonce : void 0;
+  options =
+    options && options.temporaryReferences
+      ? options.temporaryReferences
+      : void 0;
+  var chunks = new Map();
+  bundlerConfig = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
-    _callServer: callServer !== undefined ? callServer : missingCall,
+    _callServer: void 0 !== noServerCall ? noServerCall : missingCall,
     _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
-    _stringDecoder: createStringDecoder(),
+    _stringDecoder: new TextDecoder(),
     _fromJSON: null,
     _rowState: 0,
     _rowID: 0,
     _rowTag: 0,
     _rowLength: 0,
     _buffer: [],
-    _tempRefs: temporaryReferences
-  }; // Don't inline this call because it causes closure to outline the call above.
-
-  response._fromJSON = createFromJSONCallback(response);
-  return response;
-}
-
-function resolveModel(response, id, model) {
-  const chunks = response._chunks;
-  const chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunks.set(id, createResolvedModelChunk(response, model));
-  } else {
-    resolveModelChunk(chunk, model);
-  }
-}
-
-function resolveText(response, id, text) {
-  const chunks = response._chunks; // We assume that we always reference large strings after they've been
-  // emitted.
-
-  chunks.set(id, createInitializedTextChunk(response, text));
-}
-
-function resolveModule(response, id, model) {
-  const chunks = response._chunks;
-  const chunk = chunks.get(id);
-  const clientReferenceMetadata = parseModel(response, model);
-  const clientReference = resolveClientReference(response._bundlerConfig, clientReferenceMetadata);
-  prepareDestinationForModule(response._moduleLoading, response._nonce, clientReferenceMetadata); // TODO: Add an option to encode modules that are lazy loaded.
-  // For now we preload all modules as early as possible since it's likely
-  // that we'll need them.
-
-  const promise = preloadModule(clientReference);
-
-  if (promise) {
-    let blockedChunk;
-
-    if (!chunk) {
-      // Technically, we should just treat promise as the chunk in this
-      // case. Because it'll just behave as any other promise.
-      blockedChunk = createBlockedChunk(response);
-      chunks.set(id, blockedChunk);
-    } else {
-      // This can't actually happen because we don't have any forward
-      // references to modules.
-      blockedChunk = chunk;
-      blockedChunk.status = BLOCKED;
-    }
-
-    promise.then(() => resolveModuleChunk(blockedChunk, clientReference), error => triggerErrorOnChunk(blockedChunk, error));
-  } else {
-    if (!chunk) {
-      chunks.set(id, createResolvedModuleChunk(response, clientReference));
-    } else {
-      // This can't actually happen because we don't have any forward
-      // references to modules.
-      resolveModuleChunk(chunk, clientReference);
-    }
-  }
-}
-
-function resolveErrorProd(response, id, digest) {
-
-  const error = new Error('An error occurred in the Server Components render. The specific message is omitted in production' + ' builds to avoid leaking sensitive details. A digest property is included on this error instance which' + ' may provide additional details about the nature of the error.');
-  error.stack = 'Error: ' + error.message;
-  error.digest = digest;
-  const errorWithDigest = error;
-  const chunks = response._chunks;
-  const chunk = chunks.get(id);
-
-  if (!chunk) {
-    chunks.set(id, createErrorChunk(response, errorWithDigest));
-  } else {
-    triggerErrorOnChunk(chunk, errorWithDigest);
-  }
-}
-
-function resolveHint(response, code, model) {
-  const hintModel = parseModel(response, model);
-  dispatchHint(code, hintModel);
-}
-
-function processFullRow(response, id, tag, buffer, chunk) {
-
-  const stringDecoder = response._stringDecoder;
-  let row = '';
-
-  for (let i = 0; i < buffer.length; i++) {
-    row += readPartialStringChunk(stringDecoder, buffer[i]);
-  }
-
-  row += readFinalStringChunk(stringDecoder, chunk);
-
-  switch (tag) {
-    case 73
-    /* "I" */
-    :
-      {
-        resolveModule(response, id, row);
-        return;
-      }
-
-    case 72
-    /* "H" */
-    :
-      {
-        const code = row[0];
-        resolveHint(response, code, row.slice(1));
-        return;
-      }
-
-    case 69
-    /* "E" */
-    :
-      {
-        const errorInfo = JSON.parse(row);
-
-        {
-          resolveErrorProd(response, id, errorInfo.digest);
-        }
-
-        return;
-      }
-
-    case 84
-    /* "T" */
-    :
-      {
-        resolveText(response, id, row);
-        return;
-      }
-
-    case 68
-    /* "D" */
-    :
-
-    case 87
-    /* "W" */
-    :
-      {
-
-        throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
-      }
-
-    case 80
-    /* "P" */
-    :
-    // Fallthrough
-
-    default:
-      /* """ "{" "[" "t" "f" "n" "0" - "9" */
-      {
-        // We assume anything else is JSON.
-        resolveModel(response, id, row);
-        return;
-      }
-  }
-}
-
-function processBinaryChunk(response, chunk) {
-  let i = 0;
-  let rowState = response._rowState;
-  let rowID = response._rowID;
-  let rowTag = response._rowTag;
-  let rowLength = response._rowLength;
-  const buffer = response._buffer;
-  const chunkLength = chunk.length;
-
-  while (i < chunkLength) {
-    let lastIdx = -1;
-
-    switch (rowState) {
-      case ROW_ID:
-        {
-          const byte = chunk[i++];
-
-          if (byte === 58
-          /* ":" */
-          ) {
-              // Finished the rowID, next we'll parse the tag.
-              rowState = ROW_TAG;
-            } else {
-            rowID = rowID << 4 | (byte > 96 ? byte - 87 : byte - 48);
-          }
-
-          continue;
-        }
-
-      case ROW_TAG:
-        {
-          const resolvedRowTag = chunk[i];
-
-          if (resolvedRowTag === 84
-          /* "T" */
-          || enableBinaryFlight 
-          /* "V" */
-          ) {
-              rowTag = resolvedRowTag;
-              rowState = ROW_LENGTH;
-              i++;
-            } else if (resolvedRowTag > 64 && resolvedRowTag < 91
-          /* "A"-"Z" */
-          ) {
-              rowTag = resolvedRowTag;
-              rowState = ROW_CHUNK_BY_NEWLINE;
-              i++;
-            } else {
-            rowTag = 0;
-            rowState = ROW_CHUNK_BY_NEWLINE; // This was an unknown tag so it was probably part of the data.
-          }
-
-          continue;
-        }
-
-      case ROW_LENGTH:
-        {
-          const byte = chunk[i++];
-
-          if (byte === 44
-          /* "," */
-          ) {
-              // Finished the rowLength, next we'll buffer up to that length.
-              rowState = ROW_CHUNK_BY_LENGTH;
-            } else {
-            rowLength = rowLength << 4 | (byte > 96 ? byte - 87 : byte - 48);
-          }
-
-          continue;
-        }
-
-      case ROW_CHUNK_BY_NEWLINE:
-        {
-          // We're looking for a newline
-          lastIdx = chunk.indexOf(10
-          /* "\n" */
-          , i);
-          break;
-        }
-
-      case ROW_CHUNK_BY_LENGTH:
-        {
-          // We're looking for the remaining byte length
-          lastIdx = i + rowLength;
-
-          if (lastIdx > chunk.length) {
-            lastIdx = -1;
-          }
-
-          break;
-        }
-    }
-
-    const offset = chunk.byteOffset + i;
-
-    if (lastIdx > -1) {
-      // We found the last chunk of the row
-      const length = lastIdx - i;
-      const lastChunk = new Uint8Array(chunk.buffer, offset, length);
-      processFullRow(response, rowID, rowTag, buffer, lastChunk); // Reset state machine for a new row
-
-      i = lastIdx;
-
-      if (rowState === ROW_CHUNK_BY_NEWLINE) {
-        // If we're trailing by a newline we need to skip it.
-        i++;
-      }
-
-      rowState = ROW_ID;
-      rowTag = 0;
-      rowID = 0;
-      rowLength = 0;
-      buffer.length = 0;
-    } else {
-      // The rest of this row is in a future chunk. We stash the rest of the
-      // current chunk until we can process the full row.
-      const length = chunk.byteLength - i;
-      const remainingSlice = new Uint8Array(chunk.buffer, offset, length);
-      buffer.push(remainingSlice); // Update how many bytes we're still waiting for. If we're looking for
-      // a newline, this doesn't hurt since we'll just ignore it.
-
-      rowLength -= remainingSlice.byteLength;
-      break;
-    }
-  }
-
-  response._rowState = rowState;
-  response._rowID = rowID;
-  response._rowTag = rowTag;
-  response._rowLength = rowLength;
-}
-
-function parseModel(response, json) {
-  return JSON.parse(json, response._fromJSON);
-}
-
-function createFromJSONCallback(response) {
-  // $FlowFixMe[missing-this-annot]
-  return function (key, value) {
-    if (typeof value === 'string') {
-      // We can't use .bind here because we need the "this" value.
-      return parseModelString(response, this, key, value);
-    }
-
-    if (typeof value === 'object' && value !== null) {
-      return parseModelTuple(response, value);
-    }
-
-    return value;
+    _tempRefs: options
   };
+  bundlerConfig._fromJSON = createFromJSONCallback(bundlerConfig);
+  return bundlerConfig;
 }
-
-function close(response) {
-  // In case there are any remaining unresolved chunks, they won't
-  // be resolved now. So we need to issue an error to those.
-  // Ideally we should be able to early bail out if we kept a
-  // ref count of pending chunks.
-  reportGlobalError(response, new Error('Connection closed.'));
-}
-
-function noServerCall() {
-  throw new Error('Server Functions cannot be called during initial render. ' + 'This would create a fetch waterfall. Try to use a Server Component ' + 'to pass data to Client Components instead.');
-}
-
-function createServerReference(id, callServer) {
-  return createServerReference$1(id, noServerCall);
-}
-
-function createResponseFromOptions(options) {
-  return createResponse(options.ssrManifest.moduleMap, options.ssrManifest.moduleLoading, noServerCall, options.encodeFormAction, typeof options.nonce === 'string' ? options.nonce : undefined, options && options.temporaryReferences ? options.temporaryReferences : undefined);
-}
-
 function startReadingFromStream(response, stream) {
-  const reader = stream.getReader();
-
   function progress(_ref) {
-    let done = _ref.done,
-        value = _ref.value;
-
-    if (done) {
-      close(response);
-      return;
+    var value = _ref.value;
+    if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+    else {
+      var i = 0,
+        rowState = response._rowState,
+        rowID = response._rowID,
+        rowTag = response._rowTag,
+        rowLength = response._rowLength;
+      _ref = response._buffer;
+      for (var chunkLength = value.length; i < chunkLength; ) {
+        var lastIdx = -1;
+        switch (rowState) {
+          case 0:
+            lastIdx = value[i++];
+            58 === lastIdx
+              ? (rowState = 1)
+              : (rowID =
+                  (rowID << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 1:
+            rowState = value[i];
+            84 === rowState
+              ? ((rowTag = rowState), (rowState = 2), i++)
+              : (64 < rowState && 91 > rowState) ||
+                114 === rowState ||
+                120 === rowState
+              ? ((rowTag = rowState), (rowState = 3), i++)
+              : ((rowTag = 0), (rowState = 3));
+            continue;
+          case 2:
+            lastIdx = value[i++];
+            44 === lastIdx
+              ? (rowState = 4)
+              : (rowLength =
+                  (rowLength << 4) |
+                  (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+            continue;
+          case 3:
+            lastIdx = value.indexOf(10, i);
+            break;
+          case 4:
+            (lastIdx = i + rowLength), lastIdx > value.length && (lastIdx = -1);
+        }
+        var offset = value.byteOffset + i;
+        if (-1 < lastIdx) {
+          i = new Uint8Array(value.buffer, offset, lastIdx - i);
+          rowLength = response;
+          offset = rowTag;
+          var stringDecoder = rowLength._stringDecoder;
+          rowTag = "";
+          for (var i$jscomp$0 = 0; i$jscomp$0 < _ref.length; i$jscomp$0++)
+            rowTag += stringDecoder.decode(_ref[i$jscomp$0], decoderOptions);
+          rowTag += stringDecoder.decode(i);
+          switch (offset) {
+            case 73:
+              resolveModule(rowLength, rowID, rowTag);
+              break;
+            case 72:
+              rowID = rowTag[0];
+              rowTag = rowTag.slice(1);
+              rowLength = JSON.parse(rowTag, rowLength._fromJSON);
+              rowTag = ReactDOMSharedInternals.d;
+              switch (rowID) {
+                case "D":
+                  rowTag.D(rowLength);
+                  break;
+                case "C":
+                  "string" === typeof rowLength
+                    ? rowTag.C(rowLength)
+                    : rowTag.C(rowLength[0], rowLength[1]);
+                  break;
+                case "L":
+                  rowID = rowLength[0];
+                  i = rowLength[1];
+                  3 === rowLength.length
+                    ? rowTag.L(rowID, i, rowLength[2])
+                    : rowTag.L(rowID, i);
+                  break;
+                case "m":
+                  "string" === typeof rowLength
+                    ? rowTag.m(rowLength)
+                    : rowTag.m(rowLength[0], rowLength[1]);
+                  break;
+                case "X":
+                  "string" === typeof rowLength
+                    ? rowTag.X(rowLength)
+                    : rowTag.X(rowLength[0], rowLength[1]);
+                  break;
+                case "S":
+                  "string" === typeof rowLength
+                    ? rowTag.S(rowLength)
+                    : rowTag.S(
+                        rowLength[0],
+                        0 === rowLength[1] ? void 0 : rowLength[1],
+                        3 === rowLength.length ? rowLength[2] : void 0
+                      );
+                  break;
+                case "M":
+                  "string" === typeof rowLength
+                    ? rowTag.M(rowLength)
+                    : rowTag.M(rowLength[0], rowLength[1]);
+              }
+              break;
+            case 69:
+              rowTag = JSON.parse(rowTag);
+              i = rowTag.digest;
+              rowTag = Error(
+                "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+              );
+              rowTag.stack = "Error: " + rowTag.message;
+              rowTag.digest = i;
+              i = rowLength._chunks;
+              (offset = i.get(rowID))
+                ? triggerErrorOnChunk(offset, rowTag)
+                : i.set(rowID, new Chunk("rejected", null, rowTag, rowLength));
+              break;
+            case 84:
+              rowLength._chunks.set(
+                rowID,
+                new Chunk("fulfilled", rowTag, null, rowLength)
+              );
+              break;
+            case 68:
+            case 87:
+              throw Error(
+                "Failed to read a RSC payload created by a development version of React on the server while using a production version on the client. Always use matching versions on the server and the client."
+              );
+            default:
+              (i = rowLength._chunks),
+                (offset = i.get(rowID))
+                  ? ((rowLength = offset),
+                    (rowID = rowTag),
+                    "pending" === rowLength.status &&
+                      ((rowTag = rowLength.value),
+                      (i = rowLength.reason),
+                      (rowLength.status = "resolved_model"),
+                      (rowLength.value = rowID),
+                      null !== rowTag &&
+                        (initializeModelChunk(rowLength),
+                        wakeChunkIfInitialized(rowLength, rowTag, i))))
+                  : i.set(
+                      rowID,
+                      new Chunk("resolved_model", rowTag, null, rowLength)
+                    );
+          }
+          i = lastIdx;
+          3 === rowState && i++;
+          rowLength = rowID = rowTag = rowState = 0;
+          _ref.length = 0;
+        } else {
+          value = new Uint8Array(value.buffer, offset, value.byteLength - i);
+          _ref.push(value);
+          rowLength -= value.byteLength;
+          break;
+        }
+      }
+      response._rowState = rowState;
+      response._rowID = rowID;
+      response._rowTag = rowTag;
+      response._rowLength = rowLength;
+      return reader.read().then(progress).catch(error);
     }
-
-    const buffer = value;
-    processBinaryChunk(response, buffer);
-    return reader.read().then(progress).catch(error);
   }
-
   function error(e) {
     reportGlobalError(response, e);
   }
-
+  var reader = stream.getReader();
   reader.read().then(progress).catch(error);
 }
-
-function createFromReadableStream(stream, options) {
-  const response = createResponseFromOptions(options);
-  startReadingFromStream(response, stream);
-  return getRoot(response);
-}
-
-function createFromFetch(promiseForResponse, options) {
-  const response = createResponseFromOptions(options);
-  promiseForResponse.then(function (r) {
-    startReadingFromStream(response, r.body);
-  }, function (e) {
-    reportGlobalError(response, e);
+exports.createFromFetch = function (promiseForResponse, options) {
+  var response = createResponseFromOptions(options);
+  promiseForResponse.then(
+    function (r) {
+      startReadingFromStream(response, r.body);
+    },
+    function (e) {
+      reportGlobalError(response, e);
+    }
+  );
+  return getChunk(response, 0);
+};
+exports.createFromReadableStream = function (stream, options) {
+  options = createResponseFromOptions(options);
+  startReadingFromStream(options, stream);
+  return getChunk(options, 0);
+};
+exports.createServerReference = function (id) {
+  return createServerReference$1(id, noServerCall);
+};
+exports.createTemporaryReferenceSet = function () {
+  return [];
+};
+exports.encodeReply = function (value, options) {
+  return new Promise(function (resolve, reject) {
+    processReply(
+      value,
+      "",
+      options && options.temporaryReferences
+        ? options.temporaryReferences
+        : void 0,
+      resolve,
+      reject
+    );
   });
-  return getRoot(response);
-}
-
-function encodeReply(value, options)
-/* We don't use URLSearchParams yet but maybe */
-{
-  return new Promise((resolve, reject) => {
-    processReply(value, '', options && options.temporaryReferences ? options.temporaryReferences : undefined, resolve, reject);
-  });
-}
-
-exports.createFromFetch = createFromFetch;
-exports.createFromReadableStream = createFromReadableStream;
-exports.createServerReference = createServerReference;
-exports.createTemporaryReferenceSet = createTemporaryReferenceSet;
-exports.encodeReply = encodeReply;
+};

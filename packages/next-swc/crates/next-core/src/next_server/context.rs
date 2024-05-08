@@ -140,12 +140,12 @@ pub async fn get_server_resolve_options_context(
 
     // Add the config's own list of external packages.
     external_packages.extend(
-        (*next_config.server_component_externals().await?)
+        (*next_config.server_external_packages().await?)
             .iter()
             .cloned(),
     );
 
-    let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
+    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
@@ -196,7 +196,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -310,6 +310,23 @@ pub async fn get_server_compile_time_info(
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))
     .cell()
+}
+
+/// Determins if the module is an internal asset (i.e overlay, fallback) coming
+/// from the embedded FS, don't apply user defined transforms.
+///
+/// [TODO] turbopack specific embed fs should be handled by internals of
+/// turbopack itself and user config should not try to leak this. However,
+/// currently we apply few transform options subject to next.js's configuration
+/// even if it's embedded assets.
+fn internal_assets_conditions() -> ContextCondition {
+    ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root()),
+        ContextCondition::InPath(
+            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
+        ),
+        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+    ])
 }
 
 #[turbo_tasks::function]
@@ -485,7 +502,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -537,7 +554,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -604,7 +621,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -667,7 +684,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -714,7 +731,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],

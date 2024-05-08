@@ -506,12 +506,12 @@ impl ReactServerComponentValidator {
                         "useSyncExternalStore",
                         "useTransition",
                         "useOptimistic",
+                        "useActionState",
                     ],
                 ),
                 (
                     "react-dom",
                     vec![
-                        "findDOMNode",
                         "flushSync",
                         "unstable_batchedUpdates",
                         "useFormStatus",
