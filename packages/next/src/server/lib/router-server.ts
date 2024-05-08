@@ -650,8 +650,15 @@ export async function initialize(opts: {
       if (opts.dev && developmentBundler && req.url) {
         const { basePath, assetPrefix } = config
 
+        // only prefix the URL with the asset prefix if it lacks a protocol
+        const prefix =
+          assetPrefix.startsWith('http://') ||
+          assetPrefix.startsWith('https://')
+            ? ''
+            : assetPrefix || basePath
+
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${prefix}/_next/webpack-hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
