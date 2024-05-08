@@ -7,6 +7,7 @@ import {
   type UIErrorBoundaryWrapperProps,
 } from './ui-error-boundary'
 import { isForbiddenError } from './forbidden'
+import { isNotFoundError } from './not-found'
 
 type ForbiddenBoundaryProps = Pick<
   UIErrorBoundaryWrapperProps,
@@ -18,6 +19,21 @@ export function ForbiddenBoundary(props: ForbiddenBoundaryProps) {
     <UIErrorBoundaryWrapper
       nextError={'forbidden'}
       matcher={isForbiddenError}
+      {...props}
+    />
+  )
+}
+
+type NotFoundBoundaryProps = Pick<
+  UIErrorBoundaryWrapperProps,
+  'uiComponent' | 'uiComponentStyles' | 'children'
+>
+
+export function NotFoundBoundary(props: NotFoundBoundaryProps) {
+  return (
+    <UIErrorBoundaryWrapper
+      nextError={'not-found'}
+      matcher={isNotFoundError}
       {...props}
     />
   )

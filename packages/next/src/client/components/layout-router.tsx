@@ -31,11 +31,10 @@ import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
-import { NotFoundBoundary } from './not-found-boundary'
-import { ForbiddenBoundary } from './forbidden-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
+import { ForbiddenBoundary, NotFoundBoundary } from './ui-errors-boundaries'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.

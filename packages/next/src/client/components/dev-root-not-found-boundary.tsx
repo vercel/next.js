@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { NotFoundBoundary } from './not-found-boundary'
+import { NotFoundBoundary } from './ui-errors-boundaries'
 
 export function bailOnNotFound() {
   throw new Error('notFound() is not allowed to use in root layout')

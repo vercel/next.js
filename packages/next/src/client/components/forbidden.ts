@@ -1,6 +1,6 @@
-const FORBIDDEN_ERROR_CODE = 'NEXT_FORBIDDEN'
+import { createUIError } from './ui-error-builder'
 
-type ForbiddenError = Error & { digest: typeof FORBIDDEN_ERROR_CODE }
+const { thrower, matcher } = createUIError('NEXT_FORBIDDEN')
 
 // TODO(@panteliselef): Update docs
 /**
@@ -18,12 +18,7 @@ type ForbiddenError = Error & { digest: typeof FORBIDDEN_ERROR_CODE }
  * // TODO(@panteliselef): Update docs
  * Read more: [Next.js Docs: `forbidden`](https://nextjs.org/docs/app/api-reference/functions/not-found)
  */
-export function forbidden(): never {
-  // eslint-disable-next-line no-throw-literal
-  const error = new Error(FORBIDDEN_ERROR_CODE)
-  ;(error as ForbiddenError).digest = FORBIDDEN_ERROR_CODE
-  throw error
-}
+const forbidden = thrower
 
 // TODO(@panteliselef): Update docs
 /**
@@ -33,10 +28,6 @@ export function forbidden(): never {
  * @param error the error that may reference a forbidden error
  * @returns true if the error is a forbidden error
  */
-export function isForbiddenError(error: unknown): error is ForbiddenError {
-  if (typeof error !== 'object' || error === null || !('digest' in error)) {
-    return false
-  }
+const isForbiddenError = matcher
 
-  return error.digest === FORBIDDEN_ERROR_CODE
-}
+export { forbidden, isForbiddenError }
