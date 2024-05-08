@@ -606,12 +606,12 @@ export default function OuterLayoutRouter({
                     loadingScripts={loading?.[2]}
                   >
                     <ForbiddenBoundary
-                      forbidden={forbidden}
-                      forbiddenStyles={forbiddenStyles}
+                      uiComponent={forbidden}
+                      uiComponentStyles={forbiddenStyles}
                     >
                       <NotFoundBoundary
-                        notFound={notFound}
-                        notFoundStyles={notFoundStyles}
+                        uiComponent={notFound}
+                        uiComponentStyles={notFoundStyles}
                       >
                         <RedirectBoundary>
                           <InnerLayoutRouter

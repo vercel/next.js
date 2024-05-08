@@ -1269,7 +1269,7 @@ async function renderToHTMLOrFlightImpl(
         }
         const internalHandledStatusCodes = [403, 404]
         if (
-          !internalHandledStatusCodes.includes(res.statusCode) &&
+          !internalHandledStatusCodes.includes(res.statusCode || 0) &&
           !hasRedirectError &&
           !shouldBailoutToCSR
         ) {
@@ -1278,7 +1278,9 @@ async function renderToHTMLOrFlightImpl(
 
         // TODO(@panteliselef): Maybe create specific type for `forbidden`
         // This is probably is used to generate metadata.
-        const errorType = internalHandledStatusCodes.includes(res.statusCode)
+        const errorType = internalHandledStatusCodes.includes(
+          res.statusCode || 0
+        )
           ? 'not-found'
           : hasRedirectError
             ? 'redirect'

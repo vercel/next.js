@@ -18,7 +18,7 @@ export function DevRootNotFoundBoundary({
   children: React.ReactNode
 }) {
   return (
-    <NotFoundBoundary notFound={<NotAllowedRootNotFoundError />}>
+    <NotFoundBoundary uiComponent={<NotAllowedRootNotFoundError />}>
       {children}
     </NotFoundBoundary>
   )

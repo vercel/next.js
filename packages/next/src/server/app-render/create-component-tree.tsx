@@ -305,7 +305,7 @@ async function createComponentTreeInternal({
       const RootLayoutComponent = LayoutOrPage
       return (
         <ForbiddenBoundary
-          forbidden={
+          uiComponent={
             ForbiddenComponent ? (
               <>
                 {layerAssets}
@@ -322,7 +322,7 @@ async function createComponentTreeInternal({
           }
         >
           <NotFoundBoundary
-            notFound={
+            uiComponent={
               NotFoundComponent ? (
                 <>
                   {layerAssets}
