@@ -16,7 +16,7 @@ describe('app dir - dynamic css', () => {
     const cssLinks = $('link[rel="stylesheet"][data-precedence="dynamic"]')
     expect(cssLinks.attr('href')).toContain('.css')
 
-    const preloadJsChunks = $('link[rel="preload"][precedence="dynamic"]')
+    const preloadJsChunks = $('link[rel="preload"]')
     expect(preloadJsChunks.attr('as')).toBe('script')
     expect(preloadJsChunks.attr('fetchpriority')).toContain(`low`)
   })

@@ -1,6 +1,7 @@
 'use client'
 
 import { getExpectedRequestStore } from '../../../client/components/request-async-storage.external'
+import { preload } from 'react-dom'
 
 export function PreloadChunks({
   moduleIds,
@@ -35,18 +36,25 @@ export function PreloadChunks({
       {allFiles.map((chunk) => {
         const href = `${requestStore.assetPrefix}/_next/${encodeURI(chunk)}`
         const isCss = chunk.endsWith('.css')
-        return (
-          <link
-            key={chunk}
-            // @ts-ignore
-            precedence={'dynamic'}
-            href={href}
-            rel={isCss ? 'stylesheet' : 'preload'}
-            as={isCss ? 'style' : 'script'}
-            // only apply fetchPriority to preload script
-            {...(isCss ? undefined : { fetchPriority: 'low' })}
-          />
-        )
+        // If it's stylesheet we use `precedence` o help hoist with React Float
+        if (isCss) {
+          return (
+            <link
+              key={chunk}
+              // @ts-ignore
+              precedence="dynamic"
+              href={href}
+              rel="stylesheet"
+              as="style"
+            />
+          )
+        } else {
+          // If it's script we use ReactDOM.preload to preload the resources
+          preload(href, {
+            as: 'script',
+            fetchPriority: 'low',
+          })
+        }
       })}
     </>
   )
