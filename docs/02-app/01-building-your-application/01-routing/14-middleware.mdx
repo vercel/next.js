@@ -541,8 +541,9 @@ export default async function middleware(req) {
     !pathname.endsWith('/') &&
     !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
   ) {
-    req.nextUrl.pathname += '/'
-    return NextResponse.redirect(req.nextUrl)
+    return NextResponse.redirect(
+      new URL(`${req.nextUrl.pathname}/`, req.nextUrl)
+    )
   }
 }
 ```

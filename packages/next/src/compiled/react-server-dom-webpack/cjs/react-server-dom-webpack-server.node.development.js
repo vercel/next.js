@@ -20,7 +20,27 @@ require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+
+var ReactSharedInternalsServer = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+if (!ReactSharedInternalsServer) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
 
 function error(format) {
   {
@@ -38,8 +58,7 @@ function printWarning(level, format, args) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
+    var stack = ReactSharedInternalsServer.getStackAddendum();
 
     if (stack !== '') {
       format += '%s';
@@ -520,18 +539,45 @@ function getServerReferenceBoundArguments(config, serverReference) {
   return serverReference.$$bound;
 }
 
-var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+var ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.ReactDOMCurrentDispatcher;
-var previousDispatcher = ReactDOMCurrentDispatcher.current;
-ReactDOMCurrentDispatcher.current = {
-  prefetchDNS: prefetchDNS,
-  preconnect: preconnect,
-  preload: preload,
-  preloadModule: preloadModule$1,
-  preinitStyle: preinitStyle,
-  preinitScript: preinitScript,
-  preinitModuleScript: preinitModuleScript
+var previousDispatcher = ReactDOMSharedInternals.d;
+/* ReactDOMCurrentDispatcher */
+
+ReactDOMSharedInternals.d
+/* ReactDOMCurrentDispatcher */
+= {
+  f
+  /* flushSyncWork */
+  : previousDispatcher.f
+  /* flushSyncWork */
+  ,
+  r
+  /* requestFormReset */
+  : previousDispatcher.r
+  /* requestFormReset */
+  ,
+  D
+  /* prefetchDNS */
+  : prefetchDNS,
+  C
+  /* preconnect */
+  : preconnect,
+  L
+  /* preload */
+  : preload,
+  m
+  /* preloadModule */
+  : preloadModule$1,
+  X
+  /* preinitScript */
+  : preinitScript,
+  S
+  /* preinitStyle */
+  : preinitStyle,
+  M
+  /* preinitModuleScript */
+  : preinitModuleScript
 };
 
 function prefetchDNS(href) {
@@ -550,7 +596,9 @@ function prefetchDNS(href) {
       hints.add(key);
       emitHint(request, 'D', href);
     } else {
-      previousDispatcher.prefetchDNS(href);
+      previousDispatcher.D(
+      /* prefetchDNS */
+      href);
     }
   }
 }
@@ -576,7 +624,9 @@ function preconnect(href, crossOrigin) {
         emitHint(request, 'C', href);
       }
     } else {
-      previousDispatcher.preconnect(href, crossOrigin);
+      previousDispatcher.C(
+      /* preconnect */
+      href, crossOrigin);
     }
   }
 }
@@ -609,7 +659,9 @@ function preload(href, as, options) {
         emitHint(request, 'L', [href, as]);
       }
     } else {
-      previousDispatcher.preload(href, as, options);
+      previousDispatcher.L(
+      /* preload */
+      href, as, options);
     }
   }
 }
@@ -636,7 +688,9 @@ function preloadModule$1(href, options) {
         return emitHint(request, 'm', href);
       }
     } else {
-      previousDispatcher.preloadModule(href, options);
+      previousDispatcher.m(
+      /* preloadModule */
+      href, options);
     }
   }
 }
@@ -665,7 +719,9 @@ function preinitStyle(href, precedence, options) {
         return emitHint(request, 'S', href);
       }
     } else {
-      previousDispatcher.preinitStyle(href, precedence, options);
+      previousDispatcher.S(
+      /* preinitStyle */
+      href, precedence, options);
     }
   }
 }
@@ -692,7 +748,9 @@ function preinitScript(src, options) {
         return emitHint(request, 'X', src);
       }
     } else {
-      previousDispatcher.preinitScript(src, options);
+      previousDispatcher.X(
+      /* preinitScript */
+      src, options);
     }
   }
 }
@@ -719,7 +777,9 @@ function preinitModuleScript(src, options) {
         return emitHint(request, 'M', src);
       }
     } else {
-      previousDispatcher.preinitModuleScript(src, options);
+      previousDispatcher.M(
+      /* preinitModuleScript */
+      src, options);
     }
   }
 } // Flight normally encodes undefined as a special character however for directive option
@@ -845,11 +905,7 @@ function createTemporaryReference(id) {
   return new Proxy(reference, proxyHandlers);
 }
 
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
@@ -927,7 +983,14 @@ function trackUsedThenable(thenableState, thenable, index) {
 
     default:
       {
-        if (typeof thenable.status === 'string') ; else {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          // Attach a dummy listener, to ensure that any lazy initialization can
+          // happen. Flight lazily parses JSON when the value is actually awaited.
+          thenable.then(noop, noop);
+        } else {
           var pendingThenable = thenable;
           pendingThenable.status = 'pending';
           pendingThenable.then(function (fulfilledValue) {
@@ -942,21 +1005,22 @@ function trackUsedThenable(thenableState, thenable, index) {
               rejectedThenable.status = 'rejected';
               rejectedThenable.reason = error;
             }
-          }); // Check one more time in case the thenable resolved synchronously
+          });
+        } // Check one more time in case the thenable resolved synchronously
 
-          switch (thenable.status) {
-            case 'fulfilled':
-              {
-                var fulfilledThenable = thenable;
-                return fulfilledThenable.value;
-              }
 
-            case 'rejected':
-              {
-                var rejectedThenable = thenable;
-                throw rejectedThenable.reason;
-              }
-          }
+        switch (thenable.status) {
+          case 'fulfilled':
+            {
+              var fulfilledThenable = thenable;
+              return fulfilledThenable.value;
+            }
+
+          case 'rejected':
+            {
+              var rejectedThenable = thenable;
+              throw rejectedThenable.reason;
+            }
         } // Suspend.
         //
         // Throwing here is an implementation detail that allows us to unwind the
@@ -992,21 +1056,34 @@ function getSuspendedThenable() {
 var currentRequest$1 = null;
 var thenableIndexCounter = 0;
 var thenableState = null;
+var currentComponentDebugInfo = null;
 function prepareToUseHooksForRequest(request) {
   currentRequest$1 = request;
 }
 function resetHooksForRequest() {
   currentRequest$1 = null;
 }
-function prepareToUseHooksForComponent(prevThenableState) {
+function prepareToUseHooksForComponent(prevThenableState, componentDebugInfo) {
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
+
+  {
+    currentComponentDebugInfo = componentDebugInfo;
+  }
 }
 function getThenableStateAfterSuspending() {
   // If you use() to Suspend this should always exist but if you throw a Promise instead,
   // which is not really supported anymore, it will be empty. We use the empty set as a
   // marker to know if this was a replay of the same component or first attempt.
   var state = thenableState || createThenableState();
+
+  {
+    // This is a hack but we stash the debug info here so that we don't need a completely
+    // different data structure just for this in DEV. Not too happy about it.
+    state._componentDebugInfo = currentComponentDebugInfo;
+    currentComponentDebugInfo = null;
+  }
+
   thenableState = null;
   return state;
 }
@@ -1101,10 +1178,6 @@ function use(usable) {
   }
 }
 
-function createSignal() {
-  return new AbortController().signal;
-}
-
 function resolveCache() {
   var request = resolveRequest();
 
@@ -1115,18 +1188,7 @@ function resolveCache() {
   return new Map();
 }
 
-var DefaultCacheDispatcher = {
-  getCacheSignal: function () {
-    var cache = resolveCache();
-    var entry = cache.get(createSignal);
-
-    if (entry === undefined) {
-      entry = createSignal();
-      cache.set(createSignal, entry);
-    }
-
-    return entry;
-  },
+var DefaultAsyncDispatcher = {
   getCacheForType: function (resourceType) {
     var cache = resolveCache();
     var entry = cache.get(resourceType);
@@ -1140,6 +1202,17 @@ var DefaultCacheDispatcher = {
     return entry;
   }
 };
+var currentOwner = null;
+
+{
+  DefaultAsyncDispatcher.getOwner = function () {
+    return currentOwner;
+  };
+}
+
+function setCurrentOwner(componentInfo) {
+  currentOwner = componentInfo;
+}
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
@@ -1479,23 +1552,20 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
-var ReactSharedServerInternals = // $FlowFixMe: It's defined in the one we resolve to.
-React.__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-if (!ReactSharedServerInternals) {
-  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
-}
+var ReactSharedInternals = ReactSharedInternalsServer;
 
 var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
+// task status
 
 var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
-var ERRORED$1 = 4;
-var ReactCurrentCache = ReactSharedServerInternals.ReactCurrentCache;
-var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
+var ERRORED$1 = 4; // object reference status
+
+var SEEN_BUT_NOT_YET_OUTLINED = -1;
+var NEVER_OUTLINED = -2;
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1508,11 +1578,11 @@ var OPEN = 0;
 var CLOSING = 1;
 var CLOSED = 2;
 function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone, environmentName) {
-  if (ReactCurrentCache.current !== null && ReactCurrentCache.current !== DefaultCacheDispatcher) {
+  if (ReactSharedInternals.A !== null && ReactSharedInternals.A !== DefaultAsyncDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
   }
 
-  ReactCurrentCache.current = DefaultCacheDispatcher;
+  ReactSharedInternals.A = DefaultAsyncDispatcher;
   var abortSet = new Set();
   var pingedTasks = [];
   var cleanupQueue = [];
@@ -1528,6 +1598,7 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     nextChunkId: 0,
     pendingChunks: 0,
     hints: hints,
+    abortListeners: new Set(),
     abortableTasks: abortSet,
     pingedTasks: pingedTasks,
     completedImportChunks: [],
@@ -1640,10 +1711,7 @@ function serializeThenable(request, task, thenable) {
     }
 
     request.abortableTasks.delete(newTask);
-
-    if (request.destination !== null) {
-      flushCompletedChunks(request, request.destination);
-    }
+    enqueueFlush(request);
   });
   return newTask.id;
 }
@@ -1721,46 +1789,107 @@ function createLazyWrapperAroundWakeable(wakeable) {
   return lazyType;
 }
 
-function renderFunctionComponent(request, task, key, Component, props) {
+function renderFunctionComponent(request, task, key, Component, props, owner) {
   // Reset the task's thenable state before continuing, so that if a later
   // component suspends we can reuse the same task object. If the same
   // component suspends again, the thenable state will be restored.
   var prevThenableState = task.thenableState;
   task.thenableState = null;
+  var componentDebugInfo = null;
 
   {
     if (debugID === null) {
       // We don't have a chunk to assign debug info. We need to outline this
       // component to assign it an ID.
       return outlineTask(request, task);
-    } else if (prevThenableState !== null) ; else {
+    } else if (prevThenableState !== null) {
+      // This is a replay and we've already emitted the debug info of this component
+      // in the first pass. We skip emitting a duplicate line.
+      // As a hack we stashed the previous component debug info on this object in DEV.
+      componentDebugInfo = prevThenableState._componentDebugInfo;
+    } else {
       // This is a new component in the same task so we can emit more debug info.
       var componentName = Component.displayName || Component.name || '';
       request.pendingChunks++;
-      emitDebugChunk(request, debugID, {
+      var componentDebugID = debugID;
+      componentDebugInfo = {
         name: componentName,
-        env: request.environmentName
-      });
+        env: request.environmentName,
+        owner: owner
+      }; // We outline this model eagerly so that we can refer to by reference as an owner.
+      // If we had a smarter way to dedupe we might not have to do this if there ends up
+      // being no references to this as an owner.
+
+      outlineModel(request, componentDebugInfo);
+      emitDebugChunk(request, componentDebugID, componentDebugInfo);
     }
   }
 
-  prepareToUseHooksForComponent(prevThenableState); // The secondArg is always undefined in Server Components since refs error early.
+  prepareToUseHooksForComponent(prevThenableState, componentDebugInfo); // The secondArg is always undefined in Server Components since refs error early.
 
   var secondArg = undefined;
-  var result = Component(props, secondArg);
+  var result;
 
-  if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
-    // When the return value is in children position we can resolve it immediately,
-    // to its value without a wrapper if it's synchronously available.
-    var thenable = result;
+  {
+    setCurrentOwner(componentDebugInfo);
 
-    if (thenable.status === 'fulfilled') {
-      return thenable.value;
-    } // TODO: Once we accept Promises as children on the client, we can just return
-    // the thenable here.
+    try {
+      result = Component(props, secondArg);
+    } finally {
+      setCurrentOwner(null);
+    }
+  }
+
+  if (typeof result === 'object' && result !== null) {
+    if (typeof result.then === 'function') {
+      // When the return value is in children position we can resolve it immediately,
+      // to its value without a wrapper if it's synchronously available.
+      var thenable = result;
+
+      if (thenable.status === 'fulfilled') {
+        return thenable.value;
+      } // TODO: Once we accept Promises as children on the client, we can just return
+      // the thenable here.
 
 
-    result = createLazyWrapperAroundWakeable(result);
+      result = createLazyWrapperAroundWakeable(result);
+    } // Normally we'd serialize an Iterator/AsyncIterator as a single-shot which is not compatible
+    // to be rendered as a React Child. However, because we have the function to recreate
+    // an iterable from rendering the element again, we can effectively treat it as multi-
+    // shot. Therefore we treat this as an Iterable/AsyncIterable, whether it was one or not, by
+    // adding a wrapper so that this component effectively renders down to an AsyncIterable.
+
+
+    var iteratorFn = getIteratorFn(result);
+
+    if (iteratorFn) {
+      var iterableChild = result;
+      result = _defineProperty({}, Symbol.iterator, function () {
+        var iterator = iteratorFn.call(iterableChild);
+
+        {
+          // If this was an Iterator but not a GeneratorFunction we warn because
+          // it might have been a mistake. Technically you can make this mistake with
+          // GeneratorFunctions and even single-shot Iterables too but it's extra
+          // tempting to try to return the value from a generator.
+          if (iterator === iterableChild) {
+            var isGeneratorComponent = // $FlowIgnore[method-unbinding]
+            Object.prototype.toString.call(Component) === '[object GeneratorFunction]' && // $FlowIgnore[method-unbinding]
+            Object.prototype.toString.call(iterableChild) === '[object Generator]';
+
+            if (!isGeneratorComponent) {
+              error('Returning an Iterator from a Server Component is not supported ' + 'since it cannot be looped over more than once. ');
+            }
+          }
+        }
+
+        return iterator;
+      });
+
+      {
+        result._debugInfo = iterableChild._debugInfo;
+      }
+    }
   } // Track this element's key on the Server Component on the keyPath context..
 
 
@@ -1786,6 +1915,37 @@ function renderFunctionComponent(request, task, key, Component, props) {
 }
 
 function renderFragment(request, task, children) {
+  if (task.keyPath !== null) {
+    // We have a Server Component that specifies a key but we're now splitting
+    // the tree using a fragment.
+    var fragment = [REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, task.keyPath, {
+      children: children
+    }];
+
+    if (!task.implicitSlot) {
+      // If this was keyed inside a set. I.e. the outer Server Component was keyed
+      // then we need to handle reorders of the whole set. To do this we need to wrap
+      // this array in a keyed Fragment.
+      return fragment;
+    } // If the outer Server Component was implicit but then an inner one had a key
+    // we don't actually need to be able to move the whole set around. It'll always be
+    // in an implicit slot. The key only exists to be able to reset the state of the
+    // children. We could achieve the same effect by passing on the keyPath to the next
+    // set of components inside the fragment. This would also allow a keyless fragment
+    // reconcile against a single child.
+    // Unfortunately because of JSON.stringify, we can't call the recursive loop for
+    // each child within this context because we can't return a set with already resolved
+    // values. E.g. a string would get double encoded. Returning would pop the context.
+    // So instead, we wrap it with an unkeyed fragment and inner keyed fragment.
+
+
+    return [fragment];
+  } // Since we're yielding here, that implicitly resets the keyPath context on the
+  // way up. Which is what we want since we've consumed it. If this changes to
+  // be recursive serialization, we need to reset the keyPath and implicitSlot,
+  // before recursing here.
+
+
   {
     var debugInfo = children._debugInfo;
 
@@ -1800,19 +1960,46 @@ function renderFragment(request, task, children) {
         // We do this after init so that we have received all the debug info
         // from the server by the time we emit it.
         forwardDebugInfo(request, debugID, debugInfo);
-      }
+      } // Since we're rendering this array again, create a copy that doesn't
+      // have the debug info so we avoid outlining or emitting debug info again.
+
+
+      children = Array.from(children);
     }
   }
 
-  {
-    return children;
-  }
+  return children;
 }
 
-function renderClientElement(task, type, key, props) {
-  {
-    return [REACT_ELEMENT_TYPE, type, key, props];
-  } // We prepend the terminal client element that actually gets serialized with
+function renderClientElement(task, type, key, props, owner) // DEV-only
+{
+  // the keys of any Server Components which are not serialized.
+
+
+  var keyPath = task.keyPath;
+
+  if (key === null) {
+    key = keyPath;
+  } else if (keyPath !== null) {
+    key = keyPath + ',' + key;
+  }
+
+  var element = [REACT_ELEMENT_TYPE, type, key, props, owner] ;
+
+  if (task.implicitSlot && key !== null) {
+    // The root Server Component had no key so it was in an implicit slot.
+    // If we had a key lower, it would end up in that slot with an explicit key.
+    // We wrap the element in a fragment to give it an implicit key slot with
+    // an inner explicit key.
+    return [element];
+  } // Since we're yielding here, that implicitly resets the keyPath context on the
+  // way up. Which is what we want since we've consumed it. If this changes to
+  // be recursive serialization, we need to reset the keyPath and implicitSlot,
+  // before recursing here. We also need to reset it once we render into an array
+  // or anything else too which we also get implicitly.
+
+
+  return element;
 } // The chunk ID we're currently rendering that we can assign debug data to.
 
 
@@ -1835,7 +2022,8 @@ function outlineTask(request, task) {
   return serializeLazyID(newTask.id);
 }
 
-function renderElement(request, task, type, key, ref, props) {
+function renderElement(request, task, type, key, ref, props, owner) // DEV only
+{
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
@@ -1856,14 +2044,14 @@ function renderElement(request, task, type, key, ref, props) {
   if (typeof type === 'function') {
     if (isClientReference(type) || isTemporaryReference(type)) {
       // This is a reference to a Client Component.
-      return renderClientElement(task, type, key, props);
+      return renderClientElement(task, type, key, props, owner);
     } // This is a Server Component.
 
 
-    return renderFunctionComponent(request, task, key, type, props);
+    return renderFunctionComponent(request, task, key, type, props, owner);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
-    return renderClientElement(task, type, key, props);
+    return renderClientElement(task, type, key, props, owner);
   } else if (typeof type === 'symbol') {
     if (type === REACT_FRAGMENT_TYPE && key === null) {
       // For key-less fragments, we add a small optimization to avoid serializing
@@ -1881,11 +2069,11 @@ function renderElement(request, task, type, key, ref, props) {
     // Any built-in works as long as its props are serializable.
 
 
-    return renderClientElement(task, type, key, props);
+    return renderClientElement(task, type, key, props, owner);
   } else if (type != null && typeof type === 'object') {
     if (isClientReference(type)) {
       // This is a reference to a Client Component.
-      return renderClientElement(task, type, key, props);
+      return renderClientElement(task, type, key, props, owner);
     }
 
     switch (type.$$typeof) {
@@ -1894,17 +2082,17 @@ function renderElement(request, task, type, key, ref, props) {
           var payload = type._payload;
           var init = type._init;
           var wrappedType = init(payload);
-          return renderElement(request, task, wrappedType, key, ref, props);
+          return renderElement(request, task, wrappedType, key, ref, props, owner);
         }
 
       case REACT_FORWARD_REF_TYPE:
         {
-          return renderFunctionComponent(request, task, key, type.render, props);
+          return renderFunctionComponent(request, task, key, type.render, props, owner);
         }
 
       case REACT_MEMO_TYPE:
         {
-          return renderElement(request, task, type.type, key, ref, props);
+          return renderElement(request, task, type.type, key, ref, props, owner);
         }
     }
   }
@@ -1931,7 +2119,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
   if (typeof model === 'object' && model !== null) {
     // If we're about to write this into a new task we can assign it an ID early so that
     // any other references can refer to the value we're about to write.
-    {
+    if ((keyPath !== null || implicitSlot)) ; else {
       request.writtenObjects.set(model, id);
     }
   }
@@ -1981,6 +2169,10 @@ function serializeByValueID(id) {
 
 function serializeLazyID(id) {
   return '$L' + id.toString(16);
+}
+
+function serializeInfinitePromise() {
+  return '$@';
 }
 
 function serializePromiseID(id) {
@@ -2117,13 +2309,9 @@ function serializeTemporaryReference(request, temporaryReference) {
 }
 
 function serializeLargeTextString(request, text) {
-  request.pendingChunks += 2;
+  request.pendingChunks++;
   var textId = request.nextChunkId++;
-  var textChunk = stringToChunk(text);
-  var binaryLength = byteLengthOfChunk(textChunk);
-  var row = textId.toString(16) + ':T' + binaryLength.toString(16) + ',';
-  var headerChunk = stringToChunk(row);
-  request.completedRegularChunks.push(headerChunk, textChunk);
+  emitTextChunk(request, textId, text);
   return serializeByValueID(textId);
 }
 
@@ -2138,14 +2326,19 @@ function serializeMap(request, map) {
       var existingId = writtenObjects.get(key);
 
       if (existingId === undefined) {
-        // Mark all object keys as seen so that they're always outlined.
-        writtenObjects.set(key, -1);
+        writtenObjects.set(key, SEEN_BUT_NOT_YET_OUTLINED);
       }
     }
   }
 
   var id = outlineModel(request, entries);
   return '$Q' + id.toString(16);
+}
+
+function serializeFormData(request, formData) {
+  var entries = Array.from(formData.entries());
+  var id = outlineModel(request, entries);
+  return '$K' + id.toString(16);
 }
 
 function serializeSet(request, set) {
@@ -2159,14 +2352,18 @@ function serializeSet(request, set) {
       var existingId = writtenObjects.get(key);
 
       if (existingId === undefined) {
-        // Mark all object keys as seen so that they're always outlined.
-        writtenObjects.set(key, -1);
+        writtenObjects.set(key, SEEN_BUT_NOT_YET_OUTLINED);
       }
     }
   }
 
   var id = outlineModel(request, entries);
   return '$W' + id.toString(16);
+}
+
+function serializeIterator(request, iterator) {
+  var id = outlineModel(request, Array.from(iterator));
+  return '$i' + id.toString(16);
 }
 
 function escapeStringValue(value) {
@@ -2264,12 +2461,11 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
           var _existingId = _writtenObjects.get(value);
 
           if (_existingId !== undefined) {
-            if (modelRoot === value) {
+            if ((task.keyPath !== null || task.implicitSlot)) ; else if (modelRoot === value) {
               // This is the ID we're currently emitting so we need to write it
               // once but if we discover it again, we refer to it by id.
               modelRoot = null;
-            } else if (_existingId === -1) {
-              // Seen but not yet outlined.
+            } else if (_existingId === SEEN_BUT_NOT_YET_OUTLINED) {
               // TODO: If we throw here we can treat this as suspending which causes an outline
               // but that is able to reuse the same task if we're already in one but then that
               // will be a lazy future value rather than guaranteed to exist but maybe that's good.
@@ -2288,7 +2484,11 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
           } else {
             // This is the first time we've seen this object. We may never see it again
             // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
-            _writtenObjects.set(value, -1);
+            _writtenObjects.set(value, SEEN_BUT_NOT_YET_OUTLINED); // The element's props are marked as "never outlined" so that they are inlined into
+            // the same row as the element itself.
+
+
+            _writtenObjects.set(value.props, NEVER_OUTLINED);
           }
 
           var element = value;
@@ -2313,12 +2513,16 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
           var ref;
 
           {
-            ref = element.ref;
+            // TODO: This is a temporary, intermediate step. Once the feature
+            // flag is removed, we should get the ref off the props object right
+            // before using it.
+            var refProp = props.ref;
+            ref = refProp !== undefined ? refProp : null;
           } // Attempt to render the Server Component.
 
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, ref, props);
+          element.key, ref, props, element._owner );
         }
 
       case REACT_LAZY_TYPE:
@@ -2362,7 +2566,14 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (typeof value.then === 'function') {
       if (existingId !== undefined) {
-        if (modelRoot === value) {
+        if ((task.keyPath !== null || task.implicitSlot)) {
+          // If we're in some kind of context we can't reuse the result of this render or
+          // previous renders of this element. We only reuse Promises if they're not wrapped
+          // by another Server Component.
+          var _promiseId = serializeThenable(request, task, value);
+
+          return serializePromiseID(_promiseId);
+        } else if (modelRoot === value) {
           // This is the ID we're currently emitting so we need to write it
           // once but if we discover it again, we refer to it by id.
           modelRoot = null;
@@ -2384,12 +2595,11 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
         // This is the ID we're currently emitting so we need to write it
         // once but if we discover it again, we refer to it by id.
         modelRoot = null;
-      } else if (existingId === -1) {
-        // Seen but not yet outlined.
+      } else if (existingId === SEEN_BUT_NOT_YET_OUTLINED) {
         var _newId = outlineModel(request, value);
 
         return serializeByValueID(_newId);
-      } else {
+      } else if (existingId !== NEVER_OUTLINED) {
         // We've already emitted this as an outlined object, so we can
         // just refer to that by its existing ID.
         return serializeByValueID(existingId);
@@ -2397,7 +2607,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
     } else {
       // This is the first time we've seen this object. We may never see it again
       // so we'll inline it. Mark it as seen. If we see it again, we'll outline.
-      writtenObjects.set(value, -1);
+      writtenObjects.set(value, SEEN_BUT_NOT_YET_OUTLINED);
     }
 
     if (isArray(value)) {
@@ -2410,13 +2620,26 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (value instanceof Set) {
       return serializeSet(request, value);
+    } // TODO: FormData is not available in old Node. Remove the typeof later.
+
+
+    if (typeof FormData === 'function' && value instanceof FormData) {
+      return serializeFormData(request, value);
     }
 
     var iteratorFn = getIteratorFn(value);
 
     if (iteratorFn) {
-      return renderFragment(request, task, Array.from(value));
-    } // Verify that this is a simple plain object.
+      // TODO: Should we serialize the return value as well like we do for AsyncIterables?
+      var iterator = iteratorFn.call(value);
+
+      if (iterator === value) {
+        // Iterator, not Iterable
+        return serializeIterator(request, iterator);
+      }
+
+      return renderFragment(request, task, Array.from(iterator));
+    }
 
 
     var proto = getPrototypeOf(value);
@@ -2673,12 +2896,224 @@ function emitModelChunk(request, id, json) {
 }
 
 function emitDebugChunk(request, id, debugInfo) {
+  // use the full serialization that requires a task.
 
 
-  var json = stringify(debugInfo);
+  var counter = {
+    objectCount: 0
+  };
+
+  function replacer(parentPropertyName, value) {
+    return renderConsoleValue(request, counter, this, parentPropertyName, value);
+  } // $FlowFixMe[incompatible-type] stringify can return null
+
+
+  var json = stringify(debugInfo, replacer);
   var row = serializeRowHeader('D', id) + json + '\n';
   var processedChunk = stringToChunk(row);
   request.completedRegularChunks.push(processedChunk);
+}
+
+function emitTextChunk(request, id, text) {
+  request.pendingChunks++; // Extra chunk for the header.
+
+  var textChunk = stringToChunk(text);
+  var binaryLength = byteLengthOfChunk(textChunk);
+  var row = id.toString(16) + ':T' + binaryLength.toString(16) + ',';
+  var headerChunk = stringToChunk(row);
+  request.completedRegularChunks.push(headerChunk, textChunk);
+}
+
+function serializeEval(source) {
+
+  return '$E' + source;
+} // This is a forked version of renderModel which should never error, never suspend and is limited
+// in the depth it can encode.
+
+
+function renderConsoleValue(request, counter, parent, parentPropertyName, value) {
+  // Make sure that `parent[parentPropertyName]` wasn't JSONified before `value` was passed to us
+  // $FlowFixMe[incompatible-use]
+  var originalValue = parent[parentPropertyName];
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === 'object') {
+    if (isClientReference(value)) {
+      // We actually have this value on the client so we could import it.
+      // This might be confusing though because on the Server it won't actually
+      // be this value, so if you're debugging client references maybe you'd be
+      // better with a place holder.
+      return serializeClientReference(request, parent, parentPropertyName, value);
+    }
+
+    if (counter.objectCount > 20) {
+      // We've reached our max number of objects to serialize across the wire so we serialize this
+      // object but no properties inside of it, as a place holder.
+      return Array.isArray(value) ? [] : {};
+    }
+
+    counter.objectCount++;
+    var writtenObjects = request.writtenObjects;
+    var existingId = writtenObjects.get(value); // $FlowFixMe[method-unbinding]
+
+    if (typeof value.then === 'function') {
+      if (existingId !== undefined) {
+        // We've seen this promise before, so we can just refer to the same result.
+        return serializePromiseID(existingId);
+      }
+
+      var thenable = value;
+
+      switch (thenable.status) {
+        case 'fulfilled':
+          {
+            return serializePromiseID(outlineConsoleValue(request, counter, thenable.value));
+          }
+
+        case 'rejected':
+          {
+            var x = thenable.reason;
+            request.pendingChunks++;
+            var errorId = request.nextChunkId++;
+
+            {
+              // We don't log these errors since they didn't actually throw into Flight.
+              var digest = '';
+              emitErrorChunk(request, errorId, digest, x);
+            }
+
+            return serializePromiseID(errorId);
+          }
+      } // If it hasn't already resolved (and been instrumented) we just encode an infinite
+      // promise that will never resolve.
+
+
+      return serializeInfinitePromise();
+    }
+
+    if (existingId !== undefined && existingId >= 0) {
+      // We've already emitted this as a real object, so we can
+      // just refer to that by its existing ID.
+      return serializeByValueID(existingId);
+    }
+
+    if (isArray(value)) {
+      return value;
+    }
+
+    if (value instanceof Map) {
+      return serializeMap(request, value);
+    }
+
+    if (value instanceof Set) {
+      return serializeSet(request, value);
+    } // TODO: FormData is not available in old Node. Remove the typeof later.
+
+
+    if (typeof FormData === 'function' && value instanceof FormData) {
+      return serializeFormData(request, value);
+    }
+
+    var iteratorFn = getIteratorFn(value);
+
+    if (iteratorFn) {
+      return Array.from(value);
+    } // $FlowFixMe[incompatible-return]
+
+
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    if (value[value.length - 1] === 'Z') {
+      // Possibly a Date, whose toJSON automatically calls toISOString
+      if (originalValue instanceof Date) {
+        return serializeDateFromDateJSON(value);
+      }
+    }
+
+    if (value.length >= 1024) {
+      // For large strings, we encode them outside the JSON payload so that we
+      // don't have to double encode and double parse the strings. This can also
+      // be more compact in case the string has a lot of escaped characters.
+      return serializeLargeTextString(request, value);
+    }
+
+    return escapeStringValue(value);
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return serializeNumber(value);
+  }
+
+  if (typeof value === 'undefined') {
+    return serializeUndefined();
+  }
+
+  if (typeof value === 'function') {
+    if (isClientReference(value)) {
+      return serializeClientReference(request, parent, parentPropertyName, value);
+    }
+
+    if (isTemporaryReference(value)) {
+      return serializeTemporaryReference(request, value);
+    } // Serialize the body of the function as an eval so it can be printed.
+    // $FlowFixMe[method-unbinding]
+
+
+    return serializeEval('(' + Function.prototype.toString.call(value) + ')');
+  }
+
+  if (typeof value === 'symbol') {
+    var writtenSymbols = request.writtenSymbols;
+
+    var _existingId3 = writtenSymbols.get(value);
+
+    if (_existingId3 !== undefined) {
+      return serializeByValueID(_existingId3);
+    } // $FlowFixMe[incompatible-type] `description` might be undefined
+
+
+    var name = value.description; // We use the Symbol.for version if it's not a global symbol. Close enough.
+
+    request.pendingChunks++;
+    var symbolId = request.nextChunkId++;
+    emitSymbolChunk(request, symbolId, name);
+    return serializeByValueID(symbolId);
+  }
+
+  if (typeof value === 'bigint') {
+    return serializeBigInt(value);
+  }
+
+  return 'unknown type ' + typeof value;
+}
+
+function outlineConsoleValue(request, counter, model) {
+
+  function replacer(parentPropertyName, value) {
+    try {
+      return renderConsoleValue(request, counter, this, parentPropertyName, value);
+    } catch (x) {
+      return 'unknown value';
+    }
+  } // $FlowFixMe[incompatible-type] stringify can return null
+
+
+  var json = stringify(model, replacer);
+  request.pendingChunks++;
+  var id = request.nextChunkId++;
+  var row = id.toString(16) + ':' + json + '\n';
+  var processedChunk = stringToChunk(row);
+  request.completedRegularChunks.push(processedChunk);
+  return id;
 }
 
 function forwardDebugInfo(request, id, debugInfo) {
@@ -2686,6 +3121,22 @@ function forwardDebugInfo(request, id, debugInfo) {
     request.pendingChunks++;
     emitDebugChunk(request, id, debugInfo[i]);
   }
+}
+
+function emitChunk(request, task, value) {
+  var id = task.id; // For certain types we have special types, we typically outlined them but
+  // we can emit them directly for this row instead of through an indirection.
+
+  if (typeof value === 'string') {
+
+    emitTextChunk(request, id, value);
+    return;
+  }
+  // $FlowFixMe[incompatible-type] stringify can return null for undefined but we never do
+
+
+  var json = stringify(value, task.toJSON);
+  emitModelChunk(request, task.id, json);
 }
 
 var emptyRoot = {};
@@ -2724,21 +3175,19 @@ function retryTask(request, task) {
 
     task.keyPath = null;
     task.implicitSlot = false;
-    var json;
 
     if (typeof resolvedModel === 'object' && resolvedModel !== null) {
       // Object might contain unresolved values like additional elements.
       // This is simulating what the JSON loop would do if this was part of it.
-      // $FlowFixMe[incompatible-type] stringify can return null for undefined but we never do
-      json = stringify(resolvedModel, task.toJSON);
+      emitChunk(request, task, resolvedModel);
     } else {
       // If the value is a string, it means it's a terminal value and we already escaped it
       // We don't need to escape it again so it's not passed the toJSON replacer.
       // $FlowFixMe[incompatible-type] stringify can return null for undefined but we never do
-      json = stringify(resolvedModel);
+      var json = stringify(resolvedModel);
+      emitModelChunk(request, task.id, json);
     }
 
-    emitModelChunk(request, task.id, json);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
   } catch (thrownValue) {
@@ -2772,8 +3221,8 @@ function retryTask(request, task) {
 }
 
 function performWork(request) {
-  var prevDispatcher = ReactCurrentDispatcher.current;
-  ReactCurrentDispatcher.current = HooksDispatcher;
+  var prevDispatcher = ReactSharedInternals.H;
+  ReactSharedInternals.H = HooksDispatcher;
   var prevRequest = currentRequest;
   currentRequest = request;
   prepareToUseHooksForRequest(request);
@@ -2794,7 +3243,7 @@ function performWork(request) {
     logRecoverableError(request, error);
     fatalError(request, error);
   } finally {
-    ReactCurrentDispatcher.current = prevDispatcher;
+    ReactSharedInternals.H = prevDispatcher;
     resetHooksForRequest();
     currentRequest = prevRequest;
   }
@@ -2896,6 +3345,7 @@ function flushCompletedChunks(request, destination) {
   if (request.pendingChunks === 0) {
 
     close$1(destination);
+    request.destination = null;
   }
 }
 
@@ -2953,11 +3403,10 @@ function stopFlowing(request) {
 
 function abort(request, reason) {
   try {
-    var abortableTasks = request.abortableTasks;
+    var abortableTasks = request.abortableTasks; // We have tasks to abort. We'll emit one error row and then emit a reference
+    // to that row from every row that's still remaining.
 
     if (abortableTasks.size > 0) {
-      // We have tasks to abort. We'll emit one error row and then emit a reference
-      // to that row from every row that's still remaining.
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
 
@@ -2971,6 +3420,21 @@ function abort(request, reason) {
         return abortTask(task, request, errorId);
       });
       abortableTasks.clear();
+    }
+
+    var abortListeners = request.abortListeners;
+
+    if (abortListeners.size > 0) {
+      var _error;
+
+      if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) ; else {
+        _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+      }
+
+      abortListeners.forEach(function (callback) {
+        return callback(_error);
+      });
+      abortListeners.clear();
     }
 
     if (request.destination !== null) {
@@ -3428,7 +3892,7 @@ function getOutlinedModel(response, id) {
   return chunk.value;
 }
 
-function parseModelString(response, parentObject, key, value) {
+function parseModelString(response, obj, key, value) {
   if (value[0] === '$') {
     switch (value[1]) {
       case '$':
@@ -3440,19 +3904,21 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
-          var id = parseInt(value.slice(2), 16);
-          var chunk = getChunk(response, id);
-          return chunk;
+          var _id = parseInt(value.slice(2), 16);
+
+          var _chunk = getChunk(response, _id);
+
+          return _chunk;
         }
 
       case 'F':
         {
           // Server Reference
-          var _id = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
+          var _id2 = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = getOutlinedModel(response, _id);
-          return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, parentObject, key);
+          var metaData = getOutlinedModel(response, _id2);
+          return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, obj, key);
         }
 
       case 'T':
@@ -3464,18 +3930,18 @@ function parseModelString(response, parentObject, key, value) {
       case 'Q':
         {
           // Map
-          var _id2 = parseInt(value.slice(2), 16);
+          var _id3 = parseInt(value.slice(2), 16);
 
-          var data = getOutlinedModel(response, _id2);
+          var data = getOutlinedModel(response, _id3);
           return new Map(data);
         }
 
       case 'W':
         {
           // Set
-          var _id3 = parseInt(value.slice(2), 16);
+          var _id4 = parseInt(value.slice(2), 16);
 
-          var _data = getOutlinedModel(response, _id3);
+          var _data = getOutlinedModel(response, _id4);
 
           return new Set(_data);
         }
@@ -3499,6 +3965,16 @@ function parseModelString(response, parentObject, key, value) {
             }
           });
           return _data2;
+        }
+
+      case 'i':
+        {
+          // Iterator
+          var _id5 = parseInt(value.slice(2), 16);
+
+          var _data3 = getOutlinedModel(response, _id5);
+
+          return _data3[Symbol.iterator]();
         }
 
       case 'I':
@@ -3541,37 +4017,31 @@ function parseModelString(response, parentObject, key, value) {
           // BigInt
           return BigInt(value.slice(2));
         }
+    }
+
+
+    var id = parseInt(value.slice(1), 16);
+    var chunk = getChunk(response, id);
+
+    switch (chunk.status) {
+      case RESOLVED_MODEL:
+        initializeModelChunk(chunk);
+        break;
+    } // The status might have changed after initialization.
+
+
+    switch (chunk.status) {
+      case INITIALIZED:
+        return chunk.value;
+
+      case PENDING:
+      case BLOCKED:
+        var parentChunk = initializingChunk;
+        chunk.then(createModelResolver(parentChunk, obj, key), createModelReject(parentChunk));
+        return null;
 
       default:
-        {
-          // We assume that anything else is a reference ID.
-          var _id4 = parseInt(value.slice(1), 16);
-
-          var _chunk = getChunk(response, _id4);
-
-          switch (_chunk.status) {
-            case RESOLVED_MODEL:
-              initializeModelChunk(_chunk);
-              break;
-          } // The status might have changed after initialization.
-
-
-          switch (_chunk.status) {
-            case INITIALIZED:
-              return _chunk.value;
-
-            case PENDING:
-            case BLOCKED:
-              var parentChunk = initializingChunk;
-
-              _chunk.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
-
-              return null;
-
-            default:
-              throw _chunk.reason;
-          }
-        }
+        throw chunk.reason;
     }
   }
 

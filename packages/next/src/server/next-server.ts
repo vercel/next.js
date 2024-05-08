@@ -229,7 +229,11 @@ export default class NextNodeServer extends BaseServer<
       }).catch(() => {})
     }
 
-    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+    if (
+      !options.dev &&
+      !this.minimalMode &&
+      this.nextConfig.experimental.preloadEntriesOnStart
+    ) {
       this.unstable_preloadEntries()
     }
 
@@ -387,7 +391,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
-      experimental: this.renderOpts.experimental,
+      isAppPPREnabled: this.renderOpts.experimental.isAppPPREnabled,
     })
   }
 

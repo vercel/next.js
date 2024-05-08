@@ -5,8 +5,8 @@ describe('referencing a client component in an app route', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname)),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-4508873393-20240430',
+      'react-dom': '19.0.0-beta-4508873393-20240430',
     },
   })
 

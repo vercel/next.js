@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "14.3.0-canary.29",
+  "version": "14.3.0-canary.47",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -93,7 +93,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "14.3.0-canary.29",
+    "@next/env": "14.3.0-canary.47",
     "@swc/helpers": "0.5.11",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
@@ -104,8 +104,8 @@
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.41.2",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "19.0.0-beta-4508873393-20240430",
+    "react-dom": "19.0.0-beta-4508873393-20240430",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
@@ -153,10 +153,10 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/polyfill-module": "14.3.0-canary.29",
-    "@next/polyfill-nomodule": "14.3.0-canary.29",
-    "@next/react-refresh-utils": "14.3.0-canary.29",
-    "@next/swc": "14.3.0-canary.29",
+    "@next/polyfill-module": "14.3.0-canary.47",
+    "@next/polyfill-nomodule": "14.3.0-canary.47",
+    "@next/react-refresh-utils": "14.3.0-canary.47",
+    "@next/swc": "14.3.0-canary.47",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
     "@taskr/clear": "1.1.0",
@@ -200,7 +200,7 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.26.4",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240423.1",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240503.1",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.35",
     "anser": "1.4.9",
@@ -282,7 +282,7 @@
     "punycode": "2.1.1",
     "querystring-es3": "0.2.1",
     "raw-body": "2.4.1",
-    "react-is": "18.2.0",
+    "react-is": "19.0.0-canary-94eed63c49-20240425",
     "react-refresh": "0.12.0",
     "regenerator-runtime": "0.13.4",
     "sass-loader": "12.4.0",
