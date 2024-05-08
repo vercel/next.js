@@ -6,7 +6,7 @@ async function getLastModifiedTime(next: NextInstance, pathname: string) {
 }
 
 describe('app-dir - dynamic in generate params', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
