@@ -248,9 +248,10 @@ pub(crate) async fn config_loader_source(
     // Bundling would break the ability to use `require.resolve` in the config file.
     let code = formatdoc! {
         r#"
-            import {{ pathToFileURL }} from 'url';
+            import {{ pathToFileURL }} from 'node:url';
+            import path from 'node:path';
 
-            const configPath = `${{process.cwd()}}/${{{config_path}}}`;
+            const configPath = path.join(process.cwd(), {config_path});
             // Absolute paths don't work with ESM imports on Windows:
             // https://github.com/nodejs/node/issues/31710
             // convert it to a file:// URL, which works on all platforms
