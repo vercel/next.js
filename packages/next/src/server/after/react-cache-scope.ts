@@ -113,7 +113,7 @@ function patchReactCacheDispatcher(dispatcher: CacheDispatcher) {
 }
 
 function patchReactCacheDispatcherWhenSet<
-  Container extends Record<string, any> & { [HAS_CACHE_SCOPE]?: boolean }
+  Container extends Record<string, any> & { [HAS_CACHE_SCOPE]?: boolean },
 >(container: Container, key: keyof Container) {
   if (container[HAS_CACHE_SCOPE]) {
     return

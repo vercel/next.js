@@ -234,9 +234,10 @@ describe('unstable_after()', () => {
           new Map([
             [
               'app/invalid-in-client/page.js',
-              (
-                await next.readFile('app/invalid-in-client/page.js')
-              ).replace(`// 'use client'`, `'use client'`),
+              (await next.readFile('app/invalid-in-client/page.js')).replace(
+                `// 'use client'`,
+                `'use client'`
+              ),
             ],
           ]),
           '/invalid-in-client'
