@@ -23,6 +23,7 @@ describe('create-next-app with package manager npm', () => {
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-empty',
         ],
         {
           cwd,
@@ -51,6 +52,7 @@ it('should use npm when user-agent is npm', async () => {
         '--no-src-dir',
         '--no-tailwind',
         '--no-import-alias',
+        '--no-empty',
       ],
       {
         cwd,
