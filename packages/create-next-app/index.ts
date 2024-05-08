@@ -96,7 +96,7 @@ const program = new Commander.Command(packageJson.name)
     '--empty',
     `
 
-    Initialize an empty Next.js project.
+  Initialize an empty Next.js project.
 `
   )
   .option(
@@ -437,27 +437,6 @@ async function run(): Promise<void> {
           program.importAlias = importAlias
           preferences.importAlias = importAlias
         }
-      }
-    }
-
-    if (
-      !process.argv.includes('--empty') &&
-      !process.argv.includes('--no-empty')
-    ) {
-      if (ciInfo.isCI) {
-        program.empty = getPrefOrDefault('empty')
-      } else {
-        const { empty } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'empty',
-          message: `Would you like to use an empty Next.js project?`,
-          initial: getPrefOrDefault('empty'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.empty = Boolean(empty)
-        preferences.empty = Boolean(empty)
       }
     }
   }
