@@ -45,10 +45,10 @@ export async function createApp({
   tailwind: boolean
   eslint: boolean
   appRouter: boolean
-  empty: boolean
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
+  empty: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
