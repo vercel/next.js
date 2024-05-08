@@ -1650,7 +1650,7 @@ export default abstract class Server<
   }
 
   private getWaitUntil() {
-    let useBuiltinWaitUntil =
+    const useBuiltinWaitUntil =
       process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
 
     let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
