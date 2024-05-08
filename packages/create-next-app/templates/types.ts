@@ -4,9 +4,11 @@ export type TemplateType =
   | "app"
   | "app-empty"
   | "app-tw"
+  | "app-tw-empty"
   | "default"
   | "default-empty"
-  | "default-tw";
+  | "default-tw"
+  | "default-tw-empty";
 export type TemplateMode = "js" | "ts";
 
 export interface GetTemplateFileArgs {
@@ -27,5 +29,4 @@ export interface InstallTemplateArgs {
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
-  empty: boolean;
 }
