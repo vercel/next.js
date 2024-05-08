@@ -36,7 +36,9 @@ export function PreloadChunks({
       {allFiles.map((chunk) => {
         const href = `${requestStore.assetPrefix}/_next/${encodeURI(chunk)}`
         const isCss = chunk.endsWith('.css')
-        // If it's stylesheet we use `precedence` o help hoist with React Float
+        // If it's stylesheet we use `precedence` o help hoist with React Float.
+        // For stylesheets we actually need to render the CSS because nothing else is going to do it so it needs to be part of the component tree.
+        // The `preload` for stylesheet is not optional.
         if (isCss) {
           return (
             <link
@@ -54,6 +56,7 @@ export function PreloadChunks({
             as: 'script',
             fetchPriority: 'low',
           })
+          return null
         }
       })}
     </>
