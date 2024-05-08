@@ -520,8 +520,8 @@ importers:
         specifier: 6.0.0-rc.3
         version: 6.0.0-rc.3(react-dom@19.0.0-beta-4508873393-20240430)(react@19.0.0-beta-4508873393-20240430)
       styled-jsx:
-        specifier: 5.1.1
-        version: 5.1.1(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
+        specifier: 5.1.3
+        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
       styled-jsx-plugin-postcss:
         specifier: 3.0.2
         version: 3.0.2
@@ -837,8 +837,8 @@ importers:
         specifier: ^1.3.0
         version: 1.54.0
       styled-jsx:
-        specifier: 5.1.1
-        version: 5.1.1(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
+        specifier: 5.1.3
+        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
     optionalDependencies:
       sharp:
         specifier: ^0.33.3
@@ -23485,6 +23485,24 @@ packages:
 
   /styled-jsx@5.1.1(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430):
     resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
+    engines: {node: '>= 12.0.0'}
+    peerDependencies:
+      '@babel/core': '*'
+      babel-plugin-macros: '*'
+      react: 19.0.0-beta-4508873393-20240430
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      babel-plugin-macros:
+        optional: true
+    dependencies:
+      '@babel/core': 7.22.5
+      client-only: 0.0.1
+      react: 19.0.0-beta-4508873393-20240430
+    dev: false
+
+  /styled-jsx@5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430):
+    resolution: {integrity: sha512-qLRShOWTE/Mf6Bvl72kFeKBl8N2Eq9WIFfoAuvbtP/6tqlnj1SCjv117n2MIjOPpa1jTorYqLJgsHKy5Y3ziww==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
