@@ -430,75 +430,6 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, async () => {
-      const addedClientActionEntryList: Promise<any>[] = []
-      const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
-
-      // We need to create extra action entries that are created from the
-      // client layer.
-      // Start from each entry's created SSR dependency from our previous step.
-      for (const [name, ssrEntryDependencies] of Object.entries(
-        createdSSRDependenciesForEntry
-      )) {
-        // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-        // add aggregate them.
-        const actionEntryImports = this.collectClientActionsFromDependencies({
-          compilation,
-          dependencies: ssrEntryDependencies,
-        })
-
-        if (actionEntryImports.size > 0) {
-          if (!actionMapsPerClientEntry[name]) {
-            actionMapsPerClientEntry[name] = new Map()
-          }
-          actionMapsPerClientEntry[name] = new Map([
-            ...actionMapsPerClientEntry[name],
-            ...actionEntryImports,
-          ])
-        }
-      }
-
-      for (const [name, actionEntryImports] of Object.entries(
-        actionMapsPerClientEntry
-      )) {
-        // If an action method is already created in the server layer, we don't
-        // need to create it again in the action layer.
-        // This is to avoid duplicate action instances and make sure the module
-        // state is shared.
-        let remainingClientImportedActions = false
-        const remainingActionEntryImports = new Map<string, string[]>()
-        for (const [dep, actionNames] of actionEntryImports) {
-          const remainingActionNames = []
-          for (const actionName of actionNames) {
-            const id = name + '@' + dep + '@' + actionName
-            if (!createdActions.has(id)) {
-              remainingActionNames.push(actionName)
-            }
-          }
-          if (remainingActionNames.length > 0) {
-            remainingActionEntryImports.set(dep, remainingActionNames)
-            remainingClientImportedActions = true
-          }
-        }
-
-        if (remainingClientImportedActions) {
-          addedClientActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actions: remainingActionEntryImports,
-              entryName: name,
-              bundlePath: name,
-              fromClient: true,
-            })
-          )
-        }
-      }
-
-      await Promise.all(addedClientActionEntryList)
-      return
-    })
-
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator(compiler.outputPath)
     // Check if any of the entry injections need an invalidation
@@ -521,6 +452,72 @@ export class FlightClientEntryPlugin {
 
     // Wait for action entries to be added.
     await Promise.all(addActionEntryList)
+
+    const addedClientActionEntryList: Promise<any>[] = []
+    const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
+
+    // We need to create extra action entries that are created from the
+    // client layer.
+    // Start from each entry's created SSR dependency from our previous step.
+    for (const [name, ssrEntryDependencies] of Object.entries(
+      createdSSRDependenciesForEntry
+    )) {
+      // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
+      // add aggregate them.
+      const actionEntryImports = this.collectClientActionsFromDependencies({
+        compilation,
+        dependencies: ssrEntryDependencies,
+      })
+
+      if (actionEntryImports.size > 0) {
+        if (!actionMapsPerClientEntry[name]) {
+          actionMapsPerClientEntry[name] = new Map()
+        }
+        actionMapsPerClientEntry[name] = new Map([
+          ...actionMapsPerClientEntry[name],
+          ...actionEntryImports,
+        ])
+      }
+    }
+
+    for (const [name, actionEntryImports] of Object.entries(
+      actionMapsPerClientEntry
+    )) {
+      // If an action method is already created in the server layer, we don't
+      // need to create it again in the action layer.
+      // This is to avoid duplicate action instances and make sure the module
+      // state is shared.
+      let remainingClientImportedActions = false
+      const remainingActionEntryImports = new Map<string, string[]>()
+      for (const [dep, actionNames] of actionEntryImports) {
+        const remainingActionNames = []
+        for (const actionName of actionNames) {
+          const id = name + '@' + dep + '@' + actionName
+          if (!createdActions.has(id)) {
+            remainingActionNames.push(actionName)
+          }
+        }
+        if (remainingActionNames.length > 0) {
+          remainingActionEntryImports.set(dep, remainingActionNames)
+          remainingClientImportedActions = true
+        }
+      }
+
+      if (remainingClientImportedActions) {
+        addedClientActionEntryList.push(
+          this.injectActionEntry({
+            compiler,
+            compilation,
+            actions: remainingActionEntryImports,
+            entryName: name,
+            bundlePath: name,
+            fromClient: true,
+          })
+        )
+      }
+    }
+
+    await Promise.all(addedClientActionEntryList)
   }
 
   collectClientActionsFromDependencies({
@@ -1016,19 +1013,26 @@ export class FlightClientEntryPlugin {
       edgeServerActions[id] = action
     }
 
-    const json = JSON.stringify(
-      {
-        node: serverActions,
-        edge: edgeServerActions,
-        encryptionKey: this.encryptionKey,
-      },
+    const serverManifest = {
+      node: serverActions,
+      edge: edgeServerActions,
+      encryptionKey: this.encryptionKey,
+    }
+    const edgeServerManifest = {
+      ...serverManifest,
+      encryptionKey: 'process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+    }
+
+    const json = JSON.stringify(serverManifest, null, this.dev ? 2 : undefined)
+    const edgeJson = JSON.stringify(
+      edgeServerManifest,
       null,
       this.dev ? 2 : undefined
     )
 
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
       new sources.RawSource(
-        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
+        `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
       ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource

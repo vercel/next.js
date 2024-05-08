@@ -29,7 +29,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useFormState()`](https://react.dev/reference/react-dom/hooks/useFormState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -200,16 +200,16 @@ export async function signup(state, formData) {
 }
 ```
 
-Back in your `<SignupForm />`, you can use React's `useFormState()` hook to display validation errors to the user:
+Back in your `<SignupForm />`, you can use React's `useActionState()` hook to display validation errors to the user:
 
 ```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-36}
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+  const [state, action] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -248,11 +248,11 @@ export function SignupForm() {
 ```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-36}
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useFormState(signup, undefined)
+  const [state, action] = useActionState(signup, undefined)
 
   return (
     <form action={action}>
@@ -293,7 +293,8 @@ You can also use the `useFormStatus()` hook to handle the pending state on form 
 ```tsx filename="app/ui/signup-form.tsx" highlight={6} switcher
 'use client'
 
-import { useFormStatus, useFormState } from 'react-dom'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export function SignupButton() {
   const { pending } = useFormStatus()
@@ -309,7 +310,8 @@ export function SignupButton() {
 ```jsx filename="app/ui/signup-form.js"  highlight={6} switcher
 'use client'
 
-import { useFormStatus, useFormState } from 'react-dom'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export function SignupButton() {
   const { pending } = useFormStatus()

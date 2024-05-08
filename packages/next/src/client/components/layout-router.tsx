@@ -86,13 +86,21 @@ function walkAddRefetch(
   return treeToRecreate
 }
 
+const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
+  ReactDOM as any
+).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+
 // TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
 /**
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
-): ReturnType<typeof ReactDOM.findDOMNode> {
+  instance: React.ReactInstance | null | undefined
+): Element | Text | null {
+  // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
+  // We need to lazily reference it.
+  const internal_reactDOMfindDOMNode =
+    __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
   // Tree-shake for server bundle
   if (typeof window === 'undefined') return null
   // Only apply strict mode warning when not in production
@@ -105,12 +113,12 @@ function findDOMNode(
           originalConsoleError(...messages)
         }
       }
-      return ReactDOM.findDOMNode(instance)
+      return internal_reactDOMfindDOMNode(instance)
     } finally {
       console.error = originalConsoleError!
     }
   }
-  return ReactDOM.findDOMNode(instance)
+  return internal_reactDOMfindDOMNode(instance)
 }
 
 const rectProperties = [

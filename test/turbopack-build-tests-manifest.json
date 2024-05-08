@@ -95,10 +95,10 @@
     "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
       "passed": [],
       "failed": [
-        "app-dir action useFormState should send the action to the provided permalink with form state when JS disabled",
-        "app-dir action useFormState should support hydrating the app from progressively enhanced form request",
-        "app-dir action useFormState should support submitting form state with JS",
-        "app-dir action useFormState should support submitting form state without JS"
+        "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+        "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+        "app-dir action useActionState should support submitting form state with JS",
+        "app-dir action useActionState should support submitting form state without JS"
       ],
       "pending": [],
       "flakey": [],
@@ -1001,7 +1001,6 @@
         "app dir - basic server components should serve client component should serve client-side",
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
-        "app dir - basic should encode chunk path correctly",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
         "app dir - basic should generate build traces correctly",
         "app dir - basic should handle hash in initial url",
@@ -1030,7 +1029,6 @@
         "app dir - basic should serve from public",
         "app dir - basic should serve nested parent",
         "app dir - basic should serve page as a segment name correctly",
-        "app dir - basic should serve polyfills for browsers that do not support modules",
         "app dir - basic should successfully detect app route during prefetch",
         "app dir - basic should use new root layout when provided",
         "app dir - basic should use text/x-component for flight",
@@ -1039,7 +1037,10 @@
         "app dir - basic template component should render the template that holds state in a client component and reset on navigation",
         "app dir - basic template component should render the template that is a server component and rerender on navigation"
       ],
-      "failed": [],
+      "failed": [
+        "app dir - basic should encode chunk path correctly",
+        "app dir - basic should serve polyfills for browsers that do not support modules"
+      ],
       "pending": [
         "app dir - basic <Link /> should soft replace",
         "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -3282,8 +3283,8 @@
     },
     "test/e2e/app-dir/server-components-externals/index.test.ts": {
       "passed": [
-        "app-dir - server components externals should externalize serverComponentsExternalPackages for server rendering layer",
-        "app-dir - server components externals should have externals for those in config.experimental.serverComponentsExternalPackages",
+        "app-dir - server components externals should externalize serverExternalPackages for server rendering layer",
+        "app-dir - server components externals should have externals for those in config.serverExternalPackages",
         "app-dir - server components externals uses externals for predefined list in server-external-packages.json"
       ],
       "failed": [],
@@ -8480,8 +8481,8 @@
     "test/integration/externals-pages-bundle/test/index.test.js": {
       "passed": [],
       "failed": [
-        "bundle pages externals with config.experimental.bundlePagesExternals production mode should have no externals with the config set",
-        "bundle pages externals with config.experimental.bundlePagesExternals production mode should respect the serverComponentsExternals config"
+        "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
+        "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalPackages config"
       ],
       "pending": [],
       "flakey": [],
@@ -14424,6 +14425,13 @@
         "Web Workers with webpack 5 development mode should pass on both client and worker",
         "Web Workers with webpack 5 production mode should pass on both client and worker"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/deterministic-build/index.test.ts": {
+      "passed": [],
+      "failed": ["deterministic build should have same md5 file across build"],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },

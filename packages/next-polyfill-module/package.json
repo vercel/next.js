@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-module",
-  "version": "14.3.0-canary.44",
+  "version": "14.3.0-canary.49",
   "description": "A standard library polyfill for ES Modules supporting browsers (Edge 16+, Firefox 60+, Chrome 61+, Safari 10.1+)",
   "main": "dist/polyfill-module.js",
   "license": "MIT",
