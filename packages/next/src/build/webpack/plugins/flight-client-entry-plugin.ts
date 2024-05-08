@@ -761,7 +761,7 @@ export class FlightClientEntryPlugin {
   }): [
     shouldInvalidate: boolean,
     addEntryPromise: Promise<void>,
-    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>
+    ssrDep: ReturnType<typeof webpack.EntryPlugin.createDependency>,
   ] {
     let shouldInvalidate = false
 

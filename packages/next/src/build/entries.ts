@@ -257,8 +257,8 @@ export function createPagesMapping({
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
             : pagesType === 'app'
-            ? APP_DIR_ALIAS
-            : ROOT_DIR_ALIAS,
+              ? APP_DIR_ALIAS
+              : ROOT_DIR_ALIAS,
           pagePath
         )
       )
@@ -586,8 +586,8 @@ export async function createEntrypoints(
         pagesType === PAGE_TYPES.PAGES
           ? posix.join('pages', bundleFile)
           : pagesType === PAGE_TYPES.APP
-          ? posix.join('app', bundleFile)
-          : bundleFile.slice(1)
+            ? posix.join('app', bundleFile)
+            : bundleFile.slice(1)
 
       const absolutePagePath = mappings[page]
 
@@ -799,10 +799,10 @@ export function finalizeEntrypoint({
       const layer = isApi
         ? WEBPACK_LAYERS.api
         : isInstrumentation
-        ? WEBPACK_LAYERS.instrument
-        : isServerComponent
-        ? WEBPACK_LAYERS.reactServerComponents
-        : undefined
+          ? WEBPACK_LAYERS.instrument
+          : isServerComponent
+            ? WEBPACK_LAYERS.reactServerComponents
+            : undefined
 
       return {
         publicPath: isApi ? '' : undefined,

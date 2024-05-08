@@ -597,8 +597,8 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-      ? '..'
-      : '../..'
+        ? '..'
+        : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
