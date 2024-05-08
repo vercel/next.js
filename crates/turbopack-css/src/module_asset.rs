@@ -108,7 +108,7 @@ impl Asset for ModuleCssAsset {
 /// A CSS class that is exported from a CSS module.
 ///
 /// See [`ModuleCssClasses`] for more information.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 enum ModuleCssClass {
     Local {

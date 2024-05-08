@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use turbo_tasks::Vc;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 #[serde(untagged)]
 pub enum Param {
