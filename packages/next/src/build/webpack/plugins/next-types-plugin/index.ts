@@ -597,8 +597,8 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-      ? '..'
-      : '../..'
+        ? '..'
+        : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
@@ -613,11 +613,7 @@ export class NextTypesPlugin {
         }
         return
       }
-      if (
-        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
-        mod.layer !== WEBPACK_LAYERS.appRouteHandler
-      )
-        return
+      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)

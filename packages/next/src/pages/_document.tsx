@@ -285,8 +285,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
                 typeof scriptChildren === 'string'
                   ? scriptChildren
                   : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
+                    ? scriptChildren.join('')
+                    : '',
             }
           } else {
             throw new Error(
@@ -587,8 +587,8 @@ export class Head extends React.Component<HeadProps> {
             typeof children === 'string'
               ? children
               : Array.isArray(children)
-              ? children.join('')
-              : ''
+                ? children.join('')
+                : ''
         }
 
         return (

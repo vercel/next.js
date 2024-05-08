@@ -18,7 +18,7 @@ export type ExcludeRouterProps<P> = Pick<
 
 export default function withRouter<
   P extends WithRouterProps,
-  C extends BaseContext = NextPageContext
+  C extends BaseContext = NextPageContext,
 >(
   ComposedComponent: NextComponentType<C, any, P>
 ): React.ComponentType<ExcludeRouterProps<P>> {

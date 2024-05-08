@@ -115,7 +115,8 @@ const WEBPACK_LAYERS_NAMES = {
    */
   shared: 'shared',
   /**
-   * React Server Components layer (rsc).
+   * The layer for server-only runtime and picking up `react-server` export conditions.
+   * Including app router RSC pages and app router custom routes.
    */
   reactServerComponents: 'rsc',
   /**
@@ -150,10 +151,6 @@ const WEBPACK_LAYERS_NAMES = {
    * The server bundle layer for metadata routes.
    */
   appMetadataRoute: 'app-metadata-route',
-  /**
-   * The layer for the server bundle for App Route handlers.
-   */
-  appRouteHandler: 'app-route-handler',
 } as const
 
 export type WebpackLayerName =
@@ -166,7 +163,6 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.instrument,
     ],
     clientOnly: [
@@ -182,7 +178,6 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
-      WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,

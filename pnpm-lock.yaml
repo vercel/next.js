@@ -421,8 +421,8 @@ importers:
         specifier: 0.1.7
         version: 0.1.7
       prettier:
-        specifier: 2.8.8
-        version: 2.8.8
+        specifier: 3.2.5
+        version: 3.2.5
       pretty-bytes:
         specifier: 5.3.0
         version: 5.3.0
@@ -520,8 +520,8 @@ importers:
         specifier: 6.0.0-rc.3
         version: 6.0.0-rc.3(react-dom@19.0.0-beta-4508873393-20240430)(react@19.0.0-beta-4508873393-20240430)
       styled-jsx:
-        specifier: 5.1.1
-        version: 5.1.1(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
+        specifier: 5.1.3
+        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
       styled-jsx-plugin-postcss:
         specifier: 3.0.2
         version: 3.0.2
@@ -731,7 +731,7 @@ importers:
         version: 1.0.0
       prettier-plugin-tailwindcss:
         specifier: 0.3.0
-        version: 0.3.0(prettier@2.8.8)
+        version: 0.3.0(prettier@3.2.5)
       prompts:
         specifier: 2.4.2
         version: 2.4.2
@@ -748,7 +748,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -810,7 +810,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
@@ -837,8 +837,8 @@ importers:
         specifier: ^1.3.0
         version: 1.54.0
       styled-jsx:
-        specifier: 5.1.1
-        version: 5.1.1(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
+        specifier: 5.1.3
+        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430)
     optionalDependencies:
       sharp:
         specifier: ^0.33.3
@@ -935,16 +935,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1076,8 +1076,8 @@ importers:
         specifier: 0.26.4
         version: 0.26.4
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240503.1
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240503.1'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240508.4
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240508.4'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1559,7 +1559,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.45
+        specifier: 14.3.0-canary.50
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -20781,7 +20781,7 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
-  /prettier-plugin-tailwindcss@0.3.0(prettier@2.8.8):
+  /prettier-plugin-tailwindcss@0.3.0(prettier@3.2.5):
     resolution: {integrity: sha512-009/Xqdy7UmkcTBpwlq7jsViDqXAYSOMLDrHAdTMlVZOrKfM2o9Ci7EMWTMZ7SkKBFTG04UM9F9iM2+4i6boDA==}
     engines: {node: '>=12.17.0'}
     peerDependencies:
@@ -20833,7 +20833,7 @@ packages:
       prettier-plugin-twig-melody:
         optional: true
     dependencies:
-      prettier: 2.8.8
+      prettier: 3.2.5
     dev: true
 
   /prettier@2.5.1:
@@ -20842,9 +20842,9 @@ packages:
     hasBin: true
     dev: true
 
-  /prettier@2.8.8:
-    resolution: {integrity: sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q==}
-    engines: {node: '>=10.13.0'}
+  /prettier@3.2.5:
+    resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
+    engines: {node: '>=14'}
     hasBin: true
     dev: true
 
@@ -23499,6 +23499,24 @@ packages:
       '@babel/core': 7.22.5
       client-only: 0.0.1
       react: 19.0.0-beta-4508873393-20240430
+    dev: false
+
+  /styled-jsx@5.1.3(@babel/core@7.22.5)(react@19.0.0-beta-4508873393-20240430):
+    resolution: {integrity: sha512-qLRShOWTE/Mf6Bvl72kFeKBl8N2Eq9WIFfoAuvbtP/6tqlnj1SCjv117n2MIjOPpa1jTorYqLJgsHKy5Y3ziww==}
+    engines: {node: '>= 12.0.0'}
+    peerDependencies:
+      '@babel/core': '*'
+      babel-plugin-macros: '*'
+      react: 19.0.0-beta-4508873393-20240430
+    peerDependenciesMeta:
+      '@babel/core':
+        optional: true
+      babel-plugin-macros:
+        optional: true
+    dependencies:
+      '@babel/core': 7.22.5
+      client-only: 0.0.1
+      react: 19.0.0-beta-4508873393-20240430
 
   /stylehacks@4.0.3:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
@@ -25731,8 +25749,8 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240503.1':
-    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240503.1}
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240508.4':
+    resolution: {tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240508.4}
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:
