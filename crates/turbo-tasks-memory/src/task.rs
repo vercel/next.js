@@ -1,20 +1,14 @@
-mod aggregation;
-mod meta_state;
-mod stats;
-
 use std::{
     borrow::Cow,
     cell::RefCell,
     cmp::{max, Reverse},
     collections::{HashMap, HashSet},
-    fmt::{
-        Debug, Display, Formatter, {self},
-    },
+    fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
     mem::{replace, take},
     pin::Pin,
-    sync::Arc,
+    sync::{atomic::AtomicU32, Arc},
     time::{Duration, Instant},
 };
 
@@ -35,7 +29,10 @@ use turbo_tasks::{
 };
 
 use crate::{
-    aggregation_tree::{aggregation_info, ensure_thresholds, AggregationInfoGuard},
+    aggregation::{
+        aggregation_data, handle_new_edge, prepare_aggregation_data, query_root_info,
+        AggregationDataGuard, PreparedOperation,
+    },
     cell::Cell,
     gc::{to_exp_u8, GcPriority, GcStats, GcTaskState},
     output::{Output, OutputContent},
@@ -46,6 +43,10 @@ use crate::{
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
+
+mod aggregation;
+mod meta_state;
+mod stats;
 
 #[derive(Hash, Copy, Clone, PartialEq, Eq)]
 pub enum TaskDependency {
@@ -138,6 +139,8 @@ pub struct Task {
     /// The mutable state of the task
     /// Unset state is equal to a Dirty task that has not been executed yet
     state: RwLock<TaskMetaState>,
+    /// Atomic in progress counter for graph modification
+    graph_modification_in_progress_counter: AtomicU32,
 }
 
 impl Debug for Task {
@@ -164,7 +167,7 @@ impl Debug for Task {
 
 /// The full state of a [Task], it includes all information.
 struct TaskState {
-    aggregation_leaf: TaskAggregationTreeLeaf,
+    aggregation_node: TaskAggregationNode,
 
     // TODO using a Atomic might be possible here
     /// More flags of task state, where not all combinations are possible.
@@ -200,7 +203,7 @@ impl TaskState {
         stats_type: StatsType,
     ) -> Self {
         Self {
-            aggregation_leaf: TaskAggregationTreeLeaf::new(),
+            aggregation_node: TaskAggregationNode::new(),
             state_type: Dirty {
                 event: Event::new(move || format!("TaskState({})::event", description())),
                 outdated_dependencies: Default::default(),
@@ -223,7 +226,7 @@ impl TaskState {
         stats_type: StatsType,
     ) -> Self {
         Self {
-            aggregation_leaf: TaskAggregationTreeLeaf::new(),
+            aggregation_node: TaskAggregationNode::new(),
             state_type: Scheduled {
                 event: Event::new(move || format!("TaskState({})::event", description())),
                 outdated_dependencies: Default::default(),
@@ -249,13 +252,13 @@ impl TaskState {
 /// but is still attached to parents and aggregated.
 struct PartialTaskState {
     stats_type: StatsType,
-    aggregation_leaf: TaskAggregationTreeLeaf,
+    aggregation_leaf: TaskAggregationNode,
 }
 
 impl PartialTaskState {
     fn into_full(self, description: impl Fn() -> String + Send + Sync + 'static) -> TaskState {
         TaskState {
-            aggregation_leaf: self.aggregation_leaf,
+            aggregation_node: self.aggregation_leaf,
             state_type: Dirty {
                 event: Event::new(move || format!("TaskState({})::event", description())),
                 outdated_dependencies: Default::default(),
@@ -289,7 +292,7 @@ fn test_unloaded_task_state_size() {
 impl UnloadedTaskState {
     fn into_full(self, description: impl Fn() -> String + Send + Sync + 'static) -> TaskState {
         TaskState {
-            aggregation_leaf: TaskAggregationTreeLeaf::new(),
+            aggregation_node: TaskAggregationNode::new(),
             state_type: Dirty {
                 event: Event::new(move || format!("TaskState({})::event", description())),
                 outdated_dependencies: Default::default(),
@@ -307,7 +310,7 @@ impl UnloadedTaskState {
 
     fn into_partial(self) -> PartialTaskState {
         PartialTaskState {
-            aggregation_leaf: TaskAggregationTreeLeaf::new(),
+            aggregation_leaf: TaskAggregationNode::new(),
             stats_type: self.stats_type,
         }
     }
@@ -418,7 +421,7 @@ enum TaskStateType {
 use TaskStateType::*;
 
 use self::{
-    aggregation::{Aggregated, RootInfoType, RootType, TaskAggregationTreeLeaf, TaskGuard},
+    aggregation::{ActiveQuery, RootType, TaskAggregationNode, TaskGuard},
     meta_state::{
         FullTaskWriteGuard, TaskMetaState, TaskMetaStateReadGuard, TaskMetaStateWriteGuard,
     },
@@ -439,6 +442,7 @@ impl Task {
                 description,
                 stats_type,
             )))),
+            graph_modification_in_progress_counter: AtomicU32::new(0),
         }
     }
 
@@ -456,6 +460,7 @@ impl Task {
                 description,
                 stats_type,
             )))),
+            graph_modification_in_progress_counter: AtomicU32::new(0),
         }
     }
 
@@ -473,6 +478,7 @@ impl Task {
                 description,
                 stats_type,
             )))),
+            graph_modification_in_progress_counter: AtomicU32::new(0),
         }
     }
 
@@ -493,7 +499,7 @@ impl Task {
         {
             Self::set_root_type(
                 &aggregation_context,
-                &mut aggregation_context.aggregation_info(id).lock(),
+                &mut aggregation_context.aggregation_data(id),
                 RootType::Root,
             );
         }
@@ -507,19 +513,15 @@ impl Task {
     ) {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            let aggregation_info = &aggregation_context.aggregation_info(id);
-            Self::set_root_type(
-                &aggregation_context,
-                &mut aggregation_info.lock(),
-                RootType::Once,
-            );
+            let mut aggregation_guard = aggregation_context.aggregation_data(id);
+            Self::set_root_type(&aggregation_context, &mut aggregation_guard, RootType::Once);
         }
         aggregation_context.apply_queued_updates();
     }
 
     fn set_root_type(
         aggregation_context: &TaskAggregationContext,
-        aggregation: &mut AggregationInfoGuard<Aggregated>,
+        aggregation: &mut AggregationDataGuard<TaskGuard<'_>>,
         root_type: RootType,
     ) {
         aggregation.root_type = Some(root_type);
@@ -540,7 +542,7 @@ impl Task {
     ) {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            aggregation_context.aggregation_info(id).lock().root_type = None;
+            aggregation_context.aggregation_data(id).root_type = None;
         }
         aggregation_context.apply_queued_updates();
     }
@@ -628,10 +630,8 @@ impl Task {
             }
             TaskDependency::Collectibles(task, trait_type) => {
                 let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-                let aggregation = aggregation_context.aggregation_info(task);
-                aggregation
-                    .lock()
-                    .remove_collectible_dependent_task(trait_type, reader);
+                let mut aggregation = aggregation_context.aggregation_data(task);
+                aggregation.remove_collectible_dependent_task(trait_type, reader);
             }
         }
     }
@@ -887,24 +887,22 @@ impl Task {
                 }
             }
             let change_job = state
-                .aggregation_leaf
-                .change_job(&aggregation_context, change);
+                .aggregation_node
+                .apply_change(&aggregation_context, change);
             #[cfg(feature = "lazy_remove_children")]
             let remove_job = if outdated_children.is_empty() {
                 None
             } else {
-                Some(
-                    state
-                        .aggregation_leaf
-                        .remove_children_job(&aggregation_context, outdated_children),
-                )
+                Some(state.aggregation_node.handle_lost_edges(
+                    &aggregation_context,
+                    &self.id,
+                    outdated_children,
+                ))
             };
             drop(state);
-            change_job();
+            change_job.apply(&aggregation_context);
             #[cfg(feature = "lazy_remove_children")]
-            if let Some(job) = remove_job {
-                job();
-            }
+            remove_job.apply(&aggregation_context);
         }
         aggregation_context.apply_queued_updates();
     }
@@ -1014,18 +1012,16 @@ impl Task {
                                     change.collectibles.push((trait_type, value, -count));
                                 }
                             }
-                            change_job = Some(
-                                state
-                                    .aggregation_leaf
-                                    .change_job(&aggregation_context, change),
-                            );
+                            change_job = state
+                                .aggregation_node
+                                .apply_change(&aggregation_context, change);
                         }
                         #[cfg(feature = "lazy_remove_children")]
                         if !outdated_children.is_empty() {
-                            remove_job = Some(
-                                state
-                                    .aggregation_leaf
-                                    .remove_children_job(&aggregation_context, outdated_children),
+                            remove_job = state.aggregation_node.handle_lost_edges(
+                                &aggregation_context,
+                                &self.id,
+                                outdated_children,
                             );
                         }
                         event.notify(usize::MAX);
@@ -1049,20 +1045,13 @@ impl Task {
             if !dependencies.is_empty() {
                 self.clear_dependencies(dependencies, backend, turbo_tasks);
             }
-            if let Some(job) = change_job {
-                job();
-            }
+            change_job.apply(&aggregation_context);
             #[cfg(feature = "lazy_remove_children")]
-            if let Some(job) = remove_job {
-                job();
-            }
+            remove_job.apply(&aggregation_context);
         }
         if let TaskType::Once(_) = self.ty {
             // unset the root type, so tasks below are no longer active
-            aggregation_context
-                .aggregation_info(self.id)
-                .lock()
-                .root_type = None;
+            aggregation_context.aggregation_data(self.id).root_type = None;
         }
         aggregation_context.apply_queued_updates();
 
@@ -1088,12 +1077,14 @@ impl Task {
             return;
         }
 
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+        let active = query_root_info(&aggregation_context, ActiveQuery::default(), self.id);
+
         let state = if force_schedule {
             TaskMetaStateWriteGuard::Full(self.full_state_mut())
         } else {
             self.state_mut()
         };
-        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         if let TaskMetaStateWriteGuard::Full(mut state) = state {
             match state.state_type {
                 Scheduled { .. } | InProgressDirty { .. } => {
@@ -1112,14 +1103,15 @@ impl Task {
                             }),
                             outdated_dependencies: take(outdated_dependencies),
                         };
-                        state.aggregation_leaf.change(
+                        let change_job = state.aggregation_node.apply_change(
                             &aggregation_context,
-                            &TaskChange {
+                            TaskChange {
                                 dirty_tasks_update: vec![(self.id, -1)],
                                 ..Default::default()
                             },
                         );
                         drop(state);
+                        change_job.apply(&aggregation_context);
                         turbo_tasks.schedule(self.id);
                     } else {
                         // already dirty
@@ -1129,51 +1121,20 @@ impl Task {
                 Done {
                     ref mut dependencies,
                 } => {
-                    let mut has_set_unfinished = false;
                     let outdated_dependencies = take(dependencies);
                     // add to dirty lists and potentially schedule
                     let description = self.get_event_description();
-                    let should_schedule = force_schedule
-                        || state
-                            .aggregation_leaf
-                            .get_root_info(&aggregation_context, &RootInfoType::IsActive)
-                        || {
-                            state.aggregation_leaf.change(
-                                &aggregation_context,
-                                &TaskChange {
-                                    unfinished: 1,
-                                    #[cfg(feature = "track_unfinished")]
-                                    unfinished_tasks_update: vec![(self.id, 1)],
-                                    dirty_tasks_update: vec![(self.id, 1)],
-                                    ..Default::default()
-                                },
-                            );
-                            has_set_unfinished = true;
-                            if aggregation_context.take_scheduled_dirty_task(self.id) {
-                                state.aggregation_leaf.change(
-                                    &aggregation_context,
-                                    &TaskChange {
-                                        dirty_tasks_update: vec![(self.id, -1)],
-                                        ..Default::default()
-                                    },
-                                );
-                                true
-                            } else {
-                                false
-                            }
-                        };
-                    if !has_set_unfinished {
-                        state.aggregation_leaf.change(
+                    let should_schedule = force_schedule || active;
+                    if should_schedule {
+                        let change_job = state.aggregation_node.apply_change(
                             &aggregation_context,
-                            &TaskChange {
+                            TaskChange {
                                 unfinished: 1,
                                 #[cfg(feature = "track_unfinished")]
                                 unfinished_tasks_update: vec![(self.id, 1)],
                                 ..Default::default()
                             },
                         );
-                    }
-                    if should_schedule {
                         state.state_type = Scheduled {
                             event: Event::new(move || {
                                 format!("TaskState({})::event", description())
@@ -1181,12 +1142,23 @@ impl Task {
                             outdated_dependencies,
                         };
                         drop(state);
+                        change_job.apply(&aggregation_context);
 
                         if cfg!(feature = "print_task_invalidation") {
                             println!("invalidated Task {{ id: {}, name: {} }}", *self.id, self.ty);
                         }
                         turbo_tasks.schedule(self.id);
                     } else {
+                        let change_job = state.aggregation_node.apply_change(
+                            &aggregation_context,
+                            TaskChange {
+                                unfinished: 1,
+                                #[cfg(feature = "track_unfinished")]
+                                unfinished_tasks_update: vec![(self.id, 1)],
+                                dirty_tasks_update: vec![(self.id, 1)],
+                                ..Default::default()
+                            },
+                        );
                         state.state_type = Dirty {
                             event: Event::new(move || {
                                 format!("TaskState({})::event", description())
@@ -1194,6 +1166,7 @@ impl Task {
                             outdated_dependencies,
                         };
                         drop(state);
+                        change_job.apply(&aggregation_context);
                     }
                 }
                 InProgress {
@@ -1229,22 +1202,22 @@ impl Task {
                     } else {
                         None
                     };
-                    let change_job = change.map(|change| {
+                    let change_job = change.and_then(|change| {
                         state
-                            .aggregation_leaf
-                            .change_job(&aggregation_context, change)
+                            .aggregation_node
+                            .apply_change(&aggregation_context, change)
                     });
                     #[cfg(feature = "lazy_remove_children")]
-                    let remove_job = state
-                        .aggregation_leaf
-                        .remove_children_job(&aggregation_context, outdated_children);
+                    let remove_job = state.aggregation_node.handle_lost_edges(
+                        &aggregation_context,
+                        &self.id,
+                        outdated_children,
+                    );
                     state.state_type = InProgressDirty { event };
                     drop(state);
-                    if let Some(job) = change_job {
-                        job();
-                    }
+                    change_job.apply(&aggregation_context);
                     #[cfg(feature = "lazy_remove_children")]
-                    remove_job();
+                    remove_job.apply(&aggregation_context);
                 }
             }
         }
@@ -1256,18 +1229,18 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
-        let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         if let TaskStateType::Dirty {
             ref mut event,
             ref mut outdated_dependencies,
         } = state.state_type
         {
+            let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
             state.state_type = Scheduled {
                 event: event.take(),
                 outdated_dependencies: take(outdated_dependencies),
             };
-            let job = state.aggregation_leaf.change_job(
+            let job = state.aggregation_node.apply_change(
                 &aggregation_context,
                 TaskChange {
                     dirty_tasks_update: vec![(self.id, -1)],
@@ -1276,7 +1249,8 @@ impl Task {
             );
             drop(state);
             turbo_tasks.schedule(self.id);
-            job();
+            job.apply(&aggregation_context);
+            aggregation_context.apply_queued_updates();
         }
     }
 
@@ -1500,21 +1474,7 @@ impl Task {
         {
             let mut add_job = None;
             {
-                let mut guard = TaskGuard {
-                    id: self.id,
-                    guard: self.state_mut(),
-                };
-                while let Some(thresholds_job) = ensure_thresholds(&aggregation_context, &mut guard)
-                {
-                    drop(guard);
-                    thresholds_job();
-                    guard = TaskGuard {
-                        id: self.id,
-                        guard: self.state_mut(),
-                    };
-                }
-                let TaskGuard { guard, .. } = guard;
-                let mut state = TaskMetaStateWriteGuard::full_from(guard.into_inner(), self);
+                let mut state = self.full_state_mut();
                 if state.children.insert(child_id) {
                     #[cfg(feature = "lazy_remove_children")]
                     if let TaskStateType::InProgress {
@@ -1525,11 +1485,15 @@ impl Task {
                             return;
                         }
                     }
-                    add_job = Some(
-                        state
-                            .aggregation_leaf
-                            .add_child_job(&aggregation_context, &child_id),
-                    );
+                    let number_of_children = state.children.len();
+                    let mut guard = TaskGuard::from_full(self.id, state);
+                    add_job = Some(handle_new_edge(
+                        &aggregation_context,
+                        &mut guard,
+                        &self.id,
+                        &child_id,
+                        number_of_children,
+                    ));
                 }
             }
             if let Some(job) = add_job {
@@ -1539,22 +1503,14 @@ impl Task {
                 // So it's fine to ignore the race condition existing here.
                 backend.with_task(child_id, |child| {
                     if child.is_dirty() {
-                        let state = self.state();
-                        let active = match state {
-                            TaskMetaStateReadGuard::Full(state) => state
-                                .aggregation_leaf
-                                .get_root_info(&aggregation_context, &RootInfoType::IsActive),
-                            TaskMetaStateReadGuard::Partial(state) => state
-                                .aggregation_leaf
-                                .get_root_info(&aggregation_context, &RootInfoType::IsActive),
-                            TaskMetaStateReadGuard::Unloaded => false,
-                        };
+                        let active =
+                            query_root_info(&aggregation_context, ActiveQuery::default(), self.id);
                         if active {
                             child.schedule_when_dirty_from_aggregation(backend, turbo_tasks);
                         }
                     }
                 });
-                job();
+                job.apply(&aggregation_context);
             }
         }
         aggregation_context.apply_queued_updates();
@@ -1569,34 +1525,35 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<T, EventListener>> {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-        let aggregation_when_strongly_consistent =
-            strongly_consistent.then(|| aggregation_info(&aggregation_context, &self.id));
-        let mut state = self.full_state_mut();
-        if let Some(aggregation) = aggregation_when_strongly_consistent {
-            {
-                let mut aggregation = aggregation.lock();
-                if aggregation.unfinished > 0 {
-                    if aggregation.root_type.is_none() {
-                        Self::set_root_type(
-                            &aggregation_context,
-                            &mut aggregation,
-                            RootType::ReadingStronglyConsistent,
-                        );
-                    }
-                    let listener = aggregation.unfinished_event.listen_with_note(note);
-                    drop(aggregation);
-                    drop(state);
-                    aggregation_context.apply_queued_updates();
-
-                    return Ok(Err(listener));
-                } else if matches!(
-                    aggregation.root_type,
-                    Some(RootType::ReadingStronglyConsistent)
-                ) {
-                    aggregation.root_type = None;
-                }
-            }
+        if strongly_consistent {
+            prepare_aggregation_data(&aggregation_context, &self.id);
         }
+        let mut state = if strongly_consistent {
+            let mut aggregation = aggregation_data(&aggregation_context, &self.id);
+            if aggregation.unfinished > 0 {
+                if aggregation.root_type.is_none() {
+                    Self::set_root_type(
+                        &aggregation_context,
+                        &mut aggregation,
+                        RootType::ReadingStronglyConsistent,
+                    );
+                }
+                let listener = aggregation.unfinished_event.listen_with_note(note);
+                drop(aggregation);
+                aggregation_context.apply_queued_updates();
+
+                return Ok(Err(listener));
+            } else if matches!(
+                aggregation.root_type,
+                Some(RootType::ReadingStronglyConsistent)
+            ) {
+                aggregation.root_type = None;
+            }
+            let state = aggregation.into_inner().into_inner().into_inner();
+            TaskMetaStateWriteGuard::full_from(state, self)
+        } else {
+            self.full_state_mut()
+        };
         let result = match state.state_type {
             Done { .. } => {
                 let result = func(&mut state.output)?;
@@ -1615,14 +1572,15 @@ impl Task {
                     event,
                     outdated_dependencies: take(outdated_dependencies),
                 };
-                state.aggregation_leaf.change(
+                let change_job = state.aggregation_node.apply_change(
                     &aggregation_context,
-                    &TaskChange {
+                    TaskChange {
                         dirty_tasks_update: vec![(self.id, -1)],
                         ..Default::default()
                     },
                 );
                 drop(state);
+                change_job.apply(&aggregation_context);
                 Ok(Err(listener))
             }
             Scheduled { ref event, .. }
@@ -1645,10 +1603,8 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> AutoMap<RawVc, i32> {
         let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-        aggregation_context
-            .aggregation_info(id)
-            .lock()
-            .read_collectibles(trait_type, reader)
+        let mut aggregation_data = aggregation_context.aggregation_data(id);
+        aggregation_data.read_collectibles(trait_type, reader)
     }
 
     pub(crate) fn emit_collectible(
@@ -1661,14 +1617,15 @@ impl Task {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         state.collectibles.emit(trait_type, collectible);
-        state.aggregation_leaf.change(
+        let change_job = state.aggregation_node.apply_change(
             &aggregation_context,
-            &TaskChange {
+            TaskChange {
                 collectibles: vec![(trait_type, collectible, 1)],
                 ..Default::default()
             },
         );
         drop(state);
+        change_job.apply(&aggregation_context);
         aggregation_context.apply_queued_updates();
     }
 
@@ -1683,14 +1640,15 @@ impl Task {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         state.collectibles.unemit(trait_type, collectible, count);
-        state.aggregation_leaf.change(
+        let change_job = state.aggregation_node.apply_change(
             &aggregation_context,
-            &TaskChange {
+            TaskChange {
                 collectibles: vec![(trait_type, collectible, -(count as i32))],
                 ..Default::default()
             },
         );
         drop(state);
+        change_job.apply(&aggregation_context);
         aggregation_context.apply_queued_updates();
     }
 
@@ -1739,6 +1697,9 @@ impl Task {
                 })
             }
 
+            let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+            let active = query_root_info(&aggregation_context, ActiveQuery::default(), self.id);
+
             if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
                 if state.stateful {
                     stats.no_gc_possible += 1;
@@ -1758,20 +1719,9 @@ impl Task {
                 }
 
                 // Check if the task need to be activated again
-                let active = if state.gc.inactive {
-                    let active = state.aggregation_leaf.get_root_info(
-                        &TaskAggregationContext::new(turbo_tasks, backend),
-                        &RootInfoType::IsActive,
-                    );
-                    if active {
-                        state.gc.inactive = false;
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    true
-                };
+                if state.gc.inactive && active {
+                    state.gc.inactive = false;
+                }
 
                 let last_duration = state.stats.last_duration();
                 let compute_duration = last_duration.into();
@@ -1999,9 +1949,11 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> bool {
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut clear_dependencies = None;
+        let mut change_job = None;
         let TaskState {
-            ref mut aggregation_leaf,
+            aggregation_node: ref mut aggregation_leaf,
             ref mut state_type,
             ..
         } = *full_state;
@@ -2009,28 +1961,14 @@ impl Task {
             Done {
                 ref mut dependencies,
             } => {
-                let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-                aggregation_leaf.change(
-                    &TaskAggregationContext::new(turbo_tasks, backend),
-                    &TaskChange {
+                change_job = aggregation_leaf.apply_change(
+                    &aggregation_context,
+                    TaskChange {
                         unfinished: 1,
                         dirty_tasks_update: vec![(self.id, 1)],
                         ..Default::default()
                     },
                 );
-                if aggregation_context.take_scheduled_dirty_task(self.id) {
-                    // Unloading is only possible for inactive tasks.
-                    // We need to abort the unloading, so revert changes done so far.
-                    aggregation_leaf.change(
-                        &TaskAggregationContext::new(turbo_tasks, backend),
-                        &TaskChange {
-                            unfinished: -1,
-                            dirty_tasks_update: vec![(self.id, -1)],
-                            ..Default::default()
-                        },
-                    );
-                    return false;
-                }
                 clear_dependencies = Some(take(dependencies));
             }
             Dirty {
@@ -2066,7 +2004,7 @@ impl Task {
             cells,
             output,
             collectibles,
-            aggregation_leaf,
+            mut aggregation_node,
             stats,
             // can be dropped as it will be recomputed on next execution
             stateful: _,
@@ -2078,33 +2016,30 @@ impl Task {
             gc: _,
         } = old_state.into_full().unwrap();
 
-        let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-
         // Remove all children, as they will be added again when this task is executed
         // again
-        if !children.is_empty() {
-            for child in children {
-                aggregation_leaf.remove_child(&aggregation_context, &child);
-            }
-        }
+        let remove_job = (!children.is_empty())
+            .then(|| aggregation_node.handle_lost_edges(&aggregation_context, &self.id, children));
 
         // Remove all collectibles, as they will be added again when this task is
         // executed again.
-        if let Some(collectibles) = collectibles.into_inner() {
-            aggregation_leaf.change(
+        let collectibles_job = if let Some(collectibles) = collectibles.into_inner() {
+            aggregation_node.apply_change(
                 &aggregation_context,
-                &TaskChange {
+                TaskChange {
                     collectibles: collectibles
                         .into_iter()
                         .map(|((t, r), c)| (t, r, -c))
                         .collect(),
                     ..Default::default()
                 },
-            );
-        }
+            )
+        } else {
+            None
+        };
 
         // TODO aggregation_leaf
-        let unset = !aggregation_leaf.has_upper();
+        let unset = false;
 
         let stats_type = match stats {
             TaskStats::Essential(_) => StatsType::Essential,
@@ -2114,11 +2049,15 @@ impl Task {
             *state = TaskMetaState::Unloaded(UnloadedTaskState { stats_type });
         } else {
             *state = TaskMetaState::Partial(Box::new(PartialTaskState {
-                aggregation_leaf,
+                aggregation_leaf: aggregation_node,
                 stats_type,
             }));
         }
         drop(state);
+
+        change_job.apply(&aggregation_context);
+        remove_job.apply(&aggregation_context);
+        collectibles_job.apply(&aggregation_context);
 
         // Notify everyone that is listening on our output or cells.
         // This will mark everyone as dirty and will trigger a new execution when they
@@ -2134,6 +2073,8 @@ impl Task {
         if let Some(dependencies) = clear_dependencies {
             self.clear_dependencies(dependencies, backend, turbo_tasks);
         }
+
+        aggregation_context.apply_queued_updates();
 
         true
     }
