@@ -19,6 +19,8 @@ export type CacheScope = ReturnType<typeof createCacheScope>
 type CacheDispatcher = {
   [HAS_CACHE_SCOPE]?: boolean
   getCacheForType: <T>(create: () => T) => T
+  // DEV-only (or !disableStringRefs)
+  getOwner?: () => null | Record<string, unknown>
 }
 
 const HAS_CACHE_SCOPE: unique symbol = Symbol.for('next.cacheScope')
@@ -29,7 +31,7 @@ function createCacheMap(): CacheMap {
   return new Map()
 }
 
-function shouldInterceptCache() {
+function isWithinCacheScope() {
   return !!CacheScopeStorage.getStore()
 }
 
@@ -46,9 +48,9 @@ function resolveCache(): CacheMap {
 }
 
 /** forked from packages/react-server/src/flight/ReactFlightServerCache.js */
-const PatchedCacheDispatcher: CacheDispatcher = {
+const ScopedCacheDispatcher: CacheDispatcher = {
   getCacheForType<T>(resourceType: () => T): T {
-    if (!shouldInterceptCache()) {
+    if (!isWithinCacheScope()) {
       throw new Error(
         'Invariant: Expected patched cache dispatcher to run within CacheScopeStorage'
       )
@@ -69,29 +71,30 @@ const PatchedCacheDispatcher: CacheDispatcher = {
 // #region  injecting the patched dispatcher into React
 
 export function patchCacheScopeSupportIntoReact(React: typeof import('react')) {
-  const ReactCurrentCache = getReactCurrentCacheRef(React)
-  if (ReactCurrentCache.current) {
-    patchReactCache(ReactCurrentCache.current)
-  } else if (!ReactCurrentCache[HAS_CACHE_SCOPE]) {
-    let current: (typeof ReactCurrentCache)['current'] = null
-    Object.defineProperty(ReactCurrentCache, 'current', {
-      get: () => current,
-      set: (maybeDispatcher) => {
-        try {
-          if (maybeDispatcher) {
-            patchReactCache(maybeDispatcher)
-          }
-        } catch (err) {
-          console.error('Invariant: could not patch the React cache dispatcher')
-        }
-        current = maybeDispatcher
-      },
-    })
-    ReactCurrentCache[HAS_CACHE_SCOPE] = true
+  const internals = getReactServerInternals(React)
+  if ('ReactCurrentCache' in internals) {
+    // react < 19
+    const { ReactCurrentCache } = internals
+    if (ReactCurrentCache.current) {
+      patchReactCacheDispatcher(ReactCurrentCache.current)
+    } else {
+      patchReactCacheDispatcherWhenSet(ReactCurrentCache, 'current')
+    }
+  } else if ('A' in internals) {
+    // react >= 19
+    if (internals.A) {
+      patchReactCacheDispatcher(internals.A)
+    } else {
+      patchReactCacheDispatcherWhenSet(internals, 'A')
+    }
+  } else {
+    throw new Error(
+      'Invariant: Could not find cache dispatcher in React internals'
+    )
   }
 }
 
-function patchReactCache(dispatcher: CacheDispatcher) {
+function patchReactCacheDispatcher(dispatcher: CacheDispatcher) {
   if (dispatcher[HAS_CACHE_SCOPE]) {
     return
   }
@@ -101,53 +104,85 @@ function patchReactCache(dispatcher: CacheDispatcher) {
     this: CacheDispatcher,
     create: () => T
   ) {
-    if (shouldInterceptCache()) {
-      return PatchedCacheDispatcher.getCacheForType(create)
+    if (isWithinCacheScope()) {
+      return ScopedCacheDispatcher.getCacheForType(create)
     }
     return originalGetCacheForType.call(this, create) as T
   }
   dispatcher[HAS_CACHE_SCOPE] = true
 }
 
+function patchReactCacheDispatcherWhenSet<
+  Container extends Record<string, any> & { [HAS_CACHE_SCOPE]?: boolean }
+>(container: Container, key: keyof Container) {
+  if (container[HAS_CACHE_SCOPE]) {
+    return
+  }
+  let current: CacheDispatcher | null = null
+  Object.defineProperty(container, key, {
+    get: () => current,
+    set: (maybeDispatcher) => {
+      try {
+        if (maybeDispatcher) {
+          patchReactCacheDispatcher(maybeDispatcher)
+        }
+      } catch (err) {
+        throw new Error(
+          'Invariant: could not patch the React cache dispatcher',
+          { cause: err }
+        )
+      }
+      current = maybeDispatcher
+    },
+  })
+  container[HAS_CACHE_SCOPE] = true
+}
+
 type ReactWithServerInternals = typeof import('react') &
   ReactServerInternalProperties
 
 type ReactServerInternalProperties =
+  | {
+      __SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: ReactServerSharedInternalsOld
+    }
+  | {
+      __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: ReactServerSharedInternalsNew
+    }
+
+type ReactServerSharedInternals =
   | ReactServerSharedInternalsOld
   | ReactServerSharedInternalsNew
 
 type ReactServerSharedInternalsOld = {
-  __SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: {
-    ReactCurrentCache: {
-      [HAS_CACHE_SCOPE]?: boolean
-      current: CacheDispatcher | null
-    }
+  ReactCurrentCache: {
+    [HAS_CACHE_SCOPE]?: boolean
+    current: CacheDispatcher | null
   }
 }
 
 type ReactServerSharedInternalsNew = {
-  __SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
-    C: {
-      [HAS_CACHE_SCOPE]?: boolean
-      current: CacheDispatcher | null
-    }
-  }
+  [HAS_CACHE_SCOPE]?: boolean
+  A: CacheDispatcher | null
 }
 
-function getReactCurrentCacheRef(React: typeof import('react')) {
+const INTERNALS_KEY_OLD =
+  '__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED'
+const INTERNALS_KEY_NEW =
+  '__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE'
+
+function getReactServerInternals(
+  React: typeof import('react')
+): ReactServerSharedInternals {
   const _React = React as ReactWithServerInternals
 
-  const keyOld = '__SECRET_SERVER_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED'
-  if (keyOld in _React) {
-    return _React[keyOld].ReactCurrentCache
+  if (INTERNALS_KEY_OLD in _React) {
+    return _React[INTERNALS_KEY_OLD]
   }
-  const keyNew =
-    '__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE'
-  if (keyNew in _React) {
-    return _React[keyNew].C
+  if (INTERNALS_KEY_NEW in _React) {
+    return _React[INTERNALS_KEY_NEW]
   }
 
-  throw new Error('Internal error: Unable to access react cache internals')
+  throw new Error('Invariant: Could not access React server internals')
 }
 
 // #endregion
