@@ -1886,11 +1886,17 @@
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
+        "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
+        "app dir - metadata dynamic routes should support edge runtime of image routes",
+        "app dir - metadata dynamic routes should include default og font files in file trace",
+        "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
         "app dir - metadata dynamic routes sitemap social image routes should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-        "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes"
+        "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
+        "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
+        "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production"
       ],
       "pending": [],
       "flakey": [],
