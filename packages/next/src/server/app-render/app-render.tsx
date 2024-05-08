@@ -1020,7 +1020,7 @@ async function renderToHTMLOrFlightImpl(
           process.env.NEXT_RUNTIME === 'nodejs' &&
           !(stream instanceof ReadableStream)
         ) {
-          const { Readable } = await import('node:stream')
+          const { Readable } = require('node:stream')
           stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
         }
 
@@ -1304,8 +1304,7 @@ async function renderToHTMLOrFlightImpl(
         )
 
         try {
-          const fizzStream = await renderToInitialFizzStream({
-            ReactDOMServer: require('react-dom/server.edge'),
+          let fizzStream = await renderToInitialFizzStream({
             element: (
               <ReactServerEntrypoint
                 reactServerStream={errorServerStream}
@@ -1321,6 +1320,22 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
+
+          if (
+            process.env.NEXT_RUNTIME === 'nodejs' &&
+            !(fizzStream instanceof ReadableStream)
+          ) {
+            const { Readable } = require('node:stream')
+
+            fizzStream = Readable.toWeb(
+              fizzStream
+            ) as ReadableStream<Uint8Array>
+          }
+
+          // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
+          if (!(fizzStream instanceof ReadableStream)) {
+            throw new Error("Invariant: stream isn't a ReadableStream")
+          }
 
           return {
             // Returning the error that was thrown so it can be used to handle

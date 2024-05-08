@@ -175,7 +175,7 @@ declare module 'react-dom/server.node' {
   }
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerNode.js#L85
-  interface PipeableStream {
+  export interface PipeableStream {
     abort(reason: unknown): void
     pipe<T extends Writable>(destination: T): T
   }

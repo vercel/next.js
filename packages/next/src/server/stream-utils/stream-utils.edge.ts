@@ -8,6 +8,7 @@ import {
   isEquivalentUint8Arrays,
   removeFromUint8Array,
 } from './uint8array-helpers'
+import type { PipeableStream } from 'react-dom/server.node'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -62,6 +63,17 @@ export function chainStreams<T>(
   promise.catch(voidCatch)
 
   return readable
+}
+
+export async function renderToString(
+  element: React.ReactElement
+): Promise<string> {
+  const ReactDOMServer =
+    require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
 }
 
 export function streamFromString(str: string): ReadableStream<Uint8Array> {
@@ -162,14 +174,13 @@ function createInsertedHTMLStream(
 }
 
 export function renderToInitialFizzStream({
-  ReactDOMServer,
   element,
   streamOptions,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
+  const ReactDOMServer = require('react-dom/server.edge')
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
