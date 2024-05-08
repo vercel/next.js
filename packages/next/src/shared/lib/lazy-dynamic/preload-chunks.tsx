@@ -34,28 +34,17 @@ export function PreloadChunks({
     <>
       {allFiles.map((chunk) => {
         const href = `${requestStore.assetPrefix}/_next/${encodeURI(chunk)}`
-        if (chunk.endsWith('.css')) {
-          return (
-            <link
-              key={chunk}
-              // @ts-ignore
-              precedence={'dynamic'}
-              rel="stylesheet"
-              href={href}
-              as="style"
-            />
-          )
-        } else {
-          return (
-            <script
-              key={chunk}
-              // @ts-ignore
-              precedence={'dynamic'}
-              src={href}
-              defer
-            />
-          )
-        }
+        const isCss = chunk.endsWith('.css')
+        return (
+          <link
+            key={chunk}
+            // @ts-ignore
+            precedence={'dynamic'}
+            href={href}
+            rel={isCss ? 'stylesheet' : 'preload'}
+            as={isCss ? 'style' : 'script'}
+          />
+        )
       })}
     </>
   )
