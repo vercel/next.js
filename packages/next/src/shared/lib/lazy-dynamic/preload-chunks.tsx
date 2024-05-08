@@ -43,6 +43,8 @@ export function PreloadChunks({
             href={href}
             rel={isCss ? 'stylesheet' : 'preload'}
             as={isCss ? 'style' : 'script'}
+            // only apply fetchPriority to preload script
+            {...(isCss ? undefined : { fetchPriority: 'low' })}
           />
         )
       })}
