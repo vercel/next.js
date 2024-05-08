@@ -18,7 +18,7 @@ describe('app dir - dynamic css', () => {
 
     const preloadJsChunks = $('link[rel="preload"][precedence="dynamic"]')
     expect(preloadJsChunks.attr('as')).toBe('script')
-    expect(preloadJsChunks.attr('fetchPriority')).toBe('low')
+    expect(preloadJsChunks.attr('fetchpriority')).toContain(`low`)
   })
 
   it('should only apply corresponding css for page loaded that /ssr', async () => {
