@@ -437,14 +437,10 @@ export async function optimizeImage({
   height?: number
   nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
-  let optimizedBuffer = buffer
-
   const sharp = getSharp()
-  const transformer = sharp(buffer, {
-    sequentialRead: true,
-  })
-
-  transformer.rotate()
+  const transformer = sharp(buffer, { sequentialRead: true })
+    .timeout({ seconds: 10 })
+    .rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -468,7 +464,7 @@ export async function optimizeImage({
     transformer.jpeg({ quality, progressive: true })
   }
 
-  optimizedBuffer = await transformer.toBuffer()
+  const optimizedBuffer = await transformer.toBuffer()
 
   return optimizedBuffer
 }
