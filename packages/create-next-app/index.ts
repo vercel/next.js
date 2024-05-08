@@ -93,6 +93,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--empty',
+    `
+
+    Initialize an empty Next.js project.
+`
+  )
+  .option(
     '--use-npm',
     `
 
