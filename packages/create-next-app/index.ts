@@ -271,6 +271,7 @@ async function run(): Promise<void> {
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
+      empty: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -438,6 +439,27 @@ async function run(): Promise<void> {
         }
       }
     }
+
+    if (
+      !process.argv.includes('--empty') &&
+      !process.argv.includes('--no-empty')
+    ) {
+      if (ciInfo.isCI) {
+        program.empty = getPrefOrDefault('empty')
+      } else {
+        const { empty } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'empty',
+          message: `Would you like to use an empty Next.js project?`,
+          initial: getPrefOrDefault('empty'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.empty = Boolean(empty)
+        preferences.empty = Boolean(empty)
+      }
+    }
   }
 
   try {
@@ -453,6 +475,7 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -482,6 +505,7 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   }
   conf.set('preferences', preferences)

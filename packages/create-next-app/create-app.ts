@@ -35,6 +35,7 @@ export async function createApp({
   srcDir,
   importAlias,
   skipInstall,
+  empty,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -44,6 +45,7 @@ export async function createApp({
   tailwind: boolean
   eslint: boolean
   appRouter: boolean
+  empty: boolean
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
@@ -151,6 +153,8 @@ export async function createApp({
   const packageJsonPath = path.join(root, 'package.json')
   let hasPackageJson = false
 
+  console.log('[test] empty =', empty)
+
   if (example) {
     /**
      * If an example repository is provided, clone it.
@@ -233,6 +237,7 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
+      empty,
     })
   }
 

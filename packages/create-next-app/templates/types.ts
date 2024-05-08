@@ -14,7 +14,6 @@ export interface InstallTemplateArgs {
   root: string;
   packageManager: PackageManager;
   isOnline: boolean;
-
   template: TemplateType;
   mode: TemplateMode;
   eslint: boolean;
@@ -22,4 +21,5 @@ export interface InstallTemplateArgs {
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
+  empty: boolean;
 }
