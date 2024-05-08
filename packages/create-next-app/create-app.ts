@@ -54,11 +54,19 @@ export async function createApp({
   const mode: TemplateMode = typescript ? 'ts' : 'js'
   const template: TemplateType = appRouter
     ? tailwind
-      ? 'app-tw'
-      : 'app'
+      ? empty
+        ? 'app-tw-empty'
+        : 'app-tw'
+      : empty
+        ? 'app-empty'
+        : 'app'
     : tailwind
-      ? 'default-tw'
-      : 'default'
+      ? empty
+        ? 'default-tw-empty'
+        : 'default-tw'
+      : empty
+        ? 'default-empty'
+        : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -235,7 +243,6 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
-      empty,
     })
   }
 
