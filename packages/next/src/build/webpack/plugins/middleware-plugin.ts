@@ -42,10 +42,10 @@ export interface EdgeFunctionDefinition {
   name: string
   page: string
   matchers: MiddlewareMatcher[]
+  env: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
   regions?: string[] | string
-  environments?: Record<string, string>
 }
 
 export interface MiddlewareManifest {
@@ -227,7 +227,7 @@ function getCreateAssets(params: {
           name,
           filePath,
         })),
-        environments: opts.edgeEnvironments,
+        env: opts.edgeEnvironments,
         ...(metadata.regions && { regions: metadata.regions }),
       }
 
@@ -739,18 +739,26 @@ function getExtractMetadata(params: {
   }
 }
 
+// These values will be replaced again in edge runtime deployment build.
+// `buildId` represents BUILD_ID to be externalized in env vars.
+// `encryptionKey` represents server action encryption key to be externalized in env vars.
+type EdgeRuntimeEnvironments = Record<string, string> & {
+  __NEXT_BUILD_ID: string
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: string
+}
+
 interface Options {
   dev: boolean
   sriEnabled: boolean
   rewrites: CustomRoutes['rewrites']
-  edgeEnvironments: Record<string, string>
+  edgeEnvironments: EdgeRuntimeEnvironments
 }
 
 export default class MiddlewarePlugin {
   private readonly dev: Options['dev']
   private readonly sriEnabled: Options['sriEnabled']
   private readonly rewrites: Options['rewrites']
-  private readonly edgeEnvironments: Record<string, string>
+  private readonly edgeEnvironments: EdgeRuntimeEnvironments
 
   constructor({ dev, sriEnabled, rewrites, edgeEnvironments }: Options) {
     this.dev = dev

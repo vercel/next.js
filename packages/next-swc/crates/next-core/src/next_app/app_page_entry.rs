@@ -152,7 +152,6 @@ async fn wrap_edge_page(
     let next_config = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
-    let build_id = "development";
     let dev = true;
 
     // TODO(timneutkens): remove this
@@ -174,7 +173,6 @@ async fn wrap_edge_page(
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
             "VAR_PAGE" => page.to_string(),
-            "VAR_BUILD_ID" => build_id.to_string(),
         },
         indexmap! {
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),

@@ -16,7 +16,6 @@ export type EdgeSSRLoaderQuery = {
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolutePagePath: string
-  buildId: string
   dev: boolean
   isServerComponent: boolean
   page: string
@@ -65,7 +64,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const {
       dev,
       page,
-      buildId,
       absolutePagePath,
       absoluteAppPath,
       absoluteDocumentPath,
@@ -145,7 +143,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          VAR_BUILD_ID: buildId,
         },
         {
           sriEnabled: JSON.stringify(sriEnabled),
@@ -167,7 +164,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          VAR_BUILD_ID: buildId,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
