@@ -31,7 +31,7 @@ fn main() {
     let store = Arc::new(StoreContainer::new());
     let reader = TraceReader::spawn(store.clone(), arg.into());
 
-    serve(store).unwrap();
+    serve(store);
 
     reader.join().unwrap();
 }

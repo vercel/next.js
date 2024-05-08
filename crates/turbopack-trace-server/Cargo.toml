@@ -21,6 +21,7 @@ postcard = { workspace = true }
 rustc-demangle = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
 websocket = { version = "0.27.0", features = ["sync"] }
 zstd = { version = "0.13.0" }

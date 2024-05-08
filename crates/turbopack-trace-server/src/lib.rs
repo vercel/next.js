@@ -24,7 +24,7 @@ pub fn start_turbopack_trace_server(path: PathBuf) {
     let store = Arc::new(StoreContainer::new());
     let reader = TraceReader::spawn(store.clone(), path);
 
-    serve(store).unwrap();
+    serve(store);
 
     reader.join().unwrap();
 }
