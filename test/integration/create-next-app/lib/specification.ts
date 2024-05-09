@@ -71,7 +71,6 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'pages/index.tsx',
         'pages/_app.tsx',
-        'pages/api/hello.ts',
         'tsconfig.json',
         'next-env.d.ts',
       ],
