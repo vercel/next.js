@@ -5,10 +5,12 @@ const uiErrorTypesWithStatusCodesMap = {
   'not-found': {
     statusCode: 404,
     matcher: isNotFoundError,
+    helperName: 'notFound',
   },
   forbidden: {
     statusCode: 403,
     matcher: isForbiddenError,
+    helperName: 'forbidden',
   },
 } as const
 

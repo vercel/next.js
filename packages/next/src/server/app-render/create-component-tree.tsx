@@ -303,6 +303,9 @@ async function createComponentTreeInternal({
       const NotFoundComponent = NotFound
       const ForbiddenComponent = Forbidden
       const RootLayoutComponent = LayoutOrPage
+      const RoolLayoutBoundaryComponent = () => {
+        return
+      }
       return (
         <ForbiddenBoundary
           uiComponent={
@@ -311,7 +314,7 @@ async function createComponentTreeInternal({
                 {layerAssets}
                 {/*
                  * We are intentionally only forwarding params to the root layout, as passing any of the parallel route props
-                 * might trigger `notFound()`, which is not currently supported in the root layout.
+                 * might trigger `forbidden()`, which is not currently supported in the root layout.
                  */}
                 <RootLayoutComponent params={componentProps.params}>
                   {forbiddenStyles}

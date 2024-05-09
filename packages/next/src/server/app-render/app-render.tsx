@@ -45,8 +45,6 @@ import {
 import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
-import { isNotFoundError } from '../../client/components/not-found'
-import { isForbiddenError } from '../../client/components/forbidden'
 import {
   getURLFromRedirectError,
   isRedirectError,
@@ -114,6 +112,10 @@ import {
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
+import {
+  uiErrorTypesWithStatusCodes,
+  uiErrorTypesWithStatusCodesMap,
+} from '../future/route-modules/helpers/respone-ui-errors'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1243,10 +1245,13 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        if (isNotFoundError(err)) {
-          res.statusCode = 404
-        } else if (isForbiddenError(err)) {
-          res.statusCode = 403
+        const uiErrorType = uiErrorTypesWithStatusCodes.find((errorType) =>
+          uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+        )
+
+        if (uiErrorType) {
+          const errorTypeObj = uiErrorTypesWithStatusCodesMap[uiErrorType]
+          res.statusCode = errorTypeObj.statusCode
         }
         let hasRedirectError = false
         if (isRedirectError(err)) {
@@ -1267,7 +1272,10 @@ async function renderToHTMLOrFlightImpl(
           )
           setHeader('Location', redirectUrl)
         }
-        const internalHandledStatusCodes = [403, 404]
+        const internalHandledStatusCodes = Object.values(
+          uiErrorTypesWithStatusCodesMap
+        ).map((x) => +x.statusCode)
+
         if (
           !internalHandledStatusCodes.includes(res.statusCode || 0) &&
           !hasRedirectError &&
@@ -1353,12 +1361,9 @@ async function renderToHTMLOrFlightImpl(
             const bailOnUIError: typeof import('../../client/components/dev-root-not-found-boundary').bailOnUIError =
               require('../../client/components/dev-root-not-found-boundary').bailOnUIError
 
-            if (isNotFoundError(finalErr)) {
-              bailOnUIError('notFound')
-            }
-
-            if (isForbiddenError(finalErr)) {
-              bailOnUIError('forbidden')
+            if (uiErrorType) {
+              const errorTypeObj = uiErrorTypesWithStatusCodesMap[uiErrorType]
+              bailOnUIError(errorTypeObj.helperName)
             }
           }
           throw finalErr
