@@ -263,20 +263,18 @@ export async function adapter(
                 } as RenderOptsPartial['experimental'],
               },
             },
-            async () => {
-              try {
-                return await params.handler(request, event)
-              } finally {
-                // middleware cannot stream, so we can consider the response closed
-                // as soon as the handler returns.
-                if (closeController && closeController.listeners > 0) {
-                  // we can delay running it until a bit later --
-                  // if it's needed, we'll have a `waitUntil` lock anyway.
-                  setTimeout(() => closeController!.dispatchClose(), 0)
-                }
-              }
+            () => params.handler(request, event)
+          ).finally(() => {
+            // middleware cannot stream, so we can consider the response closed
+            // as soon as the handler returns.
+            if (closeController) {
+              // we can delay running it until a bit later --
+              // if it's needed, we'll have a `waitUntil` lock anyway.
+              setTimeout(() => {
+                closeController!.dispatchClose()
+              }, 0)
             }
-          )
+          })
       )
     }
     return params.handler(request, event)
