@@ -22,6 +22,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import type { RenderOptsPartial } from '../app-render/types'
+import { CloseController } from './web-on-close'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -222,19 +223,11 @@ export async function adapter(
         !!process.env.__NEXT_AFTER
 
       let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
-      let onClose: WrapperRenderOpts['onClose'] = undefined
-      let dispatchClose: (() => void) | undefined = undefined
+      let closeController: CloseController | undefined = undefined
 
       if (isAfterEnabled) {
         waitUntil = event.waitUntil.bind(event)
-
-        const requestClosedTarget = new EventTarget()
-        onClose = (callback: () => void) => {
-          requestClosedTarget.addEventListener('close', callback)
-        }
-        dispatchClose = () => {
-          requestClosedTarget.dispatchEvent(new Event('close'))
-        }
+        closeController = new CloseController()
       }
 
       return getTracer().trace(
@@ -262,7 +255,9 @@ export async function adapter(
                   previewModeSigningKey: '',
                 },
                 waitUntil,
-                onClose,
+                onClose: closeController
+                  ? closeController.onClose.bind(closeController)
+                  : undefined,
                 experimental: {
                   after: isAfterEnabled,
                 } as RenderOptsPartial['experimental'],
@@ -274,10 +269,10 @@ export async function adapter(
               } finally {
                 // middleware cannot stream, so we can consider the response closed
                 // as soon as the handler returns.
-                if (dispatchClose) {
+                if (closeController && closeController.listeners > 0) {
                   // we can delay running it until a bit later --
                   // if it's needed, we'll have a `waitUntil` lock anyway.
-                  setTimeout(dispatchClose, 0)
+                  setTimeout(() => closeController!.dispatchClose(), 0)
                 }
               }
             }

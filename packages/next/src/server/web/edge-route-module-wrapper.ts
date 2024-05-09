@@ -15,6 +15,7 @@ import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import type { RequestLifecycleOpts } from '../base-server'
+import { CloseController, trackStreamConsumed } from './web-on-close'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -91,18 +92,11 @@ export class EdgeRouteModuleWrapper {
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
     let waitUntil: RequestLifecycleOpts['waitUntil'] | undefined = undefined
-    let onClose: RequestLifecycleOpts['onClose'] | undefined = undefined
-    let dispatchClose: (() => void) | undefined = undefined
+    let closeController: CloseController | undefined
+
     if (isAfterEnabled) {
       waitUntil = evt.waitUntil.bind(evt)
-
-      const requestClosedTarget = new EventTarget()
-      onClose = (callback: () => void) => {
-        requestClosedTarget.addEventListener('close', callback)
-      }
-      dispatchClose = () => {
-        requestClosedTarget.dispatchEvent(new Event('close'))
-      }
+      closeController = new CloseController()
     }
 
     // Create the context for the handler. This contains the params from the
@@ -123,30 +117,41 @@ export class EdgeRouteModuleWrapper {
       renderOpts: {
         supportsDynamicHTML: true,
         waitUntil,
-        onClose,
+        onClose: closeController
+          ? closeController.onClose.bind(closeController)
+          : undefined,
         experimental: {
           after: isAfterEnabled,
         },
       },
     }
 
-    try {
-      // Get the response from the handler.
-      const res = await this.routeModule.handle(request, context)
+    // Get the response from the handler.
+    let res = await this.routeModule.handle(request, context)
 
-      const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
-      if (context.renderOpts.pendingWaitUntil) {
-        waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
-      }
-      evt.waitUntil(Promise.all(waitUntilPromises))
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    if (context.renderOpts.pendingWaitUntil) {
+      waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
+    }
+    evt.waitUntil(Promise.all(waitUntilPromises))
 
-      return res
-    } finally {
-      // TODO(after): this might be a streaming response, in which case this'll run too early.
-      // we should probably do the same thing as `WebNextResponse#onClose` here
-      if (dispatchClose) {
-        setTimeout(dispatchClose, 0)
+    if (closeController && closeController.listeners > 0) {
+      if (!res.body) {
+        // we can delay running it until a bit later --
+        // if it's needed, we'll have a `waitUntil` lock anyway.
+        setTimeout(() => closeController!.dispatchClose(), 0)
+      } else {
+        const trackedBody = trackStreamConsumed(res.body, () =>
+          closeController!.dispatchClose()
+        )
+        res = new Response(trackedBody, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: res.headers,
+        })
       }
     }
+
+    return res
   }
 }

@@ -5,6 +5,7 @@ import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
 import { DetachedPromise } from '../../lib/detached-promise'
 import type { NextRequestHint } from '../web/adapter'
+import { CloseController, trackBodyConsumed } from '../web/web-on-close'
 
 export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public request: Request
@@ -37,8 +38,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   private headers = new Headers()
   private textBody: string | undefined = undefined
 
-  private listeners = 0
-  private target = new EventTarget()
+  private closeController = new CloseController()
 
   public statusCode: number | undefined
   public statusMessage: string | undefined
@@ -108,9 +108,9 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     const body = this.textBody ?? this.transformStream.readable
 
     let bodyInit: BodyInit = body
-    if (this.listeners > 0) {
+    if (this.closeController.listeners > 0) {
       bodyInit = trackBodyConsumed(body, () => {
-        this.target.dispatchEvent(new Event('close'))
+        this.closeController.dispatchClose()
       })
     }
 
@@ -125,36 +125,6 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     if (this.sent) {
       throw new Error('Cannot call onClose on a response that is already sent')
     }
-    this.target.addEventListener('close', callback)
-    this.listeners++
-    return () => {
-      this.target.removeEventListener('close', callback)
-      this.listeners--
-    }
-  }
-}
-
-function trackBodyConsumed(
-  body: string | ReadableStream,
-  onEnd: () => void
-): BodyInit {
-  // monitor when the consumer finishes reading the response body.
-  // that's as close as we can get to `res.on('close')` using web APIs.
-
-  if (typeof body === 'string') {
-    const generator = async function* generate() {
-      const encoder = new TextEncoder()
-      yield encoder.encode(body)
-      onEnd()
-    }
-    // @ts-expect-error BodyInit typings doesn't seem to include AsyncIterables even though it's supported in practice
-    return generator()
-  } else {
-    const closePassThrough = new TransformStream({
-      flush: () => {
-        return onEnd()
-      },
-    })
-    return body.pipeThrough(closePassThrough)
+    return this.closeController.onClose(callback)
   }
 }
