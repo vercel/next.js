@@ -1658,7 +1658,12 @@ export default abstract class Server<
     if (!waitUntil) {
       // if we're not running in a serverless environment,
       // we don't actually need waitUntil -- the server will stay alive anyway.
-      waitUntil = () => {}
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
     }
 
     return waitUntil
