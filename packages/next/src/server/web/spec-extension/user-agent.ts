@@ -1,4 +1,4 @@
-import parseua from 'next/dist/compiled/ua-parser-js'
+import parseua from '@next/vendored/ua-parser-js'
 
 interface UserAgent {
   isBot: boolean

@@ -1,7 +1,7 @@
 // @ts-ignore
-import HttpsProxyAgent from 'next/dist/compiled/https-proxy-agent'
+import HttpsProxyAgent from '@next/vendored/ws'
 // @ts-ignore
-import HttpProxyAgent from 'next/dist/compiled/http-proxy-agent'
+import HttpProxyAgent from '@next/vendored/ws'
 import type { Agent } from 'https'
 
 /**

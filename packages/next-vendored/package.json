@@ -40,8 +40,10 @@
     "@types/shell-quote": "1.7.1",
     "@types/semver": "7.3.1",
     "@types/send": "0.14.4",
+    "@types/ua-parser-js": "0.7.36",
     "@types/tar": "6.1.5",
     "@types/text-table": "0.2.1",
+    "@types/ws": "8.2.0",
     "typescript": "5.3.3"
   },
   "dependencies": {
@@ -83,6 +85,8 @@
     "glob": "7.1.7",
     "gzip-size": "5.1.1",
     "http-proxy": "1.18.1",
+    "http-proxy-agent": "5.0.0",
+    "https-proxy-agent": "5.0.1",
     "https-browserify": "1.0.0",
     "icss-utils": "5.1.0",
     "ignore-loader": "0.1.2",
@@ -139,10 +143,12 @@
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
+    "ua-parser-js": "1.0.35",
     "unistore": "3.4.1",
     "util": "0.12.4",
     "vm-browserify": "1.1.2",
     "watchpack": "2.4.0",
+    "ws": "8.2.3",
     "zod": "3.22.3"
   }
 }

@@ -94,21 +94,12 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/ua-parser-js' {
-  import m from 'ua-parser-js'
-  export = m
-}
 
 declare module 'next/dist/compiled/web-vitals' {
   import m from 'web-vitals'
   export = m
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
-
-declare module 'next/dist/compiled/ws' {
-  import m from 'ws'
-  export = m
-}
 
 declare module 'next/dist/compiled/edge-runtime' {
   import m from 'edge-runtime'

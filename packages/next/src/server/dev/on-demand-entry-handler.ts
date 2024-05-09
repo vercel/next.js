@@ -1,4 +1,4 @@
-import type ws from 'next/dist/compiled/ws'
+import type ws from '@next/vendored/ws'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {

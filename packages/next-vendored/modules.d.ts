@@ -277,3 +277,11 @@ declare module '@next/vendored/superstruct' {
   import m from 'superstruct'
   export = m
 }
+declare module '@next/vendored/ua-parser-js' {
+  import m from 'ua-parser-js'
+  export = m
+}
+declare module '@next/vendored/ws' {
+  import m from 'ws'
+  export = m
+}

@@ -285,6 +285,10 @@ const nccTasks: Record<
   ncc_text_table: 'text-table',
   ncc_unistore: 'unistore',
   ncc_watchpack: 'watchpack',
+  ncc_ua_parser_js: 'ua-parser-js',
+  ncc_ws: 'ws',
+  ncc_http_proxy_agent: 'http-proxy-agent',
+  ncc_https_proxy_agent: 'https-proxy-agent',
 }
 
 for (let [taskName, modOptions] of Object.entries(nccTasks)) {

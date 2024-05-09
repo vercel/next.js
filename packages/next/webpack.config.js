@@ -77,7 +77,7 @@ const sharedExternals = [
   'next/dist/compiled/jsonwebtoken',
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',
-  'next/dist/compiled/ws',
+  '@next/vendored/ws',
 ]
 
 const externalsMap = {

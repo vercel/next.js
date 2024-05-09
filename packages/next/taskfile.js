@@ -1026,14 +1026,6 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['ua-parser-js'] = 'next/dist/compiled/ua-parser-js'
-export async function ncc_ua_parser_js(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('ua-parser-js')))
-    .ncc({ packageName: 'ua-parser-js', externals })
-    .target('src/compiled/ua-parser-js')
-}
-// eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
@@ -1072,15 +1064,6 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('src/compiled/webpack/')
 }
 
-// eslint-disable-next-line camelcase
-externals['ws'] = 'next/dist/compiled/ws'
-export async function ncc_ws(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('ws')))
-    .ncc({ packageName: 'ws', externals })
-    .target('src/compiled/ws')
-}
-
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
@@ -1097,24 +1080,6 @@ export async function ncc_opentelemetry_api(task, opts) {
     )
     .ncc({ packageName: '@opentelemetry/api', externals })
     .target('src/compiled/@opentelemetry/api')
-}
-
-// eslint-disable-next-line camelcase
-externals['http-proxy-agent'] = 'next/dist/compiled/http-proxy-agent'
-export async function ncc_http_proxy_agent(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('http-proxy-agent')))
-    .ncc({ packageName: 'http-proxy-agent', externals })
-    .target('src/compiled/http-proxy-agent')
-}
-
-// eslint-disable-next-line camelcase
-externals['https-proxy-agent'] = 'next/dist/compiled/https-proxy-agent'
-export async function ncc_https_proxy_agent(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('https-proxy-agent')))
-    .ncc({ packageName: 'https-proxy-agent', externals })
-    .target('src/compiled/https-proxy-agent')
 }
 
 export async function precompile(task, opts) {
@@ -1149,11 +1114,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
-        'ncc_ws',
-        'ncc_ua_parser_js',
         'ncc_opentelemetry_api',
-        'ncc_http_proxy_agent',
-        'ncc_https_proxy_agent',
         'ncc_mini_css_extract_plugin',
       ],
       opts
