@@ -1276,6 +1276,14 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir
           ? [
               {
+                layer: WEBPACK_LAYERS.appRouteHandler,
+                test: new RegExp(
+                  `private-next-app-dir\\/.*\\/route\\.(${pageExtensions.join(
+                    '|'
+                  )})$`
+                ),
+              },
+              {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
                 layer: WEBPACK_LAYERS.shared,
@@ -1700,17 +1708,23 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
+
             let runtime
 
-            if (layer === WEBPACK_LAYERS.serverSideRendering) {
-              runtime = 'app-page'
-            } else if (!layer) {
-              runtime = 'pages'
-            } else {
-              throw new Error(
-                `shared-runtime module ${moduleName} cannot be used in ${layer} layer`
-              )
+            switch (layer) {
+              case WEBPACK_LAYERS.appRouteHandler:
+                runtime = 'app-route'
+                break
+              case WEBPACK_LAYERS.serverSideRendering:
+              case WEBPACK_LAYERS.reactServerComponents:
+              case WEBPACK_LAYERS.appPagesBrowser:
+              case WEBPACK_LAYERS.actionBrowser:
+                runtime = 'app-page'
+                break
+              default:
+                runtime = 'pages'
             }
+
             resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }
         ),
