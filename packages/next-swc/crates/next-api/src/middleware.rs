@@ -5,7 +5,7 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2},
     next_server::{get_server_runtime_entries, ServerContextType},
-    util::parse_config_from_source,
+    util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Value, Vc};
@@ -138,9 +138,12 @@ impl MiddlewareEndpoint {
         let matchers = if let Some(matchers) = config.await?.matcher.as_ref() {
             matchers
                 .iter()
-                .map(|matcher| MiddlewareMatcher {
-                    original_source: matcher.to_string(),
-                    ..Default::default()
+                .map(|matcher| match matcher {
+                    MiddlewareMatcherKind::Str(matchers) => MiddlewareMatcher {
+                        original_source: matchers.to_string(),
+                        ..Default::default()
+                    },
+                    MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
                 })
                 .collect()
         } else {
@@ -158,6 +161,7 @@ impl MiddlewareEndpoint {
             page: "/".to_string(),
             regions: None,
             matchers,
+            env: this.project.edge_env().await?.clone_value(),
             ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {

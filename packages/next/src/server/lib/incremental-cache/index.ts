@@ -31,7 +31,7 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
-  experimental: { ppr: boolean }
+  isAppPPREnabled?: boolean
   _appDir: boolean
   _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -58,7 +58,9 @@ export class CacheHandler {
     ..._args: Parameters<IncrementalCache['set']>
   ): Promise<void> {}
 
-  public async revalidateTag(_tag: string): Promise<void> {}
+  public async revalidateTag(
+    ..._args: Parameters<IncrementalCache['revalidateTag']>
+  ): Promise<void> {}
 
   public resetRequestCache(): void {}
 }
@@ -102,7 +104,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
-    experimental,
+    isAppPPREnabled,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -119,7 +121,7 @@ export class IncrementalCache implements IncrementalCacheType {
     getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
-    experimental: { ppr: boolean }
+    isAppPPREnabled: boolean
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
@@ -191,7 +193,7 @@ export class IncrementalCache implements IncrementalCacheType {
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
-        experimental,
+        isAppPPREnabled,
       })
     }
   }
@@ -280,7 +282,7 @@ export class IncrementalCache implements IncrementalCacheType {
     return unlockNext
   }
 
-  async revalidateTag(tag: string) {
+  async revalidateTag(tags: string | string[]): Promise<void> {
     if (
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
@@ -296,7 +298,7 @@ export class IncrementalCache implements IncrementalCacheType {
       })
     }
 
-    return this.cacheHandler?.revalidateTag?.(tag)
+    return this.cacheHandler?.revalidateTag?.(tags)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -388,7 +390,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const headers =
       typeof (init.headers || {}).keys === 'function'
         ? Object.fromEntries(init.headers as Headers)
-        : Object.assign(init.headers || {}, {})
+        : Object.assign({}, init.headers)
 
     if ('traceparent' in headers) delete headers['traceparent']
 
@@ -427,7 +429,7 @@ export class IncrementalCache implements IncrementalCacheType {
     cacheKey: string,
     ctx: {
       kindHint?: IncrementalCacheKindHint
-      revalidate?: number | false
+      revalidate?: Revalidate
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
@@ -549,7 +551,7 @@ export class IncrementalCache implements IncrementalCacheType {
     pathname: string,
     data: IncrementalCacheValue | null,
     ctx: {
-      revalidate?: number | false
+      revalidate?: Revalidate
       fetchCache?: boolean
       fetchUrl?: string
       fetchIdx?: number

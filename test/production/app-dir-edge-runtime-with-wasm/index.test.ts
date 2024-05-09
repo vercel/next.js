@@ -43,13 +43,9 @@ describe('app-dir edge runtime with wasm', () => {
   beforeAll(async () => {
     next = await createNext({
       files,
-      dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
-      },
     })
   })
-  afterAll(() => next.destroy())
+  afterAll(() => next?.destroy())
 
   it('should have built', async () => {
     const html = await renderViaHTTP(next.url, '/')

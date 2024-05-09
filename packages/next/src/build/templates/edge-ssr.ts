@@ -104,7 +104,7 @@ const render = getRender({
   reactLoadableManifest,
   subresourceIntegrityManifest,
   config: nextConfig,
-  buildId: 'VAR_BUILD_ID',
+  buildId: process.env.__NEXT_BUILD_ID!,
   nextFontManifest,
   incrementalCacheHandler,
 })

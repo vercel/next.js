@@ -9,8 +9,8 @@ use napi::{
 use next_api::{
     entrypoints::Entrypoints,
     project::{
-        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, Project, ProjectContainer,
-        ProjectOptions,
+        DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
+        ProjectContainer, ProjectOptions,
     },
     route::{Endpoint, Route},
 };
@@ -35,6 +35,7 @@ use turbopack_binding::{
             issue::PlainIssue,
             source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
+            SOURCE_MAP_PREFIX,
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
@@ -60,6 +61,23 @@ use crate::register;
 pub struct NapiEnvVar {
     pub name: String,
     pub value: String,
+}
+
+#[napi(object)]
+pub struct NapiDraftModeOptions {
+    pub preview_mode_id: String,
+    pub preview_mode_encryption_key: String,
+    pub preview_mode_signing_key: String,
+}
+
+impl From<NapiDraftModeOptions> for DraftModeOptions {
+    fn from(val: NapiDraftModeOptions) -> Self {
+        DraftModeOptions {
+            preview_mode_id: val.preview_mode_id,
+            preview_mode_encryption_key: val.preview_mode_encryption_key,
+            preview_mode_signing_key: val.preview_mode_signing_key,
+        }
+    }
 }
 
 #[napi(object)]
@@ -93,6 +111,15 @@ pub struct NapiProjectOptions {
 
     /// The mode in which Next.js is running.
     pub dev: bool,
+
+    /// The server actions encryption key.
+    pub encryption_key: String,
+
+    /// The build id.
+    pub build_id: String,
+
+    /// Options for draft mode.
+    pub preview_props: NapiDraftModeOptions,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -127,6 +154,15 @@ pub struct NapiPartialProjectOptions {
 
     /// The mode in which Next.js is running.
     pub dev: Option<bool>,
+
+    /// The server actions encryption key.
+    pub encryption_key: Option<String>,
+
+    /// The build id.
+    pub build_id: Option<String>,
+
+    /// Options for draft mode.
+    pub preview_props: Option<NapiDraftModeOptions>,
 }
 
 #[napi(object)]
@@ -158,6 +194,9 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .collect(),
             define_env: val.define_env.into(),
             dev: val.dev,
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
+            preview_props: val.preview_props.into(),
         }
     }
 }
@@ -175,6 +214,9 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
             dev: val.dev,
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
+            preview_props: val.preview_props.map(|props| props.into()),
         }
     }
 }
@@ -921,7 +963,7 @@ pub async fn project_trace_source(
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix("/turbopack/") else {
+            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
                 bail!("Original file ({}) outside project", original_file)
             };
 

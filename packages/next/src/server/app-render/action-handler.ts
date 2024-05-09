@@ -113,9 +113,12 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(
-    Object.values(staticGenerationStore.pendingRevalidates || [])
-  )
+  await Promise.all([
+    staticGenerationStore.incrementalCache?.revalidateTag(
+      staticGenerationStore.revalidatedTags || []
+    ),
+    ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+  ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -206,6 +209,7 @@ async function createForwardedActionResponse(
       body,
       duplex: 'half',
       headers: forwardedHeaders,
+      redirect: 'manual',
       next: {
         // @ts-ignore
         internal: 1,
@@ -226,9 +230,11 @@ async function createForwardedActionResponse(
       response.body?.cancel()
     }
   } catch (err) {
-    // we couldn't stream the forwarded response, so we'll just do a normal redirect
+    // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)
   }
+
+  return RenderResult.fromStatic('{}')
 }
 
 async function createRedirectRenderResult(
@@ -353,6 +359,11 @@ type ServerModuleMap = Record<
   | undefined
 >
 
+type ServerActionsConfig = {
+  bodySizeLimit?: SizeLimit
+  allowedOrigins?: string[]
+}
+
 export async function handleAction({
   req,
   res,
@@ -371,10 +382,7 @@ export async function handleAction({
   generateFlight: GenerateFlight
   staticGenerationStore: StaticGenerationStore
   requestStore: RequestStore
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
+  serverActions?: ServerActionsConfig
   ctx: AppRenderContext
 }): Promise<
   | undefined
@@ -427,11 +435,11 @@ export async function handleAction({
         value: forwardedHostHeader,
       }
     : hostHeader
-    ? {
-        type: HostType.Host,
-        value: hostHeader,
-      }
-    : undefined
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
 
   let warning: string | undefined = undefined
 
@@ -475,9 +483,12 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(
-          Object.values(staticGenerationStore.pendingRevalidates || [])
-        )
+        await Promise.all([
+          staticGenerationStore.incrementalCache?.revalidateTag(
+            staticGenerationStore.revalidatedTags || []
+          ),
+          ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ])
 
         const promise = Promise.reject(error)
         try {
@@ -552,10 +563,11 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.edge
         const { decodeReply, decodeAction, decodeFormState } = ComponentMod
-
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
+
+        // TODO: add body limit
 
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
@@ -619,20 +631,52 @@ export async function handleAction({
           decodeFormState,
         } = require(`./react-server.node`)
 
+        const { Transform } =
+          require('node:stream') as typeof import('node:stream')
+
+        const defaultBodySizeLimit = '1 MB'
+        const bodySizeLimit =
+          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+        const bodySizeLimitBytes =
+          bodySizeLimit !== defaultBodySizeLimit
+            ? (
+                require('next/dist/compiled/bytes') as typeof import('bytes')
+              ).parse(bodySizeLimit)
+            : 1024 * 1024 // 1 MB
+
+        let size = 0
+        const body = req.body.pipe(
+          new Transform({
+            transform(chunk, encoding, callback) {
+              size += Buffer.byteLength(chunk, encoding)
+              if (size > bodySizeLimitBytes) {
+                const { ApiError } = require('../api-utils')
+
+                callback(
+                  new ApiError(
+                    413,
+                    `Body exceeded ${bodySizeLimit} limit.
+                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                  )
+                )
+                return
+              }
+
+              callback(null, chunk)
+            },
+          })
+        )
+
         if (isMultipartAction) {
           if (isFetchAction) {
-            const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-            const limit = require('next/dist/compiled/bytes').parse(
-              readableLimit
-            )
-            const busboy = require('busboy')
-            const bb = busboy({
+            const busboy = (require('busboy') as typeof import('busboy'))({
               headers: req.headers,
-              limits: { fieldSize: limit },
+              limits: { fieldSize: bodySizeLimitBytes },
             })
-            req.body.pipe(bb)
 
-            bound = await decodeReplyFromBusboy(bb, serverModuleMap)
+            body.pipe(busboy)
+
+            bound = await decodeReplyFromBusboy(busboy, serverModuleMap)
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
@@ -640,7 +684,19 @@ export async function handleAction({
               method: 'POST',
               // @ts-expect-error
               headers: { 'Content-Type': contentType },
-              body: req.stream(),
+              body: new ReadableStream({
+                start: (controller) => {
+                  body.on('data', (chunk) => {
+                    controller.enqueue(new Uint8Array(chunk))
+                  })
+                  body.on('end', () => {
+                    controller.close()
+                  })
+                  body.on('error', (err) => {
+                    controller.error(err)
+                  })
+                },
+              }),
               duplex: 'half',
             })
             const formData = await fakeRequest.formData()
@@ -667,25 +723,12 @@ export async function handleAction({
             }
           }
 
-          const chunks = []
-
+          const chunks: Buffer[] = []
           for await (const chunk of req.body) {
             chunks.push(Buffer.from(chunk))
           }
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          const readableLimit = serverActions?.bodySizeLimit ?? '1 MB'
-          const limit = require('next/dist/compiled/bytes').parse(readableLimit)
-
-          if (actionData.length > limit) {
-            const { ApiError } = require('../api-utils')
-            throw new ApiError(
-              413,
-              `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-            )
-          }
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
@@ -830,9 +873,12 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(
-        Object.values(staticGenerationStore.pendingRevalidates || [])
-      )
+      await Promise.all([
+        staticGenerationStore.incrementalCache?.revalidateTag(
+          staticGenerationStore.revalidatedTags || []
+        ),
+        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+      ])
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early

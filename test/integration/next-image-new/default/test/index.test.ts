@@ -181,6 +181,21 @@ function runTests(mode) {
         referrerpolicy: 'no-referrer',
       })
 
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
         await browser.elementById('basic-image').getAttribute('loading')
@@ -216,6 +231,13 @@ function runTests(mode) {
       expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
         'lazy'
       )
+
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
 
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
@@ -373,7 +395,7 @@ function runTests(mode) {
     let browser = await webdriver(appPort, '/on-load')
 
     await browser.eval(
-      `document.getElementById("footer").scrollIntoView({behavior: "smooth"})`
+      `document.getElementById("msg1").scrollIntoView({behavior: "smooth"})`
     )
 
     await check(
@@ -1138,9 +1160,10 @@ function runTests(mode) {
       const warnings = (await browser.log()).filter(
         (log) => log.source === 'error'
       )
-      expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(warnings).toEqual([])
+
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1153,9 +1176,9 @@ function runTests(mode) {
       const warnings = (await browser.log()).filter(
         (log) => log.source === 'error'
       )
-      expect(warnings.length).toBe(0)
+      expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1571,7 +1594,6 @@ describe('Image Component Default Tests', () => {
       afterAll(async () => {
         await killApp(app)
       })
-
       runTests('server')
     }
   )

@@ -14,11 +14,7 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-ro
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import type {
-  ErrorModuleData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
-import type { ErrorComponent } from '../../client/components/error-boundary'
+import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -131,7 +127,7 @@ async function createComponentTreeInternal({
     : [React.Fragment]
 
   const [ErrorComponent, errorStyles, errorScripts] = error
-    ? await createComponentStylesAndScripts<ErrorComponent>({
+    ? await createComponentStylesAndScripts({
         ctx,
         filePath: error[1],
         getComponent: error[0],
@@ -269,7 +265,7 @@ async function createComponentTreeInternal({
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
-    ? interopDefault(layoutOrPageMod)
+    ? await interopDefault(layoutOrPageMod)
     : undefined
 
   /**
@@ -417,7 +413,7 @@ async function createComponentTreeInternal({
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.ppr
+          !experimental.isRoutePPREnabled
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -447,7 +443,10 @@ async function createComponentTreeInternal({
               injectedJS: injectedJSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
               asNotFound,
-              metadataOutlet,
+              // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
+              // We only want to render an outlet once per segment, as otherwise the error will be triggered
+              // multiple times causing an uncaught error.
+              metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
               ctx,
               missingSlots,
             })
@@ -463,6 +462,9 @@ async function createComponentTreeInternal({
             parallelRouterKey={parallelRouteKey}
             segmentPath={createSegmentPath(currentSegmentPath)}
             // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
+            error={ErrorComponent}
+            errorStyles={errorStyles}
+            errorScripts={errorScripts}
             template={
               <Template>
                 <RenderFromTemplateContext />
@@ -495,10 +497,6 @@ async function createComponentTreeInternal({
     ? [<Loading />, loadingStyles, loadingScripts]
     : null
 
-  const errorData: ErrorModuleData = ErrorComponent
-    ? [ErrorComponent, errorStyles, errorScripts]
-    : null
-
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!Component) {
     return {
@@ -512,7 +510,6 @@ async function createComponentTreeInternal({
         // caution, for now.
         <>{parallelRouteProps.children}</>,
         loadingData,
-        errorData,
       ],
       styles: layerAssets,
     }
@@ -543,7 +540,6 @@ async function createComponentTreeInternal({
           pathname={staticGenerationStore.urlPathname}
         />,
         loadingData,
-        errorData,
       ],
       styles: layerAssets,
     }
@@ -636,7 +632,6 @@ async function createComponentTreeInternal({
         {null}
       </>,
       loadingData,
-      errorData,
     ],
     styles: layerAssets,
   }

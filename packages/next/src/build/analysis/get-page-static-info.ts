@@ -314,7 +314,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 
 export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
-  nextConfig: NextConfig
+  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
 ): MiddlewareMatcher[] {
   let matchers: unknown[] = []
   if (Array.isArray(matcherOrMatchers)) {

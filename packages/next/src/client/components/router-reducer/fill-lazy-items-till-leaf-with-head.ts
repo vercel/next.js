@@ -57,7 +57,6 @@ export function fillLazyItemsTillLeafWithHead(
           // New data was sent from the server.
           const seedNode = parallelSeedData[2]
           const loading = parallelSeedData[3]
-          const error = parallelSeedData[4]
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
@@ -70,7 +69,6 @@ export function fillLazyItemsTillLeafWithHead(
             head: null,
             prefetchHead: null,
             loading,
-            error,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
           }
@@ -102,7 +100,6 @@ export function fillLazyItemsTillLeafWithHead(
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             lazyDataResolved: false,
             loading: null,
-            error: null,
           }
         }
 
@@ -128,7 +125,6 @@ export function fillLazyItemsTillLeafWithHead(
       // New data was sent from the server.
       const seedNode = parallelSeedData[2]
       const loading = parallelSeedData[3]
-      const error = parallelSeedData[4]
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,
@@ -138,7 +134,6 @@ export function fillLazyItemsTillLeafWithHead(
         parallelRoutes: new Map(),
         lazyDataResolved: false,
         loading,
-        error,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -152,7 +147,6 @@ export function fillLazyItemsTillLeafWithHead(
         parallelRoutes: new Map(),
         lazyDataResolved: false,
         loading: null,
-        error: null,
       }
     }
 

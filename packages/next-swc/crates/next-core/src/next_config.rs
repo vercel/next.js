@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
@@ -17,11 +17,15 @@ use turbopack_binding::{
             styled_components::StyledComponentsTransformConfig,
         },
         node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems},
-        turbopack::module_options::{LoaderRuleItem, OptionWebpackRules},
+        turbopack::module_options::{
+            module_options_context::MdxTransformOptions, LoaderRuleItem, OptionWebpackRules,
+        },
     },
 };
 
-use crate::next_shared::transforms::ModularizeImportPackageConfig;
+use crate::{
+    next_import_map::mdx_import_source_file, next_shared::transforms::ModularizeImportPackageConfig,
+};
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,6 +120,9 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
+    /// A list of packages that should be treated as external in the RSC server
+    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_external_packages)
+    pub server_external_packages: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -193,7 +200,19 @@ pub enum OutputType {
     Export,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
     Header {
@@ -423,6 +442,13 @@ pub enum LoaderItem {
     LoaderOptions(WebpackLoaderItem),
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum MdxRsOptions {
+    Boolean(bool),
+    Option(MdxTransformOptions),
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
@@ -436,10 +462,7 @@ pub struct ExperimentalConfig {
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
-    mdx_rs: Option<bool>,
-    /// A list of packages that should be treated as external in the RSC server
-    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
-    pub server_components_external_packages: Option<Vec<String>>,
+    mdx_rs: Option<MdxRsOptions>,
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
@@ -497,7 +520,7 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
-    ppr: Option<bool>,
+    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
@@ -517,6 +540,49 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "lowercase")]
+pub enum ExperimentalPartialPrerenderingIncrementalValue {
+    Incremental,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ExperimentalPartialPrerendering {
+    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
+    Boolean(bool),
+}
+
+#[test]
+fn test_parse_experimental_partial_prerendering() {
+    let json = serde_json::json!({
+        "ppr": "incremental"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Incremental(
+            ExperimentalPartialPrerenderingIncrementalValue::Incremental
+        ))
+    );
+
+    let json = serde_json::json!({
+        "ppr": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Boolean(true))
+    );
+
+    // Expect if we provide a random string, it will fail.
+    let json = serde_json::json!({
+        "ppr": "random"
+    });
+    let config = serde_json::from_value::<ExperimentalConfig>(json);
+    assert!(config.is_err());
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -547,6 +613,25 @@ pub enum EsmExternalsValue {
 pub enum EsmExternals {
     Loose(EsmExternalsValue),
     Bool(bool),
+}
+
+// Test for esm externals deserialization.
+#[test]
+fn test_esm_externals_deserialization() {
+    let json = serde_json::json!({
+        "esmExternals": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(config.esm_externals, Some(EsmExternals::Bool(true)));
+
+    let json = serde_json::json!({
+        "esmExternals": "loose"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.esm_externals,
+        Some(EsmExternals::Loose(EsmExternalsValue::Loose))
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -638,6 +723,9 @@ impl RemoveConsoleConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ResolveExtensions(Option<Vec<String>>);
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -649,11 +737,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_component_externals(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         Ok(Vc::cell(
             self.await?
-                .experimental
-                .server_components_external_packages
+                .server_external_packages
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
@@ -833,8 +920,34 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.mdx_rs.unwrap_or(false)))
+    pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<OptionalMdxTransformOptions>> {
+        let options = &self.await?.experimental.mdx_rs;
+
+        let options = match options {
+            Some(MdxRsOptions::Boolean(true)) => OptionalMdxTransformOptions(Some(
+                MdxTransformOptions {
+                    provider_import_source: Some(mdx_import_source_file()),
+                    ..Default::default()
+                }
+                .cell(),
+            )),
+            Some(MdxRsOptions::Option(options)) => OptionalMdxTransformOptions(Some(
+                MdxTransformOptions {
+                    provider_import_source: Some(
+                        options
+                            .provider_import_source
+                            .as_ref()
+                            .map(|s| s.to_string())
+                            .unwrap_or(mdx_import_source_file()),
+                    ),
+                    ..options.clone()
+                }
+                .cell(),
+            )),
+            _ => OptionalMdxTransformOptions(None),
+        };
+
+        Ok(options.cell())
     }
 
     #[turbo_tasks::function]
@@ -882,7 +995,19 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .ppr
+                .as_ref()
+                .map(|ppr| match ppr {
+                    ExperimentalPartialPrerendering::Incremental(
+                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
+                    ) => true,
+                    ExperimentalPartialPrerendering::Boolean(b) => *b,
+                })
+                .unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]

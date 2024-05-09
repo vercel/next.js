@@ -9,7 +9,7 @@ export const invokeRequest = async (
     method: IncomingMessage['method']
     signal?: AbortSignal
   },
-  readableBody?: Readable | ReadableStream
+  readableBody?: string | Readable | ReadableStream
 ) => {
   const invokeHeaders = filterReqHeaders(
     {

@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs-extra'
 
@@ -80,9 +80,8 @@ describe.each(testedExamples)(`example '%s'`, (example) => {
 
   const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
   const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
-  createNextDescribe(
-    `example '${example}'`,
-    {
+  describe(`example '${example}'`, () => {
+    nextTestSetup({
       files: exampleFiles,
       dependencies: {
         // We need to make sure that these default dependencies are not installed by default
@@ -96,9 +95,7 @@ describe.each(testedExamples)(`example '%s'`, (example) => {
         ...packageJson.dependencies,
         ...packageJson.devDependencies,
       },
-    },
-    () => {
-      it('builds', () => {})
-    }
-  )
+    })
+    it('builds', () => {})
+  })
 })

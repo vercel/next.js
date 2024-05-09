@@ -104,6 +104,7 @@ import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { stripNextRscUnionQuery } from '../lib/url'
 
 export * from './base-server'
 
@@ -228,7 +229,11 @@ export default class NextNodeServer extends BaseServer<
       }).catch(() => {})
     }
 
-    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+    if (
+      !options.dev &&
+      !this.minimalMode &&
+      this.nextConfig.experimental.preloadEntriesOnStart
+    ) {
       this.unstable_preloadEntries()
     }
 
@@ -386,7 +391,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
-      experimental: this.renderOpts.experimental,
+      isAppPPREnabled: this.renderOpts.experimental.isAppPPREnabled,
     })
   }
 
@@ -1123,9 +1128,9 @@ export default class NextNodeServer extends BaseServer<
           // we don't log for non-route requests
           const routeMatch = getRequestMeta(req).match
 
-          const isRSC = isRSCRequestCheck(normalizedReq)
-          if (!routeMatch || isRSC || isMiddlewareRequest) return
+          if (!routeMatch || isMiddlewareRequest) return
 
+          const isRSC = isRSCRequestCheck(normalizedReq)
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
@@ -1140,9 +1145,14 @@ export default class NextNodeServer extends BaseServer<
 
           const color = statusColor(res.statusCode)
           const method = req.method || 'GET'
+          const requestUrl = req.url || ''
+          const loggingUrl = isRSC
+            ? stripNextRscUnionQuery(requestUrl)
+            : requestUrl
+
           writeStdoutLine(
-            `${method} ${req.url ?? ''} ${color(
-              (res.statusCode ?? 200).toString()
+            `${method} ${loggingUrl} ${color(
+              res.statusCode.toString()
             )} in ${reqDuration}ms`
           )
 
@@ -1232,6 +1242,7 @@ export default class NextNodeServer extends BaseServer<
               }
             }
           }
+          delete normalizedReq.fetchMetrics
           originalResponse.off('close', reqCallback)
         }
         originalResponse.on('close', reqCallback)
@@ -1424,6 +1435,7 @@ export default class NextNodeServer extends BaseServer<
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
+    env: { [key: string]: string }
     assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
@@ -1465,6 +1477,7 @@ export default class NextNodeServer extends BaseServer<
             filePath: join(this.distDir, binding.filePath),
           }
         }),
+      env: pageInfo.env,
     }
   }
 
@@ -1794,9 +1807,13 @@ export default class NextNodeServer extends BaseServer<
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+          ? `https://${req.headers.host || 'localhost'}${req.url}`
+          : req.url
 
+    const isRSC = isRSCRequestCheck(req)
+    if (isRSC) {
+      addRequestMeta(req, 'isRSCRequest', true)
+    }
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
     addRequestMeta(req, 'initProtocol', protocol)

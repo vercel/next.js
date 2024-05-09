@@ -38,6 +38,7 @@ export const installTemplate = async ({
   eslint,
   srcDir,
   importAlias,
+  skipInstall,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -107,9 +108,10 @@ export const installTemplate = async ({
         if ((await fs.stat(filePath)).isFile()) {
           await fs.writeFile(
             filePath,
-            (
-              await fs.readFile(filePath, "utf8")
-            ).replace(`@/`, `${importAlias.replace(/\*/g, "")}`),
+            (await fs.readFile(filePath, "utf8")).replace(
+              `@/`,
+              `${importAlias.replace(/\*/g, "")}`,
+            ),
           );
         }
         writeSema.release();
@@ -142,9 +144,7 @@ export const installTemplate = async ({
 
     await fs.writeFile(
       indexPageFile,
-      (
-        await fs.readFile(indexPageFile, "utf8")
-      ).replace(
+      (await fs.readFile(indexPageFile, "utf8")).replace(
         isAppTemplate ? "app/page" : "pages/index",
         isAppTemplate ? "src/app/page" : "src/pages/index",
       ),
@@ -157,9 +157,7 @@ export const installTemplate = async ({
       );
       await fs.writeFile(
         tailwindConfigFile,
-        (
-          await fs.readFile(tailwindConfigFile, "utf8")
-        ).replace(
+        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
           /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
           "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
         ),
@@ -185,8 +183,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "^18",
-      "react-dom": "^18",
+      react: "19.0.0-beta-4508873393-20240430",
+      "react-dom": "19.0.0-beta-4508873393-20240430",
       next: version,
     },
     devDependencies: {},
@@ -230,6 +228,8 @@ export const installTemplate = async ({
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,
   );
+
+  if (skipInstall) return;
 
   console.log("\nInstalling dependencies:");
   for (const dependency in packageJson.dependencies)

@@ -466,9 +466,10 @@ export async function ncc_edge_runtime(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/eval\("require"\)/g, 'require')
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      /eval\("require"\)/g,
+      'require'
+    )
   )
 }
 
@@ -664,15 +665,6 @@ export async function ncc_image_size(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['get-orientation'] = 'next/dist/compiled/get-orientation'
-export async function ncc_get_orientation(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('get-orientation')))
-    .ncc({ packageName: 'get-orientation', externals })
-    .target('src/compiled/get-orientation')
-}
-
-// eslint-disable-next-line camelcase
 externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
@@ -808,9 +800,10 @@ export async function ncc_stream_browserify(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(`require("stream")`, `require("events").EventEmitter`)
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      `require("stream")`,
+      `require("events").EventEmitter`
+    )
   )
 }
 
@@ -1575,7 +1568,7 @@ export async function copy_vendor_react(task_) {
       })
       .target(`src/compiled/scheduler${packageSuffix}`)
     yield task
-      .source(join(schedulerDir, 'cjs/**/*.js'))
+      .source(join(schedulerDir, 'cjs/**/*.{js,map}'))
       .target(`src/compiled/scheduler${packageSuffix}/cjs`)
     yield task
       .source(join(schedulerDir, 'LICENSE'))
@@ -1601,7 +1594,7 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDir, 'LICENSE'))
       .target(`src/compiled/react${packageSuffix}`)
     yield task
-      .source(join(reactDir, 'cjs/**/*.js'))
+      .source(join(reactDir, 'cjs/**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
@@ -1626,7 +1619,7 @@ export async function copy_vendor_react(task_) {
       .source(join(reactDomDir, 'LICENSE'))
       .target(`src/compiled/react-dom${packageSuffix}`)
     yield task
-      .source(join(reactDomDir, 'cjs/**/*.js'))
+      .source(join(reactDomDir, 'cjs/**/*.{js,map}'))
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
@@ -1681,7 +1674,9 @@ export async function copy_vendor_react(task_) {
       .source(join(reactServerDomWebpackDir, 'LICENSE'))
       .target(`src/compiled/react-server-dom-webpack${packageSuffix}`)
     yield task
-      .source(join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.js}'))
+      .source(
+        join(reactServerDomWebpackDir, '{package.json,*.js,cjs/**/*.{js,map}}')
+      )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
         // We replace the module/chunk loading code with our own implementation in Next.js.
@@ -1722,7 +1717,10 @@ export async function copy_vendor_react(task_) {
       .target(`src/compiled/react-server-dom-turbopack${packageSuffix}`)
     yield task
       .source(
-        join(reactServerDomTurbopackDir, '{package.json,*.js,cjs/**/*.js}')
+        join(
+          reactServerDomTurbopackDir,
+          '{package.json,*.js,cjs/**/*.{js,map}}'
+        )
       )
       // eslint-disable-next-line require-yield
       .run({ every: true }, function* (file) {
@@ -2175,7 +2173,6 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_image_size',
-        'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_fetch',

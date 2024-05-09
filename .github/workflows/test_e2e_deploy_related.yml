@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    if: github.repository_owner == 'vercel'
+    if: '!github.event.pull_request.head.repo.fork'
     runs-on: ubuntu-latest
 
     env:
@@ -22,7 +22,7 @@ jobs:
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       TURBO_REMOTE_ONLY: 'true'
       TURBO_TEAM: 'vercel'
-      TURBO_VERSION: 1.12.5
+      TURBO_VERSION: 1.13.3-canary.2
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
 
