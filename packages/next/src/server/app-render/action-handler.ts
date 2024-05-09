@@ -42,6 +42,22 @@ import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { isForbiddenError } from '../../client/components/forbidden'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
+
+const uiErrorTypesWithStatusCodesMap = {
+  'not-found': {
+    statusCode: 404,
+    matcher: isNotFoundError,
+  },
+  forbidden: {
+    statusCode: 403,
+    matcher: isForbiddenError,
+  },
+} as const
+
+const uiErrorTypesWithStatusCodes = Object.keys(
+  uiErrorTypesWithStatusCodesMap
+) as (keyof typeof uiErrorTypesWithStatusCodesMap)[]
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -337,6 +353,7 @@ const enum HostType {
   XForwardedHost = 'x-forwarded-host',
   Host = 'host',
 }
+
 type Host =
   | {
       type: HostType.XForwardedHost
@@ -455,6 +472,7 @@ export async function handleAction({
       warn(warning)
     }
   }
+
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
@@ -845,8 +863,14 @@ export async function handleAction({
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
-    } else if (isNotFoundError(err)) {
-      res.statusCode = 404
+      // Any next router error but redirect
+    } else if (isNextRouterError(err)) {
+      const errorType = uiErrorTypesWithStatusCodes.find((errorType) =>
+        uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+      )!
+      const errorTypeObj = uiErrorTypesWithStatusCodesMap[errorType]
+
+      res.statusCode = errorTypeObj.statusCode
 
       await addRevalidationHeader(res, {
         staticGenerationStore,
@@ -869,44 +893,12 @@ export async function handleAction({
           result: await generateFlight(ctx, {
             skipFlight: false,
             actionResult: promise,
-            asNotFound: true,
+            asNotFound: errorType === 'not-found',
           }),
         }
       }
       return {
-        type: 'not-found',
-      }
-    } else if (isForbiddenError(err)) {
-      res.statusCode = 403
-
-      await addRevalidationHeader(res, {
-        staticGenerationStore,
-        requestStore,
-      })
-
-      if (isFetchAction) {
-        const promise = Promise.reject(err)
-        try {
-          // we need to await the promise to trigger the rejection early
-          // so that it's already handled by the time we call
-          // the RSC runtime. Otherwise, it will throw an unhandled
-          // promise rejection error in the renderer.
-          await promise
-        } catch {
-          // swallow error, it's gonna be handled on the client
-        }
-        return {
-          type: 'done',
-          result: await generateFlight(ctx, {
-            skipFlight: false,
-            actionResult: promise,
-            // TODO(@panteliselef): What does this do ?
-            asNotFound: false,
-          }),
-        }
-      }
-      return {
-        type: 'forbidden',
+        type: errorType,
       }
     }
 
