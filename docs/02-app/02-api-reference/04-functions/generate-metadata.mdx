@@ -428,9 +428,9 @@ export const metadata = {
 
 #### Default value
 
-If not configured, `metadataBase` has a **default value**
+If not configured, `metadataBase` has a **default value**.
 
-- When [`VERCEL_URL`](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables#:~:text=.-,VERCEL_URL,-The%20domain%20name) is detected: `https://${process.env.VERCEL_URL}` otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`.
+- When [`VERCEL_PROJECT_PRODUCTION_URL`](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) or [`VERCEL_URL`](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) is detected, it will be used as the **default value**, otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`. This allows Open Graph images to work on both preview and production deployments.
 - When overriding the default, we recommend using environment variables to compute the URL. This allows configuring a URL for local development, staging, and production environments.
 
 #### URL Composition

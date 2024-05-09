@@ -55,8 +55,8 @@ export async function createApp({
       ? 'app-tw'
       : 'app'
     : tailwind
-    ? 'default-tw'
-    : 'default'
+      ? 'default-tw'
+      : 'default'
 
   if (example) {
     let repoUrl: URL | undefined

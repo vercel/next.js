@@ -19,6 +19,7 @@ import { isDeepStrictEqual } from 'util'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
+import type { __ApiPreviewProps } from '../../server/api-utils'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -387,7 +388,6 @@ function logLoadFailure(attempts: any, triedWasm = false) {
       process.exit(1)
     })
 }
-
 export interface ProjectOptions {
   /**
    * A root path from which all files must be nested under. Trying to access
@@ -432,6 +432,21 @@ export interface ProjectOptions {
    * The mode in which Next.js is running.
    */
   dev: boolean
+
+  /**
+   * The server actions encryption key.
+   */
+  encryptionKey: string
+
+  /**
+   * The build id.
+   */
+  buildId: string
+
+  /**
+   * Options for draft mode.
+   */
+  previewProps: __ApiPreviewProps
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -1337,7 +1352,9 @@ function loadNative(importPath?: string) {
     if (NEXT_TEST_NATIVE_DIR) {
       try {
         // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
-        bindings = require(`${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`)
+        bindings = require(
+          `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
+        )
         infoLog(
           'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
         )
@@ -1345,7 +1362,9 @@ function loadNative(importPath?: string) {
       } catch (e) {}
     } else {
       try {
-        bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
+        bindings = require(
+          `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+        )
         infoLog('next-swc build: local built @next/swc')
         break
       } catch (e) {}

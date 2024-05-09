@@ -229,7 +229,11 @@ export default class NextNodeServer extends BaseServer<
       }).catch(() => {})
     }
 
-    if (!options.dev && this.nextConfig.experimental.preloadEntriesOnStart) {
+    if (
+      !options.dev &&
+      !this.minimalMode &&
+      this.nextConfig.experimental.preloadEntriesOnStart
+    ) {
       this.unstable_preloadEntries()
     }
 
@@ -386,7 +390,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
-      experimental: this.renderOpts.experimental,
+      isAppPPREnabled: this.renderOpts.experimental.isAppPPREnabled,
     })
   }
 
@@ -1430,6 +1434,7 @@ export default class NextNodeServer extends BaseServer<
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
+    env: { [key: string]: string }
     assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
@@ -1471,6 +1476,7 @@ export default class NextNodeServer extends BaseServer<
             filePath: join(this.distDir, binding.filePath),
           }
         }),
+      env: pageInfo.env,
     }
   }
 
@@ -1800,8 +1806,8 @@ export default class NextNodeServer extends BaseServer<
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+          ? `https://${req.headers.host || 'localhost'}${req.url}`
+          : req.url
 
     const isRSC = isRSCRequestCheck(req)
     if (isRSC) {

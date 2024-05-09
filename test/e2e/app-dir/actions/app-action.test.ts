@@ -19,9 +19,9 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        react: 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
         nanoid: 'latest',
-        'react-dom': 'latest',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
         'server-only': 'latest',
       },
     })
@@ -890,13 +890,12 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#redirect-pages').click()
 
       await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
       })
-
-      expect(await browser.elementByCss('body').text()).toContain(
-        'Hello from a pages route'
-      )
     })
 
     // TODO: investigate flakey behavior with revalidate

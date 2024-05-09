@@ -263,6 +263,15 @@ function assignDefaults(
   const result = { ...defaultConfig, ...config }
 
   if (
+    result.experimental?.allowDevelopmentBuild &&
+    process.env.NODE_ENV !== 'development'
+  ) {
+    throw new Error(
+      `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
+    )
+  }
+
+  if (
     result.experimental?.ppr &&
     !process.env.__NEXT_VERSION!.includes('canary') &&
     !process.env.__NEXT_TEST_MODE

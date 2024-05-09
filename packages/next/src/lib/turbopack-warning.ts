@@ -32,7 +32,6 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.adjustFontFallbacks',
   'experimental.adjustFontFallbacksWithSizeAdjust',
   'experimental.allowedRevalidateHeaderKeys',
-  'experimental.bundlePagesExternals',
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',
 
