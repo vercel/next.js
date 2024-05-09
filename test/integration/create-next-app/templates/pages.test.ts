@@ -154,4 +154,82 @@ describe('create-next-app --no-app (Pages Router)', () => {
       })
     })
   })
+
+  it('should create an empty project with --empty flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pages-empty'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--no-app',
+          '--eslint',
+          '--src-dir',
+          '--no-tailwind',
+          '--empty',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      const isEmpty = true
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'default-empty',
+        mode: 'ts',
+        srcDir: true,
+      })
+      await tryNextDev({
+        cwd,
+        projectName,
+        isApp: false,
+        isEmpty,
+      })
+    })
+  })
+
+  it('should create an empty TailwindCSS project with --empty flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pages-tw-empty'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--no-app',
+          '--eslint',
+          '--src-dir',
+          '--tailwind',
+          '--empty',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      const isEmpty = true
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'default-tw-empty',
+        mode: 'ts',
+        srcDir: true,
+      })
+      await tryNextDev({
+        cwd,
+        projectName,
+        isApp: false,
+        isEmpty,
+      })
+    })
+  })
 })
