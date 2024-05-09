@@ -32,9 +32,9 @@ describe('app-dir - dynamic in generate params', () => {
   })
 
   it('should be able to call fetch while generating multiple dynamic pages', async () => {
-    const res0 = await next.fetch('dynamic/0')
-    const res1 = await next.fetch('dynamic/1')
-    assertSitemapResponse(res0)
-    assertSitemapResponse(res1)
+    const pageRes0 = await next.fetch('dynamic/0')
+    const pageRes1 = await next.fetch('dynamic/1')
+    expect(pageRes0.status).toBe(200)
+    expect(pageRes1.status).toBe(200)
   })
 })
