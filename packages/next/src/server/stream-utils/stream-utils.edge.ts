@@ -8,7 +8,6 @@ import {
   isEquivalentUint8Arrays,
   removeFromUint8Array,
 } from './uint8array-helpers'
-import type { PipeableStream } from 'react-dom/server.node'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying

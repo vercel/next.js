@@ -10,7 +10,7 @@ import { DetachedPromise } from '../../../lib/detached-promise'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToPipeableStream = require('react-dom/server.node')
-    .renderToPipeableStream as typeof import('react-dom/server.node')['renderToPipeableStream']
+    .renderToPipeableStream as (typeof import('react-dom/server.node'))['renderToPipeableStream']
 
   constructor(private readonly options: RenderToPipeableStreamOptions) {}
 
@@ -43,7 +43,7 @@ export class ServerRenderer implements Renderer {
 
 export class StaticRenderer implements Renderer {
   private readonly prerenderToNodeStream = require('react-dom/static.node')
-    .prerenderToNodeStream as typeof import('react-dom/static.node')['prerenderToNodeStream']
+    .prerenderToNodeStream as (typeof import('react-dom/static.node'))['prerenderToNodeStream']
 
   constructor(private readonly options: PrerenderToNodeStreamOptions) {}
 
@@ -59,7 +59,7 @@ export class StaticRenderer implements Renderer {
 
 export class StaticResumeRenderer implements Renderer {
   private readonly resumeToPipeableStream = require('react-dom/server.node')
-    .resumeToPipeableStream as typeof import('react-dom/server.node')['resumeToPipeableStream']
+    .resumeToPipeableStream as (typeof import('react-dom/server.node'))['resumeToPipeableStream']
 
   constructor(
     private readonly postponed: PostponedState,

@@ -8,7 +8,7 @@ import type { PostponedState } from 'react-dom/types'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToReadableStream = require('react-dom/server.edge')
-    .renderToReadableStream as typeof import('react-dom/server.edge')['renderToReadableStream']
+    .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
   constructor(private readonly options: RenderToReadableStreamOptions) {}
 
@@ -22,7 +22,7 @@ export class StaticRenderer implements Renderer {
   // this is for tree shaking. Couldn't find a better way to do it for some reason
   private readonly prerender = (process.env.__NEXT_EXPERIMENTAL_REACT
     ? require('react-dom/static.edge').prerender
-    : null) as typeof import('react-dom/static.edge')['prerender']
+    : null) as (typeof import('react-dom/static.edge'))['prerender']
 
   constructor(private readonly options: PrerenderOptions) {}
 
@@ -35,7 +35,7 @@ export class StaticRenderer implements Renderer {
 
 export class StaticResumeRenderer implements Renderer {
   private readonly resume = require('react-dom/server.edge')
-    .resume as typeof import('react-dom/server.edge')['resume']
+    .resume as (typeof import('react-dom/server.edge'))['resume']
 
   constructor(
     private readonly postponed: PostponedState,

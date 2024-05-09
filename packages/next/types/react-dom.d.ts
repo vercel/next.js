@@ -34,7 +34,7 @@ type ReactFormState<S, ReferenceId> = [
   S /* actual state value */,
   string /* key path */,
   ReferenceId /* Server Reference ID */,
-  number /* number of bound arguments */
+  number /* number of bound arguments */,
 ]
 
 // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L103

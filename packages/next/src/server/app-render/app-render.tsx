@@ -1147,9 +1147,8 @@ async function renderToHTMLOrFlightImpl(
                   </HeadManagerContext.Provider>
                 )
 
-                const { stream: resumeStream } = await resumeRenderer.render(
-                  resumeChildren
-                )
+                const { stream: resumeStream } =
+                  await resumeRenderer.render(resumeChildren)
 
                 // FIXME: shouldn't need this when chainStreams supports ReadableStream | Readable
                 if (!(resumeStream instanceof ReadableStream)) {
