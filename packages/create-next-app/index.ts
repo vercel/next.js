@@ -74,20 +74,7 @@ const program = new Command()
   .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
   .option(
     '--ts, --typescript',
-    `Initialize as a ${ct.typescript} project. ${ct.default}`)
-  .option(
-    '--empty',
-    `
-
-  Initialize an empty project.
-`
-  )
-  .option(
-    '--use-npm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`
+    `Initialize as a ${ct.typescript} project. ${ct.default}`
   )
   .option('--js, --javascript', `Initialize as a ${ct.javascript} project.`)
   .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
@@ -102,6 +89,11 @@ const program = new Command()
       '--use <package-manager>',
       `Specify the package manager to use.`
     ).choices(['npm', 'pnpm', 'yarn', 'bun'])
+  )
+  .option('--empty', 'Initialize an empty project.')
+  .option(
+    '--skip-install',
+    'Explicitly tell the CLI to skip installing packages'
   )
   .option(
     '--reset, --reset-preferences',
@@ -126,13 +118,6 @@ const program = new Command()
   --example-path foo/bar
 `
   )
-  .option(
-    '--skip-install',
-    `
-
-  Explicitly tell the CLI to skip installing packages
-`
-  )
   .allowUnknownOption()
   .configureOutput({
     outputError: (str, write) => write(`${red(bold('⨯'))} ${str}`),
@@ -145,14 +130,14 @@ const { args } = program
 const packageManager: PackageManager = opts.use
   ? opts.use
   : args.includes('--use-npm')
-  ? 'npm'
-  : args.includes('--use-pnpm')
-  ? 'pnpm'
-  : args.includes('--use-yarn')
-  ? 'yarn'
-  : args.includes('--use-bun')
-  ? 'bun'
-  : getPkgManager()
+    ? 'npm'
+    : args.includes('--use-pnpm')
+      ? 'pnpm'
+      : args.includes('--use-yarn')
+        ? 'yarn'
+        : args.includes('--use-bun')
+          ? 'bun'
+          : getPkgManager()
 
 const defaults = {
   typescript: true,
@@ -246,6 +231,8 @@ async function run(): Promise<void> {
       app: Boolean(opts.app),
       srcDir: Boolean(opts.srcDir),
       importAlias: opts.importAlias ?? defaults.importAlias,
+      skipInstall: Boolean(opts.skipInstall),
+      empty: Boolean(opts.empty),
     }
     await tryCreateNextApp({
       appPath,
@@ -288,6 +275,8 @@ async function run(): Promise<void> {
       app: Boolean(opts.app),
       srcDir: Boolean(opts.srcDir),
       importAlias: opts.importAlias,
+      skipInstall: Boolean(opts.skipInstall),
+      empty: Boolean(opts.empty),
     }
     await tryCreateNextApp({
       appPath,
@@ -434,6 +423,8 @@ async function run(): Promise<void> {
     app: Boolean(opts.app),
     srcDir: Boolean(opts.srcDir),
     importAlias: opts.importAlias,
+    skipInstall: Boolean(opts.skipInstall),
+    empty: Boolean(opts.empty),
   }
   await tryCreateNextApp({
     appPath,
@@ -446,7 +437,16 @@ async function run(): Promise<void> {
 
 async function tryCreateNextApp({
   appPath,
-  resolvedOpts: { app, typescript, eslint, tailwind, srcDir, importAlias },
+  resolvedOpts: {
+    app,
+    typescript,
+    eslint,
+    tailwind,
+    srcDir,
+    importAlias,
+    skipInstall,
+    empty,
+  },
   example,
   conf,
   preferences,
@@ -483,8 +483,8 @@ async function tryCreateNextApp({
       appRouter: app,
       srcDir,
       importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
+      skipInstall,
+      empty,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -513,8 +513,8 @@ async function tryCreateNextApp({
       appRouter: app,
       srcDir,
       importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
+      skipInstall,
+      empty,
     })
   }
 

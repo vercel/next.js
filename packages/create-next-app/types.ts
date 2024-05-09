@@ -10,6 +10,8 @@ export type CreateNextAppOptions = {
   app?: boolean
   srcDir?: boolean
   resetPreferences?: boolean
+  skipInstall?: boolean
+  empty?: boolean
   useNpm?: boolean
   usePnpm?: boolean
   useYarn?: boolean
@@ -23,6 +25,8 @@ export type ResolvedCreateNextAppOptions = {
   app: boolean
   srcDir: boolean
   importAlias: string
+  skipInstall: boolean
+  empty: boolean
 }
 
 export type RepoInfo = {
