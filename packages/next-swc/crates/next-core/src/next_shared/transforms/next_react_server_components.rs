@@ -27,7 +27,7 @@ use crate::next_config::NextConfig;
 /// +-----------------+---------+--------------------+
 /// | SSR             | true    | false              |
 /// | Client          | true    | false              |
-/// | Middleware      | false   | false              |
+/// | Middleware      | false   | false              | todo
 /// | Api             | false   | false              |
 /// | RSC             | true    | true               |
 /// | Pages           | true    | false              |
