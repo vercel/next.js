@@ -52,21 +52,7 @@ export async function createApp({
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = appRouter
-    ? tailwind
-      ? empty
-        ? 'app-tw-empty'
-        : 'app-tw'
-      : empty
-        ? 'app-empty'
-        : 'app'
-    : tailwind
-      ? empty
-        ? 'default-tw-empty'
-        : 'default-tw'
-      : empty
-        ? 'default-empty'
-        : 'default'
+  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
