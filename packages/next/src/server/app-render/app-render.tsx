@@ -1349,13 +1349,17 @@ async function renderToHTMLOrFlightImpl(
             }),
           }
         } catch (finalErr: any) {
-          if (
-            process.env.NODE_ENV === 'development' &&
-            isNotFoundError(finalErr)
-          ) {
-            const bailOnNotFound: typeof import('../../client/components/dev-root-not-found-boundary').bailOnNotFound =
-              require('../../client/components/dev-root-not-found-boundary').bailOnNotFound
-            bailOnNotFound()
+          if (process.env.NODE_ENV === 'development') {
+            const bailOnUIError: typeof import('../../client/components/dev-root-not-found-boundary').bailOnUIError =
+              require('../../client/components/dev-root-not-found-boundary').bailOnUIError
+
+            if (isNotFoundError(finalErr)) {
+              bailOnUIError('notFound')
+            }
+
+            if (isForbiddenError(finalErr)) {
+              bailOnUIError('forbidden')
+            }
           }
           throw finalErr
         }

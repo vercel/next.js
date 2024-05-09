@@ -68,8 +68,11 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
-const defaultForbiddenPath = 'next/dist/client/components/forbidden-error'
+const defaultUIErrorPaths = {
+  'not-found': 'next/dist/client/components/not-found-error',
+  forbidden: 'next/dist/client/components/forbidden-error',
+}
+
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
@@ -202,11 +205,16 @@ async function createTreeCodeFromPath(
 
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const hasRootNotFound = await resolver(
-    `${appDirPrefix}/${FILE_TYPES['not-found']}`
-  )
-  const hasRootForbidden = await resolver(
-    `${appDirPrefix}/${FILE_TYPES['forbidden']}`
+
+  const uiErrorFileTypes = [
+    'not-found',
+    'forbidden',
+  ] satisfies (keyof typeof FILE_TYPES)[]
+
+  const uiErrorPaths = await Promise.all(
+    uiErrorFileTypes.map((fileType) =>
+      resolver(`${appDirPrefix}/${FILE_TYPES[fileType]}`)
+    )
   )
 
   const pages: string[] = []
@@ -366,30 +374,49 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
 
-      // Add default not found error as root not found if not present
-      const hasNotFoundFile = definedFilePaths.some(
-        ([type]) => type === 'not-found'
-      )
+      function createFileTypeCounters(
+        paths: typeof filePaths,
+        types: (keyof typeof FILE_TYPES)[]
+      ) {
+        const dictionary = new Map<string, number>()
+        for (const [type] of paths) {
+          const item = dictionary.get(type)
+          if (item) {
+            dictionary.set(type, item + 1)
+          } else {
+            dictionary.set(type, 1)
+          }
+        }
 
-      const hasForbiddenFile = definedFilePaths.some(
-        ([type]) => type === 'forbidden'
+        return types.map((t) => (dictionary.get(t) || 0) >= 1)
+      }
+
+      const uiErrorFileTypes = [
+        'not-found',
+        'forbidden',
+      ] satisfies (keyof typeof FILE_TYPES)[]
+
+      // Check if ui error files exist for this segment path
+      const fileTypeCounters = createFileTypeCounters(
+        definedFilePaths,
+        uiErrorFileTypes
       )
 
       // If the first layer is a group route, we treat it as root layer
       const isFirstLayerGroupRoute =
         segments.length === 1 &&
         subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
-      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
-        // If you already have a root not found, don't insert default not-found to group routes root
-        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
-          definedFilePaths.push(['not-found', defaultNotFoundPath])
-        }
-      }
 
-      if ((isRootLayer || isFirstLayerGroupRoute) && !hasForbiddenFile) {
-        // If you already have a root not found, don't insert default forbidden to group routes root
-        if (!(hasRootForbidden && isFirstLayerGroupRoute)) {
-          definedFilePaths.push(['forbidden', defaultForbiddenPath])
+      for (let i = 0; i < uiErrorFileTypes.length; i++) {
+        const fileType = uiErrorFileTypes[i]
+        const hasFileType = fileTypeCounters[i]
+        const hasRootFileType = uiErrorPaths[i]
+
+        if ((isRootLayer || isFirstLayerGroupRoute) && !hasFileType) {
+          // If you already have a root file, don't insert default file to group routes root
+          if (!(hasRootFileType && isFirstLayerGroupRoute)) {
+            definedFilePaths.push([fileType, defaultUIErrorPaths[fileType]])
+          }
         }
       }
 
@@ -434,7 +461,7 @@ async function createTreeCodeFromPath(
       if (isNotFoundRoute && normalizedParallelKey === 'children') {
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
-          defaultNotFoundPath
+          defaultUIErrorPaths['not-found']
         nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
           children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {

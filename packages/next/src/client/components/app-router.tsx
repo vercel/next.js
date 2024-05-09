@@ -663,15 +663,14 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
-      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
-        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
+      const DevRootUIErrorsBoundary: typeof import('./dev-root-not-found-boundary').DevRootUIErrorsBoundary =
+        require('./dev-root-not-found-boundary').DevRootUIErrorsBoundary
       content = (
-        //TODO(@panteliselef): should we add the new boundaries here ?
-        <DevRootNotFoundBoundary>
+        <DevRootUIErrorsBoundary>
           <MissingSlotContext.Provider value={missingSlots}>
             {content}
           </MissingSlotContext.Provider>
-        </DevRootNotFoundBoundary>
+        </DevRootUIErrorsBoundary>
       )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =

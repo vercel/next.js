@@ -1,25 +1,32 @@
 'use client'
 
 import React from 'react'
-import { NotFoundBoundary } from './ui-errors-boundaries'
+import { ForbiddenBoundary, NotFoundBoundary } from './ui-errors-boundaries'
 
-export function bailOnNotFound() {
-  throw new Error('notFound() is not allowed to use in root layout')
+export function bailOnUIError(uiError: 'forbidden' | 'notFound') {
+  throw new Error(`${uiError}() is not allowed to use in root layout`)
 }
 
 function NotAllowedRootNotFoundError() {
-  bailOnNotFound()
+  bailOnUIError('notFound')
   return null
 }
 
-export function DevRootNotFoundBoundary({
+function NotAllowedRootForbiddenError() {
+  bailOnUIError('forbidden')
+  return null
+}
+
+export function DevRootUIErrorsBoundary({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <NotFoundBoundary uiComponent={<NotAllowedRootNotFoundError />}>
-      {children}
-    </NotFoundBoundary>
+    <ForbiddenBoundary uiComponent={<NotAllowedRootForbiddenError />}>
+      <NotFoundBoundary uiComponent={<NotAllowedRootNotFoundError />}>
+        {children}
+      </NotFoundBoundary>
+    </ForbiddenBoundary>
   )
 }
