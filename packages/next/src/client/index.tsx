@@ -156,7 +156,8 @@ class Container extends React.Component<{
         })
     }
   }
-
+    
+//Changes to be reviewed - To ensure that the component scrolls to the appropriate element even when the user navigates using the browser buttons
   componentDidUpdate(prevProps) {
   if (prevProps.location.hash !== this.props.location.hash) {
     this.scrollToHash();
