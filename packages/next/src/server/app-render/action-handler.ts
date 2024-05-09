@@ -42,6 +42,7 @@ import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import {
+  type UIErrorType,
   uiErrorTypesWithStatusCodes,
   uiErrorTypesWithStatusCodesMap,
 } from '../future/route-modules/helpers/respone-ui-errors'
@@ -397,9 +398,8 @@ export async function handleAction({
 }): Promise<
   | undefined
   | {
-      type: 'not-found'
+      type: UIErrorType
     }
-  | { type: 'forbidden' }
   | {
       type: 'done'
       result: RenderResult | undefined

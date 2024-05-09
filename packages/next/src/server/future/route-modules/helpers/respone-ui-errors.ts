@@ -16,4 +16,8 @@ const uiErrorTypesWithStatusCodes = Object.keys(
   uiErrorTypesWithStatusCodesMap
 ) as (keyof typeof uiErrorTypesWithStatusCodesMap)[]
 
+type UIErrorType = keyof typeof uiErrorTypesWithStatusCodesMap
+
 export { uiErrorTypesWithStatusCodes, uiErrorTypesWithStatusCodesMap }
+
+export type { UIErrorType }
