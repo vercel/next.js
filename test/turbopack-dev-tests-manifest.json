@@ -3494,6 +3494,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
+    "passed": [
+      "css-client-side-nav-parallel-routes should apply styles after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
       "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
@@ -3633,7 +3642,7 @@
       "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
       "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
-      "app dir - dynamic css should preload css of dynamic component during SSR"
+      "app dir - dynamic css should preload all chunks of dynamic component during SSR"
     ],
     "failed": [],
     "pending": [],
