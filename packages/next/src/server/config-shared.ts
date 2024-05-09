@@ -308,6 +308,16 @@ export interface ExperimentalConfig {
     processCwd?: string
     /** in `MB` */
     memoryLimit?: number
+    /**
+     * @deprecated use `config.bundlePagesRouterDependencies` instead
+     *
+     */
+    bundlePagesExternals?: boolean
+    /**
+     * @deprecated use `config.serverExternalPackages` instead
+     *
+     */
+    serverComponentsExternalPackages?: string[]
   }
 
   /**

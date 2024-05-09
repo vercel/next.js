@@ -465,6 +465,26 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental?.bundlePagesExternals) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.bundlePagesExternals',
+      'The "experimental.bundlePagesExternals" option has been renamed to "bundlePagesRouterDependencies". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (result.experimental?.serverComponentsExternalPackages) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.serverComponentsExternalPackages',
+      'The "experimental.serverComponentsExternalPackages" option has been renamed to "serverExternalPackages". Please update your next.config.js.',
+      silent
+    )
+  }
+
   if (result.experimental?.incrementalCacheHandlerPath) {
     // TODO: Remove this warning in Next.js 15
     warnOptionHasBeenDeprecated(
