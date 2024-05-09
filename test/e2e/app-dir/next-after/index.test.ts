@@ -139,7 +139,7 @@ describe('unstable_after()', () => {
     const cliLogs = LogCLI.readCliLogs(next.cliOutput)
     await retry(() => {
       expect(cliLogs).toContainEqual({
-        source: '[middleware] /middleware/redirect',
+        source: '[middleware] /middleware/redirect-source',
         requestId,
         cookies: { testCookie: 'testValue' },
       })
