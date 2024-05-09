@@ -93,7 +93,7 @@ const program = new Command()
   .option('--empty', 'Initialize an empty project.')
   .option(
     '--skip-install',
-    'Explicitly tell the CLI to skip installing packages'
+    'Explicitly tell the CLI to skip installing packages.'
   )
   .option(
     '--reset, --reset-preferences',

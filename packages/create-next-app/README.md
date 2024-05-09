@@ -43,6 +43,8 @@ Options:
   --src-dir                                Initialize inside a "src/" directory.
   --import-alias <prefix/*>                Specify import alias to use. (default: "@/*")
   --use <package-manager>                  Specify the package manager to use. (choices: "npm", "pnpm", "yarn", "bun")
+  --empty                                  Initialize an empty project.
+  --skip-install                           Explicitly tell the CLI to skip installing packages.
   --reset, --reset-preferences             Reset the preferences saved for create-next-app.
   -e, --example <example-name|github-url>
 
