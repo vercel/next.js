@@ -96,7 +96,7 @@ const program = new Commander.Command(packageJson.name)
     '--empty',
     `
 
-  Initialize an empty Next.js project.
+  Initialize an empty project.
 `
   )
   .option(
