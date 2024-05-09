@@ -49,13 +49,20 @@ export class ModuleBuildError extends Error {}
  * to emit certain type of errors into cli.
  */
 export function isWellKnownError(issue: Issue): boolean {
-  const { title } = issue
+  const { title, description } = issue
   const formattedTitle = renderStyledStringToErrorAnsi(title)
+  const formattedDescription = description
+    ? renderStyledStringToErrorAnsi(description)
+    : ''
   // TODO: add more well known errors
   if (
     formattedTitle.includes('Module not found') ||
     formattedTitle.includes('Unknown module type')
   ) {
+    return true
+  }
+
+  if (formattedDescription.includes('cannot be imported from a')) {
     return true
   }
 
