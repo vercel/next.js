@@ -54,9 +54,9 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary>
-              <InnerLayoutRouter>
+          <RedirectErrorBoundary>
+            <InnerLayoutRouter>
+              <ClientPageRoot>
                 <Mismatch>
                   <div>
                     <main>
@@ -251,16 +251,16 @@ describe('Error overlay for hydration errors', () => {
 
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-              "...
-                <NotFoundErrorBoundary>
-                  <RedirectBoundary>
-                    <RedirectErrorBoundary>
-                      <InnerLayoutRouter>
-                        <Mismatch>
-                          <div>
-                            <div>
-                              "only""
-            `)
+        "...
+          <RedirectBoundary>
+            <RedirectErrorBoundary>
+              <InnerLayoutRouter>
+                <ClientPageRoot>
+                  <Mismatch>
+                    <div>
+                      <div>
+                        "only""
+      `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "<Mismatch>
@@ -643,44 +643,45 @@ describe('Error overlay for hydration errors', () => {
     const fullPseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
-              "<Root>
-                <ServerRoot>
-                  <AppRouter>
-                    <ErrorBoundary>
-                      <ErrorBoundaryHandler>
-                        <Router>
-                          <HotReload>
-                            <ReactDevOverlay>
-                              <DevRootNotFoundBoundary>
-                                <NotFoundBoundary>
-                                  <NotFoundErrorBoundary>
-                                    <RedirectBoundary>
-                                      <RedirectErrorBoundary>
-                                        <RootLayout>
-                                          <html>
-                                            <body>
-                                              <OuterLayoutRouter>
-                                                <RenderFromTemplateContext>
-                                                  <ScrollAndFocusHandler>
-                                                    <InnerScrollAndFocusHandler>
-                                                      <ErrorBoundary>
-                                                        <LoadingBoundary>
-                                                          <NotFoundBoundary>
-                                                            <NotFoundErrorBoundary>
-                                                              <RedirectBoundary>
-                                                                <RedirectErrorBoundary>
-                                                                  <InnerLayoutRouter>
-                                                                    <Page>
+        "<Root>
+          <ServerRoot>
+            <AppRouter>
+              <ErrorBoundary>
+                <ErrorBoundaryHandler>
+                  <Router>
+                    <HotReload>
+                      <ReactDevOverlay>
+                        <DevRootNotFoundBoundary>
+                          <NotFoundBoundary>
+                            <NotFoundErrorBoundary>
+                              <RedirectBoundary>
+                                <RedirectErrorBoundary>
+                                  <RootLayout>
+                                    <html>
+                                      <body>
+                                        <OuterLayoutRouter>
+                                          <RenderFromTemplateContext>
+                                            <ScrollAndFocusHandler>
+                                              <InnerScrollAndFocusHandler>
+                                                <ErrorBoundary>
+                                                  <LoadingBoundary>
+                                                    <NotFoundBoundary>
+                                                      <NotFoundErrorBoundary>
+                                                        <RedirectBoundary>
+                                                          <RedirectErrorBoundary>
+                                                            <InnerLayoutRouter>
+                                                              <ClientPageRoot>
+                                                                <Page>
+                                                                  <div>
+                                                                    <div>
                                                                       <div>
                                                                         <div>
-                                                                          <div>
-                                                                            <div>
-                                                                              <Mismatch>
-                                                                                <p>
-                                                                                  <span>
-                                                                                    "server"
-                                                                                    "client""
-            `)
+                                                                          <Mismatch>
+                                                                            <p>
+                                                                              <span>
+                                                                                "server"
+                                                                                "client""
+      `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "<Page>
