@@ -135,14 +135,18 @@ export class EdgeRouteModuleWrapper {
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
 
-    if (closeController && closeController.listeners > 0) {
+    if (closeController) {
+      const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
+
       if (!res.body) {
         // we can delay running it until a bit later --
         // if it's needed, we'll have a `waitUntil` lock anyway.
-        setTimeout(() => closeController!.dispatchClose(), 0)
+        setTimeout(() => _closeController.dispatchClose(), 0)
       } else {
+        // NOTE: if this is a streaming response, onClose may be called later,
+        // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
         const trackedBody = trackStreamConsumed(res.body, () =>
-          closeController!.dispatchClose()
+          _closeController.dispatchClose()
         )
         res = new Response(trackedBody, {
           status: res.status,

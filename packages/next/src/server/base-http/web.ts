@@ -43,7 +43,10 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   public statusCode: number | undefined
   public statusMessage: string | undefined
 
-  constructor(public transformStream = new TransformStream()) {
+  constructor(
+    public transformStream = new TransformStream(),
+    private trackOnClose = false
+  ) {
     super(transformStream.writable)
   }
 
@@ -108,7 +111,13 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     const body = this.textBody ?? this.transformStream.readable
 
     let bodyInit: BodyInit = body
-    if (this.closeController.listeners > 0) {
+
+    const canAddListenersLater = typeof bodyInit !== 'string'
+    const shouldTrackBody =
+      this.trackOnClose &&
+      (canAddListenersLater ? true : this.closeController.listeners > 0)
+
+    if (shouldTrackBody) {
       bodyInit = trackBodyConsumed(body, () => {
         this.closeController.dispatchClose()
       })
@@ -122,6 +131,11 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
   }
 
   public onClose(callback: () => void) {
+    if (!this.trackOnClose) {
+      throw new Error(
+        'Cannot call onClose on a WebNextResponse initialized with `trackOnClose = false`'
+      )
+    }
     if (this.sent) {
       throw new Error('Cannot call onClose on a response that is already sent')
     }

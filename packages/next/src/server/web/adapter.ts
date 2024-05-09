@@ -239,32 +239,34 @@ export async function adapter(
             'http.method': request.method,
           },
         },
-        () =>
-          RequestAsyncStorageWrapper.wrap(
-            requestAsyncStorage,
-            {
-              req: request,
-              renderOpts: {
-                onUpdateCookies: (cookies) => {
-                  cookiesFromResponse = cookies
+        async () => {
+          try {
+            return await RequestAsyncStorageWrapper.wrap(
+              requestAsyncStorage,
+              {
+                req: request,
+                renderOpts: {
+                  onUpdateCookies: (cookies) => {
+                    cookiesFromResponse = cookies
+                  },
+                  // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
+                  previewProps: prerenderManifest?.preview || {
+                    previewModeId: 'development-id',
+                    previewModeEncryptionKey: '',
+                    previewModeSigningKey: '',
+                  },
+                  waitUntil,
+                  onClose: closeController
+                    ? closeController.onClose.bind(closeController)
+                    : undefined,
+                  experimental: {
+                    after: isAfterEnabled,
+                  } as RenderOptsPartial['experimental'],
                 },
-                // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
-                previewProps: prerenderManifest?.preview || {
-                  previewModeId: 'development-id',
-                  previewModeEncryptionKey: '',
-                  previewModeSigningKey: '',
-                },
-                waitUntil,
-                onClose: closeController
-                  ? closeController.onClose.bind(closeController)
-                  : undefined,
-                experimental: {
-                  after: isAfterEnabled,
-                } as RenderOptsPartial['experimental'],
               },
-            },
-            () => params.handler(request, event)
-          ).finally(() => {
+              () => params.handler(request, event)
+            )
+          } finally {
             // middleware cannot stream, so we can consider the response closed
             // as soon as the handler returns.
             if (closeController) {
@@ -274,7 +276,8 @@ export async function adapter(
                 closeController!.dispatchClose()
               }, 0)
             }
-          })
+          }
+        }
       )
     }
     return params.handler(request, event)

@@ -158,7 +158,11 @@ export function getRender({
     event?: NextFetchEvent
   ) {
     const extendedReq = new WebNextRequest(request)
-    const extendedRes = new WebNextResponse()
+    const extendedRes = new WebNextResponse(
+      undefined,
+      // tracking onClose adds overhead, so only do it if `experimental.after` is on.
+      !!process.env.__NEXT_AFTER
+    )
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()

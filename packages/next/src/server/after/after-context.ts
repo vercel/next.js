@@ -41,7 +41,18 @@ export function createAfterContext({
   // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
   const firstCallbackAdded = new DetachedPromise<void>()
   const onCloseLazy = (callback: () => void): Promise<void> => {
-    return firstCallbackAdded.promise.then(() => onClose(callback))
+    if (afterCallbacks.length > 0) {
+      // if we already have some callbacks, there's no need to wait.
+      try {
+        onClose(callback)
+        return Promise.resolve()
+      } catch (err) {
+        return Promise.reject(err)
+      }
+    } else {
+      // callbacks may be added later (or never, in which case this'll never resolve)
+      return firstCallbackAdded.promise.then(() => onClose(callback))
+    }
   }
 
   const afterImpl = (task: AfterTask) => {
