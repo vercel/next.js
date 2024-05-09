@@ -7,18 +7,16 @@ describe('forbidden-default', () => {
     skipDeployment: true,
   })
 
-  it('should error on client notFound from root layout in browser', async () => {
+  it('should error on client forbidden from root layout in browser', async () => {
     const browser = await next.browser('/')
 
     await browser.elementByCss('#trigger-forbidden').click()
 
-    //TODO(@panteliselef) fix: Error: notFound() is not allowed to use in root layout
-    // https://github.com/vercel/next.js/blob/ed893fa0d3f3e34a89ff9218db8fd65eda0327f6/packages/next/src/server/app-render/app-render.tsx#L1276
     if (isNextDev) {
       await check(async () => {
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxDescription(browser)).toBe(
-          'Error: NEXT_FORBIDDEN'
+        expect(await getRedboxDescription(browser)).toMatch(
+          /forbidden\(\) is not allowed to use in root layout/
         )
         return 'success'
       }, /success/)
@@ -30,7 +28,9 @@ describe('forbidden-default', () => {
 
     if (isNextDev) {
       expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxDescription(browser)).toBe('Error: NEXT_FORBIDDEN')
+      expect(await getRedboxDescription(browser)).toBe(
+        'Error: forbidden() is not allowed to use in root layout'
+      )
     }
   })
 
