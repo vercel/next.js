@@ -157,22 +157,24 @@ class Container extends React.Component<{
     }
   }
 
-  componentDidUpdate() {
-    this.scrollToHash()
+  componentDidUpdate(prevProps) {
+  if (prevProps.location.hash !== this.props.location.hash) {
+    this.scrollToHash();
   }
+}
 
-  scrollToHash() {
-    let { hash } = location
-    hash = hash && hash.substring(1)
-    if (!hash) return
+scrollToHash() {
+  let { hash } = this.props.location;
+  hash = hash && hash.substring(1);
+  if (!hash) return;
 
-    const el: HTMLElement | null = document.getElementById(hash)
-    if (!el) return
+  const el = document.getElementById(hash);
+  if (!el) return;
 
-    // If we call scrollIntoView() in here without a setTimeout
-    // it won't scroll properly.
-    setTimeout(() => el.scrollIntoView(), 0)
-  }
+  // If we call scrollIntoView() in here without a setTimeout
+  // it won't scroll properly.
+  setTimeout(() => el.scrollIntoView(), 0);
+}
 
   render() {
     if (process.env.NODE_ENV === 'production') {
