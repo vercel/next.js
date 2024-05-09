@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic'
 
-export const NextDynamicServerComponent = dynamic(() =>
-  import('../text-dynamic-server')
+export const NextDynamicServerComponent = dynamic(
+  () => import('../text-dynamic-server')
 )
 export const NextDynamicNoSSRServerComponent = dynamic(
   () => import('../text-dynamic-no-ssr-server'),
@@ -9,6 +9,6 @@ export const NextDynamicNoSSRServerComponent = dynamic(
     ssr: false,
   }
 )
-export const NextDynamicServerImportClientComponent = dynamic(() =>
-  import('../text-dynamic-server-import-client')
+export const NextDynamicServerImportClientComponent = dynamic(
+  () => import('../text-dynamic-server-import-client')
 )

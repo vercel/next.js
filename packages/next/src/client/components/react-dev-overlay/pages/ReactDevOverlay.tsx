@@ -54,8 +54,8 @@ export default function ReactDevOverlay({
   const errorType = hasBuildError
     ? 'build'
     : hasRuntimeErrors
-    ? 'runtime'
-    : null
+      ? 'runtime'
+      : null
   const isMounted = errorType !== null
 
   const displayPrevented = shouldPreventDisplay(errorType, preventDisplay)

@@ -447,29 +447,32 @@ async function getTestResultDiffBase(
 
   // Find the latest test result tree, iterate results file names to find out the latest one.
   // Filename follow ${yyyyMMddHHmm}-${sha}.json format.
-  const actualTestResultTree = testResultJsonTree.reduce((acc, value) => {
-    const dateStr = value.path?.split('-')[0].match(/(....)(..)(..)(..)(..)/)
+  const actualTestResultTree = testResultJsonTree.reduce(
+    (acc, value) => {
+      const dateStr = value.path?.split('-')[0].match(/(....)(..)(..)(..)(..)/)
 
-    if (!dateStr || dateStr.length < 5) {
-      return acc
-    }
-
-    const date = new Date(
-      dateStr![1] as any,
-      (dateStr![2] as any) - 1,
-      dateStr![3] as any,
-      dateStr![4] as any,
-      dateStr![5] as any
-    )
-    if (!acc) {
-      return {
-        date,
-        value,
+      if (!dateStr || dateStr.length < 5) {
+        return acc
       }
-    }
 
-    return acc.date >= date ? acc : { date, value }
-  }, null as any as { date: Date; value: (typeof testResultJsonTree)[0] })
+      const date = new Date(
+        dateStr![1] as any,
+        (dateStr![2] as any) - 1,
+        dateStr![3] as any,
+        dateStr![4] as any,
+        dateStr![5] as any
+      )
+      if (!acc) {
+        return {
+          date,
+          value,
+        }
+      }
+
+      return acc.date >= date ? acc : { date, value }
+    },
+    null as any as { date: Date; value: (typeof testResultJsonTree)[0] }
+  )
 
   if (!actualTestResultTree || !actualTestResultTree?.value?.sha) {
     console.log('There is no test results json stored in the base yet')

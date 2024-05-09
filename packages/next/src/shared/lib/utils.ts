@@ -12,7 +12,7 @@ import type fs from 'fs'
 export type NextComponentType<
   Context extends BaseContext = NextPageContext,
   InitialProps = {},
-  Props = {}
+  Props = {},
 > = ComponentType<Props> & {
   /**
    * Used for initial page load data population. Data returned from `getInitialProps` is serialized when server rendered.
@@ -174,7 +174,7 @@ export type AppInitialProps<PageProps = any> = {
 
 export type AppPropsType<
   Router extends NextRouter = NextRouter,
-  PageProps = {}
+  PageProps = {},
 > = AppInitialProps<PageProps> & {
   Component: NextComponentType<NextPageContext, any, any>
   router: Router
@@ -362,7 +362,7 @@ export function normalizeRepeatedSlashes(url: string) {
 export async function loadGetInitialProps<
   C extends BaseContext,
   IP = {},
-  P = {}
+  P = {},
 >(App: NextComponentType<C, IP, P>, ctx: C): Promise<IP> {
   if (process.env.NODE_ENV !== 'production') {
     if (App.prototype?.getInitialProps) {

@@ -12,7 +12,11 @@ import type {
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
-import type { ResponseCacheBase, ResponseCacheEntry } from './response-cache'
+import type {
+  ResponseCacheBase,
+  ResponseCacheEntry,
+  ResponseGenerator,
+} from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -70,7 +74,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
-import { getUtils, normalizeNextQueryParam } from './server-utils'
+import { getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -109,6 +113,7 @@ import { sendResponse } from './send-response'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
+  normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
@@ -137,6 +142,7 @@ import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
+import { checkIsAppPPREnabled } from './lib/experimental/ppr'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -151,7 +157,7 @@ export interface MiddlewareRoutingItem {
 
 export type RouteHandler<
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse
+  ServerResponse extends BaseNextResponse = BaseNextResponse,
 > = (
   req: ServerRequest,
   res: ServerResponse,
@@ -241,7 +247,7 @@ export interface BaseRequestHandler<
   ServerRequest extends BaseNextRequest | IncomingMessage = BaseNextRequest,
   ServerResponse extends
     | BaseNextResponse
-    | HTTPServerResponse = BaseNextResponse
+    | HTTPServerResponse = BaseNextResponse,
 > {
   (
     req: ServerRequest,
@@ -252,7 +258,7 @@ export interface BaseRequestHandler<
 
 export type RequestContext<
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse
+  ServerResponse extends BaseNextResponse = BaseNextResponse,
 > = {
   req: ServerRequest
   res: ServerResponse
@@ -290,7 +296,7 @@ export type NextEnabledDirectories = {
 export default abstract class Server<
   ServerOptions extends Options = Options,
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse
+  ServerResponse extends BaseNextResponse = BaseNextResponse,
 > {
   public readonly hostname?: string
   public readonly fetchHostname?: string
@@ -471,14 +477,16 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
+    const isAppPPREnabled =
+      this.enabledDirectories.app &&
+      checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
+
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        this.enabledDirectories.app &&
-        this.nextConfig.experimental.ppr &&
-        this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
       rsc:
@@ -486,9 +494,7 @@ export default abstract class Server<
           ? new RSCPathnameNormalizer()
           : undefined,
       prefetchRSC:
-        this.enabledDirectories.app &&
-        this.nextConfig.experimental.ppr &&
-        this.minimalMode
+        isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -548,9 +554,7 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        ppr:
-          this.enabledDirectories.app &&
-          this.nextConfig.experimental.ppr === true,
+        isAppPPREnabled,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
@@ -917,8 +921,8 @@ export default abstract class Server<
       req.headers['x-forwarded-port'] ??= this.port
         ? this.port.toString()
         : isHttps
-        ? '443'
-        : '80'
+          ? '443'
+          : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
 
@@ -1709,8 +1713,8 @@ export default abstract class Server<
         typeof fallbackField === 'string'
           ? 'static'
           : fallbackField === null
-          ? 'blocking'
-          : fallbackField,
+            ? 'blocking'
+            : fallbackField,
     }
   }
 
@@ -1941,16 +1945,53 @@ export default abstract class Server<
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isRSCRequest = isRSCRequestCheck(req)
 
+    const { routeModule } = components
+
+    /**
+     * If the route being rendered is an app page, and the ppr feature has been
+     * enabled, then the given route _could_ support PPR.
+     */
+    const couldSupportPPR: boolean =
+      typeof routeModule !== 'undefined' &&
+      isAppPageRouteModule(routeModule) &&
+      this.renderOpts.experimental.isAppPPREnabled
+
+    // If this is a request that's rendering an app page that support's PPR,
+    // then if we're in development mode (or using the experimental test
+    // proxy) and the query parameter is set, then we should render the
+    // skeleton. We assume that if the page _could_ support it, we should
+    // show the skeleton in development. Ideally we would check the appConfig
+    // to see if this page has it enabled or not, but that would require
+    // plumbing the appConfig through to the server during development.
+    const isDebugPPRSkeleton =
+      query.__nextppronly &&
+      couldSupportPPR &&
+      (this.renderOpts.dev || this.experimentalTestProxy)
+        ? true
+        : false
+
+    // This page supports PPR if it has `experimentalPPR` set to `true` in the
+    // prerender manifest and this is an app page.
+    const isRoutePPREnabled: boolean =
+      couldSupportPPR &&
+      ((
+        prerenderManifest.routes[pathname] ??
+        prerenderManifest.dynamicRoutes[pathname]
+      )?.experimentalPPR === true ||
+        isDebugPPRSkeleton)
+
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = getRequestMeta(req, 'postponed')
+    const minimalPostponed = isRoutePPREnabled
+      ? getRequestMeta(req, 'postponed')
+      : undefined
 
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
-      opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
+      isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isRSCRequest) {
@@ -1990,9 +2031,9 @@ export default abstract class Server<
       }
     }
 
-    if (!query.amp) {
-      delete query.amp
-    }
+    // Ensure that if the `amp` query parameter is falsy that we remove it from
+    // the query object. This ensures it won't be found by the `in` operator.
+    if ('amp' in query && !query.amp) delete query.amp
 
     if (opts.supportsDynamicHTML === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
@@ -2184,9 +2225,8 @@ export default abstract class Server<
           | 'https',
       }))
 
+    // TODO: investigate, this is not safe across multiple concurrent requests
     incrementalCache?.resetRequestCache()
-
-    const { routeModule } = components
 
     type Renderer = (context: {
       /**
@@ -2195,14 +2235,6 @@ export default abstract class Server<
        */
       postponed: string | undefined
     }) => Promise<ResponseCacheEntry | null>
-
-    // allow debugging the skeleton in dev with PPR
-    // instead of continuing to resume stream right away
-    const isDebugPPRSkeleton = Boolean(
-      this.nextConfig.experimental.ppr &&
-        (this.renderOpts.dev || this.experimentalTestProxy) &&
-        query.__nextppronly
-    )
 
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
@@ -2270,7 +2302,10 @@ export default abstract class Server<
                 query: origQuery,
               })
             : resolvedUrl,
-
+        experimental: {
+          ...opts.experimental,
+          isRoutePPREnabled,
+        },
         supportsDynamicHTML,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
@@ -2309,8 +2344,6 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
-              // App Route's cannot postpone, so don't enable it.
-              experimental: { ppr: false },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,
@@ -2450,7 +2483,7 @@ export default abstract class Server<
         isSSG &&
         metadata.revalidate === 0 &&
         !this.renderOpts.dev &&
-        !renderOpts.experimental.ppr
+        !isRoutePPREnabled
       ) {
         const staticBailoutInfo = metadata.staticBailoutInfo
 
@@ -2509,163 +2542,162 @@ export default abstract class Server<
       }
     }
 
+    const responseGenerator: ResponseGenerator = async (
+      hasResolved,
+      previousCacheEntry,
+      isRevalidating
+    ): Promise<ResponseCacheEntry | null> => {
+      const isProduction = !this.renderOpts.dev
+      const didRespond = hasResolved || res.sent
+
+      if (!staticPaths) {
+        ;({ staticPaths, fallbackMode } = hasStaticPaths
+          ? await this.getStaticPaths({
+              pathname,
+              requestHeaders: req.headers,
+              isAppPath,
+              page: components.page,
+            })
+          : { staticPaths: undefined, fallbackMode: false })
+      }
+
+      if (fallbackMode === 'static' && isBot(req.headers['user-agent'] || '')) {
+        fallbackMode = 'blocking'
+      }
+
+      // skip on-demand revalidate if cache is not present and
+      // revalidate-if-generated is set
+      if (
+        isOnDemandRevalidate &&
+        revalidateOnlyGenerated &&
+        !previousCacheEntry &&
+        !this.minimalMode
+      ) {
+        await this.render404(req, res)
+        return null
+      }
+
+      if (previousCacheEntry?.isStale === -1) {
+        isOnDemandRevalidate = true
+      }
+
+      // only allow on-demand revalidate for fallback: true/blocking
+      // or for prerendered fallback: false paths
+      if (
+        isOnDemandRevalidate &&
+        (fallbackMode !== false || previousCacheEntry)
+      ) {
+        fallbackMode = 'blocking'
+      }
+
+      // We use `ssgCacheKey` here as it is normalized to match the encoding
+      // from getStaticPaths along with including the locale.
+      //
+      // We use the `resolvedUrlPathname` for the development case when this
+      // is an app path since it doesn't include locale information.
+      let staticPathKey =
+        ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
+      if (staticPathKey && query.amp) {
+        staticPathKey = staticPathKey.replace(/\.amp$/, '')
+      }
+
+      const isPageIncludedInStaticPaths =
+        staticPathKey && staticPaths?.includes(staticPathKey)
+
+      if ((this.nextConfig.experimental as any).isExperimentalCompile) {
+        fallbackMode = 'blocking'
+      }
+
+      // When we did not respond from cache, we need to choose to block on
+      // rendering or return a skeleton.
+      //
+      // - Data requests always block.
+      // - Blocking mode fallback always blocks.
+      // - Preview mode toggles all pages to be resolved in a blocking manner.
+      // - Non-dynamic pages should block (though this is an impossible
+      //   case in production).
+      // - Dynamic pages should return their skeleton if not defined in
+      //   getStaticPaths, then finish the data request on the client-side.
+      //
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        !this.minimalMode &&
+        fallbackMode !== 'blocking' &&
+        staticPathKey &&
+        !didRespond &&
+        !isPreviewMode &&
+        isDynamic &&
+        (isProduction || !staticPaths || !isPageIncludedInStaticPaths)
+      ) {
+        if (
+          // In development, fall through to render to handle missing
+          // getStaticPaths.
+          (isProduction || (staticPaths && staticPaths?.length > 0)) &&
+          // When fallback isn't present, abort this render so we 404
+          fallbackMode !== 'static'
+        ) {
+          throw new NoFallbackError()
+        }
+
+        if (!isDataReq) {
+          // Production already emitted the fallback as static HTML.
+          if (isProduction) {
+            const html = await this.getFallback(
+              locale ? `/${locale}${pathname}` : pathname
+            )
+
+            return {
+              value: {
+                kind: 'PAGE',
+                html: RenderResult.fromStatic(html),
+                postponed: undefined,
+                status: undefined,
+                headers: undefined,
+                pageData: {},
+              },
+            }
+          }
+          // We need to generate the fallback on-demand for development.
+          else {
+            query.__nextFallback = 'true'
+
+            // We pass `undefined` as there cannot be a postponed state in
+            // development.
+            const result = await doRender({ postponed: undefined })
+            if (!result) {
+              return null
+            }
+            // Prevent caching this result
+            delete result.revalidate
+            return result
+          }
+        }
+      }
+
+      const result = await doRender({
+        // Only requests that aren't revalidating can be resumed. If we have the
+        // minimal postponed data, then we should resume the render with it.
+        postponed:
+          !isOnDemandRevalidate && !isRevalidating && minimalPostponed
+            ? minimalPostponed
+            : undefined,
+      })
+      if (!result) {
+        return null
+      }
+
+      return {
+        ...result,
+        revalidate:
+          result.revalidate !== undefined
+            ? result.revalidate
+            : /* default to minimum revalidate (this should be an invariant) */ 1,
+      }
+    }
+
     const cacheEntry = await this.responseCache.get(
       ssgCacheKey,
-      async (
-        hasResolved,
-        previousCacheEntry,
-        isRevalidating
-      ): Promise<ResponseCacheEntry | null> => {
-        const isProduction = !this.renderOpts.dev
-        const didRespond = hasResolved || res.sent
-
-        if (!staticPaths) {
-          ;({ staticPaths, fallbackMode } = hasStaticPaths
-            ? await this.getStaticPaths({
-                pathname,
-                requestHeaders: req.headers,
-                isAppPath,
-                page: components.page,
-              })
-            : { staticPaths: undefined, fallbackMode: false })
-        }
-
-        if (
-          fallbackMode === 'static' &&
-          isBot(req.headers['user-agent'] || '')
-        ) {
-          fallbackMode = 'blocking'
-        }
-
-        // skip on-demand revalidate if cache is not present and
-        // revalidate-if-generated is set
-        if (
-          isOnDemandRevalidate &&
-          revalidateOnlyGenerated &&
-          !previousCacheEntry &&
-          !this.minimalMode
-        ) {
-          await this.render404(req, res)
-          return null
-        }
-
-        if (previousCacheEntry?.isStale === -1) {
-          isOnDemandRevalidate = true
-        }
-
-        // only allow on-demand revalidate for fallback: true/blocking
-        // or for prerendered fallback: false paths
-        if (
-          isOnDemandRevalidate &&
-          (fallbackMode !== false || previousCacheEntry)
-        ) {
-          fallbackMode = 'blocking'
-        }
-
-        // We use `ssgCacheKey` here as it is normalized to match the encoding
-        // from getStaticPaths along with including the locale.
-        //
-        // We use the `resolvedUrlPathname` for the development case when this
-        // is an app path since it doesn't include locale information.
-        let staticPathKey =
-          ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
-        if (staticPathKey && query.amp) {
-          staticPathKey = staticPathKey.replace(/\.amp$/, '')
-        }
-
-        const isPageIncludedInStaticPaths =
-          staticPathKey && staticPaths?.includes(staticPathKey)
-
-        if ((this.nextConfig.experimental as any).isExperimentalCompile) {
-          fallbackMode = 'blocking'
-        }
-
-        // When we did not respond from cache, we need to choose to block on
-        // rendering or return a skeleton.
-        //
-        // - Data requests always block.
-        // - Blocking mode fallback always blocks.
-        // - Preview mode toggles all pages to be resolved in a blocking manner.
-        // - Non-dynamic pages should block (though this is an impossible
-        //   case in production).
-        // - Dynamic pages should return their skeleton if not defined in
-        //   getStaticPaths, then finish the data request on the client-side.
-        //
-        if (
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          !this.minimalMode &&
-          fallbackMode !== 'blocking' &&
-          staticPathKey &&
-          !didRespond &&
-          !isPreviewMode &&
-          isDynamic &&
-          (isProduction || !staticPaths || !isPageIncludedInStaticPaths)
-        ) {
-          if (
-            // In development, fall through to render to handle missing
-            // getStaticPaths.
-            (isProduction || (staticPaths && staticPaths?.length > 0)) &&
-            // When fallback isn't present, abort this render so we 404
-            fallbackMode !== 'static'
-          ) {
-            throw new NoFallbackError()
-          }
-
-          if (!isDataReq) {
-            // Production already emitted the fallback as static HTML.
-            if (isProduction) {
-              const html = await this.getFallback(
-                locale ? `/${locale}${pathname}` : pathname
-              )
-
-              return {
-                value: {
-                  kind: 'PAGE',
-                  html: RenderResult.fromStatic(html),
-                  postponed: undefined,
-                  status: undefined,
-                  headers: undefined,
-                  pageData: {},
-                },
-              }
-            }
-            // We need to generate the fallback on-demand for development.
-            else {
-              query.__nextFallback = 'true'
-
-              // We pass `undefined` as there cannot be a postponed state in
-              // development.
-              const result = await doRender({ postponed: undefined })
-              if (!result) {
-                return null
-              }
-              // Prevent caching this result
-              delete result.revalidate
-              return result
-            }
-          }
-        }
-
-        const result = await doRender({
-          // Only requests that aren't revalidating can be resumed. If we have the
-          // minimal postponed data, then we should resume the render with it.
-          postponed:
-            !isOnDemandRevalidate && !isRevalidating && minimalPostponed
-              ? minimalPostponed
-              : undefined,
-        })
-        if (!result) {
-          return null
-        }
-
-        return {
-          ...result,
-          revalidate:
-            result.revalidate !== undefined
-              ? result.revalidate
-              : /* default to minimum revalidate (this should be an invariant) */ 1,
-        }
-      },
+      responseGenerator,
       {
         routeKind: routeModule?.definition.kind,
         incrementalCache,
@@ -2687,7 +2719,8 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' && !!cacheEntry.value.postponed
+      cacheEntry.value?.kind === 'PAGE' &&
+      typeof cacheEntry.value.postponed === 'string'
 
     if (
       isSSG &&
@@ -2705,10 +2738,10 @@ export default abstract class Server<
         isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
-          ? 'MISS'
-          : cacheEntry.isStale
-          ? 'STALE'
-          : 'HIT'
+            ? 'MISS'
+            : cacheEntry.isStale
+              ? 'STALE'
+              : 'HIT'
       )
     }
 
@@ -2735,7 +2768,7 @@ export default abstract class Server<
       this.minimalMode &&
       isRSCRequest &&
       !isPrefetchRSCRequest &&
-      opts.experimental.ppr
+      isRoutePPREnabled
     ) {
       revalidate = 0
     } else if (
@@ -2896,7 +2929,7 @@ export default abstract class Server<
       // If the request is a data request, then we shouldn't set the status code
       // from the response because it should always be 200. This should be gated
       // behind the experimental PPR flag.
-      if (cachedData.status && (!isDataReq || !opts.experimental.ppr)) {
+      if (cachedData.status && (!isDataReq || !isRoutePPREnabled)) {
         res.statusCode = cachedData.status
       }
 

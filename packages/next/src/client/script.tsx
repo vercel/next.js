@@ -126,8 +126,8 @@ const loadScript = (props: ScriptProps): void => {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
 
     afterLoad()
   } else if (src) {

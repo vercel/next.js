@@ -18,6 +18,7 @@ import type {
   RouteHas,
   Redirect,
 } from '../lib/load-custom-routes'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -34,8 +35,8 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     query: z.any(), // NextParsedUrlQuery
     // private optional properties
     _isAppDir: z.boolean().optional(),
-    _isAppPrefetch: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
+    _isRoutePPREnabled: z.boolean().optional(),
   })
 )
 
@@ -132,6 +133,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
+    bundlePagesRouterDependencies: z.boolean().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
@@ -288,6 +290,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
         swrDelta: z.number().optional(),
+        flyingShuttle: z.boolean().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
@@ -311,11 +314,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
-        ppr: z.boolean().optional(),
+        ppr: z
+          .union([z.boolean(), z.literal('incremental')])
+          .readonly()
+          .optional(),
         taint: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
-        serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
@@ -409,13 +414,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
-        bundlePagesExternals: z.boolean().optional(),
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
+        defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
+        allowDevelopmentBuild: z.literal(true).optional(),
       })
       .optional(),
     exportPathMap: z
@@ -565,6 +571,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     // saas option is unknown, use z.any() here
     sassOptions: z.record(z.string(), z.any()).optional(),
+    serverExternalPackages: z.array(z.string()).optional(),
     serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),

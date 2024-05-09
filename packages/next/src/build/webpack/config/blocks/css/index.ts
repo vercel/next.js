@@ -406,11 +406,11 @@ export const css = curry(async function css(
     const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
       ? undefined
       : shouldIncludeExternalCSSImports
-      ? undefined
-      : {
-          and: [ctx.rootDirectory],
-          not: [/node_modules/],
-        }
+        ? undefined
+        : {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
+          }
 
     fns.push(
       loader({
