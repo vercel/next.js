@@ -890,13 +890,12 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#redirect-pages').click()
 
       await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
       })
-
-      expect(await browser.elementByCss('body').text()).toContain(
-        'Hello from a pages route'
-      )
     })
 
     // TODO: investigate flakey behavior with revalidate
