@@ -465,56 +465,6 @@ function assignDefaults(
     }
   }
 
-  if (result.experimental?.incrementalCacheHandlerPath) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.incrementalCacheHandlerPath',
-      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
-      silent
-    )
-  }
-
-  if (result.experimental?.isrMemoryCacheSize) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.isrMemoryCacheSize',
-      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
-      silent
-    )
-  }
-
-  if (typeof result.experimental?.serverActions === 'boolean') {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.serverActions',
-      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
-      silent
-    )
-  }
-
-  if (result.swcMinify === false) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'swcMinify',
-      'Disabling SWC Minifier will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
-      silent
-    )
-  }
-
-  if (result.outputFileTracing === false) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'outputFileTracing',
-      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
-      silent
-    )
-  }
-
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',

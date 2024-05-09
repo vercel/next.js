@@ -224,17 +224,7 @@ export interface ExperimentalConfig {
    * much as possible, even when this leads to many requests.
    */
   cssChunking?: 'strict' | 'loose'
-  /**
-   * @deprecated use config.cacheHandler instead
-   */
-  incrementalCacheHandlerPath?: string
-  /**
-   * @deprecated use config.cacheMaxMemorySize instead
-   *
-   */
-  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
-  swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   proxyTimeout?: number
@@ -729,16 +719,6 @@ export interface NextConfig extends Record<string, any> {
   httpAgentOptions?: { keepAlive?: boolean }
 
   /**
-   * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
-   * that are needed for deploying a production version of your application.
-   *
-   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   */
-  outputFileTracing?: boolean
-
-  /**
    * Timeout after waiting to generate static pages in seconds
    *
    * @default 60
@@ -752,14 +732,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
   crossOrigin?: 'anonymous' | 'use-credentials'
-
-  /**
-   * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
-   */
-  swcMinify?: boolean
 
   /**
    * Optionally enable compiler transforms
