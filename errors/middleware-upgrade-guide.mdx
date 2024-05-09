@@ -345,7 +345,7 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 #### After
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
+import { NextResponse, URLPattern } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const PATTERNS = [
@@ -353,24 +353,20 @@ const PATTERNS = [
     new URLPattern({ pathname: '/:locale/:slug' }),
     ({ pathname }) => pathname.groups,
   ],
-]
+] as const
 
-const params = (url) => {
-  const input = url.split('?')[0]
-  let result = {}
-
+const params = (url: NextRequest['nextUrl']) => {
   for (const [pattern, handler] of PATTERNS) {
-    const patternResult = pattern.exec(input)
+    const patternResult = pattern.exec(url)
     if (patternResult !== null && 'pathname' in patternResult) {
-      result = handler(patternResult)
-      break
+      return handler(patternResult)
     }
   }
-  return result
+  return {}
 }
 
 export function middleware(request: NextRequest) {
-  const { locale, slug } = params(request.url)
+  const { locale, slug } = params(request.nextUrl)
 
   if (locale && slug) {
     const { search, protocol, host } = request.nextUrl
