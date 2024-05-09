@@ -93,6 +93,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--empty',
+    `
+
+  Initialize an empty project.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -264,6 +271,7 @@ async function run(): Promise<void> {
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
+      empty: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -446,6 +454,7 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -475,6 +484,7 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   }
   conf.set('preferences', preferences)
