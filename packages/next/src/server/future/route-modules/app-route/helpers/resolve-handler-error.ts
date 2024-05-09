@@ -1,15 +1,13 @@
-import { isForbiddenError } from '../../../../../client/components/forbidden'
-import { isNotFoundError } from '../../../../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../../../../client/components/redirect'
+import { handleRedirectResponse } from '../../helpers/response-handlers'
 import {
-  handleForbiddenResponse,
-  handleNotFoundResponse,
-  handleRedirectResponse,
-} from '../../helpers/response-handlers'
+  uiErrorTypesWithStatusCodes,
+  uiErrorTypesWithStatusCodesMap,
+} from '../../helpers/respone-ui-errors'
 
 export function resolveHandlerError(err: any): Response | false {
   if (isRedirectError(err)) {
@@ -24,14 +22,14 @@ export function resolveHandlerError(err: any): Response | false {
     return handleRedirectResponse(redirect, err.mutableCookies, status)
   }
 
-  if (isNotFoundError(err)) {
-    // This is a not found error! Send the not found response.
-    return handleNotFoundResponse()
-  }
+  const uiError = uiErrorTypesWithStatusCodes.find((errorType) =>
+    uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+  )
 
-  if (isForbiddenError(err)) {
-    // This is a forbidden error! Send the forbidden response.
-    return handleForbiddenResponse()
+  if (uiError) {
+    return new Response(null, {
+      status: uiErrorTypesWithStatusCodesMap[uiError].statusCode,
+    })
   }
 
   // Return false to indicate that this is not a handled error.

@@ -11,7 +11,6 @@ import {
   NEXT_ROUTER_STATE_TREE,
   ACTION,
 } from '../../client/components/app-router-headers'
-import { isNotFoundError } from '../../client/components/not-found'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
@@ -41,23 +40,11 @@ import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
-import { isForbiddenError } from '../../client/components/forbidden'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
-
-const uiErrorTypesWithStatusCodesMap = {
-  'not-found': {
-    statusCode: 404,
-    matcher: isNotFoundError,
-  },
-  forbidden: {
-    statusCode: 403,
-    matcher: isForbiddenError,
-  },
-} as const
-
-const uiErrorTypesWithStatusCodes = Object.keys(
-  uiErrorTypesWithStatusCodesMap
-) as (keyof typeof uiErrorTypesWithStatusCodesMap)[]
+import {
+  uiErrorTypesWithStatusCodes,
+  uiErrorTypesWithStatusCodesMap,
+} from '../future/route-modules/helpers/respone-ui-errors'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
