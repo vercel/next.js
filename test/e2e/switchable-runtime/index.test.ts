@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 function splitLines(text) {
@@ -44,8 +44,8 @@ describe('Switchable runtime', () => {
     next = await createNext({
       files: new FileRef(__dirname),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
       },
     })
     context = {

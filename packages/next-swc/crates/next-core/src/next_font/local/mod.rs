@@ -132,6 +132,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = &*request.await?
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -210,6 +211,7 @@ impl ImportMappingReplacement for NextFontLocalCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -263,6 +265,7 @@ impl ImportMappingReplacement for NextFontLocalFontFileReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());

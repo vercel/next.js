@@ -110,12 +110,7 @@ export function getOrCreatePrefetchCacheEntry({
     buildId,
     nextUrl,
     prefetchCache,
-    kind:
-      kind ||
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      (process.env.NODE_ENV === 'development'
-        ? PrefetchKind.AUTO
-        : PrefetchKind.TEMPORARY),
+    kind: kind || PrefetchKind.TEMPORARY,
   })
 }
 
@@ -168,7 +163,7 @@ export function createPrefetchCacheEntryForInitialLoad({
     data: Promise.resolve(data),
     kind,
     prefetchTime: Date.now(),
-    lastUsedTime: null,
+    lastUsedTime: Date.now(),
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
   }

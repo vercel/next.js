@@ -122,6 +122,7 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
+  const encryptionKey = await generateEncryptionKeyBase64(true)
   const project = await bindings.turbo.createProject({
     projectPath: dir,
     rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
@@ -142,6 +143,9 @@ export async function createHotReloaderTurbopack(
       // TODO: Implement
       middlewareMatchers: undefined,
     }),
+    buildId,
+    encryptionKey,
+    previewProps: opts.fsChecker.prerenderManifest.preview,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
@@ -165,7 +169,7 @@ export async function createHotReloaderTurbopack(
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
     distDir,
-    encryptionKey: await generateEncryptionKeyBase64(),
+    encryptionKey,
   })
 
   // Dev specific
@@ -363,7 +367,7 @@ export async function createHotReloaderTurbopack(
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentEntryIssues, key, change)
+      processIssues(currentEntryIssues, key, change, false, true)
       const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
@@ -401,7 +405,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data)
+        processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -453,6 +457,7 @@ export async function createHotReloaderTurbopack(
         manifestLoader,
         nextConfig: opts.nextConfig,
         rewrites: opts.fsChecker.rewrites,
+        logErrors: true,
 
         dev: {
           assetMapper,
@@ -778,6 +783,7 @@ export async function createHotReloaderTurbopack(
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: opts.fsChecker.rewrites,
+            logErrors: true,
 
             hooks: {
               subscribeToChanges,
@@ -830,6 +836,7 @@ export async function createHotReloaderTurbopack(
           manifestLoader,
           readyIds,
           rewrites: opts.fsChecker.rewrites,
+          logErrors: true,
 
           hooks: {
             subscribeToChanges,

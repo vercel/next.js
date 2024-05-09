@@ -12,6 +12,7 @@ impl Task for MdxCompileTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let options: Options = serde_json::from_slice(&self.option)?;
+
         compile(&self.input, &options)
             .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
     }

@@ -74,7 +74,20 @@ const program = new Command()
   .option('--app', `Initialize as an ${ct.app} project. ${ct.default}`)
   .option(
     '--ts, --typescript',
-    `Initialize as a ${ct.typescript} project. ${ct.default}`
+    `Initialize as a ${ct.typescript} project. ${ct.default}`)
+  .option(
+    '--empty',
+    `
+
+  Initialize an empty project.
+`
+  )
+  .option(
+    '--use-npm',
+    `
+
+  Explicitly tell the CLI to bootstrap the application using npm
+`
   )
   .option('--js, --javascript', `Initialize as a ${ct.javascript} project.`)
   .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
@@ -111,6 +124,13 @@ const program = new Command()
   a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
+`
+  )
+  .option(
+    '--skip-install',
+    `
+
+  Explicitly tell the CLI to skip installing packages
 `
   )
   .allowUnknownOption()
@@ -463,6 +483,8 @@ async function tryCreateNextApp({
       appRouter: app,
       srcDir,
       importAlias,
+      skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -491,6 +513,8 @@ async function tryCreateNextApp({
       appRouter: app,
       srcDir,
       importAlias,
+      skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   }
 

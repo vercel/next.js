@@ -86,6 +86,7 @@ impl NextFontGoogleReplacer {
     async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
+
         let query_vc = Vc::cell(query);
 
         let font_data = load_font_data(self.project_path);
@@ -159,6 +160,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
             module: _,
             path: _,
             query,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -290,6 +292,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());
@@ -340,6 +343,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             module: _,
             path: _,
             query: query_vc,
+            fragment: _,
         } = request
         else {
             return Ok(ImportMapResult::NoEntry.into());

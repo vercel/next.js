@@ -32,6 +32,10 @@ describe('AMP Usage', () => {
 
       beforeAll(async () => {
         await rename(
+          join(appDir, 'pages/custom-scripts.js'),
+          join(appDir, 'pages/custom-scripts.js.bak')
+        )
+        await rename(
           join(appDir, 'pages/invalid-amp.js'),
           join(appDir, 'pages/invalid-amp.js.bak')
         )
@@ -46,6 +50,10 @@ describe('AMP Usage', () => {
         app = await nextStart(appDir, context.appPort)
       })
       afterAll(async () => {
+        await rename(
+          join(appDir, 'pages/custom-scripts.js.bak'),
+          join(appDir, 'pages/custom-scripts.js')
+        )
         await rename(
           join(appDir, 'pages/invalid-amp.js.bak'),
           join(appDir, 'pages/invalid-amp.js')
@@ -530,6 +538,25 @@ describe('AMP Usage', () => {
       })
 
       await renderViaHTTP(dynamicAppPort, '/invalid-amp')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).toContain('error')
+    })
+
+    it('should detect amp validator warning on custom scripts', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          inspectPayload += msg
+        },
+        onStderr(msg) {
+          inspectPayload += msg
+        },
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/custom-scripts')
 
       await killApp(ampDynamic)
 

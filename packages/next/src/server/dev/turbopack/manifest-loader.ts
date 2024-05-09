@@ -33,6 +33,7 @@ import {
   type ClientBuildManifest,
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
+  processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
@@ -68,8 +69,8 @@ async function readPartialManifest<T>(
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-      ? pageName
-      : getAssetPathFromRoute(pageName),
+        ? pageName
+        : getAssetPathFromRoute(pageName),
     name
   )
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
@@ -286,6 +287,8 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
+      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
     return manifest
   }
@@ -294,6 +297,12 @@ export class TurbopackManifestLoader {
     pageEntrypoints: PageEntrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
+    const processedRewrites = {
+      ...rewrites,
+      beforeFiles: (rewrites?.beforeFiles ?? []).map(processRoute),
+      afterFiles: (rewrites?.afterFiles ?? []).map(processRoute),
+      fallback: (rewrites?.fallback ?? []).map(processRoute),
+    }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -319,7 +328,7 @@ export class TurbopackManifestLoader {
     )
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      processedRewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
 
     await writeFileAtomic(
@@ -330,9 +339,7 @@ export class TurbopackManifestLoader {
     )
 
     const content: ClientBuildManifest = {
-      __rewrites: rewrites
-        ? (normalizeRewritesForBuildManifest(rewrites) as any)
-        : { afterFiles: [], beforeFiles: [], fallback: [] },
+      __rewrites: normalizeRewritesForBuildManifest(processedRewrites) as any,
       ...Object.fromEntries(
         [...pageEntrypoints.keys()].map((pathname) => [
           pathname,
@@ -505,7 +512,7 @@ export class TurbopackManifestLoader {
     manifests: Iterable<TurbopackMiddlewareManifest>
   ): MiddlewareManifest {
     const manifest: MiddlewareManifest = {
-      version: 2,
+      version: 3,
       middleware: {},
       sortedMiddleware: [],
       functions: {},

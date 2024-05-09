@@ -1,5 +1,9 @@
 import Link from 'next/link'
 
 export default function Page() {
-  return <Link href="/foo">Trigger RSC request</Link>
+  return (
+    <Link id="foo" href="/foo">
+      Trigger RSC request
+    </Link>
+  )
 }

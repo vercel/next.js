@@ -122,8 +122,8 @@ async function lint(
             (packageManager === 'yarn'
               ? 'yarn add --dev'
               : packageManager === 'pnpm'
-              ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' eslint'
+                ? 'pnpm install --save-dev'
+                : 'npm install --save-dev') + ' eslint'
           )
         )}`
       )
@@ -160,9 +160,8 @@ async function lint(
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
 
-      const completeConfig: Config = await eslint.calculateConfigForFile(
-        configFile
-      )
+      const completeConfig: Config =
+        await eslint.calculateConfigForFile(configFile)
 
       if (completeConfig.plugins?.includes('@next/next')) {
         nextEslintPluginIsEnabled = true
@@ -252,10 +251,12 @@ async function lint(
         lintFix: !!options.fix,
         nextEslintPluginVersion:
           nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
-            ? require(path.join(
-                path.dirname(deps.resolved.get('eslint-config-next')!),
-                'package.json'
-              )).version
+            ? require(
+                path.join(
+                  path.dirname(deps.resolved.get('eslint-config-next')!),
+                  'package.json'
+                )
+              ).version
             : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:
@@ -369,8 +370,16 @@ export async function runLintCheck(
         } else {
           // Check if necessary deps installed, and install any that are missing
           deps = await hasNecessaryDependencies(baseDir, requiredPackages)
-          if (deps.missing.length > 0)
+          if (deps.missing.length > 0) {
+            deps.missing.forEach((dep) => {
+              if (dep.pkg === 'eslint') {
+                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
+                dep.pkg = 'eslint@^8'
+              }
+            })
+
             await installDependencies(baseDir, deps.missing, true)
+          }
 
           // Write default ESLint config.
           // Check for /pages and src/pages is to make sure this happens in Next.js folder

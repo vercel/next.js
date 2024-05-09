@@ -4,7 +4,7 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import picomatch from 'next/dist/compiled/picomatch'
-import type { ServerRuntime } from 'next/types'
+import type { ServerRuntime } from '../../types'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -314,7 +314,7 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 
 export function getMiddlewareMatchers(
   matcherOrMatchers: unknown,
-  nextConfig: NextConfig
+  nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
 ): MiddlewareMatcher[] {
   let matchers: unknown[] = []
   if (Array.isArray(matcherOrMatchers)) {
