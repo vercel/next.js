@@ -1,7 +1,7 @@
 'use client'
+// Test both server and client compilation of ECMAScript features.
 import { abc } from './export-as'
 import json from './file.json' with { type: 'json' }
-// Test both server and client compilation of ECMAScript features.
 
 class ClassWithPrivate {
   #privateField
@@ -33,6 +33,9 @@ class ClassWithPrivate {
   getPrivateStaticMethod() {
     return ClassWithPrivate.#privateStaticMethod()
   }
+  isPrivateMethodAvailable() {
+    return #privateField in this
+  }
 }
 
 // Not supported in Node.js yet.
@@ -53,6 +56,7 @@ export default function Page() {
             privateStaticFieldWithInitializer:
               instance.getPrivateStaticFieldWithInitializer(),
             privateStaticMethod: instance.getPrivateStaticMethod(),
+            privateMethodInThis: instance.isPrivateMethodAvailable(),
             exportAs: abc,
             importWith: json.message,
             // Not supported in Node.js yet.
