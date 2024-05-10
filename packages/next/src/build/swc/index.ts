@@ -325,7 +325,7 @@ async function tryLoadWasmWithFallback(attempts: any) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    let bindings = await loadWasm(wasmDirectory)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'fallback',
