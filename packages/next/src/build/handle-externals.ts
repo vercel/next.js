@@ -181,7 +181,7 @@ export function makeExternalHandler({
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$)/.test(request)) {
+      if (/^next$/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -380,6 +380,7 @@ function resolveBundlingOptOutPackages({
   if (nodeModulesRegex.test(resolvedRes)) {
     const shouldBundlePages =
       !isAppLayer && config.bundlePagesRouterDependencies && !isOptOutBundling
+
     const shouldBeBundled =
       shouldBundlePages ||
       isResourceInPackages(
@@ -387,6 +388,7 @@ function resolveBundlingOptOutPackages({
         config.transpilePackages,
         resolvedExternalPackageDirs
       )
+
     if (!shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
     }
