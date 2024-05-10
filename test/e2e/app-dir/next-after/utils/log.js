@@ -3,11 +3,7 @@ import * as fs from 'fs'
 function getLogFile() {
   const logFile = process.env.PERSISTENT_LOG_FILE
   if (!logFile) {
-    throw new Error(
-      'Expected `process.env.PERSISTENT_LOG_FILE` to be passed' +
-        '\n' +
-        JSON.stringify(process.env, null, 2)
-    )
+    throw new Error('Expected `process.env.PERSISTENT_LOG_FILE` to be passed')
   }
   return logFile
 }
