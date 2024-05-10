@@ -159,13 +159,13 @@ export async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean }
 ): Promise<NextInstance> {
   if (
-    opts.dependencies.react &&
+    opts.dependencies?.react &&
     !semver.intersects(opts.dependencies.react, '^19.x')
   ) {
     opts.dependencies.react = '19.0.0-beta-4508873393-20240430'
   }
   if (
-    opts.dependencies['react-dom'] &&
+    opts.dependencies?.['react-dom'] &&
     !semver.intersects(opts.dependencies['react-dom'], '^19.x')
   ) {
     opts.dependencies['react-dom'] = '19.0.0-beta-4508873393-20240430'
