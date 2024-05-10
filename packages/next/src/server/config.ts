@@ -581,15 +581,6 @@ function assignDefaults(
     }
   }
 
-  if (result.output === 'standalone' && !result.outputFileTracing) {
-    if (!silent) {
-      Log.warn(
-        `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
-      )
-    }
-    result.output = undefined
-  }
-
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
