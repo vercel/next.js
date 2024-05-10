@@ -94,8 +94,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       previewProps = (renderOpts as any).previewProps
     }
 
-    const [_callback, afterContext] = wrapCallbackForAfter(renderOpts, callback)
-    callback = _callback
+    const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
 
     function defaultOnUpdateCookies(cookies: string[]) {
       if (res) {
@@ -173,29 +172,32 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       assetPrefix: renderOpts?.assetPrefix || '',
       afterContext,
     }
-    return storage.run(store, callback, store)
+    return wrapWithAfter(store, () => storage.run(store, callback, store))
   },
 }
 
-function wrapCallbackForAfter<Result>(
-  renderOpts: WrapperRenderOpts | undefined,
-  callback: (store: RequestStore) => Result
+function createAfterWrapper(
+  renderOpts: WrapperRenderOpts | undefined
 ): [
-  callback: (store: RequestStore) => Result,
+  wrap: <Result>(requestStore: RequestStore, callback: () => Result) => Result,
   afterContext: AfterContext | undefined,
 ] {
   const isAfterEnabled = renderOpts?.experimental?.after ?? false
   if (!renderOpts || !isAfterEnabled) {
-    return [callback, undefined]
+    return [(_, callback) => callback(), undefined]
   }
 
   const { waitUntil, onClose } = renderOpts
   const cacheScope = renderOpts.ComponentMod?.createCacheScope()
 
-  const afterContext = createAfterContext({ waitUntil, onClose, cacheScope })
+  const afterContext = createAfterContext({
+    waitUntil,
+    onClose,
+    cacheScope,
+  })
 
-  const wrappedCallback: typeof callback = (requestStore) =>
-    afterContext.run(requestStore, () => callback(requestStore)) as Result // TODO(after): check if non-promise cases can happen here
+  const wrap = <Result>(requestStore: RequestStore, callback: () => Result) =>
+    afterContext.run(requestStore, callback) as Result // TODO(after): check if non-promise cases can happen here
 
-  return [wrappedCallback, afterContext]
+  return [wrap, afterContext]
 }
