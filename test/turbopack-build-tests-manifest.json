@@ -1091,6 +1091,7 @@
         "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
         "app dir - basic next/script should load stylesheets for next/scripts",
         "app dir - basic next/script should pass `nonce`",
+        "app dir - basic next/script should pass nonce when using next/font",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
         "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
         "app dir - basic next/script should support next/script and render in correct order",
@@ -2096,22 +2097,22 @@
     },
     "test/e2e/app-dir/next-font/next-font.test.ts": {
       "passed": [
-        "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-        "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
-        "app dir - next/font app app dir - next-font import values should have correct values at /",
-        "app dir - next/font app app dir - next-font import values should have correct values at /client",
-        "app dir - next/font app app dir - next-font import values should transform code in node_modules",
-        "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation",
-        "app dir - next/font app app dir - next-font preconnect should add preconnect when preloading is disabled in component",
-        "app dir - next/font app app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
-        "app dir - next/font app app dir - next-font preconnect should not preconnect when css is used but no fonts",
-        "app dir - next/font app app dir - next-font preload should preload correctly with client components",
-        "app dir - next/font app app dir - next-font preload should preload correctly with layout using fonts",
-        "app dir - next/font app app dir - next-font preload should preload correctly with page using fonts"
+        "app dir - next/font app dir - next-font computed styles should have correct styles at /",
+        "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
+        "app dir - next/font app dir - next-font import values should have correct values at /",
+        "app dir - next/font app dir - next-font import values should have correct values at /client",
+        "app dir - next/font app dir - next-font import values should transform code in node_modules",
+        "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation",
+        "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in component",
+        "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in layout",
+        "app dir - next/font app dir - next-font preconnect should not preconnect when css is used but no fonts",
+        "app dir - next/font app dir - next-font preload should preload correctly with client components",
+        "app dir - next/font app dir - next-font preload should preload correctly with layout using fonts",
+        "app dir - next/font app dir - next-font preload should preload correctly with page using fonts"
       ],
       "failed": [
-        "app dir - next/font app app dir - next-font preconnect should add preconnect when preloading is disabled in page",
-        "app dir - next/font app app dir - next-font preload should preload correctly with server components"
+        "app dir - next/font app dir - next-font preconnect should add preconnect when preloading is disabled in page",
+        "app dir - next/font app dir - next-font preload should preload correctly with server components"
       ],
       "pending": [],
       "flakey": [],
@@ -8483,11 +8484,11 @@
       "runtimeError": false
     },
     "test/integration/externals-pages-bundle/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
         "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalPackages config"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
