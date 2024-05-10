@@ -29,9 +29,18 @@ export function createAfterContext({
   const addCallback = (callback: AfterCallback) => {
     if (afterCallbacks.length === 0) {
       keepAliveLock.acquire()
-      firstCallbackAdded.resolve()
+      dispatchFirstCallbackAdded()
     }
     afterCallbacks.push(callback)
+  }
+
+  let didAddFirstCallback = false
+  const firstCallbackEmitter = new EventTarget()
+  const onFirstCallbackAdded = (callback: () => void) =>
+    firstCallbackEmitter.addEventListener('done', callback)
+  const dispatchFirstCallbackAdded = () => {
+    firstCallbackEmitter.dispatchEvent(new Event('done'))
+    didAddFirstCallback = true
   }
 
   // `onClose` has some overhead in WebNextResponse, so we don't want to call it unless necessary.
@@ -39,20 +48,24 @@ export function createAfterContext({
   //   (the ordering is a bit convoluted -- in static generation, calling after() will cause a bailout and fail anyway,
   //    but we can't know that at the point where we call `onClose`.)
   // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
-  const firstCallbackAdded = new DetachedPromise<void>()
   const onCloseLazy = (callback: () => void): Promise<void> => {
-    if (afterCallbacks.length > 0) {
-      // if we already have some callbacks, there's no need to wait.
+    const result = new DetachedPromise<void>()
+    const register = () => {
       try {
         onClose(callback)
-        return Promise.resolve()
+        result.resolve()
       } catch (err) {
-        return Promise.reject(err)
+        result.reject(err)
       }
-    } else {
-      // callbacks may be added later (or never, in which case this'll never resolve)
-      return firstCallbackAdded.promise.then(() => onClose(callback))
     }
+
+    if (didAddFirstCallback) {
+      register()
+    } else {
+      // callbacks may be added later (or never, in which case this'll never run)
+      onFirstCallbackAdded(register)
+    }
+    return result.promise
   }
 
   const afterImpl = (task: AfterTask) => {
