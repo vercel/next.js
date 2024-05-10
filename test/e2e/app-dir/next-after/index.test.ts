@@ -227,7 +227,31 @@ describe('unstable_after()', () => {
     })
   })
 
+  it('does not allow modifying cookies in a callback', async () => {
+    const EXPECTED_ERROR =
+      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+
+    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
+    // after() from render
+    expect(next.cliOutput).toMatch(EXPECTED_ERROR)
+
+    const cookie1 = await browser.elementById('cookie').text()
+    expect(cookie1).toEqual('Cookie: null')
+
+    await browser.elementByCss('button[type="submit"]').click()
+
+    await retry(async () => {
+      const cookie1 = await browser.elementById('cookie').text()
+      expect(cookie1).toEqual('Cookie: "action"')
+      // const newLogs = next.cliOutput.slice(cliOutputIndex)
+      // // after() from action
+      // expect(newLogs).toContain(EXPECTED_ERROR)
+    })
+  })
+
   if (isNextDev) {
+    // TODO: these are at the end because they destroy the next server.
+    // is there a cleaner way to do this without making the tests slower?
     describe('invalid usages', () => {
       it('errors at compile time when used in a client module', async () => {
         const { session, cleanup } = await sandbox(
@@ -286,28 +310,6 @@ describe('unstable_after()', () => {
       })
     })
   }
-
-  it('does not allow modifying cookies in a callback', async () => {
-    const EXPECTED_ERROR =
-      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
-
-    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
-    // after() from render
-    expect(next.cliOutput).toMatch(EXPECTED_ERROR)
-
-    const cookie1 = await browser.elementById('cookie').text()
-    expect(cookie1).toEqual('Cookie: null')
-
-    await browser.elementByCss('button[type="submit"]').click()
-
-    await retry(async () => {
-      const cookie1 = await browser.elementById('cookie').text()
-      expect(cookie1).toEqual('Cookie: "action"')
-      // const newLogs = next.cliOutput.slice(cliOutputIndex)
-      // // after() from action
-      // expect(newLogs).toContain(EXPECTED_ERROR)
-    })
-  })
 })
 
 function promiseWithResolvers<T>() {
