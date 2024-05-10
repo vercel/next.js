@@ -1,3 +1,4 @@
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { BaseNextRequest } from '../base-http'
 
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
@@ -64,6 +65,15 @@ export class InvokePathRequestAdapter<
     // If we did we rewrite the URL, add a metadata entry.
     if (originalPathname !== parsedURL.pathname) {
       addRequestMeta(req, 'rewroteURL', parsedURL.pathname)
+    }
+
+    // The `x-invoke-output` header is used to provide the route that should
+    // be executed. This is currently only used to prevent matching against
+    // specific routes.
+    const invokeOutput = req.headers['x-invoke-output']
+    if (typeof invokeOutput === 'string') {
+      addRequestMeta(req, 'invokeOutput', invokeOutput)
+      addRequestMeta(req, 'invokeOutputDynamic', isDynamicRoute(invokeOutput))
     }
   }
 }

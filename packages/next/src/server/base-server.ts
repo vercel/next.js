@@ -2854,14 +2854,15 @@ export default abstract class Server<
     }
 
     try {
+      // when a specific invoke-output is meant to be matched
+      // ensure a prior dynamic route/page doesn't take priority
+      const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+      const invokeOutputDynamic = getRequestMeta(ctx.req, 'invokeOutputDynamic')
+
       for await (const match of this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = ctx.req.headers['x-invoke-output']
         if (
-          !this.minimalMode &&
-          typeof invokeOutput === 'string' &&
-          isDynamicRoute(invokeOutput || '') &&
+          invokeOutput &&
+          invokeOutputDynamic &&
           invokeOutput !== match.definition.pathname
         ) {
           continue

@@ -64,6 +64,17 @@ export interface RequestMeta {
   match?: RouteMatch
 
   /**
+   * The route that was provided via the `x-invoke-output` header.
+   */
+  invokeOutput?: string
+
+  /**
+   * True when the route that was provided via the `x-invoke-output` header is
+   * dynamic.
+   */
+  invokeOutputDynamic?: boolean
+
+  /**
    * The incremental cache to use for the request.
    */
   incrementalCache?: any
