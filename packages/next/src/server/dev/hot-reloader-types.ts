@@ -97,7 +97,7 @@ interface DevPagesManifestUpdateAction {
   data: [
     {
       devPagesManifest: true
-    }
+    },
   ]
 }
 

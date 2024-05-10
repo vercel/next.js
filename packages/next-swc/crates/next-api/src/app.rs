@@ -7,7 +7,7 @@ use next_core::{
         get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
         MetadataItem,
     },
-    get_edge_resolve_options_context,
+    get_edge_resolve_options_context, get_next_package,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
@@ -36,19 +36,23 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
+        tasks_fs::{File, FileContent, FileSystemPath},
     },
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EvaluatableAssets,
+            },
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            source::Source,
             virtual_output::VirtualOutputAsset,
         },
         nodejs::EntryChunkGroupResult,
@@ -103,6 +107,7 @@ impl AppProject {
     fn route_ty(self: Vc<Self>) -> ServerContextType {
         ServerContextType::AppRoute {
             app_dir: self.app_dir(),
+            ecmascript_client_reference_transition_name: Some(self.client_transition_name()),
         }
     }
 
@@ -282,6 +287,10 @@ impl AppProject {
                 ))),
             ),
             ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.shared_transition()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -314,6 +323,10 @@ impl AppProject {
                 "next-ssr".to_string(),
                 Vc::upcast(self.edge_ssr_transition()),
             ),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.edge_shared_transition()),
+            ),
         ]
         .into_iter()
         .collect();
@@ -328,8 +341,31 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        let transitions = [
+            (
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+                    Vc::upcast(self.client_transition()),
+                    self.ssr_transition(),
+                )),
+            ),
+            (
+                "next-dynamic".to_string(),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
+            ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.shared_transition()),
+            ),
+        ]
+        .into_iter()
+        .collect();
+
         ModuleAssetContext::new(
-            Default::default(),
+            Vc::cell(transitions),
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
@@ -339,8 +375,30 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn edge_route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
+        let transitions = [
+            (
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+                    Vc::upcast(self.client_transition()),
+                    self.edge_ssr_transition(),
+                )),
+            ),
+            (
+                "next-dynamic".to_string(),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
+            ),
+            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            (
+                "next-shared".to_string(),
+                Vc::upcast(self.edge_shared_transition()),
+            ),
+        ]
+        .into_iter()
+        .collect();
         ModuleAssetContext::new(
-            Default::default(),
+            Vc::cell(transitions),
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
@@ -416,12 +474,32 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    fn shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
+        ContextTransition::new(
+            self.project().server_compile_time_info(),
+            self.ssr_module_options_context(),
+            self.ssr_resolve_options_context(),
+            Vc::cell("app-shared".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
     fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
         ContextTransition::new(
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-ssr".to_string()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    fn edge_shared_transition(self: Vc<Self>) -> Vc<ContextTransition> {
+        ContextTransition::new(
+            self.project().edge_compile_time_info(),
+            self.edge_ssr_module_options_context(),
+            self.edge_ssr_resolve_options_context(),
+            Vc::cell("app-edge-shared".to_string()),
         )
     }
 
@@ -820,8 +898,26 @@ impl AppEndpoint {
             ));
             server_assets.push(app_build_manifest_output);
 
+            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
+            // load it as a RawModule.
+            let next_package = get_next_package(this.app_project.project().project_path());
+            let polyfill_source = FileSource::new(
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js".to_string()),
+            );
+            let polyfill_output_path =
+                client_chunking_context.chunk_path(polyfill_source.ident(), ".js".to_string());
+            let polyfill_output_asset =
+                VirtualOutputAsset::new(polyfill_output_path, polyfill_source.content());
+            let polyfill_client_path = client_relative_path_ref
+                .get_path_to(&*polyfill_output_path.await?)
+                .context("failed to resolve client-relative path to polyfill")?
+                .to_string();
+            let polyfill_client_paths = vec![polyfill_client_path];
+            client_assets.push(Vc::upcast(polyfill_output_asset));
+
             let build_manifest = BuildManifest {
                 root_main_files: client_shared_chunks_paths,
+                polyfill_files: polyfill_client_paths,
                 ..Default::default()
             };
             let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
@@ -1004,6 +1100,7 @@ impl AppEndpoint {
                         .clone()
                         .map(Regions::Multiple),
                     matchers: vec![matchers],
+                    env: this.app_project.project().edge_env().await?.clone_value(),
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -1148,59 +1245,30 @@ impl AppEndpoint {
     }
 }
 
-#[turbo_tasks::function]
-async fn concatenate_output_assets(
-    path: Vc<FileSystemPath>,
-    files: Vc<OutputAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let mut concatenated_content = RopeBuilder::default();
-    let contents = files
-        .await?
-        .iter()
-        .map(|&file| async move {
-            Ok(
-                if let AssetContent::File(content) = *file.content().await? {
-                    Some(content.await?)
-                } else {
-                    None
-                },
-            )
-        })
-        .try_flat_join()
-        .await?;
-    for file in contents.iter().flat_map(|content| content.as_content()) {
-        concatenated_content.concat(file.content());
-        concatenated_content.push_static_bytes(b"\n\n");
-    }
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        path,
-        AssetContent::file(FileContent::Content(concatenated_content.build().into()).cell()),
-    )))
-}
-
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
+        let page_name = this.page.to_string();
         let span = match this.ty {
             AppEndpointType::Page {
                 ty: AppPageEndpointType::Html,
                 ..
             } => {
-                tracing::info_span!("app endpoint HTML", name = display(&this.page))
+                tracing::info_span!("app endpoint HTML", name = page_name)
             }
             AppEndpointType::Page {
                 ty: AppPageEndpointType::Rsc,
                 ..
             } => {
-                tracing::info_span!("app endpoint RSC", name = display(&this.page))
+                tracing::info_span!("app endpoint RSC", name = page_name)
             }
             AppEndpointType::Route { .. } => {
-                tracing::info_span!("app endpoint route", name = display(&this.page))
+                tracing::info_span!("app endpoint route", name = page_name)
             }
             AppEndpointType::Metadata { .. } => {
-                tracing::info_span!("app endpoint metadata", name = display(&this.page))
+                tracing::info_span!("app endpoint metadata", name = page_name)
             }
         };
         async move {
@@ -1242,10 +1310,11 @@ impl Endpoint for AppEndpoint {
                     client_paths,
                 },
             };
-            Ok(written_endpoint.cell())
+            anyhow::Ok(written_endpoint.cell())
         }
         .instrument(span)
         .await
+        .with_context(|| format!("Failed to write app endpoint {}", page_name))
     }
 
     #[turbo_tasks::function]

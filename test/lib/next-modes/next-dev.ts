@@ -1,5 +1,5 @@
 import spawn from 'cross-spawn'
-import { Span } from 'next/src/trace'
+import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
 import stripAnsi from 'strip-ansi'

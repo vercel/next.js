@@ -44,10 +44,12 @@ export async function tryNextDev({
   cwd,
   projectName,
   isApp = true,
+  isEmpty = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
+  isEmpty?: boolean
 }) {
   const dir = join(cwd, projectName)
   const port = await findPort()
@@ -57,10 +59,14 @@ export async function tryNextDev({
 
   try {
     const res = await fetchViaHTTP(port, '/')
-    expect(await res.text()).toContain('Get started by editing')
+    if (isEmpty) {
+      expect(await res.text()).toContain('Hello world!')
+    } else {
+      expect(await res.text()).toContain('Get started by editing')
+    }
     expect(res.status).toBe(200)
 
-    if (!isApp) {
+    if (!isApp && !isEmpty) {
       const apiRes = await fetchViaHTTP(port, '/api/hello')
       expect(await apiRes.json()).toEqual({ name: 'John Doe' })
       expect(apiRes.status).toBe(200)
@@ -74,6 +80,7 @@ export {
   createNextApp,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
+  projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,

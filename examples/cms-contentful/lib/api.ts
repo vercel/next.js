@@ -92,8 +92,8 @@ export async function getPostAndMorePosts(
   const entry = await fetchGraphQL(
     `query {
       postCollection(where: { slug: "${slug}" }, preview: ${
-      preview ? "true" : "false"
-    }, limit: 1) {
+        preview ? "true" : "false"
+      }, limit: 1) {
         items {
           ${POST_GRAPHQL_FIELDS}
         }
@@ -104,8 +104,8 @@ export async function getPostAndMorePosts(
   const entries = await fetchGraphQL(
     `query {
       postCollection(where: { slug_not_in: "${slug}" }, order: date_DESC, preview: ${
-      preview ? "true" : "false"
-    }, limit: 2) {
+        preview ? "true" : "false"
+      }, limit: 2) {
         items {
           ${POST_GRAPHQL_FIELDS}
         }

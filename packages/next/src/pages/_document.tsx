@@ -25,6 +25,7 @@ import {
 } from '../shared/lib/html-context.shared-runtime'
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -284,8 +285,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
                 typeof scriptChildren === 'string'
                   ? scriptChildren
                   : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
+                    ? scriptChildren.join('')
+                    : '',
             }
           } else {
             throw new Error(
@@ -360,7 +361,7 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getNextFontLinkTags(
-  nextFontManifest: NextFontManifest | undefined,
+  nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
   assetPrefix: string = ''
 ) {
@@ -586,8 +587,8 @@ export class Head extends React.Component<HeadProps> {
             typeof children === 'string'
               ? children
               : Array.isArray(children)
-              ? children.join('')
-              : ''
+                ? children.join('')
+                : ''
         }
 
         return (
@@ -681,30 +682,29 @@ export class Head extends React.Component<HeadProps> {
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
-      head.forEach((c) => {
-        let metaTag
-
-        if (this.context.strictNextHead) {
-          metaTag = React.createElement('meta', {
-            name: 'next-head',
-            content: '1',
-          })
-        }
-
+      head.forEach((child) => {
         if (
-          c &&
-          c.type === 'link' &&
-          c.props['rel'] === 'preload' &&
-          c.props['as'] === 'style'
+          child &&
+          child.type === 'link' &&
+          child.props['rel'] === 'preload' &&
+          child.props['as'] === 'style'
         ) {
-          metaTag && cssPreloads.push(metaTag)
-          cssPreloads.push(c)
+          if (this.context.strictNextHead) {
+            cssPreloads.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
+          } else {
+            cssPreloads.push(child)
+          }
         } else {
-          if (c) {
-            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
-              otherHeadElements.push(metaTag)
+          if (child) {
+            if (this.context.strictNextHead) {
+              otherHeadElements.push(
+                React.cloneElement(child, { 'data-next-head': '' })
+              )
+            } else {
+              otherHeadElements.push(child)
             }
-            otherHeadElements.push(c)
           }
         }
       })

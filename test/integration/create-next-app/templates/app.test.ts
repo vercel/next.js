@@ -1,5 +1,6 @@
 import {
   createNextApp,
+  projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
   spawnExitPromise,
   tryNextDev,
@@ -70,10 +71,8 @@ describe('create-next-app --app (App Router)', () => {
       const exitCode = await spawnExitPromise(cp)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
-      await tryNextDev({
-        cwd,
-        projectName,
-      })
+      await tryNextDev({ cwd, projectName })
+      projectShouldHaveNoGitChanges({ cwd, projectName })
     })
   })
 
@@ -144,6 +143,82 @@ describe('create-next-app --app (App Router)', () => {
       await tryNextDev({
         cwd,
         projectName,
+      })
+    })
+  })
+
+  it('should create an empty project with --empty flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'app-empty'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--src-dir',
+          '--empty',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      const isEmpty = true
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'app-empty',
+        mode: 'ts',
+        srcDir: true,
+      })
+      await tryNextDev({
+        cwd,
+        projectName,
+        isEmpty,
+      })
+    })
+  })
+
+  it('should create an empty TailwindCSS project with --empty flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'app-tw-empty'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--src-dir',
+          '--tailwind',
+          '--empty',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      const isEmpty = true
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'app-tw-empty',
+        mode: 'ts',
+        srcDir: true,
+      })
+      await tryNextDev({
+        cwd,
+        projectName,
+        isEmpty,
       })
     })
   })

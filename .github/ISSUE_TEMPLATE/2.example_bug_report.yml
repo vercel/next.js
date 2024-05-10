@@ -1,6 +1,6 @@
 name: Bug Report for Examples
-description: Create a bug report for one of the Next.js examples
-labels: ['area: examples']
+description: Create a bug report for Next.js examples.
+labels: ['examples']
 body:
   - type: markdown
     attributes:

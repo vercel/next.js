@@ -56,6 +56,8 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -188,7 +190,7 @@ export async function exportAppImpl(
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
 
-  let prerenderManifest: PrerenderManifest | undefined
+  let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
     prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
   } catch {}
@@ -362,11 +364,9 @@ export async function exportAppImpl(
 
   let serverActionsManifest
   if (enabledDirectories.app) {
-    serverActionsManifest = require(join(
-      distDir,
-      SERVER_DIRECTORY,
-      SERVER_REFERENCE_MANIFEST + '.json'
-    ))
+    serverActionsManifest = require(
+      join(distDir, SERVER_DIRECTORY, SERVER_REFERENCE_MANIFEST + '.json')
+    )
     if (nextConfig.output === 'export') {
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
@@ -407,11 +407,9 @@ export async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
-    nextFontManifest: require(join(
-      distDir,
-      'server',
-      `${NEXT_FONT_MANIFEST}.json`
-    )),
+    nextFontManifest: require(
+      join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
+    ),
     images: nextConfig.images,
     ...(enabledDirectories.app
       ? {
@@ -421,7 +419,7 @@ export async function exportAppImpl(
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.deploymentId,
     experimental: {
-      ppr: nextConfig.experimental.ppr === true,
+      isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
       missingSuspenseWithCSRBailout:
         nextConfig.experimental.missingSuspenseWithCSRBailout === true,
       swrDelta: nextConfig.experimental.swrDelta,
@@ -517,11 +515,9 @@ export async function exportAppImpl(
 
   if (!options.buildExport) {
     try {
-      const middlewareManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        MIDDLEWARE_MANIFEST
-      )) as MiddlewareManifest
+      const middlewareManifest = require(
+        join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
+      ) as MiddlewareManifest
 
       hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
     } catch {}

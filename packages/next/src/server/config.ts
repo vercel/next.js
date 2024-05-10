@@ -263,6 +263,15 @@ function assignDefaults(
   const result = { ...defaultConfig, ...config }
 
   if (
+    result.experimental?.allowDevelopmentBuild &&
+    process.env.NODE_ENV !== 'development'
+  ) {
+    throw new Error(
+      `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
+    )
+  }
+
+  if (
     result.experimental?.ppr &&
     !process.env.__NEXT_VERSION!.includes('canary') &&
     !process.env.__NEXT_TEST_MODE
@@ -491,7 +500,7 @@ function assignDefaults(
     warnOptionHasBeenDeprecated(
       result,
       'swcMinify',
-      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
+      'Disabling SWC Minifier will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
       silent
     )
   }
@@ -1014,7 +1023,7 @@ export default async function loadConfig(
         require('./config-schema') as typeof import('./config-schema')
       const state = configSchema.safeParse(userConfig)
 
-      if (!state.success) {
+      if (state.success === false) {
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 

@@ -32,7 +32,6 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.adjustFontFallbacks',
   'experimental.adjustFontFallbacksWithSizeAdjust',
   'experimental.allowedRevalidateHeaderKeys',
-  'experimental.bundlePagesExternals',
   'experimental.extensionAlias',
   'experimental.fallbackNodePolyfills',
 
@@ -56,10 +55,6 @@ const unsupportedProductionSpecificTurbopackNextConfigOptions = [
   // TODO: Support disabling sourcemaps, currently they're always enabled.
   // 'productionBrowserSourceMaps',
   'reactProductionProfiling',
-  'experimental.turbotrace',
-  'experimental.outputFileTracingRoot',
-  'experimental.outputFileTracingIgnores',
-  'experimental.outputFileTracingIncludes',
 ]
 
 // check for babelrc, swc plugins

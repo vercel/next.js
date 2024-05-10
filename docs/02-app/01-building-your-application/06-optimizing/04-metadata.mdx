@@ -247,14 +247,10 @@ export const metadata = {
 
 The `ImageResponse` constructor allows you to generate dynamic images using JSX and CSS. This is useful for creating social media images such as Open Graph images, Twitter cards, and more.
 
-`ImageResponse` uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime), and Next.js automatically adds the correct headers to cached images at the edge, helping improve performance and reducing recomputation.
-
 To use it, you can import `ImageResponse` from `next/og`:
 
 ```jsx filename="app/about/route.js"
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
 
 export async function GET() {
   return new ImageResponse(
