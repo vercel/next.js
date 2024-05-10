@@ -29,6 +29,18 @@ export function createAfterContext({
 
   const keepAliveLock = createKeepAliveLock(waitUntil)
 
+  const afterImpl = (task: AfterTask) => {
+    if (isPromise(task)) {
+      task.catch(() => {}) // avoid unhandled rejection crashes
+      waitUntil(task)
+    } else if (typeof task === 'function') {
+      // TODO(after): will this trace correctly?
+      addCallback(() => getTracer().trace(BaseServerSpan.after, () => task()))
+    } else {
+      throw new Error('after() must receive a promise or a function')
+    }
+  }
+
   const afterCallbacks: AfterCallback[] = []
   const addCallback = (callback: AfterCallback) => {
     if (afterCallbacks.length === 0) {
@@ -72,18 +84,6 @@ export function createAfterContext({
     return result.promise
   }
 
-  const afterImpl = (task: AfterTask) => {
-    if (isPromise(task)) {
-      task.catch(() => {}) // avoid unhandled rejection crashes
-      waitUntil(task)
-    } else if (typeof task === 'function') {
-      // TODO(after): will this trace correctly?
-      addCallback(() => getTracer().trace(BaseServerSpan.after, () => task()))
-    } else {
-      throw new Error('after() must receive a promise or a function')
-    }
-  }
-
   const runCallbacks = (requestStore: RequestStore) => {
     if (afterCallbacks.length === 0) return
 
@@ -125,9 +125,11 @@ export function createAfterContext({
     after: afterImpl,
     run: async <T>(requestStore: RequestStore, callback: () => T) => {
       try {
-        return await (cacheScope
-          ? cacheScope.run(() => callback())
-          : callback())
+        if (cacheScope) {
+          return await cacheScope.run(() => callback())
+        } else {
+          return await callback()
+        }
       } finally {
         // NOTE: it's likely that the callback is doing streaming rendering,
         // which means that nothing actually happened yet,
@@ -135,14 +137,12 @@ export function createAfterContext({
         // (this also means that this outer try-finally may not catch much).
 
         // don't await -- it may never resolve if no callbacks are passed.
-        void onCloseLazy(() => runCallbacks(requestStore)).catch(
-          (err: unknown) => {
-            console.error(err)
-            // as a last resort -- if something fails here, something's probably broken really badly,
-            // so make sure we release the lock -- at least we'll avoid hanging a `waitUntil` forever.
-            keepAliveLock.release()
-          }
-        )
+        onCloseLazy(() => runCallbacks(requestStore)).catch((err: unknown) => {
+          console.error(err)
+          // as a last resort -- if something fails here, something's probably broken really badly,
+          // so make sure we release the lock -- at least we'll avoid hanging a `waitUntil` forever.
+          keepAliveLock.release()
+        })
       }
     },
   }
