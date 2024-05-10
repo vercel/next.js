@@ -5,7 +5,6 @@
 
 import { PassThrough, type Readable, Writable } from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
-import { StringDecoder } from 'node:string_decoder'
 
 export * from './stream-utils.edge'
 
@@ -43,15 +42,15 @@ export async function renderToString(
     const { pipe } = ReactDOMServer.renderToPipeableStream(element, {
       onShellReady() {
         let data = ''
-        let decoder = new StringDecoder()
+        let decoder = new TextDecoder('utf-8', { fatal: true })
         pipe(
           new Writable({
             write(chunk, _, cb) {
-              data += decoder.write(chunk)
+              data += decoder.decode(chunk, { stream: true })
               cb()
             },
             final(cb) {
-              data += decoder.end()
+              data += decoder.decode()
               resolve(data)
               cb()
             },
@@ -66,14 +65,14 @@ export async function renderToString(
 }
 
 export async function streamToString(stream: Readable) {
-  const decoder = new StringDecoder()
+  const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
   for await (const chunk of stream) {
-    string += decoder.write(chunk)
+    string += decoder.decode(chunk, { stream: true })
   }
 
-  string += decoder.end()
+  string += decoder.decode()
 
   return string
 }
