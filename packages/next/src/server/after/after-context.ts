@@ -10,86 +10,124 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask, WaitUntilFn } from './shared'
 
-export type AfterContext = {
-  after: (task: AfterTask) => void
-  run: <T>(requestStore: RequestStore, callback: () => T) => Promise<T>
-}
+// export type AfterContext = {
+//   after: (task: AfterTask) => void
+//   run: <T>(requestStore: RequestStore, callback: () => T) => Promise<T>
+// }
 
-export function createAfterContext({
-  waitUntil: _waitUntil,
-  onClose: _onClose,
-  cacheScope,
-}: {
+export function createAfterContext(opts: {
   waitUntil: WaitUntilFn | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
   cacheScope: CacheScope | undefined
 }): AfterContext {
-  const waitUntil = _waitUntil ?? waitUntilNotAvailable
-  const onClose = _onClose ?? onCloseNotAvailable
+  return new AfterContext(opts)
+}
 
-  const keepAliveLock = createKeepAliveLock(waitUntil)
+class AfterContext {
+  private waitUntil: WaitUntilFn
+  private onClose: NonNullable<RequestLifecycleOpts['onClose']>
+  private cacheScope: CacheScope | undefined
 
-  const afterImpl = (task: AfterTask) => {
+  private keepAliveLock: KeepAliveLock
+
+  private afterCallbacks: AfterCallback[] = []
+  private firstCallbackAdded = createTrigger()
+
+  constructor({
+    waitUntil: _waitUntil,
+    onClose: _onClose,
+    cacheScope,
+  }: {
+    waitUntil: WaitUntilFn | undefined
+    onClose: RequestLifecycleOpts['onClose'] | undefined
+    cacheScope: CacheScope | undefined
+  }) {
+    this.waitUntil = _waitUntil ?? waitUntilNotAvailable
+    this.onClose = _onClose ?? onCloseNotAvailable
+    this.cacheScope = cacheScope
+
+    this.keepAliveLock = createKeepAliveLock(this.waitUntil)
+  }
+
+  public async run<T>(requestStore: RequestStore, callback: () => T) {
+    try {
+      if (this.cacheScope) {
+        return await this.cacheScope.run(() => callback())
+      } else {
+        return await callback()
+      }
+    } finally {
+      // NOTE: it's likely that the callback is doing streaming rendering,
+      // which means that nothing actually happened yet,
+      // and we have to wait until the request closes to do anything.
+      // (this also means that this outer try-finally may not catch much).
+
+      // don't await -- it may never resolve if no callbacks are passed.
+      this.onCloseLazy(() => this.runCallbacks(requestStore)).catch(
+        (err: unknown) => {
+          console.error(err)
+          // as a last resort -- if something fails here, something's probably broken really badly,
+          // so make sure we release the lock -- at least we'll avoid hanging a `waitUntil` forever.
+          this.keepAliveLock.release()
+        }
+      )
+    }
+  }
+
+  public after(task: AfterTask): void {
     if (isPromise(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
-      waitUntil(task)
+      this.waitUntil(task)
     } else if (typeof task === 'function') {
       // TODO(after): will this trace correctly?
-      addCallback(() => getTracer().trace(BaseServerSpan.after, () => task()))
+      this.addCallback(() =>
+        getTracer().trace(BaseServerSpan.after, () => task())
+      )
     } else {
       throw new Error('after() must receive a promise or a function')
     }
   }
 
-  const afterCallbacks: AfterCallback[] = []
-  const addCallback = (callback: AfterCallback) => {
-    if (afterCallbacks.length === 0) {
-      keepAliveLock.acquire()
-      dispatchFirstCallbackAdded()
+  private addCallback(callback: AfterCallback) {
+    if (this.afterCallbacks.length === 0) {
+      this.keepAliveLock.acquire()
+      this.firstCallbackAdded.trigger()
     }
-    afterCallbacks.push(callback)
+    this.afterCallbacks.push(callback)
   }
 
-  let didAddFirstCallback = false
-  const firstCallbackEmitter = new EventTarget()
-  const onFirstCallbackAdded = (callback: () => void) =>
-    firstCallbackEmitter.addEventListener('done', callback)
-  const dispatchFirstCallbackAdded = () => {
-    firstCallbackEmitter.dispatchEvent(new Event('done'))
-    didAddFirstCallback = true
-  }
+  private onCloseLazy(callback: () => void): Promise<void> {
+    // `onClose` has some overhead in WebNextResponse, so we don't want to call it unless necessary.
+    // we also have to avoid calling it if we're in static generation (because it doesn't exist there).
+    //   (the ordering is a bit convoluted -- in static generation, calling after() will cause a bailout and fail anyway,
+    //    but we can't know that at the point where we call `onClose`.)
+    // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
 
-  // `onClose` has some overhead in WebNextResponse, so we don't want to call it unless necessary.
-  // we also have to avoid calling it if we're in static generation (because it doesn't exist there).
-  //   (the ordering is a bit convoluted -- in static generation, calling after() will cause a bailout and fail anyway,
-  //    but we can't know that at the point where we call `onClose`.)
-  // this trick means that we'll only ever try to call `onClose` if an `after()` call successfully went through.
-  const onCloseLazy = (callback: () => void): Promise<void> => {
     const result = new DetachedPromise<void>()
     const register = () => {
       try {
-        onClose(callback)
+        this.onClose(callback)
         result.resolve()
       } catch (err) {
         result.reject(err)
       }
     }
 
-    if (didAddFirstCallback) {
+    if (this.firstCallbackAdded.wasTriggered) {
       register()
     } else {
       // callbacks may be added later (or never, in which case this'll never run)
-      onFirstCallbackAdded(register)
+      this.firstCallbackAdded.onTrigger(register)
     }
     return result.promise
   }
 
-  const runCallbacks = (requestStore: RequestStore) => {
-    if (afterCallbacks.length === 0) return
+  private runCallbacks(requestStore: RequestStore) {
+    if (this.afterCallbacks.length === 0) return
 
     const runCallbacksImpl = () => {
-      while (afterCallbacks.length) {
-        const afterCallback = afterCallbacks.shift()!
+      while (this.afterCallbacks.length) {
+        const afterCallback = this.afterCallbacks.shift()!
 
         const onError = (err: unknown) => {
           // TODO(after): how do we properly report errors here?
@@ -103,48 +141,26 @@ export function createAfterContext({
         try {
           const ret = afterCallback()
           if (isPromise(ret)) {
-            waitUntil(ret.catch(onError))
+            this.waitUntil(ret.catch(onError))
           }
         } catch (err) {
           onError(err)
         }
       }
 
-      keepAliveLock.release()
+      this.keepAliveLock.release()
     }
 
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
-    return requestAsyncStorage.run(readonlyRequestStore, () =>
-      cacheScope ? cacheScope.run(runCallbacksImpl) : runCallbacksImpl()
-    )
-  }
-
-  return {
-    after: afterImpl,
-    run: async <T>(requestStore: RequestStore, callback: () => T) => {
-      try {
-        if (cacheScope) {
-          return await cacheScope.run(() => callback())
-        } else {
-          return await callback()
-        }
-      } finally {
-        // NOTE: it's likely that the callback is doing streaming rendering,
-        // which means that nothing actually happened yet,
-        // and we have to wait until the request closes to do anything.
-        // (this also means that this outer try-finally may not catch much).
-
-        // don't await -- it may never resolve if no callbacks are passed.
-        onCloseLazy(() => runCallbacks(requestStore)).catch((err: unknown) => {
-          console.error(err)
-          // as a last resort -- if something fails here, something's probably broken really badly,
-          // so make sure we release the lock -- at least we'll avoid hanging a `waitUntil` forever.
-          keepAliveLock.release()
-        })
+    return requestAsyncStorage.run(readonlyRequestStore, () => {
+      if (this.cacheScope) {
+        return this.cacheScope.run(runCallbacksImpl)
+      } else {
+        return runCallbacksImpl()
       }
-    },
+    })
   }
 }
 
@@ -188,6 +204,28 @@ function wrapRequestStoreForAfterCallbacks(
     },
   }
 }
+
+function createTrigger() {
+  let wasTriggered = false
+  const emitter = new EventTarget()
+
+  const onTrigger = (callback: () => void) =>
+    emitter.addEventListener('trigger', callback)
+
+  const trigger = () => {
+    emitter.dispatchEvent(new Event('trigger'))
+    wasTriggered = true
+  }
+  return {
+    get wasTriggered() {
+      return wasTriggered
+    },
+    onTrigger,
+    trigger,
+  }
+}
+
+type KeepAliveLock = ReturnType<typeof createKeepAliveLock>
 
 function createKeepAliveLock(waitUntil: WaitUntilFn) {
   // callbacks can't go directly into waitUntil,
