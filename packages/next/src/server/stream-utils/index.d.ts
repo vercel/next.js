@@ -19,7 +19,7 @@ export function streamToString(
   stream: Readable | ReadableStream
 ): Promise<string>
 
-export function chainStreams<T>(
-  ...streams: ReadableStream<T>[]
-): ReadableStream<T>
+export function chainStreams(
+  ...streams: ReadableStream<Uint8Array>[]
+): ReadableStream<Uint8Array>
 export function chainStreams(...streams: Readable[]): Readable
