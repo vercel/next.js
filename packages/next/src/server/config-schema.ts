@@ -541,7 +541,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     optimizeFonts: z.boolean().optional(),
     output: z.enum(['standalone', 'export']).optional(),
-    outputFileTracing: z.boolean().optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
