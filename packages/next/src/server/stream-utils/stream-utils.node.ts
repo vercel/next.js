@@ -155,18 +155,24 @@ export function createBufferedTransformStream(): Transform {
   })
 }
 
+const encoder = new TextEncoder()
+
 export function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): Transform {
   return new Transform({
     transform(chunk, _, callback) {
-      getServerInsertedHTML().then((html) => {
-        if (html) {
-          this.push(Buffer.from(html))
-        }
+      getServerInsertedHTML()
+        .then((html) => {
+          if (html) {
+            this.push(encoder.encode(html))
+          }
 
-        return callback(null, chunk)
-      })
+          return callback(null, chunk)
+        })
+        .catch((err) => {
+          return callback(err)
+        })
     },
   })
 }
@@ -187,7 +193,7 @@ export function createHeadInsertionTransformStream(
         .then((insertion) => {
           if (inserted) {
             if (insertion) {
-              this.push(Buffer.from(insertion))
+              this.push(encoder.encode(insertion))
             }
             this.push(chunk)
             freezing = true
@@ -195,8 +201,8 @@ export function createHeadInsertionTransformStream(
             const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
             if (index !== -1) {
               if (insertion) {
-                const encodedInsertion = Buffer.from(insertion)
-                const insertedHeadContent = Buffer.alloc(
+                const encodedInsertion = encoder.encode(insertion)
+                const insertedHeadContent = new Uint8Array(
                   chunk.length + encodedInsertion.length
                 )
                 insertedHeadContent.set(chunk.slice(0, index))
@@ -233,7 +239,7 @@ export function createHeadInsertionTransformStream(
         insert()
           .then((insertion) => {
             if (insertion) {
-              this.push(Buffer.from(insertion))
+              this.push(encoder.encode(insertion))
               callback()
             }
           })
