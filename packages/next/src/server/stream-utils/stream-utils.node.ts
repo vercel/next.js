@@ -4,7 +4,7 @@
  */
 import {
   PassThrough,
-  type Readable,
+  Readable,
   Transform,
   Writable,
   pipeline,
@@ -100,4 +100,49 @@ export function chainStreams(...streams: Readable[]): Readable {
   })
 
   return transform
+}
+
+export function streamFromString(string: string): Readable {
+  return Readable.from(string)
+}
+
+export function createBufferedTransformStream(): Transform {
+  let buffered: Buffer[] = []
+  let byteLength = 0
+  let pending = false
+
+  const flush = (transform: Transform) => {
+    if (pending) return
+
+    pending = true
+
+    process.nextTick(() => {
+      try {
+        const chunk = Buffer.alloc(byteLength)
+        let copiedBytes = 0
+        for (let i = 0; i < buffered.length; i++) {
+          chunk.set(buffered[i], copiedBytes)
+          copiedBytes += buffered[i].byteLength
+        }
+        buffered = []
+        byteLength = 0
+        transform.push(chunk)
+      } catch {
+      } finally {
+        pending = false
+      }
+    })
+  }
+
+  return new Transform({
+    transform(chunk, _, callback) {
+      buffered.push(chunk)
+      byteLength += chunk.byteLength
+      flush(this)
+      callback()
+    },
+    final(callback) {
+      callback()
+    },
+  })
 }
