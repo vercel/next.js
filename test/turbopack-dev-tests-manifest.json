@@ -3494,6 +3494,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
+    "passed": [
+      "css-client-side-nav-parallel-routes should apply styles after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
       "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
@@ -3633,7 +3642,7 @@
       "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
       "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
-      "app dir - dynamic css should preload css of dynamic component during SSR"
+      "app dir - dynamic css should preload all chunks of dynamic component during SSR"
     ],
     "failed": [],
     "pending": [],
@@ -4076,6 +4085,7 @@
     "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
+      "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
       "app dir - metadata dynamic routes should error when id is missing in generateImageMetadata",
       "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
@@ -4083,19 +4093,18 @@
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
       "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
+      "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
+      "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
+      "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+      "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
       "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-      "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
-      "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes sitemap social image routes should support generate multi sitemaps with generateSitemaps",
-      "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-      "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes"
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -8706,6 +8715,8 @@
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
+      "create-next-app --app (App Router) should create an empty TailwindCSS project with --empty flag",
+      "create-next-app --app (App Router) should create an empty project with --empty flag",
       "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
@@ -8718,6 +8729,8 @@
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
+      "create-next-app --no-app (Pages Router) should create an empty TailwindCSS project with --empty flag",
+      "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
       "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
     ],
     "failed": [],
