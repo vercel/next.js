@@ -8,7 +8,7 @@ related:
     - app/api-reference/next-config-js/serverActions
 ---
 
-Server Actions are **asynchronous functions** that are executed on the server. They can be used in Server and Client Components to handle form submissions and data mutations in Next.js applications.
+[Server Actions](<https://react.dev/reference/rsc/server-actions#noun-labs-1201738-(2)>) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
 
 > **🎥 Watch:** Learn more about forms and mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
@@ -22,77 +22,69 @@ Server Components can use the inline function level or module level `"use server
 
 ```tsx filename="app/page.tsx" switcher
 // Server Component
+
 export default function Page() {
   // Server Action
   async function create() {
     'use server'
-
-    // ...
+    // Mutate data
   }
 
-  return (
-    // ...
-  )
+  return <></>
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
 // Server Component
+
 export default function Page() {
   // Server Action
   async function create() {
     'use server'
-
-    // ...
+    // Mutate data
   }
 
-  return (
-    // ...
-  )
+  return <></>
 }
 ```
 
 ### Client Components
-
-Client Components can only import actions that use the module-level `"use server"` directive.
 
 To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-export async function create() {
-  // ...
-}
+export async function create() {}
 ```
 
 ```js filename="app/actions.js" switcher
 'use server'
 
-export async function create() {
-  // ...
-}
+export async function create() {}
 ```
 
 ```tsx filename="app/ui/button.tsx" switcher
+'use client'
+
 import { create } from '@/app/actions'
 
 export function Button() {
-  return (
-    // ...
-  )
+  return <Button onClick={create} />
 }
 ```
 
 ```jsx filename="app/ui/button.js" switcher
+'use client'
+
 import { create } from '@/app/actions'
 
 export function Button() {
-  return (
-    // ...
-  )
+  return <Button onClick={create} />
 }
 ```
+
+### Passing actions as props
 
 You can also pass a Server Action to a Client Component as a prop:
 
