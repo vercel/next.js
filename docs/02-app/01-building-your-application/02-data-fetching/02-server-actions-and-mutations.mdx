@@ -162,7 +162,7 @@ export default function Page() {
 > - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries). For example: `const rawFormData = Object.fromEntries(formData)`. One thing to note is that the `formData` will include additional `$ACTION_` properties.
 > - See [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action) to learn more.
 
-#### Passing Additional Arguments
+### Passing Additional Arguments
 
 You can pass additional arguments to a Server Action using the JavaScript `bind` method.
 
@@ -213,7 +213,63 @@ export async function updateUser(userId, formData) {}
 > - An alternative is to pass arguments as hidden input fields in the form (e.g. `<input type="hidden" name="userId" value={userId} />`). However, the value will be part of the rendered HTML and will not be encoded.
 > - `.bind` works in both Server and Client Components. It also supports progressive enhancement.
 
-#### Server-side validation and error handling
+### Nested form elements
+
+You can also invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
+
+This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/reference/react-dom/components/form#handling-multiple-submission-types) for more information.
+
+### Programmatic form submission
+
+You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
+
+```tsx filename="app/entry.tsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+```jsx filename="app/entry.jsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
+
+### Server-side form validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
@@ -356,7 +412,7 @@ export function Signup() {
 }
 ```
 
-#### Pending states
+### Pending states
 
 The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
 
@@ -420,7 +476,7 @@ export function Signup() {
 
 > **Good to know:** Alternatively, you can also use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state for a specific form.
 
-#### Optimistic updates
+### Optimistic updates
 
 You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes executing, rather than waiting for the response:
 
@@ -492,69 +548,9 @@ export function Thread({ messages }) {
 }
 ```
 
-#### Nested elements
+### Event Handlers
 
-You can invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
-
-This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/reference/react-dom/components/form#handling-multiple-submission-types) for more information.
-
-#### Programmatic form submission
-
-You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
-
-```tsx filename="app/entry.tsx" switcher
-'use client'
-
-export function Entry() {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      (e.key === 'Enter' || e.key === 'NumpadEnter')
-    ) {
-      e.preventDefault()
-      e.currentTarget.form?.requestSubmit()
-    }
-  }
-
-  return (
-    <div>
-      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
-    </div>
-  )
-}
-```
-
-```jsx filename="app/entry.jsx" switcher
-'use client'
-
-export function Entry() {
-  const handleKeyDown = (e) => {
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      (e.key === 'Enter' || e.key === 'NumpadEnter')
-    ) {
-      e.preventDefault()
-      e.currentTarget.form?.requestSubmit()
-    }
-  }
-
-  return (
-    <div>
-      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
-    </div>
-  )
-}
-```
-
-This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
-
-### Non-form Elements
-
-While it's common to use Server Actions within `<form>` elements, they can also be invoked from other parts of your code such as event handlers and `useEffect`.
-
-#### Event Handlers
-
-You can invoke a Server Action from event handlers such as `onClick`. For example, to increment a like count:
+While it's common to use Server Actions within `<form>` elements, they can also be invoked with event handlers such as `onClick`. For example, to increment a like count:
 
 ```tsx filename="app/like-button.tsx" switcher
 'use client'
@@ -606,8 +602,6 @@ export default function LikeButton({ initialLikes }) {
 }
 ```
 
-To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes executing on the server, or to show a pending state.
-
 You can also add event handlers to form elements, for example, to save a form field `onChange`:
 
 ```tsx filename="app/ui/edit-post.tsx"
@@ -632,7 +626,7 @@ export default function EditPost() {
 
 For cases like this, where multiple events might be fired in quick succession, we recommend **debouncing** to prevent unnecessary Server Action invocations.
 
-#### `useEffect`
+### `useEffect`
 
 You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count:
 
