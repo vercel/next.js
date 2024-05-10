@@ -20,11 +20,7 @@ import {
 import type { ResponseCookies } from '../web/spec-extension/cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
-import {
-  createAfterContext,
-  createDisabledAfterContext,
-  type AfterContext,
-} from '../after/after-context'
+import { createAfterContext, type AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -184,27 +180,16 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 function wrapCallbackForAfter<Result>(
   renderOpts: WrapperRenderOpts | undefined,
   callback: (store: RequestStore) => Result
-): [typeof callback, AfterContext] {
-  const isAfterEnabled = renderOpts?.experimental?.after
-  if (!(renderOpts && isAfterEnabled)) {
-    const afterContext = createDisabledAfterContext()
-    return [callback, afterContext]
+): [
+  callback: (store: RequestStore) => Result,
+  afterContext: AfterContext | undefined,
+] {
+  const isAfterEnabled = renderOpts?.experimental?.after ?? false
+  if (!renderOpts || !isAfterEnabled) {
+    return [callback, undefined]
   }
 
-  const waitUntil =
-    renderOpts.waitUntil ??
-    function missingWaitUntil() {
-      // Error lazily, only when after() is actually called.
-      throw new Error('Invariant: missing waitUntil implementation')
-    }
-
-  const onClose =
-    renderOpts.onClose ??
-    function missingOnClose() {
-      // Error lazily, only when after() is actually called.
-      throw new Error('Invariant: missing onClose implementation')
-    }
-
+  const { waitUntil, onClose } = renderOpts
   const cacheScope = renderOpts.ComponentMod?.createCacheScope()
 
   const afterContext = createAfterContext({ waitUntil, onClose, cacheScope })

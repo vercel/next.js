@@ -235,8 +235,8 @@ export type LoadedRenderOpts = RenderOpts &
   RequestLifecycleOpts
 
 export type RequestLifecycleOpts = {
-  waitUntil: (promise: Promise<any>) => void
-  onClose: (callback: () => void) => void
+  waitUntil: ((promise: Promise<any>) => void) | undefined
+  onClose: ((callback: () => void) => void) | undefined
 }
 
 type BaseRenderOpts = RenderOpts & {

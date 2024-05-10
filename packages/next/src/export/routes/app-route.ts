@@ -71,12 +71,8 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicHTML: false,
       incrementalCache,
-      waitUntil: function noWaitUntilInPrerender() {
-        throw new Error('waitUntil cannot be called during prerendering.')
-      },
-      onClose: function noOnCloseInPrerender() {
-        throw new Error('onClose cannot be called during prerendering.')
-      },
+      waitUntil: undefined,
+      onClose: undefined,
     },
   }
 

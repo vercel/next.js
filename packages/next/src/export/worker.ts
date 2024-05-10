@@ -275,13 +275,8 @@ async function exportPageImpl(
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
-      // @ts-expect-error TODO(after): fix the typing here
-      waitUntil: function noWaitUntilInPrerender() {
-        throw new Error('waitUntil cannot be called during prerendering.')
-      },
-      onClose: function noOnCloseInPrerender() {
-        throw new Error('onClose cannot be called during prerendering.')
-      },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {

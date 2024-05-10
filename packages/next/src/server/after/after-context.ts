@@ -10,19 +10,23 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask, WaitUntilFn } from './shared'
 
-export type AfterContext =
-  | ReturnType<typeof createAfterContext>
-  | ReturnType<typeof createDisabledAfterContext>
+export type AfterContext = {
+  after: (task: AfterTask) => void
+  run: <T>(requestStore: RequestStore, callback: () => T) => Promise<T>
+}
 
 export function createAfterContext({
-  waitUntil,
-  onClose,
+  waitUntil: _waitUntil,
+  onClose: _onClose,
   cacheScope,
 }: {
-  waitUntil: WaitUntilFn
-  onClose: RequestLifecycleOpts['onClose']
-  cacheScope?: CacheScope
-}) {
+  waitUntil: WaitUntilFn | undefined
+  onClose: RequestLifecycleOpts['onClose'] | undefined
+  cacheScope: CacheScope | undefined
+}): AfterContext {
+  const waitUntil = _waitUntil ?? waitUntilNotAvailable
+  const onClose = _onClose ?? onCloseNotAvailable
+
   const keepAliveLock = createKeepAliveLock(waitUntil)
 
   const afterCallbacks: AfterCallback[] = []
@@ -118,7 +122,6 @@ export function createAfterContext({
   }
 
   return {
-    enabled: true as const,
     after: afterImpl,
     run: async <T>(requestStore: RequestStore, callback: () => T) => {
       try {
@@ -145,8 +148,12 @@ export function createAfterContext({
   }
 }
 
-export function createDisabledAfterContext() {
-  return { enabled: false as const }
+function waitUntilNotAvailable() {
+  throw new Error('`waitUntil` is not implemented for the current environment.')
+}
+
+function onCloseNotAvailable() {
+  throw new Error('`onClose` is not implemented for the current environment.')
 }
 
 /** Disable mutations of `requestStore` within `after()` and disallow nested after calls.  */
@@ -168,7 +175,6 @@ function wrapRequestStoreForAfterCallbacks(
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
     afterContext: {
-      enabled: true,
       after: () => {
         throw new Error(
           'Cannot call unstable_after() from within unstable_after()'

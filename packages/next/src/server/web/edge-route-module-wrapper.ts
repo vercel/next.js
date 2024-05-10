@@ -91,7 +91,7 @@ export class EdgeRouteModuleWrapper {
 
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
-    let waitUntil: RequestLifecycleOpts['waitUntil'] | undefined = undefined
+    let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
     let closeController: CloseController | undefined
 
     if (isAfterEnabled) {

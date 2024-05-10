@@ -14,9 +14,6 @@ export function unstable_after<T>(task: AfterTask<T>) {
 
   const { afterContext } = requestStore
   if (!afterContext) {
-    throw new Error('Invariant: No afterContext in requestStore')
-  }
-  if (!afterContext.enabled) {
     throw new Error(
       'unstable_after() must be explicitly enabled by setting `experimental.after: true` in your next.config.js.'
     )
