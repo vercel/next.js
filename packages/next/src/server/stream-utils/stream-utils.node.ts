@@ -107,7 +107,7 @@ export function streamFromString(string: string): Readable {
 }
 
 export function createBufferedTransformStream(): Transform {
-  let buffered: Buffer[] = []
+  let buffered: Uint8Array[] = []
   let byteLength = 0
   let pending = false
 
@@ -118,7 +118,7 @@ export function createBufferedTransformStream(): Transform {
 
     process.nextTick(() => {
       try {
-        const chunk = Buffer.alloc(byteLength)
+        const chunk = new Uint8Array(byteLength)
         let copiedBytes = 0
         for (let i = 0; i < buffered.length; i++) {
           chunk.set(buffered[i], copiedBytes)
