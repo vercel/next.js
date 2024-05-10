@@ -158,11 +158,11 @@ const setupTracing = () => {
 export async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean }
 ): Promise<NextInstance> {
-  if (semver.satisfies(opts.dependencies.react, '<19')) {
-    opts.dependencies.react = '^19'
+  if (!semver.intersects(opts.dependencies.react, '^19.x')) {
+    opts.dependencies.react = '19.0.0-beta-4508873393-20240430'
   }
-  if (semver.satisfies(opts.dependencies['react-dom'], '<19')) {
-    opts.dependencies['react-dom'] = '^19'
+  if (!semver.intersects(opts.dependencies['react-dom'], '^19.x')) {
+    opts.dependencies['react-dom'] = '19.0.0-beta-4508873393-20240430'
   }
   try {
     if (nextInstance) {
