@@ -146,6 +146,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   flightDataRendererErrorHandler: ErrorHandler
   serverComponentsErrorHandler: ErrorHandler
   isNotFoundPath: boolean
+  nonce: string | undefined
   res: BaseNextResponse
 }
 
@@ -363,6 +364,7 @@ async function generateFlight(
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
+      nonce: ctx.nonce,
     }
   )
 
@@ -842,6 +844,15 @@ async function renderToHTMLOrFlightImpl(
     parsedFlightRouterState
   )
 
+  // Get the nonce from the incoming request if it has one.
+  const csp =
+    req.headers['content-security-policy'] ||
+    req.headers['content-security-policy-report-only']
+  let nonce: string | undefined
+  if (csp && typeof csp === 'string') {
+    nonce = getScriptNonceFromHeader(csp)
+  }
+
   const ctx: AppRenderContext = {
     ...baseCtx,
     getDynamicParamFromSegment,
@@ -860,6 +871,7 @@ async function renderToHTMLOrFlightImpl(
     flightDataRendererErrorHandler,
     serverComponentsErrorHandler,
     isNotFoundPath,
+    nonce,
     res,
   }
 
@@ -875,15 +887,6 @@ async function renderToHTMLOrFlightImpl(
   const flightDataResolver = isStaticGeneration
     ? createFlightDataResolver(ctx)
     : null
-
-  // Get the nonce from the incoming request if it has one.
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-  let nonce: string | undefined
-  if (csp && typeof csp === 'string') {
-    nonce = getScriptNonceFromHeader(csp)
-  }
 
   const validateRootLayout = dev
 
@@ -944,6 +947,7 @@ async function renderToHTMLOrFlightImpl(
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
+          nonce,
         }
       )
 
@@ -1298,6 +1302,7 @@ async function renderToHTMLOrFlightImpl(
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,
+            nonce,
           }
         )
 
