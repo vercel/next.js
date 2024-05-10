@@ -109,7 +109,6 @@ pub struct NextConfig {
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
-    output_file_tracing: bool,
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
