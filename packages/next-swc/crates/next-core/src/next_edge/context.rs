@@ -104,12 +104,13 @@ pub async fn get_edge_resolve_options_context(
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
     let plugins = match ty {
-        ServerContextType::Pages { .. } => {
+        ServerContextType::AppSSR { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::Pages { .. } => {
             vec![]
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::AppRSC { .. }
+        ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
@@ -117,9 +118,6 @@ pub async fn get_edge_resolve_options_context(
                 Vc::upcast(invalid_client_only_resolve_plugin),
                 Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin),
             ]
-        }
-        ServerContextType::AppSSR { .. } => {
-            vec![]
         }
     };
 
