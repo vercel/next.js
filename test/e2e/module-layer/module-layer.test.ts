@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 
 describe('module layer', () => {
-  const { next, isNextStart, isNextDev } = nextTestSetup({
+  const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -65,8 +65,12 @@ describe('module layer', () => {
       const middlewareFile = 'middleware.js'
       let middlewareContent = ''
 
-      beforeAll(async () => {
-        await next.stop()
+      afterAll(async () => {
+        await next.patchFile(middlewareFile, middlewareContent)
+      })
+
+      it('should error when import server packages in middleware', async () => {
+        const browser = await next.browser('/')
 
         middlewareContent = await next.readFile(middlewareFile)
 
@@ -77,21 +81,22 @@ describe('module layer', () => {
             .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
 
-        await next.start()
-      })
-      afterAll(async () => {
-        await next.patchFile(middlewareFile, middlewareContent)
-      })
-
-      it('should error when import server packages in middleware', async () => {
         const existingCliOutputLength = next.cliOutput.length
-        await next.fetch('/')
+        await retry(async () => {
+          expect(await hasRedbox(browser)).toBe(true)
+          const source = await getRedboxSource(browser)
+          expect(source).toContain(
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+          )
+        })
 
-        const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-        expect(newCliOutput).toContain('./middleware.js')
-        expect(newCliOutput).toContain(
-          `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
-        )
+        if (!isTurbopack) {
+          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
+          expect(newCliOutput).toContain('./middleware.js')
+          expect(newCliOutput).toContain(
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
+          )
+        }
       })
     })
 
