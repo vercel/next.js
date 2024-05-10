@@ -1761,8 +1761,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      config.outputFileTracing &&
-        isNodeServer &&
+      isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
