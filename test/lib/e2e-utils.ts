@@ -7,6 +7,7 @@ import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
+import semver from 'semver'
 
 export type { NextInstance }
 
@@ -157,6 +158,12 @@ const setupTracing = () => {
 export async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean }
 ): Promise<NextInstance> {
+  if (semver.satisfies(opts.dependencies.react, '<19')) {
+    opts.dependencies.react = '^19'
+  }
+  if (semver.satisfies(opts.dependencies['react-dom'], '<19')) {
+    opts.dependencies['react-dom'] = '^19'
+  }
   try {
     if (nextInstance) {
       throw new Error(`createNext called without destroying previous instance`)
