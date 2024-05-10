@@ -8,7 +8,7 @@ related:
     - app/api-reference/next-config-js/serverActions
 ---
 
-[Server Actions](<https://react.dev/reference/rsc/server-actions#noun-labs-1201738-(2)>) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
+[Server Actions](https://react.dev/reference/rsc/server-actions) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
 
 > **🎥 Watch:** Learn more about mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
@@ -21,8 +21,6 @@ A Server Action can be defined with the React [`"use server"`](https://react.dev
 Server Components can use the inline function level or module level `"use server"` directive. To inline a Server Action, add `"use server"` to the top of the function body:
 
 ```tsx filename="app/page.tsx" switcher
-// Server Component
-
 export default function Page() {
   // Server Action
   async function create() {
@@ -35,8 +33,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/page.jsx" switcher
-// Server Component
-
 export default function Page() {
   // Server Action
   async function create() {
@@ -426,7 +422,7 @@ export function Signup() {
 
 #### Optimistic updates
 
-You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
+You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes executing, rather than waiting for the response:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -444,18 +440,18 @@ export function Thread({ messages }: { messages: Message[] }) {
     string
   >(messages, (state, newMessage) => [...state, { message: newMessage }])
 
+  const formAction = async (formData) => {
+    const message = formData.get('message')
+    addOptimisticMessage(message)
+    await send(message)
+  }
+
   return (
     <div>
-      {optimisticMessages.map((m, k) => (
-        <div key={k}>{m.message}</div>
+      {optimisticMessages.map((m, i) => (
+        <div key={i}>{m.message}</div>
       ))}
-      <form
-        action={async (formData: FormData) => {
-          const message = formData.get('message')
-          addOptimisticMessage(message)
-          await send(message)
-        }}
-      >
+      <form action={formAction}>
         <input type="text" name="message" />
         <button type="submit">Send</button>
       </form>
@@ -476,18 +472,18 @@ export function Thread({ messages }) {
     (state, newMessage) => [...state, { message: newMessage }]
   )
 
+  const formAction = async (formData) => {
+    const message = formData.get('message')
+    addOptimisticMessage(message)
+    await send(message)
+  }
+
   return (
     <div>
       {optimisticMessages.map((m) => (
         <div>{m.message}</div>
       ))}
-      <form
-        action={async (formData) => {
-          const message = formData.get('message')
-          addOptimisticMessage(message)
-          await send(message)
-        }}
-      >
+      <form action={formAction}>
         <input type="text" name="message" />
         <button type="submit">Send</button>
       </form>
