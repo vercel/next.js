@@ -8,6 +8,7 @@ import * as path from 'path'
 import * as os from 'os'
 import * as Log from './utils/log'
 import * as LogCLI from './utils/log-cli'
+import { BrowserInterface } from '../../../lib/next-webdriver'
 
 describe('unstable_after()', () => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
@@ -286,7 +287,27 @@ describe('unstable_after()', () => {
     })
   }
 
-  it.todo('does not allow modifying cookies')
+  it('does not allow modifying cookies in a callback', async () => {
+    const EXPECTED_ERROR =
+      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+
+    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
+    // after() from render
+    expect(next.cliOutput).toMatch(EXPECTED_ERROR)
+
+    const cookie1 = await browser.elementById('cookie').text()
+    expect(cookie1).toEqual('Cookie: null')
+
+    await browser.elementByCss('button[type="submit"]').click()
+
+    await retry(async () => {
+      const cookie1 = await browser.elementById('cookie').text()
+      expect(cookie1).toEqual('Cookie: "action"')
+      // const newLogs = next.cliOutput.slice(cliOutputIndex)
+      // // after() from action
+      // expect(newLogs).toContain(EXPECTED_ERROR)
+    })
+  })
 })
 
 function promiseWithResolvers<T>() {
