@@ -930,6 +930,7 @@ export const defaultConfig: NextConfig = {
       process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         ? true
         : false,
+    serverComponentsExternalPackages: undefined,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
