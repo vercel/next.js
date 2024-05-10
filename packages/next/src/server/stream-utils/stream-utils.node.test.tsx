@@ -1,4 +1,7 @@
-import { createBufferedTransformStream } from './stream-utils.node'
+import {
+  createBufferedTransformStream,
+  createInsertedHTMLStream,
+} from './stream-utils.node'
 import { PassThrough } from 'node:stream'
 import { renderToPipeableStream } from 'react-dom/server.node'
 import { Suspense } from 'react'
@@ -53,5 +56,37 @@ describe('createBufferedTransformStream', () => {
         done()
       })
     })
+  })
+})
+
+describe('createInsertedHTMLStream', () => {
+  it('should insert html to the beginning of the stream', async () => {
+    const insertedHTML = '<foo></foo>'
+    const stream = createInsertedHTMLStream(() => Promise.resolve(insertedHTML))
+    const input = await createInput()
+    const output = input.pipe(stream)
+
+    const actualChunks = await new Promise<Buffer[]>((resolve) => {
+      const chunks: Buffer[] = []
+      output.on('readable', () => {
+        let chunk
+        while (null !== (chunk = output.read())) {
+          chunks.push(chunk)
+        }
+      })
+      output.on('end', () => {
+        resolve(chunks)
+      })
+    })
+
+    console.log(actualChunks)
+
+    expect(actualChunks.length).toBe(2)
+    const encoder = new TextEncoder()
+    const expected = encoder.encode(insertedHTML)
+    expect(actualChunks[0].indexOf(expected)).toBe(0)
+    expect(
+      new Uint8Array(actualChunks[0].subarray(expected.length))
+    ).toStrictEqual(expected)
   })
 })
