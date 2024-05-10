@@ -43,9 +43,9 @@ export default function Page() {
   return {
      <>
       <StaticComponent />
-        <Suspense fallback={<Fallback />}>
-          <DynamicComponent />
-        </Suspense>
+      <Suspense fallback={<Fallback />}>
+        <DynamicComponent />
+      </Suspense>
      </>
   };
 }
