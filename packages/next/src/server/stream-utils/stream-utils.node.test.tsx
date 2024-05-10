@@ -1,8 +1,10 @@
-import { createBufferedTransformStream } from './stream-utils.node'
-import { PassThrough, type Readable } from 'node:stream'
+import {
+  createBufferedTransformStream,
+  streamToString,
+} from './stream-utils.node'
+import { PassThrough } from 'node:stream'
 import { renderToPipeableStream } from 'react-dom/server.node'
 import { Suspense } from 'react'
-import { streamToString } from '.'
 import { StringDecoder } from 'node:string_decoder'
 
 function App() {
@@ -37,16 +39,14 @@ function createInput(app = <App />): Promise<PassThrough> {
   })
 }
 
-function getExpectedOutput(input: Readable) {
-  return streamToString(input.pipe(new PassThrough()))
-}
-
 describe('createBufferedTransformStream', () => {
   it('should return a TransformStream that buffers input chunks across rendering boundaries', async () => {
     const stream = createBufferedTransformStream()
     const input = await createInput()
+    // This is essentially equivalent to a ReadableStream.tee()
+    // The important part is that both `pipe` calls happen before any read operation do.
     const output = input.pipe(stream)
-    const expectedCall = getExpectedOutput(input)
+    const expectedOutput = input.pipe(new PassThrough())
 
     const actualChunks = await new Promise<Buffer[]>((resolve) => {
       const chunks: Buffer[] = []
@@ -61,7 +61,7 @@ describe('createBufferedTransformStream', () => {
       })
     })
 
-    const expected = await expectedCall
+    const expected = await streamToString(expectedOutput)
 
     // React will send the suspense boundary piece second
     expect(actualChunks.length).toBe(2)
