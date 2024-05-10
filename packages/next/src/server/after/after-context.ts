@@ -90,7 +90,7 @@ export function createAfterContext({
         const onError = (err: unknown) => {
           // TODO(after): how do we properly report errors here?
           console.error(
-            'An error occurred in a function passed to after()',
+            'An error occurred in a function passed to `unstable_after()`:',
             err
           )
         }
@@ -163,17 +163,21 @@ function wrapRequestStoreForAfterCallbacks(
     get draftMode() {
       return requestStore.draftMode
     },
+    // TODO(after): calling a `cookies.set()` in an after() that's in an action doesn't currently error.
+    mutableCookies: new ResponseCookies(new Headers()),
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
-    // make cookie writes go nowhere
-    mutableCookies: new ResponseCookies(new Headers()),
     afterContext: {
       enabled: true,
       after: () => {
-        throw new Error('Cannot call after() from within after()')
+        throw new Error(
+          'Cannot call unstable_after() from within unstable_after()'
+        )
       },
       run: () => {
-        throw new Error('Cannot call run() from within an after() callback')
+        throw new Error(
+          'Cannot call run() from within an unstable_after() callback'
+        )
       },
     },
   }
