@@ -44,7 +44,7 @@ use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
-    common::{sync::Lazy, FilePathMapping, SourceMap},
+    common::{FilePathMapping, SourceMap},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
