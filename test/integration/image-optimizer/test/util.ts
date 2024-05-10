@@ -152,7 +152,7 @@ async function fetchWithDuration(
 export function runTests(ctx: RunTestsCtx) {
   const { isDev, nextConfigImages } = ctx
   const {
-    contentDispositionType = 'inline',
+    contentDispositionType = 'attachment',
     domains = [],
     formats = [],
     minimumCacheTTL = 60,
