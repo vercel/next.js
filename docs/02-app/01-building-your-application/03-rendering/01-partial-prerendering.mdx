@@ -21,7 +21,7 @@ With PPR, you can wrap any dynamic UI in a [Suspense](https://react.dev/referenc
 
 ## Incremental Adoption (Version 15)
 
-In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/building-your-application/routing/pages) by setting the [`ppr`](/docs/app/api-reference/next-config-js/ppr) `next.config.js` option to `incremental`, and adding the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
+In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/building-your-application/routing/pages) by setting the [`ppr`](/docs/app/api-reference/next-config-js/ppr) `next.config.js` option to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
 
 ```js filename="next.config.js"
 const nextConfig = {
@@ -61,9 +61,9 @@ export default function Page() {
   return {
      <>
       <StaticComponent />
-        <Suspense fallback={<Fallback />}>
-          <DynamicComponent />
-        </Suspense>
+      <Suspense fallback={<Fallback />}>
+        <DynamicComponent />
+      </Suspense>
      </>
   };
 }
