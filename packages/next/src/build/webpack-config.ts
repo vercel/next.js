@@ -104,8 +104,10 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-if (parseInt(React.version) < 19) {
-  throw new Error('Next.js requires react >= 19.0.0 to be installed.')
+if (React.version !== '19.0.0-rc-f994737d14-20240522') {
+  throw new Error(
+    `Next.js requires react 19.0.0-rc-f994737d14-20240522 to be installed. Got version '${React.version}' instead.`
+  )
 }
 
 export const babelIncludeRegexes: RegExp[] = [
