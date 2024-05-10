@@ -8484,11 +8484,11 @@
       "runtimeError": false
     },
     "test/integration/externals-pages-bundle/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "bundle pages externals with config.bundlePagesRouterDependencies production mode should have no externals with the config set",
         "bundle pages externals with config.bundlePagesRouterDependencies production mode should respect the serverExternalPackages config"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
