@@ -467,6 +467,20 @@ function assignDefaults(
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,
+    'bundlePagesExternals',
+    'bundlePagesRouterDependencies',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'serverComponentsExternalPackages',
+    'serverExternalPackages',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
     'relay',
     'compiler.relay',
     configFileName,
