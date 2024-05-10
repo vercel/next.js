@@ -10,7 +10,7 @@ related:
 
 [Server Actions](<https://react.dev/reference/rsc/server-actions#noun-labs-1201738-(2)>) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
 
-> **🎥 Watch:** Learn more about forms and mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
+> **🎥 Watch:** Learn more about mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 ## Convention
 
@@ -209,86 +209,13 @@ The Server Action will receive the `userId` argument, in addition to the form da
 ```js filename="app/actions.js"
 'use server'
 
-export async function updateUser(userId, formData) {
-  // ...
-}
+export async function updateUser(userId, formData) {}
 ```
 
 > **Good to know**:
 >
 > - An alternative is to pass arguments as hidden input fields in the form (e.g. `<input type="hidden" name="userId" value={userId} />`). However, the value will be part of the rendered HTML and will not be encoded.
 > - `.bind` works in both Server and Client Components. It also supports progressive enhancement.
-
-#### Pending states
-
-You can use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state while the form is being submitted.
-
-- `useFormStatus` returns the status for a specific `<form>`, so it **must be defined as a child of the `<form>` element**.
-- `useFormStatus` is a React hook and therefore must be used in a Client Component.
-
-```tsx filename="app/submit-button.tsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-```jsx filename="app/submit-button.jsx" switcher
-'use client'
-
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button type="submit" disabled={pending}>
-      Add
-    </button>
-  )
-}
-```
-
-`<SubmitButton />` can then be nested in any form:
-
-```tsx filename="app/page.tsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-import { createItem } from '@/app/actions'
-
-// Server Component
-export default async function Home() {
-  return (
-    <form action={createItem}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-import { createItem } from '@/app/actions'
-
-// Server Component
-export default async function Home() {
-  return (
-    <form action={createItem}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
 
 #### Server-side validation and error handling
 
@@ -379,7 +306,7 @@ export async function createUser(prevState, formData) {
 
 Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
 
-```tsx filename="app/ui/signup.tsx" switcher
+```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
 'use client'
 
 import { useActionState } from 'react'
@@ -406,7 +333,7 @@ export function Signup() {
 }
 ```
 
-```jsx filename="app/ui/signup.js" switcher
+```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
 'use client'
 
 import { useActionState } from 'react'
@@ -433,9 +360,69 @@ export function Signup() {
 }
 ```
 
-> **Good to know:**
->
-> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
+#### Pending states
+
+The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
+
+```tsx filename="app/submit-button.tsx" highlight={11,21-23} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction, pending] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/submit-button.jsx" highlight={11,21-23} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction, pending] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
+    </form>
+  )
+}
+```
+
+> **Good to know:** Alternatively, you can also use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state for a specific form.
 
 #### Optimistic updates
 
@@ -991,6 +978,7 @@ Learn more about [Security and Server Actions](https://nextjs.org/blog/security-
 
 For more information on Server Actions, check out the following React docs:
 
+- [Server Actions](https://react.dev/reference/rsc/server-actions)
 - [`"use server"`](https://react.dev/reference/react/use-server)
 - [`<form>`](https://react.dev/reference/react-dom/components/form)
 - [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
