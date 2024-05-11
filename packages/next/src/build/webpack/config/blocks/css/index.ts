@@ -211,9 +211,6 @@ export const css = curry(async function css(
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
-    // TODO: remove this in the next major version
-    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
-    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
   nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {

@@ -274,6 +274,14 @@ export async function loadBindings(
       attempts = attempts.concat(a)
     }
 
+    // For these platforms we already tried to load wasm and failed, skip reattempt
+    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      if (fallbackBindings) {
+        return resolve(fallbackBindings)
+      }
+    }
+
     logLoadFailure(attempts, true)
   })
   return pendingBindings
@@ -329,7 +337,7 @@ async function tryLoadWasmWithFallback(attempts: any) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    let bindings = await loadWasm(wasmDirectory)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'fallback',
