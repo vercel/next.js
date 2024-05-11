@@ -55,8 +55,8 @@ async function getStaticAssetRouteCode(
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
       : process.env.NODE_ENV !== 'production'
-      ? cacheHeader.none
-      : cacheHeader.longCache
+        ? cacheHeader.none
+        : cacheHeader.longCache
   const code = `\
 /* static asset route */
 import { NextResponse } from 'next/server'
@@ -176,7 +176,7 @@ export async function generateStaticParams() {
   const params = []
 
   for (const item of sitemaps) {
-    params.push({ __metadata_id__: item.id.toString() + '.xml' })
+    params.push({ __metadata_id__: item.id.toString() })
   }
   return params
 }
@@ -225,9 +225,6 @@ export async function GET(_, ctx) {
         }
       }
       let itemID = item.id.toString()
-      if(process.env.NODE_ENV === 'production') {
-        itemID += '.xml'
-      }
       return itemID === targetId
     })?.id
     if (id == null) {

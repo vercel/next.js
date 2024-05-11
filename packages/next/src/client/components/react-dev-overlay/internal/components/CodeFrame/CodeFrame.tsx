@@ -94,8 +94,8 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
               ...(entry.decoration === 'bold'
                 ? { fontWeight: 800 }
                 : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
-                : undefined),
+                  ? { fontStyle: 'italic' }
+                  : undefined),
             }}
           >
             {entry.content}

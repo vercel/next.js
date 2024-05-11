@@ -34,7 +34,9 @@ export const hoverStyles = css`
     color: white;
     background-color: lightgray;
     border-color: aqua;
-    box-shadow: -15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue;
+    box-shadow:
+      -15px -15px 0 0 aqua,
+      -30px -30px 0 0 cornflowerblue;
   }
 `;
 export const bounce = keyframes`

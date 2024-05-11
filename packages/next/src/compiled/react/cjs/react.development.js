@@ -23,13 +23,31 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-c3048aab4-20240326';
+          var ReactVersion = '19.0.0-beta-4508873393-20240430';
 
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+// -----------------------------------------------------------------------------
+
+var enableScopeAPI = false; // Experimental Create Event Handle API.
+var enableTransitionTracing = false; // No known bugs, but needs performance testing
+
+var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+var enableRefAsProp = true;
+// This allows us to land breaking changes to remove legacy mode APIs in experimental builds
+// before removing them in stable in the next Major
+
+var disableLegacyMode = true;
+
+var enableRenderableContext = true; // Enables the `initialValue` option for `useDeferredValue`
+// stuff. Intended to enable React core members to more easily debug scheduling
+// issues in DEV builds.
+
+var enableDebugTracing = false;
+
+var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_PORTAL_TYPE = Symbol.for('react.portal');
 var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
@@ -44,7 +62,6 @@ var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
-var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -61,67 +78,28 @@ function getIteratorFn(maybeIterable) {
   return null;
 }
 
-/**
- * Keeps track of the current dispatcher.
- */
-var ReactCurrentDispatcher$1 = {
-  current: null
+var ReactSharedInternals = {
+  H: null,
+  A: null,
+  T: null
 };
-
-/**
- * Keeps track of the current Cache dispatcher.
- */
-var ReactCurrentCache = {
-  current: null
-};
-
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-var ReactCurrentBatchConfig = {
-  transition: null
-};
-
-var ReactCurrentActQueue = {
-  current: null,
-  // Used to reproduce behavior of `batchedUpdates` in legacy mode.
-  isBatchingLegacy: false,
-  didScheduleLegacyUpdate: false,
-  // Tracks whether something called `use` during the current batch of work.
-  // Determines whether we should yield to microtasks to unwrap already resolved
-  // promises without suspending.
-  didUsePromise: false
-};
-
-/**
- * Keeps track of the current owner.
- *
- * The current owner is the component who should own any components that are
- * currently being constructed.
- */
-var ReactCurrentOwner$1 = {
-  /**
-   * @internal
-   * @type {ReactComponent}
-   */
-  current: null
-};
-
-var ReactDebugCurrentFrame$1 = {};
-var currentExtraStackFrame = null;
 
 {
-  ReactDebugCurrentFrame$1.setExtraStackFrame = function (stack) {
-    {
-      currentExtraStackFrame = stack;
-    }
+  ReactSharedInternals.actQueue = null;
+  ReactSharedInternals.isBatchingLegacy = false;
+  ReactSharedInternals.didScheduleLegacyUpdate = false;
+  ReactSharedInternals.didUsePromise = false;
+  ReactSharedInternals.thrownErrors = [];
+  var currentExtraStackFrame = null;
+
+  ReactSharedInternals.setExtraStackFrame = function (stack) {
+    currentExtraStackFrame = stack;
   }; // Stack implementation injected by the current renderer.
 
 
-  ReactDebugCurrentFrame$1.getCurrentStack = null;
+  ReactSharedInternals.getCurrentStack = null;
 
-  ReactDebugCurrentFrame$1.getStackAddendum = function () {
+  ReactSharedInternals.getStackAddendum = function () {
     var stack = ''; // Add an extra top frame while an element is being validated
 
     if (currentExtraStackFrame) {
@@ -129,7 +107,7 @@ var currentExtraStackFrame = null;
     } // Delegate to the injected renderer-specific implementation
 
 
-    var impl = ReactDebugCurrentFrame$1.getCurrentStack;
+    var impl = ReactSharedInternals.getCurrentStack;
 
     if (impl) {
       stack += impl() || '';
@@ -137,18 +115,6 @@ var currentExtraStackFrame = null;
 
     return stack;
   };
-}
-
-var ReactSharedInternals = {
-  ReactCurrentDispatcher: ReactCurrentDispatcher$1,
-  ReactCurrentCache: ReactCurrentCache,
-  ReactCurrentBatchConfig: ReactCurrentBatchConfig,
-  ReactCurrentOwner: ReactCurrentOwner$1
-};
-
-{
-  ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
-  ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
 // by calls to these methods by a Babel plugin.
@@ -183,8 +149,7 @@ function printWarning(level, format, args) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
+    var stack = ReactSharedInternals.getStackAddendum();
 
     if (stack !== '') {
       format += '%s';
@@ -436,30 +401,6 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-// -----------------------------------------------------------------------------
-
-var enableScopeAPI = false; // Experimental Create Event Handle API.
-var enableCacheElement = false;
-var enableTransitionTracing = false; // No known bugs, but needs performance testing
-
-var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
-var enableRenderableContext = false;
-// Ready for next major.
-//
-// Alias __NEXT_MAJOR__ to false for easier skimming.
-// -----------------------------------------------------------------------------
-
-var __NEXT_MAJOR__ = false; // Removes legacy style context
-// as a normal prop instead of stripping it from the props object.
-// Passes `ref` as a normal prop instead of stripping it from the props object
-// during element creation.
-
-var enableRefAsProp = __NEXT_MAJOR__;
-// stuff. Intended to enable React core members to more easily debug scheduling
-// issues in DEV builds.
-
-var enableDebugTracing = false;
-
 /*
  * The `'' + value` pattern (used in perf-sensitive code) throws for Symbol
  * and Temporal.* types. See https://github.com/facebook/react/pull/22064.
@@ -584,11 +525,6 @@ function getComponentNameFromType(type) {
     case REACT_SUSPENSE_LIST_TYPE:
       return 'SuspenseList';
 
-    case REACT_CACHE_TYPE:
-      {
-        return 'Cache';
-      }
-
   }
 
   if (typeof type === 'object') {
@@ -601,20 +537,20 @@ function getComponentNameFromType(type) {
     switch (type.$$typeof) {
       case REACT_PROVIDER_TYPE:
         {
-          var provider = type;
-          return getContextName(provider._context) + '.Provider';
+          return null;
         }
 
       case REACT_CONTEXT_TYPE:
         var context = type;
 
         {
-          return getContextName(context) + '.Consumer';
+          return getContextName(context) + '.Provider';
         }
 
       case REACT_CONSUMER_TYPE:
         {
-          return null;
+          var consumer = type;
+          return getContextName(consumer._context) + '.Consumer';
         }
 
       case REACT_FORWARD_REF_TYPE:
@@ -657,12 +593,12 @@ function isValidElementType(type) {
   } // Note: typeof might be other than 'symbol' or 'number' (e.g. if it's a polyfill).
 
 
-  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || enableCacheElement  || enableTransitionTracing ) {
+  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || enableTransitionTracing ) {
     return true;
   }
 
   if (typeof type === 'object' && type !== null) {
-    if (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_PROVIDER_TYPE || enableRenderableContext  || type.$$typeof === REACT_FORWARD_REF_TYPE || // This needs to include all possible module reference object
+    if (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || !enableRenderableContext  || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || // This needs to include all possible module reference object
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
@@ -768,9 +704,8 @@ function reenableLogs() {
   }
 }
 
-var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
-function describeBuiltInComponentFrame(name, ownerFn) {
+function describeBuiltInComponentFrame(name) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -824,13 +759,13 @@ function describeNativeComponentFrame(fn, construct) {
   var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
   Error.prepareStackTrace = undefined;
-  var previousDispatcher;
+  var previousDispatcher = null;
 
   {
-    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
+    previousDispatcher = ReactSharedInternals.H; // Set the dispatcher in DEV because this might be call in the render function
     // for warnings.
 
-    ReactCurrentDispatcher.current = null;
+    ReactSharedInternals.H = null;
     disableLogs();
   }
   /**
@@ -1015,7 +950,7 @@ function describeNativeComponentFrame(fn, construct) {
     reentry = false;
 
     {
-      ReactCurrentDispatcher.current = previousDispatcher;
+      ReactSharedInternals.H = previousDispatcher;
       reenableLogs();
     }
 
@@ -1034,7 +969,7 @@ function describeNativeComponentFrame(fn, construct) {
 
   return syntheticFrame;
 }
-function describeFunctionComponentFrame(fn, ownerFn) {
+function describeFunctionComponentFrame(fn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -1045,7 +980,7 @@ function shouldConstruct(Component) {
   return !!(prototype && prototype.isReactComponent);
 }
 
-function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
+function describeUnknownElementTypeFrameInDEV(type) {
 
   if (type == null) {
     return '';
@@ -1076,7 +1011,7 @@ function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
 
       case REACT_MEMO_TYPE:
         // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, ownerFn);
+        return describeUnknownElementTypeFrameInDEV(type.type);
 
       case REACT_LAZY_TYPE:
         {
@@ -1086,7 +1021,7 @@ function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
 
           try {
             // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), ownerFn);
+            return describeUnknownElementTypeFrameInDEV(init(payload));
           } catch (x) {}
         }
     }
@@ -1095,15 +1030,26 @@ function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
   return '';
 }
 
-var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
-var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
+
+function getOwner() {
+  {
+    var dispatcher = ReactSharedInternals.A;
+
+    if (dispatcher === null) {
+      return null;
+    }
+
+    return dispatcher.getOwner();
+  }
+}
+
 var specialPropKeyWarningShown;
-var specialPropRefWarningShown;
-var didWarnAboutStringRefs;
+var didWarnAboutElementRef;
+var didWarnAboutOldJSXRuntime;
 
 {
-  didWarnAboutStringRefs = {};
+  didWarnAboutElementRef = {};
 }
 
 function hasValidRef(config) {
@@ -1134,20 +1080,6 @@ function hasValidKey(config) {
   return config.key !== undefined;
 }
 
-function warnIfStringRefCannotBeAutoConverted(config, self) {
-  {
-    if (typeof config.ref === 'string' && ReactCurrentOwner.current && self && ReactCurrentOwner.current.stateNode !== self) {
-      var componentName = getComponentNameFromType(ReactCurrentOwner.current.type);
-
-      if (!didWarnAboutStringRefs[componentName]) {
-        error('Component "%s" contains the string ref "%s". ' + 'Support for string refs will be removed in a future major release. ' + 'This case cannot be automatically converted to an arrow function. ' + 'We ask you to manually fix this case by using useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://react.dev/link/strict-mode-string-ref', getComponentNameFromType(ReactCurrentOwner.current.type), config.ref);
-
-        didWarnAboutStringRefs[componentName] = true;
-      }
-    }
-  }
-}
-
 function defineKeyPropWarningGetter(props, displayName) {
   {
     var warnAboutAccessingKey = function () {
@@ -1166,29 +1098,26 @@ function defineKeyPropWarningGetter(props, displayName) {
   }
 }
 
-function defineRefPropWarningGetter(props, displayName) {
+function elementRefGetterWithDeprecationWarning() {
   {
-    {
-      var warnAboutAccessingRef = function () {
-        if (!specialPropRefWarningShown) {
-          specialPropRefWarningShown = true;
+    var componentName = getComponentNameFromType(this.type);
 
-          error('%s: `ref` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://react.dev/link/special-props)', displayName);
-        }
-      };
+    if (!didWarnAboutElementRef[componentName]) {
+      didWarnAboutElementRef[componentName] = true;
 
-      warnAboutAccessingRef.isReactWarning = true;
-      Object.defineProperty(props, 'ref', {
-        get: warnAboutAccessingRef,
-        configurable: true
-      });
-    }
+      error('Accessing element.ref was removed in React 19. ref is now a ' + 'regular prop. It will be removed from the JSX Element ' + 'type in a future release.');
+    } // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+
+    var refProp = this.props.ref;
+    return refProp !== undefined ? refProp : null;
   }
 }
 /**
  * Factory method to create a new React element. This no longer adheres to
  * the class pattern, so do not use new to call it. Also, instanceof check
- * will not work. Instead test $$typeof field against Symbol.for('react.element') to check
+ * will not work. Instead test $$typeof field against Symbol.for('react.transitional.element') to check
  * if something is a React Element.
  *
  * @param {*} type
@@ -1211,25 +1140,60 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
   var ref;
 
   {
-    ref = _ref;
+    // When enableRefAsProp is on, ignore whatever was passed as the ref
+    // argument and treat `props.ref` as the source of truth. The only thing we
+    // use this for is `element.ref`, which will log a deprecation warning on
+    // access. In the next release, we can remove `element.ref` as well as the
+    // `ref` argument.
+    var refProp = props.ref; // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+    ref = refProp !== undefined ? refProp : null;
   }
 
   var element;
 
   {
-    // In prod, `ref` is a regular property. It will be removed in a
-    // future release.
+    // In dev, make `ref` a non-enumerable property with a warning. It's non-
+    // enumerable so that test matchers and serializers don't access it and
+    // trigger the warning.
+    //
+    // `ref` will be removed from the element completely in a future release.
     element = {
       // This tag allows us to uniquely identify this as a React Element
       $$typeof: REACT_ELEMENT_TYPE,
       // Built-in properties that belong on the element
       type: type,
       key: key,
-      ref: ref,
       props: props,
       // Record the component responsible for creating this element.
       _owner: owner
     };
+
+    if (ref !== null) {
+      Object.defineProperty(element, 'ref', {
+        enumerable: false,
+        get: elementRefGetterWithDeprecationWarning
+      });
+    } else {
+      // Don't warn on access if a ref is not given. This reduces false
+      // positives in cases where a test serializer uses
+      // getOwnPropertyDescriptors to compare objects, like Jest does, which is
+      // a problem because it bypasses non-enumerability.
+      //
+      // So unfortunately this will trigger a false positive warning in Jest
+      // when the diff is printed:
+      //
+      //   expect(<div ref={ref} />).toEqual(<span ref={ref} />);
+      //
+      // A bit sketchy, but this is what we've done for the `props.key` and
+      // `props.ref` accessors for years, which implies it will be good enough
+      // for `element.ref`, too. Let's see if anyone complains.
+      Object.defineProperty(element, 'ref', {
+        enumerable: false,
+        value: null
+      });
+    }
   }
 
   {
@@ -1317,15 +1281,20 @@ function createElement(type, config, children) {
   var ref = null;
 
   if (config != null) {
-    if (hasValidRef(config)) {
-      {
-        ref = config.ref;
-      }
+    {
+      if (!didWarnAboutOldJSXRuntime && '__self' in config && // Do not assume this is the result of an oudated JSX transform if key
+      // is present, because the modern JSX transform sometimes outputs
+      // createElement to preserve precedence between a static key and a
+      // spread key. To avoid false positive warnings, we never warn if
+      // there's a key.
+      !('key' in config)) {
+        didWarnAboutOldJSXRuntime = true;
 
-      {
-        warnIfStringRefCannotBeAutoConverted(config, config.__self);
+        warn('Your app (or one of its dependencies) is using an outdated JSX ' + 'transform. Update to the modern JSX transform for ' + 'faster performance: https://react.dev/link/new-jsx-transform');
       }
     }
+
+    if (hasValidRef(config)) ;
 
     if (hasValidKey(config)) {
       {
@@ -1338,12 +1307,14 @@ function createElement(type, config, children) {
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && (propName !== 'ref') && // Even though we don't use these anymore in the runtime, we don't want
+      propName !== 'key' && (enableRefAsProp ) && // Even though we don't use these anymore in the runtime, we don't want
       // them to appear as props, so in createElement we filter them out.
       // We don't have to do this in the jsx() runtime because the jsx()
       // transform never passed these as props; it used separate arguments.
       propName !== '__self' && propName !== '__source') {
-        props[propName] = config[propName];
+        {
+          props[propName] = config[propName];
+        }
       }
     }
   } // Children can be more than one argument, and those are transferred onto
@@ -1382,20 +1353,16 @@ function createElement(type, config, children) {
   }
 
   {
-    if (key || ref) {
+    if (key || !enableRefAsProp ) {
       var displayName = typeof type === 'function' ? type.displayName || type.name || 'Unknown' : type;
 
       if (key) {
         defineKeyPropWarningGetter(props, displayName);
       }
-
-      if (ref) {
-        defineRefPropWarningGetter(props, displayName);
-      }
     }
   }
 
-  var element = ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
+  var element = ReactElement(type, key, ref, undefined, undefined, getOwner(), props);
 
   if (type === REACT_FRAGMENT_TYPE) {
     validateFragmentProps(element);
@@ -1403,48 +1370,10 @@ function createElement(type, config, children) {
 
   return element;
 }
-var didWarnAboutDeprecatedCreateFactory = false;
-/**
- * Return a function that produces ReactElements of a given type.
- * See https://reactjs.org/docs/react-api.html#createfactory
- */
-
-function createFactory(type) {
-  var factory = createElement.bind(null, type); // Expose the type on the factory and the prototype so that it can be
-  // easily accessed on elements. E.g. `<Foo />.type === Foo`.
-  // This should not be named `constructor` since this may not be the function
-  // that created the element, and it may not even be a constructor.
-  // Legacy hook: remove it
-
-  factory.type = type;
-
-  {
-    if (!didWarnAboutDeprecatedCreateFactory) {
-      didWarnAboutDeprecatedCreateFactory = true;
-
-      warn('React.createFactory() is deprecated and will be removed in ' + 'a future major release. Consider using JSX ' + 'or use React.createElement() directly instead.');
-    } // Legacy hook: remove it
-
-
-    Object.defineProperty(factory, 'type', {
-      enumerable: false,
-      get: function () {
-        warn('Factory.type is deprecated. Access the class directly ' + 'before passing it to createFactory.');
-
-        Object.defineProperty(this, 'type', {
-          value: type
-        });
-        return type;
-      }
-    });
-  }
-
-  return factory;
-}
 function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
   // exists to avoid the `ref` access warning.
-  oldElement.ref, undefined, undefined, oldElement._owner, oldElement.props);
+  null , undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
@@ -1461,18 +1390,13 @@ function cloneElement(element, config, children) {
   var props = assign({}, element.props); // Reserved names are extracted
 
   var key = element.key;
-  var ref = element.ref; // Owner will be preserved, unless ref is overridden
+  var ref = null ; // Owner will be preserved, unless ref is overridden
 
   var owner = element._owner;
 
   if (config != null) {
     if (hasValidRef(config)) {
-      {
-        // Silently steal the ref from the parent.
-        ref = config.ref;
-      }
-
-      owner = ReactCurrentOwner.current;
+      owner = getOwner() ;
     }
 
     if (hasValidKey(config)) {
@@ -1483,16 +1407,9 @@ function cloneElement(element, config, children) {
       key = '' + config.key;
     } // Remaining properties override existing props
 
-
-    var defaultProps;
-
-    if (element.type && element.type.defaultProps) {
-      defaultProps = element.type.defaultProps;
-    }
-
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && (propName !== 'ref') && // ...and maybe these, too, though we currently rely on them for
+      propName !== 'key' && (enableRefAsProp ) && // ...and maybe these, too, though we currently rely on them for
       // warnings and debug information in dev. Need to decide if we're OK
       // with dropping them. In the jsx() runtime it's not an issue because
       // the data gets passed as separate arguments instead of props, but
@@ -1501,12 +1418,11 @@ function cloneElement(element, config, children) {
       propName !== '__self' && propName !== '__source' && // Undefined `ref` is ignored by cloneElement. We treat it the same as
       // if the property were missing. This is mostly for
       // backwards compatibility.
-      !(enableRefAsProp  )) {
-        if (config[propName] === undefined && defaultProps !== undefined) {
-          // Resolve default props
-          props[propName] = defaultProps[propName];
-        } else {
-          props[propName] = config[propName];
+      !(propName === 'ref' && config.ref === undefined)) {
+        {
+          {
+            props[propName] = config[propName];
+          }
         }
       }
     }
@@ -1539,8 +1455,10 @@ function cloneElement(element, config, children) {
 
 function getDeclarationErrorAddendum() {
   {
-    if (ReactCurrentOwner.current) {
-      var name = getComponentNameFromType(ReactCurrentOwner.current.type);
+    var owner = getOwner();
+
+    if (owner) {
+      var name = getComponentNameFromType(owner.type);
 
       if (name) {
         return '\n\nCheck the render method of `' + name + '`.';
@@ -1588,11 +1506,14 @@ function validateChildKeys(node, parentType) {
         // but now we print a separate warning for them later.
         if (iteratorFn !== node.entries) {
           var iterator = iteratorFn.call(node);
-          var step;
 
-          while (!(step = iterator.next()).done) {
-            if (isValidElement(step.value)) {
-              validateExplicitKey(step.value, parentType);
+          if (iterator !== node) {
+            var step;
+
+            while (!(step = iterator.next()).done) {
+              if (isValidElement(step.value)) {
+                validateExplicitKey(step.value, parentType);
+              }
             }
           }
         }
@@ -1644,9 +1565,17 @@ function validateExplicitKey(element, parentType) {
 
     var childOwner = '';
 
-    if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
-      // Give the component that originally created this child.
-      childOwner = " It was passed a child from " + getComponentNameFromType(element._owner.type) + ".";
+    if (element && element._owner != null && element._owner !== getOwner()) {
+      var ownerName = null;
+
+      if (typeof element._owner.tag === 'number') {
+        ownerName = getComponentNameFromType(element._owner.type);
+      } else if (typeof element._owner.name === 'string') {
+        ownerName = element._owner.name;
+      } // Give the component that originally created this child.
+
+
+      childOwner = " It was passed a child from " + ownerName + ".";
     }
 
     setCurrentlyValidatingElement(element);
@@ -1660,11 +1589,10 @@ function validateExplicitKey(element, parentType) {
 function setCurrentlyValidatingElement(element) {
   {
     if (element) {
-      var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
-      ReactDebugCurrentFrame.setExtraStackFrame(stack);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type);
+      ReactSharedInternals.setExtraStackFrame(stack);
     } else {
-      ReactDebugCurrentFrame.setExtraStackFrame(null);
+      ReactSharedInternals.setExtraStackFrame(null);
     }
   }
 }
@@ -1706,14 +1634,6 @@ function validateFragmentProps(fragment) {
         setCurrentlyValidatingElement(null);
         break;
       }
-    }
-
-    if (fragment.ref !== null) {
-      setCurrentlyValidatingElement(fragment);
-
-      error('Invalid attribute `ref` supplied to `React.Fragment`.');
-
-      setCurrentlyValidatingElement(null);
     }
   }
 }
@@ -1856,12 +1776,6 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
   } else {
     switch (type) {
       case 'bigint':
-        {
-          break;
-        }
-
-      // fallthrough for enabled BigInt support
-
       case 'string':
       case 'number':
         invokeCallback = true;
@@ -2100,63 +2014,11 @@ function createContext(defaultValue) {
   };
 
   {
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
+    context.Provider = context;
+    context.Consumer = {
+      $$typeof: REACT_CONSUMER_TYPE,
       _context: context
     };
-
-    {
-      var Consumer = {
-        $$typeof: REACT_CONTEXT_TYPE,
-        _context: context
-      };
-      Object.defineProperties(Consumer, {
-        Provider: {
-          get: function () {
-            return context.Provider;
-          },
-          set: function (_Provider) {
-            context.Provider = _Provider;
-          }
-        },
-        _currentValue: {
-          get: function () {
-            return context._currentValue;
-          },
-          set: function (_currentValue) {
-            context._currentValue = _currentValue;
-          }
-        },
-        _currentValue2: {
-          get: function () {
-            return context._currentValue2;
-          },
-          set: function (_currentValue2) {
-            context._currentValue2 = _currentValue2;
-          }
-        },
-        _threadCount: {
-          get: function () {
-            return context._threadCount;
-          },
-          set: function (_threadCount) {
-            context._threadCount = _threadCount;
-          }
-        },
-        Consumer: {
-          get: function () {
-            return context.Consumer;
-          }
-        },
-        displayName: {
-          get: function () {
-            return context.displayName;
-          },
-          set: function (displayName) {}
-        }
-      });
-      context.Consumer = Consumer;
-    }
   }
 
   {
@@ -2240,49 +2102,6 @@ function lazy(ctor) {
     _payload: payload,
     _init: lazyInitializer
   };
-
-  {
-    // In production, this would just set it on the object.
-    var defaultProps;
-    var propTypes; // $FlowFixMe[prop-missing]
-
-    Object.defineProperties(lazyType, {
-      defaultProps: {
-        configurable: true,
-        get: function () {
-          return defaultProps;
-        },
-        // $FlowFixMe[missing-local-annot]
-        set: function (newDefaultProps) {
-          error('It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
-
-          defaultProps = newDefaultProps; // Match production behavior more closely:
-          // $FlowFixMe[prop-missing]
-
-          Object.defineProperty(lazyType, 'defaultProps', {
-            enumerable: true
-          });
-        }
-      },
-      propTypes: {
-        configurable: true,
-        get: function () {
-          return propTypes;
-        },
-        // $FlowFixMe[missing-local-annot]
-        set: function (newPropTypes) {
-          error('It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
-
-          propTypes = newPropTypes; // Match production behavior more closely:
-          // $FlowFixMe[prop-missing]
-
-          Object.defineProperty(lazyType, 'propTypes', {
-            enumerable: true
-          });
-        }
-      }
-    });
-  }
 
   return lazyType;
 }
@@ -2378,115 +2197,28 @@ function memo(type, compare) {
   return elementType;
 }
 
-var UNTERMINATED = 0;
-var TERMINATED = 1;
-var ERRORED = 2;
-
-function createCacheRoot() {
-  return new WeakMap();
-}
-
-function createCacheNode() {
-  return {
-    s: UNTERMINATED,
-    // status, represents whether the cached computation returned a value or threw an error
-    v: undefined,
-    // value, either the cached result or an error, depending on s
-    o: null,
-    // object cache, a WeakMap where non-primitive arguments are stored
-    p: null // primitive cache, a regular Map where primitive arguments are stored.
-
-  };
-}
-
-function cache$1(fn) {
+function noopCache(fn) {
+  // On the client (i.e. not a Server Components environment) `cache` has
+  // no caching behavior. We just return the function as-is.
+  //
+  // We intend to implement client caching in a future major release. In the
+  // meantime, it's only exposed as an API so that Shared Components can use
+  // per-request caching on the server without breaking on the client. But it
+  // does mean they need to be aware of the behavioral difference.
+  //
+  // The rest of the behavior is the same as the server implementation — it
+  // returns a new reference, extra properties like `displayName` are not
+  // preserved, the length of the new function is 0, etc. That way apps can't
+  // accidentally depend on those details.
   return function () {
-    var dispatcher = ReactCurrentCache.current;
-
-    if (!dispatcher) {
-      // If there is no dispatcher, then we treat this as not being cached.
-      // $FlowFixMe[incompatible-call]: We don't want to use rest arguments since we transpile the code.
-      return fn.apply(null, arguments);
-    }
-
-    var fnMap = dispatcher.getCacheForType(createCacheRoot);
-    var fnNode = fnMap.get(fn);
-    var cacheNode;
-
-    if (fnNode === undefined) {
-      cacheNode = createCacheNode();
-      fnMap.set(fn, cacheNode);
-    } else {
-      cacheNode = fnNode;
-    }
-
-    for (var i = 0, l = arguments.length; i < l; i++) {
-      var arg = arguments[i];
-
-      if (typeof arg === 'function' || typeof arg === 'object' && arg !== null) {
-        // Objects go into a WeakMap
-        var objectCache = cacheNode.o;
-
-        if (objectCache === null) {
-          cacheNode.o = objectCache = new WeakMap();
-        }
-
-        var objectNode = objectCache.get(arg);
-
-        if (objectNode === undefined) {
-          cacheNode = createCacheNode();
-          objectCache.set(arg, cacheNode);
-        } else {
-          cacheNode = objectNode;
-        }
-      } else {
-        // Primitives go into a regular Map
-        var primitiveCache = cacheNode.p;
-
-        if (primitiveCache === null) {
-          cacheNode.p = primitiveCache = new Map();
-        }
-
-        var primitiveNode = primitiveCache.get(arg);
-
-        if (primitiveNode === undefined) {
-          cacheNode = createCacheNode();
-          primitiveCache.set(arg, cacheNode);
-        } else {
-          cacheNode = primitiveNode;
-        }
-      }
-    }
-
-    if (cacheNode.s === TERMINATED) {
-      return cacheNode.v;
-    }
-
-    if (cacheNode.s === ERRORED) {
-      throw cacheNode.v;
-    }
-
-    try {
-      // $FlowFixMe[incompatible-call]: We don't want to use rest arguments since we transpile the code.
-      var result = fn.apply(null, arguments);
-      var terminatedNode = cacheNode;
-      terminatedNode.s = TERMINATED;
-      terminatedNode.v = result;
-      return result;
-    } catch (error) {
-      // We store the first error that's thrown and rethrow it.
-      var erroredNode = cacheNode;
-      erroredNode.s = ERRORED;
-      erroredNode.v = error;
-      throw error;
-    }
+    // $FlowFixMe[incompatible-call]: We don't want to use rest arguments since we transpile the code.
+    return fn.apply(null, arguments);
   };
 }
-
-var cache = cache$1;
+var cache = noopCache ;
 
 function resolveDispatcher() {
-  var dispatcher = ReactCurrentDispatcher$1.current;
+  var dispatcher = ReactSharedInternals.H;
 
   {
     if (dispatcher === null) {
@@ -2590,19 +2322,49 @@ function useActionState(action, initialState, permalink) {
   }
 }
 
+var reportGlobalError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : function (error) {
+  if (typeof window === 'object' && typeof window.ErrorEvent === 'function') {
+    // Browser Polyfill
+    var message = typeof error === 'object' && error !== null && typeof error.message === 'string' ? // eslint-disable-next-line react-internal/safe-string-coercion
+    String(error.message) : // eslint-disable-next-line react-internal/safe-string-coercion
+    String(error);
+    var event = new window.ErrorEvent('error', {
+      bubbles: true,
+      cancelable: true,
+      message: message,
+      error: error
+    });
+    var shouldLog = window.dispatchEvent(event);
+
+    if (!shouldLog) {
+      return;
+    }
+  } else if (typeof process === 'object' && // $FlowFixMe[method-unbinding]
+  typeof process.emit === 'function') {
+    // Node Polyfill
+    process.emit('uncaughtException', error);
+    return;
+  } // eslint-disable-next-line react-internal/no-production-logging
+
+
+  console['error'](error);
+};
+
 function startTransition(scope, options) {
-  var prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  var prevTransition = ReactSharedInternals.T; // Each renderer registers a callback to receive the return value of
   // the scope function. This is used to implement async actions.
 
   var callbacks = new Set();
   var transition = {
     _callbacks: callbacks
   };
-  ReactCurrentBatchConfig.transition = transition;
-  var currentTransition = ReactCurrentBatchConfig.transition;
+  ReactSharedInternals.T = transition;
+  var currentTransition = ReactSharedInternals.T;
 
   {
-    ReactCurrentBatchConfig.transition._updatedFibers = new Set();
+    ReactSharedInternals.T._updatedFibers = new Set();
   }
 
   {
@@ -2613,13 +2375,13 @@ function startTransition(scope, options) {
         callbacks.forEach(function (callback) {
           return callback(currentTransition, returnValue);
         });
-        returnValue.then(noop, onError);
+        returnValue.then(noop, reportGlobalError);
       }
     } catch (error) {
-      onError(error);
+      reportGlobalError(error);
     } finally {
       warnAboutTransitionSubscriptions(prevTransition, currentTransition);
-      ReactCurrentBatchConfig.transition = prevTransition;
+      ReactSharedInternals.T = prevTransition;
     }
   }
 }
@@ -2638,17 +2400,7 @@ function warnAboutTransitionSubscriptions(prevTransition, currentTransition) {
   }
 }
 
-function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
-// the default for onRecoverableError.
-
-
-var onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
-// emulating an uncaught JavaScript error.
-reportError : function (error) {
-  // In older browsers and test environments, fallback to console.error.
-  // eslint-disable-next-line react-internal/no-production-logging
-  console['error'](error);
-};
+function noop() {}
 
 var didWarnAboutMessageChannel = false;
 var enqueueTaskImpl = null;
@@ -2692,9 +2444,19 @@ function enqueueTask(task) {
 var actScopeDepth = 0; // We only warn the first time you neglect to await an async `act` scope.
 
 var didWarnNoAwaitAct = false;
+
+function aggregateErrors(errors) {
+  if (errors.length > 1 && typeof AggregateError === 'function') {
+    // eslint-disable-next-line no-undef
+    return new AggregateError(errors);
+  }
+
+  return errors[0];
+}
+
 function act(callback) {
   {
-    // When ReactCurrentActQueue.current is not null, it signals to React that
+    // When ReactSharedInternals.actQueue is not null, it signals to React that
     // we're currently inside an `act` scope. React will push all its tasks to
     // this queue instead of scheduling them with platform APIs.
     //
@@ -2703,16 +2465,12 @@ function act(callback) {
     // `act` calls can be nested.
     //
     // If we're already inside an `act` scope, reuse the existing queue.
-    var prevIsBatchingLegacy = ReactCurrentActQueue.isBatchingLegacy;
-    var prevActQueue = ReactCurrentActQueue.current;
+    var prevIsBatchingLegacy = false;
+    var prevActQueue = ReactSharedInternals.actQueue;
     var prevActScopeDepth = actScopeDepth;
     actScopeDepth++;
-    var queue = ReactCurrentActQueue.current = prevActQueue !== null ? prevActQueue : []; // Used to reproduce behavior of `batchedUpdates` in legacy mode. Only
-    // set to `true` while the given callback is executed, not for updates
-    // triggered during an async event, because this is how the legacy
-    // implementation of `act` behaved.
+    var queue = ReactSharedInternals.actQueue = prevActQueue !== null ? prevActQueue : []; // Used to reproduce behavior of `batchedUpdates` in legacy mode. Only
 
-    ReactCurrentActQueue.isBatchingLegacy = true;
     var result; // This tracks whether the `act` call is awaited. In certain cases, not
     // awaiting it is a mistake, so we will detect that and warn.
 
@@ -2722,9 +2480,10 @@ function act(callback) {
       // Reset this to `false` right before entering the React work loop. The
       // only place we ever read this fields is just below, right after running
       // the callback. So we don't need to reset after the callback runs.
-      ReactCurrentActQueue.didScheduleLegacyUpdate = false;
+      if (!disableLegacyMode) ;
+
       result = callback();
-      var didScheduleLegacyUpdate = ReactCurrentActQueue.didScheduleLegacyUpdate; // Replicate behavior of original `act` implementation in legacy mode,
+      var didScheduleLegacyUpdate = !disableLegacyMode ? ReactSharedInternals.didScheduleLegacyUpdate : false; // Replicate behavior of original `act` implementation in legacy mode,
       // which flushed updates immediately after the scope function exits, even
       // if it's an async function.
 
@@ -2736,15 +2495,21 @@ function act(callback) {
       // delete legacy mode!!
 
 
-      ReactCurrentActQueue.isBatchingLegacy = prevIsBatchingLegacy;
+      if (!disableLegacyMode) ;
     } catch (error) {
       // `isBatchingLegacy` gets reset using the regular stack, not the async
       // one used to track `act` scopes. Why, you may be wondering? Because
       // that's how it worked before version 18. Yes, it's confusing! We should
       // delete legacy mode!!
-      ReactCurrentActQueue.isBatchingLegacy = prevIsBatchingLegacy;
+      ReactSharedInternals.thrownErrors.push(error);
+    }
+
+    if (ReactSharedInternals.thrownErrors.length > 0) {
+
       popActScope(prevActQueue, prevActScopeDepth);
-      throw error;
+      var thrownError = aggregateErrors(ReactSharedInternals.thrownErrors);
+      ReactSharedInternals.thrownErrors.length = 0;
+      throw thrownError;
     }
 
     if (result !== null && typeof result === 'object' && // $FlowFixMe[method-unbinding]
@@ -2784,14 +2549,29 @@ function act(callback) {
                 // `thenable` might not be a real promise, and `flushActQueue`
                 // might throw, so we need to wrap `flushActQueue` in a
                 // try/catch.
-                reject(error);
+                ReactSharedInternals.thrownErrors.push(error);
+              }
+
+              if (ReactSharedInternals.thrownErrors.length > 0) {
+                var _thrownError = aggregateErrors(ReactSharedInternals.thrownErrors);
+
+                ReactSharedInternals.thrownErrors.length = 0;
+                reject(_thrownError);
               }
             } else {
               resolve(returnValue);
             }
           }, function (error) {
             popActScope(prevActQueue, prevActScopeDepth);
-            reject(error);
+
+            if (ReactSharedInternals.thrownErrors.length > 0) {
+              var _thrownError2 = aggregateErrors(ReactSharedInternals.thrownErrors);
+
+              ReactSharedInternals.thrownErrors.length = 0;
+              reject(_thrownError2);
+            } else {
+              reject(error);
+            }
           });
         }
       };
@@ -2835,7 +2615,14 @@ function act(callback) {
         // to be awaited, regardless of whether the callback is sync or async.
 
 
-        ReactCurrentActQueue.current = null;
+        ReactSharedInternals.actQueue = null;
+      }
+
+      if (ReactSharedInternals.thrownErrors.length > 0) {
+        var _thrownError3 = aggregateErrors(ReactSharedInternals.thrownErrors);
+
+        ReactSharedInternals.thrownErrors.length = 0;
+        throw _thrownError3;
       }
 
       return {
@@ -2845,7 +2632,7 @@ function act(callback) {
           if (prevActScopeDepth === 0) {
             // If the `act` call is awaited, restore the queue we were
             // using before (see long comment above) so we can flush it.
-            ReactCurrentActQueue.current = queue;
+            ReactSharedInternals.actQueue = queue;
             enqueueTask(function () {
               return (// Recursively flush tasks scheduled by a microtask.
                 recursivelyFlushAsyncActWork(returnValue, resolve, reject)
@@ -2873,7 +2660,7 @@ function popActScope(prevActQueue, prevActScopeDepth) {
 function recursivelyFlushAsyncActWork(returnValue, resolve, reject) {
   {
     // Check if any tasks were scheduled asynchronously.
-    var queue = ReactCurrentActQueue.current;
+    var queue = ReactSharedInternals.actQueue;
 
     if (queue !== null) {
       if (queue.length !== 0) {
@@ -2886,15 +2673,21 @@ function recursivelyFlushAsyncActWork(returnValue, resolve, reject) {
           enqueueTask(function () {
             return recursivelyFlushAsyncActWork(returnValue, resolve, reject);
           });
+          return;
         } catch (error) {
           // Leave remaining tasks on the queue if something throws.
-          reject(error);
+          ReactSharedInternals.thrownErrors.push(error);
         }
       } else {
         // The queue is empty. We can finish.
-        ReactCurrentActQueue.current = null;
-        resolve(returnValue);
+        ReactSharedInternals.actQueue = null;
       }
+    }
+
+    if (ReactSharedInternals.thrownErrors.length > 0) {
+      var thrownError = aggregateErrors(ReactSharedInternals.thrownErrors);
+      ReactSharedInternals.thrownErrors.length = 0;
+      reject(thrownError);
     } else {
       resolve(returnValue);
     }
@@ -2915,11 +2708,11 @@ function flushActQueue(queue) {
           var callback = queue[i];
 
           do {
-            ReactCurrentActQueue.didUsePromise = false;
+            ReactSharedInternals.didUsePromise = false;
             var continuation = callback(false);
 
             if (continuation !== null) {
-              if (ReactCurrentActQueue.didUsePromise) {
+              if (ReactSharedInternals.didUsePromise) {
                 // The component just suspended. Yield to the main thread in
                 // case the promise is already resolved. If so, it will ping in
                 // a microtask and we can resume without unwinding the stack.
@@ -2940,7 +2733,7 @@ function flushActQueue(queue) {
       } catch (error) {
         // If something throws, leave the remaining callbacks on the queue.
         queue.splice(0, i + 1);
-        throw error;
+        ReactSharedInternals.thrownErrors.push(error);
       } finally {
         isFlushing = false;
       }
@@ -2979,13 +2772,12 @@ exports.Profiler = REACT_PROFILER_TYPE;
 exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
-exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
 exports.act = act;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createContext = createContext;
 exports.createElement = createElement;
-exports.createFactory = createFactory;
 exports.createRef = createRef;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;

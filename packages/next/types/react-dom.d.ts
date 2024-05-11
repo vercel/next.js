@@ -1,4 +1,3 @@
-declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 
 declare module 'react-dom/server.edge' {

@@ -596,11 +596,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(pathJoin(
-          this.distDir,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await require(
+          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        )
         await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -715,7 +713,6 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
-          ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
       } finally {
@@ -751,8 +748,8 @@ export default class DevServer extends Server {
             fallback === 'blocking'
               ? 'blocking'
               : fallback === true
-              ? 'static'
-              : fallback,
+                ? 'static'
+                : fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value

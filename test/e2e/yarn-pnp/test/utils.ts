@@ -31,12 +31,15 @@ export function runTests(
       const packageJson = await fs.readJson(join(srcDir, 'package.json'))
 
       next = await createNext({
-        files: srcFiles.reduce((prev, file) => {
-          if (file !== 'package.json') {
-            prev[file] = new FileRef(join(srcDir, file))
-          }
-          return prev
-        }, {} as { [key: string]: FileRef }),
+        files: srcFiles.reduce(
+          (prev, file) => {
+            if (file !== 'package.json') {
+              prev[file] = new FileRef(join(srcDir, file))
+            }
+            return prev
+          },
+          {} as { [key: string]: FileRef }
+        ),
         dependencies: {
           ...packageJson.dependencies,
           ...packageJson.devDependencies,
