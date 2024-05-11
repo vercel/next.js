@@ -58,6 +58,7 @@ import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
+import type { PluginConfig } from '../server/config-shared'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -67,6 +68,31 @@ type ExportWorkers = {
   pages: ExportWorker
   app?: ExportWorker
   end: () => Promise<void>
+}
+
+async function processHtmlWithPlugin(htmlSrc: string, htmlDest: string, plugin: PluginConfig) {
+  const { generateBundle } = plugin
+  const pluginOptions = {}
+  try {
+    // 读取HTML源文件
+    const htmlContent = await fs.readFile(htmlSrc, 'utf8');
+
+    // 使用插件处理HTML内容
+    if (generateBundle) {
+      const resolvedBundle = generateBundle(pluginOptions, htmlContent)
+      let modifiedHtmlContent;
+      if (resolvedBundle instanceof Promise) {
+        modifiedHtmlContent = await resolvedBundle
+      } else {
+        modifiedHtmlContent = resolvedBundle
+      }
+
+      // 将修改后的HTML内容写入目标文件
+      await fs.writeFile(htmlDest, modifiedHtmlContent, 'utf8');
+    }
+  } catch (err) {
+    console.error('An error occurred:', err);
+  }
 }
 
 function setupWorkers(
@@ -778,7 +804,13 @@ export async function exportAppImpl(
         const htmlSrc = `${orig}.html`
         const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
-        await fs.copyFile(htmlSrc, htmlDest)
+        // await fs.copyFile(htmlSrc, htmlDest)
+        nextConfig.plugins.forEach((plugin: PluginConfig) => {
+          processHtmlWithPlugin(htmlSrc, htmlDest, plugin)
+            .catch(err => {
+              console.error('An error occurred:', err);
+            });
+        })
         await fs.copyFile(jsonSrc, jsonDest)
 
         if (existsSync(`${orig}.amp.html`)) {

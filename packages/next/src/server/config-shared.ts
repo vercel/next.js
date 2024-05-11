@@ -481,6 +481,11 @@ export type ExportPathMap = {
   }
 }
 
+export interface PluginConfig {
+  name?: string
+  generateBundle?: (outputOptions: Record<string, any>, bundle: string) => Promise<string> | string
+}
+
 /**
  * Next.js can be configured through a `next.config.js` file in the root of your project directory.
  *
@@ -828,6 +833,41 @@ export interface NextConfig extends Record<string, any> {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
+
+  // custom plugins
+  /**
+   * next.plugin.js
+   *  const prettier = require('prettier')
+    function nextPlugin() {
+      // 这里是插件的初始化代码，可以处理 options 参数
+
+      // 返回一个对象，包含插件的钩子函数
+      return {
+        name: 'my-next-plugin', // 插件名称
+
+        // 示例：修改构建输出的代码
+        generateBundle(outputOptions, bundle) {
+          return prettier.format(bundle, {
+            parser: 'html',
+            printWidth: 1000
+          })
+        },
+      };
+    }
+
+    module.exports = nextPlugin;
+
+   *
+    const nextPlugin = require('./next.plugin.js')
+
+    const nextConfig = {
+      output: 'export',
+      plugins: [
+        nextPlugin()
+      ]
+    }
+  */
+  plugins?: PluginConfig[]
 }
 
 export const defaultConfig: NextConfig = {
