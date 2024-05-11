@@ -103,14 +103,14 @@ pub async fn get_edge_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
-    let plugins = match ty {
-        ServerContextType::AppSSR { .. }
+    let mut plugins = match ty {
+        ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::Pages { .. } => {
+        | ServerContextType::PagesApi { .. } => {
             vec![]
         }
         ServerContextType::AppRSC { .. }
+        | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
@@ -120,6 +120,14 @@ pub async fn get_edge_resolve_options_context(
             ]
         }
     };
+
+    let base_plugins = vec![
+        Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+        Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+        Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+    ];
+
+    plugins.extend_from_slice(&base_plugins);
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![mode.await?.condition().to_string()];
@@ -141,11 +149,7 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
-        ],
+        plugins,
         ..Default::default()
     };
 
@@ -159,7 +163,6 @@ pub async fn get_edge_resolve_options_context(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
         )],
-        plugins,
         ..resolve_options_context
     }
     .cell())
