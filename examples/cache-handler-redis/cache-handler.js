@@ -2,7 +2,7 @@ const { CacheHandler } = require("@neshca/cache-handler");
 const createRedisCache = require("@neshca/cache-handler/redis-stack").default;
 const createLruCache = require("@neshca/cache-handler/local-lru").default;
 const { createClient } = require("redis");
-const { PHASE_PRODUCTION_BUILD } = require('next/constants');
+const { PHASE_PRODUCTION_BUILD } = require("next/constants");
 
 const client = createClient({
   url: process.env.REDIS_URL ?? "redis://localhost:6379",
