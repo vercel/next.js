@@ -358,10 +358,10 @@ export default async function createsUser(formData) {
 }
 ```
 
-Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
+Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useActionState`](https://react.dev/reference/react/useActionState) hook to show a message to the user.
 
-- By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
-- `useFormState` is a React hook and therefore must be used in a Client Component.
+- By passing the action to `useActionState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
+- `useActionState` is a React hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -385,12 +385,12 @@ export async function createUser(prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
+Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
 
 ```tsx filename="app/ui/signup.tsx" switcher
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -398,7 +398,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useFormState(createUser, initialState)
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -417,7 +417,7 @@ export function Signup() {
 ```jsx filename="app/ui/signup.js" switcher
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -425,7 +425,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useFormState(createUser, initialState)
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -739,7 +739,7 @@ export async function createTodo(prevState, formData) {
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useFormState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
+> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
 
 ### Revalidating data
 
@@ -1002,5 +1002,5 @@ For more information on Server Actions, check out the following React docs:
 - [`"use server"`](https://react.dev/reference/react/use-server)
 - [`<form>`](https://react.dev/reference/react-dom/components/form)
 - [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
-- [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState)
+- [`useActionState`](https://react.dev/reference/react/useActionState)
 - [`useOptimistic`](https://react.dev/reference/react/useOptimistic)

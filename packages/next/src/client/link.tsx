@@ -146,9 +146,9 @@ function prefetch(
       typeof options.locale !== 'undefined'
         ? options.locale
         : // Otherwise fallback to the router's locale.
-        'locale' in router
-        ? router.locale
-        : undefined
+          'locale' in router
+          ? router.locale
+          : undefined
 
     const prefetchedKey = href + '%' + as + '%' + locale
 

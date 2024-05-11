@@ -178,6 +178,16 @@ pub async fn get_client_resolve_options_context(
     .cell())
 }
 
+fn internal_assets_conditions() -> ContextCondition {
+    ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root()),
+        ContextCondition::InPath(
+            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
+        ),
+        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+    ])
+}
+
 #[turbo_tasks::function]
 pub async fn get_client_module_options_context(
     project_path: Vc<FileSystemPath>,
@@ -288,10 +298,8 @@ pub async fn get_client_module_options_context(
                 foreign_code_context_condition(next_config, project_path).await?,
                 foreign_codes_options_context.cell(),
             ),
-            // If the module is an internal asset (i.e overlay, fallback) coming from the embedded
-            // FS, don't apply user defined transforms.
             (
-                ContextCondition::InPath(next_js_fs().root()),
+                internal_assets_conditions(),
                 ModuleOptionsContext {
                     enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                     enable_jsx: Some(JsxTransformOptions::default().cell()),

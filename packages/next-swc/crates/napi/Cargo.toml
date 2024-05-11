@@ -69,6 +69,7 @@ anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
 dhat = { workspace = true, optional = true }
+indexmap = { workspace = true }
 napi = { version = "2", default-features = false, features = [
   "napi3",
   "serde-json",

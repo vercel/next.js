@@ -1,7 +1,7 @@
 use std::path::MAIN_SEPARATOR;
 
 use anyhow::Result;
-use indexmap::{map::Entry, IndexMap};
+use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
@@ -70,6 +70,14 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
+pub struct DraftModeOptions {
+    pub preview_mode_id: String,
+    pub preview_mode_encryption_key: String,
+    pub preview_mode_signing_key: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -96,6 +104,15 @@ pub struct ProjectOptions {
 
     /// The mode in which Next.js is running.
     pub dev: bool,
+
+    /// The server actions encryption key.
+    pub encryption_key: String,
+
+    /// The build id.
+    pub build_id: String,
+
+    /// Options for draft mode.
+    pub preview_props: DraftModeOptions,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -126,6 +143,15 @@ pub struct PartialProjectOptions {
 
     /// The mode in which Next.js is running.
     pub dev: Option<bool>,
+
+    /// The server actions encryption key.
+    pub encryption_key: Option<String>,
+
+    /// The build id.
+    pub build_id: Option<String>,
+
+    /// Options for draft mode.
+    pub preview_props: Option<DraftModeOptions>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -166,28 +192,54 @@ impl ProjectContainer {
 
     #[turbo_tasks::function]
     pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+        let PartialProjectOptions {
+            root_path,
+            project_path,
+            next_config,
+            js_config,
+            env,
+            define_env,
+            watch,
+            dev,
+            encryption_key,
+            build_id,
+            preview_props,
+        } = options;
+
         let mut new_options = self.options_state.get().clone();
 
-        if let Some(root_path) = options.root_path {
+        if let Some(root_path) = root_path {
             new_options.root_path = root_path;
         }
-        if let Some(project_path) = options.project_path {
+        if let Some(project_path) = project_path {
             new_options.project_path = project_path;
         }
-        if let Some(next_config) = options.next_config {
+        if let Some(next_config) = next_config {
             new_options.next_config = next_config;
         }
-        if let Some(js_config) = options.js_config {
+        if let Some(js_config) = js_config {
             new_options.js_config = js_config;
         }
-        if let Some(env) = options.env {
+        if let Some(env) = env {
             new_options.env = env;
         }
-        if let Some(define_env) = options.define_env {
+        if let Some(define_env) = define_env {
             new_options.define_env = define_env;
         }
-        if let Some(watch) = options.watch {
+        if let Some(watch) = watch {
             new_options.watch = watch;
+        }
+        if let Some(dev) = dev {
+            new_options.dev = dev;
+        }
+        if let Some(encryption_key) = encryption_key {
+            new_options.encryption_key = encryption_key;
+        }
+        if let Some(build_id) = build_id {
+            new_options.build_id = build_id;
+        }
+        if let Some(preview_props) = preview_props {
+            new_options.preview_props = preview_props;
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
@@ -201,32 +253,36 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch, dev) = {
+        let env_map: Vc<EnvMap>;
+        let next_config;
+        let define_env;
+        let js_config;
+        let root_path;
+        let project_path;
+        let watch;
+        let dev;
+        let encryption_key;
+        let build_id;
+        let preview_props;
+        {
             let options = this.options_state.get();
-            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
-            let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
+            env_map = Vc::cell(options.env.iter().cloned().collect());
+            define_env = ProjectDefineEnv {
                 client: Vc::cell(options.define_env.client.iter().cloned().collect()),
                 edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
                 nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
             }
             .cell();
-            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
-            let root_path = options.root_path.clone();
-            let project_path = options.project_path.clone();
-            let watch = options.watch;
-            let dev = options.dev;
-            (
-                env,
-                define_env,
-                next_config,
-                js_config,
-                root_path,
-                project_path,
-                watch,
-                dev,
-            )
-        };
+            next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            root_path = options.root_path.clone();
+            project_path = options.project_path.clone();
+            watch = options.watch;
+            dev = options.dev;
+            encryption_key = options.encryption_key.clone();
+            build_id = options.build_id.clone();
+            preview_props = options.preview_props.clone();
+        }
 
         let dist_dir = next_config
             .await?
@@ -241,7 +297,7 @@ impl ProjectContainer {
             next_config,
             js_config,
             dist_dir,
-            env: Vc::upcast(env),
+            env: Vc::upcast(env_map),
             define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
@@ -252,6 +308,9 @@ impl ProjectContainer {
                 NextMode::Build.cell()
             },
             versioned_content_map: this.versioned_content_map,
+            build_id,
+            encryption_key,
+            preview_props,
         }
         .cell())
     }
@@ -323,6 +382,12 @@ pub struct Project {
     mode: Vc<NextMode>,
 
     versioned_content_map: Vc<VersionedContentMap>,
+
+    build_id: String,
+
+    encryption_key: String,
+
+    preview_props: DraftModeOptions,
 }
 
 #[turbo_tasks::value]
@@ -543,6 +608,18 @@ impl Project {
             self.project_path(),
             this.define_env.edge(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn edge_env(&self) -> Vc<EnvMap> {
+        let edge_env = indexmap! {
+            "__NEXT_BUILD_ID".to_string() => self.build_id.clone(),
+            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".to_string() => self.encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_ID".to_string() => self.preview_props.preview_mode_id.clone(),
+            "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY".to_string() => self.preview_props.preview_mode_encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_SIGNING_KEY".to_string() => self.preview_props.preview_mode_signing_key.clone(),
+        };
+        Vc::cell(edge_env)
     }
 
     #[turbo_tasks::function]

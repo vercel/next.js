@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
@@ -128,6 +128,13 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
+    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
+    transpile_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
         project_path,
@@ -135,17 +142,27 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    let transpile_packages = next_config.transpile_packages().await?;
-    external_packages.retain(|item| !transpile_packages.contains(item));
+    let server_external_packages = &*next_config.server_external_packages().await?;
+
+    let conflicting_packages = transpile_packages
+        .iter()
+        .filter(|package| server_external_packages.contains(package))
+        .collect::<Vec<_>>();
+
+    if !conflicting_packages.is_empty() {
+        bail!(
+            "The packages specified in the 'transpilePackages' conflict with the \
+             'serverExternalPackages': {:?}",
+            conflicting_packages
+        );
+    }
 
     // Add the config's own list of external packages.
-    external_packages.extend(
-        (*next_config.server_component_externals().await?)
-            .iter()
-            .cloned(),
-    );
+    external_packages.extend(server_external_packages.iter().cloned());
 
-    let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
+    external_packages.retain(|item| !transpile_packages.contains(item));
+
+    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
@@ -166,12 +183,16 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push("react-server".to_string());
     };
 
-    let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path,
-        project_path.root(),
-        ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-        *next_config.import_externals().await?,
-    );
+    let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
+        server_external_packages_plugin
+    } else {
+        ExternalCjsModulesResolvePlugin::new(
+            project_path,
+            project_path.root(),
+            ExternalPredicate::AllExcept(Vc::cell(transpile_packages)).cell(),
+            *next_config.import_externals().await?,
+        )
+    };
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
     let next_node_shared_runtime_plugin =
@@ -196,7 +217,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -310,6 +331,23 @@ pub async fn get_server_compile_time_info(
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))
     .cell()
+}
+
+/// Determins if the module is an internal asset (i.e overlay, fallback) coming
+/// from the embedded FS, don't apply user defined transforms.
+///
+/// [TODO] turbopack specific embed fs should be handled by internals of
+/// turbopack itself and user config should not try to leak this. However,
+/// currently we apply few transform options subject to next.js's configuration
+/// even if it's embedded assets.
+fn internal_assets_conditions() -> ContextCondition {
+    ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root()),
+        ContextCondition::InPath(
+            turbopack_binding::turbopack::ecmascript_runtime::embed_fs().root(),
+        ),
+        ContextCondition::InPath(turbopack_binding::turbopack::node::embed_js::embed_fs().root()),
+    ])
 }
 
 #[turbo_tasks::function]
@@ -485,7 +523,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -537,7 +575,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -604,7 +642,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -667,7 +705,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
@@ -714,7 +752,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.cell(),
                     ),
                     (
-                        ContextCondition::InPath(next_js_fs().root()),
+                        internal_assets_conditions(),
                         internal_module_options_context.cell(),
                     ),
                 ],
