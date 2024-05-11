@@ -141,7 +141,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     if (!silent) {
       Log.warn(
         `\`${oldKey}\` has been moved out of \`experimental\`` +
-          (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
+          ` and into \`${newKey}\`` +
           `. Please update your ${configFileName} file accordingly.`
       )
     }

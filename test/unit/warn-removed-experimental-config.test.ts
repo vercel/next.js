@@ -46,7 +46,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(spy).toHaveBeenCalledWith(
       expect.stringContaining('⚠'),
-      '`skipTrailingSlashRedirect` has been moved out of `experimental`. Please update your next.config.js file accordingly.'
+      '`skipTrailingSlashRedirect` has been moved out of `experimental` and into `skipTrailingSlashRedirect`. Please update your next.config.js file accordingly.'
     )
   })
 
@@ -103,6 +103,27 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
     expect(config.experimental.foo).toBe('bar')
     expect(config.deep.prop.baz).toBe('bar')
+  })
+
+  it('should show the new key name in the warning', () => {
+    const config = {
+      experimental: {
+        bundlePagesExternals: true,
+      },
+    } as any
+
+    warnOptionHasBeenMovedOutOfExperimental(
+      config,
+      'bundlePagesExternals',
+      'bundlePagesRouterDependencies',
+      'next.config.js',
+      false
+    )
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('⚠'),
+      '`bundlePagesExternals` has been moved out of `experimental` and into `bundlePagesRouterDependencies`. Please update your next.config.js file accordingly.'
+    )
   })
 })
 
