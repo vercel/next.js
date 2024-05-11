@@ -179,7 +179,9 @@ pub async fn get_server_resolve_options_context(
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let mut plugins = match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::PagesData { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
@@ -188,8 +190,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(next_external_plugin),
             ]
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. }
+        ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
