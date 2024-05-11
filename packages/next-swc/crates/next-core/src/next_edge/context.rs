@@ -105,13 +105,13 @@ pub async fn get_edge_resolve_options_context(
 
     let mut plugins = match ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppSSR { .. } => {
             vec![]
         }
         ServerContextType::AppRSC { .. }
-        | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::PagesData { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             vec![

@@ -179,9 +179,7 @@ pub async fn get_server_resolve_options_context(
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
     let mut plugins = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
@@ -226,11 +224,10 @@ pub async fn get_server_resolve_options_context(
     // means each resolve plugin must be injected only for the context where the
     // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
     match ty {
-        ServerContextType::Pages { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             //noop
         }
         ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
@@ -241,9 +238,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
             // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        } /* ServerContextType::Middleware => {
-           *     //noop
-           * } */
+        }
     }
 
     let resolve_options_context = ResolveOptionsContext {
