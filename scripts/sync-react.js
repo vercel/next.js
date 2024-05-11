@@ -224,7 +224,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('canary')
+sync('beta')
   .then(() => sync('experimental'))
   .catch((error) => {
     console.error(error)

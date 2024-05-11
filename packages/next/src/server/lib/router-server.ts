@@ -260,9 +260,8 @@ export async function initialize(opts: {
       debug('invokeRender', req.url, invokeHeaders)
 
       try {
-        const initResult = await renderServer?.instance?.initialize(
-          renderServerOpts
-        )
+        const initResult =
+          await renderServer?.instance?.initialize(renderServerOpts)
         try {
           await initResult?.requestHandler(req, res)
         } catch (err) {

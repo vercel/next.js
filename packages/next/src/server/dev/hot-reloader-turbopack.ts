@@ -122,6 +122,7 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
+  const encryptionKey = await generateEncryptionKeyBase64(true)
   const project = await bindings.turbo.createProject({
     projectPath: dir,
     rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
@@ -142,6 +143,9 @@ export async function createHotReloaderTurbopack(
       // TODO: Implement
       middlewareMatchers: undefined,
     }),
+    buildId,
+    encryptionKey,
+    previewProps: opts.fsChecker.prerenderManifest.preview,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
@@ -165,7 +169,7 @@ export async function createHotReloaderTurbopack(
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
     distDir,
-    encryptionKey: await generateEncryptionKeyBase64(),
+    encryptionKey,
   })
 
   // Dev specific

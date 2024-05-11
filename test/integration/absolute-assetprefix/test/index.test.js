@@ -38,9 +38,8 @@ describe('absolute assetPrefix with path prefix', () => {
             },
             (proxyRes) => {
               // cdn must be configured to allow requests from this origin
-              proxyRes.headers[
-                'Access-Control-Allow-Origin'
-              ] = `http://localhost:${appPort}`
+              proxyRes.headers['Access-Control-Allow-Origin'] =
+                `http://localhost:${appPort}`
               clientRes.writeHead(proxyRes.statusCode, proxyRes.headers)
               // [NOTE] if socket doesn't have a handler to error event and if error
               // event leaks, node.js ends its process with errored exit code.

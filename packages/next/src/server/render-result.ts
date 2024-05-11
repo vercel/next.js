@@ -53,7 +53,7 @@ export type RenderResultResponse =
   | null
 
 export type RenderResultOptions<
-  Metadata extends RenderResultMetadata = RenderResultMetadata
+  Metadata extends RenderResultMetadata = RenderResultMetadata,
 > = {
   contentType?: ContentTypeOption
   waitUntil?: Promise<unknown>
@@ -61,7 +61,7 @@ export type RenderResultOptions<
 }
 
 export default class RenderResult<
-  Metadata extends RenderResultMetadata = RenderResultMetadata
+  Metadata extends RenderResultMetadata = RenderResultMetadata,
 > {
   /**
    * The detected content type for the response. This is used to set the

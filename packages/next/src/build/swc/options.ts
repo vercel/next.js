@@ -382,14 +382,7 @@ export function getLoaderSWCOptions({
     esm: !!esm,
   })
   baseOptions.fontLoaders = {
-    fontLoaders: [
-      'next/font/local',
-      'next/font/google',
-
-      // TODO: remove this in the next major version
-      '@next/font/local',
-      '@next/font/google',
-    ],
+    fontLoaders: ['next/font/local', 'next/font/google'],
     relativeFilePathFromRoot,
   }
   baseOptions.cjsRequireOptimizer = {
