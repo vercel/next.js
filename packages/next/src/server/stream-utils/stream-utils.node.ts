@@ -10,6 +10,7 @@ import {
   pipeline,
 } from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
+import { DetachedPromise } from '../../lib/detached-promise'
 
 export * from './stream-utils.edge'
 
@@ -109,14 +110,15 @@ export function streamFromString(string: string): Readable {
 export function createBufferedTransformStream(): Transform {
   let buffered: Uint8Array[] = []
   let byteLength = 0
-  let pending = false
+  let pending: DetachedPromise<void> | undefined
 
   const flush = (transform: Transform) => {
     if (pending) return
 
-    pending = true
+    const detached = new DetachedPromise<void>()
+    pending = detached
 
-    process.nextTick(() => {
+    setImmediate(() => {
       try {
         const chunk = new Uint8Array(byteLength)
         let copiedBytes = 0
@@ -124,12 +126,13 @@ export function createBufferedTransformStream(): Transform {
           chunk.set(buffered[i], copiedBytes)
           copiedBytes += buffered[i].byteLength
         }
-        buffered = []
+        buffered.length = 0
         byteLength = 0
         transform.push(chunk)
       } catch {
       } finally {
-        pending = false
+        pending = undefined
+        detached.resolve()
       }
     })
   }
@@ -142,7 +145,9 @@ export function createBufferedTransformStream(): Transform {
       callback()
     },
     final(callback) {
-      callback()
+      if (!pending) callback()
+
+      pending?.promise.then(() => callback())
     },
   })
 }
