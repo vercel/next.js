@@ -188,7 +188,8 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(next_external_plugin),
             ]
         }
-        ServerContextType::AppSSR { .. }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
