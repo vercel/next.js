@@ -99,9 +99,6 @@ pub async fn get_edge_resolve_options_context(
         get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
     let ty = ty.into_value();
-    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
-    let invalid_styled_jsx_client_only_resolve_plugin =
-        get_invalid_styled_jsx_resolve_plugin(project_path);
 
     let mut plugins = match ty {
         ServerContextType::Pages { .. }
@@ -115,8 +112,8 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             vec![
-                Vc::upcast(invalid_client_only_resolve_plugin),
-                Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin),
+                Vc::upcast(get_invalid_client_only_resolve_plugin(project_path)),
+                Vc::upcast(get_invalid_styled_jsx_resolve_plugin(project_path)),
             ]
         }
     };
