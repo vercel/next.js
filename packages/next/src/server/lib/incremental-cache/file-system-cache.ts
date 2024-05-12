@@ -159,9 +159,6 @@ export default class FileSystemCache implements CacheHandler {
     const [key, ctx = {}] = args
     const { tags, softTags, kindHint } = ctx
     let data = memoryCache?.get(key)
-    console.log('-----FileSystemCache-----')
-    console.log(memoryCache?.values())
-
     if (this.debug) {
       console.log('get', key, tags, kindHint, !!data)
     }
