@@ -1700,6 +1700,16 @@ describe('app dir - basic', () => {
         })
       }
     })
+
+    it('should pass nonce when using next/font', async () => {
+      const html = await next.render('/script-nonce/with-next-font')
+      const $ = cheerio.load(html)
+      const scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+    })
   })
 
   describe('data fetch with response over 16KB with chunked encoding', () => {
