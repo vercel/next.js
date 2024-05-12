@@ -43,7 +43,7 @@ const appElement: HTMLElement | Document | null = document
 
 const encoder = new TextEncoder()
 
-let initialServerDataBuffer: string[] | undefined = undefined
+let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
@@ -56,6 +56,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
+    | [isBinary: 3, responsePartial: Uint8Array]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -70,6 +71,15 @@ function nextServerDataCallback(
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
+  } else if (seg[0] === 3) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    if (initialServerDataWriter) {
+      initialServerDataWriter.enqueue(seg[1])
+    } else {
+      initialServerDataBuffer.push(seg[1])
+    }
   }
 }
 
@@ -84,7 +94,7 @@ function nextServerDataCallback(
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(encoder.encode(val))
+      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
       ctr.close()

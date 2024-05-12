@@ -9,6 +9,7 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
+const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
 const encoder = new TextEncoder()
@@ -78,6 +79,25 @@ export async function flightRenderComplete(
   }
 }
 
+const decoder = new TextDecoder('utf-8', { fatal: true })
+
+/**
+ * This function will attempt to decode a Uint8Array as a UTF-8 string. If the
+ * data is not valid UTF-8 it will return null.
+ *
+ * @param value A Uint8Array that can contain arbitrary data.
+ */
+function tryDecodeAsUtf8String(
+  value: Uint8Array,
+  stream: boolean
+): string | null {
+  try {
+    return decoder.decode(value, { stream })
+  } catch {
+    return null
+  }
+}
+
 /**
  * Creates a ReadableStream provides inline script tag chunks for writing hydration
  * data to the client outside the React render itself.
@@ -96,9 +116,6 @@ export function createInlinedDataReadableStream(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  const decoderOptions = { stream: true }
-
   const flightReader = flightStream.getReader()
 
   const readable = new ReadableStream({
@@ -114,15 +131,22 @@ export function createInlinedDataReadableStream(
     async pull(controller) {
       try {
         const { done, value } = await flightReader.read()
-        if (done) {
-          const tail = decoder.decode(value, { stream: false })
-          if (tail.length) {
-            writeFlightDataInstruction(controller, startScriptTag, tail)
+
+        if (value) {
+          const decoded = tryDecodeAsUtf8String(value, !done)
+
+          if (decoded === null) {
+            // The chunk cannot be decoded as valid UTF-8 string as it might
+            // have arbitrary binary data.
+            // Instead let's inline it in base64 and decode it in place.
+            writeFlightDataInstruction(controller, startScriptTag, value)
+          } else if (decoded.length) {
+            writeFlightDataInstruction(controller, startScriptTag, decoded)
           }
+        }
+
+        if (done) {
           controller.close()
-        } else {
-          const chunkAsString = decoder.decode(value, decoderOptions)
-          writeFlightDataInstruction(controller, startScriptTag, chunkAsString)
         }
       } catch (error) {
         // There was a problem in the upstream reader or during decoding or enqueuing
@@ -154,13 +178,22 @@ function writeInitialInstructions(
 function writeFlightDataInstruction(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
-  chunkAsString: string
+  chunk: string | Uint8Array
 ) {
+  let htmlInlinedData: string
+
+  if (typeof chunk === 'string') {
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+    )
+  } else {
+    const base64 = btoa(String.fromCodePoint(...chunk))
+    htmlInlinedData = `[${INLINE_FLIGHT_PAYLOAD_BINARY},Uint8Array.from(atob("${base64}"),s=>s.codePointAt(0))]`
+  }
+
   controller.enqueue(
     encoder.encode(
-      `${scriptStart}self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
-      )})</script>`
+      `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
     )
   )
 }
