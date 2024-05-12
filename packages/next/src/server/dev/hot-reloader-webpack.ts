@@ -1153,7 +1153,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                         .toString('hex')
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
+                        mod.layer === WEBPACK_LAYERS.serverComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1168,7 +1168,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       )
 
                       if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
+                        mod.layer === WEBPACK_LAYERS.serverComponents &&
                         mod?.buildInfo?.rsc?.type !== 'client'
                       ) {
                         chunksHashServerLayer.add(hash)
@@ -1202,7 +1202,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
                   if (serverComponentChangedItems) {
                     const serverKey =
-                      WEBPACK_LAYERS.reactServerComponents + ':' + key
+                      WEBPACK_LAYERS.serverComponents + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {

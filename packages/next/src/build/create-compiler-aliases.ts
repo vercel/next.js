@@ -276,7 +276,7 @@ export function createRSCAliases(
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
       })
-    } else if (layer === WEBPACK_LAYERS.reactServerComponents) {
+    } else if (layer === WEBPACK_LAYERS.serverComponents) {
       alias = Object.assign(alias, {
         'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
@@ -289,7 +289,7 @@ export function createRSCAliases(
   }
 
   if (isEdgeServer) {
-    if (layer === WEBPACK_LAYERS.reactServerComponents) {
+    if (layer === WEBPACK_LAYERS.serverComponents) {
       alias = Object.assign(alias, {
         react$: `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
         'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,

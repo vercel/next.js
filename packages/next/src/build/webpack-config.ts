@@ -460,7 +460,7 @@ export default async function getBaseWebpackConfig(
   // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
-    bundleLayer: WEBPACK_LAYERS.reactServerComponents,
+    bundleLayer: WEBPACK_LAYERS.serverComponents,
     esm: true,
   })
   const swcSSRLayerLoader = getSwcLoader({
@@ -510,7 +510,7 @@ export default async function getBaseWebpackConfig(
     // acceptable as Babel will not be recommended.
     getSwcLoader({
       serverComponents: false,
-      bundleLayer: WEBPACK_LAYERS.middleware,
+      bundleLayer: WEBPACK_LAYERS.serverComponents,
     }),
     babelLoader,
   ].filter(Boolean)
@@ -557,13 +557,12 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const apiRoutesLayerLoaders =
-    hasAppDir && useSWCLoader
-      ? getSwcLoader({
-          serverComponents: false,
-          bundleLayer: WEBPACK_LAYERS.api,
-        })
-      : defaultLoaders.babel
+  const apiRoutesLayerLoaders = useSWCLoader
+    ? getSwcLoader({
+        serverComponents: true,
+        bundleLayer: WEBPACK_LAYERS.serverComponents,
+      })
+    : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -1206,10 +1205,7 @@ export default async function getBaseWebpackConfig(
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
-            or: [
-              ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.neutralTarget,
-            ],
+            or: [...WEBPACK_LAYERS.GROUP.serverOnly],
           },
           resolve: {
             // Error on client-only but allow server-only
@@ -1218,10 +1214,7 @@ export default async function getBaseWebpackConfig(
         },
         {
           issuerLayer: {
-            not: [
-              ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.neutralTarget,
-            ],
+            not: [...WEBPACK_LAYERS.GROUP.serverOnly],
           },
           resolve: {
             // Error on server-only but allow client-only
@@ -1252,7 +1245,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             not: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.neutralTarget,
+              
             ],
           },
           options: {
@@ -1263,16 +1256,16 @@ export default async function getBaseWebpackConfig(
         // Potential the bundle introduced into middleware and api can be poisoned by client-only
         // but not being used, so we disabled the `client-only` erroring on these layers.
         // `server-only` is still available.
-        {
-          test: [
-            /^client-only$/,
-            /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
-          ],
-          loader: 'empty-loader',
-          issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.neutralTarget,
-          },
-        },
+        // {
+        //   test: [
+        //     /^client-only$/,
+        //     /next[\\/]dist[\\/]compiled[\\/]client-only[\\/]error/,
+        //   ],
+        //   loader: 'empty-loader',
+        //   issuerLayer: {
+        //     or: WEBPACK_LAYERS.GROUP.neutralTarget,
+        //   },
+        // },
         ...(hasAppDir
           ? [
               {
@@ -1345,7 +1338,7 @@ export default async function getBaseWebpackConfig(
                   alias: createRSCAliases(bundledReactChannel, {
                     // No server components profiling
                     reactProductionProfiling,
-                    layer: WEBPACK_LAYERS.reactServerComponents,
+                    layer: WEBPACK_LAYERS.serverComponents,
                     isEdgeServer,
                   }),
                 },
@@ -1376,7 +1369,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                 ),
-                layer: WEBPACK_LAYERS.reactServerComponents,
+                layer: WEBPACK_LAYERS.serverComponents,
               },
             ]
           : []),
@@ -1403,7 +1396,7 @@ export default async function getBaseWebpackConfig(
                       // when react is acting as dependency of compiled/react-dom.
                       alias: createRSCAliases(bundledReactChannel, {
                         reactProductionProfiling,
-                        layer: WEBPACK_LAYERS.reactServerComponents,
+                        layer: WEBPACK_LAYERS.serverComponents,
                         isEdgeServer,
                       }),
                     },
@@ -1457,7 +1450,7 @@ export default async function getBaseWebpackConfig(
           oneOf: [
             {
               ...codeCondition,
-              issuerLayer: WEBPACK_LAYERS.api,
+              issuerLayer: WEBPACK_LAYERS.serverComponents,
               parser: {
                 // Switch back to normal URL handling
                 url: true,
@@ -1466,7 +1459,7 @@ export default async function getBaseWebpackConfig(
             },
             {
               test: codeCondition.test,
-              issuerLayer: WEBPACK_LAYERS.middleware,
+              issuerLayer: WEBPACK_LAYERS.serverComponents,
               use: middlewareLayerLoaders,
             },
             {
@@ -1716,7 +1709,7 @@ export default async function getBaseWebpackConfig(
                 runtime = 'app-route'
                 break
               case WEBPACK_LAYERS.serverSideRendering:
-              case WEBPACK_LAYERS.reactServerComponents:
+              case WEBPACK_LAYERS.serverComponents:
               case WEBPACK_LAYERS.appPagesBrowser:
               case WEBPACK_LAYERS.actionBrowser:
                 runtime = 'app-page'

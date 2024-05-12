@@ -905,7 +905,7 @@ export class FlightClientEntryPlugin {
         currentCompilerServerActions[id].workers[bundlePath] = ''
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
-          : WEBPACK_LAYERS.reactServerComponents
+          : WEBPACK_LAYERS.serverComponents
       }
     }
 
@@ -923,7 +923,7 @@ export class FlightClientEntryPlugin {
         name: entryName,
         layer: fromClient
           ? WEBPACK_LAYERS.actionBrowser
-          : WEBPACK_LAYERS.reactServerComponents,
+          : WEBPACK_LAYERS.serverComponents,
       }
     )
   }

@@ -365,7 +365,7 @@ export function getEdgeServerEntry(opts: {
 
     return {
       import: `next-edge-app-route-loader?${stringify(loaderParams)}!`,
-      layer: WEBPACK_LAYERS.reactServerComponents,
+      layer: WEBPACK_LAYERS.serverComponents,
     }
   }
 
@@ -452,7 +452,7 @@ export function getInstrumentationEntry(opts: {
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
-    layer: WEBPACK_LAYERS.reactServerComponents,
+    layer: WEBPACK_LAYERS.serverComponents,
   }
 }
 
@@ -796,13 +796,11 @@ export function finalizeEntrypoint({
 
   switch (compilerType) {
     case COMPILER_NAMES.server: {
-      const layer = isApi
-        ? WEBPACK_LAYERS.api
-        : isInstrumentation
-          ? WEBPACK_LAYERS.instrument
-          : isServerComponent
-            ? WEBPACK_LAYERS.reactServerComponents
-            : undefined
+      const layer = isInstrumentation
+        ? WEBPACK_LAYERS.instrument
+        : isServerComponent || isApi
+          ? WEBPACK_LAYERS.serverComponents
+          : undefined
 
       return {
         publicPath: isApi ? '' : undefined,
@@ -815,7 +813,7 @@ export function finalizeEntrypoint({
       return {
         layer:
           isMiddlewareFilename(name) || isApi || isInstrumentation
-            ? WEBPACK_LAYERS.middleware
+            ? WEBPACK_LAYERS.serverComponents
             : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,

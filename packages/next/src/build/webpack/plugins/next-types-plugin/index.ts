@@ -614,7 +614,7 @@ export class NextTypesPlugin {
         return
       }
       if (
-        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
+        mod.layer !== WEBPACK_LAYERS.serverComponents &&
         mod.layer !== WEBPACK_LAYERS.appRouteHandler
       )
         return

@@ -28,7 +28,7 @@ const regexSassModules = /\.module\.(scss|sass)$/
 
 const APP_LAYER_RULE = {
   or: [
-    WEBPACK_LAYERS.reactServerComponents,
+    WEBPACK_LAYERS.serverComponents,
     WEBPACK_LAYERS.serverSideRendering,
     WEBPACK_LAYERS.appPagesBrowser,
   ],
@@ -36,7 +36,7 @@ const APP_LAYER_RULE = {
 
 const PAGES_LAYER_RULE = {
   not: [
-    WEBPACK_LAYERS.reactServerComponents,
+    WEBPACK_LAYERS.serverComponents,
     WEBPACK_LAYERS.serverSideRendering,
     WEBPACK_LAYERS.appPagesBrowser,
   ],

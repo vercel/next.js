@@ -115,9 +115,9 @@ const WEBPACK_LAYERS_NAMES = {
    */
   shared: 'shared',
   /**
-   * React Server Components layer (rsc).
+   * React Server Components layer, where apply react-server conditions.
    */
-  reactServerComponents: 'rsc',
+  serverComponents: 'react-server',
   /**
    * Server Side Rendering layer for app (ssr).
    */
@@ -129,11 +129,11 @@ const WEBPACK_LAYERS_NAMES = {
   /**
    * The layer for the API routes.
    */
-  api: 'api',
+  // api: 'api',
   /**
    * The layer for the middleware code.
    */
-  middleware: 'middleware',
+  // middleware: 'middleware',
   /**
    * The layer for the instrumentation hooks.
    */
@@ -163,23 +163,23 @@ const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
     serverOnly: [
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.serverComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.instrument,
-      WEBPACK_LAYERS_NAMES.middleware,
+      // WEBPACK_LAYERS_NAMES.middleware,
     ],
     neutralTarget: [
       // pages api
-      WEBPACK_LAYERS_NAMES.api,
+      // WEBPACK_LAYERS_NAMES.api,
     ],
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
     ],
     app: [
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.serverComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
