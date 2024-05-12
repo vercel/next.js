@@ -1208,7 +1208,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             or: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           resolve: {
@@ -1220,7 +1220,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             not: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           resolve: {
@@ -1252,7 +1252,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             not: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           options: {
@@ -1270,7 +1270,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'empty-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
         },
         ...(hasAppDir
@@ -1761,8 +1761,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      config.outputFileTracing &&
-        isNodeServer &&
+      isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(

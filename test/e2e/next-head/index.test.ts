@@ -14,11 +14,6 @@ describe('next/head', () => {
         pages: new FileRef(join(__dirname, 'app/pages')),
         components: new FileRef(join(__dirname, 'app/components')),
       },
-      nextConfig: {
-        experimental: {
-          strictNextHead: true,
-        },
-      },
     })
   })
   afterAll(() => next.destroy())
