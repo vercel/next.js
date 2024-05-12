@@ -10,14 +10,14 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import { loadManifest } from './load-manifest'
 import { promises } from 'fs'
 import type { FontManifest } from './font-utils'
 
 const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = !isDev
-  ? new LRUCache<string, string | null>({
+  ? new LRUCache<string, string>({
       max: 1000,
     })
   : null
@@ -29,7 +29,6 @@ export function getMaybePagePath(
   isAppPath: boolean
 ): string | null {
   const cacheKey = `${page}:${distDir}:${locales}:${isAppPath}`
-
   let pagePath = pagePathCache?.get(cacheKey)
 
   // If we have a cached path, we can return it directly.
@@ -80,7 +79,7 @@ export function getMaybePagePath(
   }
 
   if (!pagePath) {
-    pagePathCache?.set(cacheKey, null)
+    pagePathCache?.set(cacheKey, undefined)
     return null
   }
 

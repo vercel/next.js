@@ -13,7 +13,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from 'next/dist/compiled/lru-cache'
 import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
@@ -104,9 +104,10 @@ export async function setupFsCheck(opts: {
   ) => void
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<string, FsOutput | null>({
-        max: 1024 * 1024,
-        length(value, key) {
+    ? new LRUCache<string, FsOutput>({
+        max: 250,
+        maxEntrySize: 1024 * 1024,
+        sizeCalculation(value, key) {
           if (!value) return key?.length || 0
           return (
             (key || '').length +
@@ -665,7 +666,7 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      getItemsLru?.set(itemKey, null)
+      getItemsLru?.set(itemKey, undefined)
       return null
     },
     getDynamicRoutes() {
