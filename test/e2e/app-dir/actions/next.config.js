@@ -4,7 +4,4 @@ module.exports = {
   logging: {
     fetches: {},
   },
-  experimental: {
-    taint: true,
-  },
 }
