@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { gen } from './action'
 
 export function Client({ data, arbitrary, action }) {
   const [payload, setPayload] = useState('')
@@ -29,15 +28,6 @@ export function Client({ data, arbitrary, action }) {
         }}
       >
         send
-      </button>
-      <button
-        onClick={async () => {
-          for await (const value of await gen()) {
-            setPayload(String(value))
-          }
-        }}
-      >
-        gen
       </button>
     </>
   )

@@ -56,7 +56,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
-    | [isBinary: 3, responsePartial: Uint8Array]
+    | [isBinary: 3, responseBase64Partial: string]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -75,10 +75,17 @@ function nextServerDataCallback(
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
+    // Decode the base64 string back to binary data.
+    const binaryString = atob(seg[1])
+    const decodedChunk = new Uint8Array(binaryString.length)
+    for (var i = 0; i < binaryString.length; i++) {
+      decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(seg[1])
+      initialServerDataWriter.enqueue(decodedChunk)
     } else {
-      initialServerDataBuffer.push(seg[1])
+      initialServerDataBuffer.push(decodedChunk)
     }
   }
 }

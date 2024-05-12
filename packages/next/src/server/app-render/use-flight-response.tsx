@@ -138,7 +138,6 @@ export function createInlinedDataReadableStream(
           if (decoded === null) {
             // The chunk cannot be decoded as valid UTF-8 string as it might
             // have arbitrary binary data.
-            // Instead let's inline it in base64 and decode it in place.
             writeFlightDataInstruction(controller, startScriptTag, value)
           } else if (decoded.length) {
             writeFlightDataInstruction(controller, startScriptTag, decoded)
@@ -187,8 +186,14 @@ function writeFlightDataInstruction(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
     )
   } else {
+    // The chunk cannot be embedded as a UTF-8 string in the script tag.
+    // Instead let's inline it in base64.
+    // Credits to Devon Govett (devongovett) for the technique.
+    // https://github.com/devongovett/rsc-html-stream
     const base64 = btoa(String.fromCodePoint(...chunk))
-    htmlInlinedData = `[${INLINE_FLIGHT_PAYLOAD_BINARY},Uint8Array.from(atob("${base64}"),s=>s.codePointAt(0))]`
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+    )
   }
 
   controller.enqueue(
