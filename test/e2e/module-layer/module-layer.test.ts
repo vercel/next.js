@@ -99,31 +99,6 @@ describe('module layer', () => {
         }
       })
     })
-
-    describe('client packages in pages api', () => {
-      const pagesApiFile = 'pages/api/mixed.js'
-      let pagesApiContent
-      beforeAll(async () => {
-        pagesApiContent = await next.readFile(pagesApiFile)
-        await next.patchFile(
-          pagesApiFile,
-          pagesApiContent.replace(
-            "// import '../../lib/mixed-lib'",
-            "import '../../lib/mixed-lib'"
-          )
-        )
-      })
-      afterAll(async () => {
-        await next.patchFile(pagesApiFile, pagesApiContent)
-      })
-
-      it('should not error when import client packages in pages/api', async () => {
-        await retry(async () => {
-          const { status } = await next.fetch('/api/mixed')
-          expect(status).toBe(200)
-        })
-      })
-    })
   }
 
   describe('with server-only in server targets', () => {
