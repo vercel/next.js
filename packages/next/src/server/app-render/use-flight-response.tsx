@@ -79,25 +79,6 @@ export async function flightRenderComplete(
   }
 }
 
-const decoder = new TextDecoder('utf-8', { fatal: true })
-
-/**
- * This function will attempt to decode a Uint8Array as a UTF-8 string. If the
- * data is not valid UTF-8 it will return null.
- *
- * @param value A Uint8Array that can contain arbitrary data.
- */
-function tryDecodeAsUtf8String(
-  value: Uint8Array,
-  stream: boolean
-): string | null {
-  try {
-    return decoder.decode(value, { stream })
-  } catch {
-    return null
-  }
-}
-
 /**
  * Creates a ReadableStream provides inline script tag chunks for writing hydration
  * data to the client outside the React render itself.
@@ -117,6 +98,7 @@ export function createInlinedDataReadableStream(
     : '<script>'
 
   const flightReader = flightStream.getReader()
+  const decoder = new TextDecoder('utf-8', { fatal: true })
 
   const readable = new ReadableStream({
     type: 'bytes',
@@ -133,14 +115,19 @@ export function createInlinedDataReadableStream(
         const { done, value } = await flightReader.read()
 
         if (value) {
-          const decoded = tryDecodeAsUtf8String(value, !done)
+          try {
+            const decodedString = decoder.decode(value, { stream: !done })
 
-          if (decoded === null) {
             // The chunk cannot be decoded as valid UTF-8 string as it might
             // have arbitrary binary data.
+            writeFlightDataInstruction(
+              controller,
+              startScriptTag,
+              decodedString
+            )
+          } catch {
+            // The chunk cannot be decoded as valid UTF-8 string.
             writeFlightDataInstruction(controller, startScriptTag, value)
-          } else if (decoded.length) {
-            writeFlightDataInstruction(controller, startScriptTag, decoded)
           }
         }
 
