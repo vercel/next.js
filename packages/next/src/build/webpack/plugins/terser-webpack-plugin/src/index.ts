@@ -74,7 +74,6 @@ export class TerserPlugin {
       'terser-webpack-plugin-optimize'
     )
     terserSpan.setAttribute('compilationName', compilation.name)
-    terserSpan.setAttribute('swcMinify', 'true')
 
     return terserSpan.traceAsyncFn(async () => {
       const assetsList = Object.keys(assets)
