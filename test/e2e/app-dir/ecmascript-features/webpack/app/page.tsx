@@ -33,7 +33,6 @@ class ClassWithPrivate {
   getPrivateStaticMethod() {
     return ClassWithPrivate.#privateStaticMethod()
   }
-  // TODO: Not supported in webpack yet.
   isPrivateMethodAvailable() {
     return #privateField in this
   }
