@@ -33,6 +33,7 @@ import {
   continueStaticPrerender,
   continueDynamicHTMLResume,
   continueDynamicDataResume,
+  convertReadable,
 } from '../stream-utils'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
@@ -1020,21 +1021,22 @@ async function renderToHTMLOrFlightImpl(
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
-        if (
-          process.env.NEXT_RUNTIME === 'nodejs' &&
-          !(stream instanceof ReadableStream)
-        ) {
-          const { Readable } = require('node:stream')
-          stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
-        }
+        // if (
+        //   process.env.NEXT_RUNTIME === 'nodejs' &&
+        //   !(stream instanceof ReadableStream)
+        // ) {
+        //   const { Readable } = require('node:stream')
+        //   stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
+        // }
 
-        // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-        if (!(stream instanceof ReadableStream)) {
-          throw new Error("Invariant: stream isn't a ReadableStream")
-        }
+        // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
+        // if (!(stream instanceof ReadableStream)) {
+        //   throw new Error("Invariant: stream isn't a ReadableStream")
+        // }
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
+          stream = convertReadable(stream)
           /**
            * When prerendering there are three outcomes to consider
            *
@@ -1175,6 +1177,7 @@ async function renderToHTMLOrFlightImpl(
             }
           }
         } else if (renderOpts.postponed) {
+          stream = convertReadable(stream)
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
           const inlinedDataStream = createInlinedDataReadableStream(
             dataStream,

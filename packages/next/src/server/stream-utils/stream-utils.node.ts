@@ -2,7 +2,6 @@
  * By default, this file exports the methods from streams-utils.edge since all of those are based on Node.js web streams.
  * This file will then be an incremental re-implementation of all of those methods into Node.js only versions (based on proper Node.js Streams).
  */
-import type { Stream } from 'node:stream'
 import {
   PassThrough,
   Readable,
@@ -410,7 +409,7 @@ export function continueFizzStream(
 
   const pt = new PassThrough()
 
-  const streams: Stream[] = [renderStream, createBufferedTransformStream()]
+  const streams: Readable[] = [renderStream, createBufferedTransformStream()]
 
   if (getServerInsertedHTML && !serverInsertedHTMLToHead) {
     streams.push(createInsertedHTMLStream(getServerInsertedHTML))
@@ -444,3 +443,51 @@ export function continueFizzStream(
     })
   })
 }
+
+export function convertReadable(
+  stream: Readable | ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  return !(stream instanceof ReadableStream)
+    ? (Readable.toWeb(stream) as ReadableStream<Uint8Array>)
+    : stream
+}
+
+// export function continueDynamicPrerender(prerenderStream: Readable, { getServerInsertedHTML }: { getServerInsertedHTML: ()=> Promise<string>}) {
+//   const pt = new PassThrough();
+
+//   return new Promise((resolve, reject) => {
+//     // @ts-expect-error
+//     pipeline([
+//       prerenderStream,
+//       createBufferedTransformStream(),
+//       createStripDocumentClosingTagsTransform(),
+//       createHeadInsertionTransformStream(getServerInsertedHTML),
+//       pt
+//     ], (error) => {
+//       if (error) return reject(error)
+//         else return resolve(pt)
+//     })
+//   })
+// }
+
+// export function continueStaticPrerender(
+//   prerenderStream: Readable,
+//   {
+//     inlinedDataStream,
+//     getServerInsertedHTML
+//   }: {
+//     inlinedDataStream: Readable,
+//     getServerInsertedHTML: () => Promise<string>
+//   }
+// ) {
+//   const pt = new PassThrough();
+//   return new Promise((resolve, reject) => {
+//     pipeline(
+//       prerenderStream,
+//       createBufferedTransformStream(),
+//       createHeadInsertionTransformStream(getServerInsertedHTML),
+//       inlinedDataStream,
+//       createMoveSuffixStream('</body></html>')
+//     )
+//   })
+// }

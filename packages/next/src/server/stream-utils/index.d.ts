@@ -16,10 +16,48 @@ export function renderToInitialFizzStream(
 export function renderToString(element: React.ReactElement): Promise<string>
 
 export function streamToString(
-  stream: Readable | ReadableStream
+  stream: Readable | ReadableStream<Uint8Array>
 ): Promise<string>
 
 export function chainStreams(
   ...streams: ReadableStream<Uint8Array>[]
 ): ReadableStream<Uint8Array>
 export function chainStreams(...streams: Readable[]): Readable
+
+export function convertReadable(
+  stream: Readable | ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array>
+
+export function continueFizzStream(
+  stream: Readable,
+  options: {
+    inlinedDataStream?: Readable
+    isStaticGeneration: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    validateRootLayout?: boolean
+    suffix?: string
+  }
+): Promise<Readable>
+export function continueFizzStream(
+  stream: ReadableStream<Uint8Array>,
+  options: {
+    inlinedDataStream?: ReadableStream<Uint8Array>
+    isStaticGeneration: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    validateRootLayout?: boolean
+    suffix?: string
+  }
+): Promise<ReadableStream<Uint8Array>>
+export function continueFizzStream(
+  stream: Readable | ReadableStream<Uint8Array>,
+  options: {
+    inlinedDataStream?: Readable | ReadableStream<Uint8Array>
+    isStaticGeneration: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    validateRootLayout?: boolean
+    suffix?: string
+  }
+): Promise<Readable | ReadableStream<Uint8Array>>
