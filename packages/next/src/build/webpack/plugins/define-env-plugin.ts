@@ -224,7 +224,7 @@ export function getDefineEnv({
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? false,
+      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
