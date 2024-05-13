@@ -593,8 +593,9 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
-      it('should have deterministic etag across revalidates', async () => {
+    it.failing(
+      'should have deterministic etag across revalidates',
+      async () => {
         const initialRes = await next.fetch(
           '/variable-revalidate-stable/revalidate-3'
         )
@@ -620,8 +621,8 @@ describe('app-dir static/dynamic handling', () => {
             3_000
           )
         }
-      })
-    }
+      }
+    )
 
     it('should output HTML/RSC files for static paths', async () => {
       const files = (

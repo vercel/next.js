@@ -479,8 +479,8 @@ export async function printTreeView(
             ? '─'
             : '┌'
           : i === arr.length - 1
-          ? '└'
-          : '├'
+            ? '└'
+            : '├'
 
       const pageInfo = pageInfos.get(item)
       const ampFirst = buildManifest.ampFirstPages.includes(item)
@@ -534,15 +534,15 @@ export async function printTreeView(
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-            ? prettyBytes(pageInfo.size)
-            : ''
+              ? prettyBytes(pageInfo.size)
+              : ''
           : '',
         pageInfo
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-            ? getPrettySize(pageInfo.totalSize)
-            : ''
+              ? getPrettySize(pageInfo.totalSize)
+              : ''
           : '',
       ])
 
@@ -1768,12 +1768,6 @@ export async function isPageStatic({
       const config: PageConfig = isClientComponent
         ? {}
         : componentsResult.pageConfig
-
-      if (config.unstable_includeFiles || config.unstable_excludeFiles) {
-        Log.warn(
-          `unstable_includeFiles/unstable_excludeFiles has been removed in favor of the option in next.config.js.\nSee more info here: https://nextjs.org/docs/advanced-features/output-file-tracing#caveats`
-        )
-      }
 
       let isStatic = false
       if (!hasStaticProps && !hasGetInitialProps && !hasServerProps) {

@@ -13,7 +13,7 @@ export type LocaleMatcherMatchOptions = {
 }
 
 export class LocaleRouteMatcher<
-  D extends LocaleRouteDefinition = LocaleRouteDefinition
+  D extends LocaleRouteDefinition = LocaleRouteDefinition,
 > extends RouteMatcher<D> {
   /**
    * Identity returns the identity part of the matcher. This is used to compare

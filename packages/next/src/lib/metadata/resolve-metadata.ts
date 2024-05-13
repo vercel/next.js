@@ -56,7 +56,7 @@ type ViewportResolver = (
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
-  Viewport | ViewportResolver | null
+  Viewport | ViewportResolver | null,
 ][]
 
 type TitleTemplates = {

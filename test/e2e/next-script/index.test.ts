@@ -41,8 +41,8 @@ describe('beforeInteractive in document Head', () => {
         `,
       },
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
       },
     })
   })
@@ -101,8 +101,8 @@ describe('beforeInteractive in document body', () => {
         `,
       },
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
       },
     })
   })
@@ -150,8 +150,8 @@ describe('beforeInteractive in document body', () => {
           },
           // TODO: @housseindjirdeh: verify React 18 functionality
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
           },
         })
       })
@@ -201,8 +201,8 @@ describe('beforeInteractive in document body', () => {
         `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -290,8 +290,8 @@ describe('beforeInteractive in document body', () => {
       `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -406,8 +406,8 @@ describe('beforeInteractive in document body', () => {
           },
           dependencies: {
             '@builder.io/partytown': '0.4.2',
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
           },
         })
       })

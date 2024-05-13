@@ -181,7 +181,7 @@ describe('Production Usage', () => {
           /webpack-runtime\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
       },
@@ -192,7 +192,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [/\0/, /\?/, /!/],
@@ -204,7 +204,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
@@ -219,7 +219,7 @@ describe('Production Usage', () => {
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [
@@ -1033,12 +1033,9 @@ describe('Production Usage', () => {
   it('should not put backslashes in pages-manifest.json', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
     // See: https://github.com/vercel/next.js/issues/4920
-    const pagesManifest = require(join(
-      next.testDir,
-      '.next',
-      'server',
-      PAGES_MANIFEST
-    ))
+    const pagesManifest = require(
+      join(next.testDir, '.next', 'server', PAGES_MANIFEST)
+    )
 
     for (let key of Object.keys(pagesManifest)) {
       expect(key).not.toMatch(/\\/)

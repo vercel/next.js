@@ -52,8 +52,8 @@ class MyRootCommand extends Command {
           process.env.NODE_ENV === 'development'
             ? ['start', 'build']
             : process.env.NODE_ENV === 'production'
-            ? ['dev']
-            : []
+              ? ['dev']
+              : []
 
         if (isNotStandard || shouldWarnCommands.includes(cmdName)) {
           warn(NON_STANDARD_NODE_ENV)
@@ -382,5 +382,20 @@ program
     })
   })
   .usage('[directory] [options]')
+
+const internal = program
+  .command('internal')
+  .description(
+    'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+internal
+  .command('turbo-trace-server')
+  .argument('[file]', 'Trace file to serve.')
+  .action((file) => {
+    return import('../cli/internal/turbo-trace-server.js').then((mod) =>
+      mod.startTurboTraceServerCli(file)
+    )
+  })
 
 program.parse(process.argv)

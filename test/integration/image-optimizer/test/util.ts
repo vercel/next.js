@@ -152,7 +152,7 @@ async function fetchWithDuration(
 export function runTests(ctx: RunTestsCtx) {
   const { isDev, nextConfigImages } = ctx
   const {
-    contentDispositionType = 'inline',
+    contentDispositionType = 'attachment',
     domains = [],
     formats = [],
     minimumCacheTTL = 60,
@@ -168,9 +168,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${
-        slowImageServer.port
-      }/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
@@ -980,6 +978,13 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"url" parameter is invalid`)
+  })
+
+  it('should fail when url is too long', async () => {
+    const query = { url: `/${'a'.repeat(4000)}`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is too long`)
   })
 
   it('should fail when internal url is not an image', async () => {

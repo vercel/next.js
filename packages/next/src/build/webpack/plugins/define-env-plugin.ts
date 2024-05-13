@@ -159,12 +159,15 @@ export function getDefineEnv({
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
-    'process.env.NODE_ENV': dev ? 'development' : 'production',
+    'process.env.NODE_ENV':
+      dev || config.experimental.allowDevelopmentBuild
+        ? 'development'
+        : 'production',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
-      ? 'nodejs'
-      : '',
+        ? 'nodejs'
+        : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
@@ -221,7 +224,7 @@ export function getDefineEnv({
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? false,
+      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,

@@ -12,8 +12,8 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
   }
   return el
 }
@@ -188,8 +188,8 @@ export default function initHeadManager(): {
           typeof children === 'string'
             ? children
             : Array.isArray(children)
-            ? children.join('')
-            : ''
+              ? children.join('')
+              : ''
       }
       if (title !== document.title) document.title = title
       ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
