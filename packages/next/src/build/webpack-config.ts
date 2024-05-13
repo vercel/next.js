@@ -1704,7 +1704,7 @@ export default async function getBaseWebpackConfig(
 
             if (layer === WEBPACK_LAYERS.serverSideRendering) {
               runtime = 'app-page'
-            } else if (!layer) {
+            } else if (!layer || layer === WEBPACK_LAYERS.api) {
               runtime = 'pages'
             } else {
               throw new Error(
