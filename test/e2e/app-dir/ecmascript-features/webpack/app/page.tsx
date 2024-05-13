@@ -56,8 +56,7 @@ export default function Page() {
             privateStaticFieldWithInitializer:
               instance.getPrivateStaticFieldWithInitializer(),
             privateStaticMethod: instance.getPrivateStaticMethod(),
-            // TODO: Not supported in webpack yet.
-            // privateMethodInThis: instance.isPrivateMethodAvailable(),
+            privateMethodInThis: instance.isPrivateMethodAvailable(),
             exportAs: abc,
             importWith: json.message,
             // Not supported in Node.js yet.
