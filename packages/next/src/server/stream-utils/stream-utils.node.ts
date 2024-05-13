@@ -11,7 +11,7 @@ import {
 } from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
 import isError from '../../lib/is-error'
-import { indexOfUint8Array } from './uint8array-helpers'
+import { indexOfUint8Array, isEquivalentUint8Arrays, removeFromUint8Array } from './uint8array-helpers'
 import { ENCODED_TAGS } from './encodedTags'
 
 export * from './stream-utils.edge'
@@ -127,7 +127,7 @@ export function createBufferedTransformStream(): Transform {
       bufferedChunks.push(chunk)
       bufferedChunksByteLength += chunk.byteLength
 
-      if (pending) callback()
+      if (pending) return callback()
 
       pending = true
 
@@ -149,8 +149,8 @@ export function createBufferedTransformStream(): Transform {
         }
       })
     },
-    final(callback) {
-      if (!pending) callback()
+    flush(callback) {
+      if (!pending) return callback()
 
       process.nextTick(() => {
         callback()
@@ -238,19 +238,138 @@ function createHeadInsertionTransformStream(
           return callback(err)
         })
     },
-    final(callback) {
+    flush(callback) {
       if (hasBytes) {
         insert()
           .then((insertion) => {
-            if (insertion) {
-              this.push(encoder.encode(insertion))
-            }
-            return callback()
+            return callback(null, insertion && encoder.encode(insertion))
           })
           .catch((err) => {
             return callback(err)
           })
       }
+
+      return callback();
+    },
+  })
+}
+
+function createDeferredSuffixStream(
+  suffix: string
+): Transform {
+  let flushed = false;
+  let pending = false;
+
+  return new Transform({
+    transform(chunk, _, callback) {
+      this.push(chunk);
+
+      if (flushed) return callback();
+
+      flushed = true;
+      pending = true;
+      setImmediate(() => {
+        try {
+          this.push(encoder.encode(suffix));
+        } catch {}
+        finally {
+          pending = false;
+          return callback();
+        }
+      })
+    },
+    flush(callback) {
+      if (pending || flushed) return callback();
+      return callback(null, encoder.encode(suffix));
+    },
+  })
+}
+
+function createMoveSuffixStream(
+  suffix: string
+): Transform {
+  let found = false;
+  const encodedSuffix = encoder.encode(suffix);
+  return new Transform({
+    transform(chunk, encoding, callback) {
+      if (found) {
+        return callback(null, chunk);
+      }
+
+      const index = indexOfUint8Array(chunk, encodedSuffix)
+      if (index > -1) {
+        found = true;
+
+        if (chunk.length === suffix.length) {
+          return callback();
+        }
+
+        const before = chunk.slice(0, index)
+        this.push(before);
+
+        if (chunk.length > suffix.length + index) {
+          return callback(null, chunk.slice(index + suffix.length));
+        }
+      } else {
+        return callback(null, chunk);
+      }
+    },
+    flush(callback) {
+      return callback(null, encodedSuffix);
+    },
+  })
+}
+
+function createStripDocumentClosingTagsTransform(): Transform {
+  return new Transform({
+    transform(chunk, _, callback) {
+      if (
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML) ||
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY) ||
+        isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.HTML)
+      ) {
+        return callback();
+      }
+
+      chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
+      chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.HTML)
+
+      return callback(null, chunk);
+    },
+  })
+}
+
+function createRootLayoutValidatorStream(): Transform {
+  let foundHtml = false;
+  let foundBody = false;
+  return new Transform({
+    transform(chunk, _, callback) {
+      if (
+        !foundHtml && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
+      ) {
+        foundHtml = true;
+      }
+
+      if (
+        !foundBody && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
+      ) {
+        foundBody = true;
+      }
+
+      return callback(null, chunk);
+    },
+    flush(callback) {
+      const missingTags: typeof window.__next_root_layout_missing_tags = []
+      if (!foundHtml) missingTags.push('html')
+      if (!foundBody) missingTags.push('body')
+
+      if (!missingTags.length) return
+
+      return callback(null, encoder.encode(
+        `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
+          missingTags
+        )}</script>`
+      ));
     },
   })
 }
