@@ -321,19 +321,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "serde",
  "smallvec",
@@ -1873,7 +1861,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "futures-util",
- "http 0.2.11",
+ "http",
  "indexmap 2.2.3",
  "slab",
  "tokio",
@@ -2010,24 +1998,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "http"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21b9ddb458710bc376481b842f5da65cdf31522de232c1ca8146abce2a358258"
-dependencies = [
- "bytes",
- "fnv",
- "itoa",
-]
-
-[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5f38f16d184e36f2408a55281cd658ecbd3ca05cce6d6510a176eca393e26d1"
 dependencies = [
  "bytes",
- "http 0.2.11",
+ "http",
  "pin-project-lite",
 ]
 
@@ -2054,7 +2031,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http 0.2.11",
+ "http",
  "http-body",
  "httparse",
  "httpdate",
@@ -2073,7 +2050,7 @@ version = "0.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1788965e61b367cd03a62950836d5cd41560c3577d90e40e0819373194d1661c"
 dependencies = [
- "http 0.2.11",
+ "http",
  "hyper",
  "rustls",
  "tokio",
@@ -2103,7 +2080,7 @@ dependencies = [
  "pin-project",
  "tokio",
  "tokio-tungstenite",
- "tungstenite 0.18.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -3109,19 +3086,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "serde",
@@ -4209,7 +4174,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http 0.2.11",
+ "http",
  "http-body",
  "hyper",
  "hyper-rustls",
@@ -6768,7 +6733,7 @@ dependencies = [
  "futures-util",
  "log",
  "tokio",
- "tungstenite 0.18.0",
+ "tungstenite",
 ]
 
 [[package]]
@@ -6957,26 +6922,7 @@ dependencies = [
  "base64 0.13.1",
  "byteorder",
  "bytes",
- "http 0.2.11",
- "httparse",
- "log",
- "rand",
- "sha1",
- "thiserror",
- "url",
- "utf-8",
-]
-
-[[package]]
-name = "tungstenite"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
-dependencies = [
- "byteorder",
- "bytes",
- "data-encoding",
- "http 1.1.0",
+ "http",
  "httparse",
  "log",
  "rand",
@@ -6989,19 +6935,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7032,19 +6966,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -7056,19 +6978,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "bytes",
@@ -7082,19 +6992,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "dotenvs",
@@ -7108,19 +7006,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -7136,19 +7022,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7180,19 +7054,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "base16",
  "hex",
@@ -7204,25 +7066,12 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "proc-macro-error",
  "proc-macro2",
  "quote",
- "regex",
  "syn 1.0.109",
  "turbo-tasks-macros-shared",
 ]
@@ -7230,19 +7079,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7252,19 +7089,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "mimalloc",
 ]
@@ -7272,19 +7097,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7310,19 +7123,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7352,19 +7153,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -7398,26 +7187,13 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-static",
- "turbopack-trace-server",
  "turbopack-trace-utils",
 ]
 
 [[package]]
 name = "turbopack-browser"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7440,19 +7216,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "clap",
@@ -7469,19 +7233,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7510,19 +7262,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7549,19 +7289,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-compression",
@@ -7597,19 +7325,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7644,19 +7360,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "serde",
  "serde_json",
@@ -7667,19 +7371,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7703,19 +7395,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indoc",
@@ -7731,19 +7411,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7759,19 +7427,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -7790,19 +7446,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "serde",
@@ -7817,19 +7461,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -7844,19 +7476,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "async-stream",
@@ -7890,19 +7510,7 @@ dependencies = [
 [[package]]
 name = "turbopack-nodejs"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7922,19 +7530,7 @@ dependencies = [
 [[package]]
 name = "turbopack-resolve"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7952,19 +7548,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "serde",
@@ -7980,19 +7564,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -8001,40 +7573,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "turbopack-trace-server"
-version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
-dependencies = [
- "anyhow",
- "either",
- "flate2",
- "indexmap 1.9.3",
- "itertools 0.10.5",
- "postcard",
- "rustc-demangle",
- "serde",
- "serde_json",
- "tungstenite 0.21.0",
- "turbopack-trace-utils",
- "zstd",
-]
-
-[[package]]
 name = "turbopack-trace-utils"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -8050,19 +7591,7 @@ dependencies = [
 [[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240508.4#adfb5990c9c65e831d8c064337f25d96bf51d1a8"
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240506.2#dc606d70d7e8c1e8be6ff256aff38d40aaa1091c"
->>>>>>> fb38450ed (Reapply "Implement Turbopack trace server bindings" (#65419))
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240503.1#844f4d6ce023536e0e18abe74348228dcc4c7b75"
->>>>>>> e82632343 (Revert)
-=======
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240509.2#be6c39f6791e0bd41a90fec78fe1ba9d3fd04261"
->>>>>>> fb50e784b (Upgrade Turbopack)
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8800,7 +8329,7 @@ dependencies = [
  "getrandom",
  "heapless",
  "hex",
- "http 0.2.11",
+ "http",
  "js-sys",
  "lazy_static",
  "libc",
@@ -9372,34 +8901,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.58",
-]
-
-[[package]]
-name = "zstd"
-version = "0.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d789b1514203a1120ad2429eae43a7bd32b90976a7bb8a05f7ec02fa88cc23a"
-dependencies = [
- "zstd-safe",
-]
-
-[[package]]
-name = "zstd-safe"
-version = "7.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cd99b45c6bc03a018c8b8a86025678c87e55526064e38f9df301989dce7ec0a"
-dependencies = [
- "zstd-sys",
-]
-
-[[package]]
-name = "zstd-sys"
-version = "2.0.10+zstd.1.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c253a4914af5bafc8fa8c86ee400827e83cf6ec01195ec1f1ed8441bf00d65aa"
-dependencies = [
- "cc",
- "pkg-config",
 ]
 
 [[package]]
