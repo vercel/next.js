@@ -920,7 +920,7 @@ function runTests(mode) {
       const browser = await webdriver(appPort, '/invalid-src-leading-space')
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'Image with src " /test.jpg" cannot start with a space. Consider using src.trimStart() to remove it.'
+        'Image with src " /test.jpg" cannot start with a space or control character.'
       )
     })
 
@@ -928,7 +928,7 @@ function runTests(mode) {
       const browser = await webdriver(appPort, '/invalid-src-trailing-space')
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/test.png " cannot end with a space. Consider using src.trimEnd() to remove it or replace it with "%20" to keep it.'
+        'Image with src "/test.png " cannot end with a space or control character.'
       )
     })
 

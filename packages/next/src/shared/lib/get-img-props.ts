@@ -465,14 +465,16 @@ export function getImgProps(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
           )
         }
-        if (src.startsWith(' ')) {
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
           throw new Error(
-            `Image with src "${src}" cannot start with a space. Consider using src.trimStart() to remove it.`
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
           )
         }
-        if (src.endsWith(' ')) {
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
           throw new Error(
-            `Image with src "${src}" cannot end with a space. Consider using src.trimEnd() to remove it or replace it with "%20" to keep it.`
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
           )
         }
       }
