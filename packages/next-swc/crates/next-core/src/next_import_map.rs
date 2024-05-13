@@ -620,6 +620,7 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
@@ -641,22 +642,6 @@ async fn insert_next_server_special_aliases(
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                },
-            );
-        }
-        // Potential the bundle introduced into middleware and api can be poisoned by
-        // client-only but not being used, so we disabled the `client-only` erroring
-        // on these layers. `server-only` is still available.
-        ServerContextType::Middleware => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }

@@ -516,7 +516,7 @@ export default abstract class Server<
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
-      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
+      strictNextHead: this.nextConfig.experimental.strictNextHead ?? true,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
