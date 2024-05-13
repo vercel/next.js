@@ -555,8 +555,6 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
         isAppPPREnabled,
-        missingSuspenseWithCSRBailout:
-          this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
       },
     }

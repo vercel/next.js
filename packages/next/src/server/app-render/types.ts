@@ -169,7 +169,6 @@ export interface RenderOptsPartial {
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    missingSuspenseWithCSRBailout: boolean
     swrDelta: SwrDelta | undefined
   }
   postponed?: string

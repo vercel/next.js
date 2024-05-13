@@ -420,8 +420,6 @@ export async function exportAppImpl(
     deploymentId: nextConfig.deploymentId,
     experimental: {
       isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
-      missingSuspenseWithCSRBailout:
-        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
       swrDelta: nextConfig.experimental.swrDelta,
     },
   }
