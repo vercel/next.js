@@ -189,6 +189,7 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
+  /** @default true */
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -446,6 +447,16 @@ export interface ExperimentalConfig {
    * Allow NODE_ENV=development even for `next build`.
    */
   allowDevelopmentBuild?: true
+  /**
+   * @deprecated use `config.bundlePagesRouterDependencies` instead
+   *
+   */
+  bundlePagesExternals?: boolean
+  /**
+   * @deprecated use `config.serverExternalPackages` instead
+   *
+   */
+  serverComponentsExternalPackages?: string[]
 }
 
 export type ExportPathMap = {
