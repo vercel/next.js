@@ -564,7 +564,7 @@ export function GET(request) {
 Then, in the API Route:
 
 ```tsx filename="pages/api/redirects.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import redirects from '@/app/redirects/redirects.json'
 
 type RedirectEntry = {

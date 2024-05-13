@@ -189,6 +189,7 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
+  /** @default true */
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -416,17 +417,6 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of postcss-loader
    */
   useLightningcss?: boolean
-
-  /**
-   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
-   * if they are not wrapped in a suspense boundary.
-   *
-   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
-   *
-   * @note This flag will be removed in Next.js 15.
-   * @default true
-   */
-  missingSuspenseWithCSRBailout?: boolean
 
   /**
    * Enables early import feature for app router modules
@@ -879,7 +869,6 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   staticPageGenerationTimeout: 60,
-  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
@@ -942,7 +931,6 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {

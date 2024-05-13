@@ -138,7 +138,7 @@ let lastNativeBindingsLoadErrorCode:
   | 'unsupported_target'
   | string
   | undefined = undefined
-let nativeBindings: any
+let nativeBindings: Binding
 let wasmBindings: any
 let downloadWasmPromise: any
 let pendingBindings: any
@@ -158,21 +158,21 @@ export interface Binding {
       stream: any
       get: any
     }
-    mdx: {
-      compile: any
-      compileSync: any
-    }
     createProject: (
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
+    startTurbopackTraceServer: (path: string) => void
+  }
+  mdx: {
+    compile: any
+    compileSync: any
   }
   minify: any
   minifySync: any
   transform: any
   transformSync: any
   parse: any
-  parseSync: any
 
   getTargetTriple(): string | undefined
 
@@ -775,7 +775,10 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
 }
 
 // TODO(sokra) Support wasm option.
-function bindingToApi(binding: any, _wasm: boolean) {
+function bindingToApi(
+  binding: any,
+  _wasm: boolean
+): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
@@ -1217,10 +1220,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(
-    options: ProjectOptions,
-    turboEngineOptions: TurboEngineOptions
-  ) {
+  const createProject: Binding['turbo']['createProject'] = async (
+    options,
+    turboEngineOptions
+  ) => {
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
@@ -1277,9 +1280,6 @@ async function loadWasm(importPath = '') {
           return bindings?.parse
             ? bindings.parse(src.toString(), options)
             : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        parseSync(src: string, options: any) {
-          return bindings.parseSync(src.toString(), options)
         },
         getTargetTriple() {
           return undefined
@@ -1510,6 +1510,12 @@ function loadNative(importPath?: string) {
           },
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
+        startTurbopackTraceServer: (traceFilePath) => {
+          Log.warn(
+            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+          )
+          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+        },
       },
       mdx: {
         compile: (src: string, options: any) =>
