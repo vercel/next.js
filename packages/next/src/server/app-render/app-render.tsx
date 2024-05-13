@@ -1201,21 +1201,22 @@ async function renderToHTMLOrFlightImpl(
             }
           }
         } else {
+          const resultStream = await continueFizzStream(stream, {
+            inlinedDataStream: createInlinedDataReadableStream(
+              dataStream,
+              nonce,
+              formState
+            ),
+            isStaticGeneration: isStaticGeneration || generateStaticHTML,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            validateRootLayout,
+          })
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: await continueFizzStream(stream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
-              ),
-              isStaticGeneration: isStaticGeneration || generateStaticHTML,
-              getServerInsertedHTML,
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            stream: convertReadable(resultStream),
           }
         }
       } catch (err) {
