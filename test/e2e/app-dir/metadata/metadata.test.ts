@@ -299,6 +299,15 @@ describe('app dir - metadata', () => {
       )
     })
 
+    it('should support facebook related tags', async () => {
+      const browser = await next.browser('/facebook')
+      const matchDom = createDomMatcher(browser)
+
+      await matchDom('meta', 'property="fb:app_id"', {
+        content: '12345678',
+      })
+    })
+
     it('should support alternate tags', async () => {
       const browser = await next.browser('/alternates')
       const matchDom = createDomMatcher(browser)

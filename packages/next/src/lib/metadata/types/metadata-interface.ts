@@ -6,6 +6,7 @@ import type {
 import type {
   AppleWebApp,
   AppLinks,
+  Facebook,
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
@@ -321,6 +322,18 @@ interface Metadata extends DeprecatedMetadataFields {
   twitter?: null | Twitter
 
   /**
+   * The Facebook metadata for the document.
+   * @example
+   * ```tsx
+   * { appId: "12345678" }
+   *
+   * <meta property="fb:app_id" content="12345678" />
+   * ```
+   *
+   */
+  facebook?: null | Facebook
+
+  /**
    * The common verification tokens for the document.
    * @example
    * ```tsx
@@ -507,6 +520,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   manifest: null | string | URL
 
   twitter: null | ResolvedTwitterMetadata
+
+  facebook: null | Facebook
 
   // common verification tokens
   verification: null | ResolvedVerification

@@ -125,6 +125,16 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
   return <meta name="apple-itunes-app" content={content} />
 }
 
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+  const { appId } = facebook
+  return <meta property="fb:app_id" content={appId} />
+}
+
 const formatDetectionKeys = [
   'telephone',
   'date',
