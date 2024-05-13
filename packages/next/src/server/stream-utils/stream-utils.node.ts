@@ -161,7 +161,7 @@ export function createBufferedTransformStream(): Transform {
 
 const encoder = new TextEncoder()
 
-export function createInsertedHTMLStream(
+function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): Transform {
   return new Transform({
@@ -181,7 +181,7 @@ export function createInsertedHTMLStream(
   })
 }
 
-export function createHeadInsertionTransformStream(
+function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): Transform {
   let inserted = false
@@ -227,15 +227,15 @@ export function createHeadInsertionTransformStream(
           if (!inserted) {
             this.push(chunk)
           } else {
-            process.nextTick(() => {
+            setImmediate(() => {
               freezing = false
             })
           }
 
-          callback()
+          return callback()
         })
         .catch((err) => {
-          callback(err)
+          return callback(err)
         })
     },
     final(callback) {
@@ -244,11 +244,11 @@ export function createHeadInsertionTransformStream(
           .then((insertion) => {
             if (insertion) {
               this.push(encoder.encode(insertion))
-              callback()
             }
+            return callback()
           })
           .catch((err) => {
-            callback(err)
+            return callback(err)
           })
       }
     },
