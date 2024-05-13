@@ -1078,9 +1078,6 @@ export default async function getBaseWebpackConfig(
             TerserPlugin,
           } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
           new TerserPlugin({
-            cacheDir: path.join(distDir, 'cache', 'next-minifier'),
-            parallel: config.experimental.cpus,
-            swcMinify: config.swcMinify,
             terserOptions: {
               ...terserOptions,
               compress: {
@@ -1896,7 +1893,6 @@ export default async function getBaseWebpackConfig(
           new Map(
             [
               ['swcLoader', useSWCLoader],
-              ['swcMinify', config.swcMinify],
               ['swcRelay', !!config.compiler?.relay],
               ['swcStyledComponents', !!config.compiler?.styledComponents],
               [
@@ -2053,7 +2049,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.compiler?.removeConsole,
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
