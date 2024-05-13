@@ -35,6 +35,7 @@ export async function createApp({
   srcDir,
   importAlias,
   skipInstall,
+  empty,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -47,16 +48,11 @@ export async function createApp({
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
+  empty: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = appRouter
-    ? tailwind
-      ? 'app-tw'
-      : 'app'
-    : tailwind
-    ? 'default-tw'
-    : 'default'
+  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined

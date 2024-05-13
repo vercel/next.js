@@ -140,14 +140,16 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(
-      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
-    )
 
     await parentSpan
       .traceChild('createTestDir')
       .traceAsyncFn(async (rootSpan) => {
         const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        if (!skipIsolatedNext) {
+          require('console').log(
+            `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+          )
+        }
         const tmpDir = skipIsolatedNext
           ? path.join(__dirname, '../../tmp')
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
@@ -158,12 +160,14 @@ export class NextInstance {
           }`
         )
 
-        const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+        const reactVersion =
+          process.env.NEXT_TEST_REACT_VERSION ||
+          '19.0.0-beta-4508873393-20240430'
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': reactVersion,
-          '@types/react-dom': reactVersion,
+          '@types/react': 'latest',
+          '@types/react-dom': 'latest',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,

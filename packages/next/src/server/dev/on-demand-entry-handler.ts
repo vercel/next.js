@@ -120,8 +120,8 @@ function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   return pageBundlePath.startsWith('pages/')
     ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? PAGE_TYPES.APP
-    : PAGE_TYPES.ROOT
+      ? PAGE_TYPES.APP
+      : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(

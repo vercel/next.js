@@ -38,7 +38,7 @@
     "./server.edge": "./server.edge.js",
     "./server.node": "./server.node.js",
     "./server.node.unbundled": "./server.node.unbundled.js",
-    "./node-loader": "./esm/react-server-dom-turbopack-node-loader.production.min.js",
+    "./node-loader": "./esm/react-server-dom-turbopack-node-loader.production.js",
     "./node-register": "./node-register.js",
     "./package.json": "./package.json"
   },
@@ -47,7 +47,7 @@
     "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-c3048aab4-20240326",
-    "react-dom": "18.3.0-canary-c3048aab4-20240326"
+    "react": "19.0.0-beta-4508873393-20240430",
+    "react-dom": "19.0.0-beta-4508873393-20240430"
   }
 }

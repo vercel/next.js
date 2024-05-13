@@ -613,6 +613,7 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
@@ -634,22 +635,6 @@ async fn insert_next_server_special_aliases(
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                },
-            );
-        }
-        // Potential the bundle introduced into middleware and api can be poisoned by
-        // client-only but not being used, so we disabled the `client-only` erroring
-        // on these layers. `server-only` is still available.
-        ServerContextType::Middleware => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
@@ -728,16 +713,21 @@ async fn rsc_aliases(
         }
     }
 
-    if runtime == NextRuntime::Edge {
-        if ty.supports_react_server() {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server");
-        } else {
-            // x-ref: https://github.com/facebook/react/pull/25436
-            alias["react-dom"] =
-                format!("next/dist/compiled/react-dom{react_channel}/server-rendering-stub");
-        }
+    if runtime == NextRuntime::Edge && ty.supports_react_server() {
+        alias.extend(indexmap! {
+            "react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
+            "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
+            "next/dist/compiled/react-experimental" =>  format!("next/dist/compiled/react-experimental/react.react-server"),
+            "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "next/dist/compiled/react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "next/dist/compiled/react-experimental/jsx-runtime" => format!("next/dist/compiled/react-experimental/jsx-runtime.react-server"),
+            "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
+            "next/dist/compiled/react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
+            "next/dist/compiled/react-experimental/jsx-dev-runtime" => format!("next/dist/compiled/react-experimental/jsx-dev-runtime.react-server"),
+            "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
+            "next/dist/compiled/react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
+            "next/dist/compiled/react-dom-experimental" => format!("next/dist/compiled/react-dom-experimental/react-dom.react-server"),
+        })
     }
 
     insert_exact_alias_map(import_map, project_path, alias);

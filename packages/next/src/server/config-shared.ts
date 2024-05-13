@@ -12,6 +12,7 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SwrDelta } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
+import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -188,6 +189,7 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
+  /** @default true */
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -223,17 +225,7 @@ export interface ExperimentalConfig {
    * much as possible, even when this leads to many requests.
    */
   cssChunking?: 'strict' | 'loose'
-  /**
-   * @deprecated use config.cacheHandler instead
-   */
-  incrementalCacheHandlerPath?: string
-  /**
-   * @deprecated use config.cacheMaxMemorySize instead
-   *
-   */
-  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
-  swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   proxyTimeout?: number
@@ -277,12 +269,6 @@ export interface ExperimentalConfig {
   }
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
-
-  /**
-   * A list of packages that should be treated as external in the RSC server build.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
-   */
-  serverComponentsExternalPackages?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
@@ -382,7 +368,7 @@ export interface ExperimentalConfig {
   /**
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
-  ppr?: boolean
+  ppr?: ExperimentalPPRConfig
 
   /**
    * Enables experimental taint APIs in React.
@@ -419,10 +405,7 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
-  /**
-   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
-   */
-  bundlePagesExternals?: boolean
+
   /**
    * Uses an IPC server to dedupe build-time requests to the cache handler
    */
@@ -460,15 +443,41 @@ export interface ExperimentalConfig {
    * Set a default test runner to be used by `next experimental-test`.
    */
   defaultTestRunner?: SupportedTestRunners
+  /**
+   * Allow NODE_ENV=development even for `next build`.
+   */
+  allowDevelopmentBuild?: true
+  /**
+   * @deprecated use `config.bundlePagesRouterDependencies` instead
+   *
+   */
+  bundlePagesExternals?: boolean
+  /**
+   * @deprecated use `config.serverExternalPackages` instead
+   *
+   */
+  serverComponentsExternalPackages?: string[]
 }
 
 export type ExportPathMap = {
   [path: string]: {
     page: string
     query?: NextParsedUrlQuery
+
+    /**
+     * @internal
+     */
     _isAppDir?: boolean
-    _isAppPrefetch?: boolean
+
+    /**
+     * @internal
+     */
     _isDynamicError?: boolean
+
+    /**
+     * @internal
+     */
+    _isRoutePPREnabled?: boolean
   }
 }
 
@@ -721,16 +730,6 @@ export interface NextConfig extends Record<string, any> {
   httpAgentOptions?: { keepAlive?: boolean }
 
   /**
-   * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
-   * that are needed for deploying a production version of your application.
-   *
-   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   */
-  outputFileTracing?: boolean
-
-  /**
    * Timeout after waiting to generate static pages in seconds
    *
    * @default 60
@@ -744,14 +743,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
   crossOrigin?: 'anonymous' | 'use-credentials'
-
-  /**
-   * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
-   */
-  swcMinify?: boolean
 
   /**
    * Optionally enable compiler transforms
@@ -825,6 +816,18 @@ export interface NextConfig extends Record<string, any> {
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
+
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
+   */
+  bundlePagesRouterDependencies?: boolean
+
+  /**
+   * A list of packages that should be treated as external in the server build.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
+   */
+  serverExternalPackages?: string[]
 }
 
 export const defaultConfig: NextConfig = {
@@ -876,7 +879,6 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  outputFileTracing: true,
   staticPageGenerationTimeout: 60,
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
@@ -929,7 +931,6 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
-    bundlePagesExternals: false,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
@@ -937,10 +938,10 @@ export const defaultConfig: NextConfig = {
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
       // has been set to `true`, enable the experimental PPR feature so long as it
       // wasn't explicitly disabled in the config.
-      process.env.__NEXT_TEST_MODE &&
-      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-        ? true
-        : false,
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ),
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
@@ -949,7 +950,9 @@ export const defaultConfig: NextConfig = {
       dynamic: 30,
       static: 300,
     },
+    allowDevelopmentBuild: undefined,
   },
+  bundlePagesRouterDependencies: false,
 }
 
 export async function normalizeConfig(phase: string, config: any) {
