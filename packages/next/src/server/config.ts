@@ -132,17 +132,16 @@ export function warnOptionHasBeenDeprecated(
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
-  oldKey: string,
+  oldExperimentalKey: string,
   newKey: string,
   configFileName: string,
   silent: boolean
 ) {
-  if (config.experimental && oldKey in config.experimental) {
+  if (config.experimental && oldExperimentalKey in config.experimental) {
     if (!silent) {
       Log.warn(
-        `\`${oldKey}\` has been moved out of \`experimental\`` +
-          ` and into \`${newKey}\`` +
-          `. Please update your ${configFileName} file accordingly.`
+        `\`experimental.${oldExperimentalKey}\` has been moved to \`${newKey}\`. ` +
+          `Please update your ${configFileName} file accordingly.`
       )
     }
 
@@ -153,7 +152,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
       current[key] = current[key] || {}
       current = current[key]
     }
-    current[newKeys.shift()!] = (config.experimental as any)[oldKey]
+    current[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
   }
 
   return config
