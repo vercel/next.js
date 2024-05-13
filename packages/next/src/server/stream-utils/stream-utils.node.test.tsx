@@ -1,4 +1,5 @@
 import {
+  continueFizzStream,
   createBufferedTransformStream,
 } from './stream-utils.node'
 import { PassThrough } from 'node:stream'
@@ -50,9 +51,34 @@ describe('createBufferedTransformStream', () => {
 
       stream.resume()
 
-      stream.on('finish', () => {
+      stream.on('end', () => {
         expect(actualChunks.length).toBe(1)
         done()
+      })
+    })
+  })
+})
+
+describe('continueFizzStream', () => {
+  it.only('should passthrough render stream and buffered transform stream', (done) => {
+    createInput().then((input) => {
+      continueFizzStream(input, {
+        isStaticGeneration: false,
+        serverInsertedHTMLToHead: false,
+      }).then((stream) => {
+        const actualChunks: Uint8Array[] = []
+        stream.on('data', (chunk) => {
+          actualChunks.push(chunk)
+        })
+
+        stream.resume()
+
+        stream.on('end', () => {
+          console.log('ended')
+          expect(actualChunks.length).toBe(2)
+          console.log(actualChunks[0].toString())
+          done()
+        })
       })
     })
   })

@@ -2,6 +2,7 @@
  * By default, this file exports the methods from streams-utils.edge since all of those are based on Node.js web streams.
  * This file will then be an incremental re-implementation of all of those methods into Node.js only versions (based on proper Node.js Streams).
  */
+import type { Stream } from 'node:stream'
 import {
   PassThrough,
   Readable,
@@ -11,7 +12,11 @@ import {
 } from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
 import isError from '../../lib/is-error'
-import { indexOfUint8Array, isEquivalentUint8Arrays, removeFromUint8Array } from './uint8array-helpers'
+import {
+  indexOfUint8Array,
+  isEquivalentUint8Arrays,
+  removeFromUint8Array,
+} from './uint8array-helpers'
 import { ENCODED_TAGS } from './encodedTags'
 
 export * from './stream-utils.edge'
@@ -93,16 +98,16 @@ export function chainStreams(...streams: Readable[]): Readable {
     return streams[0]
   }
 
-  const transform = new Transform()
+  const pt = new PassThrough()
 
-  pipeline(streams, transform, (err) => {
+  pipeline(streams, pt, (err) => {
     // to match `stream-utils.edge.ts`, this error is just ignored.
     // but maybe we at least log it?
     console.log(`Invariant: error when pipelining streams`)
     console.error(err)
   })
 
-  return transform
+  return pt
 }
 
 export function streamFromString(string: string): Readable {
@@ -249,77 +254,74 @@ function createHeadInsertionTransformStream(
           })
       }
 
-      return callback();
+      return callback()
     },
   })
 }
 
-function createDeferredSuffixStream(
-  suffix: string
-): Transform {
-  let flushed = false;
-  let pending = false;
+function createDeferredSuffixStream(suffix: string): Transform {
+  let flushed = false
+  let pending = false
 
   return new Transform({
     transform(chunk, _, callback) {
-      this.push(chunk);
+      this.push(chunk)
 
-      if (flushed) return callback();
+      if (flushed) return callback()
 
-      flushed = true;
-      pending = true;
+      flushed = true
+      pending = true
       setImmediate(() => {
         try {
-          this.push(encoder.encode(suffix));
-        } catch {}
-        finally {
-          pending = false;
-          return callback();
+          this.push(encoder.encode(suffix))
+        } catch {
+        } finally {
+          pending = false
+          return callback()
         }
       })
     },
     flush(callback) {
-      if (pending || flushed) return callback();
-      return callback(null, encoder.encode(suffix));
+      if (pending || flushed) return callback()
+      return callback(null, encoder.encode(suffix))
     },
   })
 }
 
-function createMoveSuffixStream(
-  suffix: string
-): Transform {
-  let found = false;
-  const encodedSuffix = encoder.encode(suffix);
+function createMoveSuffixStream(suffix: string): Transform {
+  let found = false
+  const encodedSuffix = encoder.encode(suffix)
   return new Transform({
-    transform(chunk, encoding, callback) {
+    transform(chunk, _, callback) {
       if (found) {
-        return callback(null, chunk);
+        return callback(null, chunk)
       }
 
       const index = indexOfUint8Array(chunk, encodedSuffix)
       if (index > -1) {
-        found = true;
+        found = true
 
         if (chunk.length === suffix.length) {
-          return callback();
+          return callback()
         }
 
         const before = chunk.slice(0, index)
-        this.push(before);
+        this.push(before)
 
         if (chunk.length > suffix.length + index) {
-          return callback(null, chunk.slice(index + suffix.length));
+          return callback(null, chunk.slice(index + suffix.length))
         }
       } else {
-        return callback(null, chunk);
+        return callback(null, chunk)
       }
     },
     flush(callback) {
-      return callback(null, encodedSuffix);
+      return callback(null, encodedSuffix)
     },
   })
 }
 
+// eslint-disable-next-line
 function createStripDocumentClosingTagsTransform(): Transform {
   return new Transform({
     transform(chunk, _, callback) {
@@ -328,35 +330,37 @@ function createStripDocumentClosingTagsTransform(): Transform {
         isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.BODY) ||
         isEquivalentUint8Arrays(chunk, ENCODED_TAGS.CLOSED.HTML)
       ) {
-        return callback();
+        return callback()
       }
 
       chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY)
       chunk = removeFromUint8Array(chunk, ENCODED_TAGS.CLOSED.HTML)
 
-      return callback(null, chunk);
+      return callback(null, chunk)
     },
   })
 }
 
 function createRootLayoutValidatorStream(): Transform {
-  let foundHtml = false;
-  let foundBody = false;
+  let foundHtml = false
+  let foundBody = false
   return new Transform({
     transform(chunk, _, callback) {
       if (
-        !foundHtml && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
+        !foundHtml &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
       ) {
-        foundHtml = true;
+        foundHtml = true
       }
 
       if (
-        !foundBody && indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
+        !foundBody &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
       ) {
-        foundBody = true;
+        foundBody = true
       }
 
-      return callback(null, chunk);
+      return callback(null, chunk)
     },
     flush(callback) {
       const missingTags: typeof window.__next_root_layout_missing_tags = []
@@ -365,11 +369,78 @@ function createRootLayoutValidatorStream(): Transform {
 
       if (!missingTags.length) return
 
-      return callback(null, encoder.encode(
-        `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
-          missingTags
-        )}</script>`
-      ));
+      return callback(
+        null,
+        encoder.encode(
+          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
+            missingTags
+          )}</script>`
+        )
+      )
     },
+  })
+}
+
+export function continueFizzStream(
+  renderStream: Readable,
+  {
+    suffix,
+    inlinedDataStream,
+    // eslint-disable-next-line
+    isStaticGeneration,
+    getServerInsertedHTML,
+    serverInsertedHTMLToHead,
+    validateRootLayout,
+  }: {
+    inlinedDataStream?: Readable
+    isStaticGeneration: boolean
+    getServerInsertedHTML?: () => Promise<string>
+    serverInsertedHTMLToHead: boolean
+    validateRootLayout?: boolean
+    suffix?: string
+  }
+): Promise<Readable> {
+  const closeTag = '</body></html>'
+  const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
+
+  // this doesn't make sense anymore, but keep it in mind if there are issues rendering static stuff. the renderToInitialFizzStream may be calling `pipe` either in `onShellReady` or `onAllReady`
+  // if (isStaticGeneration && 'allReady' in renderStream) {
+  //   await renderStream.allReady
+  // }
+
+  const pt = new PassThrough()
+
+  const streams: Stream[] = [renderStream, createBufferedTransformStream()]
+
+  if (getServerInsertedHTML && !serverInsertedHTMLToHead) {
+    streams.push(createInsertedHTMLStream(getServerInsertedHTML))
+  }
+
+  if (suffixUnclosed != null && suffixUnclosed.length > 0) {
+    streams.push(createDeferredSuffixStream(suffixUnclosed))
+  }
+
+  if (inlinedDataStream) {
+    streams.push(inlinedDataStream)
+  }
+
+  if (validateRootLayout) {
+    streams.push(createRootLayoutValidatorStream())
+  }
+
+  streams.push(createMoveSuffixStream(closeTag))
+
+  if (getServerInsertedHTML && serverInsertedHTMLToHead) {
+    streams.push(createHeadInsertionTransformStream(getServerInsertedHTML))
+  }
+
+  streams.push(pt)
+
+  return new Promise((resolve, reject) => {
+    // @ts-expect-error
+    pipeline(streams, (error) => {
+      if (error) return reject(error)
+      else return resolve(pt)
+    })
   })
 }
