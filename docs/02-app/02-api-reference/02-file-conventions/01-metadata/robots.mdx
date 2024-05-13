@@ -20,7 +20,7 @@ Sitemap: https://acme.com/sitemap.xml
 Add a `robots.js` or `robots.ts` file that returns a [`Robots` object](#robots-object).
 
 ```ts filename="app/robots.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
   return {
