@@ -11,6 +11,8 @@ import {
 } from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
 import isError from '../../lib/is-error'
+import { indexOfUint8Array } from './uint8array-helpers'
+import { ENCODED_TAGS } from './encodedTags'
 
 export * from './stream-utils.edge'
 
@@ -153,6 +155,102 @@ export function createBufferedTransformStream(): Transform {
       process.nextTick(() => {
         callback()
       })
+    },
+  })
+}
+
+const encoder = new TextEncoder()
+
+export function createInsertedHTMLStream(
+  getServerInsertedHTML: () => Promise<string>
+): Transform {
+  return new Transform({
+    transform(chunk, _, callback) {
+      getServerInsertedHTML()
+        .then((html) => {
+          if (html) {
+            this.push(encoder.encode(html))
+          }
+
+          return callback(null, chunk)
+        })
+        .catch((err) => {
+          return callback(err)
+        })
+    },
+  })
+}
+
+export function createHeadInsertionTransformStream(
+  insert: () => Promise<string>
+): Transform {
+  let inserted = false
+  let freezing = false
+  let hasBytes = false
+  return new Transform({
+    transform(chunk, _, callback) {
+      hasBytes = true
+      if (freezing) {
+        return callback(null, chunk)
+      }
+      insert()
+        .then((insertion) => {
+          if (inserted) {
+            if (insertion) {
+              this.push(encoder.encode(insertion))
+            }
+            this.push(chunk)
+            freezing = true
+          } else {
+            const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+            if (index !== -1) {
+              if (insertion) {
+                const encodedInsertion = encoder.encode(insertion)
+                const insertedHeadContent = new Uint8Array(
+                  chunk.length + encodedInsertion.length
+                )
+                insertedHeadContent.set(chunk.slice(0, index))
+                insertedHeadContent.set(encodedInsertion, index)
+                insertedHeadContent.set(
+                  chunk.slice(index),
+                  index + encodedInsertion.length
+                )
+                this.push(insertedHeadContent)
+              } else {
+                this.push(chunk)
+              }
+              freezing = true
+              inserted = true
+            }
+          }
+
+          if (!inserted) {
+            this.push(chunk)
+          } else {
+            process.nextTick(() => {
+              freezing = false
+            })
+          }
+
+          callback()
+        })
+        .catch((err) => {
+          callback(err)
+        })
+    },
+    final(callback) {
+      if (hasBytes) {
+        insert()
+          .then((insertion) => {
+            if (insertion) {
+              this.push(encoder.encode(insertion))
+              callback()
+            }
+          })
+          .catch((err) => {
+            callback(err)
+          })
+      }
     },
   })
 }
