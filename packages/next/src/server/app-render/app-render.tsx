@@ -1328,45 +1328,46 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          if (
-            process.env.NEXT_RUNTIME === 'nodejs' &&
-            !(fizzStream instanceof ReadableStream)
-          ) {
-            const { Readable } = require('node:stream')
+          // if (
+          //   process.env.NEXT_RUNTIME === 'nodejs' &&
+          //   !(fizzStream instanceof ReadableStream)
+          // ) {
+          //   const { Readable } = require('node:stream')
 
-            fizzStream = Readable.toWeb(
-              fizzStream
-            ) as ReadableStream<Uint8Array>
-          }
+          //   fizzStream = Readable.toWeb(
+          //     fizzStream
+          //   ) as ReadableStream<Uint8Array>
+          // }
 
-          // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-          if (!(fizzStream instanceof ReadableStream)) {
-            throw new Error("Invariant: stream isn't a ReadableStream")
-          }
+          // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
+          // if (!(fizzStream instanceof ReadableStream)) {
+          //   throw new Error("Invariant: stream isn't a ReadableStream")
+          // }
 
+          const resultStream = await continueFizzStream(fizzStream, {
+            inlinedDataStream: createInlinedDataReadableStream(
+              // This is intentionally using the readable datastream from the
+              // main render rather than the flight data from the error page
+              // render
+              dataStream,
+              nonce,
+              formState
+            ),
+            isStaticGeneration,
+            getServerInsertedHTML: makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath: renderOpts.basePath,
+            }),
+            serverInsertedHTMLToHead: true,
+            validateRootLayout,
+          })
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
-            stream: await continueFizzStream(fizzStream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                // This is intentionally using the readable datastream from the
-                // main render rather than the flight data from the error page
-                // render
-                dataStream,
-                nonce,
-                formState
-              ),
-              isStaticGeneration,
-              getServerInsertedHTML: makeGetServerInsertedHTML({
-                polyfills,
-                renderServerInsertedHTML,
-                serverCapturedErrors: [],
-                basePath: renderOpts.basePath,
-              }),
-              serverInsertedHTMLToHead: true,
-              validateRootLayout,
-            }),
+            stream: convertReadable(resultStream),
           }
         } catch (finalErr: any) {
           if (

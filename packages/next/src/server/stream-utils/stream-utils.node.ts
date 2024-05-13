@@ -380,6 +380,10 @@ function createRootLayoutValidatorStream(): Transform {
   })
 }
 
+function createPassThroughFromReadable(readable: Readable) {
+  return readable.pipe(new PassThrough())
+}
+
 export function continueFizzStream(
   renderStream: Readable,
   {
@@ -399,6 +403,12 @@ export function continueFizzStream(
     suffix?: string
   }
 ): Promise<Readable> {
+  // @ts-ignore
+  if (inlinedDataStream instanceof ReadableStream) {
+    // @ts-ignore
+    inlinedDataStream = Readable.fromWeb(inlinedDataStream)
+  }
+
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
@@ -420,7 +430,7 @@ export function continueFizzStream(
   }
 
   if (inlinedDataStream) {
-    streams.push(inlinedDataStream)
+    streams.push(createPassThroughFromReadable(inlinedDataStream))
   }
 
   if (validateRootLayout) {
