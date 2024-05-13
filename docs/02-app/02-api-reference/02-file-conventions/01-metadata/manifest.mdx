@@ -22,7 +22,7 @@ Add or generate a `manifest.(json|webmanifest)` file that matches the [Web Manif
 Add a `manifest.js` or `manifest.ts` file that returns a [`Manifest` object](#manifest-object).
 
 ```ts filename="app/manifest.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

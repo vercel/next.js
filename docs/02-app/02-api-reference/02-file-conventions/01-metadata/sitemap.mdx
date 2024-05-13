@@ -42,7 +42,7 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
 ```ts filename="app/sitemap.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -121,7 +121,7 @@ Output:
 ### Generate a localized Sitemap
 
 ```ts filename="app/sitemap.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
@@ -214,7 +214,7 @@ There are two ways you can create multiple sitemaps:
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
 
 ```ts filename="app/product/sitemap.ts" switcher
-import { MetadataRoute } from 'next'
+import type { MetadataRoute } from 'next'
 import { BASE_URL } from '@/app/lib/constants'
 
 export async function generateSitemaps() {
