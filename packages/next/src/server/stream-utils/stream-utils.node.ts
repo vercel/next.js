@@ -2,8 +2,13 @@
  * By default, this file exports the methods from streams-utils.edge since all of those are based on Node.js web streams.
  * This file will then be an incremental re-implementation of all of those methods into Node.js only versions (based on proper Node.js Streams).
  */
-
-import { PassThrough, type Readable, Writable } from 'node:stream'
+import {
+  PassThrough,
+  type Readable,
+  Transform,
+  Writable,
+  pipeline,
+} from 'node:stream'
 import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
 
 export * from './stream-utils.edge'
@@ -75,4 +80,24 @@ export async function streamToString(stream: Readable) {
   string += decoder.decode()
 
   return string
+}
+
+export function chainStreams(...streams: Readable[]): Readable {
+  if (streams.length === 0) {
+    throw new Error('Invariant: chainStreams requires at least one stream')
+  }
+  if (streams.length === 1) {
+    return streams[0]
+  }
+
+  const transform = new Transform()
+
+  pipeline(streams, transform, (err) => {
+    // to match `stream-utils.edge.ts`, this error is just ignored.
+    // but maybe we at least log it?
+    console.log(`Invariant: error when pipelining streams`)
+    console.error(err)
+  })
+
+  return transform
 }

@@ -18,3 +18,8 @@ export function renderToString(element: React.ReactElement): Promise<string>
 export function streamToString(
   stream: Readable | ReadableStream
 ): Promise<string>
+
+export function chainStreams(
+  ...streams: ReadableStream<Uint8Array>[]
+): ReadableStream<Uint8Array>
+export function chainStreams(...streams: Readable[]): Readable
