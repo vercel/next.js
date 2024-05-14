@@ -1515,7 +1515,7 @@ describe('app-dir action handling', () => {
       })
 
       // Ensure we get a browser error response.
-      await browser.waitForElementByCss('#__next_error__')
+      await hasRedbox(browser)
     } finally {
       await browser.close()
     }
