@@ -4089,13 +4089,13 @@
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
-      "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-      "app dir - metadata dynamic routes social image routes should support generate multi sitemaps with generateSitemaps",
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
-      "app dir - metadata dynamic routes text routes should handle robots.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes text routes should not throw if client components are imported but not used",
-      "app dir - metadata dynamic routes text routes should support alternate.languages in sitemap"
+      "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
+      "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
+      "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
+      "app dir - metadata dynamic routes sitemap social image routes should support generate multi sitemaps with generateSitemaps",
+      "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+      "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -4290,15 +4290,15 @@
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
-      "app dir - next/font app app dir - next-font import values should have correct values at /",
-      "app dir - next/font app app dir - next-font import values should have correct values at /client",
-      "app dir - next/font app app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+      "app dir - next/font app dir - next-font computed styles should have correct styles at /",
+      "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
+      "app dir - next/font app dir - next-font import values should have correct values at /",
+      "app dir - next/font app dir - next-font import values should have correct values at /client",
+      "app dir - next/font app dir - next-font import values should transform code in node_modules",
+      "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],

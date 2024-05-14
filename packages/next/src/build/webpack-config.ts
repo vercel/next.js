@@ -1078,9 +1078,6 @@ export default async function getBaseWebpackConfig(
             TerserPlugin,
           } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
           new TerserPlugin({
-            cacheDir: path.join(distDir, 'cache', 'next-minifier'),
-            parallel: config.experimental.cpus,
-            swcMinify: config.swcMinify,
             terserOptions: {
               ...terserOptions,
               compress: {
@@ -1208,7 +1205,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             or: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           resolve: {
@@ -1220,7 +1217,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             not: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           resolve: {
@@ -1252,7 +1249,7 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             not: [
               ...WEBPACK_LAYERS.GROUP.serverOnly,
-              ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+              ...WEBPACK_LAYERS.GROUP.neutralTarget,
             ],
           },
           options: {
@@ -1270,7 +1267,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'empty-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.nonClientServerTarget,
+            or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
         },
         ...(hasAppDir
@@ -1704,7 +1701,7 @@ export default async function getBaseWebpackConfig(
 
             if (layer === WEBPACK_LAYERS.serverSideRendering) {
               runtime = 'app-page'
-            } else if (!layer) {
+            } else if (!layer || layer === WEBPACK_LAYERS.api) {
               runtime = 'pages'
             } else {
               throw new Error(
@@ -1747,8 +1744,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      config.outputFileTracing &&
-        isNodeServer &&
+      isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1897,7 +1893,6 @@ export default async function getBaseWebpackConfig(
           new Map(
             [
               ['swcLoader', useSWCLoader],
-              ['swcMinify', config.swcMinify],
               ['swcRelay', !!config.compiler?.relay],
               ['swcStyledComponents', !!config.compiler?.styledComponents],
               [
@@ -2054,7 +2049,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.compiler?.removeConsole,
     reactRemoveProperties: config.compiler?.reactRemoveProperties,
