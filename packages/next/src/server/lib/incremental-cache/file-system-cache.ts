@@ -94,13 +94,34 @@ export default class FileSystemCache implements CacheHandler {
         'fetch-cache',
         'tags-manifest.json'
       )
-      this.loadTagsManifest()
+
+      this.loadTagsManifestSync()
     }
   }
 
   public resetRequestCache(): void {}
 
-  private loadTagsManifest() {
+  /**
+   * Load the tags manifest from the file system
+   */
+  private async loadTagsManifest() {
+    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
+    try {
+      tagsManifest = JSON.parse(
+        await this.fs.readFile(this.tagsManifestPath, 'utf8')
+      )
+    } catch (err: any) {
+      tagsManifest = { version: 1, items: {} }
+    }
+    if (this.debug) console.log('loadTagsManifest', tagsManifest)
+  }
+
+  /**
+   * As above, but synchronous for use in the constructor. This is to
+   * preserve the existing behaviour when instantiating the cache handler. Although it's
+   * not ideal to block the main thread it's only called once during startup.
+   */
+  private loadTagsManifestSync() {
     if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
@@ -129,7 +150,7 @@ export default class FileSystemCache implements CacheHandler {
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
     // time and we can't flush out of sync data
-    this.loadTagsManifest()
+    await this.loadTagsManifest()
     if (!tagsManifest || !this.tagsManifestPath) {
       return
     }
@@ -289,7 +310,7 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        this.loadTagsManifest()
+        await this.loadTagsManifest()
 
         const isStale = cacheTags.some((tag) => {
           return (
@@ -309,7 +330,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (data && data?.value?.kind === 'FETCH') {
-      this.loadTagsManifest()
+      await this.loadTagsManifest()
 
       const combinedTags = [...(tags || []), ...(softTags || [])]
 
