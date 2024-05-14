@@ -925,7 +925,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
-    bundlePagesExternals: false,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
