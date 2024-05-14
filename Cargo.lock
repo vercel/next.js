@@ -3056,7 +3056,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
- "swc_core 0.92.0",
+ "swc_core 0.92.4",
  "tracing",
  "turbopack-binding",
  "walkdir",
@@ -5318,9 +5318,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.92.0"
+version = "0.92.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "563b5324754cb00a8a6b5bec51215ff30d0c6b9913e7df1902577fd83899a105"
+checksum = "d047aa3506175f1dbaca493341d533eacbeb60d1393d49c0ffd9d3ff63aaa4c3"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -8316,7 +8316,7 @@ dependencies = [
  "next-custom-transforms",
  "serde-wasm-bindgen",
  "serde_json",
- "swc_core 0.92.0",
+ "swc_core 0.92.4",
  "tracing",
  "turbopack-binding",
  "wasm-bindgen",
