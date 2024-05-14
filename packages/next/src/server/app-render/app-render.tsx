@@ -310,7 +310,7 @@ async function generateFlight(
   const {
     componentMod: {
       tree: loaderTree,
-      renderToReadableStream,
+      renderToStream,
       createDynamicallyTrackedSearchParams,
     },
     getDynamicParamFromSegment,
@@ -358,13 +358,14 @@ async function generateFlight(
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = renderToReadableStream(
+  const flightReadableStream = renderToStream(
     options
       ? [options.actionResult, buildIdFlightDataPair]
       : buildIdFlightDataPair,
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
+      // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
       nonce: ctx.nonce,
     }
   )
@@ -943,11 +944,12 @@ async function renderToHTMLOrFlightImpl(
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
-      const serverStream = ComponentMod.renderToReadableStream(
+      const serverStream = ComponentMod.renderToStream(
         <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
+          // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
           nonce,
         }
       )
@@ -1295,11 +1297,12 @@ async function renderToHTMLOrFlightImpl(
           nonce
         )
 
-        const errorServerStream = ComponentMod.renderToReadableStream(
+        const errorServerStream = ComponentMod.renderToStream(
           <ReactServerError tree={tree} ctx={ctx} errorType={errorType} />,
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,
+            // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
             nonce,
           }
         )

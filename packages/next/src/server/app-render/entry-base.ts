@@ -1,10 +1,4 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-export {
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
-  decodeFormState,
-} from 'react-server-dom-webpack/server.edge'
+export * from './react-server-dom-webpack'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'

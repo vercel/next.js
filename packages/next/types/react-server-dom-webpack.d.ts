@@ -1,5 +1,4 @@
 import type { Thenable } from 'react'
-import type { PipeableStream } from 'react-dom/server.node'
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightServerTemporaryReferences.js#L18
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -9,7 +8,7 @@ type TemporaryReference<T> = {}
 type TemporaryReferenceSet = WeakMap<TemporaryReference<any>, string>
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightServer.js#L319
-type ReactClientValue = any
+export type ReactClientValue = any
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/shared/ReactFlightImportMetadata.js#L10
 type ImportManifestEntry = {
@@ -27,35 +26,37 @@ type ServerManifest = {
 type ClientReferenceManifestEntry = ImportManifestEntry
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightServerConfigWebpackBundler.js#L23
-type ClientManifest = {
+export type ClientManifest = {
   [id: string]: ClientReferenceManifestEntry
 }
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightActionServer.js#L25
 type ServerReferenceId = any
 
-// https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/shared/ReactTypes.js#L164
-type ReactFormState<S, ReferenceId> = [
-  S /* actual state value */,
-  string /* key path */,
-  ReferenceId /* Server Reference ID */,
-  number /* number of bound arguments */,
-]
-
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightActionServer.js#L83
-type DecodeAction<T> = (
+export type DecodeAction<T> = (
   body: FormData,
   ServerManifest: ServerManifest
 ) => Promise<() => T> | null
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightActionServer.js#L125
-type DecodeFormState<S> = (
+export type DecodeFormState<S> = (
   actionResult: S,
   body: FormData,
   ServerManifest: ServerManifest
 ) => Promise<ReactFormState<S, ServerReferenceId> | null>
 
+// https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerEdge.js#L101
+export type DecodeReply<T> = (
+    body: string | FormData,
+    webpackMap: ServerManifest,
+    option?: {
+      temporaryReferences?: TemporaryReferenceSet
+    }
+) => Thenable<T>
+
 declare module 'react-server-dom-webpack/server.edge' {
+
   // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerEdge.js#L46
   export interface RenderToReadableStreamOptions {
     environmentName?: string
@@ -73,19 +74,14 @@ declare module 'react-server-dom-webpack/server.edge' {
     option?: RenderToReadableStreamOptions
   ): ReadableStream
 
-  // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerEdge.js#L101
-  export function decodeReply<T>(
-    body: string | FormData,
-    webpackMap: ServerManifest,
-    options?: {
-      temporaryReferences?: TemporaryReferenceSet
-    }
-  ): Thenable<T>
+  export type decodeReply<T> = DecodeReply<T>
 
   export type decodeAction<T> = DecodeAction<T>
 
   export type decodeFormState<S> = DecodeFormState<S>
 }
+
+import type { PipeableStream } from 'react-dom/server.node';
 
 declare module 'react-server-dom-webpack/server.node' {
   // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerNode.js#L69
@@ -103,20 +99,15 @@ declare module 'react-server-dom-webpack/server.node' {
     options?: RenderToPipeableStreamOptions
   ): PipeableStream
 
-  // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerNode.js#L127
-  export function decodeReplyFromBusboy<T>(
-    busboyStream: unknown,
-    webpackMap: ServerManifest
-  ): Thenable<T>
+  // If this is needed, ensure to add it to the `packages/next/src/server/app-render/react-server-dom-webpack/{react-server-dom-webpack.node.ts, index.js}` exports
+  export type decodeReplyFromBusboy = never;
+//   // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerNode.js#L127
+//   export function decodeReplyFromBusboy<T>(
+//     busboyStream: unknown,
+//     webpackMap: ServerManifest
+//   ): Thenable<T>
 
-  // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server-dom-webpack/src/ReactFlightDOMServerNode.js#L182
-  export function decodeReply<T>(
-    body: string | FormData,
-    webpackMap: ServerManifest,
-    option?: {
-      temporaryReferences?: TemporaryReferenceSet
-    }
-  ): Thenable<T>
+  export type decodeReply<T> = DecodeReply<T>
 
   export type decodeAction<T> = DecodeAction<T>
 
