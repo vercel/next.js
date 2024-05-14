@@ -443,7 +443,6 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
-        isEdgeRuntime: isEdgeServer,
         rootDir: dir,
         pagesDir,
         appDir,
@@ -665,7 +664,7 @@ export default async function getBaseWebpackConfig(
       reactProductionProfiling,
       hasRewrites,
     }),
-    ...(isClient || isEdgeServer
+    ...(isClient
       ? {
           fallback: {
             process: require.resolve('./polyfills/process'),

@@ -24,9 +24,9 @@ describe('app-dir edge SSR', () => {
     expect(await res.text()).toInclude('Hello')
   })
 
-  it('should compile typeof process to undefined in edge runtime', async () => {
+  it('should treat process as object without polyfill in edge runtime', async () => {
     const $ = await next.render$('/edge-apis/process')
-    expect(await $('#process').text()).toContain('undefined')
+    expect(await $('#process').text()).toContain('object')
   })
 
   it('should handle /index routes correctly', async () => {
