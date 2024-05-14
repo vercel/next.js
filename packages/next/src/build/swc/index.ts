@@ -97,9 +97,9 @@ const triples = (() => {
 })()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
-// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
-// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
-// naive interface - `loadBindings` will not validate neither path nor the binary.
+// If one of env variables is set, `loadNative` will try to use specified
+// binary instead. This is thin, naive interface
+// - `loadBindings` will not validate neither path nor the binary.
 //
 // Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
@@ -1352,7 +1352,7 @@ function loadNative(importPath?: string) {
   const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
-  let bindings: any
+  let bindings: any = customBindings
   let attempts: any[] = []
 
   const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
