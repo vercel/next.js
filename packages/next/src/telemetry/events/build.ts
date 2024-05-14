@@ -157,7 +157,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/ppr'
     | 'optimizeFonts'
     | 'swcLoader'
-    | 'swcMinify'
     | 'swcRelay'
     | 'swcStyledComponents'
     | 'swcReactRemoveProperties'
