@@ -24,6 +24,11 @@ describe('app-dir edge SSR', () => {
     expect(await res.text()).toInclude('Hello')
   })
 
+  it('should compile typeof process to undefined in edge runtime', async () => {
+    const $ = await next.render$('/edge-apis/process')
+    expect(await $('#process').text()).toContain('undefined')
+  })
+
   it('should handle /index routes correctly', async () => {
     const appHtml = await next.render('/index')
     expect(appHtml).toContain('the /index route')
