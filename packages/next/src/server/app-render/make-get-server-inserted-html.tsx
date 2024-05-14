@@ -92,6 +92,7 @@ export function makeGetServerInsertedHTML({
               return <script key={polyfill.src} {...polyfill} />
             })
         }
+        {serverInsertedHTML}
         {tracingMetadata
           ? tracingMetadata.map(({ key, value }) => {
               return (
