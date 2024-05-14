@@ -88,6 +88,18 @@ pub struct NextConfig {
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
 
+    /// Enables the bundling of node_modules packages (externals) for pages
+    /// server-side bundles.
+    ///
+    /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
+    pub bundle_pages_router_dependencies: Option<bool>,
+
+    /// A list of packages that should be treated as external on the server
+    /// build.
+    ///
+    /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
+    pub server_external_packages: Option<Vec<String>>,
+
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -109,13 +121,11 @@ pub struct NextConfig {
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
-    output_file_tracing: bool,
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
-    swc_minify: Option<bool>,
     target: Option<String>,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
@@ -460,9 +470,6 @@ pub struct ExperimentalConfig {
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
-    /// A list of packages that should be treated as external in the RSC server
-    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
-    pub server_components_external_packages: Option<Vec<String>>,
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
@@ -520,14 +527,13 @@ pub struct ExperimentalConfig {
     output_file_tracing_root: Option<String>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
-    ppr: Option<bool>,
+    ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
@@ -540,6 +546,49 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "lowercase")]
+pub enum ExperimentalPartialPrerenderingIncrementalValue {
+    Incremental,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ExperimentalPartialPrerendering {
+    Incremental(ExperimentalPartialPrerenderingIncrementalValue),
+    Boolean(bool),
+}
+
+#[test]
+fn test_parse_experimental_partial_prerendering() {
+    let json = serde_json::json!({
+        "ppr": "incremental"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Incremental(
+            ExperimentalPartialPrerenderingIncrementalValue::Incremental
+        ))
+    );
+
+    let json = serde_json::json!({
+        "ppr": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.ppr,
+        Some(ExperimentalPartialPrerendering::Boolean(true))
+    );
+
+    // Expect if we provide a random string, it will fail.
+    let json = serde_json::json!({
+        "ppr": "random"
+    });
+    let config = serde_json::from_value::<ExperimentalConfig>(json);
+    assert!(config.is_err());
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -570,6 +619,25 @@ pub enum EsmExternalsValue {
 pub enum EsmExternals {
     Loose(EsmExternalsValue),
     Bool(bool),
+}
+
+// Test for esm externals deserialization.
+#[test]
+fn test_esm_externals_deserialization() {
+    let json = serde_json::json!({
+        "esmExternals": true
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(config.esm_externals, Some(EsmExternals::Bool(true)));
+
+    let json = serde_json::json!({
+        "esmExternals": "loose"
+    });
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    assert_eq!(
+        config.esm_externals,
+        Some(EsmExternals::Loose(EsmExternalsValue::Loose))
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -675,11 +743,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_component_externals(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
+        Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
         Ok(Vc::cell(
             self.await?
-                .experimental
-                .server_components_external_packages
+                .server_external_packages
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
@@ -897,11 +969,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn swc_minify(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.swc_minify.unwrap_or(false)))
-    }
-
-    #[turbo_tasks::function]
     pub async fn skip_middleware_url_normalize(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.await?.skip_middleware_url_normalize.unwrap_or(false),
@@ -934,7 +1001,19 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+        Ok(Vc::cell(
+            self.await?
+                .experimental
+                .ppr
+                .as_ref()
+                .map(|ppr| match ppr {
+                    ExperimentalPartialPrerendering::Incremental(
+                        ExperimentalPartialPrerenderingIncrementalValue::Incremental,
+                    ) => true,
+                    ExperimentalPartialPrerendering::Boolean(b) => *b,
+                })
+                .unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]

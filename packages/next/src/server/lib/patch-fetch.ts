@@ -294,8 +294,8 @@ function createPatchedFetcher(
           return typeof init?.next?.[field] !== 'undefined'
             ? init?.next?.[field]
             : isRequestInput
-            ? (input as any).next?.[field]
-            : undefined
+              ? (input as any).next?.[field]
+              : undefined
         }
         // RequestInit doesn't keep extra fields e.g. next so it's
         // only available if init is used separate
@@ -606,9 +606,8 @@ function createPatchedFetcher(
         let isForegroundRevalidate = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
-          handleUnlock = await staticGenerationStore.incrementalCache.lock(
-            cacheKey
-          )
+          handleUnlock =
+            await staticGenerationStore.incrementalCache.lock(cacheKey)
 
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null

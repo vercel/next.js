@@ -88,11 +88,8 @@ describe('app dir - navigation', () => {
           // App Router doesn't re-render on initial load (the params are baked
           // server side). In development, effects will render twice.
 
-          // experimental react is having issues with this use effect
-          // @acdlite will take a look
-          // TODO: remove this PPR cond after react fixes the issue in experimental build.
-          waitForNEffects:
-            isNextDev && !process.env.__NEXT_EXPERIMENTAL_PPR ? 2 : 1,
+          // TODO: modern StrictMode does not double invoke effects during hydration: https://github.com/facebook/react/pull/28951
+          waitForNEffects: 1,
         },
         {
           router: 'pages',
@@ -910,6 +907,13 @@ describe('app dir - navigation', () => {
       await retry(async () => {
         expect(await browser.elementByCss('h1').text()).toBe('Home')
       })
+    })
+  })
+
+  describe('pages api', () => {
+    it('should not error if just import the navigation api in pages/api', async () => {
+      const res = await next.fetch('/api/navigation')
+      expect(res.status).toBe(200)
     })
   })
 })

@@ -313,7 +313,7 @@ class NextTracerImpl implements NextTracer {
               new Map(
                 Object.entries(options.attributes ?? {}) as [
                   AttributeNames,
-                  AttributeValue | undefined
+                  AttributeValue | undefined,
                 ][]
               )
             )

@@ -36,11 +36,11 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, Completion, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_env::{CustomProcessEnv, ProcessEnv},
-        tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
+        tasks_fs::{File, FileContent, FileSystemPath},
     },
     turbopack::{
         core::{
@@ -1100,6 +1100,7 @@ impl AppEndpoint {
                         .clone()
                         .map(Regions::Multiple),
                     matchers: vec![matchers],
+                    env: this.app_project.project().edge_env().await?.clone_value(),
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -1244,59 +1245,30 @@ impl AppEndpoint {
     }
 }
 
-#[turbo_tasks::function]
-async fn concatenate_output_assets(
-    path: Vc<FileSystemPath>,
-    files: Vc<OutputAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let mut concatenated_content = RopeBuilder::default();
-    let contents = files
-        .await?
-        .iter()
-        .map(|&file| async move {
-            Ok(
-                if let AssetContent::File(content) = *file.content().await? {
-                    Some(content.await?)
-                } else {
-                    None
-                },
-            )
-        })
-        .try_flat_join()
-        .await?;
-    for file in contents.iter().flat_map(|content| content.as_content()) {
-        concatenated_content.concat(file.content());
-        concatenated_content.push_static_bytes(b"\n\n");
-    }
-    Ok(Vc::upcast(VirtualOutputAsset::new(
-        path,
-        AssetContent::file(FileContent::Content(concatenated_content.build().into()).cell()),
-    )))
-}
-
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
+        let page_name = this.page.to_string();
         let span = match this.ty {
             AppEndpointType::Page {
                 ty: AppPageEndpointType::Html,
                 ..
             } => {
-                tracing::info_span!("app endpoint HTML", name = display(&this.page))
+                tracing::info_span!("app endpoint HTML", name = page_name)
             }
             AppEndpointType::Page {
                 ty: AppPageEndpointType::Rsc,
                 ..
             } => {
-                tracing::info_span!("app endpoint RSC", name = display(&this.page))
+                tracing::info_span!("app endpoint RSC", name = page_name)
             }
             AppEndpointType::Route { .. } => {
-                tracing::info_span!("app endpoint route", name = display(&this.page))
+                tracing::info_span!("app endpoint route", name = page_name)
             }
             AppEndpointType::Metadata { .. } => {
-                tracing::info_span!("app endpoint metadata", name = display(&this.page))
+                tracing::info_span!("app endpoint metadata", name = page_name)
             }
         };
         async move {
@@ -1338,10 +1310,11 @@ impl Endpoint for AppEndpoint {
                     client_paths,
                 },
             };
-            Ok(written_endpoint.cell())
+            anyhow::Ok(written_endpoint.cell())
         }
         .instrument(span)
         .await
+        .with_context(|| format!("Failed to write app endpoint {}", page_name))
     }
 
     #[turbo_tasks::function]
