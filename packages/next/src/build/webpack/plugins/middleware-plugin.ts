@@ -275,7 +275,7 @@ function buildWebpackError({
 }
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
-  return parser.state.module?.layer === 'middleware'
+  return parser.state.module?.layer === WEBPACK_LAYERS.reactServerComponents
 }
 
 function isNodeJsModule(moduleName: string) {
