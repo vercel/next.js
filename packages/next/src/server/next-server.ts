@@ -88,7 +88,7 @@ import {
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
 } from '../lib/constants'
-import { BubbledError, getTracer } from './lib/trace/tracer'
+import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -105,6 +105,7 @@ import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import { stripNextRscUnionQuery } from '../lib/url'
+import { BubbledError } from './lib/trace/bubble-error'
 
 export * from './base-server'
 
@@ -1607,7 +1608,7 @@ export default class NextNodeServer extends BaseServer<
     })
 
     if (!this.renderOpts.dev) {
-      result.waitUntil.catch((error) => {
+      result.waitUntil?.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
       })
     }

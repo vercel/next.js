@@ -1,5 +1,5 @@
-import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
+import { isBubbledError } from './bubble-error'
 import type { SpanTypes } from './constants'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
@@ -36,20 +36,6 @@ const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
-}
-
-export class BubbledError extends Error {
-  constructor(
-    public readonly bubble?: boolean,
-    public readonly result?: FetchEventResult
-  ) {
-    super()
-  }
-}
-
-export function isBubbledError(error: unknown): error is BubbledError {
-  if (typeof error !== 'object' || error === null) return false
-  return error instanceof BubbledError
 }
 
 const closeSpanWithError = (span: Span, error?: Error) => {

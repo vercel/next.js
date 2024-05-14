@@ -40,7 +40,7 @@ export type NodejsRequestData = Omit<RequestData, 'body'> & {
 
 export interface FetchEventResult {
   response: Response
-  waitUntil: Promise<any>
+  waitUntil?: Promise<any>
   fetchMetrics?: FetchMetrics
 }
 

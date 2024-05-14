@@ -106,7 +106,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
-import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
+import { getTracer, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
@@ -150,6 +150,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
+import { BubbledError, isBubbledError } from './lib/trace/bubble-error'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1378,16 +1379,11 @@ export default abstract class Server<
         )
         if (finished) return
 
-        const err = new Error()
-        ;(err as any).result = {
+        throw new BubbledError(true, {
           response: new Response(null, {
-            headers: {
-              'x-middleware-next': '1',
-            },
+            headers: { 'x-middleware-next': '1' },
           }),
-        }
-        ;(err as any).bubble = true
-        throw err
+        })
       }
 
       // This wasn't a request via the matched path or the invoke path, so

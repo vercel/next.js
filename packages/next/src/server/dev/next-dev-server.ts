@@ -379,7 +379,7 @@ export default class DevServer extends Server {
         return result
       }
 
-      result.waitUntil.catch((error) => {
+      result.waitUntil?.catch((error) => {
         this.logErrorWithOriginalStack(error, 'unhandledRejection')
       })
       return result
