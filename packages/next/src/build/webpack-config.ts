@@ -509,8 +509,8 @@ export default async function getBaseWebpackConfig(
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: false,
-      bundleLayer: WEBPACK_LAYERS.middleware,
+      serverComponents: true,
+      bundleLayer: WEBPACK_LAYERS.reactServerComponents,
     }),
     babelLoader,
   ].filter(Boolean)
@@ -1455,7 +1455,7 @@ export default async function getBaseWebpackConfig(
             },
             {
               test: codeCondition.test,
-              issuerLayer: WEBPACK_LAYERS.middleware,
+              issuerLayer: WEBPACK_LAYERS.reactServerComponents,
               use: middlewareLayerLoaders,
             },
             {

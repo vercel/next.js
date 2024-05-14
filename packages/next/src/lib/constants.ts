@@ -134,7 +134,7 @@ const WEBPACK_LAYERS_NAMES = {
   /**
    * The layer for the middleware code.
    */
-  middleware: 'middleware',
+  // middleware: 'middleware',
   /**
    * The layer for the instrumentation hooks.
    */
@@ -164,7 +164,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.instrument,
-      WEBPACK_LAYERS_NAMES.middleware,
+      // WEBPACK_LAYERS_NAMES.middleware,
     ],
     neutralTarget: [
       // pages api
