@@ -991,7 +991,7 @@ export function runTests(ctx: RunTestsCtx) {
     const query = { url: `//example.com`, w: ctx.w, q: 1 }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(`"url" parameter is a protocol-relative URL (//) and must be changed to an absolute URL (http:// or https://)`)
+    expect(await res.text()).toBe(`"url" parameter cannot be a protocol-relative URL (//)`)
   })
 
   it('should fail when internal url is not an image', async () => {
