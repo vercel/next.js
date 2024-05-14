@@ -10,17 +10,17 @@ import {
 } from '../../client/components/app-router-headers'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
+import { I18nPathnameNormalizer } from '../future/normalizers/request/i18n'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
 import { format } from 'url'
 import { parseUrl } from '../../shared/lib/router/utils/parse-url'
-import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
 
 export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
   implements RequestAdapter<ServerRequest>
 {
   protected readonly normalizers: {
     readonly basePath: BasePathPathnameNormalizer | undefined
-    readonly locale: LocaleRouteNormalizer | undefined
+    readonly i18n: I18nPathnameNormalizer | undefined
   }
 
   constructor(
@@ -32,9 +32,7 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       basePath: this.nextConfig.basePath
         ? new BasePathPathnameNormalizer(this.nextConfig.basePath)
         : undefined,
-      locale: i18nProvider
-        ? new LocaleRouteNormalizer(i18nProvider)
-        : undefined,
+      i18n: i18nProvider ? new I18nPathnameNormalizer(i18nProvider) : undefined,
     }
   }
 
@@ -59,8 +57,8 @@ export class BaseRequestAdapter<ServerRequest extends BaseNextRequest>
       }
     }
 
-    if (this.normalizers.locale) {
-      const pathname = this.normalizers.locale.normalize(url.pathname)
+    if (this.normalizers.i18n) {
+      const pathname = this.normalizers.i18n.normalize(url.pathname)
       if (pathname !== url.pathname) {
         url.pathname = pathname
         addRequestMeta(req, 'didStripLocale', true)

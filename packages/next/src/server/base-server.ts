@@ -97,7 +97,7 @@ import type {
   MatchOptions,
   RouteMatcherManager,
 } from './future/route-matcher-managers/route-matcher-manager'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { I18nPathnameNormalizer } from './future/normalizers/request/i18n'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
 import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
 import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
@@ -415,7 +415,7 @@ export default abstract class Server<
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
   public readonly matchers: RouteMatcherManager
   protected readonly i18nProvider?: I18NProvider
-  protected readonly localeNormalizer?: LocaleRouteNormalizer
+  protected readonly i18nNormalizer?: I18nPathnameNormalizer
 
   /**
    * The request adapter is used to adapt the incoming request based on the
@@ -474,8 +474,8 @@ export default abstract class Server<
       : undefined
 
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    this.localeNormalizer = this.i18nProvider
-      ? new LocaleRouteNormalizer(this.i18nProvider)
+    this.i18nNormalizer = this.i18nProvider
+      ? new I18nPathnameNormalizer(this.i18nProvider)
       : undefined
 
     // Only serverRuntimeConfig needs the default
@@ -1872,8 +1872,8 @@ export default abstract class Server<
 
     urlPathname = removeTrailingSlash(urlPathname)
     resolvedUrlPathname = removeTrailingSlash(resolvedUrlPathname)
-    if (this.localeNormalizer) {
-      resolvedUrlPathname = this.localeNormalizer.normalize(resolvedUrlPathname)
+    if (this.i18nNormalizer) {
+      resolvedUrlPathname = this.i18nNormalizer.normalize(resolvedUrlPathname)
     }
 
     const handleRedirect = (pageData: any) => {
@@ -2830,8 +2830,8 @@ export default abstract class Server<
       path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
-    if (this.localeNormalizer && stripLocale) {
-      return this.localeNormalizer.normalize(path)
+    if (this.i18nNormalizer && stripLocale) {
+      return this.i18nNormalizer.normalize(path)
     }
     return path
   }

@@ -5,7 +5,7 @@ import {
 } from '../../route-matchers/pages-route-matcher'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
-import type { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
+import type { I18nPathnameNormalizer } from '../../normalizers/request/i18n'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 import { DevPagesNormalizers } from '../../normalizers/built/pages'
 
@@ -17,7 +17,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
     reader: FileReader,
-    private readonly localeNormalizer?: LocaleRouteNormalizer
+    private readonly i18nNormalizer?: I18nPathnameNormalizer
   ) {
     super(pagesDir, reader)
 
@@ -62,7 +62,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
       const page = this.normalizers.page.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
-      if (this.localeNormalizer) {
+      if (this.i18nNormalizer) {
         matchers.push(
           new PagesLocaleRouteMatcher({
             kind: RouteKind.PAGES,

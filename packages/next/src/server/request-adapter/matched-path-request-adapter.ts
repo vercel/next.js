@@ -16,6 +16,7 @@ import { NextDataPathnameNormalizer } from '../future/normalizers/request/next-d
 import { PostponedPathnameNormalizer } from '../future/normalizers/request/postponed'
 import { PrefetchRSCPathnameNormalizer } from '../future/normalizers/request/prefetch-rsc'
 import { RSCPathnameNormalizer } from '../future/normalizers/request/rsc'
+import { I18nPathnameNormalizer } from '../future/normalizers/request/i18n'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { addRequestMeta, type NextUrlWithParsedQuery } from '../request-meta'
@@ -33,7 +34,6 @@ import { checkIsAppPPREnabled } from '../lib/experimental/ppr'
 import { BasePathPathnameNormalizer } from '../future/normalizers/request/base-path'
 import { format } from 'url'
 import { BaseRequestAdapter } from './base-request-adapter'
-import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
 
 export class MatchedPathRequestAdapter<
   ServerRequest extends BaseNextRequest,
@@ -45,7 +45,7 @@ export class MatchedPathRequestAdapter<
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
-    readonly locale: LocaleRouteNormalizer | undefined
+    readonly i18n: I18nPathnameNormalizer | undefined
   }
 
   constructor(
@@ -83,9 +83,7 @@ export class MatchedPathRequestAdapter<
       data: enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildID)
         : undefined,
-      locale: i18nProvider
-        ? new LocaleRouteNormalizer(i18nProvider)
-        : undefined,
+      i18n: i18nProvider ? new I18nPathnameNormalizer(i18nProvider) : undefined,
     }
   }
 
@@ -246,8 +244,8 @@ export class MatchedPathRequestAdapter<
     if (this.normalizers.data) {
       normalizedUrlPath = this.normalizers.data.normalize(urlPathname)
     }
-    if (this.normalizers.locale) {
-      normalizedUrlPath = this.normalizers.locale.normalize(urlPathname)
+    if (this.normalizers.i18n) {
+      normalizedUrlPath = this.normalizers.i18n.normalize(urlPathname)
     }
 
     const domainLocale = this.i18nProvider?.detectDomainLocale(
