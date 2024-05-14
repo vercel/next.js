@@ -1,3 +1,9 @@
+---
+title: Caching and Revalidating
+nav_title: Caching and Revalidating
+description: Learn how to cache and revalidate data in your Next.js application.
+---
+
 ## Caching
 
 Caching is the process of storing data to reduce the number of requests made to the server. Next.js provides a built-in [Data Cache](/docs/app/building-your-application/caching) that caches individual data requests.
@@ -35,4 +41,154 @@ fetch('https://...', { cache: 'no-store' })
 
 If you have multiple `fetch` requests in a layout or page, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
+### Data Fetching Libraries and ORMs
+
+Whether a data request is cached or not will depend the default semantics of your Data Fetching Library, Database, or ORM.
+
+To cache specific requests, you can use the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) API:
+
+```tsx filename="@/app/lib/data.ts switcher highlight={6}
+import { unstable_cache as cache } from 'next/cache'
+
+export async function getPosts() {
+  cache()
+
+  try {
+    // Fetch Data
+  } catch (error) {}
+}
+```
+
+```jsx filename="@/app/lib/data.js switcher highlight={6}
+import { unstable_cache as cache } from 'next/cache'
+
+export async function getPosts() {
+  cache()
+  try {
+    // Fetch Data
+  } catch (error) {}
+}
+```
+
+To opt specific requests out of caching, you can use the [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore) API:
+
+```tsx filename="@/app/lib/data.ts switcher highlight={6}
+import { unstable_noStore as noStore } from 'next/cache'
+
+export async function getTransactions() {
+  // Prevent the response from being cached.
+  // This is equivalent to in fetch(..., {cache: 'no-store'}).
+  noStore()
+
+  try {
+    // Fetch Data
+  } catch (error) {}
+}
+```
+
+```jsx filename="@/app/lib/data.js switcher highlight={6}
+import { unstable_noStore as noStore } from 'next/cache'
+
+export async function getTransactions() {
+  // Prevent the response from being cached.
+  // This is equivalent to in fetch(..., {cache: 'no-store'}).
+  noStore()
+
+  try {
+    // Fetch Data
+  } catch (error) {}
+}
+```
+
+## Revalidating Data
+
+Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information, while still benefiting from the speed of static rendering.
+
+Cached data can be revalidated in two ways:
+
+- **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical.
+- **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
+
+### Time-based Revalidation
+
+To revalidate data at a timed interval, you can use the `next.revalidate` option of `fetch` to set the cache lifetime of a resource (in seconds).
+
+```js
+fetch('https://...', { next: { revalidate: 3600 } })
+```
+
+Alternatively, to revalidate all requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
+
+```jsx filename="layout.js | page.js"
+export const revalidate = 3600 // revalidate at most every hour
+```
+
+Learn [how time-based revalidation works](/docs/app/building-your-application/caching#revalidating-1)
+
+> **Good to know:**
+>
+> - If you have multiple fetch requests in a statically rendered route, and each has a different revalidation frequency. The lowest time will be used for all requests.
+> - For dynamically rendered routes, each `fetch` request will be revalidated independently.
+> - To save server resources, we recommend setting a high revalidation time whenever possible. For instance, 1 minute instead of 1 second for data that changes frequently. If you need real-time data, consider switching to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) or [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering) for the specific route.
+
+### On-demand Revalidation
+
+Data can be revalidated on-demand with the ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) and ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) APIs.
+
+Use `revalidatePath` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to revalidate data for specific routes:
+
+```tsx filename="@/app/actions.tsx switcher
+import { revalidatePath } from 'next/cache'
+
+export default async createPost() {
+  try {
+    // Mutate data
+    revalidatePath('/posts')
+  } catch(error) {}
+
+}
+```
+
+```jsx filename="@/app/actions.js switcher
+import { revalidatePath } from 'next/cache'
+
+export default async createPost() {
+  try {
+    // Mutate data
+    revalidatePath('/posts')
+  } catch(error) {}
+
+}
+```
+
+Use `revalidateTag` to revalidate `fetch` requests across routes.
+
+1. When using `fetch`, you have the option to tag cache entries with one or more tags.
+2. Then, you can call `revalidateTag` to revalidate all entries associated with that tag.
+
+For example, the following `fetch` request adds the cache tag `collection`:
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const res = await fetch('https://...', { next: { tags: ['collection'] } })
+  const data = await res.json()
+  // ...
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const res = await fetch('https://...', { next: { tags: ['collection'] } })
+  const data = await res.json()
+  // ...
+}
+```
+
+You can then revalidate this `fetch` call tagged with `collection` by calling `revalidateTag`:
+
+```ts filename="@/app/actions.ts" switcher
+
+import { revalidateTag } from 'next/cache'
+
 However, we recommend configuring the caching behavior of each `fetch` request individually. This gives you more granular control over the caching behavior.
+```
