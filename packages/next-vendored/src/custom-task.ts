@@ -110,7 +110,7 @@ async function addMissingFiles(
           author && { author },
           license && { license }
         )
-      ),
+      ) + '\n',
       'utf8'
     ),
   })
