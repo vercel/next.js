@@ -8,6 +8,7 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
         chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+        code_builder::Code,
         ident::AssetIdent,
         module::Module,
         reference::ModuleReferences,
@@ -143,19 +144,19 @@ impl EcmascriptChunkItem for BuildServerComponentChunkItem {
             .as_chunk_item(Vc::upcast(this.context))
             .id()
             .await?;
-        Ok(EcmascriptChunkItemContent {
-            inner_code: formatdoc!(
+
+        Ok(EcmascriptChunkItemContent::new(
+            this.inner.ident(),
+            Code::from(formatdoc!(
                 r#"
                     __turbopack_esm__({{
                         default: () => __turbopack_import__({}),
                     }});
                 "#,
                 StringifyJs(&module_id),
-            )
-            .into(),
-            ..Default::default()
-        }
-        .cell())
+            ))
+            .cell(),
+        ))
     }
 }
 

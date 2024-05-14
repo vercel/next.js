@@ -5,6 +5,7 @@ use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
         chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
+        code_builder::CodeBuilder,
         ident::AssetIdent,
         module::Module,
         reference::{ModuleReference, ModuleReferences},
@@ -141,10 +142,7 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 
     #[turbo_tasks::function]
     fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        EcmascriptChunkItemContent {
-            ..Default::default()
-        }
-        .cell()
+        EcmascriptChunkItemContent::new(self.module.ident(), CodeBuilder::default().build().cell())
     }
 }
 
