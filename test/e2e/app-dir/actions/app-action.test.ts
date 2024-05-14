@@ -1030,20 +1030,24 @@ describe('app-dir action handling', () => {
       // Modify the cookie
       await browser.elementByCss('#set-cookie').click()
 
-      const randomNumber = await browser
-        .waitForElementByCss('#random-cookie')
-        .text()
+      const randomNumber = await retry(async () => {
+        const cookie = await browser
+          .waitForElementByCss('#random-cookie')
+          .text()
 
-      expect(randomNumber).not.toEqual('')
+        expect(cookie).not.toEqual('')
+
+        return cookie
+      })
 
       await browser.elementByCss('#set-cookie').click()
 
       await retry(async () => {
-        const newRandomNumber = await browser
+        const cookie = await browser
           .waitForElementByCss('#random-cookie')
           .text()
 
-        expect(newRandomNumber).not.toBe(randomNumber)
+        expect(cookie).not.toBe(randomNumber)
       })
     })
 
@@ -1053,8 +1057,8 @@ describe('app-dir action handling', () => {
 
       let cookie
       await retry(async () => {
-        cookie = await browser.elementByCss('#value').text()
-
+        cookie = await browser.waitForElementByCss('#value').text()
+        expect(cookie).not.toBe('')
         expect(parseInt(cookie)).toBeGreaterThan(0)
       })
 
@@ -1066,8 +1070,8 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#update-cookie').click()
       let newCookie
       await retry(async () => {
-        newCookie = await browser.elementByCss('#value').text()
-
+        newCookie = await browser.waitForElementByCss('#value').text()
+        expect(newCookie).not.toBe('')
         expect(newCookie).not.toEqual(cookie)
         expect(parseInt(newCookie)).toBeGreaterThan(0)
       })
