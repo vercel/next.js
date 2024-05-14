@@ -664,7 +664,7 @@ export default async function getBaseWebpackConfig(
       reactProductionProfiling,
       hasRewrites,
     }),
-    ...(isClient || isEdgeServer
+    ...(isClient
       ? {
           fallback: {
             process: require.resolve('./polyfills/process'),
