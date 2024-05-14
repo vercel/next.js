@@ -2947,6 +2947,19 @@
     ],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Danfo": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "ELSH",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Dangrek": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -5185,6 +5198,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "thai", "vietnamese"]
+  },
+  "Jacquard 12": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
   },
   "Jacquard 12 Charted": {
     "weights": ["400"],
