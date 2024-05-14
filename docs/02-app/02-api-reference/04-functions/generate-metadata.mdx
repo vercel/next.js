@@ -14,7 +14,7 @@ related:
 This page covers all **Config-based Metadata** options with `generateMetadata` and the static metadata object.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 // either Static metadata
 export const metadata: Metadata = {
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }) {
 To define static metadata, export a [`Metadata` object](#metadata-fields) from a `layout.js` or `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: '...',
@@ -79,7 +79,7 @@ See the [Metadata Fields](#metadata-fields) for a complete list of supported opt
 Dynamic metadata depends on **dynamic information**, such as the current route parameters, external data, or `metadata` in parent segments, can be set by exporting a `generateMetadata` function that returns a [`Metadata` object](#metadata-fields).
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
-import { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
   params: { id: string }
@@ -188,7 +188,7 @@ export const metadata = {
 #### Template object
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -236,7 +236,7 @@ export const metadata: Metadata = {}
 `title.template` can be used to add a prefix or a suffix to `titles` defined in **child** route segments.
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -256,7 +256,7 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -288,7 +288,7 @@ export const metadata = {
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -306,7 +306,7 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -449,7 +449,7 @@ URL composition favors developer intent over default directory traversal semanti
 For example, given the following `metadataBase`:
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://acme.com'),

@@ -1078,9 +1078,6 @@ export default async function getBaseWebpackConfig(
             TerserPlugin,
           } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
           new TerserPlugin({
-            cacheDir: path.join(distDir, 'cache', 'next-minifier'),
-            parallel: config.experimental.cpus,
-            swcMinify: config.swcMinify,
             terserOptions: {
               ...terserOptions,
               compress: {
@@ -1275,14 +1272,6 @@ export default async function getBaseWebpackConfig(
         },
         ...(hasAppDir
           ? [
-              {
-                layer: WEBPACK_LAYERS.appRouteHandler,
-                test: new RegExp(
-                  `private-next-app-dir\\/.*\\/route\\.(${pageExtensions.join(
-                    '|'
-                  )})$`
-                ),
-              },
               {
                 // Make sure that AsyncLocalStorage module instance is shared between server and client
                 // layers.
@@ -1708,23 +1697,17 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-
             let runtime
 
-            switch (layer) {
-              case WEBPACK_LAYERS.appRouteHandler:
-                runtime = 'app-route'
-                break
-              case WEBPACK_LAYERS.serverSideRendering:
-              case WEBPACK_LAYERS.reactServerComponents:
-              case WEBPACK_LAYERS.appPagesBrowser:
-              case WEBPACK_LAYERS.actionBrowser:
-                runtime = 'app-page'
-                break
-              default:
-                runtime = 'pages'
+            if (layer === WEBPACK_LAYERS.serverSideRendering) {
+              runtime = 'app-page'
+            } else if (!layer || layer === WEBPACK_LAYERS.api) {
+              runtime = 'pages'
+            } else {
+              throw new Error(
+                `shared-runtime module ${moduleName} cannot be used in ${layer} layer`
+              )
             }
-
             resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }
         ),
@@ -1910,7 +1893,6 @@ export default async function getBaseWebpackConfig(
           new Map(
             [
               ['swcLoader', useSWCLoader],
-              ['swcMinify', config.swcMinify],
               ['swcRelay', !!config.compiler?.relay],
               ['swcStyledComponents', !!config.compiler?.styledComponents],
               [
@@ -2067,7 +2049,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling,
     webpack: !!config.webpack,
     hasRewrites,
-    swcMinify: config.swcMinify,
     swcLoader: useSWCLoader,
     removeConsole: config.compiler?.removeConsole,
     reactRemoveProperties: config.compiler?.reactRemoveProperties,

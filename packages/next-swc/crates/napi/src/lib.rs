@@ -58,6 +58,8 @@ pub mod next_api;
 pub mod parse;
 pub mod transform;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod turbo_trace_server;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbotrace;
