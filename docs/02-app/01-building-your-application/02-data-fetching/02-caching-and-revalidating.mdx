@@ -1,0 +1,38 @@
+## Caching
+
+Caching is the process of storing data to reduce the number of requests made to the server. Next.js provides a built-in [Data Cache](/docs/app/building-your-application/caching) that caches individual data requests.
+
+### `fetch` requests
+
+Whether `fetch` requests are [cached](/docs/app/building-your-application/caching#data-cache) or not depends on the context and APIs used:
+
+| **Context**                                                                                                      | **Cached** | **Default Setting**  |
+| ---------------------------------------------------------------------------------------------------------------- | ---------- | -------------------- |
+| Static [Server Components](/docs/app/building-your-application/rendering/server-components)                      | Yes        | `cache: force-cache` |
+| `GET` method in [Route Handlers](/docs/app/building-your-application/rendering/server-components)                | Yes        | `cache: force-cache` |
+| [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)                 | No         | `cache: no-store`    |
+| `POST` and mutation methods in [Route Handlers](/docs/app/building-your-application/rendering/server-components) | No         | `cache: no-store`    |
+| After [dynamic functions](/docs/app/building-your-application/routing/route-handlers#dynamic-functions)          | No         | `cache: no-store`    |
+| Using dynamic [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config)            | No         | `cache: no-store`    |
+
+Overall, there are two scenarios where `fetch` requests are not cached:
+
+- Mutations: such as in `POST` methods or [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+- Dynamic Rendering: When using [dynamic functions](/docs/app/building-your-application/routing/route-handlers#dynamic-functions) or [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config) that cause the route segment to be dynamically rendered.
+
+To cache an individual `fetch` request, you can use the `cache: 'force-cache'` option:
+
+```js
+// 'force-cache' is the default, and can be omitted
+fetch('https://...', { cache: 'force-cache' })
+```
+
+To opt out of caching for individual `fetch` requests, you can use the `cache: 'no-store'` option:
+
+```js filename="layout.js | page.js"
+fetch('https://...', { cache: 'no-store' })
+```
+
+If you have multiple `fetch` requests in a layout or page, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
+
+However, we recommend configuring the caching behavior of each `fetch` request individually. This gives you more granular control over the caching behavior.
