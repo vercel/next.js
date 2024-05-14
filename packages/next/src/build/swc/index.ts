@@ -97,9 +97,9 @@ const triples = (() => {
 })()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
-// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
-// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
-// naive interface - `loadBindings` will not validate neither path nor the binary.
+// If one of env variables is set, `loadNative` will try to use specified
+// binary instead. This is thin, naive interface
+// - `loadBindings` will not validate neither path nor the binary.
 //
 // Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
@@ -138,7 +138,7 @@ let lastNativeBindingsLoadErrorCode:
   | 'unsupported_target'
   | string
   | undefined = undefined
-let nativeBindings: any
+let nativeBindings: Binding
 let wasmBindings: any
 let downloadWasmPromise: any
 let pendingBindings: any
@@ -158,21 +158,21 @@ export interface Binding {
       stream: any
       get: any
     }
-    mdx: {
-      compile: any
-      compileSync: any
-    }
     createProject: (
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
+    startTurbopackTraceServer: (path: string) => void
+  }
+  mdx: {
+    compile: any
+    compileSync: any
   }
   minify: any
   minifySync: any
   transform: any
   transformSync: any
   parse: any
-  parseSync: any
 
   getTargetTriple(): string | undefined
 
@@ -775,7 +775,10 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
 }
 
 // TODO(sokra) Support wasm option.
-function bindingToApi(binding: any, _wasm: boolean) {
+function bindingToApi(
+  binding: any,
+  _wasm: boolean
+): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
@@ -1217,10 +1220,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(
-    options: ProjectOptions,
-    turboEngineOptions: TurboEngineOptions
-  ) {
+  const createProject: Binding['turbo']['createProject'] = async (
+    options,
+    turboEngineOptions
+  ) => {
     return new ProjectImpl(
       await binding.projectNew(
         await rustifyProjectOptions(options),
@@ -1277,9 +1280,6 @@ async function loadWasm(importPath = '') {
           return bindings?.parse
             ? bindings.parse(src.toString(), options)
             : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        parseSync(src: string, options: any) {
-          return bindings.parseSync(src.toString(), options)
         },
         getTargetTriple() {
           return undefined
@@ -1352,7 +1352,7 @@ function loadNative(importPath?: string) {
   const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
-  let bindings: any
+  let bindings: any = customBindings
   let attempts: any[] = []
 
   const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
@@ -1510,6 +1510,12 @@ function loadNative(importPath?: string) {
           },
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
+        startTurbopackTraceServer: (traceFilePath) => {
+          Log.warn(
+            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+          )
+          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+        },
       },
       mdx: {
         compile: (src: string, options: any) =>

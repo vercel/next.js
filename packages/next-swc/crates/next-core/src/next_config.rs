@@ -126,7 +126,6 @@ pub struct NextConfig {
     public_runtime_config: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
-    swc_minify: Option<bool>,
     target: Option<String>,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
@@ -535,7 +534,6 @@ pub struct ExperimentalConfig {
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
@@ -968,11 +966,6 @@ impl NextConfig {
         Ok(Vc::cell(
             self.await?.sass_options.clone().unwrap_or_default(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn swc_minify(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.swc_minify.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]

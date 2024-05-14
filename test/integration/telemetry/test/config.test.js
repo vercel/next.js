@@ -328,10 +328,6 @@ describe('config telemetry', () => {
               invocationCount: 1,
             },
             {
-              featureName: 'swcMinify',
-              invocationCount: 1,
-            },
-            {
               featureName: 'swcRelay',
               invocationCount: 1,
             },

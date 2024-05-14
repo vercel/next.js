@@ -6,6 +6,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
+import { isWebpackServerOnlyLayer } from '../utils'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -78,8 +79,7 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   bundleLayer?: WebpackLayerName
 }) {
-  const isReactServerLayer =
-    bundleLayer === WEBPACK_LAYERS.reactServerComponents
+  const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -437,11 +437,6 @@ export function getLoaderSWCOptions({
       preferEsm: !!esm,
       isPageFile,
       env: {
-        // Workaround acorn issues
-        include: [
-          'transform-private-methods',
-          'transform-private-property-in-object',
-        ],
         targets: {
           // Targets the current version of Node.js
           node: process.versions.node,
