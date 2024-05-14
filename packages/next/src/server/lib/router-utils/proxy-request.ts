@@ -3,12 +3,13 @@ import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
 import { stringifyQuery } from '../../server-route-utils'
+import { Duplex } from 'stream'
 
 export async function proxyRequest(
   req: IncomingMessage,
-  res: ServerResponse,
+  res: ServerResponse | Duplex,
   parsedUrl: NextUrlWithParsedQuery,
-  upgradeHead?: any,
+  upgradeHead?: Buffer,
   reqBody?: any,
   proxyTimeout?: number | null
 ) {
@@ -80,14 +81,17 @@ export async function proxyRequest(
         proxyReject(err)
 
         if (!res.destroyed) {
-          res.statusCode = 500
+          if (!(res instanceof Duplex)) {
+            res.statusCode = 500
+          }
+
           res.end('Internal Server Error')
         }
       }
     })
 
     // if upgrade head is present treat as WebSocket request
-    if (upgradeHead) {
+    if (upgradeHead || res instanceof Duplex) {
       proxy.on('proxyReqWs', (proxyReq) => {
         proxyReq.on('close', () => {
           if (!finished) {
@@ -96,7 +100,7 @@ export async function proxyRequest(
           }
         })
       })
-      proxy.ws(req as any as IncomingMessage, res, upgradeHead)
+      proxy.ws(req, res, upgradeHead)
       proxyResolve(true)
     } else {
       proxy.on('proxyReq', (proxyReq) => {
