@@ -4040,10 +4040,9 @@
       "runtimeError": false
     },
     "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-      "passed": [
-        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
-      ],
+      "passed": [],
       "failed": [
+        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
         "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
       ],
       "pending": [],
