@@ -437,8 +437,6 @@ export function getLoaderSWCOptions({
       preferEsm: !!esm,
       isPageFile,
       env: {
-        // Workaround acorn issues
-        include: ['transform-class-properties'],
         targets: {
           // Targets the current version of Node.js
           node: process.versions.node,
