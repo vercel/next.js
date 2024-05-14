@@ -199,7 +199,7 @@ export class ImageOptimizerCache {
     }
 
     if (url.startsWith('//')) {
-      return { errorMessage: '"url" parameter is a protocol-relative URL (//) and must be changed to an absolute URL (http:// or https://)'}
+      return { errorMessage: '"url" parameter cannot be a protocol-relative URL (//)'}
     }
 
     let isAbsolute: boolean
