@@ -12,6 +12,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 
@@ -134,11 +135,21 @@ describe('required server files', () => {
         },
       }
     )
+
+    if (process.platform === 'darwin') {
+      appPort = `http://127.0.0.1:${appPort}`
+    }
   }
 
   beforeAll(async () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
+
+  beforeEach(() => {
+    errors = []
+    stderr = ''
+  })
+
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
@@ -958,60 +969,43 @@ describe('required server files', () => {
   })
 
   it('should bubble error correctly for gip page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () =>
-        errors.join('\n').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gip hit an oops')
+    })
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gssp hit an oops')
+    })
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('gsp hit an oops')
+    })
   })
 
   it('should bubble error correctly for API page', async () => {
-    errors = []
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+
+    await retry(() => {
+      expect(errors.join('\n')).toInclude('some error from /api/error')
+    })
   })
 
   it('should normalize optional values correctly for SSP page', async () => {
@@ -1284,6 +1278,7 @@ describe('required server files', () => {
     expect(envVariables.envFromHost).toBe('FOOBAR')
   })
 
+  // FIXME: update to not mutate the global state
   it('should run middleware correctly (without minimalMode, with wasm)', async () => {
     const standaloneDir = join(next.testDir, 'standalone')
 
