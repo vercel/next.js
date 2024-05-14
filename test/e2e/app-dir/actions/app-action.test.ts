@@ -10,6 +10,7 @@ import {
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
+import { BrowserInterface } from '../../../lib/browsers/base'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -134,8 +135,10 @@ describe('app-dir action handling', () => {
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
       await retry(() => {
-        expect(logs).toContain(
-          expect.stringMatching('accept header: text/x-component')
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching('accept header: text/x-component'),
+          ])
         )
       })
     }
@@ -265,11 +268,13 @@ describe('app-dir action handling', () => {
 
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
-      await check(() => {
-        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
-          ? 'yes'
-          : ''
-      }, 'yes')
+      await retry(() => {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.stringMatching('File name: hello.txt size: 5'),
+          ])
+        )
+      })
     }
   })
 
@@ -372,13 +377,13 @@ describe('app-dir action handling', () => {
     await browser.elementByCss('#navigate-server').click()
 
     // wait for the action to be completed
-    await check(async () => {
+    await retry(async () => {
       const newRandomNumber = await browser
         .elementByCss('#random-number')
         .text()
 
-      return newRandomNumber === initialRandomNumber ? 'fail' : 'success'
-    }, 'success')
+      expect(newRandomNumber).not.toBe(initialRandomNumber)
+    })
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
@@ -943,7 +948,9 @@ describe('app-dir action handling', () => {
     // TODO: investigate flakey behavior with revalidate
     it('should handle revalidateTag', async () => {
       const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-number').text()
+      const randomNumber = await browser
+        .waitForElementByCss('#random-number')
+        .text()
       const justPutIt = await browser.elementByCss('#justputit').text()
       const thankYouNext = await browser.elementByCss('#thankyounext').text()
 
@@ -1019,13 +1026,21 @@ describe('app-dir action handling', () => {
 
     it('should revalidate when cookies.set is called', async () => {
       const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-cookie').text()
+
+      // Modify the cookie
+      await browser.elementByCss('#set-cookie').click()
+
+      const randomNumber = await browser
+        .waitForElementByCss('#random-cookie')
+        .text()
+
+      expect(randomNumber).not.toEqual('')
 
       await browser.elementByCss('#set-cookie').click()
 
       await retry(async () => {
         const newRandomNumber = await browser
-          .elementByCss('#random-cookie')
+          .waitForElementByCss('#random-cookie')
           .text()
 
         expect(newRandomNumber).not.toBe(randomNumber)
@@ -1037,10 +1052,11 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#update-cookie').click()
 
       let cookie
-      await check(async () => {
+      await retry(async () => {
         cookie = await browser.elementByCss('#value').text()
-        return parseInt(cookie) > 0 ? 'success' : 'failure'
-      }, 'success')
+
+        expect(parseInt(cookie)).toBeGreaterThan(0)
+      })
 
       // Make sure the route is cached
       await browser.elementByCss('#page-2').click()
@@ -1049,12 +1065,12 @@ describe('app-dir action handling', () => {
       // Modify the cookie
       await browser.elementByCss('#update-cookie').click()
       let newCookie
-      await check(async () => {
+      await retry(async () => {
         newCookie = await browser.elementByCss('#value').text()
-        return newCookie !== cookie && parseInt(newCookie) > 0
-          ? 'success'
-          : 'failure'
-      }, 'success')
+
+        expect(newCookie).not.toEqual(cookie)
+        expect(parseInt(newCookie)).toBeGreaterThan(0)
+      })
 
       // Navigate to another page and make sure the cookie is not cached
       await browser.elementByCss('#page-2').click()
@@ -1064,18 +1080,13 @@ describe('app-dir action handling', () => {
 
     // TODO: investigate flakey behavior with revalidate
     it('should revalidate when cookies.set is called in a client action', async () => {
-      const browser = await next.browser('/revalidate')
+      const browser: BrowserInterface = await next.browser('/revalidate')
       await browser.refresh()
 
-      let randomCookie
-      await check(async () => {
-        randomCookie = JSON.parse(
-          await browser.elementByCss('#random-cookie').text()
-        ).value
-        return randomCookie ? 'success' : 'failure'
-      }, 'success')
-
-      console.log(123, await browser.elementByCss('body').text())
+      let randomCookie = await retry(async () => {
+        return JSON.parse(await browser.elementByCss('#random-cookie').text())
+          .value
+      })
 
       await browser.elementByCss('#another').click()
       await check(async () => {
@@ -1086,8 +1097,6 @@ describe('app-dir action handling', () => {
         await browser.elementByCss('#random-cookie').text()
       ).value
 
-      console.log(456, await browser.elementByCss('body').text())
-
       // Should be the same value
       expect(randomCookie).toEqual(newRandomCookie)
 
@@ -1097,25 +1106,26 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#set-cookie').click()
 
       // Should be different
-      let revalidatedRandomCookie
-      await check(async () => {
-        revalidatedRandomCookie = JSON.parse(
-          await browser.elementByCss('#random-cookie').text()
+      let revalidatedRandomCookie = await retry(async () => {
+        const cookie = JSON.parse(
+          await browser.waitForElementByCss('#random-cookie').text()
         ).value
-        return randomCookie !== revalidatedRandomCookie ? 'success' : 'failure'
-      }, 'success')
+
+        expect(cookie).not.toEqual(randomCookie)
+
+        return cookie
+      })
 
       await browser.elementByCss('#another').click()
 
       // The other page should be revalidated too
-      await check(async () => {
+      await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
         ).value
-        return revalidatedRandomCookie === newRandomCookie
-          ? 'success'
-          : 'failure'
-      }, 'success')
+
+        expect(revalidatedRandomCookie).toEqual(newRandomCookie)
+      })
     })
 
     it.each(['tag', 'path'])(
