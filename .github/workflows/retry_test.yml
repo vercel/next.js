@@ -42,7 +42,7 @@ jobs:
           # (through slightly hacky means).
           payload: |
             {
-              "commit_title": "${{ github.event.workflow_run.display_title }}",
+              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
               "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
               "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
             }
