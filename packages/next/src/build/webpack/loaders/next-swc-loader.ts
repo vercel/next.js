@@ -63,7 +63,6 @@ export interface SWCLoaderOptions {
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]
-  isEdgeRuntime?: boolean
 }
 
 // these are exact code conditions checked
@@ -107,7 +106,6 @@ async function loaderTransform(
     swcCacheDir,
     serverComponents,
     bundleLayer,
-    isEdgeRuntime,
     esm,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
@@ -134,7 +132,6 @@ async function loaderTransform(
     relativeFilePathFromRoot,
     serverComponents,
     bundleLayer,
-    isEdgeRuntime,
     esm,
   })
 

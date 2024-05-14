@@ -443,7 +443,6 @@ export default async function getBaseWebpackConfig(
       loader: 'next-swc-loader',
       options: {
         isServer: isNodeOrEdgeCompilation,
-        isEdgeRuntime: isEdgeServer,
         rootDir: dir,
         pagesDir,
         appDir,

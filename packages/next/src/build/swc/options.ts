@@ -63,7 +63,6 @@ function getBaseSWCOptions({
   swcCacheDir,
   serverComponents,
   bundleLayer,
-  isEdgeRuntime,
 }: {
   filename: string
   jest?: boolean
@@ -79,7 +78,6 @@ function getBaseSWCOptions({
   swcCacheDir?: string
   serverComponents?: boolean
   bundleLayer?: WebpackLayerName
-  isEdgeRuntime?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
@@ -145,7 +143,6 @@ function getBaseSWCOptions({
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
-                  process: isEdgeRuntime ? 'undefined' : 'object',
                 },
                 envs: {
                   NODE_ENV: development ? '"development"' : '"production"',
@@ -299,7 +296,6 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
-    isEdgeRuntime: false,
     esm,
     // Don't apply server layer transformations for Jest
     // Disable server / client graph assertions for Jest
@@ -346,7 +342,6 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot,
   serverComponents,
   bundleLayer,
-  isEdgeRuntime,
   esm,
 }: {
   filename: string
@@ -370,7 +365,6 @@ export function getLoaderSWCOptions({
   esm?: boolean
   serverComponents?: boolean
   bundleLayer?: WebpackLayerName
-  isEdgeRuntime?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -385,7 +379,6 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     bundleLayer,
     serverComponents,
-    isEdgeRuntime,
     esm: !!esm,
   })
   baseOptions.fontLoaders = {
