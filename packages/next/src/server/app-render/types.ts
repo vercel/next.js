@@ -170,7 +170,7 @@ export interface RenderOptsPartial {
      */
     isRoutePPREnabled?: boolean
     swrDelta: SwrDelta | undefined
-    clientTraceMetadata: boolean
+    clientTraceMetadata: string[] | undefined
   }
   postponed?: string
   /**

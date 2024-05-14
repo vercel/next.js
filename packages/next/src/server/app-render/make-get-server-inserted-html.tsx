@@ -11,16 +11,24 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
 
+export function getTracedMetadata(
+  traceData: ClientTraceDataEntry[],
+  clientTraceMetadata: string[] | undefined
+): ClientTraceDataEntry[] | undefined {
+  if (!clientTraceMetadata) return undefined
+  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
+}
+
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
   serverCapturedErrors,
-  traceData,
+  tracingMetadata,
   basePath,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
-  traceData: ClientTraceDataEntry[]
+  tracingMetadata: ClientTraceDataEntry[] | undefined
   serverCapturedErrors: Error[]
   basePath: string
 }) {
@@ -84,14 +92,17 @@ export function makeGetServerInsertedHTML({
               return <script key={polyfill.src} {...polyfill} />
             })
         }
-        {traceData.map(({ key, value }) => {
-          // The meta-tag name is prefixed with "_next-trace-data-" for mainly two reasons:
-          // - Avoid collisions with meta tags created by the user
-          // - Allow clients that want to propagate _all_ trace data to explicitly query for meta tags prefixed with "_next-trace-data-"
-          return (
-            <meta key={key} name={`_next-trace-data-${key}`} content={value} />
-          )
-        })}
+        {tracingMetadata
+          ? tracingMetadata.map(({ key, value }) => {
+              return (
+                <meta
+                  key={`next-trace-data-${key}:${value}`}
+                  name={key}
+                  content={value}
+                />
+              )
+            })
+          : null}
         {errorMetaTags}
       </>,
       {

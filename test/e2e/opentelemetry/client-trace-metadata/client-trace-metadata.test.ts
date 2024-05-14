@@ -1,41 +1,34 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
+describe('clientTraceMetadata (ppr=%p)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
-    nextConfig: {
-      experimental: {
-        instrumentationHook: true,
-        clientTraceMetadata: true,
-        ppr: pprEnabled,
-      },
-    },
   })
 
   it('should inject propagation data for a dynamically server-side-rendered page', async () => {
     const $ = await next.render$('/dynamic-page')
     const headHtml = $.html('head')
     expect(headHtml).toContain(
-      '<meta name="_next-trace-data-my-test-key-1" content="my-test-value-1">'
+      '<meta name="my-test-key-1" content="my-test-value-1">'
     )
     expect($.html('head')).toContain(
-      '<meta name="_next-trace-data-my-test-key-2" content="my-test-value-2">'
+      '<meta name="my-test-key-2" content="my-test-value-2">'
     )
     expect($.html('head')).toMatch(
-      /<meta name="_next-trace-data-my-parent-span-id" content="[a-f0-9]{16}">/
+      /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
     )
   })
 
   it('hard loading a dynamic page twice should yield different dynamic trace data', async () => {
     const browser1 = await next.browser('/dynamic-page')
     const firstLoadSpanIdContent = await browser1
-      .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+      .elementByCss('meta[name="my-parent-span-id"]')
       .getAttribute('content')
 
     const browser2 = await next.browser('/dynamic-page')
     const secondLoadSpanIdContent = await browser2
-      .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+      .elementByCss('meta[name="my-parent-span-id"]')
       .getAttribute('content')
 
     expect(firstLoadSpanIdContent).toMatch(/[a-f0-9]{16}/)
@@ -49,13 +42,13 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         const $ = await next.render$('/static-page')
         const headHtml = $.html('head')
         expect(headHtml).toContain(
-          '<meta name="_next-trace-data-my-test-key-1" content="my-test-value-1">'
+          '<meta name="my-test-key-1" content="my-test-value-1">'
         )
         expect($.html('head')).toContain(
-          '<meta name="_next-trace-data-my-test-key-2" content="my-test-value-2">'
+          '<meta name="my-test-key-2" content="my-test-value-2">'
         )
         expect($.html('head')).toMatch(
-          /<meta name="_next-trace-data-my-parent-span-id" content="[a-f0-9]{16}">/
+          /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
         )
       })
 
@@ -63,7 +56,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         const browser = await next.browser('/static-page')
 
         const initialSpanIdTagContent = await browser
-          .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+          .elementByCss('meta[name="my-parent-span-id"]')
           .getAttribute('content')
 
         // We are in dev mode so the static page should contain propagation data
@@ -73,7 +66,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#dynamic-page-header')
 
         const updatedSpanIdTagContent = await browser
-          .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+          .elementByCss('meta[name="my-parent-span-id"]')
           .getAttribute('content')
 
         expect(initialSpanIdTagContent).toBe(updatedSpanIdTagContent)
@@ -83,7 +76,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         const browser = await next.browser('/static-page')
 
         const initialSpanIdTagContent = await browser
-          .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+          .elementByCss('meta[name="my-parent-span-id"]')
           .getAttribute('content')
 
         // We are in dev mode so the static page should contain propagation data
@@ -93,7 +86,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#static-page-2-header')
 
         const updatedSpanIdTagContent = await browser
-          .elementByCss('meta[name="_next-trace-data-my-parent-span-id"]')
+          .elementByCss('meta[name="my-parent-span-id"]')
           .getAttribute('content')
 
         expect(initialSpanIdTagContent).toBe(updatedSpanIdTagContent)
@@ -105,13 +98,13 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         const $ = await next.render$('/static-page')
         const headHtml = $.html('head')
         expect(headHtml).not.toContain(
-          '<meta name="_next-trace-data-my-test-key-1" content="my-test-value-1">'
+          '<meta name="my-test-key-1" content="my-test-value-1">'
         )
         expect($.html('head')).not.toContain(
-          '<meta name="_next-trace-data-my-test-key-2" content="my-test-value-2">'
+          '<meta name="my-test-key-2" content="my-test-value-2">'
         )
         expect($.html('head')).not.toMatch(
-          /<meta name="_next-trace-data-my-parent-span-id" content="[a-f0-9]{16}">/
+          /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
         )
       })
 
@@ -121,7 +114,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#static-page-header')
 
         const initialSpanIdTag = await browser.eval(
-          'document.querySelector(\'meta[name="_next-trace-data-my-parent-span-id"]\')'
+          'document.querySelector(\'meta[name="my-parent-span-id"]\')'
         )
 
         // We are in prod mode so we are not expecting propagation data to be present for a static page
@@ -131,7 +124,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#dynamic-page-header')
 
         const updatedSpanIdTag = await browser.eval(
-          'document.querySelector(\'meta[name="_next-trace-data-my-parent-span-id"]\')'
+          'document.querySelector(\'meta[name="my-parent-span-id"]\')'
         )
 
         // After the navigation to the dynamic page, there should still be no meta tag with propagation data
@@ -144,7 +137,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#static-page-header')
 
         const initialSpanIdTag = await browser.eval(
-          'document.querySelector(\'meta[name="_next-trace-data-my-parent-span-id"]\')'
+          'document.querySelector(\'meta[name="my-parent-span-id"]\')'
         )
 
         // We are in prod mode so we are not expecting propagation data to be present for a static page
@@ -154,7 +147,7 @@ describe.each([false, true])('clientTraceMetadata (ppr=%p)', (pprEnabled) => {
         await browser.elementByCss('#static-page-2-header')
 
         const updatedSpanIdTag = await browser.eval(
-          'document.querySelector(\'meta[name="_next-trace-data-my-parent-span-id"]\')'
+          'document.querySelector(\'meta[name="my-parent-span-id"]\')'
         )
 
         // After the navigation to the dynamic page, there should still be no meta tag with propagation data

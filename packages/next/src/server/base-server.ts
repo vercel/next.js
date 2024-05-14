@@ -556,8 +556,7 @@ export default abstract class Server<
       experimental: {
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
-        clientTraceMetadata:
-          this.nextConfig.experimental.clientTraceMetadata === true,
+        clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
       },
     }
 
