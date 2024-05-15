@@ -1021,19 +1021,6 @@ async function renderToHTMLOrFlightImpl(
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
-        // if (
-        //   process.env.NEXT_RUNTIME === 'nodejs' &&
-        //   !(stream instanceof ReadableStream)
-        // ) {
-        //   const { Readable } = require('node:stream')
-        //   stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
-        // }
-
-        // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-        // if (!(stream instanceof ReadableStream)) {
-        //   throw new Error("Invariant: stream isn't a ReadableStream")
-        // }
-
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
           stream = convertReadable(stream)
@@ -1327,22 +1314,6 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
-
-          // if (
-          //   process.env.NEXT_RUNTIME === 'nodejs' &&
-          //   !(fizzStream instanceof ReadableStream)
-          // ) {
-          //   const { Readable } = require('node:stream')
-
-          //   fizzStream = Readable.toWeb(
-          //     fizzStream
-          //   ) as ReadableStream<Uint8Array>
-          // }
-
-          // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-          // if (!(fizzStream instanceof ReadableStream)) {
-          //   throw new Error("Invariant: stream isn't a ReadableStream")
-          // }
 
           const resultStream = await continueFizzStream(fizzStream, {
             inlinedDataStream: createInlinedDataReadableStream(
