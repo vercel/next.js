@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('clientTraceMetadata (ppr=%p)', () => {
+describe('clientTraceMetadata', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
@@ -12,12 +12,13 @@ describe('clientTraceMetadata (ppr=%p)', () => {
     expect(headHtml).toContain(
       '<meta name="my-test-key-1" content="my-test-value-1">'
     )
-    expect($.html('head')).toContain(
+    expect(headHtml).toContain(
       '<meta name="my-test-key-2" content="my-test-value-2">'
     )
-    expect($.html('head')).toMatch(
+    expect(headHtml).toMatch(
       /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
     )
+    expect(headHtml).not.toContain('non-metadata-key-3')
   })
 
   it('hard loading a dynamic page twice should yield different dynamic trace data', async () => {
@@ -44,12 +45,13 @@ describe('clientTraceMetadata (ppr=%p)', () => {
         expect(headHtml).toContain(
           '<meta name="my-test-key-1" content="my-test-value-1">'
         )
-        expect($.html('head')).toContain(
+        expect(headHtml).toContain(
           '<meta name="my-test-key-2" content="my-test-value-2">'
         )
-        expect($.html('head')).toMatch(
+        expect(headHtml).toMatch(
           /<meta name="my-parent-span-id" content="[a-f0-9]{16}">/
         )
+        expect(headHtml).not.toContain('non-metadata-key-3')
       })
 
       it('soft navigating to a dynamic page should not transform previous propagation data', async () => {

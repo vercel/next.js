@@ -9,6 +9,8 @@ export async function register() {
         inject(context, carrier, setter) {
           setter.set(carrier, 'my-test-key-1', 'my-test-value-1')
           setter.set(carrier, 'my-test-key-2', 'my-test-value-2')
+          // This non-metadata-key-3 is not going to be injected into the page
+          setter.set(carrier, 'non-metadata-key-3', 'non-metadata-key-3')
           setter.set(
             carrier,
             'my-parent-span-id',
@@ -20,7 +22,12 @@ export async function register() {
           return context
         },
         fields() {
-          return ['my-parent-span-id', 'my-test-key-1', 'my-test-key-2']
+          return [
+            'my-parent-span-id',
+            'my-test-key-1',
+            'my-test-key-2',
+            'non-metadata-key-3',
+          ]
         },
       },
     })
