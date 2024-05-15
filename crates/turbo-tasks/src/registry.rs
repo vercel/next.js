@@ -30,7 +30,7 @@ static TRAIT_TYPES_BY_VALUE: Lazy<DashMap<&'static TraitType, TraitTypeId>> =
 static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
 fn register_thing<
-    K: From<usize> + Deref<Target = usize> + Sync + Send + Copy,
+    K: From<u32> + Deref<Target = u32> + Sync + Send + Copy,
     V: Clone + Hash + Ord + Eq + Sync + Send + Copy,
     const INITIAL_CAPACITY_BITS: u32,
 >(
@@ -45,7 +45,7 @@ fn register_thing<
         let new_id = id_factory.get();
         // SAFETY: this is a fresh id
         unsafe {
-            store.insert(*new_id, (value, global_name));
+            store.insert(*new_id as usize, (value, global_name));
         }
         map_by_name.insert(global_name, new_id);
         e.insert(new_id);
@@ -53,7 +53,7 @@ fn register_thing<
 }
 
 fn get_thing_id<
-    K: From<usize> + Deref<Target = usize> + Sync + Send + Copy + Debug,
+    K: From<u32> + Deref<Target = u32> + Sync + Send + Copy + Debug,
     V: Clone + Hash + Ord + Eq + Debug + Sync + Send + Debug,
 >(
     value: V,
@@ -86,11 +86,11 @@ pub fn get_function_id_by_global_name(global_name: &str) -> Option<FunctionId> {
 }
 
 pub fn get_function(id: FunctionId) -> &'static NativeFunction {
-    FUNCTIONS.get(*id).unwrap().0
+    FUNCTIONS.get(*id as usize).unwrap().0
 }
 
 pub fn get_function_global_name(id: FunctionId) -> &'static str {
-    FUNCTIONS.get(*id).unwrap().1
+    FUNCTIONS.get(*id as usize).unwrap().1
 }
 
 pub fn register_value_type(global_name: &'static str, ty: &'static ValueType) {
@@ -113,11 +113,11 @@ pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId
 }
 
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
-    VALUE_TYPES.get(*id).unwrap().0
+    VALUE_TYPES.get(*id as usize).unwrap().0
 }
 
 pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    VALUE_TYPES.get(*id).unwrap().1
+    VALUE_TYPES.get(*id as usize).unwrap().1
 }
 
 pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
@@ -140,9 +140,9 @@ pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
-    TRAIT_TYPES.get(*id).unwrap().0
+    TRAIT_TYPES.get(*id as usize).unwrap().0
 }
 
 pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    TRAIT_TYPES.get(*id).unwrap().1
+    TRAIT_TYPES.get(*id as usize).unwrap().1
 }

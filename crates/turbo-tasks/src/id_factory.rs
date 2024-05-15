@@ -1,28 +1,28 @@
 use std::{
     marker::PhantomData,
     ops::Deref,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use concurrent_queue::ConcurrentQueue;
 use once_cell::sync::Lazy;
 
 pub struct IdFactory<T> {
-    next_id: AtomicUsize,
+    next_id: AtomicU32,
     free_ids: Lazy<ConcurrentQueue<T>>,
     phantom_data: PhantomData<T>,
 }
 
-impl<T: From<usize> + Deref<Target = usize>> Default for IdFactory<T> {
+impl<T: From<u32> + Deref<Target = u32>> Default for IdFactory<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: From<usize> + Deref<Target = usize>> IdFactory<T> {
+impl<T: From<u32> + Deref<Target = u32>> IdFactory<T> {
     pub const fn new() -> Self {
         Self {
-            next_id: AtomicUsize::new(1),
+            next_id: AtomicU32::new(1),
             free_ids: Lazy::new(|| ConcurrentQueue::unbounded()),
             phantom_data: PhantomData,
         }

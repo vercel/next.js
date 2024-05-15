@@ -84,7 +84,7 @@ impl MemoryBackend {
         let id = self.backend_job_id_factory.get();
         // SAFETY: This is a fresh id
         unsafe {
-            self.backend_jobs.insert(*id, job);
+            self.backend_jobs.insert(*id as usize, job);
         }
         id
     }
@@ -110,12 +110,12 @@ impl MemoryBackend {
 
     #[inline(always)]
     pub fn with_task<T>(&self, id: TaskId, func: impl FnOnce(&Task) -> T) -> T {
-        func(self.memory_tasks.get(*id).unwrap())
+        func(self.memory_tasks.get(*id as usize).unwrap())
     }
 
     #[inline(always)]
     pub fn task(&self, id: TaskId) -> &Task {
-        self.memory_tasks.get(*id).unwrap()
+        self.memory_tasks.get(*id as usize).unwrap()
     }
 
     pub fn on_task_might_become_inactive(&self, task: TaskId) {
@@ -179,7 +179,7 @@ impl MemoryBackend {
     ) -> TaskId {
         let new_id = new_id.into();
         // Safety: We have a fresh task id that nobody knows about yet
-        unsafe { self.memory_tasks.insert(*new_id, task) };
+        unsafe { self.memory_tasks.insert(*new_id as usize, task) };
         let result_task = match task_cache.entry(key) {
             Entry::Vacant(entry) => {
                 // This is the most likely case
@@ -191,7 +191,7 @@ impl MemoryBackend {
                 let task_id = *entry.get();
                 drop(entry);
                 unsafe {
-                    self.memory_tasks.remove(*new_id);
+                    self.memory_tasks.remove(*new_id as usize);
                     let new_id = Unused::new_unchecked(new_id);
                     turbo_tasks.reuse_task_id(new_id);
                 }
@@ -495,7 +495,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &'a dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         // SAFETY: id will not be reused until with job is done
-        if let Some(job) = unsafe { self.backend_jobs.take(*id) } {
+        if let Some(job) = unsafe { self.backend_jobs.take(*id as usize) } {
             Box::pin(async move {
                 job.run(self, turbo_tasks).await;
                 // SAFETY: This id will no longer be used
@@ -573,13 +573,13 @@ impl Backend for MemoryBackend {
             TransientTaskType::Root(f) => {
                 let task = Task::new_root(id, move || f() as _, stats_type);
                 // SAFETY: We have a fresh task id where nobody knows about yet
-                unsafe { self.memory_tasks.insert(*id, task) };
+                unsafe { self.memory_tasks.insert(*id as usize, task) };
                 Task::set_root(id, self, turbo_tasks);
             }
             TransientTaskType::Once(f) => {
                 let task = Task::new_once(id, f, stats_type);
                 // SAFETY: We have a fresh task id where nobody knows about yet
-                unsafe { self.memory_tasks.insert(*id, task) };
+                unsafe { self.memory_tasks.insert(*id as usize, task) };
                 Task::set_once(id, self, turbo_tasks);
             }
         };

@@ -161,26 +161,26 @@ impl TaskInput for usize {
 impl TaskInput for ValueTypeId {
     fn try_from_concrete(value: &ConcreteTaskInput) -> Result<Self> {
         match value {
-            ConcreteTaskInput::Usize(value) => Ok(ValueTypeId::from(*value)),
+            ConcreteTaskInput::U32(value) => Ok(ValueTypeId::from(*value)),
             _ => bail!("invalid task input type, expected ValueTypeId"),
         }
     }
 
     fn into_concrete(self) -> ConcreteTaskInput {
-        ConcreteTaskInput::Usize(*self)
+        ConcreteTaskInput::U32(*self)
     }
 }
 
 impl TaskInput for TaskId {
     fn try_from_concrete(value: &ConcreteTaskInput) -> Result<Self> {
         match value {
-            ConcreteTaskInput::Usize(value) => Ok(TaskId::from(*value)),
+            ConcreteTaskInput::U32(value) => Ok(TaskId::from(*value)),
             _ => bail!("invalid task input type, expected TaskId"),
         }
     }
 
     fn into_concrete(self) -> ConcreteTaskInput {
-        ConcreteTaskInput::Usize(*self)
+        ConcreteTaskInput::U32(*self)
     }
 }
 
