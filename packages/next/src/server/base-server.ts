@@ -13,6 +13,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type {
+  CachedAppPageValue,
+  CachedPageValue,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -2528,16 +2530,16 @@ export default abstract class Server<
         return null
       }
 
-      if (metadata.flightData) {
+      if (isAppPath) {
         return {
           value: {
             kind: 'APP_PAGE',
             html: result,
+            headers,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
-            headers,
-            status: isAppPath ? res.statusCode : undefined,
-          },
+            status: res.statusCode,
+          } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
         }
       }
@@ -2549,8 +2551,8 @@ export default abstract class Server<
           html: result,
           pageData: metadata.pageData,
           headers,
-          status: isAppPath ? res.statusCode : undefined,
-        },
+          status: res.statusCode,
+        } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
       }
     }
@@ -2966,6 +2968,7 @@ export default abstract class Server<
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
           if (cachedData.kind !== 'APP_PAGE') {
+            console.error({ url: req.url, pathname }, cachedData)
             throw new Error(
               `Invariant: expected cache data kind of APP_PAGE got ${cachedData.kind}`
             )
@@ -2999,7 +3002,7 @@ export default abstract class Server<
 
         if (!Buffer.isBuffer(cachedData.rscData)) {
           throw new Error(
-            `Invariant: expected pageData to be a Buffer, got ${typeof cachedData.rscData}`
+            `Invariant: expected rscData to be a Buffer, got ${typeof cachedData.rscData}`
           )
         }
 
@@ -3050,7 +3053,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'PAGE') {
+          if (result.value?.kind !== 'APP_PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )

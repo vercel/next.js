@@ -45,7 +45,7 @@ export interface CachedAppPageValue {
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
-  rscData: Buffer
+  rscData: Buffer | undefined
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
@@ -84,7 +84,7 @@ export interface IncrementalCachedAppPageValue {
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
-  rscData: Buffer
+  rscData: Buffer | undefined
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
   status: number | undefined
