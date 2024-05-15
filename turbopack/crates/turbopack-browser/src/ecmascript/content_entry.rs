@@ -3,7 +3,7 @@ use std::io::Write as _;
 use anyhow::Result;
 use indexmap::IndexMap;
 use tracing::{info_span, Instrument};
-use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{macro_task, ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
     code_builder::{Code, CodeBuilder},
@@ -21,7 +21,7 @@ use turbopack_ecmascript::chunk::{
 /// creating tasks in a hot loop when iterating over thousands of entries when
 /// computing updates.
 #[turbo_tasks::value]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct EcmascriptDevChunkContentEntry {
     pub code: Vc<Code>,
     pub hash: Vc<u64>,
@@ -58,10 +58,8 @@ impl EcmascriptDevChunkContentEntries {
             .iter()
             .map(|&(chunk_item, async_module_info)| async move {
                 async move {
-                    Ok((
-                        chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(chunk_item, async_module_info).await?,
-                    ))
+                    let entry = compute_entry(chunk_item, async_module_info).await?;
+                    Ok((entry.key.clone(), entry.value))
                 }
                 .instrument(info_span!(
                     "chunk item",
@@ -76,6 +74,26 @@ impl EcmascriptDevChunkContentEntries {
 
         Ok(Vc::cell(entries))
     }
+}
+
+#[turbo_tasks::value]
+struct ComputedEntry {
+    key: ReadRef<ModuleId>,
+    value: EcmascriptDevChunkContentEntry,
+}
+
+#[turbo_tasks::function]
+async fn compute_entry(
+    chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+) -> Result<Vc<ComputedEntry>> {
+    macro_task();
+
+    Ok(ComputedEntry {
+        key: chunk_item.id().await?,
+        value: EcmascriptDevChunkContentEntry::new(chunk_item, async_module_info).await?,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]
