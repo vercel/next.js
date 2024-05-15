@@ -987,8 +987,17 @@ export function runTests(ctx: RunTestsCtx) {
     expect(await res.text()).toBe(`"url" parameter is too long`)
   })
 
+  it('should fail when url is protocol relative', async () => {
+    const query = { url: `//example.com`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(
+      `"url" parameter cannot be a protocol-relative URL (//)`
+    )
+  })
+
   it('should fail when internal url is not an image', async () => {
-    const url = `//<h1>not-an-image</h1>`
+    const url = `/api/no-header`
     const query = { url, w: ctx.w, q: 39 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
