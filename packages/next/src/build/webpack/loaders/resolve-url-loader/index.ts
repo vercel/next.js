@@ -56,7 +56,9 @@ export default async function resolveUrlLoader(
   }
 
   const callback = this.async()
-  const { postcss } = await options.postcss()
+  const { postcss } = options.postcss
+    ? await options.postcss()
+    : { postcss: require('postcss') }
   process(postcss, this.resourcePath, content, {
     outputSourceMap: Boolean(options.sourceMap),
     transformDeclaration: valueProcessor(this.resourcePath, options),

@@ -7,6 +7,7 @@ export function isNavigatingToNewRootLayout(
   // Compare segments
   const currentTreeSegment = currentTree[0]
   const nextTreeSegment = nextTree[0]
+
   // If any segment is different before we find the root layout, the root layout has changed.
   // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js
   // First segment is 'same' for both, keep looking. (group1) changed to (group2) before the root layout was found, it must have changed.

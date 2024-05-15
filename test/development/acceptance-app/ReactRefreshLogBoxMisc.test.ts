@@ -9,8 +9,8 @@ describe.skip('ReactRefreshLogBox app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-4508873393-20240430',
+      'react-dom': '19.0.0-beta-4508873393-20240430',
     },
     skipStart: true,
   })
@@ -34,7 +34,7 @@ describe.skip('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
     )
@@ -68,7 +68,7 @@ describe.skip('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
     )
@@ -83,7 +83,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -107,7 +107,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -131,7 +131,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -155,7 +155,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -179,7 +179,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await session.patch(
@@ -204,7 +204,7 @@ describe.skip('ReactRefreshLogBox app', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await cleanup()
@@ -231,7 +231,7 @@ describe.skip('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await cleanup()
   })
 })

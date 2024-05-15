@@ -10,7 +10,7 @@
     "component:headless": "cypress run --component"
   },
   "dependencies": {
-    "next": "^14.0.1",
+    "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

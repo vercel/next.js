@@ -1,7 +1,6 @@
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { BrowserInterface } from 'test/lib/browsers/base'
+import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
@@ -42,8 +41,8 @@ describe('beforeInteractive in document Head', () => {
         `,
       },
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
       },
     })
   })
@@ -102,8 +101,8 @@ describe('beforeInteractive in document body', () => {
         `,
       },
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
       },
     })
   })
@@ -119,6 +118,125 @@ describe('beforeInteractive in document body', () => {
         `document.querySelector('script[data-nscript="beforeInteractive"]')`
       )
 
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
+describe('empty strategy in document Head', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+
+          export default function Document() {
+            return (
+              <Html>
+                <Head>
+                  <Script
+                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                  ></Script>
+                </Head>
+                <body>
+                  <Main />
+                  <NextScript />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+      dependencies: {
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: BrowserInterface
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="afterInteractive"]')`
+      )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
+describe('empty strategy in document body', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+
+          export default function Document() {
+            return (
+              <Html>
+                <Head/>
+                <body>
+                  <Main />
+                  <NextScript />
+                  <Script
+                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                  />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+      dependencies: {
+        react: '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-4508873393-20240430',
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: BrowserInterface
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="afterInteractive"]')`
+      )
       expect(script).not.toBeNull()
     } finally {
       if (browser) await browser.close()
@@ -151,8 +269,8 @@ describe('beforeInteractive in document body', () => {
           },
           // TODO: @housseindjirdeh: verify React 18 functionality
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
           },
         })
       })
@@ -202,8 +320,8 @@ describe('beforeInteractive in document body', () => {
         `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -291,8 +409,8 @@ describe('beforeInteractive in document body', () => {
       `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -407,8 +525,8 @@ describe('beforeInteractive in document body', () => {
           },
           dependencies: {
             '@builder.io/partytown': '0.4.2',
-            react: 'latest',
-            'react-dom': 'latest',
+            react: '19.0.0-beta-4508873393-20240430',
+            'react-dom': '19.0.0-beta-4508873393-20240430',
           },
         })
       })

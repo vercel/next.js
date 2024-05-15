@@ -11,7 +11,6 @@ import {
   existsInRepo,
   hasRepo,
 } from './helpers/examples'
-import { makeDir } from './helpers/make-dir'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
@@ -35,6 +34,8 @@ export async function createApp({
   appRouter,
   srcDir,
   importAlias,
+  skipInstall,
+  empty,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -46,24 +47,21 @@ export async function createApp({
   appRouter: boolean
   srcDir: boolean
   importAlias: string
+  skipInstall: boolean
+  empty: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = appRouter
-    ? tailwind
-      ? 'app-tw'
-      : 'app'
-    : tailwind
-    ? 'default-tw'
-    : 'default'
+  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
 
     try {
       repoUrl = new URL(example)
-    } catch (error: any) {
-      if (error.code !== 'ERR_INVALID_URL') {
+    } catch (error: unknown) {
+      const err = error as Error & { code: string | undefined }
+      if (err.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
       }
@@ -132,7 +130,7 @@ export async function createApp({
 
   const appName = path.basename(root)
 
-  await makeDir(root)
+  fs.mkdirSync(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }
@@ -207,7 +205,7 @@ export async function createApp({
     }
 
     hasPackageJson = fs.existsSync(packageJsonPath)
-    if (hasPackageJson) {
+    if (!skipInstall && hasPackageJson) {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
 
@@ -230,6 +228,7 @@ export async function createApp({
       eslint,
       srcDir,
       importAlias,
+      skipInstall,
     })
   }
 

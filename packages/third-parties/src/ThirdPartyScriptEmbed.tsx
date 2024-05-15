@@ -4,8 +4,8 @@ import React, { useEffect } from 'react'
 
 export type ScriptEmbed = {
   html?: string | null
-  height?: number | null
-  width?: number | null
+  height?: string | number | null
+  width?: string | number | null
   children?: React.ReactElement | React.ReactElement[]
   dataNtpc?: string
 }

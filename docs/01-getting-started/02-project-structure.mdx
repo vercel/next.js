@@ -4,9 +4,21 @@ nav_title: Project Structure
 description: A list of folders and files conventions in a Next.js project
 ---
 
-This page provides an overview of the file and folder structure of a Next.js project. It covers top-level files and folders, configuration files, and routing conventions within the `app` and `pages` directories.
+This page provides an overview of the project structure of a Next.js application. It covers top-level files and folders, configuration files, and routing conventions within the `app` and `pages` directories.
+
+Click the file and folder names to learn more about each convention.
 
 ## Top-level folders
+
+Top-level folders are used to organize your application's code and static assets.
+
+<Image
+  alt="Route segments to path segments"
+  srcLight="/docs/light/top-level-folders.png"
+  srcDark="/docs/dark/top-level-folders.png"
+  width="1600"
+  height="525"
+/>
 
 |                                                                          |                                    |
 | ------------------------------------------------------------------------ | ---------------------------------- |
@@ -16,6 +28,8 @@ This page provides an overview of the file and folder structure of a Next.js pro
 | [`src`](/docs/app/building-your-application/configuring/src-directory)   | Optional application source folder |
 
 ## Top-level files
+
+Top-level files are used to configure your application, manage dependencies, run middleware, integrate monitoring tools, and define environment variables.
 
 |                                                                                             |                                         |
 | ------------------------------------------------------------------------------------------- | --------------------------------------- |
@@ -35,6 +49,8 @@ This page provides an overview of the file and folder structure of a Next.js pro
 | `jsconfig.json`                                                                             | Configuration file for JavaScript       |
 
 ## `app` Routing Conventions
+
+The following file conventions are used to define routes and handle metadata in the [`app` router](/docs/app).
 
 ### Routing Files
 
@@ -76,7 +92,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 |                                                                                                |                            |
 | ---------------------------------------------------------------------------------------------- | -------------------------- |
-| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#convention)            | Named slot                 |
+| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#slots)                 | Named slot                 |
 | [`(.)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)      | Intercept same level       |
 | [`(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)     | Intercept one level above  |
 | [`(..)(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention) | Intercept two levels above |
@@ -105,14 +121,16 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### SEO
 
-|                                                                                             |             |                       |
-| ------------------------------------------------------------------------------------------- | ----------- | --------------------- |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#static-sitemapxml)    | `.xml`      | Sitemap file          |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap)   | `.js` `.ts` | Generated Sitemap     |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)       | `.txt`      | Robots file           |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file) | `.js` `.ts` | Generated Robots file |
+|                                                                                                              |             |                       |
+| ------------------------------------------------------------------------------------------------------------ | ----------- | --------------------- |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#sitemap-files-xml)                     | `.xml`      | Sitemap file          |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts) | `.js` `.ts` | Generated Sitemap     |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)                        | `.txt`      | Robots file           |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file)                  | `.js` `.ts` | Generated Robots file |
 
 ## `pages` Routing Conventions
+
+The following file conventions are used to define routes in the [`pages` router](/docs/pages).
 
 ### Special Files
 

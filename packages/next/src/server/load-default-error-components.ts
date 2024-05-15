@@ -9,7 +9,7 @@ import type {
   GetStaticPaths,
   GetServerSideProps,
   GetStaticProps,
-} from 'next/types'
+} from '../types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 
@@ -63,9 +63,9 @@ async function loadDefaultErrorComponentsImpl(
     Document,
     Component,
     pageConfig: {},
-    buildManifest: await loadManifestWithRetries(
+    buildManifest: (await loadManifestWithRetries(
       join(distDir, `fallback-${BUILD_MANIFEST}`)
-    ),
+    )) as BuildManifest,
     reactLoadableManifest: {},
     ComponentMod,
     page: '/_error',

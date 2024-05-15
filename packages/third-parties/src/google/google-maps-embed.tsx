@@ -1,4 +1,3 @@
-import React from 'react'
 import { GoogleMapsEmbed as TPCGoogleMapEmbed } from 'third-party-capital'
 
 import ThirdPartyScriptEmbed from '../ThirdPartyScriptEmbed'

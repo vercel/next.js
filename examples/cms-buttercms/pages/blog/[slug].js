@@ -1,26 +1,26 @@
-import Image from 'next/image'
-import Head from 'next/head'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import camelcaseKeys from 'camelcase-keys'
+import Image from "next/image";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import ErrorPage from "next/error";
+import camelcaseKeys from "camelcase-keys";
 
-import { getPost, getPostsData, getCategories } from '@/lib/api'
+import { getPost, getPostsData, getCategories } from "@/lib/api";
 
-import HumanDate from '@/components/human-date'
-import CategoriesWidget from '@/components/blog/categories-widget'
-import SearchWidget from '@/components/blog/search-widget'
-import AuthorCard from '@/components/author-card'
-import Preloader from '@/components/preloader'
+import HumanDate from "@/components/human-date";
+import CategoriesWidget from "@/components/blog/categories-widget";
+import SearchWidget from "@/components/blog/search-widget";
+import AuthorCard from "@/components/author-card";
+import Preloader from "@/components/preloader";
 
 export default function BlogPost({ post, categories }) {
-  const router = useRouter()
+  const router = useRouter();
   if (router.isFallback) {
-    return <Preloader />
+    return <Preloader />;
   }
 
   if (!post) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   return (
@@ -81,7 +81,7 @@ export default function BlogPost({ post, categories }) {
                     </li>
                     <li>
                       <a>
-                        <i className="lni lni-calendar"></i>{' '}
+                        <i className="lni lni-calendar"></i>{" "}
                         <HumanDate dateString={post.published} />
                       </a>
                     </li>
@@ -119,41 +119,41 @@ export default function BlogPost({ post, categories }) {
         </div>
       </section>
     </>
-  )
+  );
 }
 
 export async function getStaticProps({ params }) {
   try {
-    const post = await getPost(params.slug)
-    const categories = await getCategories()
-    return { props: { post: camelcaseKeys(post), categories } }
+    const post = await getPost(params.slug);
+    const categories = await getCategories();
+    return { props: { post: camelcaseKeys(post), categories } };
   } catch (e) {
-    console.error(`Couldn't load post or categories data.`, e)
+    console.error(`Couldn't load post or categories data.`, e);
 
     return {
       notFound: true,
-    }
+    };
   }
 }
 
 export async function getStaticPaths() {
-  const butterToken = process.env.NEXT_PUBLIC_BUTTER_CMS_API_KEY
+  const butterToken = process.env.NEXT_PUBLIC_BUTTER_CMS_API_KEY;
 
   if (butterToken) {
     try {
-      const posts = (await getPostsData()).posts
+      const posts = (await getPostsData()).posts;
 
       return {
         paths: posts.map((post) => `/blog/${post.slug}`),
         fallback: true,
-      }
+      };
     } catch (e) {
-      console.error(`Couldn't load posts.`, e)
+      console.error(`Couldn't load posts.`, e);
     }
   }
 
   return {
     paths: [],
     fallback: false,
-  }
+  };
 }

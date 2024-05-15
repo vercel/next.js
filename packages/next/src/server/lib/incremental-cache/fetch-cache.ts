@@ -1,4 +1,5 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+import type { IncrementalCacheValue } from '../../response-cache'
 
 import LRUCache from 'next/dist/compiled/lru-cache'
 import {
@@ -27,6 +28,21 @@ export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
   private debug: boolean
+
+  private hasMatchingTags(arr1: string[], arr2: string[]) {
+    if (arr1.length !== arr2.length) return false
+
+    const set1 = new Set(arr1)
+    const set2 = new Set(arr2)
+
+    if (set1.size !== set2.size) return false
+
+    for (let tag of set1) {
+      if (!set2.has(tag)) return false
+    }
+
+    return true
+  }
 
   static isAvailable(ctx: {
     _requestHeaders: CacheHandlerContext['_requestHeaders']
@@ -58,9 +74,8 @@ export default class FetchCache implements CacheHandler {
       process.env.SUSPENSE_CACHE_BASEPATH
 
     if (process.env.SUSPENSE_CACHE_AUTH_TOKEN) {
-      this.headers[
-        'Authorization'
-      ] = `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
+      this.headers['Authorization'] =
+        `Bearer ${process.env.SUSPENSE_CACHE_AUTH_TOKEN}`
     }
 
     if (scHost) {
@@ -106,10 +121,20 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
-  public async revalidateTag(tag: string) {
+  public resetRequestCache(): void {
+    memoryCache?.reset()
+  }
+
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
+    tags = typeof tags === 'string' ? [tags] : tags
     if (this.debug) {
-      console.log('revalidateTag', tag)
+      console.log('revalidateTag', tags)
     }
+
+    if (!tags.length) return
 
     if (Date.now() < rateLimitedUntil) {
       if (this.debug) {
@@ -120,7 +145,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
+          .map((tag) => encodeURIComponent(tag))
+          .join(',')}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -138,7 +165,7 @@ export default class FetchCache implements CacheHandler {
         throw new Error(`Request failed with status ${res.status}.`)
       }
     } catch (err) {
-      console.warn(`Failed to revalidate tag ${tag}`, err)
+      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 
@@ -157,16 +184,18 @@ export default class FetchCache implements CacheHandler {
       return null
     }
 
+    // memory cache is cleared at the end of each request
+    // so that revalidate events are pulled from upstream
+    // on successive requests
     let data = memoryCache?.get(key)
 
-    // memory cache data is only leveraged for up to 1 seconds
-    // so that revalidation events can be pulled from source
-    if (Date.now() - (data?.lastModified || 0) > 2000) {
-      data = undefined
-    }
+    const hasFetchKindAndMatchingTags =
+      data?.value?.kind === 'FETCH' &&
+      this.hasMatchingTags(tags ?? [], data.value.tags ?? [])
 
-    // get data from fetch cache
-    if (!data && this.cacheEndpoint) {
+    // Get data from fetch cache. Also check if new tags have been
+    // specified with the same cache key (fetch URL)
+    if (this.cacheEndpoint && (!data || !hasFetchKindAndMatchingTags)) {
       try {
         const start = Date.now()
         const fetchParams: NextFetchCacheParams = {
@@ -210,11 +239,21 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const cached = await res.json()
+        const cached: IncrementalCacheValue = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
-          throw new Error(`invalid cache value`)
+          throw new Error('invalid cache value')
+        }
+
+        // if new tags were specified, merge those tags to the existing tags
+        if (cached.kind === 'FETCH') {
+          cached.tags ??= []
+          for (const tag of tags ?? []) {
+            if (!cached.tags.includes(tag)) {
+              cached.tags.push(tag)
+            }
+          }
         }
 
         const cacheState = res.headers.get(CACHE_STATE_HEADER)

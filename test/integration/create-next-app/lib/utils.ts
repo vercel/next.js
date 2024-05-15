@@ -4,9 +4,9 @@
  * This file contains utilities for  `create-next-app` testing.
  */
 
-import { ChildProcess, spawn, SpawnOptions } from 'child_process'
+import { ChildProcess, execSync, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
-import { resolve } from 'path'
+import { join, resolve } from 'path'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
 
@@ -15,7 +15,12 @@ import {
   mapSrcFiles,
   projectSpecification,
 } from './specification'
-import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
+import {
+  CustomTemplateOptions,
+  DefaultTemplateOptions,
+  ProjectDeps,
+  ProjectFiles,
+} from './types'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -69,6 +74,22 @@ export const spawnExitPromise = (childProcess: ChildProcess) => {
       })
       .on('error', reject)
   })
+}
+
+export const projectShouldHaveNoGitChanges = ({
+  cwd,
+  projectName,
+}: DefaultTemplateOptions) => {
+  const projectDirname = join(cwd, projectName)
+
+  try {
+    execSync('git diff --quiet', { cwd: projectDirname })
+  } catch {
+    execSync('git status', { cwd: projectDirname, stdio: 'inherit' })
+    execSync('git --no-pager diff', { cwd: projectDirname, stdio: 'inherit' })
+
+    throw new Error('Found unexpected git changes.')
+  }
 }
 
 export const projectFilesShouldExist = ({
@@ -135,8 +156,12 @@ export const shouldBeTemplateProject = ({
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
-  if (template !== 'app-tw' && template !== 'default-tw') {
+  // Tailwind templates share the same files (tailwind.config.js, postcss.config.mjs)
+  if (
+    !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
+      template
+    )
+  ) {
     projectFilesShouldNotExist({
       cwd,
       projectName,

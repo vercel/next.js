@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Result};
+use indexmap::IndexMap;
 use napi::{
     bindgen_prelude::External,
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -27,7 +28,11 @@ use crate::register;
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
+    let disk_fs = DiskFileSystem::new(
+        PROJECT_FILESYSTEM_NAME.to_string(),
+        project_dir.to_string(),
+        vec![],
+    );
     if watching {
         disk_fs.await?.start_watching_with_invalidation_reason()?;
     }
@@ -38,7 +43,7 @@ async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn Fi
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: String,
-    parallel_routes: HashMap<String, ReadRef<LoaderTreeForJs>>,
+    parallel_routes: IndexMap<String, ReadRef<LoaderTreeForJs>>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]

@@ -1,9 +1,9 @@
-import Image from './image'
+import Image from "./image";
 
 type AvatarProps = {
-  name: string
-  picture: string
-}
+  name: string;
+  picture: string;
+};
 
 export default function Avatar({ name, picture }: AvatarProps) {
   return (
@@ -18,5 +18,5 @@ export default function Avatar({ name, picture }: AvatarProps) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

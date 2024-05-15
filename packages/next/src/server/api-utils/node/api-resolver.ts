@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
-import type { PageConfig, ResponseLimit } from 'next/types'
+import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
@@ -23,8 +23,6 @@ import {
   RESPONSE_LIMIT_DEFAULT,
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
-import { getTracer } from '../../lib/trace/tracer'
-import { NodeSpan } from '../../lib/trace/constants'
 import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
@@ -152,8 +150,8 @@ function setDraftMode<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-      ? previous
-      : []),
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -218,8 +216,8 @@ function setPreviewData<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-      ? previous
-      : []),
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -416,15 +414,7 @@ export async function apiResolver(
       res.once('pipe', () => (wasPiped = true))
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', page)
-    // Call API route method
-    const apiRouteResult = await getTracer().trace(
-      NodeSpan.runHandler,
-      {
-        spanName: `executing api route (pages) ${page}`,
-      },
-      () => resolver(req, res)
-    )
+    const apiRouteResult = await resolver(req, res)
 
     if (process.env.NODE_ENV !== 'production') {
       if (typeof apiRouteResult !== 'undefined') {

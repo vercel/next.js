@@ -104,8 +104,6 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
-        // App Route's cannot be postponed.
-        experimental: { ppr: false },
       },
     }
 

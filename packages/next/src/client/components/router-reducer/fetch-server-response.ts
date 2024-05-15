@@ -33,11 +33,12 @@ import { hexHash } from '../../../shared/lib/hash'
 export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined,
-  postponed?: boolean
+  postponed?: boolean,
+  intercepted?: boolean,
 ]
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined]
+  return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
 }
 
 /**
@@ -112,6 +113,7 @@ export async function fetchServerResponse(
 
     const contentType = res.headers.get('content-type') || ''
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
 
     if (process.env.NODE_ENV === 'production') {
@@ -145,7 +147,7 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    return [flightData, canonicalUrl, postponed]
+    return [flightData, canonicalUrl, postponed, interception]
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
@@ -154,6 +156,6 @@ export async function fetchServerResponse(
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined]
+    return [url.toString(), undefined, false, false]
   }
 }

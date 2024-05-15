@@ -1,5 +1,6 @@
 import React from 'react'
-import { render } from 'react-dom'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { NextPage } from 'next'
 
@@ -21,7 +22,9 @@ Page.getInitialProps = async ({ AppTree }) => {
   if (typeof window !== 'undefined') {
     const el = document.createElement('div')
     document.querySelector('body')?.appendChild(el)
-    render(toRender, el)
+    flushSync(() => {
+      createRoot(el).render(toRender)
+    })
     html = el.innerHTML
     el.remove()
   } else {

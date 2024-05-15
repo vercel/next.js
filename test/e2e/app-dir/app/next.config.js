@@ -1,11 +1,25 @@
+/**
+ * @type import('next').NextConfig
+ */
 module.exports = {
   experimental: {
     clientRouterFilterRedirects: true,
+    parallelServerCompiles: true,
+    parallelServerBuildTraces: true,
     webpackBuildWorker: true,
+    flyingShuttle: Boolean(process.env.FLYING_SHUTTLE),
   },
   // output: 'standalone',
   rewrites: async () => {
     return {
+      beforeFiles: [
+        {
+          source: '/before-files-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
+        },
+      ],
       afterFiles: [
         {
           source: '/rewritten-to-dashboard',
@@ -20,6 +34,20 @@ module.exports = {
           source: '/search-params-prop-server-rewrite',
           destination:
             '/search-params-prop/server?first=value&second=other%20value&third',
+        },
+        {
+          source: '/after-files-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
+        },
+      ],
+      fallback: [
+        {
+          source: '/fallback-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
         },
       ],
     }

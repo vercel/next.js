@@ -1,11 +1,11 @@
-import Head from 'next/head'
-import { Anchor } from '@twilio-paste/core/anchor'
-import { Heading } from '@twilio-paste/core/heading'
-import { Box } from '@twilio-paste/core/box'
-import { Paragraph } from '@twilio-paste/core/paragraph'
-import { ListItem, UnorderedList } from '@twilio-paste/core/list'
-import { ArrowForwardIcon } from '@twilio-paste/icons/cjs/ArrowForwardIcon'
-import { Separator } from '@twilio-paste/core/separator'
+import Head from "next/head";
+import { Anchor } from "@twilio-paste/core/anchor";
+import { Heading } from "@twilio-paste/core/heading";
+import { Box } from "@twilio-paste/core/box";
+import { Paragraph } from "@twilio-paste/core/paragraph";
+import { ListItem, UnorderedList } from "@twilio-paste/core/list";
+import { ArrowForwardIcon } from "@twilio-paste/icons/cjs/ArrowForwardIcon";
+import { Separator } from "@twilio-paste/core/separator";
 
 export default function Home() {
   return (
@@ -16,7 +16,7 @@ export default function Home() {
       </Head>
 
       <Heading as="h1" variant="heading10">
-        Welcome to the{' '}
+        Welcome to the{" "}
         <Anchor href="https://paste.twilio.design">Paste Next.js App!</Anchor>
       </Heading>
 
@@ -36,7 +36,7 @@ export default function Home() {
           <Heading as="h3" variant="heading30">
             <Anchor href="https://paste.twilio.design">
               <Box as="span" display="flex" alignItems="center">
-                Paste Documentation{' '}
+                Paste Documentation{" "}
                 <ArrowForwardIcon decorative size="sizeIcon60" />
               </Box>
             </Anchor>
@@ -50,7 +50,7 @@ export default function Home() {
           <Heading as="h3" variant="heading30">
             <Anchor href="https://nextjs.org/docs">
               <Box as="span" display="flex" alignItems="center">
-                Next.js Documentation{' '}
+                Next.js Documentation{" "}
                 <ArrowForwardIcon decorative size="sizeIcon60" />
               </Box>
             </Anchor>
@@ -73,5 +73,5 @@ export default function Home() {
         </ListItem>
       </UnorderedList>
     </Box>
-  )
+  );
 }

@@ -3,12 +3,15 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   CacheNodeSeedData,
+  FlightData,
 } from '../../../server/app-render/types'
 
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
+import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
+import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
+import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -16,9 +19,9 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrl: string
   initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
-  isServer: boolean
   location: Location | null
   initialHead: ReactNode
+  couldBeIntercepted?: boolean
 }
 
 export function createInitialRouterState({
@@ -27,19 +30,36 @@ export function createInitialRouterState({
   initialSeedData,
   initialCanonicalUrl,
   initialParallelRoutes,
-  isServer,
   location,
   initialHead,
+  couldBeIntercepted,
 }: InitialRouterStateParameters) {
-  const subTreeData = initialSeedData[2]
+  const isServer = !location
+  const rsc = initialSeedData[2]
 
   const cache: CacheNode = {
-    status: CacheStates.READY,
-    data: null,
-    subTreeData: subTreeData,
+    lazyData: null,
+    rsc: rsc,
+    prefetchRsc: null,
+    head: null,
+    prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    lazyDataResolved: false,
+    loading: initialSeedData[3],
   }
+
+  const canonicalUrl =
+    // location.href is read as the initial value for canonicalUrl in the browser
+    // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+    location
+      ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+        createHrefFromUrl(location)
+      : initialCanonicalUrl
+
+  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
+
+  const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
@@ -52,11 +72,11 @@ export function createInitialRouterState({
     )
   }
 
-  return {
+  const initialState = {
     buildId,
     tree: initialTree,
     cache,
-    prefetchCache: new Map(),
+    prefetchCache,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -70,16 +90,29 @@ export function createInitialRouterState({
       hashFragment: null,
       segmentPaths: [],
     },
-    canonicalUrl:
-      // location.href is read as the initial value for canonicalUrl in the browser
-      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-      location
-        ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-          createHrefFromUrl(location)
-        : initialCanonicalUrl,
+    canonicalUrl,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
   }
+
+  if (location) {
+    // Seed the prefetch cache with this page's data.
+    // This is to prevent needlessly re-prefetching a page that is already reusable,
+    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    const url = new URL(location.pathname, location.origin)
+
+    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    createPrefetchCacheEntryForInitialLoad({
+      url,
+      kind: PrefetchKind.AUTO,
+      data: [initialFlightData, undefined, false, couldBeIntercepted],
+      tree: initialState.tree,
+      prefetchCache: initialState.prefetchCache,
+      nextUrl: initialState.nextUrl,
+    })
+  }
+
+  return initialState
 }

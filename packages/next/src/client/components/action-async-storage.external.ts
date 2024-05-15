@@ -1,6 +1,9 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import { createAsyncLocalStorage } from './async-local-storage'
 
+// Share the instance module in the next-shared layer
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+;('TURBOPACK { transition: next-shared }')
+import { actionAsyncStorage } from './action-async-storage-instance'
 export interface ActionStore {
   readonly isAction?: boolean
   readonly isAppRoute?: boolean
@@ -8,4 +11,4 @@ export interface ActionStore {
 
 export type ActionAsyncStorage = AsyncLocalStorage<ActionStore>
 
-export const actionAsyncStorage: ActionAsyncStorage = createAsyncLocalStorage()
+export { actionAsyncStorage }

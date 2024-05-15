@@ -1,12 +1,12 @@
-import { Table } from '@nextui-org/react'
+import { Table } from "@nextui-org/react";
 
 const CustomTable = () => {
   return (
     <Table
       aria-label="Example table with static content"
       css={{
-        height: 'auto',
-        minWidth: '100%',
+        height: "auto",
+        minWidth: "100%",
       }}
     >
       <Table.Header>
@@ -37,7 +37,7 @@ const CustomTable = () => {
         </Table.Row>
       </Table.Body>
     </Table>
-  )
-}
+  );
+};
 
-export default CustomTable
+export default CustomTable;

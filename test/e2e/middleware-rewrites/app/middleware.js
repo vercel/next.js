@@ -8,6 +8,10 @@ const PUBLIC_FILE = /\.(.*)$/
 export async function middleware(request) {
   const url = request.nextUrl
 
+  if (url.pathname.includes('article')) {
+    return NextResponse.next()
+  }
+
   // this is needed for tests to get the BUILD_ID
   if (url.pathname.startsWith('/_next/static/__BUILD_ID')) {
     return NextResponse.next()

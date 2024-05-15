@@ -3,7 +3,7 @@
   --body-color: #fcfdfe;
   --checkout-color: #8f6ed5;
   --elements-color: #6772e5;
-  --body-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  --body-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   --h1-color: #1a1f36;
   --h2-color: #7b818a;
@@ -113,7 +113,9 @@ li {
   width: 33%;
   margin: 0 20px 20px 0;
   text-decoration: none;
-  box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
+  box-shadow:
+    -20px 20px 60px #abacad,
+    20px -20px 60px #ffffff;
 }
 .card h2 {
   color: #fff;
@@ -137,8 +139,8 @@ li {
 
 .FormRow,
 fieldset,
-input[type='number'],
-input[type='text'] {
+input[type="number"],
+input[type="text"] {
   border-radius: var(--radius);
   padding: 5px 12px;
   width: 100%;
@@ -148,7 +150,7 @@ input[type='text'] {
   margin-top: 10px;
 }
 
-input[type='range'] {
+input[type="range"] {
   margin: 5px 0;
   width: 100%;
 }
@@ -180,7 +182,9 @@ button:disabled {
   transition: box-shadow var(--transition-duration);
 }
 .card.elements-style-background:hover {
-  box-shadow: 20px 20px 60px #464e9c, -20px -20px 60px #8896ff;
+  box-shadow:
+    20px 20px 60px #464e9c,
+    -20px -20px 60px #8896ff;
 }
 .checkout-style {
   color: var(--checkout-color);
@@ -191,7 +195,9 @@ button:disabled {
   transition: box-shadow var(--transition-duration);
 }
 .card.checkout-style-background:hover {
-  box-shadow: 20px 20px 60px #614b91, -20px -20px 60px #bd91ff;
+  box-shadow:
+    20px 20px 60px #614b91,
+    -20px -20px 60px #bd91ff;
 }
 
 /* Test card number */
@@ -217,7 +223,7 @@ button:disabled {
 /* Code block */
 code,
 pre {
-  font-family: 'SF Mono', 'IBM Plex Mono', 'Menlo', monospace;
+  font-family: "SF Mono", "IBM Plex Mono", "Menlo", monospace;
   font-size: 12px;
   background: rgba(0, 0, 0, 0.03);
   padding: 12px;
@@ -234,7 +240,9 @@ pre {
   background: var(--body-color);
   color: #6a7c94;
   border-radius: 50px;
-  box-shadow: -20px 20px 60px #abacad, 20px -20px 60px #ffffff;
+  box-shadow:
+    -20px 20px 60px #abacad,
+    20px -20px 60px #ffffff;
   display: flex;
   align-items: center;
   box-sizing: border-box;

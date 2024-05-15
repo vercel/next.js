@@ -918,7 +918,7 @@ var focusSvgForeignobjectTabindex = {
     element.innerHTML = generate(
       '<foreignObject tabindex="-1"><input type="text" /></foreignObject>'
     )
-    // Safari 8's quersSelector() can't identify foreignObject, but getElementyByTagName() can
+    // Safari 8's querySelector() can't identify foreignObject, but getElementsByTagName() can
     return (
       element.querySelector('foreignObject') ||
       element.getElementsByTagName('foreignObject')[0]
@@ -1393,13 +1393,13 @@ function isFocusRelevantRules() {
   ) {
     // IE10-11 considers the <img> in <a href><img ismap> focusable
     // https://github.com/medialize/ally.js/issues/20
-    var hasLinkParent = getParents({ context: element }).some(function (
-      parent
-    ) {
-      return (
-        parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
-      )
-    })
+    var hasLinkParent = getParents({ context: element }).some(
+      function (parent) {
+        return (
+          parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
+        )
+      }
+    )
 
     if (hasLinkParent) {
       return true

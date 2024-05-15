@@ -1,4 +1,3 @@
-declare module 'react-dom/server-rendering-stub'
 declare module 'react-dom/server.browser'
 
 declare module 'react-dom/server.edge' {
@@ -19,7 +18,7 @@ declare module 'react-dom/server.edge' {
   export type ResumeOptions = {
     nonce?: string
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
   }
@@ -28,7 +27,7 @@ declare module 'react-dom/server.edge' {
     children: JSX.Element,
     postponedState: object,
     options?: {
-      onError?: (error: Error) => void
+      onError?: (error: Error, errorInfo: unknown) => void
     }
   ): Promise<ReadableStream<Uint8Array>>
 
@@ -46,7 +45,7 @@ declare module 'react-dom/server.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {
@@ -97,7 +96,7 @@ declare module 'react-dom/static.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {
@@ -117,7 +116,7 @@ declare module 'react-dom/static.edge' {
   export function prerender(
     children: JSX.Element,
     options?: {
-      onError?: (error: Error) => void
+      onError?: (error: Error, errorInfo: unknown) => void
       onHeaders?: (headers: Headers) => void
     }
   ): Promise<{

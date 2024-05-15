@@ -1,7 +1,9 @@
 'use client'
+
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function Page() {
+function InnerPage() {
   const searchParams = useSearchParams()
   return (
     <>
@@ -55,5 +57,13 @@ export default function Page() {
         Replace searchParam with undefined data param
       </button>
     </>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <InnerPage />
+    </Suspense>
   )
 }

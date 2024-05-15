@@ -2,7 +2,7 @@
 export type ComponentModule = () => any
 export type ModuleReference = [
   componentModule: ComponentModule,
-  filePath: string
+  filePath: string,
 ]
 
 // Contain the collecting image module paths

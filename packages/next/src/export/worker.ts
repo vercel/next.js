@@ -33,8 +33,12 @@ import { exportPages } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
-import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+} from '../build/turborepo-access-trace'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -59,10 +63,10 @@ async function exportPageImpl(
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
-    isrMemoryCacheSize,
+    cacheMaxMemorySize,
     fetchCache,
     fetchCacheKeyPrefix,
-    incrementalCacheHandlerPath,
+    cacheHandler,
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
@@ -79,12 +83,12 @@ async function exportPageImpl(
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
-    // TODO: use this when we've re-enabled app prefetching https://github.com/vercel/next.js/pull/58609
-    // // Check if this is an `app/` prefix request.
-    // _isAppPrefetch: isAppPrefetch = false,
-
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
+
+    // If this page supports partial prerendering, then we need to pass that to
+    // the renderOpts.
+    _isRoutePPREnabled: isRoutePPREnabled,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -220,15 +224,14 @@ async function exportPageImpl(
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? createIncrementalCache({
-            incrementalCacheHandlerPath,
-            isrMemoryCacheSize,
+        ? await createIncrementalCache({
+            cacheHandler,
+            cacheMaxMemorySize,
             fetchCacheKeyPrefix,
             distDir,
             dir,
             enabledDirectories,
-            // PPR is not available for Pages.
-            experimental: { ppr: false },
+            isAppPPREnabled: input.renderOpts.experimental.isAppPPREnabled,
             // skip writing to disk in minimal mode for now, pending some
             // changes to better support it
             flushToDisk: !hasNextSupport,
@@ -263,10 +266,14 @@ async function exportPageImpl(
       optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,
+      experimental: {
+        ...input.renderOpts.experimental,
+        isRoutePPREnabled,
+      },
     }
 
     if (hasNextSupport) {
@@ -315,12 +322,11 @@ async function exportPageImpl(
       fileWriter
     )
   } catch (err) {
-    // if this is a postpone error, it's logged elsewhere, so no need to log it again here
-    if (!isMissingPostponeDataError(err)) {
-      console.error(
-        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(err) && err.stack ? err.stack : err)
-      )
+    console.error(
+      `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
+    )
+    if (!isBailoutToCSRError(err)) {
+      console.error(isError(err) && err.stack ? err.stack : err)
     }
 
     return { error: true }
@@ -351,10 +357,14 @@ export default async function exportPage(
 
   const start = Date.now()
 
+  const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
   // Export the page.
-  const result = await exportPageSpan.traceAsyncFn(async () => {
-    return await exportPageImpl(input, baseFileWriter)
-  })
+  const result = await exportPageSpan.traceAsyncFn(() =>
+    turborepoTraceAccess(
+      () => exportPageImpl(input, baseFileWriter),
+      turborepoAccessTraceResult
+    )
+  )
 
   // If there was no result, then we can exit early.
   if (!result) return
@@ -374,6 +384,7 @@ export default async function exportPage(
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
+    turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
   }
 }
 

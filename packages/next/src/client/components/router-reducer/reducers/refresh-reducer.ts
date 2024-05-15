@@ -10,12 +10,12 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import {
-  CacheStates,
-  type CacheNode,
-} from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -30,17 +30,22 @@ export function refreshReducer(
   mutable.preserveCustomHistoryState = false
 
   const cache: CacheNode = createEmptyCacheNode()
+
+  // If the current tree was intercepted, the nextUrl should be included in the request.
+  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
+  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
+
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.data = fetchServerResponse(
+  cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    state.nextUrl,
+    includeNextUrl ? state.nextUrl : null,
     state.buildId
   )
 
-  return cache.data.then(
-    ([flightData, canonicalUrlOverride]) => {
+  return cache.lazyData.then(
+    async ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -51,8 +56,8 @@ export function refreshReducer(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      cache.data = null
+      // Remove cache.lazyData as it has been resolved at this point.
+      cache.lazyData = null
 
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
@@ -62,17 +67,18 @@ export function refreshReducer(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          state.canonicalUrl
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -97,9 +103,9 @@ export function refreshReducer(
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
-          const subTreeData = cacheNodeSeedData[2]
-          cache.status = CacheStates.READY
-          cache.subTreeData = subTreeData
+          const rsc = cacheNodeSeedData[2]
+          cache.rsc = rsc
+          cache.prefetchRsc = null
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
@@ -108,10 +114,17 @@ export function refreshReducer(
             cacheNodeSeedData,
             head
           )
-          mutable.cache = cache
           mutable.prefetchCache = new Map()
         }
 
+        await refreshInactiveParallelSegments({
+          state,
+          updatedTree: newTree,
+          updatedCache: cache,
+          includeNextUrl,
+        })
+
+        mutable.cache = cache
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 

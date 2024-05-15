@@ -51,7 +51,6 @@ export function middleware(request: NextRequest) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
   // Replace newline characters and spaces
@@ -96,7 +95,6 @@ export function middleware(request) {
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
-    block-all-mixed-content;
     upgrade-insecure-requests;
 `
   // Replace newline characters and spaces
@@ -206,6 +204,41 @@ export default function Page() {
       nonce={nonce}
     />
   )
+}
+```
+
+## Without Nonces
+
+For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/next-config-js) file:
+
+```js filename="next.config.js"
+const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+`
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: cspHeader.replace(/\n/g, ''),
+          },
+        ],
+      },
+    ]
+  },
 }
 ```
 

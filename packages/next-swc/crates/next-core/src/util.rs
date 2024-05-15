@@ -1,18 +1,19 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value as JsonValue;
-use swc_core::ecma::ast::{Expr, Lit, Program};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
+    swc::core::{
+        common::GLOBALS,
+        ecma::ast::{Expr, Lit, Program},
+    },
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
             asset::AssetContent,
-            environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             module::Module,
             source::Source,
             virtual_source::VirtualSource,
@@ -28,8 +29,9 @@ use turbopack_binding::{
 };
 
 use crate::{
-    next_config::{NextConfig, OutputType},
+    next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
+    next_manifests::MiddlewareMatcher,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -144,13 +146,29 @@ pub enum NextRuntime {
     Edge,
 }
 
+impl NextRuntime {
+    pub fn conditions(&self) -> &'static [&'static str] {
+        match self {
+            NextRuntime::NodeJs => &["node"],
+            NextRuntime::Edge => &["edge-light", "worker"],
+        }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug, Clone)]
+pub enum MiddlewareMatcherKind {
+    Str(String),
+    Matcher(MiddlewareMatcher),
+}
+
 #[turbo_tasks::value]
 #[derive(Default, Clone)]
 pub struct NextSourceConfig {
     pub runtime: NextRuntime,
 
     /// Middleware router matchers
-    pub matcher: Option<Vec<String>>,
+    pub matcher: Option<Vec<MiddlewareMatcherKind>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -181,8 +199,8 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -208,6 +226,139 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 }
 
+fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
+    let (explainer, hints) = value.explain(2, 0);
+    NextSourceConfigParsingIssue {
+        ident,
+        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+    }
+    .cell()
+    .emit()
+}
+
+fn parse_route_matcher_from_js_value(
+    ident: Vc<AssetIdent>,
+    value: &JsValue,
+) -> Option<Vec<MiddlewareMatcherKind>> {
+    let parse_matcher_kind_matcher = |value: &JsValue| {
+        let mut route_has = vec![];
+        if let JsValue::Array { items, .. } = value {
+            for item in items {
+                if let JsValue::Object { parts, .. } = item {
+                    let mut route_type = None;
+                    let mut route_key = None;
+                    let mut route_value = None;
+
+                    for matcher_part in parts {
+                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
+                            match part_key.as_str() {
+                                Some("type") => {
+                                    route_type = part_value.as_str().map(|v| v.to_string())
+                                }
+                                Some("key") => {
+                                    route_key = part_value.as_str().map(|v| v.to_string())
+                                }
+                                Some("value") => {
+                                    route_value = part_value.as_str().map(|v| v.to_string())
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    let r = match route_type.as_deref() {
+                        Some("header") => route_key.map(|route_key| RouteHas::Header {
+                            key: route_key,
+                            value: route_value,
+                        }),
+                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
+                            key: route_key,
+                            value: route_value,
+                        }),
+                        Some("query") => route_key.map(|route_key| RouteHas::Query {
+                            key: route_key,
+                            value: route_value,
+                        }),
+                        Some("host") => {
+                            route_value.map(|route_value| RouteHas::Host { value: route_value })
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(r) = r {
+                        route_has.push(r);
+                    }
+                }
+            }
+        }
+
+        route_has
+    };
+
+    let mut matchers = vec![];
+
+    match value {
+        JsValue::Constant(matcher) => {
+            if let Some(matcher) = matcher.as_str() {
+                matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
+            } else {
+                emit_invalid_config_warning(
+                    ident,
+                    "The matcher property must be a string or array of strings",
+                    value,
+                );
+            }
+        }
+        JsValue::Array { items, .. } => {
+            for item in items {
+                if let Some(matcher) = item.as_str() {
+                    matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
+                } else if let JsValue::Object { parts, .. } = item {
+                    let mut matcher = MiddlewareMatcher::default();
+                    for matcher_part in parts {
+                        if let ObjectPart::KeyValue(key, value) = matcher_part {
+                            match key.as_str() {
+                                Some("source") => {
+                                    if let Some(value) = value.as_str() {
+                                        matcher.original_source = value.to_string();
+                                    }
+                                }
+                                Some("missing") => {
+                                    matcher.missing = Some(parse_matcher_kind_matcher(value))
+                                }
+                                Some("has") => {
+                                    matcher.has = Some(parse_matcher_kind_matcher(value))
+                                }
+                                _ => {
+                                    //noop
+                                }
+                            }
+                        }
+                    }
+
+                    matchers.push(MiddlewareMatcherKind::Matcher(matcher));
+                } else {
+                    emit_invalid_config_warning(
+                        ident,
+                        "The matcher property must be a string or array of strings",
+                        value,
+                    );
+                }
+            }
+        }
+        _ => emit_invalid_config_warning(
+            ident,
+            "The matcher property must be a string or array of strings",
+            value,
+        ),
+    }
+
+    if matchers.is_empty() {
+        None
+    } else {
+        Some(matchers)
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
@@ -215,6 +366,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
+            globals,
             eval_context,
             ..
         } = &*ecmascript_asset.parse().await?
@@ -235,8 +387,10 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                let value = eval_context.eval(init);
-                                return Ok(parse_config_from_js_value(module, &value).cell());
+                                return GLOBALS.set(globals, || {
+                                    let value = eval_context.eval(init);
+                                    Ok(parse_config_from_js_value(module, &value).cell())
+                                });
                             } else {
                                 NextSourceConfigParsingIssue {
                                     ident: module.ident(),
@@ -313,19 +467,12 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
 
 fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
     let mut config = NextSourceConfig::default();
-    let invalid_config = |detail: &str, value: &JsValue| {
-        let (explainer, hints) = value.explain(2, 0);
-        NextSourceConfigParsingIssue {
-            ident: module.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
-        }
-        .cell()
-        .emit()
-    };
+
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
-                ObjectPart::Spread(_) => invalid_config(
+                ObjectPart::Spread(_) => emit_invalid_config_warning(
+                    module.ident(),
                     "Spread properties are not supported in the config export.",
                     value,
                 ),
@@ -342,7 +489,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             config.runtime = NextRuntime::NodeJs;
                                         }
                                         _ => {
-                                            invalid_config(
+                                            emit_invalid_config_warning(
+                                                module.ident(),
                                                 "The runtime property must be either \"nodejs\" \
                                                  or \"edge\".",
                                                 value,
@@ -351,48 +499,20 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                     }
                                 }
                             } else {
-                                invalid_config(
+                                emit_invalid_config_warning(
+                                    module.ident(),
                                     "The runtime property must be a constant string.",
                                     value,
                                 );
                             }
                         }
                         if key == "matcher" {
-                            let mut matchers = vec![];
-                            match value {
-                                JsValue::Constant(matcher) => {
-                                    if let Some(matcher) = matcher.as_str() {
-                                        matchers.push(matcher.to_string());
-                                    } else {
-                                        invalid_config(
-                                            "The matcher property must be a string or array of \
-                                             strings",
-                                            value,
-                                        );
-                                    }
-                                }
-                                JsValue::Array { items, .. } => {
-                                    for item in items {
-                                        if let Some(matcher) = item.as_str() {
-                                            matchers.push(matcher.to_string());
-                                        } else {
-                                            invalid_config(
-                                                "The matcher property must be a string or array \
-                                                 of strings",
-                                                value,
-                                            );
-                                        }
-                                    }
-                                }
-                                _ => invalid_config(
-                                    "The matcher property must be a string or array of strings",
-                                    value,
-                                ),
-                            }
-                            config.matcher = Some(matchers);
+                            config.matcher =
+                                parse_route_matcher_from_js_value(module.ident(), value);
                         }
                     } else {
-                        invalid_config(
+                        emit_invalid_config_warning(
+                            module.ident(),
                             "The exported config object must not contain non-constant strings.",
                             key,
                         );
@@ -401,7 +521,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
             }
         }
     } else {
-        invalid_config(
+        emit_invalid_config_warning(
+            module.ident(),
             "The exported config object must be a valid object literal.",
             value,
         );
@@ -450,7 +571,7 @@ pub async fn load_next_js_template(
 
     // Update the relative imports to be absolute. This will update any relative
     // imports to be relative to the root of the `next` package.
-    let regex = lazy_regex::regex!("(?:from \"(\\..*)\"|import \"(\\..*)\")");
+    let regex = lazy_regex::regex!("(?:from '(\\..*)'|import '(\\..*)')");
 
     let mut count = 0;
     let mut content = replace_all(regex, &content, |caps| {
@@ -508,7 +629,7 @@ pub async fn load_next_js_template(
     // variable is missing, throw an error.
     let mut replaced = IndexSet::new();
     for (key, replacement) in &replacements {
-        let full = format!("\"{}\"", key);
+        let full = format!("'{}'", key);
 
         if content.contains(&full) {
             replaced.insert(*key);
@@ -700,36 +821,4 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
-}
-
-#[turbo_tasks::function]
-pub async fn render_data(
-    next_config: Vc<NextConfig>,
-    server_addr: Vc<ServerAddr>,
-) -> Result<Vc<JsonValue>> {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct Data {
-        next_config_output: Option<OutputType>,
-        server_info: Option<ServerInfo>,
-        allowed_revalidate_header_keys: Option<Vec<String>>,
-        fetch_cache_key_prefix: Option<String>,
-        isr_memory_cache_size: Option<f64>,
-        isr_flush_to_disk: Option<bool>,
-    }
-
-    let config = next_config.await?;
-    let server_info = ServerInfo::try_from(&*server_addr.await?);
-
-    let experimental = &config.experimental;
-
-    let value = serde_json::to_value(Data {
-        next_config_output: config.output.clone(),
-        server_info: server_info.ok(),
-        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
-        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
-        isr_memory_cache_size: experimental.isr_memory_cache_size,
-        isr_flush_to_disk: experimental.isr_flush_to_disk,
-    })?;
-    Ok(Vc::cell(value))
 }

@@ -1,13 +1,13 @@
-import Link from 'next/link'
-import styles from '../styles.module.css'
+import Link from "next/link";
+import styles from "../styles.module.css";
 
 type CodeProps = {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 const Code = ({ children }: CodeProps) => (
   <code className={styles.inlineCode}>{children}</code>
-)
+);
 
 const IndexPage = () => (
   <div className={styles.container}>
@@ -15,15 +15,15 @@ const IndexPage = () => (
       <h1>Environment Variables with Next.js</h1>
       <hr className={styles.hr} />
       <p>
-        In the table below you'll see how{' '}
+        In the table below you'll see how{" "}
         <Link href="https://nextjs.org/docs/basic-features/environment-variables#exposing-environment-variables-to-the-browser">
           environment variables can be exposed to the browser
-        </Link>{' '}
+        </Link>{" "}
         with Next.js.
       </p>
       <p>
         In general only <Code>.env.local</Code> or <Code>.env</Code> are needed
-        for this, but the table also features the usage of{' '}
+        for this, but the table also features the usage of{" "}
         <Code>.env.development</Code> and <Code>.env.production</Code>.
       </p>
       <table className={styles.table}>
@@ -91,9 +91,9 @@ const IndexPage = () => (
       <p>Once you run the app, you'll see logs like these in the terminal:</p>
       <pre>
         <code>
-          info - Loaded env from /home/user/../.env.local{'\n'}
-          info - Loaded env from /home/user/../.env.development{'\n'}
-          info - Loaded env from /home/user/../.env{'\n'}
+          info - Loaded env from /home/user/../.env.local{"\n"}
+          info - Loaded env from /home/user/../.env.development{"\n"}
+          info - Loaded env from /home/user/../.env{"\n"}
         </code>
       </pre>
       <p>
@@ -101,25 +101,25 @@ const IndexPage = () => (
         priority.
       </p>
       <p>
-        <Code>.env</Code> will not overwrite any variables defined in{' '}
+        <Code>.env</Code> will not overwrite any variables defined in{" "}
         <Code>.env.local</Code> or <Code>.env.development</Code>.
       </p>
     </div>
   </div>
-)
+);
 
 // `getStaticProps`, and similar Next.js methods like `getStaticPaths` and `getServerSideProps`
 // only run in Node.js. Check the terminal to see the environment variables
 export async function getStaticProps() {
   // Using the variables below in the browser will return `undefined`. Next.js doesn't
   // expose environment variables unless they start with `NEXT_PUBLIC_`
-  console.log('[Node.js only] ENV_VARIABLE:', process.env.ENV_VARIABLE)
+  console.log("[Node.js only] ENV_VARIABLE:", process.env.ENV_VARIABLE);
   console.log(
-    '[Node.js only] ENV_LOCAL_VARIABLE:',
-    process.env.ENV_LOCAL_VARIABLE
-  )
+    "[Node.js only] ENV_LOCAL_VARIABLE:",
+    process.env.ENV_LOCAL_VARIABLE,
+  );
 
-  return { props: {} }
+  return { props: {} };
 }
 
-export default IndexPage
+export default IndexPage;

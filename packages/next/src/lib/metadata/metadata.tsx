@@ -1,3 +1,4 @@
+import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
@@ -38,20 +39,28 @@ import { isNotFoundError } from '../../client/components/not-found'
 export function createMetadataComponents({
   tree,
   pathname,
-  searchParams,
+  trailingSlash,
+  query,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
+  createDynamicallyTrackedSearchParams,
 }: {
   tree: LoaderTree
   pathname: string
-  searchParams: { [key: string]: any }
+  trailingSlash: boolean
+  query: ParsedUrlQuery
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
+  createDynamicallyTrackedSearchParams: (
+    searchParams: ParsedUrlQuery
+  ) => ParsedUrlQuery
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
-    pathname,
+    // Make sure the pathname without query string
+    pathname: pathname.split('?')[0],
+    trailingSlash,
   }
 
   let resolve: (value: Error | undefined) => void | undefined
@@ -68,6 +77,7 @@ export function createMetadataComponents({
     let error: any
     const errorMetadataItem: [null, null, null] = [null, null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
+    const searchParams = createDynamicallyTrackedSearchParams(query)
 
     const [resolvedError, resolvedMetadata, resolvedViewport] =
       await resolveMetadata({
@@ -86,9 +96,10 @@ export function createMetadataComponents({
       resolve(undefined)
     } else {
       error = resolvedError
-      // If the error triggers in initial metadata resolving, re-resolve with proper error type.
-      // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
-      // for not-found error: resolve not-found metadata
+      // If a not-found error is triggered during metadata resolution, we want to capture the metadata
+      // for the not-found route instead of whatever triggered the error. For all error types, we resolve an
+      // error, which will cause the outlet to throw it so it'll be handled by an error boundary
+      // (either an actual error, or an internal error that renders UI such as the NotFoundBoundary).
       if (!errorType && isNotFoundError(resolvedError)) {
         const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
           await resolveMetadata({

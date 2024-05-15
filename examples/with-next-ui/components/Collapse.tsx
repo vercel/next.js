@@ -1,4 +1,4 @@
-import { Collapse, Text } from '@nextui-org/react'
+import { Collapse, Text } from "@nextui-org/react";
 
 const CustomCollapse = () => {
   return (
@@ -23,7 +23,7 @@ const CustomCollapse = () => {
         </Text>
       </Collapse>
     </Collapse.Group>
-  )
-}
+  );
+};
 
-export default CustomCollapse
+export default CustomCollapse;

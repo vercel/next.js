@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -7,9 +7,10 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
+    entrypoints::Entrypoints,
     project::{
-        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
-        ProjectOptions,
+        DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
+        ProjectContainer, ProjectOptions,
     },
     route::{Endpoint, Route},
 };
@@ -21,7 +22,7 @@ use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
-use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{FileContent, FileSystem},
@@ -29,9 +30,12 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
+            diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
-            source_map::{GenerateSourceMap, Token},
-            version::{PartialUpdate, TotalUpdate, Update},
+            issue::PlainIssue,
+            source_map::Token,
+            version::{PartialUpdate, TotalUpdate, Update, VersionState},
+            SOURCE_MAP_PREFIX,
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
@@ -57,6 +61,23 @@ use crate::register;
 pub struct NapiEnvVar {
     pub name: String,
     pub value: String,
+}
+
+#[napi(object)]
+pub struct NapiDraftModeOptions {
+    pub preview_mode_id: String,
+    pub preview_mode_encryption_key: String,
+    pub preview_mode_signing_key: String,
+}
+
+impl From<NapiDraftModeOptions> for DraftModeOptions {
+    fn from(val: NapiDraftModeOptions) -> Self {
+        DraftModeOptions {
+            preview_mode_id: val.preview_mode_id,
+            preview_mode_encryption_key: val.preview_mode_encryption_key,
+            preview_mode_signing_key: val.preview_mode_signing_key,
+        }
+    }
 }
 
 #[napi(object)]
@@ -88,8 +109,17 @@ pub struct NapiProjectOptions {
     /// time.
     pub define_env: NapiDefineEnv,
 
-    /// The address of the dev server.
-    pub server_addr: String,
+    /// The mode in which Next.js is running.
+    pub dev: bool,
+
+    /// The server actions encryption key.
+    pub encryption_key: String,
+
+    /// The build id.
+    pub build_id: String,
+
+    /// Options for draft mode.
+    pub preview_props: NapiDraftModeOptions,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -122,8 +152,17 @@ pub struct NapiPartialProjectOptions {
     /// time.
     pub define_env: Option<NapiDefineEnv>,
 
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
+
+    /// The server actions encryption key.
+    pub encryption_key: Option<String>,
+
+    /// The build id.
+    pub build_id: Option<String>,
+
+    /// Options for draft mode.
+    pub preview_props: Option<NapiDraftModeOptions>,
 }
 
 #[napi(object)]
@@ -154,7 +193,10 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
-            server_addr: val.server_addr,
+            dev: val.dev,
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
+            preview_props: val.preview_props.into(),
         }
     }
 }
@@ -171,7 +213,10 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
-            server_addr: val.server_addr,
+            dev: val.dev,
+            encryption_key: val.encryption_key,
+            build_id: val.build_id,
+            preview_props: val.preview_props.map(|props| props.into()),
         }
     }
 }
@@ -245,11 +290,21 @@ pub async fn project_new(
             .context("Unable to create .next directory")
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
-        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         let guard = ExitGuard::new(guard).unwrap();
+
+        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+        if trace_server.is_some() {
+            thread::spawn(move || {
+                turbopack_binding::turbopack::trace_server::start_turbopack_trace_server(
+                    trace_file,
+                );
+            });
+            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+        }
 
         subscriber.init();
 
@@ -303,12 +358,26 @@ pub async fn project_update(
 
 #[napi(object)]
 #[derive(Default)]
-struct NapiRoute {
+struct AppPageNapiRoute {
     /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
+
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+}
+
+#[napi(object)]
+#[derive(Default)]
+struct NapiRoute {
+    /// The router path
     pub pathname: String,
+    /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
+
+    pub pages: Option<Vec<AppPageNapiRoute>>,
 
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
@@ -346,18 +415,27 @@ impl NapiRoute {
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage {
-                html_endpoint,
-                rsc_endpoint,
-            } => NapiRoute {
+            Route::AppPage(pages) => NapiRoute {
                 pathname,
                 r#type: "app-page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                rsc_endpoint: convert_endpoint(rsc_endpoint),
+                pages: Some(
+                    pages
+                        .into_iter()
+                        .map(|page_route| AppPageNapiRoute {
+                            original_name: Some(page_route.original_name),
+                            html_endpoint: convert_endpoint(page_route.html_endpoint),
+                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                        })
+                        .collect(),
+                ),
                 ..Default::default()
             },
-            Route::AppRoute { endpoint } => NapiRoute {
+            Route::AppRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
                 pathname,
+                original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
@@ -424,6 +502,29 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct EntrypointsWithIssues {
+    entrypoints: ReadRef<Entrypoints>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_entrypoints_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<EntrypointsWithIssues>> {
+    let entrypoints_operation = container.entrypoints();
+    let entrypoints = entrypoints_operation.strongly_consistent().await?;
+    let issues = get_issues(entrypoints_operation).await?;
+    let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    Ok(EntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -436,13 +537,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_operation = container.entrypoints();
-                let entrypoints = entrypoints_operation.strongly_consistent().await?;
-
-                let issues = get_issues(entrypoints_operation).await?;
-                let diags = get_diagnostics(entrypoints_operation).await?;
-
-                Ok((entrypoints, issues, diags))
+                let EntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    diagnostics,
+                } = &*get_entrypoints_with_issues(container)
+                    .strongly_consistent()
+                    .await?;
+                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
@@ -454,8 +556,8 @@ pub fn project_entrypoints_subscribe(
                     routes: entrypoints
                         .routes
                         .iter()
-                        .map(|(pathname, &route)| {
-                            NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
+                        .map(|(pathname, route)| {
+                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints
@@ -491,6 +593,31 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrUpdateWithIssues {
+    update: ReadRef<Update>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn hmr_update(
+    project: Vc<Project>,
+    identifier: String,
+    state: Vc<VersionState>,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    let update_operation = project.hmr_update(identifier, state);
+    let update = update_operation.strongly_consistent().await?;
+    let issues = get_issues(update_operation).await?;
+    let diagnostics = get_diagnostics(update_operation).await?;
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -510,14 +637,17 @@ pub fn project_hmr_events(
                 let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
-                    let state = project
-                        .project()
-                        .hmr_version_state(identifier.clone(), session);
-                    let update_operation = project.project().hmr_update(identifier, state);
-                    let update = update_operation.strongly_consistent().await?;
-                    let issues = get_issues(update_operation).await?;
-                    let diags = get_diagnostics(update_operation).await?;
-                    match &*update {
+                    let project = project.project().resolve().await?;
+                    let state = project.hmr_version_state(identifier.clone(), session);
+                    let update = hmr_update(project, identifier, state)
+                        .strongly_consistent()
+                        .await?;
+                    let HmrUpdateWithIssues {
+                        update,
+                        issues,
+                        diagnostics,
+                    } = &*update;
+                    match &**update {
                         Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
@@ -526,7 +656,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update, issues, diags))
+                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
@@ -574,6 +704,29 @@ struct HmrIdentifiers {
     pub identifiers: Vec<String>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrIdentifiersWithIssues {
+    identifiers: ReadRef<Vec<String>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_hmr_identifiers_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<HmrIdentifiersWithIssues>> {
+    let hmr_identifiers_operation = container.hmr_identifiers();
+    let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+    let issues = get_issues(hmr_identifiers_operation).await?;
+    let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    Ok(HmrIdentifiersWithIssues {
+        identifiers: hmr_identifiers,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -585,20 +738,22 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let hmr_identifiers_operation = container.hmr_identifiers();
-            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+            let HmrIdentifiersWithIssues {
+                identifiers,
+                issues,
+                diagnostics,
+            } = &*get_hmr_identifiers_with_issues(container)
+                .strongly_consistent()
+                .await?;
 
-            let issues = get_issues(hmr_identifiers_operation).await?;
-            let diags = get_diagnostics(hmr_identifiers_operation).await?;
-
-            Ok((hmr_identifiers, issues, diags))
+            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (hmr_identifiers, issues, diags) = ctx.value;
+            let (identifiers, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrIdentifiers {
-                    identifiers: hmr_identifiers
+                    identifiers: identifiers
                         .iter()
                         .map(|ident| ident.to_string())
                         .collect::<Vec<_>>(),
@@ -607,10 +762,39 @@ pub fn project_hmr_identifiers_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| NapiDiagnostic::from(d))
+                    .collect(),
             }])
         },
     )
+}
+
+enum UpdateMessage {
+    Start,
+    End(UpdateInfo),
+}
+
+#[napi(object)]
+struct NapiUpdateMessage {
+    pub update_type: String,
+    pub value: Option<NapiUpdateInfo>,
+}
+
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
+        match update_message {
+            UpdateMessage::Start => NapiUpdateMessage {
+                update_type: "start".to_string(),
+                value: None,
+            },
+            UpdateMessage::End(info) => NapiUpdateMessage {
+                update_type: "end".to_string(),
+                value: Some(info.into()),
+            },
+        }
+    }
 }
 
 #[napi(object)]
@@ -628,23 +812,54 @@ impl From<UpdateInfo> for NapiUpdateInfo {
     }
 }
 
+/// Subscribes to lifecycle events of the compilation.
+/// Emits an [UpdateMessage::Start] event when any computation starts.
+/// Emits an [UpdateMessage::End] event when there was no computation for the
+/// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
+/// information about the computations that happened since the
+/// [UpdateMessage::Start] event. It contains the duration of the computation
+/// (excluding the idle time that was spend waiting for `aggregation_ms`), and
+/// the number of tasks that were executed.
+///
+/// The signature of the `func` is `(update_message: UpdateMessage) => void`.
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateInfo> = func.create_threadsafe_function(0, |ctx| {
-        let update_info = ctx.value;
-        Ok(vec![NapiUpdateInfo::from(update_info)])
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
     })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {
             let update_info = turbo_tasks
-                .get_or_wait_aggregated_update_info(Duration::from_secs(1))
+                .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
-            let status = func.call(Ok(update_info), ThreadsafeFunctionCallMode::NonBlocking);
+            func.call(
+                Ok(UpdateMessage::Start),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
+            let update_info = match update_info {
+                Some(update_info) => update_info,
+                None => {
+                    turbo_tasks
+                        .get_or_wait_aggregated_update_info(Duration::from_millis(
+                            aggregation_ms.into(),
+                        ))
+                        .await
+                }
+            };
+
+            let status = func.call(
+                Ok(UpdateMessage::End(update_info)),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{}", error);
@@ -659,10 +874,13 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
-    pub column: Option<u32>,
-    pub file: String,
     pub is_server: bool,
-    pub line: u32,
+    pub is_internal: Option<bool>,
+    pub file: String,
+    // 1-indexed, unlike source map tokens
+    pub line: Option<u32>,
+    // 1-indexed, unlike source map tokens
+    pub column: Option<u32>,
     pub method_name: Option<String>,
 }
 
@@ -674,12 +892,22 @@ pub async fn project_trace_source(
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let file = match Url::parse(&frame.file) {
+            let (file, module) = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    "file" => {
+                        let path = urlencoding::decode(url.path())?.to_string();
+                        let module = url.query_pairs().find(|(k, _)| k == "id");
+                        (
+                            path,
+                            match module {
+                                Some(module) => Some(urlencoding::decode(&module.1)?.into_owned()),
+                                None => None,
+                            },
+                        )
+                    }
                     _ => bail!("Unknown url scheme"),
                 },
-                Err(_) => frame.file.to_string(),
+                Err(_) => (frame.file.to_string(), None),
             };
 
             let Some(chunk_base) = file.strip_prefix(
@@ -693,54 +921,76 @@ pub async fn project_trace_source(
                 return Ok(None);
             };
 
-            let path = if frame.is_server {
-                project
-                    .container
-                    .project()
-                    .node_root()
-                    .join(chunk_base.to_owned())
-            } else {
-                project
-                    .container
-                    .project()
-                    .client_relative_path()
-                    .join(chunk_base.to_owned())
-            };
+            let server_path = project
+                .container
+                .project()
+                .node_root()
+                .join(chunk_base.to_owned());
 
-            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
-                project.container.get_versioned_content(path),
-            )
-            .await?
-            else {
-                bail!("Could not GenerateSourceMap")
-            };
+            let client_path = project
+                .container
+                .project()
+                .client_relative_path()
+                .join(chunk_base.to_owned());
 
-            let map = versioned
-                .generate_source_map()
-                .await?
-                .context("Chunk is missing a sourcemap")?;
+            let mut map_result = project
+                .container
+                .get_source_map(server_path, module.clone())
+                .await;
+            if map_result.is_err() {
+                // If the chunk doesn't exist as a server chunk, try a client chunk.
+                // TODO: Properly tag all server chunks and use the `isServer` query param.
+                // Currently, this is inaccurate as it does not cover RSC server
+                // chunks.
+                map_result = project.container.get_source_map(client_path, module).await;
+            }
+            let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
-            let token = map
-                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
-                .await?
-                .clone_value()
-                .context("Unable to trace token from sourcemap")?;
-
-            let Token::Original(token) = token else {
+            let Some(line) = frame.line else {
                 return Ok(None);
             };
 
-            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
-            else {
-                bail!("Original file outside project")
+            let token = map
+                .lookup_token(
+                    (line as usize).saturating_sub(1),
+                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                )
+                .await?;
+
+            let (original_file, line, column, name) = match &*token {
+                Token::Original(token) => (
+                    &token.original_file,
+                    // JS stack frames are 1-indexed, source map tokens are 0-indexed
+                    Some(token.original_line as u32 + 1),
+                    Some(token.original_column as u32 + 1),
+                    token.name.clone(),
+                ),
+                Token::Synthetic(token) => {
+                    let Some(file) = &token.guessed_original_file else {
+                        return Ok(None);
+                    };
+                    (file, None, None, None)
+                }
             };
+
+            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
+                bail!("Original file ({}) outside project", original_file)
+            };
+
+            let (source_file, is_internal) =
+                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                    (source_file, false)
+                } else {
+                    (source_file, true)
+                };
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: token.name,
-                line: token.original_line as u32,
-                column: Some(token.original_column as u32),
+                method_name: name,
+                line,
+                column,
                 is_server: frame.is_server,
+                is_internal: Some(is_internal),
             }))
         })
         .await

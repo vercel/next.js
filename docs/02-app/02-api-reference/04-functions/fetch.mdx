@@ -98,7 +98,7 @@ Set the cache lifetime of a resource (in seconds).
 fetch(`https://...`, { next: { tags: ['collection'] } })
 ```
 
-Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters.
+Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters and the max tag items is 64.
 
 ## Version History
 

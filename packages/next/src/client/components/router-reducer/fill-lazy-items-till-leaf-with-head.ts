@@ -1,10 +1,13 @@
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   CacheNodeSeedData,
 } from '../../../server/app-render/types'
 import { createRouterCacheKey } from './create-router-cache-key'
+import {
+  PrefetchCacheEntryStatus,
+  type PrefetchCacheEntry,
+} from './router-reducer-types'
 
 export function fillLazyItemsTillLeafWithHead(
   newCache: CacheNode,
@@ -12,14 +15,14 @@ export function fillLazyItemsTillLeafWithHead(
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
   head: React.ReactNode,
-  wasPrefetched?: boolean
+  prefetchEntry?: PrefetchCacheEntry
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
     newCache.head = head
     return
   }
-  // Remove segment that we got data for so that it is filled in during rendering of subTreeData.
+  // Remove segment that we got data for so that it is filled in during rendering of rsc.
   for (const key in routerState[1]) {
     const parallelRouteState = routerState[1][key]
     const segmentForParallelRoute = parallelRouteState[0]
@@ -36,44 +39,67 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null &&
-      cacheNodeSeedData[1] !== null &&
-      cacheNodeSeedData[1][key] !== undefined
+      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
         ? cacheNodeSeedData[1][key]
         : null
     if (existingCache) {
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
+        const hasReusablePrefetch =
+          prefetchEntry?.kind === 'auto' &&
+          prefetchEntry.status === PrefetchCacheEntryStatus.reusable
+
         let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
         const existingCacheNode = parallelRouteCacheNode.get(cacheKey)
         let newCacheNode: CacheNode
         if (parallelSeedData !== null) {
           // New data was sent from the server.
           const seedNode = parallelSeedData[2]
+          const loading = parallelSeedData[3]
           newCacheNode = {
-            status: CacheStates.READY,
-            data: null,
-            subTreeData: seedNode,
+            lazyData: null,
+            rsc: seedNode,
+            // This is a PPR-only field. When PPR is enabled, we shouldn't hit
+            // this path during a navigation, but until PPR is fully implemented
+            // yet it's possible the existing node does have a non-null
+            // `prefetchRsc`. As an incremental step, we'll just de-opt to the
+            // old behavior — no PPR value.
+            prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
+            loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            lazyDataResolved: false,
           }
-        } else if (wasPrefetched && existingCacheNode) {
+        } else if (hasReusablePrefetch && existingCacheNode) {
           // No new data was sent from the server, but the existing cache node
           // was prefetched, so we should reuse that.
           newCacheNode = {
-            status: existingCacheNode.status,
-            data: existingCacheNode.data,
-            subTreeData: existingCacheNode.subTreeData,
+            lazyData: existingCacheNode.lazyData,
+            rsc: existingCacheNode.rsc,
+            // This is a PPR-only field. Unlike the previous branch, since we're
+            // just cloning the existing cache node, we might as well keep the
+            // PPR value, if it exists.
+            prefetchRsc: existingCacheNode.prefetchRsc,
+            head: existingCacheNode.head,
+            prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
+            lazyDataResolved: existingCacheNode.lazyDataResolved,
+            loading: existingCacheNode.loading,
           } as CacheNode
         } else {
           // No data available for this node. This will trigger a lazy fetch
           // during render.
           newCacheNode = {
-            status: CacheStates.LAZY_INITIALIZED,
-            data: null,
-            subTreeData: null,
+            lazyData: null,
+            rsc: null,
+            prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            lazyDataResolved: false,
+            loading: null,
           }
         }
 
@@ -86,7 +112,7 @@ export function fillLazyItemsTillLeafWithHead(
           parallelRouteState,
           parallelSeedData ? parallelSeedData : null,
           head,
-          wasPrefetched
+          prefetchEntry
         )
 
         newCache.parallelRoutes.set(key, parallelRouteCacheNode)
@@ -98,20 +124,29 @@ export function fillLazyItemsTillLeafWithHead(
     if (parallelSeedData !== null) {
       // New data was sent from the server.
       const seedNode = parallelSeedData[2]
+      const loading = parallelSeedData[3]
       newCacheNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: seedNode,
+        lazyData: null,
+        rsc: seedNode,
+        prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        lazyDataResolved: false,
+        loading,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
       // during render.
       newCacheNode = {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
+        lazyData: null,
+        rsc: null,
+        prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        lazyDataResolved: false,
+        loading: null,
       }
     }
 
@@ -128,7 +163,7 @@ export function fillLazyItemsTillLeafWithHead(
       parallelRouteState,
       parallelSeedData,
       head,
-      wasPrefetched
+      prefetchEntry
     )
   }
 }

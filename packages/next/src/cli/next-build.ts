@@ -2,86 +2,116 @@
 
 import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
-import * as Log from '../build/output/log'
-import type { CliCommand } from '../lib/commands'
+import { italic } from '../lib/picocolors'
 import build from '../build'
+import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { enableMemoryDebuggingMode } from '../lib/memory/startup'
+import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 
-const nextBuild: CliCommand = (args) => {
-  if (args['--help']) {
-    printAndExit(
-      `
-      Description
-        Compiles the application for production deployment
+type NextBuildOptions = {
+  debug?: boolean
+  profile?: boolean
+  lint: boolean
+  mangling: boolean
+  experimentalDebugMemoryUsage: boolean
+  experimentalAppOnly?: boolean
+  experimentalTurbo?: boolean
+  experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalUploadTrace?: string
+}
 
-      Usage
-        $ next build <dir>
+const nextBuild = (options: NextBuildOptions, directory?: string) => {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
 
-      <dir> represents the directory of the Next.js application.
-      If no directory is provided, the current directory will be used.
+  const {
+    debug,
+    experimentalDebugMemoryUsage,
+    profile,
+    lint,
+    mangling,
+    experimentalAppOnly,
+    experimentalTurbo,
+    experimentalBuildMode,
+    experimentalUploadTrace,
+  } = options
 
-      Options
-      --profile                Can be used to enable React Production Profiling
-      --no-lint                Disable linting
-      --no-mangling            Disable mangling
-      --experimental-app-only  Only build 'app' routes
-      --experimental-turbo     Enable experimental turbo mode
-      --help, -h               Displays this message
-    `,
-      0
+  let traceUploadUrl: string | undefined
+  if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
+    traceUploadUrl = experimentalUploadTrace
+  }
+
+  if (!lint) {
+    warn('Linting is disabled.')
+  }
+
+  if (!mangling) {
+    warn(
+      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
     )
   }
-  if (args['--profile']) {
-    Log.warn('Profiling is enabled. Note: This may affect performance')
-  }
-  if (args['--no-lint']) {
-    Log.warn('Linting is disabled')
-  }
-  if (args['--no-mangling']) {
-    Log.warn(
-      'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes'
+
+  if (profile) {
+    warn(
+      `Profiling is enabled. ${italic('Note: This may affect performance.')}`
     )
   }
-  const dir = getProjectDir(args._[0])
+
+  if (experimentalDebugMemoryUsage) {
+    process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE = '1'
+    enableMemoryDebuggingMode()
+  }
+
+  const dir = getProjectDir(directory)
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (args['--experimental-turbo']) {
+  if (experimentalTurbo) {
     process.env.TURBOPACK = '1'
   }
 
   return build(
     dir,
-    args['--profile'],
-    args['--debug'] || process.env.NEXT_DEBUG_BUILD,
-    !args['--no-lint'],
-    args['--no-mangling'],
-    args['--experimental-app-only'],
+    profile,
+    debug || Boolean(process.env.NEXT_DEBUG_BUILD),
+    lint,
+    !mangling,
+    experimentalAppOnly,
     !!process.env.TURBOPACK,
-    args['--experimental-turbo-root'],
-    args['--build-mode'] || 'default'
-  ).catch((err) => {
-    console.error('')
-    if (
-      isError(err) &&
-      (err.code === 'INVALID_RESOLVE_ALIAS' ||
-        err.code === 'WEBPACK_ERRORS' ||
-        err.code === 'BUILD_OPTIMIZATION_FAILED' ||
-        err.code === 'NEXT_EXPORT_ERROR' ||
-        err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
-        err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
-    ) {
-      printAndExit(`> ${err.message}`)
-    } else {
-      console.error('> Build error occurred')
-      printAndExit(err)
-    }
-  })
+    experimentalBuildMode,
+    traceUploadUrl
+  )
+    .catch((err) => {
+      if (experimentalDebugMemoryUsage) {
+        disableMemoryDebuggingMode()
+      }
+      console.error('')
+      if (
+        isError(err) &&
+        (err.code === 'INVALID_RESOLVE_ALIAS' ||
+          err.code === 'WEBPACK_ERRORS' ||
+          err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+          err.code === 'NEXT_EXPORT_ERROR' ||
+          err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+          err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
+      ) {
+        printAndExit(`> ${err.message}`)
+      } else {
+        console.error('> Build error occurred')
+        printAndExit(err)
+      }
+    })
+    .finally(() => {
+      if (experimentalDebugMemoryUsage) {
+        disableMemoryDebuggingMode()
+      }
+    })
 }
 
 export { nextBuild }

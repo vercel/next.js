@@ -12,12 +12,14 @@ import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, overrideCanonicalUrl } = action
+  const { serverResponse } = action
+  const [flightData, overrideCanonicalUrl] = serverResponse
 
   const mutable: Mutable = {}
 
@@ -45,11 +47,12 @@ export function serverPatchReducer(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
-      treePatch
+      treePatch,
+      state.canonicalUrl
     )
 
     if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
+      return handleSegmentMismatch(state, action, treePatch)
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {

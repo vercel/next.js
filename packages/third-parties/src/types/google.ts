@@ -13,15 +13,21 @@ export type GTMParams = {
   preview?: string
 }
 
+export type GAParams = {
+  gaId: string
+  dataLayerName?: string
+}
+
 export type GoogleMapsEmbed = {
-  height?: number
-  width?: number
+  height?: number | string
+  width?: number | string
   mode: 'place' | 'view' | 'directions' | 'streetview' | 'search'
   apiKey: string
-  style: string
-  allowfullscreen: boolean
-  loading: 'eager' | 'lazy'
+  style?: string
+  allowfullscreen?: boolean
+  loading?: 'eager' | 'lazy'
   q?: string
+  id?: string
   center?: string
   zoom?: string
   maptype?: string

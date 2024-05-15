@@ -51,40 +51,51 @@ const respectsChunkAttachmentOrder = async () => {
 }
 
 describe('Root components import order', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+
+      it(
+        '_app chunks should be attached to de dom before page chunks',
+        respectsChunkAttachmentOrder
+      )
+      it(
+        'root components should be imported in this order _document > _app > page in order to respect side effects',
+        respectsSideEffects
+      )
+    }
+  )
+})
+;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+  'development mode',
+  () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await launchApp(join(__dirname, '../'), appPort)
     })
+
     afterAll(() => killApp(app))
 
-    it(
-      '_app chunks should be attached to de dom before page chunks',
-      respectsChunkAttachmentOrder
-    )
     it(
       'root components should be imported in this order _document > _app > page in order to respect side effects',
       respectsSideEffects
     )
-  })
-})
 
-describe('development mode', () => {
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(join(__dirname, '../'), appPort)
-  })
-
-  afterAll(() => killApp(app))
-
-  it(
-    'root components should be imported in this order _document > _app > page in order to respect side effects',
-    respectsSideEffects
-  )
-
-  it(
-    '_app chunks should be attached to de dom before page chunks',
-    respectsChunkAttachmentOrder
-  )
-})
+    // Test relies on webpack splitChunks overrides.
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'Skipped in Turbopack',
+      () => {
+        it(
+          '_app chunks should be attached to de dom before page chunks',
+          respectsChunkAttachmentOrder
+        )
+      }
+    )
+  }
+)

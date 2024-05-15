@@ -1,11 +1,11 @@
-import FelaProvider from '../FelaProvider'
+import FelaProvider from "../FelaProvider";
 
 function MyApp({ Component, pageProps, renderer }) {
   return (
     <FelaProvider renderer={renderer}>
       <Component {...pageProps} />
     </FelaProvider>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

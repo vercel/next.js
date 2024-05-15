@@ -1,9 +1,9 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { validatePreview } from '../../lib/api'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { validatePreview } from "../../lib/api";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   // Check the secret and next parameters
   // This secret should only be known to this API route and the CMS
@@ -13,19 +13,19 @@ export default async function handler(
     agilityPreviewKey: req.query.agilitypreviewkey,
     slug: req.query.slug,
     contentID: req.query.contentid,
-  })
+  });
 
   if (validationResp.error) {
-    return res.status(401).end(`${validationResp.message}`)
+    return res.status(401).end(`${validationResp.message}`);
   }
 
   // Enable Draft Mode by setting the cookie
-  res.setDraftMode({ enable: true })
+  res.setDraftMode({ enable: true });
 
   // Redirect to the slug
-  if (!('slug' in validationResp)) {
-    throw new Error('invariant missing slug in validation response')
+  if (!("slug" in validationResp)) {
+    throw new Error("invariant missing slug in validation response");
   }
-  res.writeHead(307, { Location: validationResp.slug })
-  res.end()
+  res.writeHead(307, { Location: validationResp.slug });
+  res.end();
 }

@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import { useUser } from '../lib/hooks'
+import Link from "next/link";
+import { useUser } from "../lib/hooks";
 
 export default function Navbar() {
-  const [user, { mutate }] = useUser()
+  const [user, { mutate }] = useUser();
 
   async function handleLogout() {
-    await fetch('/api/logout')
-    mutate({ user: null })
+    await fetch("/api/logout");
+    mutate({ user: null });
   }
 
   return (
@@ -76,5 +76,5 @@ export default function Navbar() {
         }
       `}</style>
     </header>
-  )
+  );
 }

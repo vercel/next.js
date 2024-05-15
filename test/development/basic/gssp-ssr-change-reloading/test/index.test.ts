@@ -4,7 +4,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { check, getRedboxHeader, hasRedbox } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
@@ -271,13 +271,13 @@ describe('GS(S)P Server-Side Change Reloading', () => {
 
     try {
       await next.patchFile(page, originalContent.replace('props:', 'propss:'))
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Additional keys were returned from'
       )
 
       await next.patchFile(page, originalContent)
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
     } finally {
       await next.patchFile(page, originalContent)
     }
@@ -301,11 +301,11 @@ describe('GS(S)P Server-Side Change Reloading', () => {
           'throw new Error("custom oops"); const count'
         )
       )
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain('custom oops')
 
       await next.patchFile(page, originalContent)
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
     } finally {
       await next.patchFile(page, originalContent)
     }
