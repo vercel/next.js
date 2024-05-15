@@ -1810,10 +1810,6 @@ export default class NextNodeServer extends BaseServer<
           ? `https://${req.headers.host || 'localhost'}${req.url}`
           : req.url
 
-    const isRSC = isRSCRequestCheck(req)
-    if (isRSC) {
-      addRequestMeta(req, 'isRSCRequest', true)
-    }
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
     addRequestMeta(req, 'initProtocol', protocol)
