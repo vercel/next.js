@@ -887,7 +887,7 @@ export function runTests(ctx) {
   })
 
   it('should fail when internal url is not an image', async () => {
-    const url = `//<h1>not-an-image</h1>`
+    const url = `/api/no-header`
     const query = { url, w: ctx.w, q: 39 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
