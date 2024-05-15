@@ -557,6 +557,7 @@ export default abstract class Server<
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
+        after: this.nextConfig.experimental.after ?? false,
       },
     }
 
@@ -2359,6 +2360,9 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
+              experimental: {
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,

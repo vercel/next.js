@@ -87,6 +87,8 @@ export class EdgeRouteModuleWrapper {
         ? JSON.parse(self.__PRERENDER_MANIFEST)
         : undefined
 
+    const isAfterEnabled = !!process.env.__NEXT_AFTER
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -104,6 +106,9 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
+        experimental: {
+          after: isAfterEnabled,
+        },
       },
     }
 

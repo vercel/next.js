@@ -208,7 +208,15 @@ export async function adapter(
     // we only care to make async storage available for middleware
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
+
     if (isMiddleware) {
+      // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
+      // so we have to inject it via DefinePlugin.
+      // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
+      const isAfterEnabled =
+        params.request.nextConfig?.experimental?.after ??
+        !!process.env.__NEXT_AFTER
+
       return getTracer().trace(
         MiddlewareSpan.execute,
         {
@@ -232,6 +240,9 @@ export async function adapter(
                   previewModeId: 'development-id',
                   previewModeEncryptionKey: '',
                   previewModeSigningKey: '',
+                },
+                experimental: {
+                  after: isAfterEnabled,
                 },
               },
             },

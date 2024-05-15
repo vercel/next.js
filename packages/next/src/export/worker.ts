@@ -248,7 +248,8 @@ async function exportPageImpl(
         incrementalCache,
         distDir,
         htmlFilepath,
-        fileWriter
+        fileWriter,
+        input.renderOpts.experimental
       )
     }
 

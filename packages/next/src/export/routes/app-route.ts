@@ -23,6 +23,7 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import type { ExperimentalConfig } from '../../server/config-shared'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -37,7 +38,8 @@ export async function exportAppRoute(
   incrementalCache: IncrementalCache | undefined,
   distDir: string,
   htmlFilepath: string,
-  fileWriter: FileWriter
+  fileWriter: FileWriter,
+  experimental: Required<Pick<ExperimentalConfig, 'after'>>
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -64,6 +66,7 @@ export async function exportAppRoute(
       notFoundRoutes: [],
     },
     renderOpts: {
+      experimental: experimental,
       originalPathname: page,
       nextExport: true,
       supportsDynamicHTML: false,
