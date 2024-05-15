@@ -6,6 +6,7 @@ const fs = require('fs/promises')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+const nextVendoredExternals = require('@next/vendored/externals.json')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -53,6 +54,8 @@ export async function copy_styled_jsx_assets(task, opts) {
 }
 
 const externals = {
+  ...nextVendoredExternals,
+
   // don't bundle caniuse-lite data so users can
   // update it manually
   'caniuse-lite': 'caniuse-lite',

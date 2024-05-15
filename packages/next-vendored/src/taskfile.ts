@@ -355,6 +355,18 @@ export async function copy_regenerator_runtime(task: Task) {
     .target('regenerator-runtime')
 }
 
+export async function generate_externals(task: Task) {
+  await task.clear('externals.json')
+  const parsedExternals = Object.entries(externals).reduce<typeof externals>(
+    (acc, [key, val]) => {
+      acc[key] = val.replace(/^\.\.\//, '@next/vendored/')
+      return acc
+    },
+    {}
+  )
+  await fs.writeFile('externals.json', JSON.stringify(parsedExternals), 'utf8')
+}
+
 export async function ncc(task: Task) {
   await task.parallel(Object.keys(nccTasks))
   await task.serial(['copy_regenerator_runtime', 'copy_constants_browserify'])
