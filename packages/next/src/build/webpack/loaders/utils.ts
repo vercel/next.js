@@ -46,7 +46,7 @@ export function getActions(mod: {
   return mod.buildInfo?.rsc?.actions
 }
 
-export function generateActionId(filePath: string, exportName: string) {
+export function generateActionChecksum(filePath: string, exportName: string) {
   return createHash('sha1')
     .update(filePath + ':' + exportName)
     .digest('hex')

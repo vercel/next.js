@@ -21,12 +21,15 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
   stringToUint8Array,
+  getHashedActionId,
 } from './encryption-utils'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
-async function decodeActionBoundArg(actionId: string, arg: string) {
+async function decodeActionBoundArg(checksum: string, arg: string) {
+  const actionId = getHashedActionId(checksum)
+
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
     throw new Error(
@@ -73,7 +76,9 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 }
 
 // Encrypts the action's bound args into a string.
-export async function encryptActionBoundArgs(actionId: string, args: any[]) {
+export async function encryptActionBoundArgs(checksum: string, args: any[]) {
+  const actionId = getHashedActionId(checksum)
+
   const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
 
   // Using Flight to serialize the args into a string.

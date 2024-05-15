@@ -12,6 +12,8 @@ export default function Page() {
   // https://github.com/vercel/next.js/issues/58463
   const data = '你好'
 
+  console.log(inc.$$id)
+
   return (
     <>
       <Counter

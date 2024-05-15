@@ -1,18 +1,25 @@
-import { generateActionId } from './utils'
+import { getHashedActionId } from '../../../server/app-render/encryption-utils'
+import { generateActionChecksum } from './utils'
 
 export type NextFlightActionEntryLoaderOptions = {
   actions: string
+  encryptionKey: string
 }
 
 function nextFlightActionEntryLoader(this: any) {
-  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
+  const { actions, encryptionKey }: NextFlightActionEntryLoaderOptions =
+    this.getOptions()
 
   const actionList = JSON.parse(actions) as [string, string[]][]
   const individualActions = actionList
     .map(([path, names]) => {
       return names.map((name) => {
-        const id = generateActionId(path, name)
-        return [id, path, name] as [string, string, string]
+        const checksum = generateActionChecksum(path, name)
+        return [getHashedActionId(checksum, encryptionKey), path, name] as [
+          string,
+          string,
+          string,
+        ]
       })
     })
     .flat()
