@@ -5157,6 +5157,19 @@ export declare function Dancing_Script<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Danfo<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+  axes?: 'ELSH'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dangrek<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -9218,6 +9231,18 @@ export declare function Itim<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Jacquard_12<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jacquard_12_Charted<
   T extends CssVariable | undefined = undefined,
