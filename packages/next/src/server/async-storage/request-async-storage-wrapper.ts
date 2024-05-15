@@ -76,14 +76,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       previewProps = (renderOpts as any).previewProps
     }
 
-    let afterContext: AfterContext | undefined
-    const isAfterEnabled = renderOpts?.experimental?.after ?? false
-    if (!renderOpts || !isAfterEnabled) {
-      afterContext = undefined
-    } else {
-      const { waitUntil, onClose } = renderOpts ?? {}
-      afterContext = createAfterContext({ waitUntil, onClose })
-    }
+    const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
 
     function defaultOnUpdateCookies(cookies: string[]) {
       if (res) {
@@ -169,6 +162,30 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       assetPrefix: renderOpts?.assetPrefix || '',
       afterContext,
     }
-    return storage.run(store, callback, store)
+    return wrapWithAfter(store, () => storage.run(store, callback, store))
   },
+}
+
+function createAfterWrapper(
+  renderOpts: WrapperRenderOpts | undefined
+): [
+  wrap: <Result>(requestStore: RequestStore, callback: () => Result) => Result,
+  afterContext: AfterContext | undefined,
+] {
+  const isAfterEnabled = renderOpts?.experimental?.after ?? false
+  if (!renderOpts || !isAfterEnabled) {
+    return [(_, callback) => callback(), undefined]
+  }
+
+  const { waitUntil, onClose } = renderOpts
+
+  const afterContext = createAfterContext({
+    waitUntil,
+    onClose,
+  })
+
+  const wrap = <Result>(requestStore: RequestStore, callback: () => Result) =>
+    afterContext.run(requestStore, callback)
+
+  return [wrap, afterContext]
 }
