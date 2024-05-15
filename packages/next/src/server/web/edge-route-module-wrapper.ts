@@ -14,6 +14,7 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import type { RequestLifecycleOpts } from '../base-server'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
@@ -90,9 +91,11 @@ export class EdgeRouteModuleWrapper {
 
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
+    let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
     let closeController: CloseController | undefined
 
     if (isAfterEnabled) {
+      waitUntil = evt.waitUntil.bind(evt)
       closeController = new CloseController()
     }
 
@@ -113,7 +116,7 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicHTML: true,
-        waitUntil: undefined,
+        waitUntil,
         onClose: closeController
           ? closeController.onClose.bind(closeController)
           : undefined,

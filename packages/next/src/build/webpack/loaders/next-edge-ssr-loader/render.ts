@@ -168,6 +168,9 @@ export function getRender({
     const result = await extendedRes.toResponse()
 
     if (event?.waitUntil) {
+      // TODO(after):
+      // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
+      // when consumers switch to `unstable_after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

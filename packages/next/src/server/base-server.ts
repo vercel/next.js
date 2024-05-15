@@ -143,6 +143,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import { getBuiltinWaitUntil } from './after/wait-until-builtin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1663,6 +1664,26 @@ export default abstract class Server<
     )
   }
 
+  private getWaitUntil() {
+    const useBuiltinWaitUntil =
+      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
+
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
+    }
+
+    return waitUntil
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2292,7 +2313,6 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2334,7 +2354,7 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
-        waitUntil: undefined,
+        waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
       }
 
@@ -2376,7 +2396,7 @@ export default abstract class Server<
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
-              waitUntil: undefined,
+              waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
             },
           }
