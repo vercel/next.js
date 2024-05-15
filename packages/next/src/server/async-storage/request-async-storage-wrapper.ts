@@ -41,7 +41,13 @@ function getMutableCookies(
 }
 
 export type WrapperRenderOpts = Omit<RenderOpts, 'experimental'> &
-  RequestLifecycleOpts & {
+  RequestLifecycleOpts &
+  Partial<
+    Pick<
+      RenderOpts,
+      'ComponentMod' // can be undefined in a route handler
+    >
+  > & {
     experimental: Pick<RenderOpts['experimental'], 'after'>
   }
 
@@ -178,10 +184,12 @@ function createAfterWrapper(
   }
 
   const { waitUntil, onClose } = renderOpts
+  const cacheScope = renderOpts.ComponentMod?.createCacheScope()
 
   const afterContext = createAfterContext({
     waitUntil,
     onClose,
+    cacheScope,
   })
 
   const wrap = <Result>(requestStore: RequestStore, callback: () => Result) =>

@@ -52,6 +52,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -118,6 +119,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -165,6 +167,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -254,6 +257,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -291,6 +295,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -343,6 +348,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -372,6 +378,7 @@ describe('createAfterContext', () => {
     const afterContext = createAfterContext({
       waitUntil,
       onClose,
+      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)

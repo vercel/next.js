@@ -2,6 +2,7 @@ import {
   requestAsyncStorage,
   type RequestStore,
 } from '../../client/components/request-async-storage.external'
+import type { CacheScope } from './react-cache-scope'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
@@ -15,6 +16,7 @@ export interface AfterContext {
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
+  cacheScope: CacheScope | undefined
 }
 
 export function createAfterContext(opts: AfterContextOpts): AfterContext {
@@ -24,19 +26,25 @@ export function createAfterContext(opts: AfterContextOpts): AfterContext {
 export class AfterContextImpl implements AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
+  private cacheScope: CacheScope | undefined
 
   private requestStore: RequestStore | undefined
 
   private afterCallbacks: AfterCallback[] = []
 
-  constructor({ waitUntil, onClose }: AfterContextOpts) {
+  constructor({ waitUntil, onClose, cacheScope }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
+    this.cacheScope = cacheScope
   }
 
   public run<T>(requestStore: RequestStore, callback: () => T): T {
     this.requestStore = requestStore
-    return callback()
+    if (this.cacheScope) {
+      return this.cacheScope.run(() => callback())
+    } else {
+      return callback()
+    }
   }
 
   public after(task: AfterTask): void {
@@ -107,7 +115,11 @@ export class AfterContextImpl implements AfterContext {
       wrapRequestStoreForAfterCallbacks(requestStore)
 
     return requestAsyncStorage.run(readonlyRequestStore, () => {
-      return runCallbacksImpl()
+      if (this.cacheScope) {
+        return this.cacheScope.run(runCallbacksImpl)
+      } else {
+        return runCallbacksImpl()
+      }
     })
   }
 }
