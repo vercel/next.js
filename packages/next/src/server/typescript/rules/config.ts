@@ -139,6 +139,18 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
+  experimental_ppr: {
+    description:
+      'The `experimental_ppr` option enables Partial Prerendering (PPR) for the segment and its descending segments. To use this option, the `experimental.ppr` configuration in `next.config.js` must be set to `"incremental"`.',
+    options: {
+      true: 'Enable PPR for the segment and its descending segments.',
+      false: 'Disable PPR for the segment and its descending segments.',
+    },
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#experimental_ppr',
+    isValid: (value: string) => {
+      return value === 'true' || value === 'false'
+    }
+  },
 }
 
 function visitEntryConfig(
