@@ -294,7 +294,7 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    if (data?.value?.kind === 'PAGE') {
+    if (data?.value?.kind === 'APP_PAGE' || data?.value?.kind === 'PAGE') {
       let cacheTags: undefined | string[]
       const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
@@ -379,7 +379,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (data?.kind === 'PAGE' || data?.kind === 'APP_PAGE') {
-      const isAppPath = data.kind === 'APP_PAGE'
+      const isAppPath = 'rscData' in data
       const htmlPath = this.getFilePath(
         `${key}.html`,
         isAppPath ? 'app' : 'pages'

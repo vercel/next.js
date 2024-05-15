@@ -2528,13 +2528,26 @@ export default abstract class Server<
         return null
       }
 
+      if (metadata.flightData) {
+        return {
+          value: {
+            kind: 'APP_PAGE',
+            html: result,
+            rscData: metadata.flightData,
+            postponed: metadata.postponed,
+            headers,
+            status: isAppPath ? res.statusCode : undefined,
+          },
+          revalidate: metadata.revalidate,
+        }
+      }
+
       // We now have a valid HTML result that we can return to the user.
       return {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData ?? metadata.flightData,
-          postponed: metadata.postponed,
+          pageData: metadata.pageData,
           headers,
           status: isAppPath ? res.statusCode : undefined,
         },
