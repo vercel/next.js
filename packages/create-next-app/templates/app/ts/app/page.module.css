@@ -132,6 +132,12 @@ a.secondary {
     flex-direction: column;
   }
 
+  .ctas a {
+    font-size: 14px;
+    height: 40px;
+    padding: 0 16px;
+  }
+
   a.secondary {
     min-width: auto;
   }
