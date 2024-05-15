@@ -88,10 +88,10 @@ pub use invalidation::{
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, dynamic_this_call, emit, get_invalidator, mark_finished, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, CurrentCellRef, Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
+    dynamic_call, dynamic_this_call, emit, get_invalidator, macro_task, mark_finished,
+    mark_stateful, prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread,
+    trait_call, turbo_tasks, CurrentCellRef, Invalidator, TaskIdProvider, TurboTasks,
+    TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::NativeFunction;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};

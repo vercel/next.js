@@ -547,6 +547,14 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
+    fn mark_own_task_as_macro_task(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,

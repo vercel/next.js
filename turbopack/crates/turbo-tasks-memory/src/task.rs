@@ -832,6 +832,16 @@ impl Task {
         }
     }
 
+    pub fn mark_as_macro_task(
+        task: TaskId,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+        prepare_aggregation_data(&aggregation_context, &task);
+        aggregation_context.apply_queued_updates();
+    }
+
     pub(crate) fn mark_as_finished(
         &self,
         backend: &MemoryBackend,

@@ -4,7 +4,7 @@ use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    macro_task, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -175,6 +175,7 @@ pub async fn referenced_modules_and_affecting_sources(
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
+    macro_task();
     let mut set = HashSet::new();
     let modules = module
         .references()

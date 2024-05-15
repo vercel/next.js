@@ -23,6 +23,7 @@ use tracing::{info_span, Span};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
+    macro_task,
     trace::TraceRawVcs,
     RcStr, ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
@@ -326,6 +327,8 @@ async fn graph_node_to_referenced_nodes(
     node: ChunkGraphNodeToReferences,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGraphEdges>> {
+    macro_task();
+
     let (parent, references) = match &node {
         ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
         ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),

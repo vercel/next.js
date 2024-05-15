@@ -272,6 +272,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
+    fn mark_own_task_as_macro_task(&self, _task: TaskId) {
+        // no-op
+    }
+
     fn detached(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,

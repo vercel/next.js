@@ -126,6 +126,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
+    fn mark_own_task_as_macro_task(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -1063,6 +1064,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
+    fn mark_own_task_as_macro_task(&self, task: TaskId) {
+        self.backend.mark_own_task_as_macro_task(task, self);
+    }
+
     fn detached(
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
@@ -1436,6 +1441,14 @@ pub fn mark_stateful() {
 
 pub fn prevent_gc() {
     mark_stateful();
+}
+
+/// Marks the current task as macro task. This task will aggregate over its
+/// subgraph and it will be cheap to share the task between multiple callers.
+pub fn macro_task() {
+    with_turbo_tasks(|tt| {
+        tt.mark_own_task_as_macro_task(current_task("turbo_tasks::macro_task()"))
+    });
 }
 
 /// Notifies scheduled tasks for execution.

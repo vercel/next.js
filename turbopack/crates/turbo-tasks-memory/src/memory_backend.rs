@@ -702,6 +702,14 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.mark_as_finished(self, turbo_tasks))
     }
 
+    fn mark_own_task_as_macro_task(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        Task::mark_as_macro_task(task, self, turbo_tasks);
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,

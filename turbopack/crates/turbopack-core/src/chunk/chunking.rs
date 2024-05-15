@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{macro_task, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -31,6 +31,8 @@ async fn chunk_item_info(
     chunk_item: Vc<Box<dyn ChunkItem>>,
     async_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<ChunkItemInfo>> {
+    macro_task();
+
     let asset_ident = chunk_item.asset_ident().to_string();
     let ty = chunk_item.ty().resolve().await?;
     let chunk_item_size = ty.chunk_item_size(chunking_context, chunk_item, async_info);
@@ -51,6 +53,8 @@ pub async fn make_chunks(
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vc<Chunks>> {
+    macro_task();
+
     let chunk_items = chunk_items
         .await?
         .iter()
