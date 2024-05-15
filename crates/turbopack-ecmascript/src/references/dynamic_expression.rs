@@ -2,10 +2,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Vc};
+use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
 use crate::{
-    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
 };
@@ -46,7 +46,7 @@ impl CodeGenerateable for DynamicExpression {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let path = &self.path.await?;
 

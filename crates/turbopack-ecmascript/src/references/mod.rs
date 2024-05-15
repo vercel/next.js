@@ -388,6 +388,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let transforms = raw_module.transforms;
     let options = raw_module.options;
     let compile_time_info = raw_module.compile_time_info;
+    let options = options.await?;
     let import_externals = options.import_externals;
 
     let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(module);

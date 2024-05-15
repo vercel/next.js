@@ -16,7 +16,7 @@ use crate::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptChunkingContext,
+        EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     utils::StringifyJs,
 };
@@ -24,7 +24,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct AsyncLoaderChunkItem {
     pub module: Vc<AsyncLoaderModule>,
-    pub chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -67,7 +67,7 @@ impl AsyncLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

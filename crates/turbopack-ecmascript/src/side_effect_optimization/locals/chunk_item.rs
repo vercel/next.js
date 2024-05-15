@@ -11,7 +11,7 @@ use super::module::EcmascriptModuleLocalsModule;
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptChunkingContext,
+        EcmascriptChunkType,
     },
     EcmascriptModuleContent,
 };
@@ -20,7 +20,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleLocalsChunkItem {
     pub(super) module: Vc<EcmascriptModuleLocalsModule>,
-    pub(super) chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub(super) chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -63,12 +63,13 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         Ok(EcmascriptChunkItemContent::new(
             content,
             self.chunking_context,
+            original_module.await?.options,
             async_module_options,
         ))
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 }

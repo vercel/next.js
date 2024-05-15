@@ -9,10 +9,7 @@ use turbopack_core::{
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
 use crate::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
-        EcmascriptChunkingContext,
-    },
+    chunk::{EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType},
     EcmascriptModuleContent,
 };
 
@@ -23,7 +20,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: Vc<EcmascriptModulePartAsset>,
-    pub(super) chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub(super) chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -65,12 +62,13 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         Ok(EcmascriptChunkItemContent::new(
             content,
             this.chunking_context,
+            module.full_module.await?.options,
             async_module_options,
         ))
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 }

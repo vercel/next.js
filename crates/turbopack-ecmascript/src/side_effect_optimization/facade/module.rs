@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{glob::Glob, File, FileContent};
 use turbopack_core::{
@@ -14,7 +14,7 @@ use turbopack_core::{
 
 use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports},
@@ -278,13 +278,6 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     EcmascriptModuleFacadeModule",
-                )?;
         Ok(Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,

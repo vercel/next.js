@@ -101,7 +101,7 @@ pub enum ModuleType {
     Ecmascript {
         transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: EcmascriptOptions,
+        options: Vc<EcmascriptOptions>,
     },
     Typescript {
         transforms: Vc<EcmascriptInputTransforms>,
@@ -110,12 +110,12 @@ pub enum ModuleType {
         // follow references to imported types.
         analyze_types: bool,
         #[turbo_tasks(trace_ignore)]
-        options: EcmascriptOptions,
+        options: Vc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
         transforms: Vc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: EcmascriptOptions,
+        options: Vc<EcmascriptOptions>,
     },
     Json,
     Raw,

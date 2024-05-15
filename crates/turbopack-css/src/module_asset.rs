@@ -23,7 +23,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports,
     },
     utils::StringifyJs,
     ParseResultSourceMap,
@@ -237,12 +237,6 @@ impl ChunkableModule for ModuleCssAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use ModuleCssAsset",
-                )?;
         Ok(Vc::upcast(
             ModuleChunkItem {
                 chunking_context,
@@ -277,7 +271,7 @@ impl ResolveOrigin for ModuleCssAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: Vc<ModuleCssAsset>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -313,7 +307,7 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

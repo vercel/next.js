@@ -8,16 +8,16 @@ use swc_core::{
 };
 use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingType},
+    chunk::{
+        AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
+    },
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
 
 use super::esm::base::ReferencedAsset;
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-    code_gen::CodeGeneration,
-    create_visitor,
+    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration, create_visitor,
     references::esm::base::insert_hoisted_stmt,
 };
 
@@ -102,7 +102,7 @@ impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_async_idents(
         &self,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
     ) -> Result<Vc<AsyncModuleIdents>> {
@@ -199,7 +199,7 @@ impl AsyncModule {
     #[turbo_tasks::function]
     pub async fn code_generation(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
     ) -> Result<Vc<CodeGeneration>> {

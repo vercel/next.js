@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
@@ -23,7 +23,7 @@ use turbopack_core::{
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports,
     },
     utils::StringifyJs,
     EcmascriptModuleAsset,
@@ -96,13 +96,6 @@ impl ChunkableModule for ChunkGroupFilesAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     ChunkGroupFilesAsset",
-                )?;
         Ok(Vc::upcast(
             ChunkGroupFilesChunkItem {
                 chunking_context,
@@ -124,7 +117,7 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
 
 #[turbo_tasks::value]
 struct ChunkGroupFilesChunkItem {
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_root: Vc<FileSystemPath>,
     inner: Vc<ChunkGroupFilesAsset>,
 }
@@ -158,7 +151,7 @@ impl ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

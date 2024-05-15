@@ -3,7 +3,8 @@ use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingTypeOption, ModuleId,
+        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
+        ChunkingTypeOption, ModuleId,
     },
     reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -11,7 +12,6 @@ use turbopack_core::{
 
 use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -64,7 +64,7 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 

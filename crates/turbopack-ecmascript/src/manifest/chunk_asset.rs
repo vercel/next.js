@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -12,7 +12,7 @@ use turbopack_core::{
 };
 
 use super::chunk_item::ManifestChunkItem;
-use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports};
+use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<String> {
@@ -32,7 +32,7 @@ fn modifier() -> Vc<String> {
 #[turbo_tasks::value(shared)]
 pub struct ManifestAsyncModule {
     pub inner: Vc<Box<dyn ChunkableModule>>,
-    pub chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -41,7 +41,7 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub fn new(
         module: Vc<Box<dyn ChunkableModule>>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
@@ -143,13 +143,6 @@ impl ChunkableModule for ManifestAsyncModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     ManifestChunkAsset",
-                )?;
         Ok(Vc::upcast(
             ManifestChunkItem {
                 chunking_context,

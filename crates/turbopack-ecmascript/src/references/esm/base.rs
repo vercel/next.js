@@ -25,7 +25,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
@@ -192,7 +192,7 @@ impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 

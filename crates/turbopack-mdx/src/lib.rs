@@ -19,11 +19,11 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports,
     },
     references::AnalyzeEcmascriptModuleResultBuilder,
     AnalyzeEcmascriptModuleResult, EcmascriptInputTransforms, EcmascriptModuleAsset,
-    EcmascriptModuleAssetType,
+    EcmascriptModuleAssetType, EcmascriptOptions,
 };
 
 #[turbo_tasks::function]
@@ -162,7 +162,7 @@ async fn into_ecmascript_module_asset(
             analyze_types: false,
         }),
         this.transforms,
-        Value::new(Default::default()),
+        EcmascriptOptions::default().cell(),
         this.asset_context.compile_time_info(),
     ))
 }
@@ -230,12 +230,6 @@ impl ChunkableModule for MdxModuleAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use MdxModuleAsset",
-                )?;
         Ok(Vc::upcast(MdxChunkItem::cell(MdxChunkItem {
             module: self,
             chunking_context,
@@ -267,7 +261,7 @@ impl ResolveOrigin for MdxModuleAsset {
 #[turbo_tasks::value]
 struct MdxChunkItem {
     module: Vc<MdxModuleAsset>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -303,7 +297,7 @@ impl ChunkItem for MdxChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for MdxChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

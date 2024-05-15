@@ -10,10 +10,10 @@ use swc_core::{
     },
 };
 use turbo_tasks::Vc;
+use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;
 use crate::{
-    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -49,7 +49,7 @@ impl CodeGenerateable for EsmBinding {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
         let mut visitors = Vec::new();
