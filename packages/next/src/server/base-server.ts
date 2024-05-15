@@ -2650,7 +2650,6 @@ export default abstract class Server<
               value: {
                 kind: 'PAGE',
                 html: RenderResult.fromStatic(html),
-                postponed: undefined,
                 status: undefined,
                 headers: undefined,
                 pageData: {},
@@ -2719,7 +2718,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' &&
+      cacheEntry.value?.kind === 'APP_PAGE' &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2886,7 +2885,11 @@ export default abstract class Server<
     } else if (isAppPath) {
       // If the request has a postponed state and it's a resume request we
       // should error.
-      if (cachedData.postponed && minimalPostponed) {
+      if (
+        cachedData.kind === 'APP_PAGE' &&
+        cachedData.postponed &&
+        minimalPostponed
+      ) {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
@@ -2934,7 +2937,11 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
+      if (
+        cachedData.kind === 'APP_PAGE' &&
+        cachedData.postponed &&
+        isRSCRequest
+      ) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2945,8 +2952,14 @@ export default abstract class Server<
       if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
-          if (cachedData.pageData) {
-            throw new Error('Invariant: Expected pageData to be undefined')
+          if (cachedData.kind !== 'APP_PAGE') {
+            throw new Error(
+              `Invariant: expected cache data kind of APP_PAGE got ${cachedData.kind}`
+            )
+          }
+
+          if (cachedData.rscData) {
+            throw new Error('Invariant: Expected rscData to be undefined')
           }
 
           if (cachedData.postponed) {
@@ -2965,9 +2978,15 @@ export default abstract class Server<
           }
         }
 
-        if (typeof cachedData.pageData !== 'string') {
+        if (cachedData.kind !== 'APP_PAGE') {
           throw new Error(
-            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
+            `Invariant: expected cached data to be APP_PAGE got ${cachedData.kind}`
+          )
+        }
+
+        if (!Buffer.isBuffer(cachedData.rscData)) {
+          throw new Error(
+            `Invariant: expected pageData to be a Buffer, got ${typeof cachedData.rscData}`
           )
         }
 
@@ -2975,7 +2994,7 @@ export default abstract class Server<
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.pageData),
+          body: RenderResult.fromStatic(cachedData.rscData),
           revalidate: cacheEntry.revalidate,
         }
       }
@@ -2986,7 +3005,10 @@ export default abstract class Server<
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!cachedData.postponed || this.minimalMode) {
+      if (
+        !(cachedData.kind === 'APP_PAGE' && cachedData.postponed) ||
+        this.minimalMode
+      ) {
         return {
           type: 'html',
           body,
@@ -3041,6 +3063,11 @@ export default abstract class Server<
         revalidate: 0,
       }
     } else if (isDataReq) {
+      if (cachedData.kind !== 'PAGE') {
+        throw new Error(
+          `Invariant: expected cached data to be PAGE got ${cachedData.kind}`
+        )
+      }
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),
