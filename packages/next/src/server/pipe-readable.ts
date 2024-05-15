@@ -8,6 +8,7 @@ import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
+import type { Readable } from 'node:stream'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
@@ -121,10 +122,14 @@ function createWriterFromResponse(
 }
 
 export async function pipeToNodeResponse(
-  readable: ReadableStream<Uint8Array>,
+  readable: Readable | ReadableStream<Uint8Array>,
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {
+  if (!(readable instanceof ReadableStream)) {
+    const { Readable } = require('node:stream') as typeof import('node:stream')
+    readable = Readable.toWeb(readable) as ReadableStream<Uint8Array>
+  }
   try {
     // If the response has already errored, then just return now.
     const { errored, destroyed } = res

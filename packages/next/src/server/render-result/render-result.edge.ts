@@ -1,64 +1,30 @@
-import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
-import type { FetchMetrics } from './base-http'
+import type { ServerResponse } from 'http'
 
-import { chainStreams, streamFromString, streamToString } from './stream-utils'
-import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import {
+  chainStreams,
+  streamFromString,
+  streamToString,
+} from './../stream-utils'
+import { isAbortError, pipeToNodeResponse } from './../pipe-readable'
 
-type ContentTypeOption = string | undefined
+import type {
+  RenderResultBase,
+  ContentTypeOption,
+  RenderResultMetadata,
+  RenderResultOptions,
+  StaticRenderResultMetadata,
+} from '.'
 
-export type AppPageRenderResultMetadata = {
-  flightData?: string
-  revalidate?: Revalidate
-  staticBailoutInfo?: {
-    stack?: string
-    description?: string
-  }
-
-  /**
-   * The postponed state if the render had postponed and needs to be resumed.
-   */
-  postponed?: string
-
-  /**
-   * The headers to set on the response that were added by the render.
-   */
-  headers?: OutgoingHttpHeaders
-  fetchTags?: string
-  fetchMetrics?: FetchMetrics
-}
-
-export type PagesRenderResultMetadata = {
-  pageData?: any
-  revalidate?: Revalidate
-  assetQueryString?: string
-  isNotFound?: boolean
-  isRedirect?: boolean
-}
-
-export type StaticRenderResultMetadata = {}
-
-export type RenderResultMetadata = AppPageRenderResultMetadata &
-  PagesRenderResultMetadata &
-  StaticRenderResultMetadata
-
-export type RenderResultResponse =
+type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
   | null
 
-export type RenderResultOptions<
-  Metadata extends RenderResultMetadata = RenderResultMetadata,
-> = {
-  contentType?: ContentTypeOption
-  waitUntil?: Promise<unknown>
-  metadata: Metadata
-}
-
 export default class RenderResult<
   Metadata extends RenderResultMetadata = RenderResultMetadata,
-> {
+> implements RenderResultBase
+{
   /**
    * The detected content type for the response. This is used to set the
    * `Content-Type` header.
@@ -184,7 +150,9 @@ export default class RenderResult<
     // If the response is not an array of streams already, make it one.
     let responses: ReadableStream<Uint8Array>[]
     if (typeof this.response === 'string') {
-      responses = [streamFromString(this.response)]
+      responses = [
+        streamFromString(this.response) as ReadableStream<Uint8Array>,
+      ]
     } else if (Array.isArray(this.response)) {
       responses = this.response
     } else {

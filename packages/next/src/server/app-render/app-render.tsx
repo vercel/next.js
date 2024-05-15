@@ -112,6 +112,7 @@ import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
+import type { Readable } from 'stream'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -370,7 +371,15 @@ async function generateFlight(
     }
   )
 
-  return new FlightRenderResult(flightReadableStream)
+  let resultStream: Readable | ReadableStream<Uint8Array>
+  if (!(flightReadableStream instanceof ReadableStream)) {
+    const { PassThrough } = require('node:stream')
+    resultStream = flightReadableStream.pipe(new PassThrough())
+  } else {
+    resultStream = flightReadableStream
+  }
+
+  return new FlightRenderResult(resultStream)
 }
 
 type RenderToStreamResult = {
@@ -954,8 +963,22 @@ async function renderToHTMLOrFlightImpl(
         }
       )
 
+      let resultStream: ReadableStream<Uint8Array>
+      if (!(serverStream instanceof ReadableStream)) {
+        const { PassThrough, Readable } =
+          require('node:stream') as typeof import('node:stream')
+        console.warn(
+          'Converting stream returned from `ComponentMod.renderToStream` to a ReadableStream.'
+        )
+        resultStream = Readable.toWeb(
+          serverStream.pipe(new PassThrough())
+        ) as ReadableStream<Uint8Array>
+      } else {
+        resultStream = serverStream
+      }
+
       // We are going to consume this render both for SSR and for inlining the flight data
-      let [renderStream, dataStream] = serverStream.tee()
+      let [renderStream, dataStream] = resultStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -1203,7 +1226,7 @@ async function renderToHTMLOrFlightImpl(
             }
           }
         } else {
-          const resultStream = await continueFizzStream(stream, {
+          const resultStream2 = await continueFizzStream(stream, {
             inlinedDataStream: createInlinedDataReadableStream(
               dataStream,
               nonce,
@@ -1218,7 +1241,7 @@ async function renderToHTMLOrFlightImpl(
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: convertReadable(resultStream),
+            stream: convertReadable(resultStream2),
           }
         }
       } catch (err) {
@@ -1307,11 +1330,25 @@ async function renderToHTMLOrFlightImpl(
           }
         )
 
+        let resultStream2: ReadableStream<Uint8Array>
+        if (!(errorServerStream instanceof ReadableStream)) {
+          const { PassThrough, Readable } =
+            require('node:stream') as typeof import('node:stream')
+          console.warn(
+            'Converting stream returned from `ComponentMod.renderToStream` to a ReadableStream.'
+          )
+          resultStream2 = Readable.toWeb(
+            errorServerStream.pipe(new PassThrough())
+          ) as ReadableStream<Uint8Array>
+        } else {
+          resultStream2 = errorServerStream
+        }
+
         try {
           let fizzStream = await renderToInitialFizzStream({
             element: (
               <ReactServerEntrypoint
-                reactServerStream={errorServerStream}
+                reactServerStream={resultStream2}
                 preinitScripts={errorPreinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 nonce={nonce}
@@ -1341,7 +1378,7 @@ async function renderToHTMLOrFlightImpl(
           //   throw new Error("Invariant: stream isn't a ReadableStream")
           // }
 
-          const resultStream = await continueFizzStream(fizzStream, {
+          const resultStream3 = await continueFizzStream(fizzStream, {
             inlinedDataStream: createInlinedDataReadableStream(
               // This is intentionally using the readable datastream from the
               // main render rather than the flight data from the error page
@@ -1364,7 +1401,7 @@ async function renderToHTMLOrFlightImpl(
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
-            stream: convertReadable(resultStream),
+            stream: convertReadable(resultStream3),
           }
         } catch (finalErr: any) {
           if (
