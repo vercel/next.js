@@ -198,6 +198,12 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter is too long' }
     }
 
+    if (url.startsWith('//')) {
+      return {
+        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
