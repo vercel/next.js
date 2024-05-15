@@ -5157,6 +5157,19 @@ export declare function Dancing_Script<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Danfo<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?: '400' | 'variable' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+  axes?: 'ELSH'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dangrek<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -9218,6 +9231,18 @@ export declare function Itim<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'thai' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Jacquard_12<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jacquard_12_Charted<
   T extends CssVariable | undefined = undefined,
@@ -16704,43 +16729,47 @@ export declare function Noto_Serif_Hebrew<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_JP<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '200'
     | '300'
     | '400'
     | '500'
     | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_KR<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '200'
     | '300'
     | '400'
     | '500'
     | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Kannada<
   T extends CssVariable | undefined = undefined,
@@ -16972,23 +17001,25 @@ export declare function Noto_Serif_Ottoman_Siyaq<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_SC<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '200'
     | '300'
     | '400'
     | '500'
     | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Sinhala<
   T extends CssVariable | undefined = undefined,
@@ -17018,23 +17049,25 @@ export declare function Noto_Serif_Sinhala<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_TC<
   T extends CssVariable | undefined = undefined,
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '200'
     | '300'
     | '400'
     | '500'
     | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '900'>
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Tamil<
   T extends CssVariable | undefined = undefined,

@@ -7,3 +7,6 @@
 
 # chore: update prettier to 3.2.5 (#65092)
 64b718c6618b6c419872abbf22163ae543ac259e
+
+# Replace createNextDescribe with nextTestSetup
+c6320ed87ab41eee6f3ac54352ad02a239f329b2

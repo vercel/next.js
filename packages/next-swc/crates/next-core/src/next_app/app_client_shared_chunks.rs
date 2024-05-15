@@ -1,22 +1,18 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        chunk::{
-            availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext,
-            EvaluatableAssets,
-        },
-        ident::AssetIdent,
-        output::OutputAssets,
+use turbopack_binding::turbopack::core::{
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, EvaluatableAssets,
     },
-    ecmascript::chunk::EcmascriptChunkingContext,
+    ident::AssetIdent,
+    output::OutputAssets,
 };
 
 #[turbo_tasks::function]
 pub async fn get_app_client_shared_chunk_group(
     ident: Vc<AssetIdent>,
     app_client_runtime_entries: Vc<EvaluatableAssets>,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    client_chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGroupResult>> {
     if app_client_runtime_entries.await?.is_empty() {
         return Ok(ChunkGroupResult {

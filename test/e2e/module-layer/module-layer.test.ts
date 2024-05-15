@@ -81,22 +81,15 @@ describe('module layer', () => {
             .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
 
-        const existingCliOutputLength = next.cliOutput.length
         await retry(async () => {
           expect(await hasRedbox(browser)).toBe(true)
           const source = await getRedboxSource(browser)
           expect(source).toContain(
-            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+            isTurbopack
+              ? `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+              : `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
           )
         })
-
-        if (!isTurbopack) {
-          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-          expect(newCliOutput).toContain('./middleware.js')
-          expect(newCliOutput).toContain(
-            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
-          )
-        }
       })
     })
   }
