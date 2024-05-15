@@ -184,7 +184,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> (MutexGuard<'_, TaskState>, &Task) {
-        let task_info = self.tasks.get(*task).unwrap();
+        let task_info = self.tasks.get(*task as usize).unwrap();
         let mut state = task_info.task_state.lock().unwrap();
         self.ensure_task_initialized(task, task_info, &mut state, turbo_tasks);
         (state, task_info)
@@ -195,7 +195,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> (MutexGuard<'_, TaskState>, &Task) {
-        let task_info = self.tasks.get(*task).unwrap();
+        let task_info = self.tasks.get(*task as usize).unwrap();
         loop {
             let mut delayed_activate = Vec::new();
             let mut state = task_info.task_state.lock().unwrap();
@@ -391,7 +391,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         let id = self.background_job_id_factory.get();
         // SAFETY: It's a fresh id
         unsafe {
-            self.background_jobs.insert(*id, job);
+            self.background_jobs.insert(*id as usize, job);
         }
         turbo_tasks.schedule_backend_background_job(id);
     }
@@ -481,7 +481,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         delayed_activate: &mut Vec<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
-        let task_info = self.tasks.get(*task).unwrap();
+        let task_info = self.tasks.get(*task as usize).unwrap();
         let prev = task_info.active_parents.fetch_add(by, Ordering::Relaxed);
         if prev == 0 {
             // only the connect() call that increases from 0 is responsible for activating
@@ -633,7 +633,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         delayed_deactivate: &mut Vec<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
-        let task_info = self.tasks.get(*task).unwrap();
+        let task_info = self.tasks.get(*task as usize).unwrap();
         let prev = task_info.active_parents.fetch_sub(by, Ordering::Relaxed);
         if prev == by {
             // count reached zero
@@ -1048,7 +1048,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     }
 
     fn get_task_description(&self, task: TaskId) -> String {
-        let task_info = self.tasks.get(*task).unwrap();
+        let task_info = self.tasks.get(*task as usize).unwrap();
         format!("{:?}", task_info.task_type)
     }
 
@@ -1202,10 +1202,11 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             }
             if has_changes || is_dirty_persisted {
                 self.need_persisting.insert(task);
-                self.persist_queue_by_duration[*task % self.persist_queue_by_duration.len()]
-                    .lock()
-                    .unwrap()
-                    .push((duration, task));
+                self.persist_queue_by_duration
+                    [*task as usize % self.persist_queue_by_duration.len()]
+                .lock()
+                .unwrap()
+                .push((duration, task));
                 self.increase_persist_workers(1, turbo_tasks);
             }
         }
@@ -1234,7 +1235,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             });
         }
         // SAFETY: We are the only owner of this id
-        let job = unsafe { self.background_jobs.take(*id) };
+        let job = unsafe { self.background_jobs.take(*id as usize) };
         unsafe {
             self.background_job_id_factory.reuse(id);
         }
@@ -1543,14 +1544,14 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         };
         // SAFETY: It's a fresh task id
         unsafe {
-            self.tasks.insert(*task, new_task);
+            self.tasks.insert(*task as usize, new_task);
         }
         match self.cache.entry(task_type) {
             Entry::Occupied(e) => {
                 let existing_task = *e.into_ref();
                 // SAFETY: We are still the only owner of this task and id
                 unsafe {
-                    self.tasks.remove(*task);
+                    self.tasks.remove(*task as usize);
                     let task = Unused::new_unchecked(task);
                     turbo_tasks.reuse_task_id(task);
                 }
@@ -1601,7 +1602,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         };
         // SAFETY: It's a fresh task id
         unsafe {
-            self.tasks.insert(*task, new_task);
+            self.tasks.insert(*task as usize, new_task);
         }
         self.only_known_to_memory_tasks.insert(task);
         task
@@ -1631,7 +1632,7 @@ impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi
         let task = task.into();
         // SAFETY: It's a fresh task id
         unsafe {
-            self.backend.tasks.insert(*task, new_task);
+            self.backend.tasks.insert(*task as usize, new_task);
         }
         match cache.entry(task_type) {
             Entry::Occupied(e) => {
@@ -1651,7 +1652,7 @@ impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi
     }
 
     fn lookup_task_type(&self, id: TaskId) -> &PersistentTaskType {
-        let task = self.backend.tasks.get(*id).unwrap();
+        let task = self.backend.tasks.get(*id as usize).unwrap();
         match &task.task_type {
             TaskType::Persistent(ty) => ty,
             _ => panic!("lookup_task_type should only be used for PersistentTaskType"),

@@ -54,7 +54,7 @@ impl TurboTasksCallApi for VcStorage {
             })));
             i
         };
-        let id = TaskId::from(i + 1);
+        let id = TaskId::from(i as u32 + 1);
         handle.spawn(with_turbo_tasks_for_testing(this.clone(), id, async move {
             let result = AssertUnwindSafe(future).catch_unwind().await;
 
@@ -146,7 +146,7 @@ impl TurboTasksApi for VcStorage {
     ) -> Result<Result<RawVc, EventListener>> {
         let tasks = self.tasks.lock().unwrap();
         let i = *id - 1;
-        let task = tasks.get(i).unwrap();
+        let task = tasks.get(i as usize).unwrap();
         match task {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
@@ -261,7 +261,7 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(usize::MAX),
+            TaskId::from(u32::MAX),
             f,
         )
     }
