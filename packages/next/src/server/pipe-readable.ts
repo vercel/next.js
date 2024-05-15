@@ -8,6 +8,7 @@ import { DetachedPromise } from '../lib/detached-promise'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
+import type { Readable } from 'node:stream'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
@@ -121,7 +122,7 @@ function createWriterFromResponse(
 }
 
 export async function pipeToNodeResponse(
-  readable: ReadableStream<Uint8Array>,
+  readable: Readable | ReadableStream<Uint8Array>,
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {
@@ -130,13 +131,15 @@ export async function pipeToNodeResponse(
     const { errored, destroyed } = res
     if (errored || destroyed) return
 
-    // Create a new AbortController so that we can abort the readable if the
-    // client disconnects.
-    const controller = createAbortController(res)
-
-    const writer = createWriterFromResponse(res, waitUntilForEnd)
-
-    await readable.pipeTo(writer, { signal: controller.signal })
+    if (readable instanceof ReadableStream) {
+      // Create a new AbortController so that we can abort the readable if the
+      // client disconnects.
+      const controller = createAbortController(res)
+      const writer = createWriterFromResponse(res, waitUntilForEnd)
+      await readable.pipeTo(writer, { signal: controller.signal })
+    } else {
+      readable.pipe(res)
+    }
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
     if (isAbortError(err)) return

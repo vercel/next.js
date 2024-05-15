@@ -4,6 +4,7 @@ import type { FetchMetrics } from './base-http'
 
 import { chainStreams, streamFromString, streamToString } from './stream-utils'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import type { Readable, Writable } from 'stream'
 
 type ContentTypeOption = string | undefined
 
@@ -43,6 +44,8 @@ export type RenderResultMetadata = AppPageRenderResultMetadata &
   StaticRenderResultMetadata
 
 export type RenderResultResponse =
+  | Readable[]
+  | Readable
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
@@ -152,7 +155,7 @@ export default class RenderResult<
    * Returns the response if it is a stream, or throws an error if it is a
    * string.
    */
-  private get readable(): ReadableStream<Uint8Array> {
+  private get readable(): Readable | ReadableStream<Uint8Array> {
     if (this.response === null) {
       throw new Error('Invariant: null responses cannot be streamed')
     }
@@ -176,22 +179,34 @@ export default class RenderResult<
    *
    * @param readable The new stream to chain
    */
-  public chain(readable: ReadableStream<Uint8Array>) {
+  public chain(readable: Readable | ReadableStream<Uint8Array>) {
     if (this.response === null) {
       throw new Error('Invariant: response is null. This is a bug in Next.js')
     }
 
     // If the response is not an array of streams already, make it one.
-    let responses: ReadableStream<Uint8Array>[]
+    let responses: ReadableStream<Uint8Array>[] | Readable[]
     if (typeof this.response === 'string') {
+      // @ts-ignore
       responses = [streamFromString(this.response)]
     } else if (Array.isArray(this.response)) {
       responses = this.response
     } else {
+      // @ts-ignore
       responses = [this.response]
     }
 
+    if (
+      (responses[0] instanceof ReadableStream &&
+        !(readable instanceof ReadableStream)) ||
+      (!(responses[0] instanceof ReadableStream) &&
+        readable instanceof ReadableStream)
+    ) {
+      throw new Error('Invariant. Cannot mix stream types')
+    }
+
     // Add the new stream to the array.
+    // @ts-ignore
     responses.push(readable)
 
     // Update the response.
@@ -205,37 +220,55 @@ export default class RenderResult<
    *
    * @param writable Writable stream to pipe the response to
    */
-  public async pipeTo(writable: WritableStream<Uint8Array>): Promise<void> {
-    try {
-      await this.readable.pipeTo(writable, {
-        // We want to close the writable stream ourselves so that we can wait
-        // for the waitUntil promise to resolve before closing it. If an error
-        // is encountered, we'll abort the writable stream if we swallowed the
-        // error.
-        preventClose: true,
-      })
+  public async pipeTo(
+    writable: Writable | WritableStream<Uint8Array>
+  ): Promise<void> {
+    if (
+      writable instanceof WritableStream &&
+      this.readable instanceof ReadableStream
+    ) {
+      try {
+        await this.readable.pipeTo(writable, {
+          // We want to close the writable stream ourselves so that we can wait
+          // for the waitUntil promise to resolve before closing it. If an error
+          // is encountered, we'll abort the writable stream if we swallowed the
+          // error.
+          preventClose: true,
+        })
 
-      // If there is a waitUntil promise, wait for it to resolve before
-      // closing the writable stream.
-      if (this.waitUntil) await this.waitUntil
+        // If there is a waitUntil promise, wait for it to resolve before
+        // closing the writable stream.
+        if (this.waitUntil) await this.waitUntil
 
-      // Close the writable stream.
-      await writable.close()
-    } catch (err) {
-      // If this is an abort error, we should abort the writable stream (as we
-      // took ownership of it when we started piping). We don't need to re-throw
-      // because we handled the error.
-      if (isAbortError(err)) {
-        // Abort the writable stream if an error is encountered.
-        await writable.abort(err)
+        // Close the writable stream.
+        await writable.close()
+      } catch (err) {
+        // If this is an abort error, we should abort the writable stream (as we
+        // took ownership of it when we started piping). We don't need to re-throw
+        // because we handled the error.
+        if (isAbortError(err)) {
+          // Abort the writable stream if an error is encountered.
+          await writable.abort(err)
 
-        return
+          return
+        }
+
+        // We're not aborting the writer here as when this method throws it's not
+        // clear as to how so the caller should assume it's their responsibility
+        // to clean up the writer.
+        throw err
+      }
+    } else if (!(this.readable instanceof ReadableStream)) {
+      const { Writable } =
+        require('node:stream') as typeof import('node:stream')
+      // at least we know `this.readable` is a Readable
+      if (writable instanceof WritableStream) {
+        writable = Writable.fromWeb(writable)
       }
 
-      // We're not aborting the writer here as when this method throws it's not
-      // clear as to how so the caller should assume it's their responsibility
-      // to clean up the writer.
-      throw err
+      this.readable.pipe(writable, { end: false })
+      if (this.waitUntil) await this.waitUntil
+      writable.end()
     }
   }
 

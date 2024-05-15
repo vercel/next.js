@@ -101,12 +101,11 @@ export function chainStreams(...streams: Readable[]): Readable {
 
   const pt = new PassThrough()
 
-  pipeline(streams, pt, (err) => {
-    // to match `stream-utils.edge.ts`, this error is just ignored.
-    // but maybe we at least log it?
-    console.log(`Invariant: error when pipelining streams`)
-    console.error(err)
-  })
+  for (const stream of streams) {
+    stream.pipe(pt, { end: false })
+  }
+
+  pt.end()
 
   return pt
 }
