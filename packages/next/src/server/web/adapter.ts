@@ -241,6 +241,8 @@ export async function adapter(
                   previewModeEncryptionKey: '',
                   previewModeSigningKey: '',
                 },
+                waitUntil: undefined,
+                onClose: undefined,
                 experimental: {
                   after: isAfterEnabled,
                 },

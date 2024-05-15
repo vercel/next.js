@@ -10,6 +10,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
+import type { RequestLifecycleOpts } from '../base-server'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -183,4 +184,5 @@ export interface RenderOptsPartial {
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
-  RenderOptsPartial
+  RenderOptsPartial &
+  RequestLifecycleOpts

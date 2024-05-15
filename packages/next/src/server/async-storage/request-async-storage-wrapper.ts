@@ -21,6 +21,7 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { createAfterContext, type AfterContext } from '../after/after-context'
+import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -39,9 +40,10 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = Omit<RenderOpts, 'experimental'> & {
-  experimental: Pick<RenderOpts['experimental'], 'after'>
-}
+export type WrapperRenderOpts = Omit<RenderOpts, 'experimental'> &
+  RequestLifecycleOpts & {
+    experimental: Pick<RenderOpts['experimental'], 'after'>
+  }
 
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
@@ -79,7 +81,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     if (!renderOpts || !isAfterEnabled) {
       afterContext = undefined
     } else {
-      afterContext = createAfterContext()
+      const { waitUntil, onClose } = renderOpts ?? {}
+      afterContext = createAfterContext({ waitUntil, onClose })
     }
 
     function defaultOnUpdateCookies(cookies: string[]) {

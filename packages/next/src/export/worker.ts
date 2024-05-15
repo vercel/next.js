@@ -275,6 +275,8 @@ async function exportPageImpl(
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {

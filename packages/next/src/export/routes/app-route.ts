@@ -71,6 +71,8 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicHTML: false,
       incrementalCache,
+      waitUntil: undefined,
+      onClose: undefined,
     },
   }
 
