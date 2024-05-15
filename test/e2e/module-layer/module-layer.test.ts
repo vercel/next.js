@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 
 describe('module layer', () => {
-  const { next, isNextStart, isNextDev } = nextTestSetup({
+  const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -85,7 +85,9 @@ describe('module layer', () => {
           expect(await hasRedbox(browser)).toBe(true)
           const source = await getRedboxSource(browser)
           expect(source).toContain(
-            `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
+            isTurbopack
+              ? `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+              : `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
           )
         })
       })
