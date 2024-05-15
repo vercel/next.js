@@ -420,6 +420,7 @@ export async function exportAppImpl(
     deploymentId: nextConfig.deploymentId,
     experimental: {
       isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
+      clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       swrDelta: nextConfig.experimental.swrDelta,
     },
   }
