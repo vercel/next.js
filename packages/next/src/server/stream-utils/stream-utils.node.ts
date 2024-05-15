@@ -2,6 +2,7 @@
  * By default, this file exports the methods from streams-utils.edge since all of those are based on Node.js web streams.
  * This file will then be an incremental re-implementation of all of those methods into Node.js only versions (based on proper Node.js Streams).
  */
+import type { Stream } from 'node:stream'
 import {
   PassThrough,
   Readable,
@@ -17,6 +18,7 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { ENCODED_TAGS } from './encodedTags'
+import { createMergedTransformStream } from './stream-utils.edge'
 
 export * from './stream-utils.edge'
 
@@ -379,10 +381,6 @@ function createRootLayoutValidatorStream(): Transform {
   })
 }
 
-function createPassThroughFromReadable(readable: Readable) {
-  return readable.pipe(new PassThrough())
-}
-
 export function continueFizzStream(
   renderStream: Readable,
   {
@@ -394,7 +392,7 @@ export function continueFizzStream(
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    inlinedDataStream?: Readable
+    inlinedDataStream?: ReadableStream<Uint8Array>
     isStaticGeneration: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
@@ -402,12 +400,6 @@ export function continueFizzStream(
     suffix?: string
   }
 ): Promise<Readable> {
-  // @ts-ignore
-  if (inlinedDataStream instanceof ReadableStream) {
-    // @ts-ignore
-    inlinedDataStream = Readable.fromWeb(inlinedDataStream)
-  }
-
   const closeTag = '</body></html>'
   const suffixUnclosed = suffix ? suffix.split(closeTag, 1)[0] : null
 
@@ -418,7 +410,7 @@ export function continueFizzStream(
 
   const pt = new PassThrough()
 
-  const streams: Readable[] = [renderStream, createBufferedTransformStream()]
+  const streams: Stream[] = [renderStream, createBufferedTransformStream()]
 
   if (getServerInsertedHTML && !serverInsertedHTMLToHead) {
     streams.push(createInsertedHTMLStream(getServerInsertedHTML))
@@ -429,7 +421,8 @@ export function continueFizzStream(
   }
 
   if (inlinedDataStream) {
-    streams.push(createPassThroughFromReadable(inlinedDataStream))
+    // @ts-ignore
+    streams.push(createMergedTransformStream(inlinedDataStream))
   }
 
   if (validateRootLayout) {
