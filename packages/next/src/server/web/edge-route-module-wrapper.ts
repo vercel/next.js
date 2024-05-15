@@ -14,6 +14,7 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import { CloseController, trackStreamConsumed } from './web-on-close'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -89,6 +90,12 @@ export class EdgeRouteModuleWrapper {
 
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
+    let closeController: CloseController | undefined
+
+    if (isAfterEnabled) {
+      closeController = new CloseController()
+    }
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -107,7 +114,9 @@ export class EdgeRouteModuleWrapper {
       renderOpts: {
         supportsDynamicHTML: true,
         waitUntil: undefined,
-        onClose: undefined,
+        onClose: closeController
+          ? closeController.onClose.bind(closeController)
+          : undefined,
         experimental: {
           after: isAfterEnabled,
         },
@@ -115,13 +124,34 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the response from the handler.
-    const res = await this.routeModule.handle(request, context)
+    let res = await this.routeModule.handle(request, context)
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.pendingWaitUntil) {
       waitUntilPromises.push(context.renderOpts.pendingWaitUntil)
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
+
+    if (closeController) {
+      const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
+
+      if (!res.body) {
+        // we can delay running it until a bit later --
+        // if it's needed, we'll have a `waitUntil` lock anyway.
+        setTimeout(() => _closeController.dispatchClose(), 0)
+      } else {
+        // NOTE: if this is a streaming response, onClose may be called later,
+        // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
+        const trackedBody = trackStreamConsumed(res.body, () =>
+          _closeController.dispatchClose()
+        )
+        res = new Response(trackedBody, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: res.headers,
+        })
+      }
+    }
 
     return res
   }
