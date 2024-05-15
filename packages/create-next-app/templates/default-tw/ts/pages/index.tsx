@@ -7,7 +7,7 @@ const geistMono = localFont({ src: "./fonts/GeistMonoVF.woff" });
 export default function Home() {
   return (
     <div
-      className={`${geistSans.className} ${geistMono.className} grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-6 sm:p-20`}
+      className={`${geistSans.className} ${geistMono.className} font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20`}
     >
       <main className="font-sans flex flex-col gap-8 row-start-2">
         <Image
@@ -18,17 +18,17 @@ export default function Home() {
           height={38}
           priority
         />
-        <ol className="font-mono pl-6 list-decimal text-sm">
+        <ol className="font-mono list-inside list-decimal text-sm text-center sm:text-left">
           <li className="mb-2">
             Get started by editing{" "}
             <code className="bg-gray-alpha-100 px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
+              pages/index.tsx
             </code>
           </li>
           <li>Save and see your changes instantly.</li>
         </ol>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center flex-col sm:flex-row">
           <a
             className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-button-primary-hover text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 "
             href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
@@ -93,8 +93,8 @@ function VercelIcon() {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M10.5 3L18.5 17H2.5L10.5 3Z"
         fill="var(--background)"
       />

@@ -19,8 +19,8 @@ const config: Config = {
         "button-secondary-hover": "var(--button-secondary-hover)",
       },
       fontFamily: {
-        sans: ["Geist"],
-        mono: ["Geist Mono"],
+        sans: ["Geist", "Arial", "Helvetica", "sans-serif"],
+        mono: ["Geist Mono", "Space Mono", "monospace"],
       },
     },
   },

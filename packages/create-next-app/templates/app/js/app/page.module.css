@@ -5,7 +5,7 @@
   justify-items: center;
   min-height: 100svh;
   padding: 80px;
-  gap: 24px;
+  gap: 64px;
 }
 
 .main {
@@ -17,11 +17,12 @@
 
 .main ol {
   font-family: var(--font-geist-mono);
-  padding-left: 28px;
+  padding-left: 0;
   margin: 0;
   font-size: 14px;
   line-height: 24px;
   letter-spacing: -0.01em;
+  list-style-position: inside;
 }
 
 .main li:not(:last-of-type) {
@@ -119,10 +120,16 @@ a.secondary {
     padding-bottom: 80px;
   }
 
-  .ctas a {
-    font-size: 14px;
-    height: 40px;
-    padding: 0 16px;
+  .main {
+    align-items: center;
+  }
+
+  .main ol {
+    text-align: center;
+  }
+
+  .ctas {
+    flex-direction: column;
   }
 
   a.secondary {

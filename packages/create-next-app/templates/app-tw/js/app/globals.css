@@ -31,6 +31,9 @@
 }
 
 body {
+  --font-geist-sans: "Geist", Inter, Arial, Helvetica, sans-serif;
+  --font-geist-mono: "Geist Mono", "Space Mono", monospace;
+
   color: var(--foreground);
   background: var(--background);
 }
