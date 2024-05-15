@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::visit::{AstParentKind, VisitMut};
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Vc};
-use turbopack_core::chunk::AsyncModuleInfo;
-
-use crate::chunk::EcmascriptChunkingContext;
+use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
 
 /// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
@@ -28,7 +26,7 @@ pub trait VisitorFactory: Send + Sync {
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<CodeGeneration>;
 }
 
@@ -36,7 +34,7 @@ pub trait CodeGenerateable {
 pub trait CodeGenerateableWithAsyncModuleInfo {
     fn code_generation(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<CodeGeneration>;
 }

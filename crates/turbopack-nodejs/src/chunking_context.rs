@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -377,6 +377,3 @@ impl ChunkingContext for NodeJsChunkingContext {
         })
     }
 }
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkingContext for NodeJsChunkingContext {}

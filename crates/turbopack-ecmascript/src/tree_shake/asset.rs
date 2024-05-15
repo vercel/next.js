@@ -11,7 +11,7 @@ use turbopack_core::{
 
 use super::{chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, SplitResult};
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::analyse_ecmascript_module,
     AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset,
 };
@@ -122,13 +122,6 @@ impl ChunkableModule for EcmascriptModulePartAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     EcmascriptModulePartAsset",
-                )?;
         Ok(Vc::upcast(
             EcmascriptModulePartChunkItem {
                 module: self,

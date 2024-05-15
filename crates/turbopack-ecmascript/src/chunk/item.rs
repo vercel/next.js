@@ -12,11 +12,10 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
 };
 
-use super::EcmascriptChunkingContext;
 use crate::{
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
-    EcmascriptModuleContent,
+    EcmascriptModuleContent, EcmascriptOptions,
 };
 
 #[turbo_tasks::value(shared)]
@@ -33,10 +32,11 @@ impl EcmascriptChunkItemContent {
     #[turbo_tasks::function]
     pub async fn new(
         content: Vc<EcmascriptModuleContent>,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        options: Vc<EcmascriptOptions>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
-        let refresh = *chunking_context.has_react_refresh().await?;
+        let refresh = options.await?.refresh;
         let externals = *chunking_context
             .environment()
             .supports_commonjs_externals()
@@ -197,7 +197,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
-    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>>;
+    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
 
     /// Specifies which availablility information the chunk item needs for code
     /// generation

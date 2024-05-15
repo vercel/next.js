@@ -7,9 +7,7 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use super::{
-    EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkingContext,
-};
+use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
 
 #[derive(Default)]
 #[turbo_tasks::value]
@@ -33,8 +31,7 @@ impl ChunkType for EcmascriptChunkType {
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let Some(chunking_context) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
+            Vc::try_resolve_downcast::<Box<dyn ChunkingContext>>(chunking_context).await?
         else {
             bail!("Ecmascript chunking context not found");
         };

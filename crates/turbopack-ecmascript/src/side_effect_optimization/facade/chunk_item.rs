@@ -22,8 +22,7 @@ use super::module::EcmascriptModuleFacadeModule;
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptChunkingContext,
-        EcmascriptExports,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
     path_visitor::ApplyVisitors,
@@ -33,7 +32,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: Vc<EcmascriptModuleFacadeModule>,
-    pub(crate) chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub(crate) chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -150,7 +149,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 }

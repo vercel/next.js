@@ -16,7 +16,7 @@ use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptChunkingContext,
+        EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     utils::StringifyJs,
 };
@@ -145,7 +145,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
         Ok(self.manifest.await?.chunking_context)
     }
 

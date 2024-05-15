@@ -7,7 +7,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunk, EcmascriptChunkPlaceables, EcmascriptChunkRuntime,
-    EcmascriptChunkRuntimeContent, EcmascriptChunkingContext,
+    EcmascriptChunkRuntimeContent, ChunkingContext,
 };
 
 use crate::ecmascript::content::EcmascriptDevChunkContent;
@@ -16,7 +16,7 @@ use crate::ecmascript::content::EcmascriptDevChunkContent;
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkRuntime {
     /// The chunking context that created this runtime.
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     /// All chunks of this chunk group need to be ready for execution to start.
     /// When None, it will use a chunk group created from the current chunk.
     chunk_group: Option<Vc<ChunkGroup>>,
@@ -31,7 +31,7 @@ impl EcmascriptDevChunkRuntime {
     /// Creates a new [`Vc<EcmascriptDevChunkRuntime>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         evaluated_entries: Option<Vc<EcmascriptChunkPlaceables>>,
     ) -> Vc<Self> {
         EcmascriptDevChunkRuntime {

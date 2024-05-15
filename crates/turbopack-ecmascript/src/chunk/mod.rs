@@ -1,6 +1,5 @@
 pub(crate) mod chunk_type;
 pub(crate) mod content;
-pub(crate) mod context;
 pub(crate) mod data;
 pub(crate) mod item;
 pub(crate) mod placeable;
@@ -26,7 +25,6 @@ use turbopack_core::{
 pub use self::{
     chunk_type::EcmascriptChunkType,
     content::EcmascriptChunkContent,
-    context::EcmascriptChunkingContext,
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
@@ -37,7 +35,7 @@ pub use self::{
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunk {
-    pub chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<EcmascriptChunkContent>,
 }
 
@@ -48,7 +46,7 @@ pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
 impl EcmascriptChunk {
     #[turbo_tasks::function]
     pub async fn new(
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptChunk {

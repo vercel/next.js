@@ -162,14 +162,16 @@ async fn apply_module_type(
             if runtime_code {
                 Vc::upcast(builder.build())
             } else {
+                let options = options.await?;
                 match options.tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments) => {
+                    Some(TreeShakingMode::ModuleFragments) => Vc::upcast(
                         if let Some(part) = part {
-                            Vc::upcast(builder.build_part(part))
+                            builder.build_part(part)
                         } else {
-                            Vc::upcast(builder.build_part(ModulePart::exports()))
+                            builder.build_part(ModulePart::exports())
                         }
-                    }
+                        .await?,
+                    ),
                     Some(TreeShakingMode::ReexportsOnly) => {
                         let side_effect_free_packages =
                             module_asset_context.side_effect_free_packages();

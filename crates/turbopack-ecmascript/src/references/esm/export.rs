@@ -17,6 +17,7 @@ use swc_core::{
 use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
+    chunk::ChunkingContext,
     ident::AssetIdent,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
@@ -25,7 +26,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::esm::base::insert_hoisted_stmt,
@@ -409,7 +410,7 @@ impl CodeGenerateable for EsmExports {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
-        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 

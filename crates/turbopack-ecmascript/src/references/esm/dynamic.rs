@@ -17,7 +17,6 @@ use turbopack_resolve::ecmascript::{esm_resolve, try_to_severity};
 
 use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
-    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -94,7 +93,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             self.request,

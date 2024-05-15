@@ -1,10 +1,10 @@
 use anyhow::Result;
 use swc_core::quote;
 use turbo_tasks::Vc;
+use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
 use crate::{
-    chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
 };
@@ -27,7 +27,7 @@ impl CodeGenerateable for Unreachable {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let path = self.path.await?;
         let visitors = [

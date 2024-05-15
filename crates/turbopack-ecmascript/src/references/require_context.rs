@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use swc_core::{
     common::DUMMY_SP,
@@ -32,8 +32,7 @@ use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
 
 use crate::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
-        EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::CodeGeneration,
     create_visitor,
@@ -280,7 +279,7 @@ impl CodeGenerateable for RequireContextAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let chunk_item = self.inner.as_chunk_item(Vc::upcast(chunking_context));
         let module_id = chunk_item.id().await?.clone_value();
@@ -379,13 +378,6 @@ impl ChunkableModule for RequireContextAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     RequireContextAsset",
-                )?;
         let this = self.await?;
         Ok(Vc::upcast(
             RequireContextChunkItem {
@@ -410,7 +402,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
 
 #[turbo_tasks::value]
 pub struct RequireContextChunkItem {
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     inner: Vc<RequireContextAsset>,
 
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -420,7 +412,7 @@ pub struct RequireContextChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 
