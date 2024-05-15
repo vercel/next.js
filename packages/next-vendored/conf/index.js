@@ -29,11 +29,11 @@
       Ajv.prototype.getKeyword = h.get
       Ajv.prototype.removeKeyword = h.remove
       Ajv.prototype.validateKeyword = h.validate
-      var d = t(6343)
-      Ajv.ValidationError = d.Validation
-      Ajv.MissingRefError = d.MissingRef
+      var p = t(6343)
+      Ajv.ValidationError = p.Validation
+      Ajv.MissingRefError = p.MissingRef
       Ajv.$dataMetaSchema = c
-      var p = 'http://json-schema.org/draft-07/schema'
+      var d = 'http://json-schema.org/draft-07/schema'
       var v = [
         'removeAdditional',
         'useDefaults',
@@ -124,8 +124,8 @@
         e._opts.defaultMeta =
           typeof r == 'object'
             ? e._getId(r) || r
-            : e.getSchema(p)
-            ? p
+            : e.getSchema(d)
+            ? d
             : undefined
         return e._opts.defaultMeta
       }
@@ -217,11 +217,11 @@
         if (c && !(u = f && f == s.normalizeId(e.$schema)))
           this.validateSchema(e, true)
         var h = s.ids.call(this, e)
-        var d = new o({ id: f, schema: e, localRefs: h, cacheKey: n, meta: t })
-        if (f[0] != '#' && a) this._refs[f] = d
-        this._cache.put(n, d)
+        var p = new o({ id: f, schema: e, localRefs: h, cacheKey: n, meta: t })
+        if (f[0] != '#' && a) this._refs[f] = p
+        this._cache.put(n, p)
         if (c && u) this.validateSchema(e, true)
-        return d
+        return p
       }
       function _compile(e, r) {
         if (e.compiling) {
@@ -310,8 +310,8 @@
         if (e._opts.meta === false) return
         var a = t(7136)
         if (e._opts.$data) a = c(a, m)
-        e.addMetaSchema(a, p, true)
-        e._refs['http://json-schema.org/schema'] = p
+        e.addMetaSchema(a, d, true)
+        e._refs['http://json-schema.org/schema'] = d
       }
       function addInitialSchemas(e) {
         var r = e._opts.schemas
@@ -485,8 +485,8 @@
       var u =
         /^(?:(?:http[s\u017F]?|ftp):\/\/)(?:(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+(?::(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?@)?(?:(?!10(?:\.[0-9]{1,3}){3})(?!127(?:\.[0-9]{1,3}){3})(?!169\.254(?:\.[0-9]{1,3}){2})(?!192\.168(?:\.[0-9]{1,3}){2})(?!172\.(?:1[6-9]|2[0-9]|3[01])(?:\.[0-9]{1,3}){2})(?:[1-9][0-9]?|1[0-9][0-9]|2[01][0-9]|22[0-3])(?:\.(?:1?[0-9]{1,2}|2[0-4][0-9]|25[0-5])){2}(?:\.(?:[1-9][0-9]?|1[0-9][0-9]|2[0-4][0-9]|25[0-4]))|(?:(?:(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-)*(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)(?:\.(?:(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+-)*(?:[0-9a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])+)*(?:\.(?:(?:[a-z\xA1-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]){2,})))(?::[0-9]{2,5})?(?:\/(?:[\0-\x08\x0E-\x1F!-\x9F\xA1-\u167F\u1681-\u1FFF\u200B-\u2027\u202A-\u202E\u2030-\u205E\u2060-\u2FFF\u3001-\uD7FF\uE000-\uFEFE\uFF00-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF])*)?$/i
       var h = /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i
-      var d = /^(?:\/(?:[^~/]|~0|~1)*)*$/
-      var p = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i
+      var p = /^(?:\/(?:[^~/]|~0|~1)*)*$/
+      var d = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i
       var v = /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)$/
       e.exports = formats
       function formats(e) {
@@ -510,8 +510,8 @@
         ipv6: /^\s*(?:(?:(?:[0-9a-f]{1,4}:){7}(?:[0-9a-f]{1,4}|:))|(?:(?:[0-9a-f]{1,4}:){6}(?::[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(?:(?:[0-9a-f]{1,4}:){5}(?:(?:(?::[0-9a-f]{1,4}){1,2})|:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(?:(?:[0-9a-f]{1,4}:){4}(?:(?:(?::[0-9a-f]{1,4}){1,3})|(?:(?::[0-9a-f]{1,4})?:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){3}(?:(?:(?::[0-9a-f]{1,4}){1,4})|(?:(?::[0-9a-f]{1,4}){0,2}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){2}(?:(?:(?::[0-9a-f]{1,4}){1,5})|(?:(?::[0-9a-f]{1,4}){0,3}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){1}(?:(?:(?::[0-9a-f]{1,4}){1,6})|(?:(?::[0-9a-f]{1,4}){0,4}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?::(?:(?:(?::[0-9a-f]{1,4}){1,7})|(?:(?::[0-9a-f]{1,4}){0,5}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(?:%.+)?\s*$/i,
         regex: regex,
         uuid: h,
-        'json-pointer': d,
-        'json-pointer-uri-fragment': p,
+        'json-pointer': p,
+        'json-pointer-uri-fragment': d,
         'relative-json-pointer': v,
       }
       formats.full = {
@@ -529,8 +529,8 @@
         ipv6: /^\s*(?:(?:(?:[0-9a-f]{1,4}:){7}(?:[0-9a-f]{1,4}|:))|(?:(?:[0-9a-f]{1,4}:){6}(?::[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(?:(?:[0-9a-f]{1,4}:){5}(?:(?:(?::[0-9a-f]{1,4}){1,2})|:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(?:(?:[0-9a-f]{1,4}:){4}(?:(?:(?::[0-9a-f]{1,4}){1,3})|(?:(?::[0-9a-f]{1,4})?:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){3}(?:(?:(?::[0-9a-f]{1,4}){1,4})|(?:(?::[0-9a-f]{1,4}){0,2}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){2}(?:(?:(?::[0-9a-f]{1,4}){1,5})|(?:(?::[0-9a-f]{1,4}){0,3}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?:(?:[0-9a-f]{1,4}:){1}(?:(?:(?::[0-9a-f]{1,4}){1,6})|(?:(?::[0-9a-f]{1,4}){0,4}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(?::(?:(?:(?::[0-9a-f]{1,4}){1,7})|(?:(?::[0-9a-f]{1,4}){0,5}:(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(?:%.+)?\s*$/i,
         regex: regex,
         uuid: h,
-        'json-pointer': d,
-        'json-pointer-uri-fragment': p,
+        'json-pointer': p,
+        'json-pointer-uri-fragment': d,
         'relative-json-pointer': v,
       }
       function isLeapYear(e) {
@@ -595,39 +595,39 @@
       e.exports = compile
       function compile(e, r, t, u) {
         var h = this,
-          d = this._opts,
-          p = [undefined],
+          p = this._opts,
+          d = [undefined],
           v = {},
           m = [],
           y = {},
           g = [],
-          P = {},
-          E = []
-        r = r || { schema: e, refVal: p, refs: v }
-        var b = checkCompiling.call(this, e, r, u)
-        var w = this._compilations[b.index]
-        if (b.compiling) return (w.callValidate = callValidate)
-        var S = this._formats
-        var x = this.RULES
+          E = {},
+          P = []
+        r = r || { schema: e, refVal: d, refs: v }
+        var w = checkCompiling.call(this, e, r, u)
+        var S = this._compilations[w.index]
+        if (w.compiling) return (S.callValidate = callValidate)
+        var b = this._formats
+        var R = this.RULES
         try {
-          var _ = localCompile(e, r, t, u)
-          w.validate = _
-          var j = w.callValidate
-          if (j) {
-            j.schema = _.schema
-            j.errors = null
-            j.refs = _.refs
-            j.refVal = _.refVal
-            j.root = _.root
-            j.$async = _.$async
-            if (d.sourceCode) j.source = _.source
+          var I = localCompile(e, r, t, u)
+          S.validate = I
+          var x = S.callValidate
+          if (x) {
+            x.schema = I.schema
+            x.errors = null
+            x.refs = I.refs
+            x.refVal = I.refVal
+            x.root = I.root
+            x.$async = I.$async
+            if (p.sourceCode) x.source = I.source
           }
-          return _
+          return I
         } finally {
           endCompiling.call(this, e, r, u)
         }
         function callValidate() {
-          var e = w.validate
+          var e = S.validate
           var r = e.apply(this, arguments)
           callValidate.errors = e.errors
           return r
@@ -635,8 +635,8 @@
         function localCompile(e, t, o, u) {
           var y = !t || (t && t.schema == e)
           if (t.schema != r.schema) return compile.call(h, e, t, o, u)
-          var P = e.$async === true
-          var b = n({
+          var E = e.$async === true
+          var w = n({
             isTop: true,
             schema: e,
             isRoot: y,
@@ -646,7 +646,7 @@
             errSchemaPath: '#',
             errorPath: '""',
             MissingRefError: i.MissingRef,
-            RULES: x,
+            RULES: R,
             validate: n,
             util: s,
             resolve: a,
@@ -654,21 +654,21 @@
             usePattern: usePattern,
             useDefault: useDefault,
             useCustomRule: useCustomRule,
-            opts: d,
-            formats: S,
+            opts: p,
+            formats: b,
             logger: h.logger,
             self: h,
           })
-          b =
-            vars(p, refValCode) +
+          w =
+            vars(d, refValCode) +
             vars(m, patternCode) +
             vars(g, defaultCode) +
-            vars(E, customRuleCode) +
-            b
-          if (d.processCode) b = d.processCode(b, e)
-          var w
+            vars(P, customRuleCode) +
+            w
+          if (p.processCode) w = p.processCode(w, e)
+          var S
           try {
-            var _ = new Function(
+            var I = new Function(
               'self',
               'RULES',
               'formats',
@@ -679,31 +679,31 @@
               'equal',
               'ucs2length',
               'ValidationError',
-              b
+              w
             )
-            w = _(h, x, S, r, p, g, E, f, l, c)
-            p[0] = w
+            S = I(h, R, b, r, d, g, P, f, l, c)
+            d[0] = S
           } catch (e) {
-            h.logger.error('Error compiling schema, function code:', b)
+            h.logger.error('Error compiling schema, function code:', w)
             throw e
           }
-          w.schema = e
-          w.errors = null
-          w.refs = v
-          w.refVal = p
-          w.root = y ? w : t
-          if (P) w.$async = true
-          if (d.sourceCode === true) {
-            w.source = { code: b, patterns: m, defaults: g }
+          S.schema = e
+          S.errors = null
+          S.refs = v
+          S.refVal = d
+          S.root = y ? S : t
+          if (E) S.$async = true
+          if (p.sourceCode === true) {
+            S.source = { code: w, patterns: m, defaults: g }
           }
-          return w
+          return S
         }
         function resolveRef(e, s, i) {
           s = a.url(e, s)
           var o = v[s]
           var n, l
           if (o !== undefined) {
-            n = p[o]
+            n = d[o]
             l = 'refVal[' + o + ']'
             return resolvedRef(n, l)
           }
@@ -720,7 +720,7 @@
           if (c === undefined) {
             var u = t && t[s]
             if (u) {
-              c = a.inlineRef(u, d.inlineRefs) ? u : compile.call(h, u, r, t, e)
+              c = a.inlineRef(u, p.inlineRefs) ? u : compile.call(h, u, r, t, e)
             }
           }
           if (c === undefined) {
@@ -731,8 +731,8 @@
           }
         }
         function addLocalRef(e, r) {
-          var t = p.length
-          p[t] = r
+          var t = d.length
+          d[t] = r
           v[e] = t
           return 'refVal' + t
         }
@@ -741,7 +741,7 @@
         }
         function replaceLocalRef(e, r) {
           var t = v[e]
-          p[t] = r
+          d[t] = r
         }
         function resolvedRef(e, r) {
           return typeof e == 'object' || typeof e == 'boolean'
@@ -766,9 +766,9 @@
             case 'object':
               if (e === null) return 'null'
               var r = o(e)
-              var t = P[r]
+              var t = E[r]
               if (t === undefined) {
-                t = P[r] = g.length
+                t = E[r] = g.length
                 g[t] = e
               }
               return 'default' + t
@@ -804,7 +804,7 @@
             u = l.call(h, r, t, a)
           } else if (c) {
             u = c.call(h, r, t, a)
-            if (d.validateSchema !== false) h.validateSchema(u, true)
+            if (p.validateSchema !== false) h.validateSchema(u, true)
           } else if (f) {
             u = f.call(h, a, e.keyword, r, t)
           } else {
@@ -815,9 +815,9 @@
             throw new Error(
               'custom keyword "' + e.keyword + '"failed to compile'
             )
-          var p = E.length
-          E[p] = u
-          return { code: 'customRule' + p, validate: u }
+          var d = P.length
+          P[d] = u
+          return { code: 'customRule' + d, validate: u }
         }
       }
       function checkCompiling(e, r, t) {
@@ -1060,31 +1060,31 @@
         var o = { '': getFullPath(r, false) }
         var l = {}
         var f = this
-        n(e, { allKeys: true }, function (e, r, n, c, u, h, d) {
+        n(e, { allKeys: true }, function (e, r, n, c, u, h, p) {
           if (r === '') return
-          var p = f._getId(e)
+          var d = f._getId(e)
           var v = t[c]
           var m = o[c] + '/' + u
-          if (d !== undefined)
-            m += '/' + (typeof d == 'number' ? d : i.escapeFragment(d))
-          if (typeof p == 'string') {
-            p = v = normalizeId(v ? a.resolve(v, p) : p)
-            var y = f._refs[p]
+          if (p !== undefined)
+            m += '/' + (typeof p == 'number' ? p : i.escapeFragment(p))
+          if (typeof d == 'string') {
+            d = v = normalizeId(v ? a.resolve(v, d) : d)
+            var y = f._refs[d]
             if (typeof y == 'string') y = f._refs[y]
             if (y && y.schema) {
               if (!s(e, y.schema))
                 throw new Error(
-                  'id "' + p + '" resolves to more than one schema'
+                  'id "' + d + '" resolves to more than one schema'
                 )
-            } else if (p != normalizeId(m)) {
-              if (p[0] == '#') {
-                if (l[p] && !s(e, l[p]))
+            } else if (d != normalizeId(m)) {
+              if (d[0] == '#') {
+                if (l[d] && !s(e, l[d]))
                   throw new Error(
-                    'id "' + p + '" resolves to more than one schema'
+                    'id "' + d + '" resolves to more than one schema'
                   )
-                l[p] = e
+                l[d] = e
               } else {
-                f._refs[p] = m
+                f._refs[d] = m
               }
             }
           }
@@ -1558,7 +1558,7 @@
         var c
         var u = 'data' + (i || '')
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -1566,16 +1566,16 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
-        var p = r == 'maximum',
-          v = p ? 'exclusiveMaximum' : 'exclusiveMinimum',
+        var d = r == 'maximum',
+          v = d ? 'exclusiveMaximum' : 'exclusiveMinimum',
           m = e.schema[v],
           y = e.opts.$data && m && m.$data,
-          g = p ? '<' : '>',
-          P = p ? '>' : '<',
+          g = d ? '<' : '>',
+          E = d ? '>' : '<',
           c = undefined
         if (!(h || typeof o == 'number' || o === undefined)) {
           throw new Error(r + ' must be number')
@@ -1591,31 +1591,31 @@
           throw new Error(v + ' must be number or boolean')
         }
         if (y) {
-          var E = e.util.getData(m.$data, i, e.dataPathArr),
-            b = 'exclusive' + s,
-            w = 'exclType' + s,
-            S = 'exclIsNumber' + s,
-            x = 'op' + s,
-            _ = "' + " + x + " + '"
-          a += ' var schemaExcl' + s + ' = ' + E + '; '
-          E = 'schemaExcl' + s
+          var P = e.util.getData(m.$data, i, e.dataPathArr),
+            w = 'exclusive' + s,
+            S = 'exclType' + s,
+            b = 'exclIsNumber' + s,
+            R = 'op' + s,
+            I = "' + " + R + " + '"
+          a += ' var schemaExcl' + s + ' = ' + P + '; '
+          P = 'schemaExcl' + s
           a +=
             ' var ' +
-            b +
+            w +
             '; var ' +
-            w +
+            S +
             ' = typeof ' +
-            E +
+            P +
             '; if (' +
-            w +
+            S +
             " != 'boolean' && " +
-            w +
+            S +
             " != 'undefined' && " +
-            w +
+            S +
             " != 'number') { "
           var c = v
-          var j = j || []
-          j.push(a)
+          var x = x || []
+          x.push(a)
           a = ''
           if (e.createErrors !== false) {
             a +=
@@ -1643,66 +1643,66 @@
           } else {
             a += ' {} '
           }
-          var R = a
-          a = j.pop()
+          var O = a
+          a = x.pop()
           if (!e.compositeRule && f) {
             if (e.async) {
-              a += ' throw new ValidationError([' + R + ']); '
+              a += ' throw new ValidationError([' + O + ']); '
             } else {
-              a += ' validate.errors = [' + R + ']; return false; '
+              a += ' validate.errors = [' + O + ']; return false; '
             }
           } else {
             a +=
               ' var err = ' +
-              R +
+              O +
               ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
           }
           a += ' } else if ( '
           if (h) {
             a +=
-              ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+              ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
           }
           a +=
             ' ' +
-            w +
+            S +
             " == 'number' ? ( (" +
-            b +
+            w +
             ' = ' +
-            d +
+            p +
             ' === undefined || ' +
-            E +
+            P +
             ' ' +
             g +
             '= ' +
-            d +
+            p +
             ') ? ' +
             u +
             ' ' +
-            P +
-            '= ' +
             E +
+            '= ' +
+            P +
             ' : ' +
             u +
             ' ' +
-            P +
-            ' ' +
-            d +
-            ' ) : ( (' +
-            b +
-            ' = ' +
             E +
+            ' ' +
+            p +
+            ' ) : ( (' +
+            w +
+            ' = ' +
+            P +
             ' === true) ? ' +
             u +
             ' ' +
-            P +
+            E +
             '= ' +
-            d +
+            p +
             ' : ' +
             u +
             ' ' +
-            P +
+            E +
             ' ' +
-            d +
+            p +
             ' ) || ' +
             u +
             ' !== ' +
@@ -1710,7 +1710,7 @@
             ') { var op' +
             s +
             ' = ' +
-            b +
+            w +
             " ? '" +
             g +
             "' : '" +
@@ -1719,76 +1719,76 @@
           if (o === undefined) {
             c = v
             l = e.errSchemaPath + '/' + v
-            d = E
+            p = P
             h = y
           }
         } else {
-          var S = typeof m == 'number',
-            _ = g
-          if (S && h) {
-            var x = "'" + _ + "'"
+          var b = typeof m == 'number',
+            I = g
+          if (b && h) {
+            var R = "'" + I + "'"
             a += ' if ( '
             if (h) {
               a +=
-                ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+                ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
             }
             a +=
               ' ( ' +
-              d +
+              p +
               ' === undefined || ' +
               m +
               ' ' +
               g +
               '= ' +
-              d +
+              p +
               ' ? ' +
               u +
               ' ' +
-              P +
+              E +
               '= ' +
               m +
               ' : ' +
               u +
               ' ' +
-              P +
+              E +
               ' ' +
-              d +
+              p +
               ' ) || ' +
               u +
               ' !== ' +
               u +
               ') { '
           } else {
-            if (S && o === undefined) {
-              b = true
+            if (b && o === undefined) {
+              w = true
               c = v
               l = e.errSchemaPath + '/' + v
-              d = m
-              P += '='
+              p = m
+              E += '='
             } else {
-              if (S) d = Math[p ? 'min' : 'max'](m, o)
-              if (m === (S ? d : true)) {
-                b = true
+              if (b) p = Math[d ? 'min' : 'max'](m, o)
+              if (m === (b ? p : true)) {
+                w = true
                 c = v
                 l = e.errSchemaPath + '/' + v
-                P += '='
+                E += '='
               } else {
-                b = false
-                _ += '='
+                w = false
+                I += '='
               }
             }
-            var x = "'" + _ + "'"
+            var R = "'" + I + "'"
             a += ' if ( '
             if (h) {
               a +=
-                ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+                ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
             }
-            a += ' ' + u + ' ' + P + ' ' + d + ' || ' + u + ' !== ' + u + ') { '
+            a += ' ' + u + ' ' + E + ' ' + p + ' || ' + u + ' !== ' + u + ') { '
           }
         }
         c = c || r
-        var j = j || []
-        j.push(a)
+        var x = x || []
+        x.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -1799,18 +1799,18 @@
             ' , schemaPath: ' +
             e.util.toQuotedString(l) +
             ' , params: { comparison: ' +
-            x +
+            R +
             ', limit: ' +
-            d +
+            p +
             ', exclusive: ' +
-            b +
+            w +
             ' } '
           if (e.opts.messages !== false) {
-            a += " , message: 'should be " + _ + ' '
+            a += " , message: 'should be " + I + ' '
             if (h) {
-              a += "' + " + d
+              a += "' + " + p
             } else {
-              a += '' + d + "'"
+              a += '' + p + "'"
             }
           }
           if (e.opts.verbose) {
@@ -1831,18 +1831,18 @@
         } else {
           a += ' {} '
         }
-        var R = a
-        a = j.pop()
+        var O = a
+        a = x.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
-            a += ' throw new ValidationError([' + R + ']); '
+            a += ' throw new ValidationError([' + O + ']); '
           } else {
-            a += ' validate.errors = [' + R + ']; return false; '
+            a += ' validate.errors = [' + O + ']; return false; '
           }
         } else {
           a +=
             ' var err = ' +
-            R +
+            O +
             ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
         }
         a += ' } '
@@ -1865,7 +1865,7 @@
         var c
         var u = 'data' + (i || '')
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -1873,19 +1873,19 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
         if (!(h || typeof o == 'number')) {
           throw new Error(r + ' must be number')
         }
-        var p = r == 'maxItems' ? '>' : '<'
+        var d = r == 'maxItems' ? '>' : '<'
         a += 'if ( '
         if (h) {
-          a += ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+          a += ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
         }
-        a += ' ' + u + '.length ' + p + ' ' + d + ') { '
+        a += ' ' + u + '.length ' + d + ' ' + p + ') { '
         var c = r
         var v = v || []
         v.push(a)
@@ -1899,7 +1899,7 @@
             ' , schemaPath: ' +
             e.util.toQuotedString(l) +
             ' , params: { limit: ' +
-            d +
+            p +
             ' } '
           if (e.opts.messages !== false) {
             a += " , message: 'should NOT have "
@@ -1910,7 +1910,7 @@
             }
             a += ' than '
             if (h) {
-              a += "' + " + d + " + '"
+              a += "' + " + p + " + '"
             } else {
               a += '' + o
             }
@@ -1968,7 +1968,7 @@
         var c
         var u = 'data' + (i || '')
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -1976,24 +1976,24 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
         if (!(h || typeof o == 'number')) {
           throw new Error(r + ' must be number')
         }
-        var p = r == 'maxLength' ? '>' : '<'
+        var d = r == 'maxLength' ? '>' : '<'
         a += 'if ( '
         if (h) {
-          a += ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+          a += ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
         }
         if (e.opts.unicode === false) {
           a += ' ' + u + '.length '
         } else {
           a += ' ucs2length(' + u + ') '
         }
-        a += ' ' + p + ' ' + d + ') { '
+        a += ' ' + d + ' ' + p + ') { '
         var c = r
         var v = v || []
         v.push(a)
@@ -2007,7 +2007,7 @@
             ' , schemaPath: ' +
             e.util.toQuotedString(l) +
             ' , params: { limit: ' +
-            d +
+            p +
             ' } '
           if (e.opts.messages !== false) {
             a += " , message: 'should NOT be "
@@ -2018,7 +2018,7 @@
             }
             a += ' than '
             if (h) {
-              a += "' + " + d + " + '"
+              a += "' + " + p + " + '"
             } else {
               a += '' + o
             }
@@ -2076,7 +2076,7 @@
         var c
         var u = 'data' + (i || '')
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -2084,19 +2084,19 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
         if (!(h || typeof o == 'number')) {
           throw new Error(r + ' must be number')
         }
-        var p = r == 'maxProperties' ? '>' : '<'
+        var d = r == 'maxProperties' ? '>' : '<'
         a += 'if ( '
         if (h) {
-          a += ' (' + d + ' !== undefined && typeof ' + d + " != 'number') || "
+          a += ' (' + p + ' !== undefined && typeof ' + p + " != 'number') || "
         }
-        a += ' Object.keys(' + u + ').length ' + p + ' ' + d + ') { '
+        a += ' Object.keys(' + u + ').length ' + d + ' ' + p + ') { '
         var c = r
         var v = v || []
         v.push(a)
@@ -2110,7 +2110,7 @@
             ' , schemaPath: ' +
             e.util.toQuotedString(l) +
             ' , params: { limit: ' +
-            d +
+            p +
             ' } '
           if (e.opts.messages !== false) {
             a += " , message: 'should NOT have "
@@ -2121,7 +2121,7 @@
             }
             a += ' than '
             if (h) {
-              a += "' + " + d + " + '"
+              a += "' + " + p + " + '"
             } else {
               a += '' + o
             }
@@ -2180,21 +2180,21 @@
         var c = 'valid' + l.level
         var u = l.baseId,
           h = true
-        var d = s
-        if (d) {
-          var p,
+        var p = s
+        if (p) {
+          var d,
             v = -1,
-            m = d.length - 1
+            m = p.length - 1
           while (v < m) {
-            p = d[(v += 1)]
+            d = p[(v += 1)]
             if (
               e.opts.strictKeywords
-                ? (typeof p == 'object' && Object.keys(p).length > 0) ||
-                  p === false
-                : e.util.schemaHasRules(p, e.RULES.all)
+                ? (typeof d == 'object' && Object.keys(d).length > 0) ||
+                  d === false
+                : e.util.schemaHasRules(d, e.RULES.all)
             ) {
               h = false
-              l.schema = p
+              l.schema = d
               l.schemaPath = i + '[' + v + ']'
               l.errSchemaPath = o + '/' + v
               a += '  ' + e.validate(l) + ' '
@@ -2229,38 +2229,38 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = 'errs__' + s
-        var d = e.util.copy(e)
-        var p = ''
-        d.level++
-        var v = 'valid' + d.level
+        var p = e.util.copy(e)
+        var d = ''
+        p.level++
+        var v = 'valid' + p.level
         var m = o.every(function (r) {
           return e.opts.strictKeywords
             ? (typeof r == 'object' && Object.keys(r).length > 0) || r === false
             : e.util.schemaHasRules(r, e.RULES.all)
         })
         if (m) {
-          var y = d.baseId
+          var y = p.baseId
           a += ' var ' + h + ' = errors; var ' + u + ' = false;  '
           var g = e.compositeRule
-          e.compositeRule = d.compositeRule = true
-          var P = o
-          if (P) {
-            var E,
-              b = -1,
-              w = P.length - 1
-            while (b < w) {
-              E = P[(b += 1)]
-              d.schema = E
-              d.schemaPath = n + '[' + b + ']'
-              d.errSchemaPath = l + '/' + b
-              a += '  ' + e.validate(d) + ' '
-              d.baseId = y
+          e.compositeRule = p.compositeRule = true
+          var E = o
+          if (E) {
+            var P,
+              w = -1,
+              S = E.length - 1
+            while (w < S) {
+              P = E[(w += 1)]
+              p.schema = P
+              p.schemaPath = n + '[' + w + ']'
+              p.errSchemaPath = l + '/' + w
+              a += '  ' + e.validate(p) + ' '
+              p.baseId = y
               a += ' ' + u + ' = ' + u + ' || ' + v + '; if (!' + u + ') { '
-              p += '}'
+              d += '}'
             }
           }
-          e.compositeRule = d.compositeRule = g
-          a += ' ' + p + ' if (!' + u + ') {   var err =   '
+          e.compositeRule = p.compositeRule = g
+          a += ' ' + d + ' if (!' + u + ') {   var err =   '
           if (e.createErrors !== false) {
             a +=
               " { keyword: '" +
@@ -2349,7 +2349,7 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -2357,9 +2357,9 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
         if (!h) {
           a += ' var schema' + s + ' = validate.schema' + n + ';'
@@ -2374,8 +2374,8 @@
           '); if (!' +
           u +
           ') {   '
-        var p = p || []
-        p.push(a)
+        var d = d || []
+        d.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -2406,7 +2406,7 @@
           a += ' {} '
         }
         var v = a
-        a = p.pop()
+        a = d.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
             a += ' throw new ValidationError([' + v + ']); '
@@ -2439,24 +2439,24 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = 'errs__' + s
-        var d = e.util.copy(e)
-        var p = ''
-        d.level++
-        var v = 'valid' + d.level
+        var p = e.util.copy(e)
+        var d = ''
+        p.level++
+        var v = 'valid' + p.level
         var m = 'i' + s,
-          y = (d.dataLevel = e.dataLevel + 1),
+          y = (p.dataLevel = e.dataLevel + 1),
           g = 'data' + y,
-          P = e.baseId,
-          E = e.opts.strictKeywords
+          E = e.baseId,
+          P = e.opts.strictKeywords
             ? (typeof o == 'object' && Object.keys(o).length > 0) || o === false
             : e.util.schemaHasRules(o, e.RULES.all)
         a += 'var ' + h + ' = errors;var ' + u + ';'
-        if (E) {
-          var b = e.compositeRule
-          e.compositeRule = d.compositeRule = true
-          d.schema = o
-          d.schemaPath = n
-          d.errSchemaPath = l
+        if (P) {
+          var w = e.compositeRule
+          e.compositeRule = p.compositeRule = true
+          p.schema = o
+          p.schemaPath = n
+          p.errSchemaPath = l
           a +=
             ' var ' +
             v +
@@ -2469,29 +2469,29 @@
             '.length; ' +
             m +
             '++) { '
-          d.errorPath = e.util.getPathExpr(
+          p.errorPath = e.util.getPathExpr(
             e.errorPath,
             m,
             e.opts.jsonPointers,
             true
           )
-          var w = c + '[' + m + ']'
-          d.dataPathArr[y] = m
-          var S = e.validate(d)
-          d.baseId = P
-          if (e.util.varOccurences(S, g) < 2) {
-            a += ' ' + e.util.varReplace(S, g, w) + ' '
+          var S = c + '[' + m + ']'
+          p.dataPathArr[y] = m
+          var b = e.validate(p)
+          p.baseId = E
+          if (e.util.varOccurences(b, g) < 2) {
+            a += ' ' + e.util.varReplace(b, g, S) + ' '
           } else {
-            a += ' var ' + g + ' = ' + w + '; ' + S + ' '
+            a += ' var ' + g + ' = ' + S + '; ' + b + ' '
           }
           a += ' if (' + v + ') break; }  '
-          e.compositeRule = d.compositeRule = b
-          a += ' ' + p + ' if (!' + v + ') {'
+          e.compositeRule = p.compositeRule = w
+          a += ' ' + d + ' if (!' + v + ') {'
         } else {
           a += ' if (' + c + '.length == 0) {'
         }
-        var x = x || []
-        x.push(a)
+        var R = R || []
+        R.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -2519,22 +2519,22 @@
         } else {
           a += ' {} '
         }
-        var _ = a
-        a = x.pop()
+        var I = a
+        a = R.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
-            a += ' throw new ValidationError([' + _ + ']); '
+            a += ' throw new ValidationError([' + I + ']); '
           } else {
-            a += ' validate.errors = [' + _ + ']; return false; '
+            a += ' validate.errors = [' + I + ']; return false; '
           }
         } else {
           a +=
             ' var err = ' +
-            _ +
+            I +
             ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
         }
         a += ' } else { '
-        if (E) {
+        if (P) {
           a +=
             '  errors = ' +
             h +
@@ -2563,10 +2563,10 @@
         var c
         var u = 'data' + (i || '')
         var h = 'valid' + s
-        var d = 'errs__' + s
-        var p = e.opts.$data && o && o.$data,
+        var p = 'errs__' + s
+        var d = e.opts.$data && o && o.$data,
           v
-        if (p) {
+        if (d) {
           a +=
             ' var schema' +
             s +
@@ -2580,44 +2580,44 @@
         var m = this,
           y = 'definition' + s,
           g = m.definition,
-          P = ''
-        var E, b, w, S, x
-        if (p && g.$data) {
-          x = 'keywordValidate' + s
-          var _ = g.validateSchema
+          E = ''
+        var P, w, S, b, R
+        if (d && g.$data) {
+          R = 'keywordValidate' + s
+          var I = g.validateSchema
           a +=
             ' var ' +
             y +
             " = RULES.custom['" +
             r +
             "'].definition; var " +
-            x +
+            R +
             ' = ' +
             y +
             '.validate;'
         } else {
-          S = e.useCustomRule(m, o, e.schema, e)
-          if (!S) return
+          b = e.useCustomRule(m, o, e.schema, e)
+          if (!b) return
           v = 'validate.schema' + n
-          x = S.code
-          E = g.compile
-          b = g.inline
-          w = g.macro
+          R = b.code
+          P = g.compile
+          w = g.inline
+          S = g.macro
         }
-        var j = x + '.errors',
-          R = 'i' + s,
-          F = 'ruleErr' + s,
-          D = g.async
-        if (D && !e.async) throw new Error('async keyword in sync schema')
-        if (!(b || w)) {
-          a += '' + j + ' = null;'
+        var x = R + '.errors',
+          O = 'i' + s,
+          _ = 'ruleErr' + s,
+          A = g.async
+        if (A && !e.async) throw new Error('async keyword in sync schema')
+        if (!(w || S)) {
+          a += '' + x + ' = null;'
         }
-        a += 'var ' + d + ' = errors;var ' + h + ';'
-        if (p && g.$data) {
-          P += '}'
+        a += 'var ' + p + ' = errors;var ' + h + ';'
+        if (d && g.$data) {
+          E += '}'
           a += ' if (' + v + ' === undefined) { ' + h + ' = true; } else { '
-          if (_) {
-            P += '}'
+          if (I) {
+            E += '}'
             a +=
               ' ' +
               h +
@@ -2630,35 +2630,35 @@
               ') { '
           }
         }
-        if (b) {
+        if (w) {
           if (g.statements) {
-            a += ' ' + S.validate + ' '
+            a += ' ' + b.validate + ' '
           } else {
-            a += ' ' + h + ' = ' + S.validate + '; '
+            a += ' ' + h + ' = ' + b.validate + '; '
           }
-        } else if (w) {
-          var $ = e.util.copy(e)
-          var P = ''
-          $.level++
-          var A = 'valid' + $.level
-          $.schema = S.validate
-          $.schemaPath = ''
-          var I = e.compositeRule
-          e.compositeRule = $.compositeRule = true
-          var C = e.validate($).replace(/validate\.schema/g, x)
-          e.compositeRule = $.compositeRule = I
-          a += ' ' + C
+        } else if (S) {
+          var C = e.util.copy(e)
+          var E = ''
+          C.level++
+          var D = 'valid' + C.level
+          C.schema = b.validate
+          C.schemaPath = ''
+          var j = e.compositeRule
+          e.compositeRule = C.compositeRule = true
+          var F = e.validate(C).replace(/validate\.schema/g, R)
+          e.compositeRule = C.compositeRule = j
+          a += ' ' + F
         } else {
-          var O = O || []
-          O.push(a)
+          var L = L || []
+          L.push(a)
           a = ''
-          a += '  ' + x + '.call( '
+          a += '  ' + R + '.call( '
           if (e.opts.passContext) {
             a += 'this'
           } else {
             a += 'self'
           }
-          if (E || g.schema === false) {
+          if (P || g.schema === false) {
             a += ' , ' + u + ' '
           } else {
             a +=
@@ -2668,41 +2668,41 @@
           if (e.errorPath != '""') {
             a += ' + ' + e.errorPath
           }
-          var k = i ? 'data' + (i - 1 || '') : 'parentData',
-            T = i ? e.dataPathArr[i] : 'parentDataProperty'
-          a += ' , ' + k + ' , ' + T + ' , rootData )  '
-          var z = a
-          a = O.pop()
+          var T = i ? 'data' + (i - 1 || '') : 'parentData',
+            $ = i ? e.dataPathArr[i] : 'parentDataProperty'
+          a += ' , ' + T + ' , ' + $ + ' , rootData )  '
+          var N = a
+          a = L.pop()
           if (g.errors === false) {
             a += ' ' + h + ' = '
-            if (D) {
+            if (A) {
               a += 'await '
             }
-            a += '' + z + '; '
+            a += '' + N + '; '
           } else {
-            if (D) {
-              j = 'customErrors' + s
+            if (A) {
+              x = 'customErrors' + s
               a +=
                 ' var ' +
-                j +
+                x +
                 ' = null; try { ' +
                 h +
                 ' = await ' +
-                z +
+                N +
                 '; } catch (e) { ' +
                 h +
                 ' = false; if (e instanceof ValidationError) ' +
-                j +
+                x +
                 ' = e.errors; else throw e; } '
             } else {
-              a += ' ' + j + ' = null; ' + h + ' = ' + z + '; '
+              a += ' ' + x + ' = null; ' + h + ' = ' + N + '; '
             }
           }
         }
         if (g.modifying) {
-          a += ' if (' + k + ') ' + u + ' = ' + k + '[' + T + '];'
+          a += ' if (' + T + ') ' + u + ' = ' + T + '[' + $ + '];'
         }
-        a += '' + P
+        a += '' + E
         if (g.valid) {
           if (f) {
             a += ' if (true) { '
@@ -2711,8 +2711,8 @@
           a += ' if ( '
           if (g.valid === undefined) {
             a += ' !'
-            if (w) {
-              a += '' + A
+            if (S) {
+              a += '' + D
             } else {
               a += '' + h
             }
@@ -2721,11 +2721,11 @@
           }
           a += ') { '
           c = m.keyword
-          var O = O || []
-          O.push(a)
+          var L = L || []
+          L.push(a)
           a = ''
-          var O = O || []
-          O.push(a)
+          var L = L || []
+          L.push(a)
           a = ''
           if (e.createErrors !== false) {
             a +=
@@ -2758,59 +2758,59 @@
           } else {
             a += ' {} '
           }
-          var L = a
-          a = O.pop()
+          var k = a
+          a = L.pop()
           if (!e.compositeRule && f) {
             if (e.async) {
-              a += ' throw new ValidationError([' + L + ']); '
+              a += ' throw new ValidationError([' + k + ']); '
             } else {
-              a += ' validate.errors = [' + L + ']; return false; '
+              a += ' validate.errors = [' + k + ']; return false; '
             }
           } else {
             a +=
               ' var err = ' +
-              L +
+              k +
               ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
           }
-          var N = a
-          a = O.pop()
-          if (b) {
+          var U = a
+          a = L.pop()
+          if (w) {
             if (g.errors) {
               if (g.errors != 'full') {
                 a +=
                   '  for (var ' +
-                  R +
+                  O +
                   '=' +
-                  d +
+                  p +
                   '; ' +
-                  R +
+                  O +
                   '<errors; ' +
-                  R +
+                  O +
                   '++) { var ' +
-                  F +
+                  _ +
                   ' = vErrors[' +
-                  R +
+                  O +
                   ']; if (' +
-                  F +
+                  _ +
                   '.dataPath === undefined) ' +
-                  F +
+                  _ +
                   ".dataPath = (dataPath || '') + " +
                   e.errorPath +
                   '; if (' +
-                  F +
+                  _ +
                   '.schemaPath === undefined) { ' +
-                  F +
+                  _ +
                   '.schemaPath = "' +
                   l +
                   '"; } '
                 if (e.opts.verbose) {
                   a +=
                     ' ' +
-                    F +
+                    _ +
                     '.schema = ' +
                     v +
                     '; ' +
-                    F +
+                    _ +
                     '.data = ' +
                     u +
                     '; '
@@ -2819,46 +2819,46 @@
               }
             } else {
               if (g.errors === false) {
-                a += ' ' + N + ' '
+                a += ' ' + U + ' '
               } else {
                 a +=
                   ' if (' +
-                  d +
+                  p +
                   ' == errors) { ' +
-                  N +
+                  U +
                   ' } else {  for (var ' +
-                  R +
+                  O +
                   '=' +
-                  d +
+                  p +
                   '; ' +
-                  R +
+                  O +
                   '<errors; ' +
-                  R +
+                  O +
                   '++) { var ' +
-                  F +
+                  _ +
                   ' = vErrors[' +
-                  R +
+                  O +
                   ']; if (' +
-                  F +
+                  _ +
                   '.dataPath === undefined) ' +
-                  F +
+                  _ +
                   ".dataPath = (dataPath || '') + " +
                   e.errorPath +
                   '; if (' +
-                  F +
+                  _ +
                   '.schemaPath === undefined) { ' +
-                  F +
+                  _ +
                   '.schemaPath = "' +
                   l +
                   '"; } '
                 if (e.opts.verbose) {
                   a +=
                     ' ' +
-                    F +
+                    _ +
                     '.schema = ' +
                     v +
                     '; ' +
-                    F +
+                    _ +
                     '.data = ' +
                     u +
                     '; '
@@ -2866,7 +2866,7 @@
                 a += ' } } '
               }
             }
-          } else if (w) {
+          } else if (S) {
             a += '   var err =   '
             if (e.createErrors !== false) {
               a +=
@@ -2910,43 +2910,43 @@
             }
           } else {
             if (g.errors === false) {
-              a += ' ' + N + ' '
+              a += ' ' + U + ' '
             } else {
               a +=
                 ' if (Array.isArray(' +
-                j +
+                x +
                 ')) { if (vErrors === null) vErrors = ' +
-                j +
+                x +
                 '; else vErrors = vErrors.concat(' +
-                j +
+                x +
                 '); errors = vErrors.length;  for (var ' +
-                R +
+                O +
                 '=' +
-                d +
+                p +
                 '; ' +
-                R +
+                O +
                 '<errors; ' +
-                R +
+                O +
                 '++) { var ' +
-                F +
+                _ +
                 ' = vErrors[' +
-                R +
+                O +
                 ']; if (' +
-                F +
+                _ +
                 '.dataPath === undefined) ' +
-                F +
+                _ +
                 ".dataPath = (dataPath || '') + " +
                 e.errorPath +
                 ';  ' +
-                F +
+                _ +
                 '.schemaPath = "' +
                 l +
                 '";  '
               if (e.opts.verbose) {
                 a +=
-                  ' ' + F + '.schema = ' + v + '; ' + F + '.data = ' + u + '; '
+                  ' ' + _ + '.schema = ' + v + '; ' + _ + '.data = ' + u + '; '
               }
-              a += ' } } else { ' + N + ' } '
+              a += ' } } else { ' + U + ' } '
             }
           }
           a += ' } '
@@ -2970,74 +2970,74 @@
         var c = 'data' + (i || '')
         var u = 'errs__' + s
         var h = e.util.copy(e)
-        var d = ''
+        var p = ''
         h.level++
-        var p = 'valid' + h.level
+        var d = 'valid' + h.level
         var v = {},
           m = {},
           y = e.opts.ownProperties
-        for (b in o) {
-          if (b == '__proto__') continue
-          var g = o[b]
-          var P = Array.isArray(g) ? m : v
-          P[b] = g
+        for (w in o) {
+          if (w == '__proto__') continue
+          var g = o[w]
+          var E = Array.isArray(g) ? m : v
+          E[w] = g
         }
         a += 'var ' + u + ' = errors;'
-        var E = e.errorPath
+        var P = e.errorPath
         a += 'var missing' + s + ';'
-        for (var b in m) {
-          P = m[b]
-          if (P.length) {
-            a += ' if ( ' + c + e.util.getProperty(b) + ' !== undefined '
+        for (var w in m) {
+          E = m[w]
+          if (E.length) {
+            a += ' if ( ' + c + e.util.getProperty(w) + ' !== undefined '
             if (y) {
               a +=
                 ' && Object.prototype.hasOwnProperty.call(' +
                 c +
                 ", '" +
-                e.util.escapeQuotes(b) +
+                e.util.escapeQuotes(w) +
                 "') "
             }
             if (f) {
               a += ' && ( '
-              var w = P
-              if (w) {
-                var S,
-                  x = -1,
-                  _ = w.length - 1
-                while (x < _) {
-                  S = w[(x += 1)]
-                  if (x) {
+              var S = E
+              if (S) {
+                var b,
+                  R = -1,
+                  I = S.length - 1
+                while (R < I) {
+                  b = S[(R += 1)]
+                  if (R) {
                     a += ' || '
                   }
-                  var j = e.util.getProperty(S),
-                    R = c + j
-                  a += ' ( ( ' + R + ' === undefined '
+                  var x = e.util.getProperty(b),
+                    O = c + x
+                  a += ' ( ( ' + O + ' === undefined '
                   if (y) {
                     a +=
                       ' || ! Object.prototype.hasOwnProperty.call(' +
                       c +
                       ", '" +
-                      e.util.escapeQuotes(S) +
+                      e.util.escapeQuotes(b) +
                       "') "
                   }
                   a +=
                     ') && (missing' +
                     s +
                     ' = ' +
-                    e.util.toQuotedString(e.opts.jsonPointers ? S : j) +
+                    e.util.toQuotedString(e.opts.jsonPointers ? b : x) +
                     ') ) '
                 }
               }
               a += ')) {  '
-              var F = 'missing' + s,
-                D = "' + " + F + " + '"
+              var _ = 'missing' + s,
+                A = "' + " + _ + " + '"
               if (e.opts._errorDataPathProperty) {
                 e.errorPath = e.opts.jsonPointers
-                  ? e.util.getPathExpr(E, F, true)
-                  : E + ' + ' + F
+                  ? e.util.getPathExpr(P, _, true)
+                  : P + ' + ' + _
               }
-              var $ = $ || []
-              $.push(a)
+              var C = C || []
+              C.push(a)
               a = ''
               if (e.createErrors !== false) {
                 a +=
@@ -3048,23 +3048,23 @@
                   ' , schemaPath: ' +
                   e.util.toQuotedString(l) +
                   " , params: { property: '" +
-                  e.util.escapeQuotes(b) +
+                  e.util.escapeQuotes(w) +
                   "', missingProperty: '" +
-                  D +
+                  A +
                   "', depsCount: " +
-                  P.length +
+                  E.length +
                   ", deps: '" +
-                  e.util.escapeQuotes(P.length == 1 ? P[0] : P.join(', ')) +
+                  e.util.escapeQuotes(E.length == 1 ? E[0] : E.join(', ')) +
                   "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: 'should have "
-                  if (P.length == 1) {
-                    a += 'property ' + e.util.escapeQuotes(P[0])
+                  if (E.length == 1) {
+                    a += 'property ' + e.util.escapeQuotes(E[0])
                   } else {
-                    a += 'properties ' + e.util.escapeQuotes(P.join(', '))
+                    a += 'properties ' + e.util.escapeQuotes(E.join(', '))
                   }
                   a +=
-                    ' when property ' + e.util.escapeQuotes(b) + " is present' "
+                    ' when property ' + e.util.escapeQuotes(w) + " is present' "
                 }
                 if (e.opts.verbose) {
                   a +=
@@ -3080,42 +3080,42 @@
               } else {
                 a += ' {} '
               }
-              var A = a
-              a = $.pop()
+              var D = a
+              a = C.pop()
               if (!e.compositeRule && f) {
                 if (e.async) {
-                  a += ' throw new ValidationError([' + A + ']); '
+                  a += ' throw new ValidationError([' + D + ']); '
                 } else {
-                  a += ' validate.errors = [' + A + ']; return false; '
+                  a += ' validate.errors = [' + D + ']; return false; '
                 }
               } else {
                 a +=
                   ' var err = ' +
-                  A +
+                  D +
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
               }
             } else {
               a += ' ) { '
-              var I = P
-              if (I) {
-                var S,
-                  C = -1,
-                  O = I.length - 1
-                while (C < O) {
-                  S = I[(C += 1)]
-                  var j = e.util.getProperty(S),
-                    D = e.util.escapeQuotes(S),
-                    R = c + j
+              var j = E
+              if (j) {
+                var b,
+                  F = -1,
+                  L = j.length - 1
+                while (F < L) {
+                  b = j[(F += 1)]
+                  var x = e.util.getProperty(b),
+                    A = e.util.escapeQuotes(b),
+                    O = c + x
                   if (e.opts._errorDataPathProperty) {
-                    e.errorPath = e.util.getPath(E, S, e.opts.jsonPointers)
+                    e.errorPath = e.util.getPath(P, b, e.opts.jsonPointers)
                   }
-                  a += ' if ( ' + R + ' === undefined '
+                  a += ' if ( ' + O + ' === undefined '
                   if (y) {
                     a +=
                       ' || ! Object.prototype.hasOwnProperty.call(' +
                       c +
                       ", '" +
-                      e.util.escapeQuotes(S) +
+                      e.util.escapeQuotes(b) +
                       "') "
                   }
                   a += ') {  var err =   '
@@ -3128,24 +3128,24 @@
                       ' , schemaPath: ' +
                       e.util.toQuotedString(l) +
                       " , params: { property: '" +
-                      e.util.escapeQuotes(b) +
+                      e.util.escapeQuotes(w) +
                       "', missingProperty: '" +
-                      D +
+                      A +
                       "', depsCount: " +
-                      P.length +
+                      E.length +
                       ", deps: '" +
-                      e.util.escapeQuotes(P.length == 1 ? P[0] : P.join(', ')) +
+                      e.util.escapeQuotes(E.length == 1 ? E[0] : E.join(', ')) +
                       "' } "
                     if (e.opts.messages !== false) {
                       a += " , message: 'should have "
-                      if (P.length == 1) {
-                        a += 'property ' + e.util.escapeQuotes(P[0])
+                      if (E.length == 1) {
+                        a += 'property ' + e.util.escapeQuotes(E[0])
                       } else {
-                        a += 'properties ' + e.util.escapeQuotes(P.join(', '))
+                        a += 'properties ' + e.util.escapeQuotes(E.join(', '))
                       }
                       a +=
                         ' when property ' +
-                        e.util.escapeQuotes(b) +
+                        e.util.escapeQuotes(w) +
                         " is present' "
                     }
                     if (e.opts.verbose) {
@@ -3169,15 +3169,15 @@
             }
             a += ' }   '
             if (f) {
-              d += '}'
+              p += '}'
               a += ' else { '
             }
           }
         }
-        e.errorPath = E
-        var k = h.baseId
-        for (var b in v) {
-          var g = v[b]
+        e.errorPath = P
+        var T = h.baseId
+        for (var w in v) {
+          var g = v[w]
           if (
             e.opts.strictKeywords
               ? (typeof g == 'object' && Object.keys(g).length > 0) ||
@@ -3186,34 +3186,34 @@
           ) {
             a +=
               ' ' +
-              p +
+              d +
               ' = true; if ( ' +
               c +
-              e.util.getProperty(b) +
+              e.util.getProperty(w) +
               ' !== undefined '
             if (y) {
               a +=
                 ' && Object.prototype.hasOwnProperty.call(' +
                 c +
                 ", '" +
-                e.util.escapeQuotes(b) +
+                e.util.escapeQuotes(w) +
                 "') "
             }
             a += ') { '
             h.schema = g
-            h.schemaPath = n + e.util.getProperty(b)
-            h.errSchemaPath = l + '/' + e.util.escapeFragment(b)
+            h.schemaPath = n + e.util.getProperty(w)
+            h.errSchemaPath = l + '/' + e.util.escapeFragment(w)
             a += '  ' + e.validate(h) + ' '
-            h.baseId = k
+            h.baseId = T
             a += ' }  '
             if (f) {
-              a += ' if (' + p + ') { '
-              d += '}'
+              a += ' if (' + d + ') { '
+              p += '}'
             }
           }
         }
         if (f) {
-          a += '   ' + d + ' if (' + u + ' == errors) {'
+          a += '   ' + p + ' if (' + u + ' == errors) {'
         }
         return a
       }
@@ -3231,7 +3231,7 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -3239,11 +3239,11 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
-        var p = 'i' + s,
+        var d = 'i' + s,
           v = 'schema' + s
         if (!h) {
           a += ' var ' + v + ' = validate.schema' + n + ';'
@@ -3265,19 +3265,19 @@
           '' +
           u +
           ' = false;for (var ' +
-          p +
+          d +
           '=0; ' +
-          p +
+          d +
           '<' +
           v +
           '.length; ' +
-          p +
+          d +
           '++) if (equal(' +
           c +
           ', ' +
           v +
           '[' +
-          p +
+          d +
           '])) { ' +
           u +
           ' = true; break; }'
@@ -3367,8 +3367,8 @@
         } else {
           h = o
         }
-        var d = e.opts.unknownFormats,
-          p = Array.isArray(d)
+        var p = e.opts.unknownFormats,
+          d = Array.isArray(p)
         if (u) {
           var v = 'format' + s,
             m = 'isObject' + s,
@@ -3404,9 +3404,9 @@
               ' (' + h + ' !== undefined && typeof ' + h + " != 'string') || "
           }
           a += ' ('
-          if (d != 'ignore') {
+          if (p != 'ignore') {
             a += ' (' + h + ' && !' + v + ' '
-            if (p) {
+            if (d) {
               a += ' && self._opts.unknownFormats.indexOf(' + h + ') == -1 '
             }
             a += ') || '
@@ -3441,7 +3441,7 @@
         } else {
           var v = e.formats[o]
           if (!v) {
-            if (d == 'ignore') {
+            if (p == 'ignore') {
               e.logger.warn(
                 'unknown format "' +
                   o +
@@ -3453,7 +3453,7 @@
                 a += ' if (true) { '
               }
               return a
-            } else if (p && d.indexOf(o) >= 0) {
+            } else if (d && p.indexOf(o) >= 0) {
               if (f) {
                 a += ' if (true) { '
               }
@@ -3482,22 +3482,22 @@
           }
           if (g) {
             if (!e.async) throw new Error('async format in sync schema')
-            var P = 'formats' + e.util.getProperty(o) + '.validate'
-            a += ' if (!(await ' + P + '(' + c + '))) { '
+            var E = 'formats' + e.util.getProperty(o) + '.validate'
+            a += ' if (!(await ' + E + '(' + c + '))) { '
           } else {
             a += ' if (! '
-            var P = 'formats' + e.util.getProperty(o)
-            if (m) P += '.validate'
+            var E = 'formats' + e.util.getProperty(o)
+            if (m) E += '.validate'
             if (typeof v == 'function') {
-              a += ' ' + P + '(' + c + ') '
+              a += ' ' + E + '(' + c + ') '
             } else {
-              a += ' ' + P + '.test(' + c + ') '
+              a += ' ' + E + '.test(' + c + ') '
             }
             a += ') { '
           }
         }
-        var E = E || []
-        E.push(a)
+        var P = P || []
+        P.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -3541,18 +3541,18 @@
         } else {
           a += ' {} '
         }
-        var b = a
-        a = E.pop()
+        var w = a
+        a = P.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
-            a += ' throw new ValidationError([' + b + ']); '
+            a += ' throw new ValidationError([' + w + ']); '
           } else {
-            a += ' validate.errors = [' + b + ']; return false; '
+            a += ' validate.errors = [' + w + ']; return false; '
           }
         } else {
           a +=
             ' var err = ' +
-            b +
+            w +
             ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
         }
         a += ' } '
@@ -3575,9 +3575,9 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = 'errs__' + s
-        var d = e.util.copy(e)
-        d.level++
-        var p = 'valid' + d.level
+        var p = e.util.copy(e)
+        p.level++
+        var d = 'valid' + p.level
         var v = e.schema['then'],
           m = e.schema['else'],
           y =
@@ -3592,19 +3592,19 @@
               ? (typeof m == 'object' && Object.keys(m).length > 0) ||
                 m === false
               : e.util.schemaHasRules(m, e.RULES.all)),
-          P = d.baseId
+          E = p.baseId
         if (y || g) {
-          var E
-          d.createErrors = false
-          d.schema = o
-          d.schemaPath = n
-          d.errSchemaPath = l
+          var P
+          p.createErrors = false
+          p.schema = o
+          p.schemaPath = n
+          p.errSchemaPath = l
           a += ' var ' + h + ' = errors; var ' + u + ' = true;  '
-          var b = e.compositeRule
-          e.compositeRule = d.compositeRule = true
-          a += '  ' + e.validate(d) + ' '
-          d.baseId = P
-          d.createErrors = true
+          var w = e.compositeRule
+          e.compositeRule = p.compositeRule = true
+          a += '  ' + e.validate(p) + ' '
+          p.baseId = E
+          p.createErrors = true
           a +=
             '  errors = ' +
             h +
@@ -3613,40 +3613,40 @@
             ') vErrors.length = ' +
             h +
             '; else vErrors = null; }  '
-          e.compositeRule = d.compositeRule = b
+          e.compositeRule = p.compositeRule = w
           if (y) {
-            a += ' if (' + p + ') {  '
-            d.schema = e.schema['then']
-            d.schemaPath = e.schemaPath + '.then'
-            d.errSchemaPath = e.errSchemaPath + '/then'
-            a += '  ' + e.validate(d) + ' '
-            d.baseId = P
-            a += ' ' + u + ' = ' + p + '; '
+            a += ' if (' + d + ') {  '
+            p.schema = e.schema['then']
+            p.schemaPath = e.schemaPath + '.then'
+            p.errSchemaPath = e.errSchemaPath + '/then'
+            a += '  ' + e.validate(p) + ' '
+            p.baseId = E
+            a += ' ' + u + ' = ' + d + '; '
             if (y && g) {
-              E = 'ifClause' + s
-              a += ' var ' + E + " = 'then'; "
+              P = 'ifClause' + s
+              a += ' var ' + P + " = 'then'; "
             } else {
-              E = "'then'"
+              P = "'then'"
             }
             a += ' } '
             if (g) {
               a += ' else { '
             }
           } else {
-            a += ' if (!' + p + ') { '
+            a += ' if (!' + d + ') { '
           }
           if (g) {
-            d.schema = e.schema['else']
-            d.schemaPath = e.schemaPath + '.else'
-            d.errSchemaPath = e.errSchemaPath + '/else'
-            a += '  ' + e.validate(d) + ' '
-            d.baseId = P
-            a += ' ' + u + ' = ' + p + '; '
+            p.schema = e.schema['else']
+            p.schemaPath = e.schemaPath + '.else'
+            p.errSchemaPath = e.errSchemaPath + '/else'
+            a += '  ' + e.validate(p) + ' '
+            p.baseId = E
+            a += ' ' + u + ' = ' + d + '; '
             if (y && g) {
-              E = 'ifClause' + s
-              a += ' var ' + E + " = 'else'; "
+              P = 'ifClause' + s
+              a += ' var ' + P + " = 'else'; "
             } else {
-              E = "'else'"
+              P = "'else'"
             }
             a += ' } '
           }
@@ -3660,10 +3660,10 @@
               ' , schemaPath: ' +
               e.util.toQuotedString(l) +
               ' , params: { failingKeyword: ' +
-              E +
+              P +
               ' } '
             if (e.opts.messages !== false) {
-              a += " , message: 'should match \"' + " + E + " + '\" schema' "
+              a += " , message: 'should match \"' + " + P + " + '\" schema' "
             }
             if (e.opts.verbose) {
               a +=
@@ -3746,24 +3746,24 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = 'errs__' + s
-        var d = e.util.copy(e)
-        var p = ''
-        d.level++
-        var v = 'valid' + d.level
+        var p = e.util.copy(e)
+        var d = ''
+        p.level++
+        var v = 'valid' + p.level
         var m = 'i' + s,
-          y = (d.dataLevel = e.dataLevel + 1),
+          y = (p.dataLevel = e.dataLevel + 1),
           g = 'data' + y,
-          P = e.baseId
+          E = e.baseId
         a += 'var ' + h + ' = errors;var ' + u + ';'
         if (Array.isArray(o)) {
-          var E = e.schema.additionalItems
-          if (E === false) {
+          var P = e.schema.additionalItems
+          if (P === false) {
             a += ' ' + u + ' = ' + c + '.length <= ' + o.length + '; '
-            var b = l
+            var w = l
             l = e.errSchemaPath + '/additionalItems'
             a += '  if (!' + u + ') {   '
-            var w = w || []
-            w.push(a)
+            var S = S || []
+            S.push(a)
             a = ''
             if (e.createErrors !== false) {
               a +=
@@ -3794,77 +3794,77 @@
             } else {
               a += ' {} '
             }
-            var S = a
-            a = w.pop()
+            var b = a
+            a = S.pop()
             if (!e.compositeRule && f) {
               if (e.async) {
-                a += ' throw new ValidationError([' + S + ']); '
+                a += ' throw new ValidationError([' + b + ']); '
               } else {
-                a += ' validate.errors = [' + S + ']; return false; '
+                a += ' validate.errors = [' + b + ']; return false; '
               }
             } else {
               a +=
                 ' var err = ' +
-                S +
+                b +
                 ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
             }
             a += ' } '
-            l = b
+            l = w
             if (f) {
-              p += '}'
+              d += '}'
               a += ' else { '
             }
           }
-          var x = o
-          if (x) {
-            var _,
-              j = -1,
-              R = x.length - 1
-            while (j < R) {
-              _ = x[(j += 1)]
+          var R = o
+          if (R) {
+            var I,
+              x = -1,
+              O = R.length - 1
+            while (x < O) {
+              I = R[(x += 1)]
               if (
                 e.opts.strictKeywords
-                  ? (typeof _ == 'object' && Object.keys(_).length > 0) ||
-                    _ === false
-                  : e.util.schemaHasRules(_, e.RULES.all)
+                  ? (typeof I == 'object' && Object.keys(I).length > 0) ||
+                    I === false
+                  : e.util.schemaHasRules(I, e.RULES.all)
               ) {
-                a += ' ' + v + ' = true; if (' + c + '.length > ' + j + ') { '
-                var F = c + '[' + j + ']'
-                d.schema = _
-                d.schemaPath = n + '[' + j + ']'
-                d.errSchemaPath = l + '/' + j
-                d.errorPath = e.util.getPathExpr(
+                a += ' ' + v + ' = true; if (' + c + '.length > ' + x + ') { '
+                var _ = c + '[' + x + ']'
+                p.schema = I
+                p.schemaPath = n + '[' + x + ']'
+                p.errSchemaPath = l + '/' + x
+                p.errorPath = e.util.getPathExpr(
                   e.errorPath,
-                  j,
+                  x,
                   e.opts.jsonPointers,
                   true
                 )
-                d.dataPathArr[y] = j
-                var D = e.validate(d)
-                d.baseId = P
-                if (e.util.varOccurences(D, g) < 2) {
-                  a += ' ' + e.util.varReplace(D, g, F) + ' '
+                p.dataPathArr[y] = x
+                var A = e.validate(p)
+                p.baseId = E
+                if (e.util.varOccurences(A, g) < 2) {
+                  a += ' ' + e.util.varReplace(A, g, _) + ' '
                 } else {
-                  a += ' var ' + g + ' = ' + F + '; ' + D + ' '
+                  a += ' var ' + g + ' = ' + _ + '; ' + A + ' '
                 }
                 a += ' }  '
                 if (f) {
                   a += ' if (' + v + ') { '
-                  p += '}'
+                  d += '}'
                 }
               }
             }
           }
           if (
-            typeof E == 'object' &&
+            typeof P == 'object' &&
             (e.opts.strictKeywords
-              ? (typeof E == 'object' && Object.keys(E).length > 0) ||
-                E === false
-              : e.util.schemaHasRules(E, e.RULES.all))
+              ? (typeof P == 'object' && Object.keys(P).length > 0) ||
+                P === false
+              : e.util.schemaHasRules(P, e.RULES.all))
           ) {
-            d.schema = E
-            d.schemaPath = e.schemaPath + '.additionalItems'
-            d.errSchemaPath = e.errSchemaPath + '/additionalItems'
+            p.schema = P
+            p.schemaPath = e.schemaPath + '.additionalItems'
+            p.errSchemaPath = e.errSchemaPath + '/additionalItems'
             a +=
               ' ' +
               v +
@@ -3883,20 +3883,20 @@
               '.length; ' +
               m +
               '++) { '
-            d.errorPath = e.util.getPathExpr(
+            p.errorPath = e.util.getPathExpr(
               e.errorPath,
               m,
               e.opts.jsonPointers,
               true
             )
-            var F = c + '[' + m + ']'
-            d.dataPathArr[y] = m
-            var D = e.validate(d)
-            d.baseId = P
-            if (e.util.varOccurences(D, g) < 2) {
-              a += ' ' + e.util.varReplace(D, g, F) + ' '
+            var _ = c + '[' + m + ']'
+            p.dataPathArr[y] = m
+            var A = e.validate(p)
+            p.baseId = E
+            if (e.util.varOccurences(A, g) < 2) {
+              a += ' ' + e.util.varReplace(A, g, _) + ' '
             } else {
-              a += ' var ' + g + ' = ' + F + '; ' + D + ' '
+              a += ' var ' + g + ' = ' + _ + '; ' + A + ' '
             }
             if (f) {
               a += ' if (!' + v + ') break; '
@@ -3904,7 +3904,7 @@
             a += ' } }  '
             if (f) {
               a += ' if (' + v + ') { '
-              p += '}'
+              d += '}'
             }
           }
         } else if (
@@ -3912,9 +3912,9 @@
             ? (typeof o == 'object' && Object.keys(o).length > 0) || o === false
             : e.util.schemaHasRules(o, e.RULES.all)
         ) {
-          d.schema = o
-          d.schemaPath = n
-          d.errSchemaPath = l
+          p.schema = o
+          p.schemaPath = n
+          p.errSchemaPath = l
           a +=
             '  for (var ' +
             m +
@@ -3927,20 +3927,20 @@
             '.length; ' +
             m +
             '++) { '
-          d.errorPath = e.util.getPathExpr(
+          p.errorPath = e.util.getPathExpr(
             e.errorPath,
             m,
             e.opts.jsonPointers,
             true
           )
-          var F = c + '[' + m + ']'
-          d.dataPathArr[y] = m
-          var D = e.validate(d)
-          d.baseId = P
-          if (e.util.varOccurences(D, g) < 2) {
-            a += ' ' + e.util.varReplace(D, g, F) + ' '
+          var _ = c + '[' + m + ']'
+          p.dataPathArr[y] = m
+          var A = e.validate(p)
+          p.baseId = E
+          if (e.util.varOccurences(A, g) < 2) {
+            a += ' ' + e.util.varReplace(A, g, _) + ' '
           } else {
-            a += ' var ' + g + ' = ' + F + '; ' + D + ' '
+            a += ' var ' + g + ' = ' + _ + '; ' + A + ' '
           }
           if (f) {
             a += ' if (!' + v + ') break; '
@@ -3948,7 +3948,7 @@
           a += ' }'
         }
         if (f) {
-          a += ' ' + p + ' if (' + h + ' == errors) {'
+          a += ' ' + d + ' if (' + h + ' == errors) {'
         }
         return a
       }
@@ -4002,8 +4002,8 @@
           a += '  )  '
         }
         a += ' ) {   '
-        var d = d || []
-        d.push(a)
+        var p = p || []
+        p.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -4042,18 +4042,18 @@
         } else {
           a += ' {} '
         }
-        var p = a
-        a = d.pop()
+        var d = a
+        a = p.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
-            a += ' throw new ValidationError([' + p + ']); '
+            a += ' throw new ValidationError([' + d + ']); '
           } else {
-            a += ' validate.errors = [' + p + ']; return false; '
+            a += ' validate.errors = [' + d + ']; return false; '
           }
         } else {
           a +=
             ' var err = ' +
-            p +
+            d +
             ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
         }
         a += '} '
@@ -4077,7 +4077,7 @@
         var u = 'errs__' + s
         var h = e.util.copy(e)
         h.level++
-        var d = 'valid' + h.level
+        var p = 'valid' + h.level
         if (
           e.opts.strictKeywords
             ? (typeof o == 'object' && Object.keys(o).length > 0) || o === false
@@ -4087,7 +4087,7 @@
           h.schemaPath = n
           h.errSchemaPath = l
           a += ' var ' + u + ' = errors;  '
-          var p = e.compositeRule
+          var d = e.compositeRule
           e.compositeRule = h.compositeRule = true
           h.createErrors = false
           var v
@@ -4098,8 +4098,8 @@
           a += ' ' + e.validate(h) + ' '
           h.createErrors = true
           if (v) h.opts.allErrors = v
-          e.compositeRule = h.compositeRule = p
-          a += ' if (' + d + ') {   '
+          e.compositeRule = h.compositeRule = d
+          a += ' if (' + p + ') {   '
           var m = m || []
           m.push(a)
           a = ''
@@ -4204,11 +4204,11 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = 'errs__' + s
-        var d = e.util.copy(e)
-        var p = ''
-        d.level++
-        var v = 'valid' + d.level
-        var m = d.baseId,
+        var p = e.util.copy(e)
+        var d = ''
+        p.level++
+        var v = 'valid' + p.level
+        var m = p.baseId,
           y = 'prevValid' + s,
           g = 'passingSchemas' + s
         a +=
@@ -4221,30 +4221,30 @@
           ' = false , ' +
           g +
           ' = null; '
-        var P = e.compositeRule
-        e.compositeRule = d.compositeRule = true
-        var E = o
-        if (E) {
-          var b,
-            w = -1,
-            S = E.length - 1
-          while (w < S) {
-            b = E[(w += 1)]
+        var E = e.compositeRule
+        e.compositeRule = p.compositeRule = true
+        var P = o
+        if (P) {
+          var w,
+            S = -1,
+            b = P.length - 1
+          while (S < b) {
+            w = P[(S += 1)]
             if (
               e.opts.strictKeywords
-                ? (typeof b == 'object' && Object.keys(b).length > 0) ||
-                  b === false
-                : e.util.schemaHasRules(b, e.RULES.all)
+                ? (typeof w == 'object' && Object.keys(w).length > 0) ||
+                  w === false
+                : e.util.schemaHasRules(w, e.RULES.all)
             ) {
-              d.schema = b
-              d.schemaPath = n + '[' + w + ']'
-              d.errSchemaPath = l + '/' + w
-              a += '  ' + e.validate(d) + ' '
-              d.baseId = m
+              p.schema = w
+              p.schemaPath = n + '[' + S + ']'
+              p.errSchemaPath = l + '/' + S
+              a += '  ' + e.validate(p) + ' '
+              p.baseId = m
             } else {
               a += ' var ' + v + ' = true; '
             }
-            if (w) {
+            if (S) {
               a +=
                 ' if (' +
                 v +
@@ -4257,9 +4257,9 @@
                 ' = [' +
                 g +
                 ', ' +
-                w +
+                S +
                 ']; } else { '
-              p += '}'
+              d += '}'
             }
             a +=
               ' if (' +
@@ -4271,12 +4271,12 @@
               ' = true; ' +
               g +
               ' = ' +
-              w +
+              S +
               '; }'
           }
         }
-        e.compositeRule = d.compositeRule = P
-        a += '' + p + 'if (!' + u + ') {   var err =   '
+        e.compositeRule = p.compositeRule = E
+        a += '' + d + 'if (!' + u + ') {   var err =   '
         if (e.createErrors !== false) {
           a +=
             " { keyword: '" +
@@ -4352,14 +4352,14 @@
         } else {
           h = o
         }
-        var d = u ? '(new RegExp(' + h + '))' : e.usePattern(o)
+        var p = u ? '(new RegExp(' + h + '))' : e.usePattern(o)
         a += 'if ( '
         if (u) {
           a += ' (' + h + ' !== undefined && typeof ' + h + " != 'string') || "
         }
-        a += ' !' + d + '.test(' + c + ') ) {   '
-        var p = p || []
-        p.push(a)
+        a += ' !' + p + '.test(' + c + ') ) {   '
+        var d = d || []
+        d.push(a)
         a = ''
         if (e.createErrors !== false) {
           a +=
@@ -4404,7 +4404,7 @@
           a += ' {} '
         }
         var v = a
-        a = p.pop()
+        a = d.pop()
         if (!e.compositeRule && f) {
           if (e.async) {
             a += ' throw new ValidationError([' + v + ']); '
@@ -4437,43 +4437,43 @@
         var c = 'data' + (i || '')
         var u = 'errs__' + s
         var h = e.util.copy(e)
-        var d = ''
+        var p = ''
         h.level++
-        var p = 'valid' + h.level
+        var d = 'valid' + h.level
         var v = 'key' + s,
           m = 'idx' + s,
           y = (h.dataLevel = e.dataLevel + 1),
           g = 'data' + y,
-          P = 'dataProperties' + s
-        var E = Object.keys(o || {}).filter(notProto),
-          b = e.schema.patternProperties || {},
-          w = Object.keys(b).filter(notProto),
-          S = e.schema.additionalProperties,
-          x = E.length || w.length,
-          _ = S === false,
-          j = typeof S == 'object' && Object.keys(S).length,
-          R = e.opts.removeAdditional,
-          F = _ || j || R,
-          D = e.opts.ownProperties,
-          $ = e.baseId
-        var A = e.schema.required
-        if (A && !(e.opts.$data && A.$data) && A.length < e.opts.loopRequired) {
-          var I = e.util.toHash(A)
+          E = 'dataProperties' + s
+        var P = Object.keys(o || {}).filter(notProto),
+          w = e.schema.patternProperties || {},
+          S = Object.keys(w).filter(notProto),
+          b = e.schema.additionalProperties,
+          R = P.length || S.length,
+          I = b === false,
+          x = typeof b == 'object' && Object.keys(b).length,
+          O = e.opts.removeAdditional,
+          _ = I || x || O,
+          A = e.opts.ownProperties,
+          C = e.baseId
+        var D = e.schema.required
+        if (D && !(e.opts.$data && D.$data) && D.length < e.opts.loopRequired) {
+          var j = e.util.toHash(D)
         }
         function notProto(e) {
           return e !== '__proto__'
         }
-        a += 'var ' + u + ' = errors;var ' + p + ' = true;'
-        if (D) {
-          a += ' var ' + P + ' = undefined;'
+        a += 'var ' + u + ' = errors;var ' + d + ' = true;'
+        if (A) {
+          a += ' var ' + E + ' = undefined;'
         }
-        if (F) {
-          if (D) {
+        if (_) {
+          if (A) {
             a +=
               ' ' +
-              P +
+              E +
               ' = ' +
-              P +
+              E +
               ' || Object.keys(' +
               c +
               '); for (var ' +
@@ -4481,56 +4481,56 @@
               '=0; ' +
               m +
               '<' +
-              P +
+              E +
               '.length; ' +
               m +
               '++) { var ' +
               v +
               ' = ' +
-              P +
+              E +
               '[' +
               m +
               ']; '
           } else {
             a += ' for (var ' + v + ' in ' + c + ') { '
           }
-          if (x) {
+          if (R) {
             a += ' var isAdditional' + s + ' = !(false '
-            if (E.length) {
-              if (E.length > 8) {
+            if (P.length) {
+              if (P.length > 8) {
                 a += ' || validate.schema' + n + '.hasOwnProperty(' + v + ') '
               } else {
-                var C = E
-                if (C) {
-                  var O,
-                    k = -1,
-                    T = C.length - 1
-                  while (k < T) {
-                    O = C[(k += 1)]
-                    a += ' || ' + v + ' == ' + e.util.toQuotedString(O) + ' '
+                var F = P
+                if (F) {
+                  var L,
+                    T = -1,
+                    $ = F.length - 1
+                  while (T < $) {
+                    L = F[(T += 1)]
+                    a += ' || ' + v + ' == ' + e.util.toQuotedString(L) + ' '
                   }
                 }
               }
             }
-            if (w.length) {
-              var z = w
-              if (z) {
-                var L,
-                  N = -1,
-                  U = z.length - 1
-                while (N < U) {
-                  L = z[(N += 1)]
-                  a += ' || ' + e.usePattern(L) + '.test(' + v + ') '
+            if (S.length) {
+              var N = S
+              if (N) {
+                var k,
+                  U = -1,
+                  V = N.length - 1
+                while (U < V) {
+                  k = N[(U += 1)]
+                  a += ' || ' + e.usePattern(k) + '.test(' + v + ') '
                 }
               }
             }
             a += ' ); if (isAdditional' + s + ') { '
           }
-          if (R == 'all') {
+          if (O == 'all') {
             a += ' delete ' + c + '[' + v + ']; '
           } else {
-            var q = e.errorPath
-            var V = "' + " + v + " + '"
+            var M = e.errorPath
+            var z = "' + " + v + " + '"
             if (e.opts._errorDataPathProperty) {
               e.errorPath = e.util.getPathExpr(
                 e.errorPath,
@@ -4538,15 +4538,15 @@
                 e.opts.jsonPointers
               )
             }
-            if (_) {
-              if (R) {
+            if (I) {
+              if (O) {
                 a += ' delete ' + c + '[' + v + ']; '
               } else {
-                a += ' ' + p + ' = false; '
-                var Q = l
+                a += ' ' + d + ' = false; '
+                var q = l
                 l = e.errSchemaPath + '/additionalProperties'
-                var M = M || []
-                M.push(a)
+                var Q = Q || []
+                Q.push(a)
                 a = ''
                 if (e.createErrors !== false) {
                   a +=
@@ -4557,7 +4557,7 @@
                     ' , schemaPath: ' +
                     e.util.toQuotedString(l) +
                     " , params: { additionalProperty: '" +
-                    V +
+                    z +
                     "' } "
                   if (e.opts.messages !== false) {
                     a += " , message: '"
@@ -4581,7 +4581,7 @@
                   a += ' {} '
                 }
                 var H = a
-                a = M.pop()
+                a = Q.pop()
                 if (!e.compositeRule && f) {
                   if (e.async) {
                     a += ' throw new ValidationError([' + H + ']); '
@@ -4594,34 +4594,34 @@
                     H +
                     ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
                 }
-                l = Q
+                l = q
                 if (f) {
                   a += ' break; '
                 }
               }
-            } else if (j) {
-              if (R == 'failing') {
+            } else if (x) {
+              if (O == 'failing') {
                 a += ' var ' + u + ' = errors;  '
-                var K = e.compositeRule
+                var G = e.compositeRule
                 e.compositeRule = h.compositeRule = true
-                h.schema = S
+                h.schema = b
                 h.schemaPath = e.schemaPath + '.additionalProperties'
                 h.errSchemaPath = e.errSchemaPath + '/additionalProperties'
                 h.errorPath = e.opts._errorDataPathProperty
                   ? e.errorPath
                   : e.util.getPathExpr(e.errorPath, v, e.opts.jsonPointers)
-                var B = c + '[' + v + ']'
+                var K = c + '[' + v + ']'
                 h.dataPathArr[y] = v
-                var J = e.validate(h)
-                h.baseId = $
-                if (e.util.varOccurences(J, g) < 2) {
-                  a += ' ' + e.util.varReplace(J, g, B) + ' '
+                var B = e.validate(h)
+                h.baseId = C
+                if (e.util.varOccurences(B, g) < 2) {
+                  a += ' ' + e.util.varReplace(B, g, K) + ' '
                 } else {
-                  a += ' var ' + g + ' = ' + B + '; ' + J + ' '
+                  a += ' var ' + g + ' = ' + K + '; ' + B + ' '
                 }
                 a +=
                   ' if (!' +
-                  p +
+                  d +
                   ') { errors = ' +
                   u +
                   '; if (validate.errors !== null) { if (errors) validate.errors.length = errors; else validate.errors = null; } delete ' +
@@ -4629,99 +4629,99 @@
                   '[' +
                   v +
                   ']; }  '
-                e.compositeRule = h.compositeRule = K
+                e.compositeRule = h.compositeRule = G
               } else {
-                h.schema = S
+                h.schema = b
                 h.schemaPath = e.schemaPath + '.additionalProperties'
                 h.errSchemaPath = e.errSchemaPath + '/additionalProperties'
                 h.errorPath = e.opts._errorDataPathProperty
                   ? e.errorPath
                   : e.util.getPathExpr(e.errorPath, v, e.opts.jsonPointers)
-                var B = c + '[' + v + ']'
+                var K = c + '[' + v + ']'
                 h.dataPathArr[y] = v
-                var J = e.validate(h)
-                h.baseId = $
-                if (e.util.varOccurences(J, g) < 2) {
-                  a += ' ' + e.util.varReplace(J, g, B) + ' '
+                var B = e.validate(h)
+                h.baseId = C
+                if (e.util.varOccurences(B, g) < 2) {
+                  a += ' ' + e.util.varReplace(B, g, K) + ' '
                 } else {
-                  a += ' var ' + g + ' = ' + B + '; ' + J + ' '
+                  a += ' var ' + g + ' = ' + K + '; ' + B + ' '
                 }
                 if (f) {
-                  a += ' if (!' + p + ') break; '
+                  a += ' if (!' + d + ') break; '
                 }
               }
             }
-            e.errorPath = q
+            e.errorPath = M
           }
-          if (x) {
+          if (R) {
             a += ' } '
           }
           a += ' }  '
           if (f) {
-            a += ' if (' + p + ') { '
-            d += '}'
+            a += ' if (' + d + ') { '
+            p += '}'
           }
         }
-        var G = e.opts.useDefaults && !e.compositeRule
-        if (E.length) {
-          var Z = E
-          if (Z) {
-            var O,
-              X = -1,
-              Y = Z.length - 1
-            while (X < Y) {
-              O = Z[(X += 1)]
-              var W = o[O]
+        var X = e.opts.useDefaults && !e.compositeRule
+        if (P.length) {
+          var J = P
+          if (J) {
+            var L,
+              Y = -1,
+              Z = J.length - 1
+            while (Y < Z) {
+              L = J[(Y += 1)]
+              var W = o[L]
               if (
                 e.opts.strictKeywords
                   ? (typeof W == 'object' && Object.keys(W).length > 0) ||
                     W === false
                   : e.util.schemaHasRules(W, e.RULES.all)
               ) {
-                var ee = e.util.getProperty(O),
-                  B = c + ee,
-                  re = G && W.default !== undefined
+                var ee = e.util.getProperty(L),
+                  K = c + ee,
+                  re = X && W.default !== undefined
                 h.schema = W
                 h.schemaPath = n + ee
-                h.errSchemaPath = l + '/' + e.util.escapeFragment(O)
+                h.errSchemaPath = l + '/' + e.util.escapeFragment(L)
                 h.errorPath = e.util.getPath(
                   e.errorPath,
-                  O,
+                  L,
                   e.opts.jsonPointers
                 )
-                h.dataPathArr[y] = e.util.toQuotedString(O)
-                var J = e.validate(h)
-                h.baseId = $
-                if (e.util.varOccurences(J, g) < 2) {
-                  J = e.util.varReplace(J, g, B)
-                  var te = B
+                h.dataPathArr[y] = e.util.toQuotedString(L)
+                var B = e.validate(h)
+                h.baseId = C
+                if (e.util.varOccurences(B, g) < 2) {
+                  B = e.util.varReplace(B, g, K)
+                  var te = K
                 } else {
                   var te = g
-                  a += ' var ' + g + ' = ' + B + '; '
+                  a += ' var ' + g + ' = ' + K + '; '
                 }
                 if (re) {
-                  a += ' ' + J + ' '
+                  a += ' ' + B + ' '
                 } else {
-                  if (I && I[O]) {
+                  if (j && j[L]) {
                     a += ' if ( ' + te + ' === undefined '
-                    if (D) {
+                    if (A) {
                       a +=
                         ' || ! Object.prototype.hasOwnProperty.call(' +
                         c +
                         ", '" +
-                        e.util.escapeQuotes(O) +
+                        e.util.escapeQuotes(L) +
                         "') "
                     }
-                    a += ') { ' + p + ' = false; '
-                    var q = e.errorPath,
-                      Q = l,
-                      ae = e.util.escapeQuotes(O)
+                    a += ') { ' + d + ' = false; '
+                    var M = e.errorPath,
+                      q = l,
+                      ae = e.util.escapeQuotes(L)
                     if (e.opts._errorDataPathProperty) {
-                      e.errorPath = e.util.getPath(q, O, e.opts.jsonPointers)
+                      e.errorPath = e.util.getPath(M, L, e.opts.jsonPointers)
                     }
                     l = e.errSchemaPath + '/required'
-                    var M = M || []
-                    M.push(a)
+                    var Q = Q || []
+                    Q.push(a)
                     a = ''
                     if (e.createErrors !== false) {
                       a +=
@@ -4758,7 +4758,7 @@
                       a += ' {} '
                     }
                     var H = a
-                    a = M.pop()
+                    a = Q.pop()
                     if (!e.compositeRule && f) {
                       if (e.async) {
                         a += ' throw new ValidationError([' + H + ']); '
@@ -4771,53 +4771,53 @@
                         H +
                         ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
                     }
-                    l = Q
-                    e.errorPath = q
+                    l = q
+                    e.errorPath = M
                     a += ' } else { '
                   } else {
                     if (f) {
                       a += ' if ( ' + te + ' === undefined '
-                      if (D) {
+                      if (A) {
                         a +=
                           ' || ! Object.prototype.hasOwnProperty.call(' +
                           c +
                           ", '" +
-                          e.util.escapeQuotes(O) +
+                          e.util.escapeQuotes(L) +
                           "') "
                       }
-                      a += ') { ' + p + ' = true; } else { '
+                      a += ') { ' + d + ' = true; } else { '
                     } else {
                       a += ' if (' + te + ' !== undefined '
-                      if (D) {
+                      if (A) {
                         a +=
                           ' &&   Object.prototype.hasOwnProperty.call(' +
                           c +
                           ", '" +
-                          e.util.escapeQuotes(O) +
+                          e.util.escapeQuotes(L) +
                           "') "
                       }
                       a += ' ) { '
                     }
                   }
-                  a += ' ' + J + ' } '
+                  a += ' ' + B + ' } '
                 }
               }
               if (f) {
-                a += ' if (' + p + ') { '
-                d += '}'
+                a += ' if (' + d + ') { '
+                p += '}'
               }
             }
           }
         }
-        if (w.length) {
-          var se = w
+        if (S.length) {
+          var se = S
           if (se) {
-            var L,
+            var k,
               ie = -1,
               oe = se.length - 1
             while (ie < oe) {
-              L = se[(ie += 1)]
-              var W = b[L]
+              k = se[(ie += 1)]
+              var W = w[k]
               if (
                 e.opts.strictKeywords
                   ? (typeof W == 'object' && Object.keys(W).length > 0) ||
@@ -4826,17 +4826,17 @@
               ) {
                 h.schema = W
                 h.schemaPath =
-                  e.schemaPath + '.patternProperties' + e.util.getProperty(L)
+                  e.schemaPath + '.patternProperties' + e.util.getProperty(k)
                 h.errSchemaPath =
                   e.errSchemaPath +
                   '/patternProperties/' +
-                  e.util.escapeFragment(L)
-                if (D) {
+                  e.util.escapeFragment(k)
+                if (A) {
                   a +=
                     ' ' +
-                    P +
+                    E +
                     ' = ' +
-                    P +
+                    E +
                     ' || Object.keys(' +
                     c +
                     '); for (var ' +
@@ -4844,52 +4844,52 @@
                     '=0; ' +
                     m +
                     '<' +
-                    P +
+                    E +
                     '.length; ' +
                     m +
                     '++) { var ' +
                     v +
                     ' = ' +
-                    P +
+                    E +
                     '[' +
                     m +
                     ']; '
                 } else {
                   a += ' for (var ' + v + ' in ' + c + ') { '
                 }
-                a += ' if (' + e.usePattern(L) + '.test(' + v + ')) { '
+                a += ' if (' + e.usePattern(k) + '.test(' + v + ')) { '
                 h.errorPath = e.util.getPathExpr(
                   e.errorPath,
                   v,
                   e.opts.jsonPointers
                 )
-                var B = c + '[' + v + ']'
+                var K = c + '[' + v + ']'
                 h.dataPathArr[y] = v
-                var J = e.validate(h)
-                h.baseId = $
-                if (e.util.varOccurences(J, g) < 2) {
-                  a += ' ' + e.util.varReplace(J, g, B) + ' '
+                var B = e.validate(h)
+                h.baseId = C
+                if (e.util.varOccurences(B, g) < 2) {
+                  a += ' ' + e.util.varReplace(B, g, K) + ' '
                 } else {
-                  a += ' var ' + g + ' = ' + B + '; ' + J + ' '
+                  a += ' var ' + g + ' = ' + K + '; ' + B + ' '
                 }
                 if (f) {
-                  a += ' if (!' + p + ') break; '
+                  a += ' if (!' + d + ') break; '
                 }
                 a += ' } '
                 if (f) {
-                  a += ' else ' + p + ' = true; '
+                  a += ' else ' + d + ' = true; '
                 }
                 a += ' }  '
                 if (f) {
-                  a += ' if (' + p + ') { '
-                  d += '}'
+                  a += ' if (' + d + ') { '
+                  p += '}'
                 }
               }
             }
           }
         }
         if (f) {
-          a += ' ' + d + ' if (' + u + ' == errors) {'
+          a += ' ' + p + ' if (' + u + ' == errors) {'
         }
         return a
       }
@@ -4907,9 +4907,9 @@
         var c = 'data' + (i || '')
         var u = 'errs__' + s
         var h = e.util.copy(e)
-        var d = ''
+        var p = ''
         h.level++
-        var p = 'valid' + h.level
+        var d = 'valid' + h.level
         a += 'var ' + u + ' = errors;'
         if (
           e.opts.strictKeywords
@@ -4923,20 +4923,20 @@
             m = 'idx' + s,
             y = 'i' + s,
             g = "' + " + v + " + '",
-            P = (h.dataLevel = e.dataLevel + 1),
-            E = 'data' + P,
-            b = 'dataProperties' + s,
-            w = e.opts.ownProperties,
-            S = e.baseId
-          if (w) {
-            a += ' var ' + b + ' = undefined; '
+            E = (h.dataLevel = e.dataLevel + 1),
+            P = 'data' + E,
+            w = 'dataProperties' + s,
+            S = e.opts.ownProperties,
+            b = e.baseId
+          if (S) {
+            a += ' var ' + w + ' = undefined; '
           }
-          if (w) {
+          if (S) {
             a +=
               ' ' +
-              b +
+              w +
               ' = ' +
-              b +
+              w +
               ' || Object.keys(' +
               c +
               '); for (var ' +
@@ -4944,13 +4944,13 @@
               '=0; ' +
               m +
               '<' +
-              b +
+              w +
               '.length; ' +
               m +
               '++) { var ' +
               v +
               ' = ' +
-              b +
+              w +
               '[' +
               m +
               ']; '
@@ -4958,20 +4958,20 @@
             a += ' for (var ' + v + ' in ' + c + ') { '
           }
           a += ' var startErrs' + s + ' = errors; '
-          var x = v
-          var _ = e.compositeRule
+          var R = v
+          var I = e.compositeRule
           e.compositeRule = h.compositeRule = true
-          var j = e.validate(h)
-          h.baseId = S
-          if (e.util.varOccurences(j, E) < 2) {
-            a += ' ' + e.util.varReplace(j, E, x) + ' '
+          var x = e.validate(h)
+          h.baseId = b
+          if (e.util.varOccurences(x, P) < 2) {
+            a += ' ' + e.util.varReplace(x, P, R) + ' '
           } else {
-            a += ' var ' + E + ' = ' + x + '; ' + j + ' '
+            a += ' var ' + P + ' = ' + R + '; ' + x + ' '
           }
-          e.compositeRule = h.compositeRule = _
+          e.compositeRule = h.compositeRule = I
           a +=
             ' if (!' +
-            p +
+            d +
             ') { for (var ' +
             y +
             '=startErrs' +
@@ -5028,7 +5028,7 @@
           a += ' } }'
         }
         if (f) {
-          a += ' ' + d + ' if (' + u + ' == errors) {'
+          a += ' ' + p + ' if (' + u + ' == errors) {'
         }
         return a
       }
@@ -5054,11 +5054,11 @@
             h = 'root.refVal[0]'
           }
         } else {
-          var d = e.resolveRef(e.baseId, o, e.isRoot)
-          if (d === undefined) {
-            var p = e.MissingRefError.message(e.baseId, o)
+          var p = e.resolveRef(e.baseId, o, e.isRoot)
+          if (p === undefined) {
+            var d = e.MissingRefError.message(e.baseId, o)
             if (e.opts.missingRefs == 'fail') {
-              e.logger.error(p)
+              e.logger.error(d)
               var v = v || []
               v.push(a)
               a = ''
@@ -5111,28 +5111,28 @@
                 a += ' if (false) { '
               }
             } else if (e.opts.missingRefs == 'ignore') {
-              e.logger.warn(p)
+              e.logger.warn(d)
               if (l) {
                 a += ' if (true) { '
               }
             } else {
-              throw new e.MissingRefError(e.baseId, o, p)
+              throw new e.MissingRefError(e.baseId, o, d)
             }
-          } else if (d.inline) {
+          } else if (p.inline) {
             var y = e.util.copy(e)
             y.level++
             var g = 'valid' + y.level
-            y.schema = d.schema
+            y.schema = p.schema
             y.schemaPath = ''
             y.errSchemaPath = o
-            var P = e.validate(y).replace(/validate\.schema/g, d.code)
-            a += ' ' + P + ' '
+            var E = e.validate(y).replace(/validate\.schema/g, p.code)
+            a += ' ' + E + ' '
             if (l) {
               a += ' if (' + g + ') { '
             }
           } else {
-            u = d.$async === true || (e.async && d.$async !== false)
-            h = d.code
+            u = p.$async === true || (e.async && p.$async !== false)
+            h = p.code
           }
         }
         if (h) {
@@ -5148,10 +5148,10 @@
           if (e.errorPath != '""') {
             a += ' + ' + e.errorPath
           }
-          var E = i ? 'data' + (i - 1 || '') : 'parentData',
-            b = i ? e.dataPathArr[i] : 'parentDataProperty'
-          a += ' , ' + E + ' , ' + b + ', rootData)  '
-          var w = a
+          var P = i ? 'data' + (i - 1 || '') : 'parentData',
+            w = i ? e.dataPathArr[i] : 'parentDataProperty'
+          a += ' , ' + P + ' , ' + w + ', rootData)  '
+          var S = a
           a = v.pop()
           if (u) {
             if (!e.async)
@@ -5159,7 +5159,7 @@
             if (l) {
               a += ' var ' + c + '; '
             }
-            a += ' try { await ' + w + '; '
+            a += ' try { await ' + S + '; '
             if (l) {
               a += ' ' + c + ' = true; '
             }
@@ -5175,7 +5175,7 @@
           } else {
             a +=
               ' if (!' +
-              w +
+              S +
               ') { if (vErrors === null) vErrors = ' +
               h +
               '.errors; else vErrors = vErrors.concat(' +
@@ -5202,7 +5202,7 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -5210,11 +5210,11 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
-        var p = 'schema' + s
+        var d = 'schema' + s
         if (!h) {
           if (
             o.length < e.opts.loopRequired &&
@@ -5226,17 +5226,17 @@
             if (m) {
               var y,
                 g = -1,
-                P = m.length - 1
-              while (g < P) {
+                E = m.length - 1
+              while (g < E) {
                 y = m[(g += 1)]
-                var E = e.schema.properties[y]
+                var P = e.schema.properties[y]
                 if (
                   !(
-                    E &&
+                    P &&
                     (e.opts.strictKeywords
-                      ? (typeof E == 'object' && Object.keys(E).length > 0) ||
-                        E === false
-                      : e.util.schemaHasRules(E, e.RULES.all))
+                      ? (typeof P == 'object' && Object.keys(P).length > 0) ||
+                        P === false
+                      : e.util.schemaHasRules(P, e.RULES.all))
                   )
                 ) {
                   v[v.length] = y
@@ -5248,20 +5248,20 @@
           }
         }
         if (h || v.length) {
-          var b = e.errorPath,
-            w = h || v.length >= e.opts.loopRequired,
-            S = e.opts.ownProperties
+          var w = e.errorPath,
+            S = h || v.length >= e.opts.loopRequired,
+            b = e.opts.ownProperties
           if (f) {
             a += ' var missing' + s + '; '
-            if (w) {
+            if (S) {
               if (!h) {
-                a += ' var ' + p + ' = validate.schema' + n + '; '
+                a += ' var ' + d + ' = validate.schema' + n + '; '
               }
-              var x = 'i' + s,
-                _ = 'schema' + s + '[' + x + ']',
-                j = "' + " + _ + " + '"
+              var R = 'i' + s,
+                I = 'schema' + s + '[' + R + ']',
+                x = "' + " + I + " + '"
               if (e.opts._errorDataPathProperty) {
-                e.errorPath = e.util.getPathExpr(b, _, e.opts.jsonPointers)
+                e.errorPath = e.util.getPathExpr(w, I, e.opts.jsonPointers)
               }
               a += ' var ' + u + ' = true; '
               if (h) {
@@ -5278,30 +5278,30 @@
               }
               a +=
                 ' for (var ' +
-                x +
+                R +
                 ' = 0; ' +
-                x +
+                R +
                 ' < ' +
-                p +
+                d +
                 '.length; ' +
-                x +
+                R +
                 '++) { ' +
                 u +
                 ' = ' +
                 c +
                 '[' +
-                p +
+                d +
                 '[' +
-                x +
+                R +
                 ']] !== undefined '
-              if (S) {
+              if (b) {
                 a +=
                   ' &&   Object.prototype.hasOwnProperty.call(' +
                   c +
                   ', ' +
-                  p +
+                  d +
                   '[' +
-                  x +
+                  R +
                   ']) '
               }
               a += '; if (!' + u + ') break; } '
@@ -5309,8 +5309,8 @@
                 a += '  }  '
               }
               a += '  if (!' + u + ') {   '
-              var R = R || []
-              R.push(a)
+              var O = O || []
+              O.push(a)
               a = ''
               if (e.createErrors !== false) {
                 a +=
@@ -5321,14 +5321,14 @@
                   ' , schemaPath: ' +
                   e.util.toQuotedString(l) +
                   " , params: { missingProperty: '" +
-                  j +
+                  x +
                   "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: '"
                   if (e.opts._errorDataPathProperty) {
                     a += 'is a required property'
                   } else {
-                    a += "should have required property \\'" + j + "\\'"
+                    a += "should have required property \\'" + x + "\\'"
                   }
                   a += "' "
                 }
@@ -5346,62 +5346,62 @@
               } else {
                 a += ' {} '
               }
-              var F = a
-              a = R.pop()
+              var _ = a
+              a = O.pop()
               if (!e.compositeRule && f) {
                 if (e.async) {
-                  a += ' throw new ValidationError([' + F + ']); '
+                  a += ' throw new ValidationError([' + _ + ']); '
                 } else {
-                  a += ' validate.errors = [' + F + ']; return false; '
+                  a += ' validate.errors = [' + _ + ']; return false; '
                 }
               } else {
                 a +=
                   ' var err = ' +
-                  F +
+                  _ +
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
               }
               a += ' } else { '
             } else {
               a += ' if ( '
-              var D = v
-              if (D) {
-                var $,
-                  x = -1,
-                  A = D.length - 1
-                while (x < A) {
-                  $ = D[(x += 1)]
-                  if (x) {
+              var A = v
+              if (A) {
+                var C,
+                  R = -1,
+                  D = A.length - 1
+                while (R < D) {
+                  C = A[(R += 1)]
+                  if (R) {
                     a += ' || '
                   }
-                  var I = e.util.getProperty($),
-                    C = c + I
-                  a += ' ( ( ' + C + ' === undefined '
-                  if (S) {
+                  var j = e.util.getProperty(C),
+                    F = c + j
+                  a += ' ( ( ' + F + ' === undefined '
+                  if (b) {
                     a +=
                       ' || ! Object.prototype.hasOwnProperty.call(' +
                       c +
                       ", '" +
-                      e.util.escapeQuotes($) +
+                      e.util.escapeQuotes(C) +
                       "') "
                   }
                   a +=
                     ') && (missing' +
                     s +
                     ' = ' +
-                    e.util.toQuotedString(e.opts.jsonPointers ? $ : I) +
+                    e.util.toQuotedString(e.opts.jsonPointers ? C : j) +
                     ') ) '
                 }
               }
               a += ') {  '
-              var _ = 'missing' + s,
-                j = "' + " + _ + " + '"
+              var I = 'missing' + s,
+                x = "' + " + I + " + '"
               if (e.opts._errorDataPathProperty) {
                 e.errorPath = e.opts.jsonPointers
-                  ? e.util.getPathExpr(b, _, true)
-                  : b + ' + ' + _
+                  ? e.util.getPathExpr(w, I, true)
+                  : w + ' + ' + I
               }
-              var R = R || []
-              R.push(a)
+              var O = O || []
+              O.push(a)
               a = ''
               if (e.createErrors !== false) {
                 a +=
@@ -5412,14 +5412,14 @@
                   ' , schemaPath: ' +
                   e.util.toQuotedString(l) +
                   " , params: { missingProperty: '" +
-                  j +
+                  x +
                   "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: '"
                   if (e.opts._errorDataPathProperty) {
                     a += 'is a required property'
                   } else {
-                    a += "should have required property \\'" + j + "\\'"
+                    a += "should have required property \\'" + x + "\\'"
                   }
                   a += "' "
                 }
@@ -5437,36 +5437,36 @@
               } else {
                 a += ' {} '
               }
-              var F = a
-              a = R.pop()
+              var _ = a
+              a = O.pop()
               if (!e.compositeRule && f) {
                 if (e.async) {
-                  a += ' throw new ValidationError([' + F + ']); '
+                  a += ' throw new ValidationError([' + _ + ']); '
                 } else {
-                  a += ' validate.errors = [' + F + ']; return false; '
+                  a += ' validate.errors = [' + _ + ']; return false; '
                 }
               } else {
                 a +=
                   ' var err = ' +
-                  F +
+                  _ +
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
               }
               a += ' } else { '
             }
           } else {
-            if (w) {
+            if (S) {
               if (!h) {
-                a += ' var ' + p + ' = validate.schema' + n + '; '
+                a += ' var ' + d + ' = validate.schema' + n + '; '
               }
-              var x = 'i' + s,
-                _ = 'schema' + s + '[' + x + ']',
-                j = "' + " + _ + " + '"
+              var R = 'i' + s,
+                I = 'schema' + s + '[' + R + ']',
+                x = "' + " + I + " + '"
               if (e.opts._errorDataPathProperty) {
-                e.errorPath = e.util.getPathExpr(b, _, e.opts.jsonPointers)
+                e.errorPath = e.util.getPathExpr(w, I, e.opts.jsonPointers)
               }
               if (h) {
                 a +=
-                  ' if (' + p + ' && !Array.isArray(' + p + ')) {  var err =   '
+                  ' if (' + d + ' && !Array.isArray(' + d + ')) {  var err =   '
                 if (e.createErrors !== false) {
                   a +=
                     " { keyword: '" +
@@ -5476,14 +5476,14 @@
                     ' , schemaPath: ' +
                     e.util.toQuotedString(l) +
                     " , params: { missingProperty: '" +
-                    j +
+                    x +
                     "' } "
                   if (e.opts.messages !== false) {
                     a += " , message: '"
                     if (e.opts._errorDataPathProperty) {
                       a += 'is a required property'
                     } else {
-                      a += "should have required property \\'" + j + "\\'"
+                      a += "should have required property \\'" + x + "\\'"
                     }
                     a += "' "
                   }
@@ -5503,33 +5503,33 @@
                 }
                 a +=
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; } else if (' +
-                  p +
+                  d +
                   ' !== undefined) { '
               }
               a +=
                 ' for (var ' +
-                x +
+                R +
                 ' = 0; ' +
-                x +
+                R +
                 ' < ' +
-                p +
+                d +
                 '.length; ' +
-                x +
+                R +
                 '++) { if (' +
                 c +
                 '[' +
-                p +
+                d +
                 '[' +
-                x +
+                R +
                 ']] === undefined '
-              if (S) {
+              if (b) {
                 a +=
                   ' || ! Object.prototype.hasOwnProperty.call(' +
                   c +
                   ', ' +
-                  p +
+                  d +
                   '[' +
-                  x +
+                  R +
                   ']) '
               }
               a += ') {  var err =   '
@@ -5542,14 +5542,14 @@
                   ' , schemaPath: ' +
                   e.util.toQuotedString(l) +
                   " , params: { missingProperty: '" +
-                  j +
+                  x +
                   "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: '"
                   if (e.opts._errorDataPathProperty) {
                     a += 'is a required property'
                   } else {
-                    a += "should have required property \\'" + j + "\\'"
+                    a += "should have required property \\'" + x + "\\'"
                   }
                   a += "' "
                 }
@@ -5573,26 +5573,26 @@
                 a += '  }  '
               }
             } else {
-              var O = v
-              if (O) {
-                var $,
-                  k = -1,
-                  T = O.length - 1
-                while (k < T) {
-                  $ = O[(k += 1)]
-                  var I = e.util.getProperty($),
-                    j = e.util.escapeQuotes($),
-                    C = c + I
+              var L = v
+              if (L) {
+                var C,
+                  T = -1,
+                  $ = L.length - 1
+                while (T < $) {
+                  C = L[(T += 1)]
+                  var j = e.util.getProperty(C),
+                    x = e.util.escapeQuotes(C),
+                    F = c + j
                   if (e.opts._errorDataPathProperty) {
-                    e.errorPath = e.util.getPath(b, $, e.opts.jsonPointers)
+                    e.errorPath = e.util.getPath(w, C, e.opts.jsonPointers)
                   }
-                  a += ' if ( ' + C + ' === undefined '
-                  if (S) {
+                  a += ' if ( ' + F + ' === undefined '
+                  if (b) {
                     a +=
                       ' || ! Object.prototype.hasOwnProperty.call(' +
                       c +
                       ", '" +
-                      e.util.escapeQuotes($) +
+                      e.util.escapeQuotes(C) +
                       "') "
                   }
                   a += ') {  var err =   '
@@ -5605,14 +5605,14 @@
                       ' , schemaPath: ' +
                       e.util.toQuotedString(l) +
                       " , params: { missingProperty: '" +
-                      j +
+                      x +
                       "' } "
                     if (e.opts.messages !== false) {
                       a += " , message: '"
                       if (e.opts._errorDataPathProperty) {
                         a += 'is a required property'
                       } else {
-                        a += "should have required property \\'" + j + "\\'"
+                        a += "should have required property \\'" + x + "\\'"
                       }
                       a += "' "
                     }
@@ -5636,7 +5636,7 @@
               }
             }
           }
-          e.errorPath = b
+          e.errorPath = w
         } else if (f) {
           a += ' if (true) {'
         }
@@ -5656,7 +5656,7 @@
         var c = 'data' + (i || '')
         var u = 'valid' + s
         var h = e.opts.$data && o && o.$data,
-          d
+          p
         if (h) {
           a +=
             ' var schema' +
@@ -5664,9 +5664,9 @@
             ' = ' +
             e.util.getData(o.$data, i, e.dataPathArr) +
             '; '
-          d = 'schema' + s
+          p = 'schema' + s
         } else {
-          d = o
+          p = o
         }
         if ((o || h) && e.opts.uniqueItems !== false) {
           if (h) {
@@ -5674,25 +5674,25 @@
               ' var ' +
               u +
               '; if (' +
-              d +
+              p +
               ' === false || ' +
-              d +
+              p +
               ' === undefined) ' +
               u +
               ' = true; else if (typeof ' +
-              d +
+              p +
               " != 'boolean') " +
               u +
               ' = false; else { '
           }
           a += ' var i = ' + c + '.length , ' + u + ' = true , j; if (i > 1) { '
-          var p = e.schema.items && e.schema.items.type,
-            v = Array.isArray(p)
+          var d = e.schema.items && e.schema.items.type,
+            v = Array.isArray(d)
           if (
-            !p ||
-            p == 'object' ||
-            p == 'array' ||
-            (v && (p.indexOf('object') >= 0 || p.indexOf('array') >= 0))
+            !d ||
+            d == 'object' ||
+            d == 'array' ||
+            (v && (d.indexOf('object') >= 0 || d.indexOf('array') >= 0))
           ) {
             a +=
               ' outer: for (;i--;) { for (j = i; j--;) { if (equal(' +
@@ -5710,7 +5710,7 @@
             var m = 'checkDataType' + (v ? 's' : '')
             a +=
               ' if (' +
-              e.util[m](p, 'item', e.opts.strictNumbers, true) +
+              e.util[m](d, 'item', e.opts.strictNumbers, true) +
               ') continue; '
             if (v) {
               a += " if (typeof item == 'string') item = '\"' + item; "
@@ -5818,14 +5818,14 @@
           var c = e.dataLevel
           var u = e.schema[r]
           var h = e.schemaPath + e.util.getProperty(r)
-          var d = e.errSchemaPath + '/' + r
-          var p = !e.opts.allErrors
+          var p = e.errSchemaPath + '/' + r
+          var d = !e.opts.allErrors
           var v
           var m = 'data' + (c || '')
           var y = 'valid' + f
           if (e.schema === false) {
             if (e.isTop) {
-              p = true
+              d = true
             } else {
               a += ' var ' + y + ' = false; '
             }
@@ -5839,7 +5839,7 @@
                 "' , dataPath: (dataPath || '') + " +
                 e.errorPath +
                 ' , schemaPath: ' +
-                e.util.toQuotedString(d) +
+                e.util.toQuotedString(p) +
                 ' , params: {} '
               if (e.opts.messages !== false) {
                 a += " , message: 'boolean schema is false' "
@@ -5856,18 +5856,18 @@
             } else {
               a += ' {} '
             }
-            var P = a
+            var E = a
             a = g.pop()
-            if (!e.compositeRule && p) {
+            if (!e.compositeRule && d) {
               if (e.async) {
-                a += ' throw new ValidationError([' + P + ']); '
+                a += ' throw new ValidationError([' + E + ']); '
               } else {
-                a += ' validate.errors = [' + P + ']; return false; '
+                a += ' validate.errors = [' + E + ']; return false; '
               }
             } else {
               a +=
                 ' var err = ' +
-                P +
+                E +
                 ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
             }
           } else {
@@ -5887,7 +5887,7 @@
           return a
         }
         if (e.isTop) {
-          var E = e.isTop,
+          var P = e.isTop,
             f = (e.level = 0),
             c = (e.dataLevel = 0),
             m = 'data'
@@ -5900,9 +5900,9 @@
             e.opts.useDefaults &&
             e.opts.strictDefaults
           ) {
-            var b = 'default is ignored in the schema root'
-            if (e.opts.strictDefaults === 'log') e.logger.warn(b)
-            else throw new Error(b)
+            var w = 'default is ignored in the schema root'
+            if (e.opts.strictDefaults === 'log') e.logger.warn(w)
+            else throw new Error(w)
           }
           a += ' var vErrors = null; '
           a += ' var errors = 0;     '
@@ -5916,23 +5916,23 @@
           a += ' var errs_' + f + ' = errors;'
         }
         var y = 'valid' + f,
-          p = !e.opts.allErrors,
-          w = '',
-          S = ''
+          d = !e.opts.allErrors,
+          S = '',
+          b = ''
         var v
-        var x = e.schema.type,
-          _ = Array.isArray(x)
-        if (x && e.opts.nullable && e.schema.nullable === true) {
-          if (_) {
-            if (x.indexOf('null') == -1) x = x.concat('null')
-          } else if (x != 'null') {
-            x = [x, 'null']
-            _ = true
+        var R = e.schema.type,
+          I = Array.isArray(R)
+        if (R && e.opts.nullable && e.schema.nullable === true) {
+          if (I) {
+            if (R.indexOf('null') == -1) R = R.concat('null')
+          } else if (R != 'null') {
+            R = [R, 'null']
+            I = true
           }
         }
-        if (_ && x.length == 1) {
-          x = x[0]
-          _ = false
+        if (I && R.length == 1) {
+          R = R[0]
+          I = false
         }
         if (e.schema.$ref && i) {
           if (e.opts.extendRefs == 'fail') {
@@ -5953,27 +5953,27 @@
         if (e.schema.$comment && e.opts.$comment) {
           a += ' ' + e.RULES.all.$comment.code(e, '$comment')
         }
-        if (x) {
+        if (R) {
           if (e.opts.coerceTypes) {
-            var j = e.util.coerceToTypes(e.opts.coerceTypes, x)
+            var x = e.util.coerceToTypes(e.opts.coerceTypes, R)
           }
-          var R = e.RULES.types[x]
-          if (j || _ || R === true || (R && !$shouldUseGroup(R))) {
+          var O = e.RULES.types[R]
+          if (x || I || O === true || (O && !$shouldUseGroup(O))) {
             var h = e.schemaPath + '.type',
-              d = e.errSchemaPath + '/type'
+              p = e.errSchemaPath + '/type'
             var h = e.schemaPath + '.type',
-              d = e.errSchemaPath + '/type',
-              F = _ ? 'checkDataTypes' : 'checkDataType'
-            a += ' if (' + e.util[F](x, m, e.opts.strictNumbers, true) + ') { '
-            if (j) {
-              var D = 'dataType' + f,
-                $ = 'coerced' + f
+              p = e.errSchemaPath + '/type',
+              _ = I ? 'checkDataTypes' : 'checkDataType'
+            a += ' if (' + e.util[_](R, m, e.opts.strictNumbers, true) + ') { '
+            if (x) {
+              var A = 'dataType' + f,
+                C = 'coerced' + f
               a +=
-                ' var ' + D + ' = typeof ' + m + '; var ' + $ + ' = undefined; '
+                ' var ' + A + ' = typeof ' + m + '; var ' + C + ' = undefined; '
               if (e.opts.coerceTypes == 'array') {
                 a +=
                   ' if (' +
-                  D +
+                  A +
                   " == 'object' && Array.isArray(" +
                   m +
                   ') && ' +
@@ -5983,48 +5983,48 @@
                   ' = ' +
                   m +
                   '[0]; ' +
-                  D +
+                  A +
                   ' = typeof ' +
                   m +
                   '; if (' +
                   e.util.checkDataType(e.schema.type, m, e.opts.strictNumbers) +
                   ') ' +
-                  $ +
+                  C +
                   ' = ' +
                   m +
                   '; } '
               }
-              a += ' if (' + $ + ' !== undefined) ; '
-              var A = j
-              if (A) {
-                var I,
-                  C = -1,
-                  O = A.length - 1
-                while (C < O) {
-                  I = A[(C += 1)]
-                  if (I == 'string') {
+              a += ' if (' + C + ' !== undefined) ; '
+              var D = x
+              if (D) {
+                var j,
+                  F = -1,
+                  L = D.length - 1
+                while (F < L) {
+                  j = D[(F += 1)]
+                  if (j == 'string') {
                     a +=
                       ' else if (' +
-                      D +
+                      A +
                       " == 'number' || " +
-                      D +
+                      A +
                       " == 'boolean') " +
-                      $ +
+                      C +
                       " = '' + " +
                       m +
                       '; else if (' +
                       m +
                       ' === null) ' +
-                      $ +
+                      C +
                       " = ''; "
-                  } else if (I == 'number' || I == 'integer') {
+                  } else if (j == 'number' || j == 'integer') {
                     a +=
                       ' else if (' +
-                      D +
+                      A +
                       " == 'boolean' || " +
                       m +
                       ' === null || (' +
-                      D +
+                      A +
                       " == 'string' && " +
                       m +
                       ' && ' +
@@ -6032,11 +6032,11 @@
                       ' == +' +
                       m +
                       ' '
-                    if (I == 'integer') {
+                    if (j == 'integer') {
                       a += ' && !(' + m + ' % 1)'
                     }
-                    a += ')) ' + $ + ' = +' + m + '; '
-                  } else if (I == 'boolean') {
+                    a += ')) ' + C + ' = +' + m + '; '
+                  } else if (j == 'boolean') {
                     a +=
                       ' else if (' +
                       m +
@@ -6045,15 +6045,15 @@
                       ' === 0 || ' +
                       m +
                       ' === null) ' +
-                      $ +
+                      C +
                       ' = false; else if (' +
                       m +
                       " === 'true' || " +
                       m +
                       ' === 1) ' +
-                      $ +
+                      C +
                       ' = true; '
-                  } else if (I == 'null') {
+                  } else if (j == 'null') {
                     a +=
                       ' else if (' +
                       m +
@@ -6062,20 +6062,20 @@
                       ' === 0 || ' +
                       m +
                       ' === false) ' +
-                      $ +
+                      C +
                       ' = null; '
-                  } else if (e.opts.coerceTypes == 'array' && I == 'array') {
+                  } else if (e.opts.coerceTypes == 'array' && j == 'array') {
                     a +=
                       ' else if (' +
-                      D +
+                      A +
                       " == 'string' || " +
-                      D +
+                      A +
                       " == 'number' || " +
-                      D +
+                      A +
                       " == 'boolean' || " +
                       m +
                       ' == null) ' +
-                      $ +
+                      C +
                       ' = [' +
                       m +
                       ']; '
@@ -6093,20 +6093,20 @@
                   "' , dataPath: (dataPath || '') + " +
                   e.errorPath +
                   ' , schemaPath: ' +
-                  e.util.toQuotedString(d) +
+                  e.util.toQuotedString(p) +
                   " , params: { type: '"
-                if (_) {
-                  a += '' + x.join(',')
+                if (I) {
+                  a += '' + R.join(',')
                 } else {
-                  a += '' + x
+                  a += '' + R
                 }
                 a += "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: 'should be "
-                  if (_) {
-                    a += '' + x.join(',')
+                  if (I) {
+                    a += '' + R.join(',')
                   } else {
-                    a += '' + x
+                    a += '' + R
                   }
                   a += "' "
                 }
@@ -6124,28 +6124,28 @@
               } else {
                 a += ' {} '
               }
-              var P = a
+              var E = a
               a = g.pop()
-              if (!e.compositeRule && p) {
+              if (!e.compositeRule && d) {
                 if (e.async) {
-                  a += ' throw new ValidationError([' + P + ']); '
+                  a += ' throw new ValidationError([' + E + ']); '
                 } else {
-                  a += ' validate.errors = [' + P + ']; return false; '
+                  a += ' validate.errors = [' + E + ']; return false; '
                 }
               } else {
                 a +=
                   ' var err = ' +
-                  P +
+                  E +
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
               }
-              a += ' } if (' + $ + ' !== undefined) {  '
-              var k = c ? 'data' + (c - 1 || '') : 'parentData',
-                T = c ? e.dataPathArr[c] : 'parentDataProperty'
-              a += ' ' + m + ' = ' + $ + '; '
+              a += ' } if (' + C + ' !== undefined) {  '
+              var T = c ? 'data' + (c - 1 || '') : 'parentData',
+                $ = c ? e.dataPathArr[c] : 'parentDataProperty'
+              a += ' ' + m + ' = ' + C + '; '
               if (!c) {
-                a += 'if (' + k + ' !== undefined)'
+                a += 'if (' + T + ' !== undefined)'
               }
-              a += ' ' + k + '[' + T + '] = ' + $ + '; } '
+              a += ' ' + T + '[' + $ + '] = ' + C + '; } '
             } else {
               var g = g || []
               g.push(a)
@@ -6157,20 +6157,20 @@
                   "' , dataPath: (dataPath || '') + " +
                   e.errorPath +
                   ' , schemaPath: ' +
-                  e.util.toQuotedString(d) +
+                  e.util.toQuotedString(p) +
                   " , params: { type: '"
-                if (_) {
-                  a += '' + x.join(',')
+                if (I) {
+                  a += '' + R.join(',')
                 } else {
-                  a += '' + x
+                  a += '' + R
                 }
                 a += "' } "
                 if (e.opts.messages !== false) {
                   a += " , message: 'should be "
-                  if (_) {
-                    a += '' + x.join(',')
+                  if (I) {
+                    a += '' + R.join(',')
                   } else {
-                    a += '' + x
+                    a += '' + R
                   }
                   a += "' "
                 }
@@ -6188,18 +6188,18 @@
               } else {
                 a += ' {} '
               }
-              var P = a
+              var E = a
               a = g.pop()
-              if (!e.compositeRule && p) {
+              if (!e.compositeRule && d) {
                 if (e.async) {
-                  a += ' throw new ValidationError([' + P + ']); '
+                  a += ' throw new ValidationError([' + E + ']); '
                 } else {
-                  a += ' validate.errors = [' + P + ']; return false; '
+                  a += ' validate.errors = [' + E + ']; return false; '
                 }
               } else {
                 a +=
                   ' var err = ' +
-                  P +
+                  E +
                   ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
               }
             }
@@ -6208,58 +6208,58 @@
         }
         if (e.schema.$ref && !i) {
           a += ' ' + e.RULES.all.$ref.code(e, '$ref') + ' '
-          if (p) {
+          if (d) {
             a += ' } if (errors === '
-            if (E) {
+            if (P) {
               a += '0'
             } else {
               a += 'errs_' + f
             }
             a += ') { '
-            S += '}'
+            b += '}'
           }
         } else {
-          var z = e.RULES
-          if (z) {
-            var R,
-              L = -1,
-              N = z.length - 1
-            while (L < N) {
-              R = z[(L += 1)]
-              if ($shouldUseGroup(R)) {
-                if (R.type) {
+          var N = e.RULES
+          if (N) {
+            var O,
+              k = -1,
+              U = N.length - 1
+            while (k < U) {
+              O = N[(k += 1)]
+              if ($shouldUseGroup(O)) {
+                if (O.type) {
                   a +=
                     ' if (' +
-                    e.util.checkDataType(R.type, m, e.opts.strictNumbers) +
+                    e.util.checkDataType(O.type, m, e.opts.strictNumbers) +
                     ') { '
                 }
                 if (e.opts.useDefaults) {
-                  if (R.type == 'object' && e.schema.properties) {
+                  if (O.type == 'object' && e.schema.properties) {
                     var u = e.schema.properties,
-                      U = Object.keys(u)
-                    var q = U
-                    if (q) {
-                      var V,
-                        Q = -1,
-                        M = q.length - 1
-                      while (Q < M) {
-                        V = q[(Q += 1)]
-                        var H = u[V]
+                      V = Object.keys(u)
+                    var M = V
+                    if (M) {
+                      var z,
+                        q = -1,
+                        Q = M.length - 1
+                      while (q < Q) {
+                        z = M[(q += 1)]
+                        var H = u[z]
                         if (H.default !== undefined) {
-                          var K = m + e.util.getProperty(V)
+                          var G = m + e.util.getProperty(z)
                           if (e.compositeRule) {
                             if (e.opts.strictDefaults) {
-                              var b = 'default is ignored for: ' + K
+                              var w = 'default is ignored for: ' + G
                               if (e.opts.strictDefaults === 'log')
-                                e.logger.warn(b)
-                              else throw new Error(b)
+                                e.logger.warn(w)
+                              else throw new Error(w)
                             }
                           } else {
-                            a += ' if (' + K + ' === undefined '
+                            a += ' if (' + G + ' === undefined '
                             if (e.opts.useDefaults == 'empty') {
-                              a += ' || ' + K + ' === null || ' + K + " === '' "
+                              a += ' || ' + G + ' === null || ' + G + " === '' "
                             }
-                            a += ' ) ' + K + ' = '
+                            a += ' ) ' + G + ' = '
                             if (e.opts.useDefaults == 'shared') {
                               a += ' ' + e.useDefault(H.default) + ' '
                             } else {
@@ -6271,31 +6271,31 @@
                       }
                     }
                   } else if (
-                    R.type == 'array' &&
+                    O.type == 'array' &&
                     Array.isArray(e.schema.items)
                   ) {
-                    var B = e.schema.items
-                    if (B) {
+                    var K = e.schema.items
+                    if (K) {
                       var H,
-                        C = -1,
-                        J = B.length - 1
-                      while (C < J) {
-                        H = B[(C += 1)]
+                        F = -1,
+                        B = K.length - 1
+                      while (F < B) {
+                        H = K[(F += 1)]
                         if (H.default !== undefined) {
-                          var K = m + '[' + C + ']'
+                          var G = m + '[' + F + ']'
                           if (e.compositeRule) {
                             if (e.opts.strictDefaults) {
-                              var b = 'default is ignored for: ' + K
+                              var w = 'default is ignored for: ' + G
                               if (e.opts.strictDefaults === 'log')
-                                e.logger.warn(b)
-                              else throw new Error(b)
+                                e.logger.warn(w)
+                              else throw new Error(w)
                             }
                           } else {
-                            a += ' if (' + K + ' === undefined '
+                            a += ' if (' + G + ' === undefined '
                             if (e.opts.useDefaults == 'empty') {
-                              a += ' || ' + K + ' === null || ' + K + " === '' "
+                              a += ' || ' + G + ' === null || ' + G + " === '' "
                             }
-                            a += ' ) ' + K + ' = '
+                            a += ' ) ' + G + ' = '
                             if (e.opts.useDefaults == 'shared') {
                               a += ' ' + e.useDefault(H.default) + ' '
                             } else {
@@ -6308,34 +6308,34 @@
                     }
                   }
                 }
-                var G = R.rules
-                if (G) {
-                  var Z,
-                    X = -1,
-                    Y = G.length - 1
-                  while (X < Y) {
-                    Z = G[(X += 1)]
-                    if ($shouldUseRule(Z)) {
-                      var W = Z.code(e, Z.keyword, R.type)
+                var X = O.rules
+                if (X) {
+                  var J,
+                    Y = -1,
+                    Z = X.length - 1
+                  while (Y < Z) {
+                    J = X[(Y += 1)]
+                    if ($shouldUseRule(J)) {
+                      var W = J.code(e, J.keyword, O.type)
                       if (W) {
                         a += ' ' + W + ' '
-                        if (p) {
-                          w += '}'
+                        if (d) {
+                          S += '}'
                         }
                       }
                     }
                   }
                 }
-                if (p) {
-                  a += ' ' + w + ' '
-                  w = ''
+                if (d) {
+                  a += ' ' + S + ' '
+                  S = ''
                 }
-                if (R.type) {
+                if (O.type) {
                   a += ' } '
-                  if (x && x === R.type && !j) {
+                  if (R && R === O.type && !x) {
                     a += ' else { '
                     var h = e.schemaPath + '.type',
-                      d = e.errSchemaPath + '/type'
+                      p = e.errSchemaPath + '/type'
                     var g = g || []
                     g.push(a)
                     a = ''
@@ -6346,20 +6346,20 @@
                         "' , dataPath: (dataPath || '') + " +
                         e.errorPath +
                         ' , schemaPath: ' +
-                        e.util.toQuotedString(d) +
+                        e.util.toQuotedString(p) +
                         " , params: { type: '"
-                      if (_) {
-                        a += '' + x.join(',')
+                      if (I) {
+                        a += '' + R.join(',')
                       } else {
-                        a += '' + x
+                        a += '' + R
                       }
                       a += "' } "
                       if (e.opts.messages !== false) {
                         a += " , message: 'should be "
-                        if (_) {
-                          a += '' + x.join(',')
+                        if (I) {
+                          a += '' + R.join(',')
                         } else {
-                          a += '' + x
+                          a += '' + R
                         }
                         a += "' "
                       }
@@ -6377,41 +6377,41 @@
                     } else {
                       a += ' {} '
                     }
-                    var P = a
+                    var E = a
                     a = g.pop()
-                    if (!e.compositeRule && p) {
+                    if (!e.compositeRule && d) {
                       if (e.async) {
-                        a += ' throw new ValidationError([' + P + ']); '
+                        a += ' throw new ValidationError([' + E + ']); '
                       } else {
-                        a += ' validate.errors = [' + P + ']; return false; '
+                        a += ' validate.errors = [' + E + ']; return false; '
                       }
                     } else {
                       a +=
                         ' var err = ' +
-                        P +
+                        E +
                         ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; '
                     }
                     a += ' } '
                   }
                 }
-                if (p) {
+                if (d) {
                   a += ' if (errors === '
-                  if (E) {
+                  if (P) {
                     a += '0'
                   } else {
                     a += 'errs_' + f
                   }
                   a += ') { '
-                  S += '}'
+                  b += '}'
                 }
               }
             }
           }
         }
-        if (p) {
-          a += ' ' + S + ' '
+        if (d) {
+          a += ' ' + b + ' '
         }
-        if (E) {
+        if (P) {
           if (s) {
             a += ' if (errors === 0) return data;           '
             a += ' else throw new ValidationError(vErrors); '
@@ -6554,9 +6554,9 @@
       const c = t(990)
       const u = t(4263)
       const h = t(6363)
-      const d = t(6474)
+      const p = t(6474)
       const plainObject = () => Object.create(null)
-      const p = 'aes-256-cbc'
+      const d = 'aes-256-cbc'
       delete require.cache[__filename]
       const v = s.dirname((e.parent && e.parent.filename) || '.')
       const checkValueType = (e, r) => {
@@ -6597,7 +6597,7 @@
             if (typeof e.schema !== 'object') {
               throw new TypeError('The `schema` option must be an object.')
             }
-            const r = new d({
+            const r = new p({
               allErrors: true,
               format: 'full',
               useDefaults: true,
@@ -6745,10 +6745,10 @@
                     32,
                     'sha512'
                   )
-                  const a = i.createDecipheriv(p, t, r)
+                  const a = i.createDecipheriv(d, t, r)
                   e = Buffer.concat([a.update(e.slice(17)), a.final()])
                 } else {
-                  const r = i.createDecipher(p, this.encryptionKey)
+                  const r = i.createDecipher(d, this.encryptionKey)
                   e = Buffer.concat([r.update(e), r.final()])
                 }
               } catch (e) {}
@@ -6780,7 +6780,7 @@
               32,
               'sha512'
             )
-            const a = i.createCipheriv(p, t, e)
+            const a = i.createCipheriv(d, t, e)
             r = Buffer.concat([
               e,
               Buffer.from(':'),
@@ -7044,6 +7044,44 @@
         })(e)
       }
     },
+    7517: (e, r, t) => {
+      'use strict'
+      const a = t(1017)
+      const s = t(3722)
+      e.exports = (e, r = {}) => {
+        const t = a.resolve(r.cwd || '')
+        const { root: i } = a.parse(t)
+        const o = [].concat(e)
+        return new Promise((e) => {
+          ;(function find(r) {
+            s(o, { cwd: r }).then((t) => {
+              if (t) {
+                e(a.join(r, t))
+              } else if (r === i) {
+                e(null)
+              } else {
+                find(a.dirname(r))
+              }
+            })
+          })(t)
+        })
+      }
+      e.exports.sync = (e, r = {}) => {
+        let t = a.resolve(r.cwd || '')
+        const { root: i } = a.parse(t)
+        const o = [].concat(e)
+        while (true) {
+          const e = s.sync(o, { cwd: t })
+          if (e) {
+            return a.join(t, e)
+          }
+          if (t === i) {
+            return null
+          }
+          t = a.dirname(t)
+        }
+      }
+    },
     2141: (e) => {
       /**
        * @preserve
@@ -7247,23 +7285,23 @@
             var h = s[u]
             if (Array.isArray(h)) {
               if (u in r.arrayKeywords) {
-                for (var d = 0; d < h.length; d++)
-                  _traverse(e, t, a, h[d], i + '/' + u + '/' + d, o, i, u, s, d)
+                for (var p = 0; p < h.length; p++)
+                  _traverse(e, t, a, h[p], i + '/' + u + '/' + p, o, i, u, s, p)
               }
             } else if (u in r.propsKeywords) {
               if (h && typeof h == 'object') {
-                for (var p in h)
+                for (var d in h)
                   _traverse(
                     e,
                     t,
                     a,
-                    h[p],
-                    i + '/' + u + '/' + escapeJsonPtr(p),
+                    h[d],
+                    i + '/' + u + '/' + escapeJsonPtr(d),
                     o,
                     i,
                     u,
                     s,
-                    p
+                    d
                   )
               }
             } else if (
@@ -7280,12 +7318,30 @@
         return e.replace(/~/g, '~0').replace(/\//g, '~1')
       }
     },
+    3722: (e, r, t) => {
+      'use strict'
+      const a = t(1017)
+      const s = t(3883)
+      const i = t(4604)
+      e.exports = (e, r) => {
+        r = Object.assign({ cwd: process.cwd() }, r)
+        return i(e, (e) => s(a.resolve(r.cwd, e)), r)
+      }
+      e.exports.sync = (e, r) => {
+        r = Object.assign({ cwd: process.cwd() }, r)
+        for (const t of e) {
+          if (s.sync(a.resolve(r.cwd, t))) {
+            return t
+          }
+        }
+      }
+    },
     5940: (e, r, t) => {
       'use strict'
       const a = t(7147)
       const s = t(1017)
       const { promisify: i } = t(3837)
-      const o = t(5204)
+      const o = t(3716)
       const n = o.satisfies(process.version, '>=10.12.0')
       const checkPath = (e) => {
         if (process.platform === 'win32') {
@@ -7389,11 +7445,1444 @@
         return make(s.resolve(e))
       }
     },
+    4604: (e, r, t) => {
+      'use strict'
+      const a = t(1117)
+      class EndError extends Error {
+        constructor(e) {
+          super()
+          this.value = e
+        }
+      }
+      const testElement = (e, r) => Promise.resolve(e).then(r)
+      const finder = (e) =>
+        Promise.all(e).then(
+          (e) => e[1] === true && Promise.reject(new EndError(e[0]))
+        )
+      e.exports = (e, r, t) => {
+        t = Object.assign({ concurrency: Infinity, preserveOrder: true }, t)
+        const s = a(t.concurrency)
+        const i = [...e].map((e) => [e, s(testElement, e, r)])
+        const o = a(t.preserveOrder ? 1 : Infinity)
+        return Promise.all(i.map((e) => o(finder, e)))
+          .then(() => {})
+          .catch((e) => (e instanceof EndError ? e.value : Promise.reject(e)))
+      }
+    },
+    3883: (e, r, t) => {
+      'use strict'
+      const a = t(7147)
+      e.exports = (e) =>
+        new Promise((r) => {
+          a.access(e, (e) => {
+            r(!e)
+          })
+        })
+      e.exports.sync = (e) => {
+        try {
+          a.accessSync(e)
+          return true
+        } catch (e) {
+          return false
+        }
+      }
+    },
     990: (e, r, t) => {
       'use strict'
-      const a = t(9465)
+      const a = t(7517)
       e.exports = async ({ cwd: e } = {}) => a('package.json', { cwd: e })
       e.exports.sync = ({ cwd: e } = {}) => a.sync('package.json', { cwd: e })
+    },
+    3716: (e, r) => {
+      r = e.exports = SemVer
+      var t
+      if (
+        typeof process === 'object' &&
+        process.env &&
+        process.env.NODE_DEBUG &&
+        /\bsemver\b/i.test(process.env.NODE_DEBUG)
+      ) {
+        t = function () {
+          var e = Array.prototype.slice.call(arguments, 0)
+          e.unshift('SEMVER')
+          console.log.apply(console, e)
+        }
+      } else {
+        t = function () {}
+      }
+      r.SEMVER_SPEC_VERSION = '2.0.0'
+      var a = 256
+      var s = Number.MAX_SAFE_INTEGER || 9007199254740991
+      var i = 16
+      var o = a - 6
+      var n = (r.re = [])
+      var l = (r.safeRe = [])
+      var f = (r.src = [])
+      var c = (r.tokens = {})
+      var u = 0
+      function tok(e) {
+        c[e] = u++
+      }
+      var h = '[a-zA-Z0-9-]'
+      var p = [
+        ['\\s', 1],
+        ['\\d', a],
+        [h, o],
+      ]
+      function makeSafeRe(e) {
+        for (var r = 0; r < p.length; r++) {
+          var t = p[r][0]
+          var a = p[r][1]
+          e = e
+            .split(t + '*')
+            .join(t + '{0,' + a + '}')
+            .split(t + '+')
+            .join(t + '{1,' + a + '}')
+        }
+        return e
+      }
+      tok('NUMERICIDENTIFIER')
+      f[c.NUMERICIDENTIFIER] = '0|[1-9]\\d*'
+      tok('NUMERICIDENTIFIERLOOSE')
+      f[c.NUMERICIDENTIFIERLOOSE] = '\\d+'
+      tok('NONNUMERICIDENTIFIER')
+      f[c.NONNUMERICIDENTIFIER] = '\\d*[a-zA-Z-]' + h + '*'
+      tok('MAINVERSION')
+      f[c.MAINVERSION] =
+        '(' +
+        f[c.NUMERICIDENTIFIER] +
+        ')\\.' +
+        '(' +
+        f[c.NUMERICIDENTIFIER] +
+        ')\\.' +
+        '(' +
+        f[c.NUMERICIDENTIFIER] +
+        ')'
+      tok('MAINVERSIONLOOSE')
+      f[c.MAINVERSIONLOOSE] =
+        '(' +
+        f[c.NUMERICIDENTIFIERLOOSE] +
+        ')\\.' +
+        '(' +
+        f[c.NUMERICIDENTIFIERLOOSE] +
+        ')\\.' +
+        '(' +
+        f[c.NUMERICIDENTIFIERLOOSE] +
+        ')'
+      tok('PRERELEASEIDENTIFIER')
+      f[c.PRERELEASEIDENTIFIER] =
+        '(?:' + f[c.NUMERICIDENTIFIER] + '|' + f[c.NONNUMERICIDENTIFIER] + ')'
+      tok('PRERELEASEIDENTIFIERLOOSE')
+      f[c.PRERELEASEIDENTIFIERLOOSE] =
+        '(?:' +
+        f[c.NUMERICIDENTIFIERLOOSE] +
+        '|' +
+        f[c.NONNUMERICIDENTIFIER] +
+        ')'
+      tok('PRERELEASE')
+      f[c.PRERELEASE] =
+        '(?:-(' +
+        f[c.PRERELEASEIDENTIFIER] +
+        '(?:\\.' +
+        f[c.PRERELEASEIDENTIFIER] +
+        ')*))'
+      tok('PRERELEASELOOSE')
+      f[c.PRERELEASELOOSE] =
+        '(?:-?(' +
+        f[c.PRERELEASEIDENTIFIERLOOSE] +
+        '(?:\\.' +
+        f[c.PRERELEASEIDENTIFIERLOOSE] +
+        ')*))'
+      tok('BUILDIDENTIFIER')
+      f[c.BUILDIDENTIFIER] = h + '+'
+      tok('BUILD')
+      f[c.BUILD] =
+        '(?:\\+(' +
+        f[c.BUILDIDENTIFIER] +
+        '(?:\\.' +
+        f[c.BUILDIDENTIFIER] +
+        ')*))'
+      tok('FULL')
+      tok('FULLPLAIN')
+      f[c.FULLPLAIN] =
+        'v?' + f[c.MAINVERSION] + f[c.PRERELEASE] + '?' + f[c.BUILD] + '?'
+      f[c.FULL] = '^' + f[c.FULLPLAIN] + '$'
+      tok('LOOSEPLAIN')
+      f[c.LOOSEPLAIN] =
+        '[v=\\s]*' +
+        f[c.MAINVERSIONLOOSE] +
+        f[c.PRERELEASELOOSE] +
+        '?' +
+        f[c.BUILD] +
+        '?'
+      tok('LOOSE')
+      f[c.LOOSE] = '^' + f[c.LOOSEPLAIN] + '$'
+      tok('GTLT')
+      f[c.GTLT] = '((?:<|>)?=?)'
+      tok('XRANGEIDENTIFIERLOOSE')
+      f[c.XRANGEIDENTIFIERLOOSE] = f[c.NUMERICIDENTIFIERLOOSE] + '|x|X|\\*'
+      tok('XRANGEIDENTIFIER')
+      f[c.XRANGEIDENTIFIER] = f[c.NUMERICIDENTIFIER] + '|x|X|\\*'
+      tok('XRANGEPLAIN')
+      f[c.XRANGEPLAIN] =
+        '[v=\\s]*(' +
+        f[c.XRANGEIDENTIFIER] +
+        ')' +
+        '(?:\\.(' +
+        f[c.XRANGEIDENTIFIER] +
+        ')' +
+        '(?:\\.(' +
+        f[c.XRANGEIDENTIFIER] +
+        ')' +
+        '(?:' +
+        f[c.PRERELEASE] +
+        ')?' +
+        f[c.BUILD] +
+        '?' +
+        ')?)?'
+      tok('XRANGEPLAINLOOSE')
+      f[c.XRANGEPLAINLOOSE] =
+        '[v=\\s]*(' +
+        f[c.XRANGEIDENTIFIERLOOSE] +
+        ')' +
+        '(?:\\.(' +
+        f[c.XRANGEIDENTIFIERLOOSE] +
+        ')' +
+        '(?:\\.(' +
+        f[c.XRANGEIDENTIFIERLOOSE] +
+        ')' +
+        '(?:' +
+        f[c.PRERELEASELOOSE] +
+        ')?' +
+        f[c.BUILD] +
+        '?' +
+        ')?)?'
+      tok('XRANGE')
+      f[c.XRANGE] = '^' + f[c.GTLT] + '\\s*' + f[c.XRANGEPLAIN] + '$'
+      tok('XRANGELOOSE')
+      f[c.XRANGELOOSE] = '^' + f[c.GTLT] + '\\s*' + f[c.XRANGEPLAINLOOSE] + '$'
+      tok('COERCE')
+      f[c.COERCE] =
+        '(^|[^\\d])' +
+        '(\\d{1,' +
+        i +
+        '})' +
+        '(?:\\.(\\d{1,' +
+        i +
+        '}))?' +
+        '(?:\\.(\\d{1,' +
+        i +
+        '}))?' +
+        '(?:$|[^\\d])'
+      tok('COERCERTL')
+      n[c.COERCERTL] = new RegExp(f[c.COERCE], 'g')
+      l[c.COERCERTL] = new RegExp(makeSafeRe(f[c.COERCE]), 'g')
+      tok('LONETILDE')
+      f[c.LONETILDE] = '(?:~>?)'
+      tok('TILDETRIM')
+      f[c.TILDETRIM] = '(\\s*)' + f[c.LONETILDE] + '\\s+'
+      n[c.TILDETRIM] = new RegExp(f[c.TILDETRIM], 'g')
+      l[c.TILDETRIM] = new RegExp(makeSafeRe(f[c.TILDETRIM]), 'g')
+      var d = '$1~'
+      tok('TILDE')
+      f[c.TILDE] = '^' + f[c.LONETILDE] + f[c.XRANGEPLAIN] + '$'
+      tok('TILDELOOSE')
+      f[c.TILDELOOSE] = '^' + f[c.LONETILDE] + f[c.XRANGEPLAINLOOSE] + '$'
+      tok('LONECARET')
+      f[c.LONECARET] = '(?:\\^)'
+      tok('CARETTRIM')
+      f[c.CARETTRIM] = '(\\s*)' + f[c.LONECARET] + '\\s+'
+      n[c.CARETTRIM] = new RegExp(f[c.CARETTRIM], 'g')
+      l[c.CARETTRIM] = new RegExp(makeSafeRe(f[c.CARETTRIM]), 'g')
+      var v = '$1^'
+      tok('CARET')
+      f[c.CARET] = '^' + f[c.LONECARET] + f[c.XRANGEPLAIN] + '$'
+      tok('CARETLOOSE')
+      f[c.CARETLOOSE] = '^' + f[c.LONECARET] + f[c.XRANGEPLAINLOOSE] + '$'
+      tok('COMPARATORLOOSE')
+      f[c.COMPARATORLOOSE] =
+        '^' + f[c.GTLT] + '\\s*(' + f[c.LOOSEPLAIN] + ')$|^$'
+      tok('COMPARATOR')
+      f[c.COMPARATOR] = '^' + f[c.GTLT] + '\\s*(' + f[c.FULLPLAIN] + ')$|^$'
+      tok('COMPARATORTRIM')
+      f[c.COMPARATORTRIM] =
+        '(\\s*)' +
+        f[c.GTLT] +
+        '\\s*(' +
+        f[c.LOOSEPLAIN] +
+        '|' +
+        f[c.XRANGEPLAIN] +
+        ')'
+      n[c.COMPARATORTRIM] = new RegExp(f[c.COMPARATORTRIM], 'g')
+      l[c.COMPARATORTRIM] = new RegExp(makeSafeRe(f[c.COMPARATORTRIM]), 'g')
+      var m = '$1$2$3'
+      tok('HYPHENRANGE')
+      f[c.HYPHENRANGE] =
+        '^\\s*(' +
+        f[c.XRANGEPLAIN] +
+        ')' +
+        '\\s+-\\s+' +
+        '(' +
+        f[c.XRANGEPLAIN] +
+        ')' +
+        '\\s*$'
+      tok('HYPHENRANGELOOSE')
+      f[c.HYPHENRANGELOOSE] =
+        '^\\s*(' +
+        f[c.XRANGEPLAINLOOSE] +
+        ')' +
+        '\\s+-\\s+' +
+        '(' +
+        f[c.XRANGEPLAINLOOSE] +
+        ')' +
+        '\\s*$'
+      tok('STAR')
+      f[c.STAR] = '(<|>)?=?\\s*\\*'
+      for (var y = 0; y < u; y++) {
+        t(y, f[y])
+        if (!n[y]) {
+          n[y] = new RegExp(f[y])
+          l[y] = new RegExp(makeSafeRe(f[y]))
+        }
+      }
+      r.parse = parse
+      function parse(e, r) {
+        if (!r || typeof r !== 'object') {
+          r = { loose: !!r, includePrerelease: false }
+        }
+        if (e instanceof SemVer) {
+          return e
+        }
+        if (typeof e !== 'string') {
+          return null
+        }
+        if (e.length > a) {
+          return null
+        }
+        var t = r.loose ? l[c.LOOSE] : l[c.FULL]
+        if (!t.test(e)) {
+          return null
+        }
+        try {
+          return new SemVer(e, r)
+        } catch (e) {
+          return null
+        }
+      }
+      r.valid = valid
+      function valid(e, r) {
+        var t = parse(e, r)
+        return t ? t.version : null
+      }
+      r.clean = clean
+      function clean(e, r) {
+        var t = parse(e.trim().replace(/^[=v]+/, ''), r)
+        return t ? t.version : null
+      }
+      r.SemVer = SemVer
+      function SemVer(e, r) {
+        if (!r || typeof r !== 'object') {
+          r = { loose: !!r, includePrerelease: false }
+        }
+        if (e instanceof SemVer) {
+          if (e.loose === r.loose) {
+            return e
+          } else {
+            e = e.version
+          }
+        } else if (typeof e !== 'string') {
+          throw new TypeError('Invalid Version: ' + e)
+        }
+        if (e.length > a) {
+          throw new TypeError('version is longer than ' + a + ' characters')
+        }
+        if (!(this instanceof SemVer)) {
+          return new SemVer(e, r)
+        }
+        t('SemVer', e, r)
+        this.options = r
+        this.loose = !!r.loose
+        var i = e.trim().match(r.loose ? l[c.LOOSE] : l[c.FULL])
+        if (!i) {
+          throw new TypeError('Invalid Version: ' + e)
+        }
+        this.raw = e
+        this.major = +i[1]
+        this.minor = +i[2]
+        this.patch = +i[3]
+        if (this.major > s || this.major < 0) {
+          throw new TypeError('Invalid major version')
+        }
+        if (this.minor > s || this.minor < 0) {
+          throw new TypeError('Invalid minor version')
+        }
+        if (this.patch > s || this.patch < 0) {
+          throw new TypeError('Invalid patch version')
+        }
+        if (!i[4]) {
+          this.prerelease = []
+        } else {
+          this.prerelease = i[4].split('.').map(function (e) {
+            if (/^[0-9]+$/.test(e)) {
+              var r = +e
+              if (r >= 0 && r < s) {
+                return r
+              }
+            }
+            return e
+          })
+        }
+        this.build = i[5] ? i[5].split('.') : []
+        this.format()
+      }
+      SemVer.prototype.format = function () {
+        this.version = this.major + '.' + this.minor + '.' + this.patch
+        if (this.prerelease.length) {
+          this.version += '-' + this.prerelease.join('.')
+        }
+        return this.version
+      }
+      SemVer.prototype.toString = function () {
+        return this.version
+      }
+      SemVer.prototype.compare = function (e) {
+        t('SemVer.compare', this.version, this.options, e)
+        if (!(e instanceof SemVer)) {
+          e = new SemVer(e, this.options)
+        }
+        return this.compareMain(e) || this.comparePre(e)
+      }
+      SemVer.prototype.compareMain = function (e) {
+        if (!(e instanceof SemVer)) {
+          e = new SemVer(e, this.options)
+        }
+        return (
+          compareIdentifiers(this.major, e.major) ||
+          compareIdentifiers(this.minor, e.minor) ||
+          compareIdentifiers(this.patch, e.patch)
+        )
+      }
+      SemVer.prototype.comparePre = function (e) {
+        if (!(e instanceof SemVer)) {
+          e = new SemVer(e, this.options)
+        }
+        if (this.prerelease.length && !e.prerelease.length) {
+          return -1
+        } else if (!this.prerelease.length && e.prerelease.length) {
+          return 1
+        } else if (!this.prerelease.length && !e.prerelease.length) {
+          return 0
+        }
+        var r = 0
+        do {
+          var a = this.prerelease[r]
+          var s = e.prerelease[r]
+          t('prerelease compare', r, a, s)
+          if (a === undefined && s === undefined) {
+            return 0
+          } else if (s === undefined) {
+            return 1
+          } else if (a === undefined) {
+            return -1
+          } else if (a === s) {
+            continue
+          } else {
+            return compareIdentifiers(a, s)
+          }
+        } while (++r)
+      }
+      SemVer.prototype.compareBuild = function (e) {
+        if (!(e instanceof SemVer)) {
+          e = new SemVer(e, this.options)
+        }
+        var r = 0
+        do {
+          var a = this.build[r]
+          var s = e.build[r]
+          t('prerelease compare', r, a, s)
+          if (a === undefined && s === undefined) {
+            return 0
+          } else if (s === undefined) {
+            return 1
+          } else if (a === undefined) {
+            return -1
+          } else if (a === s) {
+            continue
+          } else {
+            return compareIdentifiers(a, s)
+          }
+        } while (++r)
+      }
+      SemVer.prototype.inc = function (e, r) {
+        switch (e) {
+          case 'premajor':
+            this.prerelease.length = 0
+            this.patch = 0
+            this.minor = 0
+            this.major++
+            this.inc('pre', r)
+            break
+          case 'preminor':
+            this.prerelease.length = 0
+            this.patch = 0
+            this.minor++
+            this.inc('pre', r)
+            break
+          case 'prepatch':
+            this.prerelease.length = 0
+            this.inc('patch', r)
+            this.inc('pre', r)
+            break
+          case 'prerelease':
+            if (this.prerelease.length === 0) {
+              this.inc('patch', r)
+            }
+            this.inc('pre', r)
+            break
+          case 'major':
+            if (
+              this.minor !== 0 ||
+              this.patch !== 0 ||
+              this.prerelease.length === 0
+            ) {
+              this.major++
+            }
+            this.minor = 0
+            this.patch = 0
+            this.prerelease = []
+            break
+          case 'minor':
+            if (this.patch !== 0 || this.prerelease.length === 0) {
+              this.minor++
+            }
+            this.patch = 0
+            this.prerelease = []
+            break
+          case 'patch':
+            if (this.prerelease.length === 0) {
+              this.patch++
+            }
+            this.prerelease = []
+            break
+          case 'pre':
+            if (this.prerelease.length === 0) {
+              this.prerelease = [0]
+            } else {
+              var t = this.prerelease.length
+              while (--t >= 0) {
+                if (typeof this.prerelease[t] === 'number') {
+                  this.prerelease[t]++
+                  t = -2
+                }
+              }
+              if (t === -1) {
+                this.prerelease.push(0)
+              }
+            }
+            if (r) {
+              if (this.prerelease[0] === r) {
+                if (isNaN(this.prerelease[1])) {
+                  this.prerelease = [r, 0]
+                }
+              } else {
+                this.prerelease = [r, 0]
+              }
+            }
+            break
+          default:
+            throw new Error('invalid increment argument: ' + e)
+        }
+        this.format()
+        this.raw = this.version
+        return this
+      }
+      r.inc = inc
+      function inc(e, r, t, a) {
+        if (typeof t === 'string') {
+          a = t
+          t = undefined
+        }
+        try {
+          return new SemVer(e, t).inc(r, a).version
+        } catch (e) {
+          return null
+        }
+      }
+      r.diff = diff
+      function diff(e, r) {
+        if (eq(e, r)) {
+          return null
+        } else {
+          var t = parse(e)
+          var a = parse(r)
+          var s = ''
+          if (t.prerelease.length || a.prerelease.length) {
+            s = 'pre'
+            var i = 'prerelease'
+          }
+          for (var o in t) {
+            if (o === 'major' || o === 'minor' || o === 'patch') {
+              if (t[o] !== a[o]) {
+                return s + o
+              }
+            }
+          }
+          return i
+        }
+      }
+      r.compareIdentifiers = compareIdentifiers
+      var g = /^[0-9]+$/
+      function compareIdentifiers(e, r) {
+        var t = g.test(e)
+        var a = g.test(r)
+        if (t && a) {
+          e = +e
+          r = +r
+        }
+        return e === r ? 0 : t && !a ? -1 : a && !t ? 1 : e < r ? -1 : 1
+      }
+      r.rcompareIdentifiers = rcompareIdentifiers
+      function rcompareIdentifiers(e, r) {
+        return compareIdentifiers(r, e)
+      }
+      r.major = major
+      function major(e, r) {
+        return new SemVer(e, r).major
+      }
+      r.minor = minor
+      function minor(e, r) {
+        return new SemVer(e, r).minor
+      }
+      r.patch = patch
+      function patch(e, r) {
+        return new SemVer(e, r).patch
+      }
+      r.compare = compare
+      function compare(e, r, t) {
+        return new SemVer(e, t).compare(new SemVer(r, t))
+      }
+      r.compareLoose = compareLoose
+      function compareLoose(e, r) {
+        return compare(e, r, true)
+      }
+      r.compareBuild = compareBuild
+      function compareBuild(e, r, t) {
+        var a = new SemVer(e, t)
+        var s = new SemVer(r, t)
+        return a.compare(s) || a.compareBuild(s)
+      }
+      r.rcompare = rcompare
+      function rcompare(e, r, t) {
+        return compare(r, e, t)
+      }
+      r.sort = sort
+      function sort(e, t) {
+        return e.sort(function (e, a) {
+          return r.compareBuild(e, a, t)
+        })
+      }
+      r.rsort = rsort
+      function rsort(e, t) {
+        return e.sort(function (e, a) {
+          return r.compareBuild(a, e, t)
+        })
+      }
+      r.gt = gt
+      function gt(e, r, t) {
+        return compare(e, r, t) > 0
+      }
+      r.lt = lt
+      function lt(e, r, t) {
+        return compare(e, r, t) < 0
+      }
+      r.eq = eq
+      function eq(e, r, t) {
+        return compare(e, r, t) === 0
+      }
+      r.neq = neq
+      function neq(e, r, t) {
+        return compare(e, r, t) !== 0
+      }
+      r.gte = gte
+      function gte(e, r, t) {
+        return compare(e, r, t) >= 0
+      }
+      r.lte = lte
+      function lte(e, r, t) {
+        return compare(e, r, t) <= 0
+      }
+      r.cmp = cmp
+      function cmp(e, r, t, a) {
+        switch (r) {
+          case '===':
+            if (typeof e === 'object') e = e.version
+            if (typeof t === 'object') t = t.version
+            return e === t
+          case '!==':
+            if (typeof e === 'object') e = e.version
+            if (typeof t === 'object') t = t.version
+            return e !== t
+          case '':
+          case '=':
+          case '==':
+            return eq(e, t, a)
+          case '!=':
+            return neq(e, t, a)
+          case '>':
+            return gt(e, t, a)
+          case '>=':
+            return gte(e, t, a)
+          case '<':
+            return lt(e, t, a)
+          case '<=':
+            return lte(e, t, a)
+          default:
+            throw new TypeError('Invalid operator: ' + r)
+        }
+      }
+      r.Comparator = Comparator
+      function Comparator(e, r) {
+        if (!r || typeof r !== 'object') {
+          r = { loose: !!r, includePrerelease: false }
+        }
+        if (e instanceof Comparator) {
+          if (e.loose === !!r.loose) {
+            return e
+          } else {
+            e = e.value
+          }
+        }
+        if (!(this instanceof Comparator)) {
+          return new Comparator(e, r)
+        }
+        e = e.trim().split(/\s+/).join(' ')
+        t('comparator', e, r)
+        this.options = r
+        this.loose = !!r.loose
+        this.parse(e)
+        if (this.semver === E) {
+          this.value = ''
+        } else {
+          this.value = this.operator + this.semver.version
+        }
+        t('comp', this)
+      }
+      var E = {}
+      Comparator.prototype.parse = function (e) {
+        var r = this.options.loose ? l[c.COMPARATORLOOSE] : l[c.COMPARATOR]
+        var t = e.match(r)
+        if (!t) {
+          throw new TypeError('Invalid comparator: ' + e)
+        }
+        this.operator = t[1] !== undefined ? t[1] : ''
+        if (this.operator === '=') {
+          this.operator = ''
+        }
+        if (!t[2]) {
+          this.semver = E
+        } else {
+          this.semver = new SemVer(t[2], this.options.loose)
+        }
+      }
+      Comparator.prototype.toString = function () {
+        return this.value
+      }
+      Comparator.prototype.test = function (e) {
+        t('Comparator.test', e, this.options.loose)
+        if (this.semver === E || e === E) {
+          return true
+        }
+        if (typeof e === 'string') {
+          try {
+            e = new SemVer(e, this.options)
+          } catch (e) {
+            return false
+          }
+        }
+        return cmp(e, this.operator, this.semver, this.options)
+      }
+      Comparator.prototype.intersects = function (e, r) {
+        if (!(e instanceof Comparator)) {
+          throw new TypeError('a Comparator is required')
+        }
+        if (!r || typeof r !== 'object') {
+          r = { loose: !!r, includePrerelease: false }
+        }
+        var t
+        if (this.operator === '') {
+          if (this.value === '') {
+            return true
+          }
+          t = new Range(e.value, r)
+          return satisfies(this.value, t, r)
+        } else if (e.operator === '') {
+          if (e.value === '') {
+            return true
+          }
+          t = new Range(this.value, r)
+          return satisfies(e.semver, t, r)
+        }
+        var a =
+          (this.operator === '>=' || this.operator === '>') &&
+          (e.operator === '>=' || e.operator === '>')
+        var s =
+          (this.operator === '<=' || this.operator === '<') &&
+          (e.operator === '<=' || e.operator === '<')
+        var i = this.semver.version === e.semver.version
+        var o =
+          (this.operator === '>=' || this.operator === '<=') &&
+          (e.operator === '>=' || e.operator === '<=')
+        var n =
+          cmp(this.semver, '<', e.semver, r) &&
+          (this.operator === '>=' || this.operator === '>') &&
+          (e.operator === '<=' || e.operator === '<')
+        var l =
+          cmp(this.semver, '>', e.semver, r) &&
+          (this.operator === '<=' || this.operator === '<') &&
+          (e.operator === '>=' || e.operator === '>')
+        return a || s || (i && o) || n || l
+      }
+      r.Range = Range
+      function Range(e, r) {
+        if (!r || typeof r !== 'object') {
+          r = { loose: !!r, includePrerelease: false }
+        }
+        if (e instanceof Range) {
+          if (
+            e.loose === !!r.loose &&
+            e.includePrerelease === !!r.includePrerelease
+          ) {
+            return e
+          } else {
+            return new Range(e.raw, r)
+          }
+        }
+        if (e instanceof Comparator) {
+          return new Range(e.value, r)
+        }
+        if (!(this instanceof Range)) {
+          return new Range(e, r)
+        }
+        this.options = r
+        this.loose = !!r.loose
+        this.includePrerelease = !!r.includePrerelease
+        this.raw = e.trim().split(/\s+/).join(' ')
+        this.set = this.raw
+          .split('||')
+          .map(function (e) {
+            return this.parseRange(e.trim())
+          }, this)
+          .filter(function (e) {
+            return e.length
+          })
+        if (!this.set.length) {
+          throw new TypeError('Invalid SemVer Range: ' + this.raw)
+        }
+        this.format()
+      }
+      Range.prototype.format = function () {
+        this.range = this.set
+          .map(function (e) {
+            return e.join(' ').trim()
+          })
+          .join('||')
+          .trim()
+        return this.range
+      }
+      Range.prototype.toString = function () {
+        return this.range
+      }
+      Range.prototype.parseRange = function (e) {
+        var r = this.options.loose
+        var a = r ? l[c.HYPHENRANGELOOSE] : l[c.HYPHENRANGE]
+        e = e.replace(a, hyphenReplace)
+        t('hyphen replace', e)
+        e = e.replace(l[c.COMPARATORTRIM], m)
+        t('comparator trim', e, l[c.COMPARATORTRIM])
+        e = e.replace(l[c.TILDETRIM], d)
+        e = e.replace(l[c.CARETTRIM], v)
+        e = e.split(/\s+/).join(' ')
+        var s = r ? l[c.COMPARATORLOOSE] : l[c.COMPARATOR]
+        var i = e
+          .split(' ')
+          .map(function (e) {
+            return parseComparator(e, this.options)
+          }, this)
+          .join(' ')
+          .split(/\s+/)
+        if (this.options.loose) {
+          i = i.filter(function (e) {
+            return !!e.match(s)
+          })
+        }
+        i = i.map(function (e) {
+          return new Comparator(e, this.options)
+        }, this)
+        return i
+      }
+      Range.prototype.intersects = function (e, r) {
+        if (!(e instanceof Range)) {
+          throw new TypeError('a Range is required')
+        }
+        return this.set.some(function (t) {
+          return (
+            isSatisfiable(t, r) &&
+            e.set.some(function (e) {
+              return (
+                isSatisfiable(e, r) &&
+                t.every(function (t) {
+                  return e.every(function (e) {
+                    return t.intersects(e, r)
+                  })
+                })
+              )
+            })
+          )
+        })
+      }
+      function isSatisfiable(e, r) {
+        var t = true
+        var a = e.slice()
+        var s = a.pop()
+        while (t && a.length) {
+          t = a.every(function (e) {
+            return s.intersects(e, r)
+          })
+          s = a.pop()
+        }
+        return t
+      }
+      r.toComparators = toComparators
+      function toComparators(e, r) {
+        return new Range(e, r).set.map(function (e) {
+          return e
+            .map(function (e) {
+              return e.value
+            })
+            .join(' ')
+            .trim()
+            .split(' ')
+        })
+      }
+      function parseComparator(e, r) {
+        t('comp', e, r)
+        e = replaceCarets(e, r)
+        t('caret', e)
+        e = replaceTildes(e, r)
+        t('tildes', e)
+        e = replaceXRanges(e, r)
+        t('xrange', e)
+        e = replaceStars(e, r)
+        t('stars', e)
+        return e
+      }
+      function isX(e) {
+        return !e || e.toLowerCase() === 'x' || e === '*'
+      }
+      function replaceTildes(e, r) {
+        return e
+          .trim()
+          .split(/\s+/)
+          .map(function (e) {
+            return replaceTilde(e, r)
+          })
+          .join(' ')
+      }
+      function replaceTilde(e, r) {
+        var a = r.loose ? l[c.TILDELOOSE] : l[c.TILDE]
+        return e.replace(a, function (r, a, s, i, o) {
+          t('tilde', e, r, a, s, i, o)
+          var n
+          if (isX(a)) {
+            n = ''
+          } else if (isX(s)) {
+            n = '>=' + a + '.0.0 <' + (+a + 1) + '.0.0'
+          } else if (isX(i)) {
+            n = '>=' + a + '.' + s + '.0 <' + a + '.' + (+s + 1) + '.0'
+          } else if (o) {
+            t('replaceTilde pr', o)
+            n =
+              '>=' +
+              a +
+              '.' +
+              s +
+              '.' +
+              i +
+              '-' +
+              o +
+              ' <' +
+              a +
+              '.' +
+              (+s + 1) +
+              '.0'
+          } else {
+            n = '>=' + a + '.' + s + '.' + i + ' <' + a + '.' + (+s + 1) + '.0'
+          }
+          t('tilde return', n)
+          return n
+        })
+      }
+      function replaceCarets(e, r) {
+        return e
+          .trim()
+          .split(/\s+/)
+          .map(function (e) {
+            return replaceCaret(e, r)
+          })
+          .join(' ')
+      }
+      function replaceCaret(e, r) {
+        t('caret', e, r)
+        var a = r.loose ? l[c.CARETLOOSE] : l[c.CARET]
+        return e.replace(a, function (r, a, s, i, o) {
+          t('caret', e, r, a, s, i, o)
+          var n
+          if (isX(a)) {
+            n = ''
+          } else if (isX(s)) {
+            n = '>=' + a + '.0.0 <' + (+a + 1) + '.0.0'
+          } else if (isX(i)) {
+            if (a === '0') {
+              n = '>=' + a + '.' + s + '.0 <' + a + '.' + (+s + 1) + '.0'
+            } else {
+              n = '>=' + a + '.' + s + '.0 <' + (+a + 1) + '.0.0'
+            }
+          } else if (o) {
+            t('replaceCaret pr', o)
+            if (a === '0') {
+              if (s === '0') {
+                n =
+                  '>=' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  i +
+                  '-' +
+                  o +
+                  ' <' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  (+i + 1)
+              } else {
+                n =
+                  '>=' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  i +
+                  '-' +
+                  o +
+                  ' <' +
+                  a +
+                  '.' +
+                  (+s + 1) +
+                  '.0'
+              }
+            } else {
+              n =
+                '>=' +
+                a +
+                '.' +
+                s +
+                '.' +
+                i +
+                '-' +
+                o +
+                ' <' +
+                (+a + 1) +
+                '.0.0'
+            }
+          } else {
+            t('no pr')
+            if (a === '0') {
+              if (s === '0') {
+                n =
+                  '>=' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  i +
+                  ' <' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  (+i + 1)
+              } else {
+                n =
+                  '>=' +
+                  a +
+                  '.' +
+                  s +
+                  '.' +
+                  i +
+                  ' <' +
+                  a +
+                  '.' +
+                  (+s + 1) +
+                  '.0'
+              }
+            } else {
+              n = '>=' + a + '.' + s + '.' + i + ' <' + (+a + 1) + '.0.0'
+            }
+          }
+          t('caret return', n)
+          return n
+        })
+      }
+      function replaceXRanges(e, r) {
+        t('replaceXRanges', e, r)
+        return e
+          .split(/\s+/)
+          .map(function (e) {
+            return replaceXRange(e, r)
+          })
+          .join(' ')
+      }
+      function replaceXRange(e, r) {
+        e = e.trim()
+        var a = r.loose ? l[c.XRANGELOOSE] : l[c.XRANGE]
+        return e.replace(a, function (a, s, i, o, n, l) {
+          t('xRange', e, a, s, i, o, n, l)
+          var f = isX(i)
+          var c = f || isX(o)
+          var u = c || isX(n)
+          var h = u
+          if (s === '=' && h) {
+            s = ''
+          }
+          l = r.includePrerelease ? '-0' : ''
+          if (f) {
+            if (s === '>' || s === '<') {
+              a = '<0.0.0-0'
+            } else {
+              a = '*'
+            }
+          } else if (s && h) {
+            if (c) {
+              o = 0
+            }
+            n = 0
+            if (s === '>') {
+              s = '>='
+              if (c) {
+                i = +i + 1
+                o = 0
+                n = 0
+              } else {
+                o = +o + 1
+                n = 0
+              }
+            } else if (s === '<=') {
+              s = '<'
+              if (c) {
+                i = +i + 1
+              } else {
+                o = +o + 1
+              }
+            }
+            a = s + i + '.' + o + '.' + n + l
+          } else if (c) {
+            a = '>=' + i + '.0.0' + l + ' <' + (+i + 1) + '.0.0' + l
+          } else if (u) {
+            a =
+              '>=' +
+              i +
+              '.' +
+              o +
+              '.0' +
+              l +
+              ' <' +
+              i +
+              '.' +
+              (+o + 1) +
+              '.0' +
+              l
+          }
+          t('xRange return', a)
+          return a
+        })
+      }
+      function replaceStars(e, r) {
+        t('replaceStars', e, r)
+        return e.trim().replace(l[c.STAR], '')
+      }
+      function hyphenReplace(e, r, t, a, s, i, o, n, l, f, c, u, h) {
+        if (isX(t)) {
+          r = ''
+        } else if (isX(a)) {
+          r = '>=' + t + '.0.0'
+        } else if (isX(s)) {
+          r = '>=' + t + '.' + a + '.0'
+        } else {
+          r = '>=' + r
+        }
+        if (isX(l)) {
+          n = ''
+        } else if (isX(f)) {
+          n = '<' + (+l + 1) + '.0.0'
+        } else if (isX(c)) {
+          n = '<' + l + '.' + (+f + 1) + '.0'
+        } else if (u) {
+          n = '<=' + l + '.' + f + '.' + c + '-' + u
+        } else {
+          n = '<=' + n
+        }
+        return (r + ' ' + n).trim()
+      }
+      Range.prototype.test = function (e) {
+        if (!e) {
+          return false
+        }
+        if (typeof e === 'string') {
+          try {
+            e = new SemVer(e, this.options)
+          } catch (e) {
+            return false
+          }
+        }
+        for (var r = 0; r < this.set.length; r++) {
+          if (testSet(this.set[r], e, this.options)) {
+            return true
+          }
+        }
+        return false
+      }
+      function testSet(e, r, a) {
+        for (var s = 0; s < e.length; s++) {
+          if (!e[s].test(r)) {
+            return false
+          }
+        }
+        if (r.prerelease.length && !a.includePrerelease) {
+          for (s = 0; s < e.length; s++) {
+            t(e[s].semver)
+            if (e[s].semver === E) {
+              continue
+            }
+            if (e[s].semver.prerelease.length > 0) {
+              var i = e[s].semver
+              if (
+                i.major === r.major &&
+                i.minor === r.minor &&
+                i.patch === r.patch
+              ) {
+                return true
+              }
+            }
+          }
+          return false
+        }
+        return true
+      }
+      r.satisfies = satisfies
+      function satisfies(e, r, t) {
+        try {
+          r = new Range(r, t)
+        } catch (e) {
+          return false
+        }
+        return r.test(e)
+      }
+      r.maxSatisfying = maxSatisfying
+      function maxSatisfying(e, r, t) {
+        var a = null
+        var s = null
+        try {
+          var i = new Range(r, t)
+        } catch (e) {
+          return null
+        }
+        e.forEach(function (e) {
+          if (i.test(e)) {
+            if (!a || s.compare(e) === -1) {
+              a = e
+              s = new SemVer(a, t)
+            }
+          }
+        })
+        return a
+      }
+      r.minSatisfying = minSatisfying
+      function minSatisfying(e, r, t) {
+        var a = null
+        var s = null
+        try {
+          var i = new Range(r, t)
+        } catch (e) {
+          return null
+        }
+        e.forEach(function (e) {
+          if (i.test(e)) {
+            if (!a || s.compare(e) === 1) {
+              a = e
+              s = new SemVer(a, t)
+            }
+          }
+        })
+        return a
+      }
+      r.minVersion = minVersion
+      function minVersion(e, r) {
+        e = new Range(e, r)
+        var t = new SemVer('0.0.0')
+        if (e.test(t)) {
+          return t
+        }
+        t = new SemVer('0.0.0-0')
+        if (e.test(t)) {
+          return t
+        }
+        t = null
+        for (var a = 0; a < e.set.length; ++a) {
+          var s = e.set[a]
+          s.forEach(function (e) {
+            var r = new SemVer(e.semver.version)
+            switch (e.operator) {
+              case '>':
+                if (r.prerelease.length === 0) {
+                  r.patch++
+                } else {
+                  r.prerelease.push(0)
+                }
+                r.raw = r.format()
+              case '':
+              case '>=':
+                if (!t || gt(t, r)) {
+                  t = r
+                }
+                break
+              case '<':
+              case '<=':
+                break
+              default:
+                throw new Error('Unexpected operation: ' + e.operator)
+            }
+          })
+        }
+        if (t && e.test(t)) {
+          return t
+        }
+        return null
+      }
+      r.validRange = validRange
+      function validRange(e, r) {
+        try {
+          return new Range(e, r).range || '*'
+        } catch (e) {
+          return null
+        }
+      }
+      r.ltr = ltr
+      function ltr(e, r, t) {
+        return outside(e, r, '<', t)
+      }
+      r.gtr = gtr
+      function gtr(e, r, t) {
+        return outside(e, r, '>', t)
+      }
+      r.outside = outside
+      function outside(e, r, t, a) {
+        e = new SemVer(e, a)
+        r = new Range(r, a)
+        var s, i, o, n, l
+        switch (t) {
+          case '>':
+            s = gt
+            i = lte
+            o = lt
+            n = '>'
+            l = '>='
+            break
+          case '<':
+            s = lt
+            i = gte
+            o = gt
+            n = '<'
+            l = '<='
+            break
+          default:
+            throw new TypeError('Must provide a hilo val of "<" or ">"')
+        }
+        if (satisfies(e, r, a)) {
+          return false
+        }
+        for (var f = 0; f < r.set.length; ++f) {
+          var c = r.set[f]
+          var u = null
+          var h = null
+          c.forEach(function (e) {
+            if (e.semver === E) {
+              e = new Comparator('>=0.0.0')
+            }
+            u = u || e
+            h = h || e
+            if (s(e.semver, u.semver, a)) {
+              u = e
+            } else if (o(e.semver, h.semver, a)) {
+              h = e
+            }
+          })
+          if (u.operator === n || u.operator === l) {
+            return false
+          }
+          if ((!h.operator || h.operator === n) && i(e, h.semver)) {
+            return false
+          } else if (h.operator === l && o(e, h.semver)) {
+            return false
+          }
+        }
+        return true
+      }
+      r.prerelease = prerelease
+      function prerelease(e, r) {
+        var t = parse(e, r)
+        return t && t.prerelease.length ? t.prerelease : null
+      }
+      r.intersects = intersects
+      function intersects(e, r, t) {
+        e = new Range(e, t)
+        r = new Range(r, t)
+        return e.intersects(r)
+      }
+      r.coerce = coerce
+      function coerce(e, r) {
+        if (e instanceof SemVer) {
+          return e
+        }
+        if (typeof e === 'number') {
+          e = String(e)
+        }
+        if (typeof e !== 'string') {
+          return null
+        }
+        r = r || {}
+        var t = null
+        if (!r.rtl) {
+          t = e.match(l[c.COERCE])
+        } else {
+          var a
+          while (
+            (a = l[c.COERCERTL].exec(e)) &&
+            (!t || t.index + t[0].length !== e.length)
+          ) {
+            if (!t || a.index + a[0].length !== t.index + t[0].length) {
+              t = a
+            }
+            l[c.COERCERTL].lastIndex = a.index + a[1].length + a[2].length
+          }
+          l[c.COERCERTL].lastIndex = -1
+        }
+        if (t === null) {
+          return null
+        }
+        return parse(t[2] + '.' + (t[3] || '0') + '.' + (t[4] || '0'), r)
+      }
     },
     7234: (e, r, t) => {
       var a = global.process
@@ -7444,7 +8933,7 @@
             'a callback must be provided for exit handler'
           )
           if (h === false) {
-            d()
+            p()
           }
           var t = 'exit'
           if (r && r.alwaysLast) {
@@ -7473,7 +8962,7 @@
             } catch (e) {}
           })
           a.emit = m
-          a.reallyExit = p
+          a.reallyExit = d
           l.count -= 1
         }
         e.exports.unload = f
@@ -7506,7 +8995,7 @@
           return i
         }
         var h = false
-        var d = function load() {
+        var p = function load() {
           if (h || !processOk(global.process)) {
             return
           }
@@ -7523,8 +9012,8 @@
           a.emit = y
           a.reallyExit = v
         }
-        e.exports.load = d
-        var p = a.reallyExit
+        e.exports.load = p
+        var d = a.reallyExit
         var v = function processReallyExit(e) {
           if (!processOk(global.process)) {
             return
@@ -7532,7 +9021,7 @@
           a.exitCode = e || 0
           c('exit', a.exitCode, null)
           c('afterexit', a.exitCode, null)
-          p.call(a, a.exitCode)
+          d.call(a, a.exitCode)
         }
         var m = a.emit
         var y = function processEmit(e, r) {
@@ -7665,10 +9154,10 @@
             h = e
               ? '[\\xA0-\\u200D\\u2010-\\u2029\\u202F-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFEF]'
               : '[]',
-            d = e ? '[\\uE000-\\uF8FF]' : '[]',
-            p = merge(r, a, '[\\-\\.\\_\\~]', h),
+            p = e ? '[\\uE000-\\uF8FF]' : '[]',
+            d = merge(r, a, '[\\-\\.\\_\\~]', h),
             v = subexp(r + merge(r, a, '[\\+\\-\\.]') + '*'),
-            m = subexp(subexp(l + '|' + merge(p, c, '[\\:]')) + '*'),
+            m = subexp(subexp(l + '|' + merge(d, c, '[\\:]')) + '*'),
             y = subexp(
               subexp('25[0-5]') +
                 '|' +
@@ -7691,66 +9180,66 @@
                 '|0?0?' +
                 a
             ),
-            P = subexp(g + '\\.' + g + '\\.' + g + '\\.' + g),
-            E = subexp(i + '{1,4}'),
-            b = subexp(subexp(E + '\\:' + E) + '|' + P),
-            w = subexp(subexp(E + '\\:') + '{6}' + b),
-            S = subexp('\\:\\:' + subexp(E + '\\:') + '{5}' + b),
-            x = subexp(subexp(E) + '?\\:\\:' + subexp(E + '\\:') + '{4}' + b),
-            _ = subexp(
-              subexp(subexp(E + '\\:') + '{0,1}' + E) +
+            E = subexp(g + '\\.' + g + '\\.' + g + '\\.' + g),
+            P = subexp(i + '{1,4}'),
+            w = subexp(subexp(P + '\\:' + P) + '|' + E),
+            S = subexp(subexp(P + '\\:') + '{6}' + w),
+            b = subexp('\\:\\:' + subexp(P + '\\:') + '{5}' + w),
+            R = subexp(subexp(P) + '?\\:\\:' + subexp(P + '\\:') + '{4}' + w),
+            I = subexp(
+              subexp(subexp(P + '\\:') + '{0,1}' + P) +
                 '?\\:\\:' +
-                subexp(E + '\\:') +
+                subexp(P + '\\:') +
                 '{3}' +
-                b
+                w
             ),
-            j = subexp(
-              subexp(subexp(E + '\\:') + '{0,2}' + E) +
+            x = subexp(
+              subexp(subexp(P + '\\:') + '{0,2}' + P) +
                 '?\\:\\:' +
-                subexp(E + '\\:') +
+                subexp(P + '\\:') +
                 '{2}' +
-                b
+                w
             ),
-            R = subexp(
-              subexp(subexp(E + '\\:') + '{0,3}' + E) +
+            O = subexp(
+              subexp(subexp(P + '\\:') + '{0,3}' + P) +
                 '?\\:\\:' +
-                E +
+                P +
                 '\\:' +
-                b
+                w
             ),
-            F = subexp(subexp(subexp(E + '\\:') + '{0,4}' + E) + '?\\:\\:' + b),
-            D = subexp(subexp(subexp(E + '\\:') + '{0,5}' + E) + '?\\:\\:' + E),
-            $ = subexp(subexp(subexp(E + '\\:') + '{0,6}' + E) + '?\\:\\:'),
-            A = subexp([w, S, x, _, j, R, F, D, $].join('|')),
-            I = subexp(subexp(p + '|' + l) + '+'),
-            C = subexp(A + '\\%25' + I),
-            O = subexp(A + subexp('\\%25|\\%(?!' + i + '{2})') + I),
-            k = subexp('[vV]' + i + '+\\.' + merge(p, c, '[\\:]') + '+'),
-            T = subexp('\\[' + subexp(O + '|' + A + '|' + k) + '\\]'),
-            z = subexp(subexp(l + '|' + merge(p, c)) + '*'),
-            L = subexp(T + '|' + P + '(?!' + z + ')' + '|' + z),
-            N = subexp(a + '*'),
-            U = subexp(subexp(m + '@') + '?' + L + subexp('\\:' + N) + '?'),
-            q = subexp(l + '|' + merge(p, c, '[\\:\\@]')),
-            V = subexp(q + '*'),
-            Q = subexp(q + '+'),
-            M = subexp(subexp(l + '|' + merge(p, c, '[\\@]')) + '+'),
-            H = subexp(subexp('\\/' + V) + '*'),
-            K = subexp('\\/' + subexp(Q + H) + '?'),
-            B = subexp(M + H),
-            J = subexp(Q + H),
-            G = '(?!' + q + ')',
-            Z = subexp(H + '|' + K + '|' + B + '|' + J + '|' + G),
-            X = subexp(subexp(q + '|' + merge('[\\/\\?]', d)) + '*'),
-            Y = subexp(subexp(q + '|[\\/\\?]') + '*'),
-            W = subexp(subexp('\\/\\/' + U + H) + '|' + K + '|' + J + '|' + G),
+            _ = subexp(subexp(subexp(P + '\\:') + '{0,4}' + P) + '?\\:\\:' + w),
+            A = subexp(subexp(subexp(P + '\\:') + '{0,5}' + P) + '?\\:\\:' + P),
+            C = subexp(subexp(subexp(P + '\\:') + '{0,6}' + P) + '?\\:\\:'),
+            D = subexp([S, b, R, I, x, O, _, A, C].join('|')),
+            j = subexp(subexp(d + '|' + l) + '+'),
+            F = subexp(D + '\\%25' + j),
+            L = subexp(D + subexp('\\%25|\\%(?!' + i + '{2})') + j),
+            T = subexp('[vV]' + i + '+\\.' + merge(d, c, '[\\:]') + '+'),
+            $ = subexp('\\[' + subexp(L + '|' + D + '|' + T) + '\\]'),
+            N = subexp(subexp(l + '|' + merge(d, c)) + '*'),
+            k = subexp($ + '|' + E + '(?!' + N + ')' + '|' + N),
+            U = subexp(a + '*'),
+            V = subexp(subexp(m + '@') + '?' + k + subexp('\\:' + U) + '?'),
+            M = subexp(l + '|' + merge(d, c, '[\\:\\@]')),
+            z = subexp(M + '*'),
+            q = subexp(M + '+'),
+            Q = subexp(subexp(l + '|' + merge(d, c, '[\\@]')) + '+'),
+            H = subexp(subexp('\\/' + z) + '*'),
+            G = subexp('\\/' + subexp(q + H) + '?'),
+            K = subexp(Q + H),
+            B = subexp(q + H),
+            X = '(?!' + M + ')',
+            J = subexp(H + '|' + G + '|' + K + '|' + B + '|' + X),
+            Y = subexp(subexp(M + '|' + merge('[\\/\\?]', p)) + '*'),
+            Z = subexp(subexp(M + '|[\\/\\?]') + '*'),
+            W = subexp(subexp('\\/\\/' + V + H) + '|' + G + '|' + B + '|' + X),
             ee = subexp(
-              v + '\\:' + W + subexp('\\?' + X) + '?' + subexp('\\#' + Y) + '?'
+              v + '\\:' + W + subexp('\\?' + Y) + '?' + subexp('\\#' + Z) + '?'
             ),
-            re = subexp(subexp('\\/\\/' + U + H) + '|' + K + '|' + B + '|' + G),
-            te = subexp(re + subexp('\\?' + X) + '?' + subexp('\\#' + Y) + '?'),
+            re = subexp(subexp('\\/\\/' + V + H) + '|' + G + '|' + K + '|' + X),
+            te = subexp(re + subexp('\\?' + Y) + '?' + subexp('\\#' + Z) + '?'),
             ae = subexp(ee + '|' + te),
-            se = subexp(v + '\\:' + W + subexp('\\?' + X) + '?'),
+            se = subexp(v + '\\:' + W + subexp('\\?' + Y) + '?'),
             ie =
               '^(' +
               v +
@@ -7760,24 +9249,24 @@
                   '\\/\\/(' +
                     subexp('(' + m + ')@') +
                     '?(' +
-                    L +
+                    k +
                     ')' +
-                    subexp('\\:(' + N + ')') +
+                    subexp('\\:(' + U + ')') +
                     '?)'
                 ) +
                   '?(' +
                   H +
                   '|' +
-                  K +
-                  '|' +
-                  J +
-                  '|' +
                   G +
+                  '|' +
+                  B +
+                  '|' +
+                  X +
                   ')'
               ) +
-              subexp('\\?(' + X + ')') +
+              subexp('\\?(' + Y + ')') +
               '?' +
-              subexp('\\#(' + Y + ')') +
+              subexp('\\#(' + Z + ')') +
               '?$',
             oe =
               '^(){0}' +
@@ -7786,24 +9275,24 @@
                   '\\/\\/(' +
                     subexp('(' + m + ')@') +
                     '?(' +
-                    L +
+                    k +
                     ')' +
-                    subexp('\\:(' + N + ')') +
+                    subexp('\\:(' + U + ')') +
                     '?)'
                 ) +
                   '?(' +
                   H +
                   '|' +
+                  G +
+                  '|' +
                   K +
                   '|' +
-                  B +
-                  '|' +
-                  G +
+                  X +
                   ')'
               ) +
-              subexp('\\?(' + X + ')') +
+              subexp('\\?(' + Y + ')') +
               '?' +
-              subexp('\\#(' + Y + ')') +
+              subexp('\\#(' + Z + ')') +
               '?$',
             ne =
               '^(' +
@@ -7814,56 +9303,56 @@
                   '\\/\\/(' +
                     subexp('(' + m + ')@') +
                     '?(' +
-                    L +
+                    k +
                     ')' +
-                    subexp('\\:(' + N + ')') +
+                    subexp('\\:(' + U + ')') +
                     '?)'
                 ) +
                   '?(' +
                   H +
                   '|' +
-                  K +
-                  '|' +
-                  J +
-                  '|' +
                   G +
+                  '|' +
+                  B +
+                  '|' +
+                  X +
                   ')'
               ) +
-              subexp('\\?(' + X + ')') +
+              subexp('\\?(' + Y + ')') +
               '?$',
-            le = '^' + subexp('\\#(' + Y + ')') + '?$',
+            le = '^' + subexp('\\#(' + Z + ')') + '?$',
             fe =
               '^' +
               subexp('(' + m + ')@') +
               '?(' +
-              L +
+              k +
               ')' +
-              subexp('\\:(' + N + ')') +
+              subexp('\\:(' + U + ')') +
               '?$'
           return {
             NOT_SCHEME: new RegExp(merge('[^]', r, a, '[\\+\\-\\.]'), 'g'),
-            NOT_USERINFO: new RegExp(merge('[^\\%\\:]', p, c), 'g'),
-            NOT_HOST: new RegExp(merge('[^\\%\\[\\]\\:]', p, c), 'g'),
-            NOT_PATH: new RegExp(merge('[^\\%\\/\\:\\@]', p, c), 'g'),
-            NOT_PATH_NOSCHEME: new RegExp(merge('[^\\%\\/\\@]', p, c), 'g'),
+            NOT_USERINFO: new RegExp(merge('[^\\%\\:]', d, c), 'g'),
+            NOT_HOST: new RegExp(merge('[^\\%\\[\\]\\:]', d, c), 'g'),
+            NOT_PATH: new RegExp(merge('[^\\%\\/\\:\\@]', d, c), 'g'),
+            NOT_PATH_NOSCHEME: new RegExp(merge('[^\\%\\/\\@]', d, c), 'g'),
             NOT_QUERY: new RegExp(
-              merge('[^\\%]', p, c, '[\\:\\@\\/\\?]', d),
+              merge('[^\\%]', d, c, '[\\:\\@\\/\\?]', p),
               'g'
             ),
             NOT_FRAGMENT: new RegExp(
-              merge('[^\\%]', p, c, '[\\:\\@\\/\\?]'),
+              merge('[^\\%]', d, c, '[\\:\\@\\/\\?]'),
               'g'
             ),
-            ESCAPE: new RegExp(merge('[^]', p, c), 'g'),
-            UNRESERVED: new RegExp(p, 'g'),
-            OTHER_CHARS: new RegExp(merge('[^\\%]', p, u), 'g'),
+            ESCAPE: new RegExp(merge('[^]', d, c), 'g'),
+            UNRESERVED: new RegExp(d, 'g'),
+            OTHER_CHARS: new RegExp(merge('[^\\%]', d, u), 'g'),
             PCT_ENCODED: new RegExp(l, 'g'),
-            IPV4ADDRESS: new RegExp('^(' + P + ')$'),
+            IPV4ADDRESS: new RegExp('^(' + E + ')$'),
             IPV6ADDRESS: new RegExp(
               '^\\[?(' +
-                A +
+                D +
                 ')' +
-                subexp(subexp('\\%25|\\%(?!' + i + '{2})') + '(' + I + ')') +
+                subexp(subexp('\\%25|\\%(?!' + i + '{2})') + '(' + j + ')') +
                 '?\\]?$'
             ),
           }
@@ -7926,8 +9415,8 @@
         var c = 72
         var u = 128
         var h = '-'
-        var d = /^xn--/
-        var p = /[^\0-\x7E]/
+        var p = /^xn--/
+        var d = /[^\0-\x7E]/
         var v = /[\x2E\u3002\uFF0E\uFF61]/g
         var m = {
           overflow: 'Overflow: input needs wider integers to process',
@@ -7936,7 +9425,7 @@
         }
         var y = i - o
         var g = Math.floor
-        var P = String.fromCharCode
+        var E = String.fromCharCode
         function error$1(e) {
           throw new RangeError(m[e])
         }
@@ -7980,10 +9469,10 @@
           }
           return r
         }
-        var E = function ucs2encode(e) {
+        var P = function ucs2encode(e) {
           return String.fromCodePoint.apply(String, toConsumableArray(e))
         }
-        var b = function basicToDigit(e) {
+        var w = function basicToDigit(e) {
           if (e - 48 < 10) {
             return e - 22
           }
@@ -7995,10 +9484,10 @@
           }
           return i
         }
-        var w = function digitToBasic(e, r) {
+        var S = function digitToBasic(e, r) {
           return e + 22 + 75 * (e < 26) - ((r != 0) << 5)
         }
-        var S = function adapt(e, r, t) {
+        var b = function adapt(e, r, t) {
           var a = 0
           e = t ? g(e / f) : e >> 1
           e += g(e / r)
@@ -8007,172 +9496,172 @@
           }
           return g(a + ((y + 1) * e) / (e + l))
         }
-        var x = function decode(e) {
+        var R = function decode(e) {
           var r = []
           var t = e.length
           var a = 0
           var l = u
           var f = c
-          var d = e.lastIndexOf(h)
-          if (d < 0) {
-            d = 0
+          var p = e.lastIndexOf(h)
+          if (p < 0) {
+            p = 0
           }
-          for (var p = 0; p < d; ++p) {
-            if (e.charCodeAt(p) >= 128) {
+          for (var d = 0; d < p; ++d) {
+            if (e.charCodeAt(d) >= 128) {
               error$1('not-basic')
             }
-            r.push(e.charCodeAt(p))
+            r.push(e.charCodeAt(d))
           }
-          for (var v = d > 0 ? d + 1 : 0; v < t; ) {
+          for (var v = p > 0 ? p + 1 : 0; v < t; ) {
             var m = a
-            for (var y = 1, P = i; ; P += i) {
+            for (var y = 1, E = i; ; E += i) {
               if (v >= t) {
                 error$1('invalid-input')
               }
-              var E = b(e.charCodeAt(v++))
-              if (E >= i || E > g((s - a) / y)) {
+              var P = w(e.charCodeAt(v++))
+              if (P >= i || P > g((s - a) / y)) {
                 error$1('overflow')
               }
-              a += E * y
-              var w = P <= f ? o : P >= f + n ? n : P - f
-              if (E < w) {
+              a += P * y
+              var S = E <= f ? o : E >= f + n ? n : E - f
+              if (P < S) {
                 break
               }
-              var x = i - w
-              if (y > g(s / x)) {
+              var R = i - S
+              if (y > g(s / R)) {
                 error$1('overflow')
               }
-              y *= x
+              y *= R
             }
-            var _ = r.length + 1
-            f = S(a - m, _, m == 0)
-            if (g(a / _) > s - l) {
+            var I = r.length + 1
+            f = b(a - m, I, m == 0)
+            if (g(a / I) > s - l) {
               error$1('overflow')
             }
-            l += g(a / _)
-            a %= _
+            l += g(a / I)
+            a %= I
             r.splice(a++, 0, l)
           }
           return String.fromCodePoint.apply(String, r)
         }
-        var _ = function encode(e) {
+        var I = function encode(e) {
           var r = []
           e = ucs2decode(e)
           var t = e.length
           var a = u
           var l = 0
           var f = c
-          var d = true
-          var p = false
+          var p = true
+          var d = false
           var v = undefined
           try {
             for (
               var m = e[Symbol.iterator](), y;
-              !(d = (y = m.next()).done);
-              d = true
+              !(p = (y = m.next()).done);
+              p = true
             ) {
-              var E = y.value
-              if (E < 128) {
-                r.push(P(E))
+              var P = y.value
+              if (P < 128) {
+                r.push(E(P))
               }
             }
           } catch (e) {
-            p = true
+            d = true
             v = e
           } finally {
             try {
-              if (!d && m.return) {
+              if (!p && m.return) {
                 m.return()
               }
             } finally {
-              if (p) {
+              if (d) {
                 throw v
               }
             }
           }
-          var b = r.length
-          var x = b
-          if (b) {
+          var w = r.length
+          var R = w
+          if (w) {
             r.push(h)
           }
-          while (x < t) {
-            var _ = s
-            var j = true
-            var R = false
-            var F = undefined
-            try {
-              for (
-                var D = e[Symbol.iterator](), $;
-                !(j = ($ = D.next()).done);
-                j = true
-              ) {
-                var A = $.value
-                if (A >= a && A < _) {
-                  _ = A
-                }
-              }
-            } catch (e) {
-              R = true
-              F = e
-            } finally {
-              try {
-                if (!j && D.return) {
-                  D.return()
-                }
-              } finally {
-                if (R) {
-                  throw F
-                }
-              }
-            }
-            var I = x + 1
-            if (_ - a > g((s - l) / I)) {
-              error$1('overflow')
-            }
-            l += (_ - a) * I
-            a = _
-            var C = true
+          while (R < t) {
+            var I = s
+            var x = true
             var O = false
-            var k = undefined
+            var _ = undefined
             try {
               for (
-                var T = e[Symbol.iterator](), z;
-                !(C = (z = T.next()).done);
-                C = true
+                var A = e[Symbol.iterator](), C;
+                !(x = (C = A.next()).done);
+                x = true
               ) {
-                var L = z.value
-                if (L < a && ++l > s) {
-                  error$1('overflow')
-                }
-                if (L == a) {
-                  var N = l
-                  for (var U = i; ; U += i) {
-                    var q = U <= f ? o : U >= f + n ? n : U - f
-                    if (N < q) {
-                      break
-                    }
-                    var V = N - q
-                    var Q = i - q
-                    r.push(P(w(q + (V % Q), 0)))
-                    N = g(V / Q)
-                  }
-                  r.push(P(w(N, 0)))
-                  f = S(l, I, x == b)
-                  l = 0
-                  ++x
+                var D = C.value
+                if (D >= a && D < I) {
+                  I = D
                 }
               }
             } catch (e) {
               O = true
-              k = e
+              _ = e
             } finally {
               try {
-                if (!C && T.return) {
-                  T.return()
+                if (!x && A.return) {
+                  A.return()
                 }
               } finally {
                 if (O) {
-                  throw k
+                  throw _
+                }
+              }
+            }
+            var j = R + 1
+            if (I - a > g((s - l) / j)) {
+              error$1('overflow')
+            }
+            l += (I - a) * j
+            a = I
+            var F = true
+            var L = false
+            var T = undefined
+            try {
+              for (
+                var $ = e[Symbol.iterator](), N;
+                !(F = (N = $.next()).done);
+                F = true
+              ) {
+                var k = N.value
+                if (k < a && ++l > s) {
+                  error$1('overflow')
+                }
+                if (k == a) {
+                  var U = l
+                  for (var V = i; ; V += i) {
+                    var M = V <= f ? o : V >= f + n ? n : V - f
+                    if (U < M) {
+                      break
+                    }
+                    var z = U - M
+                    var q = i - M
+                    r.push(E(S(M + (z % q), 0)))
+                    U = g(z / q)
+                  }
+                  r.push(E(S(U, 0)))
+                  f = b(l, j, R == w)
+                  l = 0
+                  ++R
+                }
+              }
+            } catch (e) {
+              L = true
+              T = e
+            } finally {
+              try {
+                if (!F && $.return) {
+                  $.return()
+                }
+              } finally {
+                if (L) {
+                  throw T
                 }
               }
             }
@@ -8181,25 +9670,25 @@
           }
           return r.join('')
         }
-        var j = function toUnicode(e) {
+        var x = function toUnicode(e) {
           return mapDomain(e, function (e) {
-            return d.test(e) ? x(e.slice(4).toLowerCase()) : e
+            return p.test(e) ? R(e.slice(4).toLowerCase()) : e
           })
         }
-        var R = function toASCII(e) {
+        var O = function toASCII(e) {
           return mapDomain(e, function (e) {
-            return p.test(e) ? 'xn--' + _(e) : e
+            return d.test(e) ? 'xn--' + I(e) : e
           })
         }
-        var F = {
+        var _ = {
           version: '2.1.0',
-          ucs2: { decode: ucs2decode, encode: E },
-          decode: x,
-          encode: _,
-          toASCII: R,
-          toUnicode: j,
+          ucs2: { decode: ucs2decode, encode: P },
+          decode: R,
+          encode: I,
+          toASCII: O,
+          toUnicode: x,
         }
-        var D = {}
+        var A = {}
         function pctEncChar(e) {
           var r = e.charCodeAt(0)
           var t = void 0
@@ -8319,15 +9808,15 @@
               c = l[1]
             var u = c ? c.split(':').map(_stripLeadingZeros) : []
             var h = f.split(':').map(_stripLeadingZeros)
-            var d = r.IPV4ADDRESS.test(h[h.length - 1])
-            var p = d ? 7 : 8
-            var v = h.length - p
-            var m = Array(p)
-            for (var y = 0; y < p; ++y) {
+            var p = r.IPV4ADDRESS.test(h[h.length - 1])
+            var d = p ? 7 : 8
+            var v = h.length - d
+            var m = Array(d)
+            for (var y = 0; y < d; ++y) {
               m[y] = u[y] || h[v + y] || ''
             }
-            if (d) {
-              m[p - 1] = _normalizeIPv4(m[p - 1], r)
+            if (p) {
+              m[d - 1] = _normalizeIPv4(m[d - 1], r)
             }
             var g = m.reduce(function (e, r, t) {
               if (!r || r === '0') {
@@ -8340,28 +9829,28 @@
               }
               return e
             }, [])
-            var P = g.sort(function (e, r) {
+            var E = g.sort(function (e, r) {
               return r.length - e.length
             })[0]
-            var E = void 0
-            if (P && P.length > 1) {
-              var b = m.slice(0, P.index)
-              var w = m.slice(P.index + P.length)
-              E = b.join(':') + '::' + w.join(':')
+            var P = void 0
+            if (E && E.length > 1) {
+              var w = m.slice(0, E.index)
+              var S = m.slice(E.index + E.length)
+              P = w.join(':') + '::' + S.join(':')
             } else {
-              E = m.join(':')
+              P = m.join(':')
             }
             if (o) {
-              E += '%' + o
+              P += '%' + o
             }
-            return E
+            return P
           } else {
             return e
           }
         }
-        var $ =
+        var C =
           /^(?:([^:\/?#]+):)?(?:\/\/((?:([^\/?#@]*)@)?(\[[^\/?#\]]+\]|[^\/?#:]*)(?:\:(\d*))?))?([^?#]*)(?:\?([^#]*))?(?:#((?:.|\n|\r)*))?/i
-        var A = ''.match(/(){0}/)[1] === undefined
+        var D = ''.match(/(){0}/)[1] === undefined
         function parse(e) {
           var a =
             arguments.length > 1 && arguments[1] !== undefined
@@ -8371,9 +9860,9 @@
           var i = a.iri !== false ? t : r
           if (a.reference === 'suffix')
             e = (a.scheme ? a.scheme + ':' : '') + '//' + e
-          var o = e.match($)
+          var o = e.match(C)
           if (o) {
-            if (A) {
+            if (D) {
               s.scheme = o[1]
               s.userinfo = o[3]
               s.host = o[4]
@@ -8424,11 +9913,11 @@
             ) {
               s.error = s.error || 'URI is not a ' + a.reference + ' reference.'
             }
-            var n = D[(a.scheme || s.scheme || '').toLowerCase()]
+            var n = A[(a.scheme || s.scheme || '').toLowerCase()]
             if (!a.unicodeSupport && (!n || !n.unicodeSupport)) {
               if (s.host && (a.domainHost || (n && n.domainHost))) {
                 try {
-                  s.host = F.toASCII(
+                  s.host = _.toASCII(
                     s.host.replace(i.PCT_ENCODED, pctDecChars).toLowerCase()
                   )
                 } catch (e) {
@@ -8473,24 +9962,24 @@
           }
           return i.length ? i.join('') : undefined
         }
-        var I = /^\.\.?\//
-        var C = /^\/\.(\/|$)/
-        var O = /^\/\.\.(\/|$)/
-        var k = /^\/?(?:.|\n)*?(?=\/|$)/
+        var j = /^\.\.?\//
+        var F = /^\/\.(\/|$)/
+        var L = /^\/\.\.(\/|$)/
+        var T = /^\/?(?:.|\n)*?(?=\/|$)/
         function removeDotSegments(e) {
           var r = []
           while (e.length) {
-            if (e.match(I)) {
-              e = e.replace(I, '')
-            } else if (e.match(C)) {
-              e = e.replace(C, '/')
-            } else if (e.match(O)) {
-              e = e.replace(O, '/')
+            if (e.match(j)) {
+              e = e.replace(j, '')
+            } else if (e.match(F)) {
+              e = e.replace(F, '/')
+            } else if (e.match(L)) {
+              e = e.replace(L, '/')
               r.pop()
             } else if (e === '.' || e === '..') {
               e = ''
             } else {
-              var t = e.match(k)
+              var t = e.match(T)
               if (t) {
                 var a = t[0]
                 e = e.slice(a.length)
@@ -8509,17 +9998,17 @@
               : {}
           var s = a.iri ? t : r
           var i = []
-          var o = D[(a.scheme || e.scheme || '').toLowerCase()]
+          var o = A[(a.scheme || e.scheme || '').toLowerCase()]
           if (o && o.serialize) o.serialize(e, a)
           if (e.host) {
             if (s.IPV6ADDRESS.test(e.host)) {
             } else if (a.domainHost || (o && o.domainHost)) {
               try {
                 e.host = !a.iri
-                  ? F.toASCII(
+                  ? _.toASCII(
                       e.host.replace(s.PCT_ENCODED, pctDecChars).toLowerCase()
                     )
-                  : F.toUnicode(e.host)
+                  : _.toUnicode(e.host)
               } catch (r) {
                 e.error =
                   e.error ||
@@ -8678,7 +10167,7 @@
               )
           )
         }
-        var T = {
+        var $ = {
           scheme: 'http',
           domainHost: true,
           parse: function parse(e, r) {
@@ -8698,18 +10187,18 @@
             return e
           },
         }
-        var z = {
+        var N = {
           scheme: 'https',
-          domainHost: T.domainHost,
-          parse: T.parse,
-          serialize: T.serialize,
+          domainHost: $.domainHost,
+          parse: $.parse,
+          serialize: $.serialize,
         }
         function isSecure(e) {
           return typeof e.secure === 'boolean'
             ? e.secure
             : String(e.scheme).toLowerCase() === 'wss'
         }
-        var L = {
+        var k = {
           scheme: 'ws',
           domainHost: true,
           parse: function parse(e, r) {
@@ -8741,40 +10230,40 @@
             return e
           },
         }
-        var N = {
+        var U = {
           scheme: 'wss',
-          domainHost: L.domainHost,
-          parse: L.parse,
-          serialize: L.serialize,
+          domainHost: k.domainHost,
+          parse: k.parse,
+          serialize: k.serialize,
         }
-        var U = {}
-        var q = true
-        var V =
+        var V = {}
+        var M = true
+        var z =
           '[A-Za-z0-9\\-\\.\\_\\~' +
-          (q
+          (M
             ? '\\xA0-\\u200D\\u2010-\\u2029\\u202F-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFEF'
             : '') +
           ']'
-        var Q = '[0-9A-Fa-f]'
-        var M = subexp(
-          subexp('%[EFef]' + Q + '%' + Q + Q + '%' + Q + Q) +
+        var q = '[0-9A-Fa-f]'
+        var Q = subexp(
+          subexp('%[EFef]' + q + '%' + q + q + '%' + q + q) +
             '|' +
-            subexp('%[89A-Fa-f]' + Q + '%' + Q + Q) +
+            subexp('%[89A-Fa-f]' + q + '%' + q + q) +
             '|' +
-            subexp('%' + Q + Q)
+            subexp('%' + q + q)
         )
         var H = "[A-Za-z0-9\\!\\$\\%\\'\\*\\+\\-\\^\\_\\`\\{\\|\\}\\~]"
-        var K = "[\\!\\$\\%\\'\\(\\)\\*\\+\\,\\-\\.0-9\\<\\>A-Z\\x5E-\\x7E]"
-        var B = merge(K, '[\\"\\\\]')
-        var J = "[\\!\\$\\'\\(\\)\\*\\+\\,\\;\\:\\@]"
-        var G = new RegExp(V, 'g')
-        var Z = new RegExp(M, 'g')
-        var X = new RegExp(merge('[^]', H, '[\\.]', '[\\"]', B), 'g')
-        var Y = new RegExp(merge('[^]', V, J), 'g')
-        var W = Y
+        var G = "[\\!\\$\\%\\'\\(\\)\\*\\+\\,\\-\\.0-9\\<\\>A-Z\\x5E-\\x7E]"
+        var K = merge(G, '[\\"\\\\]')
+        var B = "[\\!\\$\\'\\(\\)\\*\\+\\,\\;\\:\\@]"
+        var X = new RegExp(z, 'g')
+        var J = new RegExp(Q, 'g')
+        var Y = new RegExp(merge('[^]', H, '[\\.]', '[\\"]', K), 'g')
+        var Z = new RegExp(merge('[^]', z, B), 'g')
+        var W = Z
         function decodeUnreserved(e) {
           var r = pctDecChars(e)
-          return !r.match(G) ? e : r
+          return !r.match(X) ? e : r
         }
         var ee = {
           scheme: 'mailto',
@@ -8810,12 +10299,12 @@
               if (s) t.headers = i
             }
             t.query = undefined
-            for (var d = 0, p = a.length; d < p; ++d) {
-              var v = a[d].split('@')
+            for (var p = 0, d = a.length; p < d; ++p) {
+              var v = a[p].split('@')
               v[0] = unescapeComponent(v[0])
               if (!r.unicodeSupport) {
                 try {
-                  v[1] = F.toASCII(unescapeComponent(v[1], r).toLowerCase())
+                  v[1] = _.toASCII(unescapeComponent(v[1], r).toLowerCase())
                 } catch (e) {
                   t.error =
                     t.error ||
@@ -8825,7 +10314,7 @@
               } else {
                 v[1] = unescapeComponent(v[1], r).toLowerCase()
               }
-              a[d] = v.join('@')
+              a[p] = v.join('@')
             }
             return t
           },
@@ -8838,14 +10327,14 @@
                 var n = o.lastIndexOf('@')
                 var l = o
                   .slice(0, n)
-                  .replace(Z, decodeUnreserved)
-                  .replace(Z, toUpperCase)
-                  .replace(X, pctEncChar)
+                  .replace(J, decodeUnreserved)
+                  .replace(J, toUpperCase)
+                  .replace(Y, pctEncChar)
                 var f = o.slice(n + 1)
                 try {
                   f = !r.iri
-                    ? F.toASCII(unescapeComponent(f, r).toLowerCase())
-                    : F.toUnicode(f)
+                    ? _.toASCII(unescapeComponent(f, r).toLowerCase())
+                    : _.toUnicode(f)
                 } catch (e) {
                   t.error =
                     t.error ||
@@ -8863,16 +10352,16 @@
             if (e.body) c['body'] = e.body
             var u = []
             for (var h in c) {
-              if (c[h] !== U[h]) {
+              if (c[h] !== V[h]) {
                 u.push(
                   h
-                    .replace(Z, decodeUnreserved)
-                    .replace(Z, toUpperCase)
-                    .replace(Y, pctEncChar) +
+                    .replace(J, decodeUnreserved)
+                    .replace(J, toUpperCase)
+                    .replace(Z, pctEncChar) +
                     '=' +
                     c[h]
-                      .replace(Z, decodeUnreserved)
-                      .replace(Z, toUpperCase)
+                      .replace(J, decodeUnreserved)
+                      .replace(J, toUpperCase)
                       .replace(W, pctEncChar)
                 )
               }
@@ -8894,7 +10383,7 @@
               var i = t[1].toLowerCase()
               var o = t[2]
               var n = s + ':' + (r.nid || i)
-              var l = D[n]
+              var l = A[n]
               a.nid = i
               a.nss = o
               a.path = undefined
@@ -8910,7 +10399,7 @@
             var t = r.scheme || e.scheme || 'urn'
             var a = e.nid
             var s = t + ':' + (r.nid || a)
-            var i = D[s]
+            var i = A[s]
             if (i) {
               e = i.serialize(e, r)
             }
@@ -8938,14 +10427,14 @@
             return t
           },
         }
-        D[T.scheme] = T
-        D[z.scheme] = z
-        D[L.scheme] = L
-        D[N.scheme] = N
-        D[ee.scheme] = ee
-        D[te.scheme] = te
-        D[se.scheme] = se
-        e.SCHEMES = D
+        A[$.scheme] = $
+        A[N.scheme] = N
+        A[k.scheme] = k
+        A[U.scheme] = U
+        A[ee.scheme] = ee
+        A[te.scheme] = te
+        A[se.scheme] = se
+        e.SCHEMES = A
         e.pctEncChar = pctEncChar
         e.pctDecChars = pctDecChars
         e.parse = parse
@@ -9027,9 +10516,9 @@
         let s
         let u
         const h = i(cleanupOnExit(() => u))
-        const d = o.resolve(e)
+        const p = o.resolve(e)
         try {
-          await serializeActiveFile(d)
+          await serializeActiveFile(p)
           const i = await f(a.realpath)(e).catch(() => e)
           u = getTmpname(i)
           if (!t.mode || !t.chown) {
@@ -9081,10 +10570,10 @@
           }
           h()
           await f(a.unlink)(u).catch(() => {})
-          c[d].shift()
-          if (c[d].length > 0) {
-            c[d][0]()
-          } else delete c[d]
+          c[p].shift()
+          if (c[p].length > 0) {
+            c[p][0]()
+          } else delete c[p]
         }
       }
       function writeFile(e, r, t, a) {
@@ -9172,13 +10661,9 @@
         }
       }
     },
-    9465: (e) => {
+    1117: (e) => {
       'use strict'
-      e.exports = require('../find-up')
-    },
-    5204: (e) => {
-      'use strict'
-      e.exports = require('../semver')
+      e.exports = require('../p-limit')
     },
     9491: (e) => {
       'use strict'

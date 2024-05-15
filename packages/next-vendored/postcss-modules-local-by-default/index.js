@@ -9,13 +9,13 @@
           return t
         }
         var n = {}
-        for (var i in t) {
-          n[i] = r.call(e, i) ? e[i] : t[i]
+        for (var s in t) {
+          n[s] = r.call(e, s) ? e[s] : t[s]
         }
         return n
       }
-      var i = /[ -,\.\/:-@\[-\^`\{-~]/
-      var s = /[ -,\.\/:-@\[\]\^`\{-~]/
+      var s = /[ -,\.\/:-@\[-\^`\{-~]/
+      var i = /[ -,\.\/:-@\[\]\^`\{-~]/
       var o = /['"\\]/
       var a = /(^|\\+)?(\\[A-F0-9]{1,6})\x20(?![a-fA-F0-9\x20])/g
       var u = function cssesc(e, t) {
@@ -31,38 +31,38 @@
         var f = e.length
         while (l < f) {
           var p = e.charAt(l++)
-          var h = p.charCodeAt()
-          var d = void 0
-          if (h < 32 || h > 126) {
-            if (h >= 55296 && h <= 56319 && l < f) {
+          var d = p.charCodeAt()
+          var h = void 0
+          if (d < 32 || d > 126) {
+            if (d >= 55296 && d <= 56319 && l < f) {
               var v = e.charCodeAt(l++)
               if ((v & 64512) == 56320) {
-                h = ((h & 1023) << 10) + (v & 1023) + 65536
+                d = ((d & 1023) << 10) + (v & 1023) + 65536
               } else {
                 l--
               }
             }
-            d = '\\' + h.toString(16).toUpperCase() + ' '
+            h = '\\' + d.toString(16).toUpperCase() + ' '
           } else {
             if (t.escapeEverything) {
-              if (i.test(p)) {
-                d = '\\' + p
+              if (s.test(p)) {
+                h = '\\' + p
               } else {
-                d = '\\' + h.toString(16).toUpperCase() + ' '
+                h = '\\' + d.toString(16).toUpperCase() + ' '
               }
             } else if (/[\t\n\f\r\x0B]/.test(p)) {
-              d = '\\' + h.toString(16).toUpperCase() + ' '
+              h = '\\' + d.toString(16).toUpperCase() + ' '
             } else if (
               p == '\\' ||
               (!o && ((p == '"' && r == p) || (p == "'" && r == p))) ||
-              (o && s.test(p))
+              (o && i.test(p))
             ) {
-              d = '\\' + p
+              h = '\\' + p
             } else {
-              d = p
+              h = p
             }
           }
-          c += d
+          c += h
         }
         if (o) {
           if (/^-[-\d]/.test(c)) {
@@ -91,11 +91,152 @@
       u.version = '3.0.0'
       e.exports = u
     },
+    858: (e) => {
+      const createImports = (e, t, r = 'rule') =>
+        Object.keys(e).map((n) => {
+          const s = e[n]
+          const i = Object.keys(s).map((e) =>
+            t.decl({ prop: e, value: s[e], raws: { before: '\n  ' } })
+          )
+          const o = i.length > 0
+          const a =
+            r === 'rule'
+              ? t.rule({
+                  selector: `:import('${n}')`,
+                  raws: { after: o ? '\n' : '' },
+                })
+              : t.atRule({
+                  name: 'icss-import',
+                  params: `'${n}'`,
+                  raws: { after: o ? '\n' : '' },
+                })
+          if (o) {
+            a.append(i)
+          }
+          return a
+        })
+      const createExports = (e, t, r = 'rule') => {
+        const n = Object.keys(e).map((r) =>
+          t.decl({ prop: r, value: e[r], raws: { before: '\n  ' } })
+        )
+        if (n.length === 0) {
+          return []
+        }
+        const s =
+          r === 'rule'
+            ? t.rule({ selector: `:export`, raws: { after: '\n' } })
+            : t.atRule({ name: 'icss-export', raws: { after: '\n' } })
+        s.append(n)
+        return [s]
+      }
+      const createICSSRules = (e, t, r, n) => [
+        ...createImports(e, r, n),
+        ...createExports(t, r, n),
+      ]
+      e.exports = createICSSRules
+    },
+    233: (e) => {
+      const t = /^:import\(("[^"]*"|'[^']*'|[^"']+)\)$/
+      const r = /^("[^"]*"|'[^']*'|[^"']+)$/
+      const getDeclsObject = (e) => {
+        const t = {}
+        e.walkDecls((e) => {
+          const r = e.raws.before ? e.raws.before.trim() : ''
+          t[r + e.prop] = e.value
+        })
+        return t
+      }
+      const extractICSS = (e, n = true, s = 'auto') => {
+        const i = {}
+        const o = {}
+        function addImports(e, t) {
+          const r = t.replace(/'|"/g, '')
+          i[r] = Object.assign(i[r] || {}, getDeclsObject(e))
+          if (n) {
+            e.remove()
+          }
+        }
+        function addExports(e) {
+          Object.assign(o, getDeclsObject(e))
+          if (n) {
+            e.remove()
+          }
+        }
+        e.each((e) => {
+          if (e.type === 'rule' && s !== 'at-rule') {
+            if (e.selector.slice(0, 7) === ':import') {
+              const r = t.exec(e.selector)
+              if (r) {
+                addImports(e, r[1])
+              }
+            }
+            if (e.selector === ':export') {
+              addExports(e)
+            }
+          }
+          if (e.type === 'atrule' && s !== 'rule') {
+            if (e.name === 'icss-import') {
+              const t = r.exec(e.params)
+              if (t) {
+                addImports(e, t[1])
+              }
+            }
+            if (e.name === 'icss-export') {
+              addExports(e)
+            }
+          }
+        })
+        return { icssImports: i, icssExports: o }
+      }
+      e.exports = extractICSS
+    },
+    48: (e, t, r) => {
+      const n = r(63)
+      const s = r(849)
+      const i = r(233)
+      const o = r(858)
+      e.exports = {
+        replaceValueSymbols: n,
+        replaceSymbols: s,
+        extractICSS: i,
+        createICSSRules: o,
+      }
+    },
+    849: (e, t, r) => {
+      const n = r(63)
+      const replaceSymbols = (e, t) => {
+        e.walk((e) => {
+          if (e.type === 'decl' && e.value) {
+            e.value = n(e.value.toString(), t)
+          } else if (e.type === 'rule' && e.selector) {
+            e.selector = n(e.selector.toString(), t)
+          } else if (e.type === 'atrule' && e.params) {
+            e.params = n(e.params.toString(), t)
+          }
+        })
+      }
+      e.exports = replaceSymbols
+    },
+    63: (e) => {
+      const t = /[$]?[\w-]+/g
+      const replaceValueSymbols = (e, r) => {
+        let n
+        while ((n = t.exec(e))) {
+          const s = r[n[0]]
+          if (s) {
+            e = e.slice(0, n.index) + s + e.slice(t.lastIndex)
+            t.lastIndex -= n[0].length - s.length
+          }
+        }
+        return e
+      }
+      e.exports = replaceValueSymbols
+    },
     35: (e, t, r) => {
       'use strict'
       const n = r(235)
-      const i = r(36)
-      const { extractICSS: s } = r(417)
+      const s = r(697)
+      const { extractICSS: i } = r(48)
       const isSpacing = (e) => e.type === 'combinator' && e.value === ' '
       function normalizeNodeArray(e) {
         const t = []
@@ -121,41 +262,41 @@
           if (t.enforceNoSpacing && isSpacing(e)) {
             throw new Error('Missing whitespace before ' + t.enforceNoSpacing)
           }
-          let i
+          let s
           switch (e.type) {
             case 'root': {
               let r
               t.hasPureGlobals = false
-              i = e.nodes.map((n) => {
-                const i = {
+              s = e.nodes.map((n) => {
+                const s = {
                   global: t.global,
                   lastWasSpacing: true,
                   hasLocals: false,
                   explicit: false,
                 }
-                n = transform(n, i)
+                n = transform(n, s)
                 if (typeof r === 'undefined') {
-                  r = i.global
-                } else if (r !== i.global) {
+                  r = s.global
+                } else if (r !== s.global) {
                   throw new Error(
                     'Inconsistent rule global/local result in rule "' +
                       e +
                       '" (multiple selectors must result in the same mode for the rule)'
                   )
                 }
-                if (!i.hasLocals) {
+                if (!s.hasLocals) {
                   t.hasPureGlobals = true
                 }
                 return n
               })
               t.global = r
-              e.nodes = normalizeNodeArray(i)
+              e.nodes = normalizeNodeArray(s)
               break
             }
             case 'selector': {
-              i = e.map((e) => transform(e, t))
+              s = e.map((e) => transform(e, t))
               e = e.clone()
-              e.nodes = normalizeNodeArray(i)
+              e.nodes = normalizeNodeArray(s)
               break
             }
             case 'combinator': {
@@ -173,12 +314,12 @@
             }
             case 'pseudo': {
               let r
-              const s = !!e.length
+              const i = !!e.length
               const o = e.value === ':local' || e.value === ':global'
               const a = e.value === ':import' || e.value === ':export'
               if (a) {
                 t.hasLocals = true
-              } else if (s) {
+              } else if (i) {
                 if (o) {
                   if (e.nodes.length === 0) {
                     throw new Error(`${e.value}() can't be empty`)
@@ -194,17 +335,17 @@
                     hasLocals: false,
                     explicit: true,
                   }
-                  i = e
+                  s = e
                     .map((e) => transform(e, r))
                     .reduce((e, t) => e.concat(t.nodes), [])
-                  if (i.length) {
+                  if (s.length) {
                     const { before: t, after: r } = e.spaces
-                    const n = i[0]
-                    const s = i[i.length - 1]
+                    const n = s[0]
+                    const i = s[s.length - 1]
                     n.spaces = { before: t, after: n.spaces.after }
-                    s.spaces = { before: s.spaces.before, after: r }
+                    i.spaces = { before: i.spaces.before, after: r }
                   }
-                  e = i
+                  e = s
                   break
                 } else {
                   r = {
@@ -214,7 +355,7 @@
                     hasLocals: false,
                     explicit: t.explicit,
                   }
-                  i = e.map((e) => {
+                  s = e.map((e) => {
                     const t = { ...r, enforceNoSpacing: false }
                     const n = transform(e, t)
                     r.global = t.global
@@ -222,7 +363,7 @@
                     return n
                   })
                   e = e.clone()
-                  e.nodes = normalizeNodeArray(i)
+                  e.nodes = normalizeNodeArray(s)
                   if (r.hasLocals) {
                     t.hasLocals = true
                   }
@@ -251,9 +392,9 @@
               if (t.global) {
                 break
               }
-              const i = r.has(e.value)
-              const s = i && t.explicit
-              if (!i || s) {
+              const s = r.has(e.value)
+              const i = s && t.explicit
+              if (!s || i) {
                 const r = e.clone()
                 r.spaces = { before: '', after: '' }
                 e = n.pseudo({ value: ':local', nodes: [r], spaces: e.spaces })
@@ -272,11 +413,11 @@
           t.enforceNoSpacing = false
           return e
         }
-        const i = { global: t === 'global', hasPureGlobals: false }
-        i.selector = n((e) => {
-          transform(e, i)
+        const s = { global: t === 'global', hasPureGlobals: false }
+        s.selector = n((e) => {
+          transform(e, s)
         }).processSync(e, { updateSelector: false, lossless: true })
-        return i
+        return s
       }
       function localizeDeclNode(e, t) {
         switch (e.type) {
@@ -328,8 +469,8 @@
         'unset',
       ]
       function localizeDeclarationValues(e, t, r) {
-        const n = i(t.value)
-        n.walk((t, n, i) => {
+        const n = s(t.value)
+        n.walk((t, n, s) => {
           if (
             t.type === 'function' &&
             (t.value.toLowerCase() === 'var' || t.value.toLowerCase() === 'env')
@@ -339,13 +480,13 @@
           if (t.type === 'word' && o.includes(t.value.toLowerCase())) {
             return
           }
-          const s = {
+          const i = {
             options: r.options,
             global: r.global,
             localizeNextItem: e && !r.global,
             localAliasMap: r.localAliasMap,
           }
-          i[n] = localizeDeclNode(t, s)
+          s[n] = localizeDeclNode(t, i)
         })
         t.value = n.toString()
       }
@@ -379,22 +520,22 @@
             $revert: Infinity,
             '$revert-layer': Infinity,
           }
-          let s = {}
-          const o = i(e.value).walk((e) => {
+          let i = {}
+          const o = s(e.value).walk((e) => {
             if (e.type === 'div') {
-              s = {}
+              i = {}
               return
             } else if (e.type === 'function') {
               return false
             } else if (e.type !== 'word') {
               return
             }
-            const i = e.type === 'word' ? e.value.toLowerCase() : null
+            const s = e.type === 'word' ? e.value.toLowerCase() : null
             let o = false
-            if (i && r.test(i)) {
-              if ('$' + i in n) {
-                s['$' + i] = '$' + i in s ? s['$' + i] + 1 : 0
-                o = s['$' + i] >= n['$' + i]
+            if (s && r.test(s)) {
+              if ('$' + s in n) {
+                i['$' + s] = '$' + s in i ? i['$' + s] + 1 : 0
+                o = i['$' + s] >= n['$' + s]
               } else {
                 o = true
               }
@@ -414,8 +555,8 @@
         if (n) {
           return localizeDeclarationValues(true, e, t)
         }
-        const s = /url\(/i.test(e.value)
-        if (s) {
+        const i = /url\(/i.test(e.value)
+        if (i) {
           return localizeDeclarationValues(false, e, t)
         }
       }
@@ -438,51 +579,51 @@
           prepare() {
             const n = new Map()
             return {
-              Once(i) {
-                const { icssImports: o } = s(i, false)
+              Once(s) {
+                const { icssImports: o } = i(s, false)
                 Object.keys(o).forEach((e) => {
                   Object.keys(o[e]).forEach((t) => {
                     n.set(t, o[e][t])
                   })
                 })
-                i.walkAtRules((i) => {
-                  if (/keyframes$/i.test(i.name)) {
-                    const s = /^\s*:global\s*\((.+)\)\s*$/.exec(i.params)
-                    const o = /^\s*:local\s*\((.+)\)\s*$/.exec(i.params)
+                s.walkAtRules((s) => {
+                  if (/keyframes$/i.test(s.name)) {
+                    const i = /^\s*:global\s*\((.+)\)\s*$/.exec(s.params)
+                    const o = /^\s*:local\s*\((.+)\)\s*$/.exec(s.params)
                     let a = r
-                    if (s) {
+                    if (i) {
                       if (t) {
-                        throw i.error(
+                        throw s.error(
                           '@keyframes :global(...) is not allowed in pure mode'
                         )
                       }
-                      i.params = s[1]
+                      s.params = i[1]
                       a = true
                     } else if (o) {
-                      i.params = o[0]
+                      s.params = o[0]
                       a = false
-                    } else if (i.params && !r && !n.has(i.params)) {
-                      i.params = ':local(' + i.params + ')'
+                    } else if (s.params && !r && !n.has(s.params)) {
+                      s.params = ':local(' + s.params + ')'
                     }
-                    i.walkDecls((t) => {
+                    s.walkDecls((t) => {
                       localizeDeclaration(t, {
                         localAliasMap: n,
                         options: e,
                         global: a,
                       })
                     })
-                  } else if (/scope$/i.test(i.name)) {
-                    i.params = i.params
+                  } else if (/scope$/i.test(s.name)) {
+                    s.params = s.params
                       .split('to')
                       .map((r) => {
-                        const s = r.trim().slice(1, -1).trim()
-                        const o = localizeNode(s, e.mode, n)
+                        const i = r.trim().slice(1, -1).trim()
+                        const o = localizeNode(i, e.mode, n)
                         o.options = e
                         o.localAliasMap = n
                         if (t && o.hasPureGlobals) {
-                          throw i.error(
+                          throw s.error(
                             'Selector in at-rule"' +
-                              s +
+                              i +
                               '" is not pure ' +
                               '(pure selectors must contain at least one local class or id)'
                           )
@@ -490,7 +631,7 @@
                         return `(${o.selector})`
                       })
                       .join(' to ')
-                    i.nodes.forEach((t) => {
+                    s.nodes.forEach((t) => {
                       if (t.type === 'decl') {
                         localizeDeclaration(t, {
                           localAliasMap: n,
@@ -499,8 +640,8 @@
                         })
                       }
                     })
-                  } else if (i.nodes) {
-                    i.nodes.forEach((t) => {
+                  } else if (s.nodes) {
+                    s.nodes.forEach((t) => {
                       if (t.type === 'decl') {
                         localizeDeclaration(t, {
                           localAliasMap: n,
@@ -511,7 +652,7 @@
                     })
                   }
                 })
-                i.walkRules((r) => {
+                s.walkRules((r) => {
                   if (
                     r.parent &&
                     r.parent.type === 'atrule' &&
@@ -519,10 +660,10 @@
                   ) {
                     return
                   }
-                  const i = localizeNode(r, e.mode, n)
-                  i.options = e
-                  i.localAliasMap = n
-                  if (t && i.hasPureGlobals) {
+                  const s = localizeNode(r, e.mode, n)
+                  s.options = e
+                  s.localAliasMap = n
+                  if (t && s.hasPureGlobals) {
                     throw r.error(
                       'Selector "' +
                         r.selector +
@@ -530,9 +671,9 @@
                         '(pure selectors must contain at least one local class or id)'
                     )
                   }
-                  r.selector = i.selector
+                  r.selector = s.selector
                   if (r.nodes) {
-                    r.nodes.forEach((e) => localizeDeclaration(e, i))
+                    r.nodes.forEach((e) => localizeDeclaration(e, s))
                   }
                 })
               },
@@ -547,7 +688,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(528))
-      var i = _interopRequireWildcard(r(110))
+      var s = _interopRequireWildcard(r(110))
       function _getRequireWildcardCache() {
         if (typeof WeakMap !== 'function') return null
         var e = new WeakMap()
@@ -569,13 +710,13 @@
         }
         var r = {}
         var n = Object.defineProperty && Object.getOwnPropertyDescriptor
-        for (var i in e) {
-          if (Object.prototype.hasOwnProperty.call(e, i)) {
-            var s = n ? Object.getOwnPropertyDescriptor(e, i) : null
-            if (s && (s.get || s.set)) {
-              Object.defineProperty(r, i, s)
+        for (var s in e) {
+          if (Object.prototype.hasOwnProperty.call(e, s)) {
+            var i = n ? Object.getOwnPropertyDescriptor(e, s) : null
+            if (i && (i.get || i.set)) {
+              Object.defineProperty(r, s, i)
             } else {
-              r[i] = e[i]
+              r[s] = e[s]
             }
           }
         }
@@ -588,12 +729,12 @@
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
-      var s = function parser(e) {
+      var i = function parser(e) {
         return new n['default'](e)
       }
-      Object.assign(s, i)
-      delete s.__esModule
-      var o = s
+      Object.assign(i, s)
+      delete i.__esModule
+      var o = i
       t['default'] = o
       e.exports = t.default
     },
@@ -602,8 +743,8 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(422))
-      var i = _interopRequireDefault(r(13))
-      var s = _interopRequireDefault(r(870))
+      var s = _interopRequireDefault(r(13))
+      var i = _interopRequireDefault(r(870))
       var o = _interopRequireDefault(r(47))
       var a = _interopRequireDefault(r(393))
       var u = _interopRequireDefault(r(443))
@@ -611,8 +752,8 @@
       var l = _interopRequireDefault(r(326))
       var f = _interopRequireWildcard(r(248))
       var p = _interopRequireDefault(r(165))
-      var h = _interopRequireDefault(r(537))
-      var d = _interopRequireDefault(r(60))
+      var d = _interopRequireDefault(r(537))
+      var h = _interopRequireDefault(r(60))
       var v = _interopRequireDefault(r(173))
       var _ = _interopRequireWildcard(r(133))
       var g = _interopRequireWildcard(r(553))
@@ -640,13 +781,13 @@
         }
         var r = {}
         var n = Object.defineProperty && Object.getOwnPropertyDescriptor
-        for (var i in e) {
-          if (Object.prototype.hasOwnProperty.call(e, i)) {
-            var s = n ? Object.getOwnPropertyDescriptor(e, i) : null
-            if (s && (s.get || s.set)) {
-              Object.defineProperty(r, i, s)
+        for (var s in e) {
+          if (Object.prototype.hasOwnProperty.call(e, s)) {
+            var i = n ? Object.getOwnPropertyDescriptor(e, s) : null
+            if (i && (i.get || i.set)) {
+              Object.defineProperty(r, s, i)
             } else {
-              r[i] = e[i]
+              r[s] = e[s]
             }
           }
         }
@@ -681,7 +822,7 @@
         (S[g.newline] = true),
         (S[g.tab] = true),
         S)
-      var T = Object.assign({}, w, ((m = {}), (m[g.comment] = true), m))
+      var k = Object.assign({}, w, ((m = {}), (m[g.comment] = true), m))
       function tokenStart(e) {
         return { line: e[_.FIELDS.START_LINE], column: e[_.FIELDS.START_COL] }
       }
@@ -738,7 +879,7 @@
           return r === e.indexOf(t)
         })
       }
-      var k = (function () {
+      var T = (function () {
         function Parser(e, t) {
           if (t === void 0) {
             t = {}
@@ -759,11 +900,11 @@
           )
           this.root = new n['default']({ source: r })
           this.root.errorGenerator = this._errorGenerator()
-          var s = new i['default']({
+          var i = new s['default']({
             source: { start: { line: 1, column: 1 } },
           })
-          this.root.append(s)
-          this.current = s
+          this.root.append(i)
+          this.current = i
           this.loop()
         }
         var e = Parser.prototype
@@ -801,15 +942,15 @@
           if (r === 1 && !~[g.word].indexOf(e[0][_.FIELDS.TYPE])) {
             return this.expected('attribute', e[0][_.FIELDS.START_POS])
           }
-          var i = 0
-          var s = ''
+          var s = 0
+          var i = ''
           var o = ''
           var a = null
           var u = false
-          while (i < r) {
-            var c = e[i]
+          while (s < r) {
+            var c = e[s]
             var l = this.content(c)
-            var p = e[i + 1]
+            var p = e[s + 1]
             switch (c[_.FIELDS.TYPE]) {
               case g.space:
                 u = true
@@ -818,15 +959,15 @@
                 }
                 if (a) {
                   ;(0, b.ensureObject)(n, 'spaces', a)
-                  var h = n.spaces[a].after || ''
-                  n.spaces[a].after = h + l
-                  var d =
+                  var d = n.spaces[a].after || ''
+                  n.spaces[a].after = d + l
+                  var h =
                     (0, b.getProp)(n, 'raws', 'spaces', a, 'after') || null
-                  if (d) {
-                    n.raws.spaces[a].after = d + l
+                  if (h) {
+                    n.raws.spaces[a].after = h + l
                   }
                 } else {
-                  s = s + l
+                  i = i + l
                   o = o + l
                 }
                 break
@@ -835,14 +976,14 @@
                   n.operator = l
                   a = 'operator'
                 } else if ((!n.namespace || (a === 'namespace' && !u)) && p) {
-                  if (s) {
+                  if (i) {
                     ;(0, b.ensureObject)(n, 'spaces', 'attribute')
-                    n.spaces.attribute.before = s
-                    s = ''
+                    n.spaces.attribute.before = i
+                    i = ''
                   }
                   if (o) {
                     ;(0, b.ensureObject)(n, 'raws', 'spaces', 'attribute')
-                    n.raws.spaces.attribute.before = s
+                    n.raws.spaces.attribute.before = i
                     o = ''
                   }
                   n.namespace = (n.namespace || '') + l
@@ -891,18 +1032,18 @@
                 if (
                   p &&
                   this.content(p) === '|' &&
-                  e[i + 2] &&
-                  e[i + 2][_.FIELDS.TYPE] !== g.equals &&
+                  e[s + 2] &&
+                  e[s + 2][_.FIELDS.TYPE] !== g.equals &&
                   !n.operator &&
                   !n.namespace
                 ) {
                   n.namespace = l
                   a = 'namespace'
                 } else if (!n.attribute || (a === 'attribute' && !u)) {
-                  if (s) {
+                  if (i) {
                     ;(0, b.ensureObject)(n, 'spaces', 'attribute')
-                    n.spaces.attribute.before = s
-                    s = ''
+                    n.spaces.attribute.before = i
+                    i = ''
                   }
                   if (o) {
                     ;(0, b.ensureObject)(n, 'raws', 'spaces', 'attribute')
@@ -921,27 +1062,27 @@
                 ) {
                   var m = (0, b.unesc)(l)
                   var w = (0, b.getProp)(n, 'raws', 'value') || ''
-                  var T = n.value || ''
-                  n.value = T + m
+                  var k = n.value || ''
+                  n.value = k + m
                   n.quoteMark = null
                   if (m !== l || w) {
                     ;(0, b.ensureObject)(n, 'raws')
-                    n.raws.value = (w || T) + l
+                    n.raws.value = (w || k) + l
                   }
                   a = 'value'
                 } else {
-                  var k = l === 'i' || l === 'I'
+                  var T = l === 'i' || l === 'I'
                   if ((n.value || n.value === '') && (n.quoteMark || u)) {
-                    n.insensitive = k
-                    if (!k || l === 'I') {
+                    n.insensitive = T
+                    if (!T || l === 'I') {
                       ;(0, b.ensureObject)(n, 'raws')
                       n.raws.insensitiveFlag = l
                     }
                     a = 'insensitive'
-                    if (s) {
+                    if (i) {
                       ;(0, b.ensureObject)(n, 'spaces', 'insensitive')
-                      n.spaces.insensitive.before = s
-                      s = ''
+                      n.spaces.insensitive.before = i
+                      i = ''
                     }
                     if (o) {
                       ;(0, b.ensureObject)(n, 'raws', 'spaces', 'insensitive')
@@ -996,15 +1137,15 @@
                     (p && p[_.FIELDS.TYPE] === g.space) ||
                     a === 'insensitive'
                   ) {
-                    var D = (0, b.getProp)(n, 'spaces', a, 'after') || ''
-                    var L = (0, b.getProp)(n, 'raws', 'spaces', a, 'after') || D
+                    var I = (0, b.getProp)(n, 'spaces', a, 'after') || ''
+                    var A = (0, b.getProp)(n, 'raws', 'spaces', a, 'after') || I
                     ;(0, b.ensureObject)(n, 'raws', 'spaces', a)
-                    n.raws.spaces[a].after = L + l
+                    n.raws.spaces[a].after = A + l
                   } else {
-                    var I = n[a] || ''
-                    var q = (0, b.getProp)(n, 'raws', a) || I
+                    var x = n[a] || ''
+                    var D = (0, b.getProp)(n, 'raws', a) || x
                     ;(0, b.ensureObject)(n, 'raws')
-                    n.raws[a] = q + l
+                    n.raws[a] = D + l
                   }
                 } else {
                   o = o + l
@@ -1015,7 +1156,7 @@
                   index: c[_.FIELDS.START_POS],
                 })
             }
-            i++
+            s++
           }
           unescapeProp(n, 'attribute')
           unescapeProp(n, 'namespace')
@@ -1030,30 +1171,30 @@
             var t = this.position
             var r = []
             var n = ''
-            var i = undefined
+            var s = undefined
             do {
               if (w[this.currToken[_.FIELDS.TYPE]]) {
                 if (!this.options.lossy) {
                   n += this.content()
                 }
               } else if (this.currToken[_.FIELDS.TYPE] === g.comment) {
-                var s = {}
+                var i = {}
                 if (n) {
-                  s.before = n
+                  i.before = n
                   n = ''
                 }
-                i = new o['default']({
+                s = new o['default']({
                   value: this.content(),
                   source: getTokenSource(this.currToken),
                   sourceIndex: this.currToken[_.FIELDS.START_POS],
-                  spaces: s,
+                  spaces: i,
                 })
-                r.push(i)
+                r.push(s)
               }
             } while (++this.position < e)
             if (n) {
-              if (i) {
-                i.spaces.after = n
+              if (s) {
+                s.spaces.after = n
               } else if (!this.options.lossy) {
                 var a = this.tokens[t]
                 var u = this.tokens[this.position - 1]
@@ -1081,19 +1222,19 @@
               t = false
             }
             var n = ''
-            var i = ''
+            var s = ''
             e.forEach(function (e) {
-              var s = r.lossySpace(e.spaces.before, t)
+              var i = r.lossySpace(e.spaces.before, t)
               var o = r.lossySpace(e.rawSpaceBefore, t)
-              n += s + r.lossySpace(e.spaces.after, t && s.length === 0)
-              i +=
-                s + e.value + r.lossySpace(e.rawSpaceAfter, t && o.length === 0)
+              n += i + r.lossySpace(e.spaces.after, t && i.length === 0)
+              s +=
+                i + e.value + r.lossySpace(e.rawSpaceAfter, t && o.length === 0)
             })
-            if (i === n) {
-              i = undefined
+            if (s === n) {
+              s = undefined
             }
-            var s = { space: n, rawSpace: i }
-            return s
+            var i = { space: n, rawSpace: s }
+            return i
           }
         e.isNamedCombinator = function isNamedCombinator(e) {
           if (e === void 0) {
@@ -1116,7 +1257,7 @@
             if (t !== e) {
               r.value = '/' + e + '/'
             }
-            var n = new h['default']({
+            var n = new d['default']({
               value: '/' + t + '/',
               source: getSource(
                 this.currToken[_.FIELDS.START_LINE],
@@ -1144,13 +1285,13 @@
             if (r.length > 0) {
               var n = this.current.last
               if (n) {
-                var i = this.convertWhitespaceNodesToSpace(r),
-                  s = i.space,
-                  o = i.rawSpace
+                var s = this.convertWhitespaceNodesToSpace(r),
+                  i = s.space,
+                  o = s.rawSpace
                 if (o !== undefined) {
                   n.rawSpaceAfter += o
                 }
-                n.spaces.after += s
+                n.spaces.after += i
               } else {
                 r.forEach(function (t) {
                   return e.newNode(t)
@@ -1168,7 +1309,7 @@
           if (this.isNamedCombinator()) {
             c = this.namedCombinator()
           } else if (this.currToken[_.FIELDS.TYPE] === g.combinator) {
-            c = new h['default']({
+            c = new d['default']({
               value: this.content(),
               source: getTokenSource(this.currToken),
               sourceIndex: this.currToken[_.FIELDS.START_POS],
@@ -1187,9 +1328,9 @@
               c.rawSpaceBefore = p
             }
           } else {
-            var d = this.convertWhitespaceNodesToSpace(u, true),
-              v = d.space,
-              y = d.rawSpace
+            var h = this.convertWhitespaceNodesToSpace(u, true),
+              v = h.space,
+              y = h.rawSpace
             if (!y) {
               y = v
             }
@@ -1204,7 +1345,7 @@
             } else {
               S.value = y
             }
-            c = new h['default']({
+            c = new d['default']({
               value: ' ',
               source: getTokenSourceSpan(a, this.tokens[this.position - 1]),
               sourceIndex: a[_.FIELDS.START_POS],
@@ -1225,7 +1366,7 @@
             return
           }
           this.current._inferEndPosition()
-          var e = new i['default']({
+          var e = new s['default']({
             source: { start: tokenStart(this.tokens[this.position + 1]) },
           })
           this.current.parent.append(e)
@@ -1291,7 +1432,7 @@
           }
           var t = this.currToken
           this.newNode(
-            new d['default']({
+            new h['default']({
               value: this.content(),
               source: getTokenSource(t),
               sourceIndex: t[_.FIELDS.START_POS],
@@ -1304,7 +1445,7 @@
           var t = 1
           this.position++
           if (e && e.type === y.PSEUDO) {
-            var r = new i['default']({
+            var r = new s['default']({
               source: { start: tokenStart(this.tokens[this.position - 1]) },
             })
             var n = this.current
@@ -1327,7 +1468,7 @@
             }
             this.current = n
           } else {
-            var s = this.currToken
+            var i = this.currToken
             var o = '('
             var a
             while (this.position < this.tokens.length && t) {
@@ -1348,12 +1489,12 @@
                 new c['default']({
                   value: o,
                   source: getSource(
-                    s[_.FIELDS.START_LINE],
-                    s[_.FIELDS.START_COL],
+                    i[_.FIELDS.START_LINE],
+                    i[_.FIELDS.START_COL],
                     a[_.FIELDS.END_LINE],
                     a[_.FIELDS.END_COL]
                   ),
-                  sourceIndex: s[_.FIELDS.START_POS],
+                  sourceIndex: i[_.FIELDS.START_POS],
                 })
               )
             }
@@ -1380,7 +1521,7 @@
             )
           }
           if (this.currToken[_.FIELDS.TYPE] === g.word) {
-            this.splitWord(false, function (n, i) {
+            this.splitWord(false, function (n, s) {
               t += n
               e.newNode(
                 new l['default']({
@@ -1390,7 +1531,7 @@
                 })
               )
               if (
-                i > 1 &&
+                s > 1 &&
                 e.nextToken &&
                 e.nextToken[_.FIELDS.TYPE] === g.openParenthesis
               ) {
@@ -1460,60 +1601,60 @@
         e.splitWord = function splitWord(e, t) {
           var r = this
           var n = this.nextToken
-          var i = this.content()
+          var s = this.content()
           while (
             n &&
             ~[g.dollar, g.caret, g.equals, g.word].indexOf(n[_.FIELDS.TYPE])
           ) {
             this.position++
             var o = this.content()
-            i += o
+            s += o
             if (o.lastIndexOf('\\') === o.length - 1) {
               var c = this.nextToken
               if (c && c[_.FIELDS.TYPE] === g.space) {
-                i += this.requiredSpace(this.content(c))
+                s += this.requiredSpace(this.content(c))
                 this.position++
               }
             }
             n = this.nextToken
           }
-          var l = indexesOf(i, '.').filter(function (e) {
-            var t = i[e - 1] === '\\'
-            var r = /^\d+\.\d+%$/.test(i)
+          var l = indexesOf(s, '.').filter(function (e) {
+            var t = s[e - 1] === '\\'
+            var r = /^\d+\.\d+%$/.test(s)
             return !t && !r
           })
-          var f = indexesOf(i, '#').filter(function (e) {
-            return i[e - 1] !== '\\'
+          var f = indexesOf(s, '#').filter(function (e) {
+            return s[e - 1] !== '\\'
           })
-          var p = indexesOf(i, '#{')
+          var p = indexesOf(s, '#{')
           if (p.length) {
             f = f.filter(function (e) {
               return !~p.indexOf(e)
             })
           }
-          var h = (0, v['default'])(uniqs([0].concat(l, f)))
-          h.forEach(function (n, o) {
-            var c = h[o + 1] || i.length
-            var p = i.slice(n, c)
+          var d = (0, v['default'])(uniqs([0].concat(l, f)))
+          d.forEach(function (n, o) {
+            var c = d[o + 1] || s.length
+            var p = s.slice(n, c)
             if (o === 0 && t) {
-              return t.call(r, p, h.length)
+              return t.call(r, p, d.length)
             }
-            var d
+            var h
             var v = r.currToken
-            var g = v[_.FIELDS.START_POS] + h[o]
+            var g = v[_.FIELDS.START_POS] + d[o]
             var y = getSource(v[1], v[2] + n, v[3], v[2] + (c - 1))
             if (~l.indexOf(n)) {
               var b = { value: p.slice(1), source: y, sourceIndex: g }
-              d = new s['default'](unescapeProp(b, 'value'))
+              h = new i['default'](unescapeProp(b, 'value'))
             } else if (~f.indexOf(n)) {
               var S = { value: p.slice(1), source: y, sourceIndex: g }
-              d = new a['default'](unescapeProp(S, 'value'))
+              h = new a['default'](unescapeProp(S, 'value'))
             } else {
               var m = { value: p, source: y, sourceIndex: g }
               unescapeProp(m, 'value')
-              d = new u['default'](m)
+              h = new u['default'](m)
             }
-            r.newNode(d, e)
+            r.newNode(h, e)
             e = null
           })
           this.position++
@@ -1590,12 +1731,12 @@
             var n = e.pop()
             e = e.join(', ') + ' or ' + n
           }
-          var i = /^[aeiou]/.test(e[0]) ? 'an' : 'a'
+          var s = /^[aeiou]/.test(e[0]) ? 'an' : 'a'
           if (!r) {
-            return this.error('Expected ' + i + ' ' + e + '.', { index: t })
+            return this.error('Expected ' + s + ' ' + e + '.', { index: t })
           }
           return this.error(
-            'Expected ' + i + ' ' + e + ', found "' + r + '" instead.',
+            'Expected ' + s + ' ' + e + ', found "' + r + '" instead.',
             { index: t }
           )
         }
@@ -1649,7 +1790,7 @@
           }
           var t = e
           while (t < this.tokens.length) {
-            if (T[this.tokens[t][_.FIELDS.TYPE]]) {
+            if (k[this.tokens[t][_.FIELDS.TYPE]]) {
               t++
               continue
             } else {
@@ -1680,7 +1821,7 @@
         ])
         return Parser
       })()
-      t['default'] = k
+      t['default'] = T
       e.exports = t.default
     },
     528: (e, t, r) => {
@@ -1691,7 +1832,7 @@
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
-      var i = (function () {
+      var s = (function () {
         function Processor(e, t) {
           this.func = e || function noop() {}
           this.funcRes = null
@@ -1735,21 +1876,21 @@
           if (t === void 0) {
             t = {}
           }
-          return new Promise(function (n, i) {
+          return new Promise(function (n, s) {
             try {
-              var s = r._root(e, t)
-              Promise.resolve(r.func(s))
+              var i = r._root(e, t)
+              Promise.resolve(r.func(i))
                 .then(function (n) {
-                  var i = undefined
+                  var s = undefined
                   if (r._shouldUpdateSelector(e, t)) {
-                    i = s.toString()
-                    e.selector = i
+                    s = i.toString()
+                    e.selector = s
                   }
-                  return { transform: n, root: s, string: i }
+                  return { transform: n, root: i, string: s }
                 })
-                .then(n, i)
+                .then(n, s)
             } catch (e) {
-              i(e)
+              s(e)
               return
             }
           })
@@ -1765,12 +1906,12 @@
               'Selector processor returned a promise to a synchronous call.'
             )
           }
-          var i = undefined
+          var s = undefined
           if (t.updateSelector && typeof e !== 'string') {
-            i = r.toString()
-            e.selector = i
+            s = r.toString()
+            e.selector = s
           }
-          return { transform: n, root: r, string: i }
+          return { transform: n, root: r, string: s }
         }
         e.ast = function ast(e, t) {
           return this._run(e, t).then(function (e) {
@@ -1799,7 +1940,7 @@
         }
         return Processor
       })()
-      t['default'] = i
+      t['default'] = s
       e.exports = t.default
     },
     248: (e, t, r) => {
@@ -1808,8 +1949,8 @@
       t.unescapeValue = unescapeValue
       t['default'] = void 0
       var n = _interopRequireDefault(r(441))
-      var i = _interopRequireDefault(r(590))
-      var s = _interopRequireDefault(r(999))
+      var s = _interopRequireDefault(r(590))
+      var i = _interopRequireDefault(r(999))
       var o = r(600)
       var a
       function _interopRequireDefault(e) {
@@ -1855,12 +1996,12 @@
         var t = false
         var r = null
         var n = e
-        var s = n.match(c)
-        if (s) {
-          r = s[1]
-          n = s[2]
+        var i = n.match(c)
+        if (i) {
+          r = i[1]
+          n = i[2]
         }
-        n = (0, i['default'])(n)
+        n = (0, s['default'])(n)
         if (n !== e) {
           t = true
         }
@@ -1887,7 +2028,7 @@
         e.quoteMark = r
         return e
       }
-      var h = (function (e) {
+      var d = (function (e) {
         _inheritsLoose(Attribute, e)
         function Attribute(t) {
           var r
@@ -1914,9 +2055,9 @@
             e = {}
           }
           var t = this._determineQuoteMark(e)
-          var r = d[t]
-          var i = (0, n['default'])(this._value, r)
-          return i
+          var r = h[t]
+          var s = (0, n['default'])(this._value, r)
+          return s
         }
         t._determineQuoteMark = function _determineQuoteMark(e) {
           return e.smart ? this.smartQuoteMark(e) : this.preferredQuoteMark(e)
@@ -1932,26 +2073,26 @@
         t.smartQuoteMark = function smartQuoteMark(e) {
           var t = this.value
           var r = t.replace(/[^']/g, '').length
-          var i = t.replace(/[^"]/g, '').length
-          if (r + i === 0) {
-            var s = (0, n['default'])(t, { isIdentifier: true })
-            if (s === t) {
+          var s = t.replace(/[^"]/g, '').length
+          if (r + s === 0) {
+            var i = (0, n['default'])(t, { isIdentifier: true })
+            if (i === t) {
               return Attribute.NO_QUOTE
             } else {
               var o = this.preferredQuoteMark(e)
               if (o === Attribute.NO_QUOTE) {
                 var a = this.quoteMark || e.quoteMark || Attribute.DOUBLE_QUOTE
-                var u = d[a]
+                var u = h[a]
                 var c = (0, n['default'])(t, u)
-                if (c.length < s.length) {
+                if (c.length < i.length) {
                   return a
                 }
               }
               return o
             }
-          } else if (i === r) {
+          } else if (s === r) {
             return this.preferredQuoteMark(e)
-          } else if (i < r) {
+          } else if (s < r) {
             return Attribute.DOUBLE_QUOTE
           } else {
             return Attribute.SINGLE_QUOTE
@@ -1968,7 +2109,7 @@
           return t
         }
         t._syncRawValue = function _syncRawValue() {
-          var e = (0, n['default'])(this._value, d[this.quoteMark])
+          var e = (0, n['default'])(this._value, h[this.quoteMark])
           if (e === this._value) {
             if (this.raws) {
               delete this.raws.value
@@ -2024,20 +2165,20 @@
           t += r.after.length
           var n = this._spacesFor('operator')
           t += n.before.length
-          var i = this.stringifyProperty('operator')
+          var s = this.stringifyProperty('operator')
           if (e === 'operator') {
-            return i ? t : -1
+            return s ? t : -1
           }
-          t += i.length
+          t += s.length
           t += n.after.length
-          var s = this._spacesFor('value')
-          t += s.before.length
+          var i = this._spacesFor('value')
+          t += i.before.length
           var o = this.stringifyProperty('value')
           if (e === 'value') {
             return o ? t : -1
           }
           t += o.length
-          t += s.after.length
+          t += i.after.length
           var a = this._spacesFor('insensitive')
           t += a.before.length
           if (e === 'insensitive') {
@@ -2123,15 +2264,15 @@
                 var t = unescapeValue(e),
                   r = t.deprecatedUsage,
                   n = t.unescaped,
-                  i = t.quoteMark
+                  s = t.quoteMark
                 if (r) {
                   l()
                 }
-                if (n === this._value && i === this._quoteMark) {
+                if (n === this._value && s === this._quoteMark) {
                   return
                 }
                 this._value = n
-                this._quoteMark = i
+                this._quoteMark = s
                 this._syncRawValue()
               } else {
                 this._value = e
@@ -2169,12 +2310,12 @@
           },
         ])
         return Attribute
-      })(s['default'])
-      t['default'] = h
-      h.NO_QUOTE = null
-      h.SINGLE_QUOTE = "'"
-      h.DOUBLE_QUOTE = '"'
-      var d =
+      })(i['default'])
+      t['default'] = d
+      d.NO_QUOTE = null
+      d.SINGLE_QUOTE = "'"
+      d.DOUBLE_QUOTE = '"'
+      var h =
         ((a = {
           "'": { quotes: 'single', wrap: true },
           '"': { quotes: 'double', wrap: true },
@@ -2190,8 +2331,8 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(441))
-      var i = r(513)
-      var s = _interopRequireDefault(r(373))
+      var s = r(513)
+      var i = _interopRequireDefault(r(373))
       var o = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
@@ -2247,7 +2388,7 @@
               if (this._constructed) {
                 var t = (0, n['default'])(e, { isIdentifier: true })
                 if (t !== e) {
-                  ;(0, i.ensureObject)(this, 'raws')
+                  ;(0, s.ensureObject)(this, 'raws')
                   this.raws.value = t
                 } else if (this.raws) {
                   delete this.raws.value
@@ -2258,7 +2399,7 @@
           },
         ])
         return ClassName
-      })(s['default'])
+      })(i['default'])
       t['default'] = a
       e.exports = t.default
     },
@@ -2267,7 +2408,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -2285,17 +2426,17 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Combinator, e)
         function Combinator(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.COMBINATOR
+          r.type = s.COMBINATOR
           return r
         }
         return Combinator
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     47: (e, t, r) => {
@@ -2303,7 +2444,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -2321,17 +2462,17 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Comment, e)
         function Comment(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.COMMENT
+          r.type = s.COMMENT
           return r
         }
         return Comment
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     734: (e, t, r) => {
@@ -2351,8 +2492,8 @@
         t.attribute =
           void 0
       var n = _interopRequireDefault(r(248))
-      var i = _interopRequireDefault(r(870))
-      var s = _interopRequireDefault(r(537))
+      var s = _interopRequireDefault(r(870))
+      var i = _interopRequireDefault(r(537))
       var o = _interopRequireDefault(r(47))
       var a = _interopRequireDefault(r(393))
       var u = _interopRequireDefault(r(60))
@@ -2360,8 +2501,8 @@
       var l = _interopRequireDefault(r(422))
       var f = _interopRequireDefault(r(13))
       var p = _interopRequireDefault(r(435))
-      var h = _interopRequireDefault(r(443))
-      var d = _interopRequireDefault(r(165))
+      var d = _interopRequireDefault(r(443))
+      var h = _interopRequireDefault(r(165))
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -2370,11 +2511,11 @@
       }
       t.attribute = v
       var _ = function className(e) {
-        return new i['default'](e)
+        return new s['default'](e)
       }
       t.className = _
       var g = function combinator(e) {
-        return new s['default'](e)
+        return new i['default'](e)
       }
       t.combinator = g
       var y = function comment(e) {
@@ -2397,20 +2538,20 @@
         return new l['default'](e)
       }
       t.root = w
-      var T = function selector(e) {
+      var k = function selector(e) {
         return new f['default'](e)
       }
-      t.selector = T
-      var k = function string(e) {
+      t.selector = k
+      var T = function string(e) {
         return new p['default'](e)
       }
-      t.string = k
+      t.string = T
       var O = function tag(e) {
-        return new h['default'](e)
+        return new d['default'](e)
       }
       t.tag = O
       var P = function universal(e) {
-        return new d['default'](e)
+        return new h['default'](e)
       }
       t.universal = P
     },
@@ -2419,7 +2560,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = _interopRequireWildcard(r(600))
+      var s = _interopRequireWildcard(r(600))
       function _getRequireWildcardCache() {
         if (typeof WeakMap !== 'function') return null
         var e = new WeakMap()
@@ -2441,13 +2582,13 @@
         }
         var r = {}
         var n = Object.defineProperty && Object.getOwnPropertyDescriptor
-        for (var i in e) {
-          if (Object.prototype.hasOwnProperty.call(e, i)) {
-            var s = n ? Object.getOwnPropertyDescriptor(e, i) : null
-            if (s && (s.get || s.set)) {
-              Object.defineProperty(r, i, s)
+        for (var s in e) {
+          if (Object.prototype.hasOwnProperty.call(e, s)) {
+            var i = n ? Object.getOwnPropertyDescriptor(e, s) : null
+            if (i && (i.get || i.set)) {
+              Object.defineProperty(r, s, i)
             } else {
-              r[i] = e[i]
+              r[s] = e[s]
             }
           }
         }
@@ -2529,7 +2670,7 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Container, e)
         function Container(t) {
           var r
@@ -2593,10 +2734,10 @@
           this.nodes.splice(r + 1, 0, t)
           t.parent = this
           var n
-          for (var i in this.indexes) {
-            n = this.indexes[i]
+          for (var s in this.indexes) {
+            n = this.indexes[s]
             if (r <= n) {
-              this.indexes[i] = n + 1
+              this.indexes[s] = n + 1
             }
           }
           return this
@@ -2607,10 +2748,10 @@
           this.nodes.splice(r, 0, t)
           t.parent = this
           var n
-          for (var i in this.indexes) {
-            n = this.indexes[i]
+          for (var s in this.indexes) {
+            n = this.indexes[s]
             if (n <= r) {
-              this.indexes[i] = n + 1
+              this.indexes[s] = n + 1
             }
           }
           return this
@@ -2619,9 +2760,9 @@
           var r = undefined
           this.each(function (n) {
             if (n.atPosition) {
-              var i = n.atPosition(e, t)
-              if (i) {
-                r = i
+              var s = n.atPosition(e, t)
+              if (s) {
+                r = s
                 return false
               }
             } else if (n.isAtPosition(e, t)) {
@@ -2686,7 +2827,7 @@
         t.walkAttributes = function walkAttributes(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.ATTRIBUTE) {
+            if (r.type === s.ATTRIBUTE) {
               return e.call(t, r)
             }
           })
@@ -2694,7 +2835,7 @@
         t.walkClasses = function walkClasses(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.CLASS) {
+            if (r.type === s.CLASS) {
               return e.call(t, r)
             }
           })
@@ -2702,7 +2843,7 @@
         t.walkCombinators = function walkCombinators(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.COMBINATOR) {
+            if (r.type === s.COMBINATOR) {
               return e.call(t, r)
             }
           })
@@ -2710,7 +2851,7 @@
         t.walkComments = function walkComments(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.COMMENT) {
+            if (r.type === s.COMMENT) {
               return e.call(t, r)
             }
           })
@@ -2718,7 +2859,7 @@
         t.walkIds = function walkIds(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.ID) {
+            if (r.type === s.ID) {
               return e.call(t, r)
             }
           })
@@ -2726,7 +2867,7 @@
         t.walkNesting = function walkNesting(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.NESTING) {
+            if (r.type === s.NESTING) {
               return e.call(t, r)
             }
           })
@@ -2734,7 +2875,7 @@
         t.walkPseudos = function walkPseudos(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.PSEUDO) {
+            if (r.type === s.PSEUDO) {
               return e.call(t, r)
             }
           })
@@ -2742,7 +2883,7 @@
         t.walkTags = function walkTags(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.TAG) {
+            if (r.type === s.TAG) {
               return e.call(t, r)
             }
           })
@@ -2750,7 +2891,7 @@
         t.walkUniversals = function walkUniversals(e) {
           var t = this
           return this.walk(function (r) {
-            if (r.type === i.UNIVERSAL) {
+            if (r.type === s.UNIVERSAL) {
               return e.call(t, r)
             }
           })
@@ -2758,13 +2899,13 @@
         t.split = function split(e) {
           var t = this
           var r = []
-          return this.reduce(function (n, i, s) {
-            var o = e.call(t, i)
-            r.push(i)
+          return this.reduce(function (n, s, i) {
+            var o = e.call(t, s)
+            r.push(s)
             if (o) {
               n.push(r)
               r = []
-            } else if (s === t.length - 1) {
+            } else if (i === t.length - 1) {
               n.push(r)
             }
             return n
@@ -2813,7 +2954,7 @@
         ])
         return Container
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     493: (e, t, r) => {
@@ -2838,24 +2979,24 @@
         t.isAttribute =
           void 0
       var n = r(600)
-      var i
-      var s =
-        ((i = {}),
-        (i[n.ATTRIBUTE] = true),
-        (i[n.CLASS] = true),
-        (i[n.COMBINATOR] = true),
-        (i[n.COMMENT] = true),
-        (i[n.ID] = true),
-        (i[n.NESTING] = true),
-        (i[n.PSEUDO] = true),
-        (i[n.ROOT] = true),
-        (i[n.SELECTOR] = true),
-        (i[n.STRING] = true),
-        (i[n.TAG] = true),
-        (i[n.UNIVERSAL] = true),
-        i)
+      var s
+      var i =
+        ((s = {}),
+        (s[n.ATTRIBUTE] = true),
+        (s[n.CLASS] = true),
+        (s[n.COMBINATOR] = true),
+        (s[n.COMMENT] = true),
+        (s[n.ID] = true),
+        (s[n.NESTING] = true),
+        (s[n.PSEUDO] = true),
+        (s[n.ROOT] = true),
+        (s[n.SELECTOR] = true),
+        (s[n.STRING] = true),
+        (s[n.TAG] = true),
+        (s[n.UNIVERSAL] = true),
+        s)
       function isNode(e) {
-        return typeof e === 'object' && s[e.type]
+        return typeof e === 'object' && i[e.type]
       }
       function isNodeType(e, t) {
         return isNode(t) && t.type === e
@@ -2874,10 +3015,10 @@
       t.isNesting = f
       var p = isNodeType.bind(null, n.PSEUDO)
       t.isPseudo = p
-      var h = isNodeType.bind(null, n.ROOT)
-      t.isRoot = h
-      var d = isNodeType.bind(null, n.SELECTOR)
-      t.isSelector = d
+      var d = isNodeType.bind(null, n.ROOT)
+      t.isRoot = d
+      var h = isNodeType.bind(null, n.SELECTOR)
+      t.isSelector = h
       var v = isNodeType.bind(null, n.STRING)
       t.isString = v
       var _ = isNodeType.bind(null, n.TAG)
@@ -2910,7 +3051,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -2928,12 +3069,12 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(ID, e)
         function ID(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.ID
+          r.type = s.ID
           return r
         }
         var t = ID.prototype
@@ -2942,7 +3083,7 @@
         }
         return ID
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     110: (e, t, r) => {
@@ -2954,17 +3095,17 @@
         if (e in t && t[e] === n[e]) return
         t[e] = n[e]
       })
-      var i = r(734)
-      Object.keys(i).forEach(function (e) {
-        if (e === 'default' || e === '__esModule') return
-        if (e in t && t[e] === i[e]) return
-        t[e] = i[e]
-      })
-      var s = r(493)
+      var s = r(734)
       Object.keys(s).forEach(function (e) {
         if (e === 'default' || e === '__esModule') return
         if (e in t && t[e] === s[e]) return
         t[e] = s[e]
+      })
+      var i = r(493)
+      Object.keys(i).forEach(function (e) {
+        if (e === 'default' || e === '__esModule') return
+        if (e in t && t[e] === i[e]) return
+        t[e] = i[e]
       })
     },
     999: (e, t, r) => {
@@ -2972,8 +3113,8 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(441))
-      var i = r(513)
-      var s = _interopRequireDefault(r(373))
+      var s = r(513)
+      var i = _interopRequireDefault(r(373))
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3038,7 +3179,7 @@
               var t = (0, n['default'])(e, { isIdentifier: true })
               this._namespace = e
               if (t !== e) {
-                ;(0, i.ensureObject)(this, 'raws')
+                ;(0, s.ensureObject)(this, 'raws')
                 this.raws.namespace = t
               } else if (this.raws) {
                 delete this.raws.namespace
@@ -3071,7 +3212,7 @@
           },
         ])
         return Namespace
-      })(s['default'])
+      })(i['default'])
       t['default'] = o
       e.exports = t.default
     },
@@ -3080,7 +3221,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3098,18 +3239,18 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Nesting, e)
         function Nesting(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.NESTING
+          r.type = s.NESTING
           r.value = '&'
           return r
         }
         return Nesting
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     373: (e, t, r) => {
@@ -3131,7 +3272,7 @@
         if (r) _defineProperties(e, r)
         return e
       }
-      var i = function cloneNode(e, t) {
+      var s = function cloneNode(e, t) {
         if (typeof e !== 'object' || e === null) {
           return e
         }
@@ -3140,23 +3281,23 @@
           if (!e.hasOwnProperty(n)) {
             continue
           }
-          var i = e[n]
-          var s = typeof i
-          if (n === 'parent' && s === 'object') {
+          var s = e[n]
+          var i = typeof s
+          if (n === 'parent' && i === 'object') {
             if (t) {
               r[n] = t
             }
-          } else if (i instanceof Array) {
-            r[n] = i.map(function (e) {
+          } else if (s instanceof Array) {
+            r[n] = s.map(function (e) {
               return cloneNode(e, r)
             })
           } else {
-            r[n] = cloneNode(i, r)
+            r[n] = cloneNode(s, r)
           }
         }
         return r
       }
-      var s = (function () {
+      var i = (function () {
         function Node(e) {
           if (e === void 0) {
             e = {}
@@ -3193,7 +3334,7 @@
           if (e === void 0) {
             e = {}
           }
-          var t = i(this)
+          var t = s(this)
           for (var r in e) {
             t[r] = e[r]
           }
@@ -3208,10 +3349,10 @@
             this.raws = {}
           }
           var n = this[e]
-          var i = this.raws[e]
+          var s = this.raws[e]
           this[e] = n + t
-          if (i || r !== t) {
-            this.raws[e] = (i || n) + r
+          if (s || r !== t) {
+            this.raws[e] = (s || n) + r
           } else {
             delete this.raws[e]
           }
@@ -3292,7 +3433,7 @@
         ])
         return Node
       })()
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     326: (e, t, r) => {
@@ -3300,7 +3441,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(675))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3318,12 +3459,12 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Pseudo, e)
         function Pseudo(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.PSEUDO
+          r.type = s.PSEUDO
           return r
         }
         var t = Pseudo.prototype
@@ -3338,7 +3479,7 @@
         }
         return Pseudo
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     422: (e, t, r) => {
@@ -3346,7 +3487,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(675))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3378,12 +3519,12 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Root, e)
         function Root(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.ROOT
+          r.type = s.ROOT
           return r
         }
         var t = Root.prototype
@@ -3411,7 +3552,7 @@
         ])
         return Root
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     13: (e, t, r) => {
@@ -3419,7 +3560,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(675))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3437,17 +3578,17 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Selector, e)
         function Selector(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.SELECTOR
+          r.type = s.SELECTOR
           return r
         }
         return Selector
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     435: (e, t, r) => {
@@ -3455,7 +3596,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(373))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3473,17 +3614,17 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(String, e)
         function String(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.STRING
+          r.type = s.STRING
           return r
         }
         return String
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     443: (e, t, r) => {
@@ -3491,7 +3632,7 @@
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(999))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3509,17 +3650,17 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Tag, e)
         function Tag(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.TAG
+          r.type = s.TAG
           return r
         }
         return Tag
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     600: (e, t) => {
@@ -3542,10 +3683,10 @@
       t.TAG = r
       var n = 'string'
       t.STRING = n
-      var i = 'selector'
-      t.SELECTOR = i
-      var s = 'root'
-      t.ROOT = s
+      var s = 'selector'
+      t.SELECTOR = s
+      var i = 'root'
+      t.ROOT = i
       var o = 'pseudo'
       t.PSEUDO = o
       var a = 'nesting'
@@ -3560,15 +3701,15 @@
       t.CLASS = f
       var p = 'attribute'
       t.ATTRIBUTE = p
-      var h = 'universal'
-      t.UNIVERSAL = h
+      var d = 'universal'
+      t.UNIVERSAL = d
     },
     165: (e, t, r) => {
       'use strict'
       t.__esModule = true
       t['default'] = void 0
       var n = _interopRequireDefault(r(999))
-      var i = r(600)
+      var s = r(600)
       function _interopRequireDefault(e) {
         return e && e.__esModule ? e : { default: e }
       }
@@ -3586,18 +3727,18 @@
           }
         return _setPrototypeOf(e, t)
       }
-      var s = (function (e) {
+      var i = (function (e) {
         _inheritsLoose(Universal, e)
         function Universal(t) {
           var r
           r = e.call(this, t) || this
-          r.type = i.UNIVERSAL
+          r.type = s.UNIVERSAL
           r.value = '*'
           return r
         }
         return Universal
       })(n['default'])
-      t['default'] = s
+      t['default'] = i
       e.exports = t.default
     },
     173: (e, t) => {
@@ -3650,10 +3791,10 @@
       t.ampersand = r
       var n = 42
       t.asterisk = n
-      var i = 64
-      t.at = i
-      var s = 44
-      t.comma = s
+      var s = 64
+      t.at = s
+      var i = 44
+      t.comma = i
       var o = 58
       t.colon = o
       var a = 59
@@ -3668,10 +3809,10 @@
       t.closeSquare = f
       var p = 36
       t.dollar = p
-      var h = 126
-      t.tilde = h
-      var d = 94
-      t.caret = d
+      var d = 126
+      t.tilde = d
+      var h = 94
+      t.caret = h
       var v = 43
       t.plus = v
       var _ = 61
@@ -3688,26 +3829,26 @@
       t.doubleQuote = m
       var w = 47
       t.slash = w
-      var T = 33
-      t.bang = T
-      var k = 92
-      t.backslash = k
+      var k = 33
+      t.bang = k
+      var T = 92
+      t.backslash = T
       var O = 13
       t.cr = O
       var P = 12
       t.feed = P
       var E = 10
       t.newline = E
-      var D = 9
-      t.tab = D
-      var L = S
-      t.str = L
-      var I = -1
-      t.comment = I
-      var q = -2
-      t.word = q
-      var R = -3
-      t.combinator = R
+      var I = 9
+      t.tab = I
+      var A = S
+      t.str = A
+      var x = -1
+      t.comment = x
+      var D = -2
+      t.word = D
+      var C = -3
+      t.combinator = C
     },
     133: (e, t, r) => {
       'use strict'
@@ -3715,7 +3856,7 @@
       t['default'] = tokenize
       t.FIELDS = void 0
       var n = _interopRequireWildcard(r(553))
-      var i, s
+      var s, i
       function _getRequireWildcardCache() {
         if (typeof WeakMap !== 'function') return null
         var e = new WeakMap()
@@ -3737,13 +3878,13 @@
         }
         var r = {}
         var n = Object.defineProperty && Object.getOwnPropertyDescriptor
-        for (var i in e) {
-          if (Object.prototype.hasOwnProperty.call(e, i)) {
-            var s = n ? Object.getOwnPropertyDescriptor(e, i) : null
-            if (s && (s.get || s.set)) {
-              Object.defineProperty(r, i, s)
+        for (var s in e) {
+          if (Object.prototype.hasOwnProperty.call(e, s)) {
+            var i = n ? Object.getOwnPropertyDescriptor(e, s) : null
+            if (i && (i.get || i.set)) {
+              Object.defineProperty(r, s, i)
             } else {
-              r[i] = e[i]
+              r[s] = e[s]
             }
           }
         }
@@ -3754,40 +3895,40 @@
         return r
       }
       var o =
-        ((i = {}),
-        (i[n.tab] = true),
-        (i[n.newline] = true),
-        (i[n.cr] = true),
-        (i[n.feed] = true),
-        i)
-      var a =
         ((s = {}),
-        (s[n.space] = true),
         (s[n.tab] = true),
         (s[n.newline] = true),
         (s[n.cr] = true),
         (s[n.feed] = true),
-        (s[n.ampersand] = true),
-        (s[n.asterisk] = true),
-        (s[n.bang] = true),
-        (s[n.comma] = true),
-        (s[n.colon] = true),
-        (s[n.semicolon] = true),
-        (s[n.openParenthesis] = true),
-        (s[n.closeParenthesis] = true),
-        (s[n.openSquare] = true),
-        (s[n.closeSquare] = true),
-        (s[n.singleQuote] = true),
-        (s[n.doubleQuote] = true),
-        (s[n.plus] = true),
-        (s[n.pipe] = true),
-        (s[n.tilde] = true),
-        (s[n.greaterThan] = true),
-        (s[n.equals] = true),
-        (s[n.dollar] = true),
-        (s[n.caret] = true),
-        (s[n.slash] = true),
         s)
+      var a =
+        ((i = {}),
+        (i[n.space] = true),
+        (i[n.tab] = true),
+        (i[n.newline] = true),
+        (i[n.cr] = true),
+        (i[n.feed] = true),
+        (i[n.ampersand] = true),
+        (i[n.asterisk] = true),
+        (i[n.bang] = true),
+        (i[n.comma] = true),
+        (i[n.colon] = true),
+        (i[n.semicolon] = true),
+        (i[n.openParenthesis] = true),
+        (i[n.closeParenthesis] = true),
+        (i[n.openSquare] = true),
+        (i[n.closeSquare] = true),
+        (i[n.singleQuote] = true),
+        (i[n.doubleQuote] = true),
+        (i[n.plus] = true),
+        (i[n.pipe] = true),
+        (i[n.tilde] = true),
+        (i[n.greaterThan] = true),
+        (i[n.equals] = true),
+        (i[n.dollar] = true),
+        (i[n.caret] = true),
+        (i[n.slash] = true),
+        i)
       var u = {}
       var c = '0123456789abcdefABCDEF'
       for (var l = 0; l < c.length; l++) {
@@ -3795,12 +3936,12 @@
       }
       function consumeWord(e, t) {
         var r = t
-        var i
+        var s
         do {
-          i = e.charCodeAt(r)
-          if (a[i]) {
+          s = e.charCodeAt(r)
+          if (a[s]) {
             return r - 1
-          } else if (i === n.backslash) {
+          } else if (s === n.backslash) {
             r = consumeEscape(e, r) + 1
           } else {
             r++
@@ -3810,16 +3951,16 @@
       }
       function consumeEscape(e, t) {
         var r = t
-        var i = e.charCodeAt(r + 1)
-        if (o[i]) {
-        } else if (u[i]) {
-          var s = 0
+        var s = e.charCodeAt(r + 1)
+        if (o[s]) {
+        } else if (u[s]) {
+          var i = 0
           do {
             r++
-            s++
-            i = e.charCodeAt(r + 1)
-          } while (u[i] && s < 6)
-          if (s < 6 && i === n.space) {
+            i++
+            s = e.charCodeAt(r + 1)
+          } while (u[s] && i < 6)
+          if (i < 6 && s === n.space) {
             r++
           }
         } else {
@@ -3840,13 +3981,13 @@
       function tokenize(e) {
         var t = []
         var r = e.css.valueOf()
-        var i = r,
-          s = i.length
+        var s = r,
+          i = s.length
         var o = -1
         var a = 1
         var u = 0
         var c = 0
-        var l, f, p, h, d, v, _, g, y, b, S, m, w
+        var l, f, p, d, h, v, _, g, y, b, S, m, w
         function unclosed(t, n) {
           if (e.safe) {
             r += n
@@ -3855,7 +3996,7 @@
             throw e.error('Unclosed ' + t, a, u - o, u)
           }
         }
-        while (u < s) {
+        while (u < i) {
           l = r.charCodeAt(u)
           if (l === n.newline) {
             o = u
@@ -3883,7 +4024,7 @@
                 l === n.feed
               )
               w = n.space
-              h = a
+              d = a
               p = y - o - 1
               c = y
               break
@@ -3902,7 +4043,7 @@
                 l === n.pipe
               )
               w = n.combinator
-              h = a
+              d = a
               p = u - o
               c = y
               break
@@ -3921,7 +4062,7 @@
             case n.closeParenthesis:
               y = u
               w = l
-              h = a
+              d = a
               p = u - o
               c = y + 1
               break
@@ -3930,7 +4071,7 @@
               m = l === n.singleQuote ? "'" : '"'
               y = u
               do {
-                d = false
+                h = false
                 y = r.indexOf(m, y + 1)
                 if (y === -1) {
                   unclosed('quote', m)
@@ -3938,11 +4079,11 @@
                 v = y
                 while (r.charCodeAt(v - 1) === n.backslash) {
                   v -= 1
-                  d = !d
+                  h = !h
                 }
-              } while (d)
+              } while (h)
               w = n.str
-              h = a
+              d = a
               p = u - o
               c = y + 1
               break
@@ -3964,24 +4105,24 @@
                 }
                 w = n.comment
                 a = b
-                h = b
+                d = b
                 p = y - S
               } else if (l === n.slash) {
                 y = u
                 w = l
-                h = a
+                d = a
                 p = u - o
                 c = y + 1
               } else {
                 y = consumeWord(r, u)
                 w = n.word
-                h = a
+                d = a
                 p = y - o
               }
               c = y + 1
               break
           }
-          t.push([w, a, u - o, h, p, u, c])
+          t.push([w, a, u - o, d, p, u, c])
           if (S) {
             o = S
             S = null
@@ -4004,11 +4145,11 @@
           r[n - 1] = arguments[n]
         }
         while (r.length > 0) {
-          var i = r.shift()
-          if (!e[i]) {
-            e[i] = {}
+          var s = r.shift()
+          if (!e[s]) {
+            e[s] = {}
           }
-          e = e[i]
+          e = e[s]
         }
       }
       e.exports = t.default
@@ -4026,11 +4167,11 @@
           r[n - 1] = arguments[n]
         }
         while (r.length > 0) {
-          var i = r.shift()
-          if (!e[i]) {
+          var s = r.shift()
+          if (!e[s]) {
             return undefined
           }
-          e = e[i]
+          e = e[s]
         }
         return e
       }
@@ -4042,10 +4183,10 @@
       t.stripComments = t.ensureObject = t.getProp = t.unesc = void 0
       var n = _interopRequireDefault(r(590))
       t.unesc = n['default']
-      var i = _interopRequireDefault(r(976))
-      t.getProp = i['default']
-      var s = _interopRequireDefault(r(684))
-      t.ensureObject = s['default']
+      var s = _interopRequireDefault(r(976))
+      t.getProp = s['default']
+      var i = _interopRequireDefault(r(684))
+      t.ensureObject = i['default']
       var o = _interopRequireDefault(r(453))
       t.stripComments = o['default']
       function _interopRequireDefault(e) {
@@ -4062,11 +4203,11 @@
         var n = 0
         while (r >= 0) {
           t = t + e.slice(n, r)
-          var i = e.indexOf('*/', r + 2)
-          if (i < 0) {
+          var s = e.indexOf('*/', r + 2)
+          if (s < 0) {
             return t
           }
-          n = i + 2
+          n = s + 2
           r = e.indexOf('/*', n)
         }
         t = t + e.slice(n)
@@ -4082,14 +4223,14 @@
         var t = e.toLowerCase()
         var r = ''
         var n = false
-        for (var i = 0; i < 6 && t[i] !== undefined; i++) {
-          var s = t.charCodeAt(i)
-          var o = (s >= 97 && s <= 102) || (s >= 48 && s <= 57)
-          n = s === 32
+        for (var s = 0; s < 6 && t[s] !== undefined; s++) {
+          var i = t.charCodeAt(s)
+          var o = (i >= 97 && i <= 102) || (i >= 48 && i <= 57)
+          n = i === 32
           if (!o) {
             break
           }
-          r += t[i]
+          r += t[s]
         }
         if (r.length === 0) {
           return undefined
@@ -4108,40 +4249,468 @@
           return e
         }
         var n = ''
-        for (var i = 0; i < e.length; i++) {
-          if (e[i] === '\\') {
-            var s = gobbleHex(e.slice(i + 1, i + 7))
-            if (s !== undefined) {
-              n += s[0]
-              i += s[1]
+        for (var s = 0; s < e.length; s++) {
+          if (e[s] === '\\') {
+            var i = gobbleHex(e.slice(s + 1, s + 7))
+            if (i !== undefined) {
+              n += i[0]
+              s += i[1]
               continue
             }
-            if (e[i + 1] === '\\') {
+            if (e[s + 1] === '\\') {
               n += '\\'
-              i++
+              s++
               continue
             }
-            if (e.length === i + 1) {
-              n += e[i]
+            if (e.length === s + 1) {
+              n += e[s]
             }
             continue
           }
-          n += e[i]
+          n += e[s]
         }
         return n
       }
       e.exports = t.default
     },
+    697: (e, t, r) => {
+      var n = r(257)
+      var s = r(961)
+      var i = r(256)
+      function ValueParser(e) {
+        if (this instanceof ValueParser) {
+          this.nodes = n(e)
+          return this
+        }
+        return new ValueParser(e)
+      }
+      ValueParser.prototype.toString = function () {
+        return Array.isArray(this.nodes) ? i(this.nodes) : ''
+      }
+      ValueParser.prototype.walk = function (e, t) {
+        s(this.nodes, e, t)
+        return this
+      }
+      ValueParser.unit = r(68)
+      ValueParser.walk = s
+      ValueParser.stringify = i
+      e.exports = ValueParser
+    },
+    257: (e) => {
+      var t = '('.charCodeAt(0)
+      var r = ')'.charCodeAt(0)
+      var n = "'".charCodeAt(0)
+      var s = '"'.charCodeAt(0)
+      var i = '\\'.charCodeAt(0)
+      var o = '/'.charCodeAt(0)
+      var a = ','.charCodeAt(0)
+      var u = ':'.charCodeAt(0)
+      var c = '*'.charCodeAt(0)
+      var l = 'u'.charCodeAt(0)
+      var f = 'U'.charCodeAt(0)
+      var p = '+'.charCodeAt(0)
+      var d = /^[a-f0-9?-]+$/i
+      e.exports = function (e) {
+        var h = []
+        var v = e
+        var _, g, y, b, S, m, w, k
+        var T = 0
+        var O = v.charCodeAt(T)
+        var P = v.length
+        var E = [{ nodes: h }]
+        var I = 0
+        var A
+        var x = ''
+        var D = ''
+        var C = ''
+        while (T < P) {
+          if (O <= 32) {
+            _ = T
+            do {
+              _ += 1
+              O = v.charCodeAt(_)
+            } while (O <= 32)
+            b = v.slice(T, _)
+            y = h[h.length - 1]
+            if (O === r && I) {
+              C = b
+            } else if (y && y.type === 'div') {
+              y.after = b
+              y.sourceEndIndex += b.length
+            } else if (
+              O === a ||
+              O === u ||
+              (O === o &&
+                v.charCodeAt(_ + 1) !== c &&
+                (!A || (A && A.type === 'function' && A.value !== 'calc')))
+            ) {
+              D = b
+            } else {
+              h.push({
+                type: 'space',
+                sourceIndex: T,
+                sourceEndIndex: _,
+                value: b,
+              })
+            }
+            T = _
+          } else if (O === n || O === s) {
+            _ = T
+            g = O === n ? "'" : '"'
+            b = { type: 'string', sourceIndex: T, quote: g }
+            do {
+              S = false
+              _ = v.indexOf(g, _ + 1)
+              if (~_) {
+                m = _
+                while (v.charCodeAt(m - 1) === i) {
+                  m -= 1
+                  S = !S
+                }
+              } else {
+                v += g
+                _ = v.length - 1
+                b.unclosed = true
+              }
+            } while (S)
+            b.value = v.slice(T + 1, _)
+            b.sourceEndIndex = b.unclosed ? _ : _ + 1
+            h.push(b)
+            T = _ + 1
+            O = v.charCodeAt(T)
+          } else if (O === o && v.charCodeAt(T + 1) === c) {
+            _ = v.indexOf('*/', T)
+            b = { type: 'comment', sourceIndex: T, sourceEndIndex: _ + 2 }
+            if (_ === -1) {
+              b.unclosed = true
+              _ = v.length
+              b.sourceEndIndex = _
+            }
+            b.value = v.slice(T + 2, _)
+            h.push(b)
+            T = _ + 2
+            O = v.charCodeAt(T)
+          } else if (
+            (O === o || O === c) &&
+            A &&
+            A.type === 'function' &&
+            A.value === 'calc'
+          ) {
+            b = v[T]
+            h.push({
+              type: 'word',
+              sourceIndex: T - D.length,
+              sourceEndIndex: T + b.length,
+              value: b,
+            })
+            T += 1
+            O = v.charCodeAt(T)
+          } else if (O === o || O === a || O === u) {
+            b = v[T]
+            h.push({
+              type: 'div',
+              sourceIndex: T - D.length,
+              sourceEndIndex: T + b.length,
+              value: b,
+              before: D,
+              after: '',
+            })
+            D = ''
+            T += 1
+            O = v.charCodeAt(T)
+          } else if (t === O) {
+            _ = T
+            do {
+              _ += 1
+              O = v.charCodeAt(_)
+            } while (O <= 32)
+            k = T
+            b = {
+              type: 'function',
+              sourceIndex: T - x.length,
+              value: x,
+              before: v.slice(k + 1, _),
+            }
+            T = _
+            if (x === 'url' && O !== n && O !== s) {
+              _ -= 1
+              do {
+                S = false
+                _ = v.indexOf(')', _ + 1)
+                if (~_) {
+                  m = _
+                  while (v.charCodeAt(m - 1) === i) {
+                    m -= 1
+                    S = !S
+                  }
+                } else {
+                  v += ')'
+                  _ = v.length - 1
+                  b.unclosed = true
+                }
+              } while (S)
+              w = _
+              do {
+                w -= 1
+                O = v.charCodeAt(w)
+              } while (O <= 32)
+              if (k < w) {
+                if (T !== w + 1) {
+                  b.nodes = [
+                    {
+                      type: 'word',
+                      sourceIndex: T,
+                      sourceEndIndex: w + 1,
+                      value: v.slice(T, w + 1),
+                    },
+                  ]
+                } else {
+                  b.nodes = []
+                }
+                if (b.unclosed && w + 1 !== _) {
+                  b.after = ''
+                  b.nodes.push({
+                    type: 'space',
+                    sourceIndex: w + 1,
+                    sourceEndIndex: _,
+                    value: v.slice(w + 1, _),
+                  })
+                } else {
+                  b.after = v.slice(w + 1, _)
+                  b.sourceEndIndex = _
+                }
+              } else {
+                b.after = ''
+                b.nodes = []
+              }
+              T = _ + 1
+              b.sourceEndIndex = b.unclosed ? _ : T
+              O = v.charCodeAt(T)
+              h.push(b)
+            } else {
+              I += 1
+              b.after = ''
+              b.sourceEndIndex = T + 1
+              h.push(b)
+              E.push(b)
+              h = b.nodes = []
+              A = b
+            }
+            x = ''
+          } else if (r === O && I) {
+            T += 1
+            O = v.charCodeAt(T)
+            A.after = C
+            A.sourceEndIndex += C.length
+            C = ''
+            I -= 1
+            E[E.length - 1].sourceEndIndex = T
+            E.pop()
+            A = E[I]
+            h = A.nodes
+          } else {
+            _ = T
+            do {
+              if (O === i) {
+                _ += 1
+              }
+              _ += 1
+              O = v.charCodeAt(_)
+            } while (
+              _ < P &&
+              !(
+                O <= 32 ||
+                O === n ||
+                O === s ||
+                O === a ||
+                O === u ||
+                O === o ||
+                O === t ||
+                (O === c && A && A.type === 'function' && A.value === 'calc') ||
+                (O === o && A.type === 'function' && A.value === 'calc') ||
+                (O === r && I)
+              )
+            )
+            b = v.slice(T, _)
+            if (t === O) {
+              x = b
+            } else if (
+              (l === b.charCodeAt(0) || f === b.charCodeAt(0)) &&
+              p === b.charCodeAt(1) &&
+              d.test(b.slice(2))
+            ) {
+              h.push({
+                type: 'unicode-range',
+                sourceIndex: T,
+                sourceEndIndex: _,
+                value: b,
+              })
+            } else {
+              h.push({
+                type: 'word',
+                sourceIndex: T,
+                sourceEndIndex: _,
+                value: b,
+              })
+            }
+            T = _
+          }
+        }
+        for (T = E.length - 1; T; T -= 1) {
+          E[T].unclosed = true
+          E[T].sourceEndIndex = v.length
+        }
+        return E[0].nodes
+      }
+    },
+    256: (e) => {
+      function stringifyNode(e, t) {
+        var r = e.type
+        var n = e.value
+        var s
+        var i
+        if (t && (i = t(e)) !== undefined) {
+          return i
+        } else if (r === 'word' || r === 'space') {
+          return n
+        } else if (r === 'string') {
+          s = e.quote || ''
+          return s + n + (e.unclosed ? '' : s)
+        } else if (r === 'comment') {
+          return '/*' + n + (e.unclosed ? '' : '*/')
+        } else if (r === 'div') {
+          return (e.before || '') + n + (e.after || '')
+        } else if (Array.isArray(e.nodes)) {
+          s = stringify(e.nodes, t)
+          if (r !== 'function') {
+            return s
+          }
+          return (
+            n +
+            '(' +
+            (e.before || '') +
+            s +
+            (e.after || '') +
+            (e.unclosed ? '' : ')')
+          )
+        }
+        return n
+      }
+      function stringify(e, t) {
+        var r, n
+        if (Array.isArray(e)) {
+          r = ''
+          for (n = e.length - 1; ~n; n -= 1) {
+            r = stringifyNode(e[n], t) + r
+          }
+          return r
+        }
+        return stringifyNode(e, t)
+      }
+      e.exports = stringify
+    },
+    68: (e) => {
+      var t = '-'.charCodeAt(0)
+      var r = '+'.charCodeAt(0)
+      var n = '.'.charCodeAt(0)
+      var s = 'e'.charCodeAt(0)
+      var i = 'E'.charCodeAt(0)
+      function likeNumber(e) {
+        var s = e.charCodeAt(0)
+        var i
+        if (s === r || s === t) {
+          i = e.charCodeAt(1)
+          if (i >= 48 && i <= 57) {
+            return true
+          }
+          var o = e.charCodeAt(2)
+          if (i === n && o >= 48 && o <= 57) {
+            return true
+          }
+          return false
+        }
+        if (s === n) {
+          i = e.charCodeAt(1)
+          if (i >= 48 && i <= 57) {
+            return true
+          }
+          return false
+        }
+        if (s >= 48 && s <= 57) {
+          return true
+        }
+        return false
+      }
+      e.exports = function (e) {
+        var o = 0
+        var a = e.length
+        var u
+        var c
+        var l
+        if (a === 0 || !likeNumber(e)) {
+          return false
+        }
+        u = e.charCodeAt(o)
+        if (u === r || u === t) {
+          o++
+        }
+        while (o < a) {
+          u = e.charCodeAt(o)
+          if (u < 48 || u > 57) {
+            break
+          }
+          o += 1
+        }
+        u = e.charCodeAt(o)
+        c = e.charCodeAt(o + 1)
+        if (u === n && c >= 48 && c <= 57) {
+          o += 2
+          while (o < a) {
+            u = e.charCodeAt(o)
+            if (u < 48 || u > 57) {
+              break
+            }
+            o += 1
+          }
+        }
+        u = e.charCodeAt(o)
+        c = e.charCodeAt(o + 1)
+        l = e.charCodeAt(o + 2)
+        if (
+          (u === s || u === i) &&
+          ((c >= 48 && c <= 57) || ((c === r || c === t) && l >= 48 && l <= 57))
+        ) {
+          o += c === r || c === t ? 3 : 2
+          while (o < a) {
+            u = e.charCodeAt(o)
+            if (u < 48 || u > 57) {
+              break
+            }
+            o += 1
+          }
+        }
+        return { number: e.slice(0, o), unit: e.slice(o) }
+      }
+    },
+    961: (e) => {
+      e.exports = function walk(e, t, r) {
+        var n, s, i, o
+        for (n = 0, s = e.length; n < s; n += 1) {
+          i = e[n]
+          if (!r) {
+            o = t(i, n, e)
+          }
+          if (o !== false && i.type === 'function' && Array.isArray(i.nodes)) {
+            walk(i.nodes, t, r)
+          }
+          if (r) {
+            t(i, n, e)
+          }
+        }
+      }
+    },
     124: (e, t, r) => {
       e.exports = r(837).deprecate
-    },
-    417: (e) => {
-      'use strict'
-      e.exports = require('../icss-utils')
-    },
-    36: (e) => {
-      'use strict'
-      e.exports = require('../postcss-value-parser')
     },
     837: (e) => {
       'use strict'
@@ -4154,15 +4723,15 @@
     if (n !== undefined) {
       return n.exports
     }
-    var i = (t[r] = { exports: {} })
-    var s = true
+    var s = (t[r] = { exports: {} })
+    var i = true
     try {
-      e[r](i, i.exports, __nccwpck_require__)
-      s = false
+      e[r](s, s.exports, __nccwpck_require__)
+      i = false
     } finally {
-      if (s) delete t[r]
+      if (i) delete t[r]
     }
-    return i.exports
+    return s.exports
   }
   if (typeof __nccwpck_require__ !== 'undefined')
     __nccwpck_require__.ab = __dirname + '/'

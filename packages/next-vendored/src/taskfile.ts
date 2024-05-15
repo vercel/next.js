@@ -306,18 +306,32 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
   } = modOptions
 
   if (!browserOnly) externals[mod] = `${next_vendored}/${mod}`
+
+  let combinedExternals = addedExternals
+    ? { ...externals, ...addedExternals }
+    : { ...externals }
+
+  // If the module is nested in a namespace scope, we need to update our relative paths
+  // in the externals object
+  if (mod.startsWith('@')) {
+    for (const [key, value] of Object.entries(combinedExternals)) {
+      if (value.startsWith('../')) {
+        combinedExternals[key] = `../${value}`
+      }
+    }
+  }
+
   tasks[taskName] = async (task) => {
     await task.clear(mod)
-    task.source(esm ? resolve(modPath) : resolveCommonjs(modPath)).ncc(
-      Object.assign(
-        { packageName: mod, externals },
-        addedExternals && {
-          externals: { ...externals, ...addedExternals },
-        },
-        browserOnly && { mainFields: ['browser', 'main'], target: 'es5' },
-        minify !== undefined && { minify }
+    task
+      .source(esm ? resolve(modPath) : resolveCommonjs(modPath))
+      .ncc(
+        Object.assign(
+          { packageName: mod, externals: combinedExternals },
+          browserOnly && { mainFields: ['browser', 'main'], target: 'es5' },
+          minify !== undefined && { minify }
+        )
       )
-    )
     if (use) task.use(use)
     await task.target(mod)
   }

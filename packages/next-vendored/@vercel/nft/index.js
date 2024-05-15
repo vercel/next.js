@@ -542,7 +542,7 @@
       'use strict'
       e.exports = t
       const s = r(1017)
-      const a = r(5204)
+      const a = r(8353)
       const o = r(7310)
       const u = r(5104)
       const c = r(5977)
@@ -841,10 +841,10 @@
       const o = r(3982)
       const u = r(9663)
       const c = r(9770)
-      const f = r(4523)
+      const f = r(6414)
       const d = s(r(3331))
       const p = r(5456)
-      const h = s(r(1110))
+      const h = s(r(567))
       const v = r(4010)
       const g = r(8137)
       const D = r(2397)
@@ -1735,7 +1735,7 @@
       t.CachedFileSystem = void 0
       const a = r(1017)
       const o = s(r(6450))
-      const u = r(2500)
+      const u = r(7574)
       const c = o.default.promises.readFile
       const f = o.default.promises.readlink
       const d = o.default.promises.stat
@@ -2705,7 +2705,7 @@
       Object.defineProperty(t, '__esModule', { value: true })
       t.sharedLibEmit = void 0
       const a = s(r(2037))
-      const o = s(r(1110))
+      const o = s(r(567))
       const u = r(4010)
       let c = ''
       switch (a.default.platform()) {
@@ -4198,7 +4198,7 @@
       var s
       s = { value: true }
       t.J = importAttributes
-      var a = _interopRequireWildcard(r(4523))
+      var a = _interopRequireWildcard(r(6414))
       function _getRequireWildcardCache(e) {
         if (typeof WeakMap !== 'function') return null
         var t = new WeakMap()
@@ -6904,7 +6904,7 @@
     5791: (e, t, r) => {
       'use strict'
       var s = r(8321)
-      var a = r(286)
+      var a = r(3484)
       e.exports = wideTruncate
       function wideTruncate(e, t) {
         if (s(e) === 0) return e
@@ -7810,7 +7810,7 @@
       'use strict'
       const s = r(3837)
       const a = r(8333)
-      const o = r(1576)
+      const o = r(9990)
       const u = r(5502)
       const isEmptyString = (e) => e === '' || e === './'
       const micromatch = (e, t, r) => {
@@ -10680,7 +10680,7 @@ object-assign
       const o = r(7147)
       let u = undefined
       try {
-        u = r(1110)
+        u = r(567)
       } catch (e) {}
       const c = { nosort: true, silent: true }
       let f = 0
@@ -11159,7 +11159,7 @@ object-assign
     },
     8321: (e, t, r) => {
       'use strict'
-      var s = r(286)
+      var s = r(3484)
       var a = r(8589)
       var o = r(3279)
       e.exports = function (e) {
@@ -11187,7 +11187,7 @@ object-assign
     },
     5663: (e, t, r) => {
       'use strict'
-      const s = r(286)
+      const s = r(3484)
       const a = r(8502)
       const o = r(3876)
       const stringWidth = (e) => {
@@ -11742,29 +11742,29 @@ object-assign
     4997: (module) => {
       module.exports = eval('require')('nock')
     },
-    4523: (e) => {
+    6414: (e) => {
       'use strict'
-      e.exports = require('../acorn')
+      e.exports = require('../../acorn')
     },
-    2500: (e) => {
+    7574: (e) => {
       'use strict'
-      e.exports = require('../async-sema')
+      e.exports = require('../../async-sema')
     },
-    1110: (e) => {
+    567: (e) => {
       'use strict'
-      e.exports = require('../glob')
+      e.exports = require('../../glob')
     },
-    1576: (e) => {
+    9990: (e) => {
       'use strict'
-      e.exports = require('../picomatch')
+      e.exports = require('../../picomatch')
     },
-    5204: (e) => {
+    8353: (e) => {
       'use strict'
-      e.exports = require('../semver')
+      e.exports = require('../../semver')
     },
-    286: (e) => {
+    3484: (e) => {
       'use strict'
-      e.exports = require('../strip-ansi')
+      e.exports = require('../../strip-ansi')
     },
     9491: (e) => {
       'use strict'
@@ -11818,7 +11818,7 @@ object-assign
       'use strict'
       Object.defineProperty(t, '__esModule', { value: true })
       var s = r(1017)
-      var a = r(1576)
+      var a = r(9990)
       function _interopDefaultLegacy(e) {
         return e && typeof e === 'object' && 'default' in e ? e : { default: e }
       }

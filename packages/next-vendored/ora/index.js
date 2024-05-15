@@ -1,5 +1,15 @@
 ;(() => {
   var e = {
+    511: (e) => {
+      'use strict'
+      e.exports = ({ onlyFirst: e = false } = {}) => {
+        const t = [
+          '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+          '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-ntqry=><~]))',
+        ].join('|')
+        return new RegExp(t, e ? undefined : 'g')
+      }
+    },
     535: (e, t, r) => {
       'use strict'
       e = r.nmd(e)
@@ -3249,7 +3259,7 @@
       const o = r(581)
       const i = r(494)
       const a = r(663)
-      const l = r(286)
+      const l = r(532)
       const u = r(457)
       const f = r(934)
       const h = r(502)
@@ -3719,6 +3729,11 @@
         e.exports.push('SIGIO', 'SIGPOLL', 'SIGPWR', 'SIGSTKFLT', 'SIGUNUSED')
       }
     },
+    532: (e, t, r) => {
+      'use strict'
+      const n = r(511)
+      e.exports = (e) => (typeof e === 'string' ? e.replace(n(), '') : e)
+    },
     220: (e, t, r) => {
       'use strict'
       const n = r(37)
@@ -4151,10 +4166,6 @@
         }
         return false
       }
-    },
-    286: (e) => {
-      'use strict'
-      e.exports = require('../strip-ansi')
     },
     491: (e) => {
       'use strict'

@@ -124,9 +124,9 @@
       var s = i(291).Buffer
       var o = i(48)
       var c = i(876)
-      var t = i(753)('compression')
-      var p = i(849)
-      var r = i(850)
+      var t = i(372)('compression')
+      var r = i(849)
+      var p = i(850)
       var l = i(796)
       e.exports = compression
       e.exports.filter = shouldCompress
@@ -191,7 +191,7 @@
             addListeners(o, f, d)
             d = null
           }
-          p(o, function onResponseHeaders() {
+          r(o, function onResponseHeaders() {
             if (!i(e, o)) {
               nocompress('filtered')
               return
@@ -200,7 +200,7 @@
               nocompress('no transform')
               return
             }
-            r(o, 'Accept-Encoding')
+            p(o, 'Accept-Encoding')
             if (Number(o.getHeader('Content-Length')) < s || m < s) {
               nocompress('size below threshold')
               return
@@ -214,10 +214,10 @@
               nocompress('HEAD request')
               return
             }
-            var p = n(e)
-            var u = p.encoding(['gzip', 'deflate', 'identity'])
-            if (u === 'deflate' && p.encoding(['gzip'])) {
-              u = p.encoding(['gzip', 'identity'])
+            var r = n(e)
+            var u = r.encoding(['gzip', 'deflate', 'identity'])
+            if (u === 'deflate' && r.encoding(['gzip'])) {
+              u = r.encoding(['gzip', 'identity'])
             }
             if (!u || u === 'identity') {
               nocompress('not acceptable')
@@ -269,6 +269,352 @@
       function toBuffer(e, a) {
         return !s.isBuffer(e) ? s.from(e, a) : e
       }
+    },
+    547: (e, a, i) => {
+      a = e.exports = i(891)
+      a.log = log
+      a.formatArgs = formatArgs
+      a.save = save
+      a.load = load
+      a.useColors = useColors
+      a.storage =
+        'undefined' != typeof chrome && 'undefined' != typeof chrome.storage
+          ? chrome.storage.local
+          : localstorage()
+      a.colors = [
+        'lightseagreen',
+        'forestgreen',
+        'goldenrod',
+        'dodgerblue',
+        'darkorchid',
+        'crimson',
+      ]
+      function useColors() {
+        if (
+          typeof window !== 'undefined' &&
+          window.process &&
+          window.process.type === 'renderer'
+        ) {
+          return true
+        }
+        return (
+          (typeof document !== 'undefined' &&
+            document.documentElement &&
+            document.documentElement.style &&
+            document.documentElement.style.WebkitAppearance) ||
+          (typeof window !== 'undefined' &&
+            window.console &&
+            (window.console.firebug ||
+              (window.console.exception && window.console.table))) ||
+          (typeof navigator !== 'undefined' &&
+            navigator.userAgent &&
+            navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) &&
+            parseInt(RegExp.$1, 10) >= 31) ||
+          (typeof navigator !== 'undefined' &&
+            navigator.userAgent &&
+            navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/))
+        )
+      }
+      a.formatters.j = function (e) {
+        try {
+          return JSON.stringify(e)
+        } catch (e) {
+          return '[UnexpectedJSONParseError]: ' + e.message
+        }
+      }
+      function formatArgs(e) {
+        var i = this.useColors
+        e[0] =
+          (i ? '%c' : '') +
+          this.namespace +
+          (i ? ' %c' : ' ') +
+          e[0] +
+          (i ? '%c ' : ' ') +
+          '+' +
+          a.humanize(this.diff)
+        if (!i) return
+        var n = 'color: ' + this.color
+        e.splice(1, 0, n, 'color: inherit')
+        var s = 0
+        var o = 0
+        e[0].replace(/%[a-zA-Z%]/g, function (e) {
+          if ('%%' === e) return
+          s++
+          if ('%c' === e) {
+            o = s
+          }
+        })
+        e.splice(o, 0, n)
+      }
+      function log() {
+        return (
+          'object' === typeof console &&
+          console.log &&
+          Function.prototype.apply.call(console.log, console, arguments)
+        )
+      }
+      function save(e) {
+        try {
+          if (null == e) {
+            a.storage.removeItem('debug')
+          } else {
+            a.storage.debug = e
+          }
+        } catch (e) {}
+      }
+      function load() {
+        var e
+        try {
+          e = a.storage.debug
+        } catch (e) {}
+        if (!e && typeof process !== 'undefined' && 'env' in process) {
+          e = process.env.DEBUG
+        }
+        return e
+      }
+      a.enable(load())
+      function localstorage() {
+        try {
+          return window.localStorage
+        } catch (e) {}
+      }
+    },
+    891: (e, a, i) => {
+      a = e.exports = createDebug.debug = createDebug['default'] = createDebug
+      a.coerce = coerce
+      a.disable = disable
+      a.enable = enable
+      a.enabled = enabled
+      a.humanize = i(111)
+      a.names = []
+      a.skips = []
+      a.formatters = {}
+      var n
+      function selectColor(e) {
+        var i = 0,
+          n
+        for (n in e) {
+          i = (i << 5) - i + e.charCodeAt(n)
+          i |= 0
+        }
+        return a.colors[Math.abs(i) % a.colors.length]
+      }
+      function createDebug(e) {
+        function debug() {
+          if (!debug.enabled) return
+          var e = debug
+          var i = +new Date()
+          var s = i - (n || i)
+          e.diff = s
+          e.prev = n
+          e.curr = i
+          n = i
+          var o = new Array(arguments.length)
+          for (var c = 0; c < o.length; c++) {
+            o[c] = arguments[c]
+          }
+          o[0] = a.coerce(o[0])
+          if ('string' !== typeof o[0]) {
+            o.unshift('%O')
+          }
+          var t = 0
+          o[0] = o[0].replace(/%([a-zA-Z%])/g, function (i, n) {
+            if (i === '%%') return i
+            t++
+            var s = a.formatters[n]
+            if ('function' === typeof s) {
+              var c = o[t]
+              i = s.call(e, c)
+              o.splice(t, 1)
+              t--
+            }
+            return i
+          })
+          a.formatArgs.call(e, o)
+          var r = debug.log || a.log || console.log.bind(console)
+          r.apply(e, o)
+        }
+        debug.namespace = e
+        debug.enabled = a.enabled(e)
+        debug.useColors = a.useColors()
+        debug.color = selectColor(e)
+        if ('function' === typeof a.init) {
+          a.init(debug)
+        }
+        return debug
+      }
+      function enable(e) {
+        a.save(e)
+        a.names = []
+        a.skips = []
+        var i = (typeof e === 'string' ? e : '').split(/[\s,]+/)
+        var n = i.length
+        for (var s = 0; s < n; s++) {
+          if (!i[s]) continue
+          e = i[s].replace(/\*/g, '.*?')
+          if (e[0] === '-') {
+            a.skips.push(new RegExp('^' + e.substr(1) + '$'))
+          } else {
+            a.names.push(new RegExp('^' + e + '$'))
+          }
+        }
+      }
+      function disable() {
+        a.enable('')
+      }
+      function enabled(e) {
+        var i, n
+        for (i = 0, n = a.skips.length; i < n; i++) {
+          if (a.skips[i].test(e)) {
+            return false
+          }
+        }
+        for (i = 0, n = a.names.length; i < n; i++) {
+          if (a.names[i].test(e)) {
+            return true
+          }
+        }
+        return false
+      }
+      function coerce(e) {
+        if (e instanceof Error) return e.stack || e.message
+        return e
+      }
+    },
+    372: (e, a, i) => {
+      if (typeof process !== 'undefined' && process.type === 'renderer') {
+        e.exports = i(547)
+      } else {
+        e.exports = i(217)
+      }
+    },
+    217: (e, a, i) => {
+      var n = i(224)
+      var s = i(837)
+      a = e.exports = i(891)
+      a.init = init
+      a.log = log
+      a.formatArgs = formatArgs
+      a.save = save
+      a.load = load
+      a.useColors = useColors
+      a.colors = [6, 2, 3, 4, 5, 1]
+      a.inspectOpts = Object.keys(process.env)
+        .filter(function (e) {
+          return /^debug_/i.test(e)
+        })
+        .reduce(function (e, a) {
+          var i = a
+            .substring(6)
+            .toLowerCase()
+            .replace(/_([a-z])/g, function (e, a) {
+              return a.toUpperCase()
+            })
+          var n = process.env[a]
+          if (/^(yes|on|true|enabled)$/i.test(n)) n = true
+          else if (/^(no|off|false|disabled)$/i.test(n)) n = false
+          else if (n === 'null') n = null
+          else n = Number(n)
+          e[i] = n
+          return e
+        }, {})
+      var o = parseInt(process.env.DEBUG_FD, 10) || 2
+      if (1 !== o && 2 !== o) {
+        s.deprecate(function () {},
+        'except for stderr(2) and stdout(1), any other usage of DEBUG_FD is deprecated. Override debug.log if you want to use a different log function (https://git.io/debug_fd)')()
+      }
+      var c =
+        1 === o
+          ? process.stdout
+          : 2 === o
+          ? process.stderr
+          : createWritableStdioStream(o)
+      function useColors() {
+        return 'colors' in a.inspectOpts
+          ? Boolean(a.inspectOpts.colors)
+          : n.isatty(o)
+      }
+      a.formatters.o = function (e) {
+        this.inspectOpts.colors = this.useColors
+        return s
+          .inspect(e, this.inspectOpts)
+          .split('\n')
+          .map(function (e) {
+            return e.trim()
+          })
+          .join(' ')
+      }
+      a.formatters.O = function (e) {
+        this.inspectOpts.colors = this.useColors
+        return s.inspect(e, this.inspectOpts)
+      }
+      function formatArgs(e) {
+        var i = this.namespace
+        var n = this.useColors
+        if (n) {
+          var s = this.color
+          var o = '  [3' + s + ';1m' + i + ' ' + '[0m'
+          e[0] = o + e[0].split('\n').join('\n' + o)
+          e.push('[3' + s + 'm+' + a.humanize(this.diff) + '[0m')
+        } else {
+          e[0] = new Date().toUTCString() + ' ' + i + ' ' + e[0]
+        }
+      }
+      function log() {
+        return c.write(s.format.apply(s, arguments) + '\n')
+      }
+      function save(e) {
+        if (null == e) {
+          delete process.env.DEBUG
+        } else {
+          process.env.DEBUG = e
+        }
+      }
+      function load() {
+        return process.env.DEBUG
+      }
+      function createWritableStdioStream(e) {
+        var a
+        var s = process.binding('tty_wrap')
+        switch (s.guessHandleType(e)) {
+          case 'TTY':
+            a = new n.WriteStream(e)
+            a._type = 'tty'
+            if (a._handle && a._handle.unref) {
+              a._handle.unref()
+            }
+            break
+          case 'FILE':
+            var o = i(147)
+            a = new o.SyncWriteStream(e, { autoClose: false })
+            a._type = 'fs'
+            break
+          case 'PIPE':
+          case 'TCP':
+            var c = i(808)
+            a = new c.Socket({ fd: e, readable: false, writable: true })
+            a.readable = false
+            a.read = null
+            a._type = 'pipe'
+            if (a._handle && a._handle.unref) {
+              a._handle.unref()
+            }
+            break
+          default:
+            throw new Error('Implement me. Unknown stream file type!')
+        }
+        a.fd = e
+        a._isStdio = true
+        return a
+      }
+      function init(e) {
+        e.inspectOpts = {}
+        var i = Object.keys(a.inspectOpts)
+        for (var n = 0; n < i.length; n++) {
+          e.inspectOpts[i[n]] = a.inspectOpts[i[n]]
+        }
+      }
+      a.enable(load())
     },
     183: (e, a, i) => {
       /*!
@@ -358,20 +704,126 @@
           }
           e[s] = c
           for (var t = 0; t < c.length; t++) {
-            var p = c[t]
-            if (a[p]) {
-              var r = i.indexOf(n[a[p]].source)
+            var r = c[t]
+            if (a[r]) {
+              var p = i.indexOf(n[a[r]].source)
               var l = i.indexOf(o.source)
               if (
-                a[p] !== 'application/octet-stream' &&
-                (r > l || (r === l && a[p].substr(0, 12) === 'application/'))
+                a[r] !== 'application/octet-stream' &&
+                (p > l || (p === l && a[r].substr(0, 12) === 'application/'))
               ) {
                 continue
               }
             }
-            a[p] = s
+            a[r] = s
           }
         })
+      }
+    },
+    111: (e) => {
+      var a = 1e3
+      var i = a * 60
+      var n = i * 60
+      var s = n * 24
+      var o = s * 365.25
+      e.exports = function (e, a) {
+        a = a || {}
+        var i = typeof e
+        if (i === 'string' && e.length > 0) {
+          return parse(e)
+        } else if (i === 'number' && isNaN(e) === false) {
+          return a.long ? fmtLong(e) : fmtShort(e)
+        }
+        throw new Error(
+          'val is not a non-empty string or a valid number. val=' +
+            JSON.stringify(e)
+        )
+      }
+      function parse(e) {
+        e = String(e)
+        if (e.length > 100) {
+          return
+        }
+        var c =
+          /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+            e
+          )
+        if (!c) {
+          return
+        }
+        var t = parseFloat(c[1])
+        var r = (c[2] || 'ms').toLowerCase()
+        switch (r) {
+          case 'years':
+          case 'year':
+          case 'yrs':
+          case 'yr':
+          case 'y':
+            return t * o
+          case 'days':
+          case 'day':
+          case 'd':
+            return t * s
+          case 'hours':
+          case 'hour':
+          case 'hrs':
+          case 'hr':
+          case 'h':
+            return t * n
+          case 'minutes':
+          case 'minute':
+          case 'mins':
+          case 'min':
+          case 'm':
+            return t * i
+          case 'seconds':
+          case 'second':
+          case 'secs':
+          case 'sec':
+          case 's':
+            return t * a
+          case 'milliseconds':
+          case 'millisecond':
+          case 'msecs':
+          case 'msec':
+          case 'ms':
+            return t
+          default:
+            return undefined
+        }
+      }
+      function fmtShort(e) {
+        if (e >= s) {
+          return Math.round(e / s) + 'd'
+        }
+        if (e >= n) {
+          return Math.round(e / n) + 'h'
+        }
+        if (e >= i) {
+          return Math.round(e / i) + 'm'
+        }
+        if (e >= a) {
+          return Math.round(e / a) + 's'
+        }
+        return e + 'ms'
+      }
+      function fmtLong(e) {
+        return (
+          plural(e, s, 'day') ||
+          plural(e, n, 'hour') ||
+          plural(e, i, 'minute') ||
+          plural(e, a, 'second') ||
+          e + ' ms'
+        )
+      }
+      function plural(e, a, i) {
+        if (e < a) {
+          return
+        }
+        if (e < a * 1.5) {
+          return Math.floor(e / a) + ' ' + i
+        }
+        return Math.ceil(e / a) + ' ' + i + 's'
       }
     },
     995: (e, a, i) => {
@@ -480,9 +932,9 @@
         if (n[2]) {
           var c = n[2].split(';')
           for (var t = 0; t < c.length; t++) {
-            var p = c[t].trim().split('=')
-            if (p[0] === 'q') {
-              o = parseFloat(p[1])
+            var r = c[t].trim().split('=')
+            if (r[0] === 'q') {
+              o = parseFloat(r[1])
               break
             }
           }
@@ -564,9 +1016,9 @@
         if (n[2]) {
           var c = n[2].split(';')
           for (var t = 0; t < c.length; t++) {
-            var p = c[t].trim().split('=')
-            if (p[0] === 'q') {
-              o = parseFloat(p[1])
+            var r = c[t].trim().split('=')
+            if (r[0] === 'q') {
+              o = parseFloat(r[1])
               break
             }
           }
@@ -642,9 +1094,9 @@
         if (o) c += '-' + o
         var t = 1
         if (n[3]) {
-          var p = n[3].split(';')
-          for (var r = 0; r < p.length; r++) {
-            var l = p[r].split('=')
+          var r = n[3].split(';')
+          for (var p = 0; p < r.length; p++) {
+            var l = r[p].split('=')
             if (l[0] === 'q') t = parseFloat(l[1])
           }
         }
@@ -724,9 +1176,9 @@
         var c = n[2]
         var t = n[1]
         if (n[3]) {
-          var p = splitParameters(n[3]).map(splitKeyValuePair)
-          for (var r = 0; r < p.length; r++) {
-            var l = p[r]
+          var r = splitParameters(n[3]).map(splitKeyValuePair)
+          for (var p = 0; p < r.length; p++) {
+            var l = r[p]
             var u = l[0].toLowerCase()
             var m = l[1]
             var d =
@@ -1005,9 +1457,9 @@
           return '*'
         }
         for (var t = 0; t < n.length; t++) {
-          var p = n[t].toLowerCase()
-          if (c.indexOf(p) === -1) {
-            c.push(p)
+          var r = n[t].toLowerCase()
+          if (c.indexOf(r) === -1) {
+            c.push(r)
             o = o ? o + ', ' + n[t] : n[t]
           }
         }
@@ -1051,17 +1503,29 @@
       'use strict'
       e.exports = require('../bytes')
     },
-    753: (e) => {
-      'use strict'
-      e.exports = require('../debug')
-    },
     300: (e) => {
       'use strict'
       e.exports = require('buffer')
     },
+    147: (e) => {
+      'use strict'
+      e.exports = require('fs')
+    },
+    808: (e) => {
+      'use strict'
+      e.exports = require('net')
+    },
     17: (e) => {
       'use strict'
       e.exports = require('path')
+    },
+    224: (e) => {
+      'use strict'
+      e.exports = require('tty')
+    },
+    837: (e) => {
+      'use strict'
+      e.exports = require('util')
     },
     796: (e) => {
       'use strict'
