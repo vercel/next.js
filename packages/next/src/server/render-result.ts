@@ -188,7 +188,7 @@ export default class RenderResult<
     }
 
     if (Buffer.isBuffer(this.response)) {
-      throw new Error(`Invariant: buffer response cannot be streamed`)
+      return streamFromBuffer(this.response)
     }
 
     // If the response is an array of streams, then chain them together.
