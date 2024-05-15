@@ -149,7 +149,7 @@ const API_DOCS: Record<
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#experimental_ppr',
     isValid: (value: string) => {
       return value === 'true' || value === 'false'
-    }
+    },
   },
 }
 
