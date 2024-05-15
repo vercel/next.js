@@ -82,6 +82,25 @@ export async function exportAppRoute(
   try {
     // Route module loading and handling.
     const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
+    const userland = module.userland
+
+    // route handlers are only statically optimized if they define
+    // one of these top-level configs manually
+    //   - dynamic = 'force-static'
+    //   - revalidate = 1
+    //   - revalidate = false
+    //   - generateStaticParams
+    if (
+      !(
+        userland.dynamic === 'force-static' ||
+        userland.revalidate === false ||
+        (userland.revalidate !== undefined && userland.revalidate > 0) ||
+        typeof userland.generateStaticParams == 'function'
+      )
+    ) {
+      return { revalidate: 0 }
+    }
+
     const response = await module.handle(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
