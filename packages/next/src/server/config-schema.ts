@@ -420,6 +420,19 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
+        reactCompiler: z.union([
+          z.boolean(),
+          z
+            .object({
+              compilationMode: z
+                .enum(['infer', 'annotation', 'all'])
+                .optional(),
+              panicThreshold: z
+                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .optional(),
+            })
+            .optional(),
+        ]),
       })
       .optional(),
     exportPathMap: z
