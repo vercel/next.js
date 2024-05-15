@@ -18,8 +18,8 @@ module.exports = {
         "button-secondary-hover": "var(--button-secondary-hover)",
       },
       fontFamily: {
-        sans: ["Geist", "Arial", "Helvetica", "sans-serif"],
-        mono: ["Geist Mono", "Space Mono", "monospace"],
+        sans: ["var(--font-geist-sans)"],
+        mono: ["var(--font-geist-mono)"],
       },
     },
   },

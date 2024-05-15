@@ -3,8 +3,14 @@ import Image from "next/image";
 import styles from "@/styles/Home.module.css";
 import localFont from "next/font/local";
 
-const geistSans = localFont({ src: "./fonts/GeistVF.woff" });
-const geistMono = localFont({ src: "./fonts/GeistMonoVF.woff" });
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+});
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
+});
 
 export default function Home() {
   return (
@@ -16,7 +22,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <div
-        className={`${styles.page} ${geistSans.className} ${geistMono.className}`}
+        className={`${styles.page} ${geistSans.variable} ${geistMono.variable}`}
       >
         <main className={styles.main}>
           <Image

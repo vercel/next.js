@@ -87,8 +87,8 @@ function VercelIcon() {
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M10.5 3L18.5 17H2.5L10.5 3Z"
         fill="var(--background)"
       />

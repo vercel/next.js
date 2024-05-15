@@ -1,6 +1,4 @@
 .page {
-  --font-geist-sans: "Geist", Inter, Arial, Helvetica, sans-serif;
-  --font-geist-mono: "Geist Mono", "Space Mono", monospace;
   display: grid;
   grid-template-rows: 20px 1fr 20px;
   align-items: center;
