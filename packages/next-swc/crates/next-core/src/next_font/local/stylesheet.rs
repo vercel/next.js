@@ -15,13 +15,9 @@ pub(super) async fn build_stylesheet(
     options: Vc<NextFontLocalOptions>,
     fallbacks: Vc<FontFallbacks>,
     css_properties: Vc<FontCssProperties>,
-    request_hash: u32,
 ) -> Result<Vc<String>> {
-    let scoped_font_family = get_scoped_font_family(
-        FontFamilyType::WebFont.cell(),
-        options.font_family(),
-        request_hash,
-    );
+    let scoped_font_family =
+        get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
 
     Ok(Vc::cell(formatdoc!(
         r#"
