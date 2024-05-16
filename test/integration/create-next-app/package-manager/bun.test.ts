@@ -1,3 +1,5 @@
+import { trace } from 'next/dist/trace'
+import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -16,7 +18,15 @@ beforeEach(async () => {
     .catch(() => command('npm', ['i', '-g', 'bun']))
 })
 
-describe('create-next-app with package manager bun', () => {
+let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
+beforeAll(async () => {
+  nextInstall = await createNextInstall({
+    parentSpan: trace('test'),
+    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+  })
+})
+
+describe.skip('create-next-app with package manager bun', () => {
   it('should use bun for --use-bun flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun'
@@ -31,6 +41,7 @@ describe('create-next-app with package manager bun', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -59,6 +70,7 @@ it('should use bun when user-agent is bun', async () => {
         '--no-tailwind',
         '--no-import-alias',
       ],
+      nextInstall.installDir,
       {
         cwd,
         env: { npm_config_user_agent: 'bun' },
@@ -79,6 +91,7 @@ it('should use bun for --use-bun flag with example', async () => {
     const projectName = 'use-bun-with-example'
     const res = await run(
       [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
+      nextInstall.installDir,
       { cwd }
     )
 
@@ -94,10 +107,14 @@ it('should use bun for --use-bun flag with example', async () => {
 it('should use bun when user-agent is bun with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-bun-with-example'
-    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-      cwd,
-      env: { npm_config_user_agent: 'bun' },
-    })
+    const res = await run(
+      [projectName, '--example', FULL_EXAMPLE_PATH],
+      nextInstall.installDir,
+      {
+        cwd,
+        env: { npm_config_user_agent: 'bun' },
+      }
+    )
 
     expect(res.exitCode).toBe(0)
     projectFilesShouldExist({

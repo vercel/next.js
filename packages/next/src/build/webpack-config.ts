@@ -9,7 +9,8 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackAppLayer,
+  isWebpackBuiltinReactLayer,
+  isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
@@ -84,6 +85,10 @@ import {
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
+import {
+  getBabelLoader,
+  getReactCompilerLoader,
+} from './get-babel-loader-config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -405,23 +410,52 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const babelLoader = (function getBabelLoader() {
-    if (useSWCLoader) return undefined
-    return {
-      loader: require.resolve('./babel/loader/index'),
-      options: {
-        configFile: babelConfigFile,
-        isServer: isNodeOrEdgeCompilation,
-        distDir,
-        pagesDir,
-        srcDir: path.dirname((appDir || pagesDir)!),
-        cwd: dir,
-        development: dev,
-        hasReactRefresh: dev && isClient,
-        hasJsxRuntime: true,
-      },
-    }
-  })()
+  const shouldIncludeExternalDirs =
+    config.experimental.externalDir || !!config.transpilePackages
+  const codeCondition = {
+    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
+      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+        return false
+      }
+
+      const shouldBeBundled = isResourceInPackages(
+        excludePath,
+        finalTranspilePackages
+      )
+      if (shouldBeBundled) return false
+
+      return excludePath.includes('node_modules')
+    },
+  }
+
+  const babelLoader = getBabelLoader(
+    useSWCLoader,
+    babelConfigFile,
+    isNodeOrEdgeCompilation,
+    distDir,
+    pagesDir,
+    dir,
+    (appDir || pagesDir)!,
+    dev,
+    isClient,
+    config.experimental?.reactCompiler,
+    codeCondition.exclude
+  )
+
+  const reactCompilerLoader = babelLoader
+    ? undefined
+    : getReactCompilerLoader(
+        config.experimental?.reactCompiler,
+        dir,
+        dev,
+        isNodeOrEdgeCompilation,
+        codeCondition.exclude
+      )
 
   let swcTraceProfilingInitialized = false
   const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
@@ -491,6 +525,7 @@ export default async function getBaseWebpackConfig(
         // acceptable as Babel will not be recommended.
         swcServerLayerLoader,
         babelLoader,
+        reactCompilerLoader,
       ].filter(Boolean)
     : []
 
@@ -509,7 +544,7 @@ export default async function getBaseWebpackConfig(
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: false,
+      serverComponents: true,
       bundleLayer: WEBPACK_LAYERS.middleware,
     }),
     babelLoader,
@@ -540,6 +575,7 @@ export default async function getBaseWebpackConfig(
           // acceptable as Babel will not be recommended.
           isBrowserLayer ? swcBrowserLayerLoader : swcSSRLayerLoader,
           babelLoader,
+          reactCompilerLoader,
         ].filter(Boolean)
       : []),
   ]
@@ -557,13 +593,12 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const apiRoutesLayerLoaders =
-    hasAppDir && useSWCLoader
-      ? getSwcLoader({
-          serverComponents: false,
-          bundleLayer: WEBPACK_LAYERS.api,
-        })
-      : defaultLoaders.babel
+  const apiRoutesLayerLoaders = useSWCLoader
+    ? getSwcLoader({
+        serverComponents: false,
+        bundleLayer: WEBPACK_LAYERS.api,
+      })
+    : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -814,30 +849,7 @@ export default async function getBaseWebpackConfig(
     dir,
   })
 
-  const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.transpilePackages
-
   const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
-  const codeCondition = {
-    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
-      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-        return false
-      }
-
-      const shouldBeBundled = isResourceInPackages(
-        excludePath,
-        finalTranspilePackages
-      )
-      if (shouldBeBundled) return false
-
-      return excludePath.includes('node_modules')
-    },
-  }
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
@@ -1292,7 +1304,7 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                issuerLayer: isWebpackAppLayer,
+                issuerLayer: isWebpackBundledLayer,
                 resolve: {
                   alias: createNextApiEsmAliases(),
                 },
@@ -1314,7 +1326,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: isWebpackBuiltinReactLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1376,7 +1388,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: isWebpackBuiltinReactLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1457,11 +1469,17 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
+              resolve: {
+                conditionNames: reactServerCondition,
+              },
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
+              resolve: {
+                conditionNames: reactServerCondition,
+              },
             },
             ...(hasAppDir
               ? [
@@ -1501,7 +1519,11 @@ export default async function getBaseWebpackConfig(
               : []),
             {
               ...codeCondition,
-              use: [...reactRefreshLoaders, defaultLoaders.babel],
+              use: [
+                ...reactRefreshLoaders,
+                defaultLoaders.babel,
+                reactCompilerLoader,
+              ].filter(Boolean),
             },
           ],
         },
@@ -1699,14 +1721,15 @@ export default async function getBaseWebpackConfig(
             const layer = resource.contextInfo.issuerLayer
             let runtime
 
-            if (layer === WEBPACK_LAYERS.serverSideRendering) {
-              runtime = 'app-page'
-            } else if (!layer || layer === WEBPACK_LAYERS.api) {
-              runtime = 'pages'
-            } else {
-              throw new Error(
-                `shared-runtime module ${moduleName} cannot be used in ${layer} layer`
-              )
+            switch (layer) {
+              case WEBPACK_LAYERS.serverSideRendering:
+              case WEBPACK_LAYERS.reactServerComponents:
+              case WEBPACK_LAYERS.appPagesBrowser:
+              case WEBPACK_LAYERS.actionBrowser:
+                runtime = 'app-page'
+                break
+              default:
+                runtime = 'pages'
             }
             resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }
