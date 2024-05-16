@@ -138,10 +138,7 @@ impl HeaptrackFormat {
                 }
             },
             trace_instruction_pointers: vec![0],
-            allocations: vec![AllocationInfo {
-                size: 0,
-                trace_index: 0,
-            }],
+            allocations: vec![],
             spans: 0,
             collapse_crates: env::var("COLLAPSE_CRATES")
                 .unwrap_or_default()
