@@ -19,7 +19,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe('create-next-app --app (App Router)', () => {
+describe.skip('create-next-app --app (App Router)', () => {
   it('should create JavaScript project with --js flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-js'

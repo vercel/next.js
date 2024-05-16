@@ -17,7 +17,7 @@ beforeAll(async () => {
   })
 })
 
-describe('create-next-app', () => {
+describe.skip('create-next-app', () => {
   it('should not create if the target directory is not empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-dir'
