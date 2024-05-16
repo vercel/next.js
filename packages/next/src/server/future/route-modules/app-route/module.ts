@@ -183,7 +183,7 @@ export class AppRouteRouteModule extends RouteModule<
         throw new Error(
           `export const dynamic = "force-dynamic" on page "${definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
-      } else if (!isStaticGenEnabled(this.userland)) {
+      } else if (!isStaticGenEnabled(this.userland) && this.userland['GET']) {
         throw new Error(
           `export const dynamic = "force-static"/export const revalidate not configured on route "${definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
