@@ -27,22 +27,17 @@ module.exports = {
         return ignored ? null : filename
       })
     )
-
     return [
-      `prettier --with-node-modules --ignore-path .prettierignore --write ${escapedFileNames}`,
+      `prettier --write ${escapedFileNames}`,
       `eslint --no-ignore --max-warnings=0 --fix ${escape(eslintFileNames.filter((filename) => filename !== null)).join(' ')}`,
-      `git add ${escapedFileNames}`,
     ]
   },
   '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
     const escapedFileNames = escape(filenames).join(' ')
-    return [
-      `prettier --with-node-modules --ignore-path .prettierignore --write ${escapedFileNames}`,
-      `git add ${escapedFileNames}`,
-    ]
+    return [`prettier --write ${escapedFileNames}`]
   },
   '**/*.rs': (filenames) => {
     const escapedFileNames = escape(filenames).join(' ')
-    return [`cargo fmt -- ${escapedFileNames}`, `git add ${escapedFileNames}`]
+    return [`cargo fmt -- ${escapedFileNames}`]
   },
 }
