@@ -419,7 +419,7 @@ pub struct ExperimentalTurboConfig {
     pub use_swc_css: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
@@ -427,14 +427,14 @@ pub struct RuleConfigItemOptions {
     pub rename_as: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItemOrShortcut {
     Loaders(Vec<LoaderItem>),
     Advanced(RuleConfigItem),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
@@ -442,7 +442,7 @@ pub enum RuleConfigItem {
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum LoaderItem {
     LoaderName(String),
@@ -455,6 +455,36 @@ pub enum MdxRsOptions {
     Boolean(bool),
     Option(MdxTransformOptions),
 }
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ReactCompilerMode {
+    Infer,
+    Annotation,
+    All,
+}
+
+/// Subset of react compiler options
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compilation_mode: Option<ReactCompilerMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub panic_threshold: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ReactCompilerOptionsOrBoolean {
+    Boolean(bool),
+    Option(ReactCompilerOptions),
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
@@ -489,6 +519,7 @@ pub struct ExperimentalConfig {
     pub web_vitals_attribution: Option<Vec<String>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
+    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
 
     // ---
     // UNSUPPORTED
@@ -957,6 +988,29 @@ impl NextConfig {
                 .cell(),
             )),
             _ => OptionalMdxTransformOptions(None),
+        };
+
+        Ok(options.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn react_compiler(self: Vc<Self>) -> Result<Vc<OptionalReactCompilerOptions>> {
+        let options = &self.await?.experimental.react_compiler;
+
+        let options = match options {
+            Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
+                OptionalReactCompilerOptions(Some(
+                    ReactCompilerOptions {
+                        compilation_mode: None,
+                        panic_threshold: None,
+                    }
+                    .cell(),
+                ))
+            }
+            Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
+                Some(ReactCompilerOptions { ..options.clone() }.cell()),
+            ),
+            _ => OptionalReactCompilerOptions(None),
         };
 
         Ok(options.cell())
