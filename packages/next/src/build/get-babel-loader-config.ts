@@ -38,7 +38,7 @@ const getBabelLoader = (
 ) => {
   if (!useSWCLoader) {
     return {
-      loader: 'next/dist/build/babel/loader',
+      loader: require.resolve('./babel/loader/index'),
       options: {
         transformMode: 'default',
         configFile: babelConfigFile,
@@ -59,8 +59,8 @@ const getBabelLoader = (
 }
 
 /**
- * Get a separate babel loader for the react compiler, **if** there aren't babel loader
- * configured. If user have babel config, this should be configured in the babel loader itself.
+ * Get a separate babel loader for the react compiler, only used if Babel is not
+ * configured through e.g. .babelrc. If user have babel config, this should be configured in the babel loader itself.
  * Note from react compiler:
  * > For best results, compiler must run as the first plugin in your Babel pipeline so it receives input as close to the original source as possible.
  */
@@ -74,7 +74,7 @@ const getReactCompilerLoader = (
   }
 
   return {
-    loader: 'next/dist/build/babel/loader',
+    loader: require.resolve('./babel/loader/index'),
     options: {
       transformMode: 'standalone',
       cwd,
