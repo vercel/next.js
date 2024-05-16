@@ -36002,7 +36002,7 @@ identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transition
   return root;
 }
 
-var ReactVersion = '19.0.0-beta-26f2496093-20240514';
+var ReactVersion = '19.0.0-rc-915b914b3a-20240515';
 
 // Might add PROFILE later.
 

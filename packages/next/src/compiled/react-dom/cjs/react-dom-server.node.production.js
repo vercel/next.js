@@ -5779,4 +5779,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-beta-26f2496093-20240514";
+exports.version = "19.0.0-rc-915b914b3a-20240515";

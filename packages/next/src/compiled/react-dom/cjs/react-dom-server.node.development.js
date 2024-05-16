@@ -20,7 +20,7 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '19.0.0-beta-26f2496093-20240514';
+var ReactVersion = '19.0.0-rc-915b914b3a-20240515';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 

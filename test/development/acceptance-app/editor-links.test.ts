@@ -29,8 +29,8 @@ describe('Error overlay - editor links', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-beta-26f2496093-20240514',
-      'react-dom': '19.0.0-beta-26f2496093-20240514',
+      react: '19.0.0-rc-915b914b3a-20240515',
+      'react-dom': '19.0.0-rc-915b914b3a-20240515',
     },
     skipStart: true,
   })
