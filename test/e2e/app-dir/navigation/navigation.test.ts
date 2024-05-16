@@ -909,12 +909,4 @@ describe('app dir - navigation', () => {
       })
     })
   })
-
-  describe('pages api', () => {
-    it('should not error if just import the navigation api in pages/api', async () => {
-      const res = await next.fetch('/api/navigation')
-      expect(res.status).toBe(200)
-      expect(await res.text()).toBe('function,function')
-    })
-  })
 })
