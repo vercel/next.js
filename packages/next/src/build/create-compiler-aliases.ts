@@ -252,6 +252,7 @@ export function createRSCAliases(
     'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime`,
+    'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
@@ -272,6 +273,7 @@ export function createRSCAliases(
       alias = Object.assign(alias, {
         'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        'react/compiler-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
         'react-server-dom-webpack/client.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-client-edge`,
@@ -280,6 +282,7 @@ export function createRSCAliases(
       alias = Object.assign(alias, {
         'react/jsx-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-runtime`,
         'react/jsx-dev-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-jsx-dev-runtime`,
+        'react/compiler-runtime$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
         react$: `next/dist/server/future/route-modules/app-page/vendored/${layer}/react`,
         'react-dom$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-dom`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/future/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
@@ -295,6 +298,7 @@ export function createRSCAliases(
         'next/dist/compiled/react$': `next/dist/compiled/react${bundledReactChannel}/react.react-server`,
         'next/dist/compiled/react-experimental$': `next/dist/compiled/react-experimental/react.react-server`,
         'react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
+        'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
         'next/dist/compiled/react/jsx-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
         'next/dist/compiled/react-experimental/jsx-runtime$': `next/dist/compiled/react-experimental/jsx-runtime.react-server`,
         'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,

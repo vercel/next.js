@@ -2,13 +2,10 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use tracing::Instrument;
 use turbo_tasks::{TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::turbopack::{
-    core::{
-        chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
-        module::Module,
-        output::OutputAssets,
-    },
-    ecmascript::chunk::EcmascriptChunkingContext,
+use turbopack_binding::turbopack::core::{
+    chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
+    module::Module,
+    output::OutputAssets,
 };
 
 use super::include_modules_module::IncludeModulesModule;
@@ -44,9 +41,9 @@ pub struct ClientReferencesChunks {
 #[turbo_tasks::function]
 pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_availability_info: Value<AvailabilityInfo>,
-    ssr_chunking_context: Option<Vc<Box<dyn EcmascriptChunkingContext>>>,
+    ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
         // TODO Reconsider this. Maybe it need to be true in production.

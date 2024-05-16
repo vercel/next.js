@@ -5,11 +5,11 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetContent,
-        chunk::{ChunkItemExt, ChunkableModule, ModuleId as TurbopackModuleId},
+        chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId as TurbopackModuleId},
         output::OutputAsset,
         virtual_output::VirtualOutputAsset,
     },
-    ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
+    ecmascript::utils::StringifyJs,
 };
 
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
@@ -29,8 +29,8 @@ impl ClientReferenceManifest {
         entry_name: String,
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
-        client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        ssr_chunking_context: Option<Vc<Box<dyn EcmascriptChunkingContext>>>,
+        client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+        ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
         runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {

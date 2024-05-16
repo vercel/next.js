@@ -24,6 +24,11 @@ describe('app-dir edge SSR', () => {
     expect(await res.text()).toInclude('Hello')
   })
 
+  it('should treat process as object without polyfill in edge runtime', async () => {
+    const $ = await next.render$('/edge-apis/process')
+    expect(await $('#process').text()).toContain('object')
+  })
+
   it('should handle /index routes correctly', async () => {
     const appHtml = await next.render('/index')
     expect(appHtml).toContain('the /index route')

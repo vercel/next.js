@@ -151,7 +151,7 @@ describe('app dir - external dependency', () => {
       await browser.eval(
         `window.getComputedStyle(document.querySelector('p')).fontFamily`
       )
-    ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
+    ).toMatch(/^myFont, "myFont Fallback"$/)
   })
   // TODO: This test depends on `new Worker` which is not supported in Turbopack yet.
   ;(process.env.TURBOPACK ? it.skip : it)(

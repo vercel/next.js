@@ -488,7 +488,7 @@ impl NextDynamicPatcher {
             return;
         };
 
-        let mut new_items = Vec::with_capacity(imports.len() * 2);
+        let mut new_items = Vec::with_capacity(imports.len());
 
         for import in std::mem::take(imports) {
             match import {
@@ -497,14 +497,6 @@ impl NextDynamicPatcher {
                     chunks_ident,
                     specifier,
                 } => {
-                    // The transition should return both the target module's id
-                    // and the chunks it needs to run.
-                    new_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: Box::new(Expr::Lit(Lit::Str(
-                            format!("TURBOPACK {{ transition: {dynamic_transition_name} }}").into(),
-                        ))),
-                    })));
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
                         specifiers: vec![
@@ -521,7 +513,9 @@ impl NextDynamicPatcher {
                         ],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // The transition should return both the target module's id
+                        // and the chunks it needs to run.
+                        with: Some(with_transition(dynamic_transition_name)),
                         phase: Default::default(),
                     })));
                 }
@@ -529,11 +523,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // We don't want this import to cause the imported module to be considered for
-                    // chunking through this import; we only need the module id.
-                    new_items.push(quote!(
-                        "\"TURBOPACK { chunking-type: none }\";" as ModuleItem
-                    ));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -548,7 +537,10 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // We don't want this import to cause the imported module to be considered
+                        // for chunking through this import; we only need
+                        // the module id.
+                        with: Some(with_chunking_type("none")),
                         phase: Default::default(),
                     })));
                 }
@@ -556,14 +548,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // The transition should make sure the imported module ends up in the dynamic
-                    // manifest.
-                    new_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: Box::new(Expr::Lit(Lit::Str(
-                            format!("TURBOPACK {{ transition: {dynamic_transition_name} }}").into(),
-                        ))),
-                    })));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -578,7 +562,9 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // The transition should make sure the imported module ends up in the
+                        // dynamic manifest.
+                        with: Some(with_transition(dynamic_transition_name)),
                         phase: Default::default(),
                     })));
                 }
@@ -586,11 +572,6 @@ impl NextDynamicPatcher {
                     id_ident,
                     specifier,
                 } => {
-                    // We don't want this import to cause the imported module to be considered for
-                    // chunking through this import; we only need the module id.
-                    new_items.push(quote!(
-                        "\"TURBOPACK { chunking-type: none }\";" as ModuleItem
-                    ));
                     // Turbopack will automatically transform the imported `__turbopack_module_id__`
                     // identifier into the imported module's id.
                     new_items.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -605,7 +586,10 @@ impl NextDynamicPatcher {
                         })],
                         src: Box::new(specifier.into()),
                         type_only: false,
-                        with: None,
+                        // We don't want this import to cause the imported module to be considered
+                        // for chunking through this import; we only need
+                        // the module id.
+                        with: Some(with_chunking_type("none")),
                         phase: Default::default(),
                     })));
                 }
@@ -670,4 +654,26 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
     };
 
     rel_path.display().to_string()
+}
+
+fn with_chunking_type(chunking_type: &str) -> Box<ObjectLit> {
+    with_clause(&[("chunking-type", chunking_type)])
+}
+
+fn with_transition(transition_name: &str) -> Box<ObjectLit> {
+    with_clause(&[("transition", transition_name)])
+}
+
+fn with_clause<'a>(entries: impl IntoIterator<Item = &'a (&'a str, &'a str)>) -> Box<ObjectLit> {
+    Box::new(ObjectLit {
+        span: DUMMY_SP,
+        props: entries.into_iter().map(|(k, v)| with_prop(k, v)).collect(),
+    })
+}
+
+fn with_prop(key: &str, value: &str) -> PropOrSpread {
+    PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+        key: PropName::Str(key.into()),
+        value: Box::new(Expr::Lit(value.into())),
+    })))
 }

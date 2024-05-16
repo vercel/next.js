@@ -53,21 +53,14 @@ pub(crate) enum FontFamilyType {
 pub(crate) async fn get_scoped_font_family(
     ty: Vc<FontFamilyType>,
     font_family_name: Vc<String>,
-    request_hash: u32,
 ) -> Result<Vc<String>> {
-    let hash = {
-        let mut hash = format!("{:x?}", request_hash);
-        hash.truncate(6);
-        hash
-    };
-
-    let font_family_base = font_family_name.await?.replace(' ', "_");
+    let font_family_base = font_family_name.await?.to_string();
     let font_family_name = match &*ty.await? {
         FontFamilyType::WebFont => font_family_base,
-        FontFamilyType::Fallback => format!("{}_Fallback", font_family_base),
+        FontFamilyType::Fallback => format!("{} Fallback", font_family_base),
     };
 
-    Ok(Vc::cell(format!("__{}_{}", font_family_name, hash)))
+    Ok(Vc::cell(format!("{}", font_family_name)))
 }
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
