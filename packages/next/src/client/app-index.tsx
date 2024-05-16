@@ -135,11 +135,14 @@ const DOMContentLoaded = function () {
   }
   initialServerDataLoaded = true
 }
+
+const queueTask = queueMicrotask || ((fn: Function) => setTimeout(fn, 0))
+
 // It's possible that the DOM is already loaded.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
 } else {
-  DOMContentLoaded()
+  queueTask(DOMContentLoaded)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
