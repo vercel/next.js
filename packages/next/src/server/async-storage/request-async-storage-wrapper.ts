@@ -142,7 +142,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
             previewProps,
             req,
             this.cookies,
-            this.mutableCookies
+            this.mutableCookies,
+            this.experimentalHttpsServer
           )
         }
 

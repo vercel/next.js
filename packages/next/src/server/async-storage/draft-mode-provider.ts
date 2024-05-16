@@ -23,11 +23,17 @@ export class DraftModeProvider {
    */
   private readonly _mutableCookies: ResponseCookies
 
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _experimentalHttpsServer: boolean
+
   constructor(
     previewProps: __ApiPreviewProps | undefined,
     req: IncomingMessage | BaseNextRequest<unknown> | NextRequest,
     cookies: ReadonlyRequestCookies,
-    mutableCookies: ResponseCookies
+    mutableCookies: ResponseCookies,
+    experimentalHttpsServer: boolean
   ) {
     // The logic for draftMode() is very similar to tryGetPreviewData()
     // but Draft Mode does not have any data associated with it.
@@ -46,6 +52,7 @@ export class DraftModeProvider {
 
     this._previewModeId = previewProps?.previewModeId
     this._mutableCookies = mutableCookies
+    this._experimentalHttpsServer = experimentalHttpsServer
   }
 
   enable() {
@@ -55,17 +62,24 @@ export class DraftModeProvider {
       )
     }
 
+    const secure = Boolean(
+      process.env.NODE_ENV !== 'development' || this._experimentalHttpsServer
+    )
+
     this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: this._previewModeId,
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
     })
   }
 
   disable() {
+    const secure = Boolean(
+      process.env.NODE_ENV !== 'development' || this._experimentalHttpsServer
+    )
     // To delete a cookie, set `expires` to a date in the past:
     // https://tools.ietf.org/html/rfc6265#section-4.1.1
     // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
@@ -73,8 +87,8 @@ export class DraftModeProvider {
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: '',
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       expires: new Date(0),
     })
