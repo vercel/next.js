@@ -745,7 +745,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -807,7 +807,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
@@ -935,16 +935,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1565,7 +1565,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.63
+        specifier: 14.3.0-canary.64
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -9476,6 +9476,7 @@ packages:
     dependencies:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
+    dev: false
 
   /chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -15413,7 +15414,7 @@ packages:
       '@jest/test-result': 27.5.1
       '@jest/types': 27.5.1
       '@types/node': 20.12.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       co: 4.6.0
       dedent: 0.7.0
       expect: 27.5.1
@@ -16058,7 +16059,7 @@ packages:
     dependencies:
       '@jest/types': 29.5.0
       '@types/node': 20.12.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.8.0
       graceful-fs: 4.2.11
       picomatch: 2.3.1
