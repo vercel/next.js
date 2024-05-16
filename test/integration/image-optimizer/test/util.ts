@@ -178,6 +178,13 @@ export function runTests(ctx: RunTestsCtx) {
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(500)
     })
+
+    it('should timeout for upstream image exceeding 7 seconds', async () => {
+      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${8000}`
+      const query = { url, w: ctx.w, q: 100 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(504)
+    })
   }
 
   it('should return home page', async () => {
