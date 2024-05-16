@@ -375,9 +375,16 @@ async function generateFlight(
   )
 
   let resultStream: Readable | ReadableStream<Uint8Array>
-  if (!(flightReadableStream instanceof ReadableStream)) {
+  if (
+    process.env.NEXT_RUNTIME === 'nodejs' &&
+    !(flightReadableStream instanceof ReadableStream)
+  ) {
     const { PassThrough } = require('node:stream')
     resultStream = flightReadableStream.pipe(new PassThrough())
+  } else if (!(flightReadableStream instanceof ReadableStream)) {
+    throw new Error(
+      'Invariant. Stream is not a ReadableStream in non-Node.js runtime.'
+    )
   } else {
     resultStream = flightReadableStream
   }
@@ -972,7 +979,10 @@ async function renderToHTMLOrFlightImpl(
       )
 
       let resultStream: ReadableStream<Uint8Array>
-      if (!(serverStream instanceof ReadableStream)) {
+      if (
+        process.env.NEXT_RUNTIME === 'nodejs' &&
+        !(serverStream instanceof ReadableStream)
+      ) {
         const { PassThrough, Readable } =
           require('node:stream') as typeof import('node:stream')
         console.warn(
@@ -981,6 +991,10 @@ async function renderToHTMLOrFlightImpl(
         resultStream = Readable.toWeb(
           serverStream.pipe(new PassThrough())
         ) as ReadableStream<Uint8Array>
+      } else if (!(serverStream instanceof ReadableStream)) {
+        throw new Error(
+          'Invariant. Stream is not a ReadableStream in non-Node.js runtime'
+        )
       } else {
         resultStream = serverStream
       }
@@ -1054,19 +1068,6 @@ async function renderToHTMLOrFlightImpl(
 
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
-
-        // if (
-        //   process.env.NEXT_RUNTIME === 'nodejs' &&
-        //   !(stream instanceof ReadableStream)
-        // ) {
-        //   const { Readable } = require('node:stream')
-        //   stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
-        // }
-
-        // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-        // if (!(stream instanceof ReadableStream)) {
-        //   throw new Error("Invariant: stream isn't a ReadableStream")
-        // }
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
@@ -1190,12 +1191,10 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
 
-                // FIXME: shouldn't need this when chainStreams supports ReadableStream | Readable
-                if (!(resumeStream instanceof ReadableStream)) {
-                  throw new Error("Invariant: stream wasn't a ReadableStream")
-                }
-
-                const resultStream2 = chainStreams(stream, resumeStream)
+                const resultStream2 = chainStreams(
+                  stream,
+                  convertReadable(resumeStream)
+                )
 
                 // First we write everything from the prerender, then we write everything from the aborted resume render
                 renderedHTMLStream = convertReadable(resultStream2)
@@ -1343,7 +1342,10 @@ async function renderToHTMLOrFlightImpl(
         )
 
         let resultStream2: ReadableStream<Uint8Array>
-        if (!(errorServerStream instanceof ReadableStream)) {
+        if (
+          process.env.NEXT_RUNTIME === 'nodejs' &&
+          !(errorServerStream instanceof ReadableStream)
+        ) {
           const { PassThrough, Readable } =
             require('node:stream') as typeof import('node:stream')
           console.warn(
@@ -1352,6 +1354,8 @@ async function renderToHTMLOrFlightImpl(
           resultStream2 = Readable.toWeb(
             errorServerStream.pipe(new PassThrough())
           ) as ReadableStream<Uint8Array>
+        } else if (!(errorServerStream instanceof ReadableStream)) {
+          throw new Error('Invariant. Stream is not ReadableStream')
         } else {
           resultStream2 = errorServerStream
         }
@@ -1373,22 +1377,6 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
-
-          // if (
-          //   process.env.NEXT_RUNTIME === 'nodejs' &&
-          //   !(fizzStream instanceof ReadableStream)
-          // ) {
-          //   const { Readable } = require('node:stream')
-
-          //   fizzStream = Readable.toWeb(
-          //     fizzStream
-          //   ) as ReadableStream<Uint8Array>
-          // }
-
-          // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-          // if (!(fizzStream instanceof ReadableStream)) {
-          //   throw new Error("Invariant: stream isn't a ReadableStream")
-          // }
 
           const resultStream3 = await continueFizzStream(fizzStream, {
             inlinedDataStream: createInlinedDataReadableStream(
