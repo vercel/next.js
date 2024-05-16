@@ -223,11 +223,13 @@ export default class RenderResult<
   public async pipeTo(
     writable: Writable | WritableStream<Uint8Array>
   ): Promise<void> {
-    if (
-      writable instanceof WritableStream &&
+    const writableInstanceOfWritableStream = writable instanceof WritableStream
+    const readableInstanceOfReadableStream =
       this.readable instanceof ReadableStream
-    ) {
+
+    if (writableInstanceOfWritableStream && readableInstanceOfReadableStream) {
       try {
+        // @ts-ignore
         await this.readable.pipeTo(writable, {
           // We want to close the writable stream ourselves so that we can wait
           // for the waitUntil promise to resolve before closing it. If an error
@@ -241,6 +243,7 @@ export default class RenderResult<
         if (this.waitUntil) await this.waitUntil
 
         // Close the writable stream.
+        // @ts-ignore
         await writable.close()
       } catch (err) {
         // If this is an abort error, we should abort the writable stream (as we
@@ -248,6 +251,7 @@ export default class RenderResult<
         // because we handled the error.
         if (isAbortError(err)) {
           // Abort the writable stream if an error is encountered.
+          // @ts-ignore
           await writable.abort(err)
 
           return
@@ -258,7 +262,11 @@ export default class RenderResult<
         // to clean up the writer.
         throw err
       }
-    } else if (!(this.readable instanceof ReadableStream)) {
+    } else if (
+      process.env.NEXT_RUNTIME === 'nodejs' &&
+      !readableInstanceOfReadableStream &&
+      !writableInstanceOfWritableStream
+    ) {
       const { Writable } =
         require('node:stream') as typeof import('node:stream')
       // at least we know `this.readable` is a Readable
@@ -269,6 +277,10 @@ export default class RenderResult<
       this.readable.pipe(writable, { end: false })
       if (this.waitUntil) await this.waitUntil
       writable.end()
+    } else {
+      throw new Error(
+        `Invariant. Mistmatching stream types. Readable ${readableInstanceOfReadableStream ? 'is' : 'is not'} an instance of ReadableStream. Writable ${writableInstanceOfWritableStream ? 'is' : 'is not'} an instance of WritableStream.`
+      )
     }
   }
 
