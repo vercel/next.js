@@ -1,3 +1,5 @@
+import { trace } from 'next/dist/trace'
+import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -17,6 +19,14 @@ beforeEach(async () => {
     .catch(() => command('npm', ['i', '-g', 'yarn']))
 })
 
+let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
+beforeAll(async () => {
+  nextInstall = await createNextInstall({
+    parentSpan: trace('test'),
+    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+  })
+})
+
 describe('create-next-app with package manager yarn', () => {
   it('should use yarn for --use-yarn flag', async () => {
     await useTempDir(async (cwd) => {
@@ -32,6 +42,7 @@ describe('create-next-app with package manager yarn', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -60,6 +71,7 @@ it('should use yarn when user-agent is yarn', async () => {
         '--no-tailwind',
         '--no-import-alias',
       ],
+      nextInstall.installDir,
       {
         cwd,
         env: { npm_config_user_agent: 'yarn' },
@@ -80,6 +92,7 @@ it('should use yarn for --use-yarn flag with example', async () => {
     const projectName = 'use-yarn-with-example'
     const res = await run(
       [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
+      nextInstall.installDir,
       { cwd }
     )
 
@@ -95,10 +108,14 @@ it('should use yarn for --use-yarn flag with example', async () => {
 it('should use yarn when user-agent is yarn with example', async () => {
   await useTempDir(async (cwd) => {
     const projectName = 'user-agent-yarn-with-example'
-    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-      cwd,
-      env: { npm_config_user_agent: 'yarn' },
-    })
+    const res = await run(
+      [projectName, '--example', FULL_EXAMPLE_PATH],
+      nextInstall.installDir,
+      {
+        cwd,
+        env: { npm_config_user_agent: 'yarn' },
+      }
+    )
 
     expect(res.exitCode).toBe(0)
     projectFilesShouldExist({
