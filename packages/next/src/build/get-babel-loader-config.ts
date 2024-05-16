@@ -83,15 +83,20 @@ const getReactCompilerLoader = (
     return undefined
   }
 
-  return {
+  const config: any = {
     loader: require.resolve('./babel/loader/index'),
     options: {
       transformMode: 'standalone',
       cwd,
       plugins,
-      exclude,
     },
   }
+
+  if (exclude) {
+    config.exclude = exclude
+  }
+
+  return config
 }
 
 export { getBabelLoader, getReactCompilerLoader }
