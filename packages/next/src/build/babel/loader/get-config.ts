@@ -282,6 +282,10 @@ function getFreshConfig(
     return true
   })()
 
+  const reactCompilerPluginsIfEnabled = hasReactCompiler
+    ? loaderOptions.reactCompilerPlugins ?? []
+    : []
+
   let { isServer, pagesDir, srcDir, development } = loaderOptions
 
   let options = {
@@ -322,7 +326,7 @@ function getFreshConfig(
   if (loaderOptions.transformMode === 'standalone') {
     options.plugins = [
       '@babel/plugin-syntax-jsx',
-      ...(hasReactCompiler ? loaderOptions.reactCompilerPlugins ?? [] : []),
+      ...reactCompilerPluginsIfEnabled,
     ]
     options.presets = [
       [
@@ -332,7 +336,7 @@ function getFreshConfig(
     ]
     options.caller = baseCaller
   } else {
-    let { configFile, reactCompilerPlugins, hasJsxRuntime } = loaderOptions
+    let { configFile, hasJsxRuntime } = loaderOptions
     let customConfig: any = configFile
       ? getCustomBabelConfig(configFile)
       : undefined
@@ -348,7 +352,7 @@ function getFreshConfig(
 
     options.plugins = [
       ...getPlugins(loaderOptions, cacheCharacteristics),
-      ...(hasReactCompiler ? reactCompilerPlugins || [] : []),
+      ...reactCompilerPluginsIfEnabled,
       ...(customConfig?.plugins || []),
     ]
 

@@ -78,8 +78,8 @@ const getReactCompilerLoader = (
   isServer: boolean,
   exclude: ((excludePath: string) => boolean) | undefined
 ) => {
-  const plugins = getReactCompilerPlugins(options, isDev, isServer)
-  if (!plugins) {
+  const reactCompilerPlugins = getReactCompilerPlugins(options, isDev, isServer)
+  if (!reactCompilerPlugins) {
     return undefined
   }
 
@@ -88,7 +88,7 @@ const getReactCompilerLoader = (
     options: {
       transformMode: 'standalone',
       cwd,
-      plugins,
+      reactCompilerPlugins,
     },
   }
 
