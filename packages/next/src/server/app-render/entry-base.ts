@@ -1,4 +1,9 @@
-export * from './react-server-dom-webpack'
+export {
+  renderToStream,
+  decodeAction,
+  decodeFormState,
+  decodeReply,
+} from './react-server-dom-webpack'
 
 import AppRouter from '../../client/components/app-router'
 import LayoutRouter from '../../client/components/layout-router'

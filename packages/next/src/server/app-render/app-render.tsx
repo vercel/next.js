@@ -999,6 +999,11 @@ async function renderToHTMLOrFlightImpl(
         resultStream = serverStream
       }
 
+      console.log(
+        'Result stream is instance of ReadableStream',
+        resultStream instanceof ReadableStream
+      )
+
       // We are going to consume this render both for SSR and for inlining the flight data
       let [renderStream, dataStream] = resultStream.tee()
 
@@ -1359,6 +1364,11 @@ async function renderToHTMLOrFlightImpl(
         } else {
           resultStream2 = errorServerStream
         }
+
+        console.log(
+          'Result stream 2 is instance of ReadableStream',
+          resultStream2 instanceof ReadableStream
+        )
 
         try {
           let fizzStream = await renderToInitialFizzStream({
