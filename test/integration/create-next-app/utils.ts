@@ -14,27 +14,25 @@ export const DEFAULT_FILES = [
   'node_modules/next',
 ]
 
-export const run = async (
+export const run = (
   args: string[],
-  nextJSVersion: string,
   options:
     | execa.Options
     | {
         reject?: boolean
         env?: Record<string, string>
       }
-) => {
-  return execa('node', [CNA_PATH].concat(args), {
+) =>
+  execa('node', [CNA_PATH].concat(args), {
     // tests with options.reject false are expected to exit(1) so don't inherit
     stdio: options.reject === false ? 'pipe' : 'inherit',
     ...options,
     env: {
       ...process.env,
       ...options.env,
-      NEXT_PRIVATE_TEST_VERSION: nextJSVersion,
+      NEXT_PRIVATE_TEST_VERSION: 'canary',
     },
   })
-}
 
 export const command = (cmd: string, args: string[]) =>
   execa(cmd, args, {
