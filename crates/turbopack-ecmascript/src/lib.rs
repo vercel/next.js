@@ -8,6 +8,7 @@
 #![recursion_limit = "256"]
 
 pub mod analyzer;
+pub mod annotations;
 pub mod async_chunk;
 pub mod chunk;
 pub mod chunk_group_files_asset;

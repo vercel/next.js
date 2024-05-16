@@ -34,10 +34,17 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
+pub enum ImportWithType {
+    Json,
+}
+
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(Vc<ModulePart>),
     Import,
+    ImportWithType(ImportWithType),
     DynamicImport,
     Custom(u8),
     #[default]
