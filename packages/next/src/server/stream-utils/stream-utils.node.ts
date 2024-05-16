@@ -91,6 +91,22 @@ export async function streamToString(stream: Readable) {
   return string
 }
 
+export function streamFromBuffer(chunk: Uint8Array): Readable {
+  return Readable.from(chunk)
+}
+
+export async function streamToBuffer(stream: Readable): Promise<Uint8Array> {
+  const buffer: Uint8Array = new Uint8Array(0)
+  let byteOffset = 0
+
+  for await (const chunk of stream) {
+    buffer.set(chunk, byteOffset)
+    byteOffset += chunk.length
+  }
+
+  return buffer
+}
+
 export function chainStreams(...streams: Readable[]): Readable {
   if (streams.length === 0) {
     throw new Error('Invariant: chainStreams requires at least one stream')

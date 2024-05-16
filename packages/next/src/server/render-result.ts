@@ -15,7 +15,7 @@ import type { Readable, Writable } from 'stream'
 type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
-  flightData?: Buffer
+  flightData?: Uint8Array
   revalidate?: Revalidate
   staticBailoutInfo?: {
     stack?: string
@@ -55,7 +55,7 @@ export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
-  | Buffer
+  | Uint8Array
   | null
 
 export type RenderResultOptions<
@@ -131,9 +131,9 @@ export default class RenderResult<
     return typeof this.response !== 'string'
   }
 
-  public toUnchunkedBuffer(stream?: false): Buffer
-  public toUnchunkedBuffer(stream: true): Promise<Buffer>
-  public toUnchunkedBuffer(stream = false): Promise<Buffer> | Buffer {
+  public toUnchunkedBuffer(stream?: false): Uint8Array
+  public toUnchunkedBuffer(stream: true): Promise<Uint8Array>
+  public toUnchunkedBuffer(stream = false): Promise<Uint8Array> | Uint8Array {
     if (this.response === null) {
       throw new Error('Invariant: null responses cannot be unchunked')
     }
@@ -148,7 +148,9 @@ export default class RenderResult<
       return streamToBuffer(this.readable)
     }
 
-    return Buffer.from(this.response)
+    const encoder = new TextEncoder()
+
+    return encoder.encode(this.response)
   }
 
   /**
@@ -190,7 +192,7 @@ export default class RenderResult<
       throw new Error('Invariant: static responses cannot be streamed')
     }
 
-    if (Buffer.isBuffer(this.response)) {
+    if (this.response instanceof Uint8Array) {
       return streamFromBuffer(this.response)
     }
 
@@ -222,7 +224,8 @@ export default class RenderResult<
       responses = [streamFromString(this.response)]
     } else if (Array.isArray(this.response)) {
       responses = this.response
-    } else if (Buffer.isBuffer(this.response)) {
+    } else if (this.response instanceof Uint8Array) {
+      // @ts-ignore
       responses = [streamFromBuffer(this.response)]
     } else {
       // @ts-ignore
