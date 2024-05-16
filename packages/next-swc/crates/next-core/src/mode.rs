@@ -53,7 +53,7 @@ impl NextMode {
     pub fn minify_type(&self) -> MinifyType {
         match self {
             NextMode::Development => MinifyType::NoMinify,
-            NextMode::Build => MinifyType::NoMinify,
+            NextMode::Build => MinifyType::Minify,
         }
     }
 
