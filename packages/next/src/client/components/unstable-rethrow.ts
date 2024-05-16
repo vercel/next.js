@@ -8,14 +8,6 @@ import { isNextRouterError } from './is-next-router-error'
  * When wrapping an API that uses errors to interrupt control flow, you should use this function before you do any error handling.
  * This function will rethrow the error if it is a Next.js error so it can be handled, otherwise it will do nothing.
  *
- * APIs that use errors to interrupt control flow include:
- * - `redirect`
- * - `cookies()`
- * - `headers()`
- * - `notFound()`
- * - `fetch(..., { cache: 'no-store' })`
- * - `fetch(..., { next: { revalidate: 0 } })`
- *
  * Read more: [Next.js Docs: `unstable_rethrow`](https://nextjs.org/docs/app/api-reference/functions/unstable_rethrow)
  */
 export function unstable_rethrow(error: unknown): void | never {
