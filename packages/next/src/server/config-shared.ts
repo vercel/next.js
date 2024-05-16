@@ -878,7 +878,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   experimental: {
     flyingShuttle: false,
-    prerenderEarlyExit: false,
+    prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
