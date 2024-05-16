@@ -47,12 +47,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
@@ -93,12 +92,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {

@@ -989,6 +989,9 @@ function handleDocumentScriptLoaderItems(
       ) {
         scriptLoaderItems.push(child.props)
         return
+      } else if (typeof child.props.strategy === 'undefined') {
+        scriptLoaderItems.push({ ...child.props, strategy: 'afterInteractive' })
+        return
       }
     }
   })

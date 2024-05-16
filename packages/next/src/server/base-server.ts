@@ -13,6 +13,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type {
+  CachedAppPageValue,
+  CachedPageValue,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -556,6 +558,7 @@ export default abstract class Server<
       experimental: {
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
+        clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
       },
     }
 
@@ -620,7 +623,14 @@ export default abstract class Server<
       // revalidation requests and we want the cache to instead depend on the
       // request path for flight information.
       stripFlightHeaders(req.headers)
+
       return false
+    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+      addRequestMeta(req, 'isRSCRequest', true)
+
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+        addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      }
     } else {
       // Otherwise just return without doing anything.
       return false
@@ -808,27 +818,30 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    const rsc = isRSCRequestCheck(req) ? 'RSC ' : ''
 
     const tracer = getTracer()
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${rsc}${method} ${req.url}`,
+          spanName: `${method} ${req.url}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
             'http.target': req.url,
-            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
+
+            const isRSCRequest = isRSCRequestCheck(req) ?? false
+
             span.setAttributes({
               'http.status_code': res.statusCode,
+              'next.rsc': isRSCRequest,
             })
+
             const rootSpanAttributes = tracer.getRootSpanAttributes()
             // We were unable to get attributes, probably OTEL is not enabled
             if (!rootSpanAttributes) return
@@ -847,13 +860,22 @@ export default abstract class Server<
 
             const route = rootSpanAttributes.get('next.route')
             if (route) {
-              const newName = `${rsc}${method} ${route}`
+              const name = isRSCRequest
+                ? `RSC ${method} ${route}`
+                : `${method} ${route}`
+
               span.setAttributes({
                 'next.route': route,
                 'http.route': route,
-                'next.span_name': newName,
+                'next.span_name': name,
               })
-              span.updateName(newName)
+              span.updateName(name)
+            } else {
+              span.updateName(
+                isRSCRequest
+                  ? `RSC ${method} ${req.url}`
+                  : `${method} ${req.url}`
+              )
             }
           })
       )
@@ -928,11 +950,8 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      let finished: boolean = false
-      if (this.minimalMode && this.enabledDirectories.app) {
-        finished = await this.handleRSCRequest(req, res, parsedUrl)
-        if (finished) return
-      }
+      let finished = await this.handleRSCRequest(req, res, parsedUrl)
+      if (finished) return
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
@@ -2526,16 +2545,29 @@ export default abstract class Server<
         return null
       }
 
+      if (isAppPath) {
+        return {
+          value: {
+            kind: 'APP_PAGE',
+            html: result,
+            headers,
+            rscData: metadata.flightData,
+            postponed: metadata.postponed,
+            status: res.statusCode,
+          } satisfies CachedAppPageValue,
+          revalidate: metadata.revalidate,
+        }
+      }
+
       // We now have a valid HTML result that we can return to the user.
       return {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData ?? metadata.flightData,
-          postponed: metadata.postponed,
+          pageData: metadata.pageData,
           headers,
-          status: isAppPath ? res.statusCode : undefined,
-        },
+          status: res.statusCode,
+        } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
       }
     }
@@ -2648,7 +2680,6 @@ export default abstract class Server<
               value: {
                 kind: 'PAGE',
                 html: RenderResult.fromStatic(html),
-                postponed: undefined,
                 status: undefined,
                 headers: undefined,
                 pageData: {},
@@ -2717,7 +2748,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' &&
+      cacheEntry.value?.kind === 'APP_PAGE' &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2884,7 +2915,11 @@ export default abstract class Server<
     } else if (isAppPath) {
       // If the request has a postponed state and it's a resume request we
       // should error.
-      if (cachedData.postponed && minimalPostponed) {
+      if (
+        cachedData.kind === 'APP_PAGE' &&
+        cachedData.postponed &&
+        minimalPostponed
+      ) {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
@@ -2932,7 +2967,11 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
+      if (
+        cachedData.kind === 'APP_PAGE' &&
+        cachedData.postponed &&
+        isRSCRequest
+      ) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2943,8 +2982,15 @@ export default abstract class Server<
       if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
-          if (cachedData.pageData) {
-            throw new Error('Invariant: Expected pageData to be undefined')
+          if (cachedData.kind !== 'APP_PAGE') {
+            console.error({ url: req.url, pathname }, cachedData)
+            throw new Error(
+              `Invariant: expected cache data kind of APP_PAGE got ${cachedData.kind}`
+            )
+          }
+
+          if (cachedData.rscData) {
+            throw new Error('Invariant: Expected rscData to be undefined')
           }
 
           if (cachedData.postponed) {
@@ -2963,9 +3009,15 @@ export default abstract class Server<
           }
         }
 
-        if (typeof cachedData.pageData !== 'string') {
+        if (cachedData.kind !== 'APP_PAGE') {
           throw new Error(
-            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
+            `Invariant: expected cached data to be APP_PAGE got ${cachedData.kind}`
+          )
+        }
+
+        if (!Buffer.isBuffer(cachedData.rscData)) {
+          throw new Error(
+            `Invariant: expected rscData to be a Buffer, got ${typeof cachedData.rscData}`
           )
         }
 
@@ -2973,7 +3025,7 @@ export default abstract class Server<
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.pageData),
+          body: RenderResult.fromStatic(cachedData.rscData),
           revalidate: cacheEntry.revalidate,
         }
       }
@@ -2984,7 +3036,10 @@ export default abstract class Server<
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (!cachedData.postponed || this.minimalMode) {
+      if (
+        !(cachedData.kind === 'APP_PAGE' && cachedData.postponed) ||
+        this.minimalMode
+      ) {
         return {
           type: 'html',
           body,
@@ -3013,7 +3068,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'PAGE') {
+          if (result.value?.kind !== 'APP_PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )
@@ -3039,6 +3094,11 @@ export default abstract class Server<
         revalidate: 0,
       }
     } else if (isDataReq) {
+      if (cachedData.kind !== 'PAGE') {
+        throw new Error(
+          `Invariant: expected cached data to be PAGE got ${cachedData.kind}`
+        )
+      }
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),
@@ -3588,8 +3648,5 @@ export default abstract class Server<
 }
 
 export function isRSCRequestCheck(req: BaseNextRequest): boolean {
-  return (
-    req.headers[RSC_HEADER.toLowerCase()] === '1' ||
-    Boolean(getRequestMeta(req, 'isRSCRequest'))
-  )
+  return getRequestMeta(req, 'isRSCRequest') === true
 }

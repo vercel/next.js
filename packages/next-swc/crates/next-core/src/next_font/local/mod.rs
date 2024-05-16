@@ -64,9 +64,8 @@ impl NextFontLocalReplacer {
         let qstr = qstring::QString::from(query.as_str());
         let query_vc = Vc::cell(query);
         let options_vc = font_options_from_query_map(query_vc);
-        let font_fallbacks = get_font_fallbacks(context, options_vc, request_hash);
-        let properties =
-            &*get_font_css_properties(options_vc, font_fallbacks, request_hash).await?;
+        let font_fallbacks = get_font_fallbacks(context, options_vc);
+        let properties = &*get_font_css_properties(options_vc, font_fallbacks).await?;
         let file_content = formatdoc!(
             r#"
                 import cssModule from "@vercel/turbopack-next/internal/font/local/cssmodule.module.css?{}";
@@ -170,13 +169,12 @@ impl NextFontLocalCssModuleReplacer {
             "/{}.module.css",
             get_request_id(options.font_family(), request_hash).await?
         ));
-        let fallback = get_font_fallbacks(context, options, request_hash);
+        let fallback = get_font_fallbacks(context, options);
 
         let stylesheet = build_stylesheet(
             font_options_from_query_map(query_vc),
             fallback,
-            get_font_css_properties(options, fallback, request_hash),
-            request_hash,
+            get_font_css_properties(options, fallback),
         )
         .await?;
 
@@ -303,12 +301,11 @@ impl ImportMappingReplacement for NextFontLocalFontFileReplacer {
 async fn get_font_css_properties(
     options_vc: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
-    request_hash: u32,
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: build_font_family_string(options_vc, font_fallbacks, request_hash),
+        font_family: build_font_family_string(options_vc, font_fallbacks),
         weight: Vc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
             // When the user only provided a top-level font file, include the font weight in the
