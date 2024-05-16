@@ -12,10 +12,7 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
-
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
+'use strict';
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
@@ -23,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = require("next/dist/compiled/react");
+var React = require("next/dist/compiled/react");
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
@@ -129,7 +126,7 @@ var Internals = {
   findDOMNode: null
 };
 
-var ReactVersion = '19.0.0-beta-4508873393-20240430';
+var ReactVersion = '19.0.0-beta-04b058868c-20240508';
 
 /**
  * HTML nodeType values that represent the type of the node
@@ -613,7 +610,6 @@ exports.unstable_batchedUpdates = batchedUpdates;
 exports.useFormState = useFormState;
 exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
@@ -621,6 +617,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }

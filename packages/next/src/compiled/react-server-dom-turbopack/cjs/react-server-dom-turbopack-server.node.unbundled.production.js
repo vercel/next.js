@@ -1641,20 +1641,27 @@ function loadServerReference$1(
   key
 ) {
   var serverReference = resolveServerReference(response._bundlerConfig, id);
-  response = preloadModule(serverReference);
+  id = preloadModule(serverReference);
   if (bound)
-    bound = Promise.all([bound, response]).then(function (_ref) {
+    bound = Promise.all([bound, id]).then(function (_ref) {
       _ref = _ref[0];
       var fn = requireModule(serverReference);
       return fn.bind.apply(fn, [null].concat(_ref));
     });
-  else if (response)
-    bound = Promise.resolve(response).then(function () {
+  else if (id)
+    bound = Promise.resolve(id).then(function () {
       return requireModule(serverReference);
     });
   else return requireModule(serverReference);
   bound.then(
-    createModelResolver(parentChunk, parentObject, key),
+    createModelResolver(
+      parentChunk,
+      parentObject,
+      key,
+      !1,
+      response,
+      createModel
+    ),
     createModelReject(parentChunk)
   );
   return null;
@@ -1699,13 +1706,18 @@ function getChunk(response, id) {
     chunks.set(id, chunk));
   return chunk;
 }
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   if (initializingChunkBlockedModel) {
     var blocked = initializingChunkBlockedModel;
-    blocked.deps++;
-  } else blocked = initializingChunkBlockedModel = { deps: 1, value: null };
+    cyclic || blocked.deps++;
+  } else
+    blocked = initializingChunkBlockedModel = {
+      deps: cyclic ? 0 : 1,
+      value: null
+    };
   return function (value) {
-    parentObject[key] = value;
+    parentObject[key] = map(response, value);
+    "" === key && null === blocked.value && (blocked.value = parentObject[key]);
     blocked.deps--;
     0 === blocked.deps &&
       "blocked" === chunk.status &&
@@ -1720,11 +1732,38 @@ function createModelReject(chunk) {
     return triggerErrorOnChunk(chunk, error);
   };
 }
-function getOutlinedModel(response, id) {
-  response = getChunk(response, id);
-  "resolved_model" === response.status && initializeModelChunk(response);
-  if ("fulfilled" !== response.status) throw response.reason;
-  return response.value;
+function getOutlinedModel(response, id, parentObject, key, map) {
+  id = getChunk(response, id);
+  switch (id.status) {
+    case "resolved_model":
+      initializeModelChunk(id);
+  }
+  switch (id.status) {
+    case "fulfilled":
+      return map(response, id.value);
+    case "pending":
+    case "blocked":
+      var parentChunk = initializingChunk;
+      id.then(
+        createModelResolver(parentChunk, parentObject, key, !1, response, map),
+        createModelReject(parentChunk)
+      );
+      return null;
+    default:
+      throw id.reason;
+  }
+}
+function createMap(response, model) {
+  return new Map(model);
+}
+function createSet(response, model) {
+  return new Set(model);
+}
+function extractIterator(response, model) {
+  return model[Symbol.iterator]();
+}
+function createModel(response, model) {
+  return model;
 }
 function parseModelString(response, obj, key, value) {
   if ("$" === value[0]) {
@@ -1736,7 +1775,7 @@ function parseModelString(response, obj, key, value) {
       case "F":
         return (
           (value = parseInt(value.slice(2), 16)),
-          (value = getOutlinedModel(response, value)),
+          (value = getOutlinedModel(response, value, obj, key, createModel)),
           loadServerReference$1(
             response,
             value.id,
@@ -1750,29 +1789,27 @@ function parseModelString(response, obj, key, value) {
         return createTemporaryReference(value.slice(2));
       case "Q":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          (response = getOutlinedModel(response, obj)),
-          new Map(response)
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, createMap)
         );
       case "W":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          (response = getOutlinedModel(response, obj)),
-          new Set(response)
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, createSet)
         );
       case "K":
         obj = value.slice(2);
         var formPrefix = response._prefix + obj + "_",
-          data$23 = new FormData();
+          data = new FormData();
         response._formData.forEach(function (entry, entryKey) {
           entryKey.startsWith(formPrefix) &&
-            data$23.append(entryKey.slice(formPrefix.length), entry);
+            data.append(entryKey.slice(formPrefix.length), entry);
         });
-        return data$23;
+        return data;
       case "i":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          getOutlinedModel(response, obj)[Symbol.iterator]()
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, extractIterator)
         );
       case "I":
         return Infinity;
@@ -1788,27 +1825,7 @@ function parseModelString(response, obj, key, value) {
         return BigInt(value.slice(2));
     }
     value = parseInt(value.slice(1), 16);
-    response = getChunk(response, value);
-    switch (response.status) {
-      case "resolved_model":
-        initializeModelChunk(response);
-    }
-    switch (response.status) {
-      case "fulfilled":
-        return response.value;
-      case "pending":
-      case "blocked":
-        return (
-          (value = initializingChunk),
-          response.then(
-            createModelResolver(value, obj, key),
-            createModelReject(value)
-          ),
-          null
-        );
-      default:
-        throw response.reason;
-    }
+    return getOutlinedModel(response, value, obj, key, createModel);
   }
   return value;
 }
@@ -1942,12 +1959,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_207 = [];
+    var JSCompiler_object_inline_chunks_203 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_207.push(chunk);
+      JSCompiler_object_inline_chunks_203.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_207, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_203, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
