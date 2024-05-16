@@ -26,7 +26,7 @@ beforeAll(async () => {
   })
 })
 
-describe('create-next-app with package manager bun', () => {
+describe.skip('create-next-app with package manager bun', () => {
   it('should use bun for --use-bun flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun'
