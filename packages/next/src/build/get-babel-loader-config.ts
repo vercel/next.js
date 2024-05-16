@@ -76,7 +76,7 @@ const getReactCompilerLoader = (
   cwd: string,
   isDev: boolean,
   isServer: boolean,
-  exclude: ((excludePath: string) => boolean) | undefined
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
   const reactCompilerPlugins = getReactCompilerPlugins(options, isDev, isServer)
   if (!reactCompilerPlugins) {
@@ -89,11 +89,8 @@ const getReactCompilerLoader = (
       transformMode: 'standalone',
       cwd,
       reactCompilerPlugins,
+      reactCompilerExclude,
     },
-  }
-
-  if (exclude) {
-    config.exclude = exclude
   }
 
   return config
