@@ -2890,8 +2890,8 @@
         "app dir - rsc basics should suspense next/legacy/image in server components",
         "app dir - rsc basics should track client components in dynamic imports",
         "app dir - rsc basics should use canary react for app",
-        "app dir - next internal shared context should not error if just load next/navigation module in pages/api",
-        "app dir - next internal shared context should not error if just load next/router module in app page"
+        "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
+        "app dir - rsc basics next internal shared context should not error if just load next/router module in app page"
       ],
       "pending": [
         "app dir - rsc basics should support partial hydration with inlined server data in browser",
