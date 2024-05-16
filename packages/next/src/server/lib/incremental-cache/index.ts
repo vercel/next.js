@@ -598,10 +598,10 @@ export class IncrementalCache implements IncrementalCacheType {
       // Set the value for the revalidate seconds so if it changes we can
       // update the cache with the new value.
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
-        this.revalidateTimings.set(pathname, ctx.revalidate)
+        this.revalidateTimings.set(toRoute(pathname), ctx.revalidate)
       }
 
-      await this.cacheHandler?.set(pathname, data, ctx)
+      await this.cacheHandler?.set(toRoute(pathname), data, ctx)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }
