@@ -4,6 +4,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+use crate::AllocationCounters;
+
 static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 const KB: usize = 1024;
 /// When global counter is updates we will keep a thread-local buffer of this
@@ -14,36 +16,19 @@ const TARGET_BUFFER: usize = 100 * KB;
 const MAX_BUFFER: usize = 200 * KB;
 
 #[derive(Default)]
-pub struct AllocationInfo {
-    pub allocations: usize,
-    pub deallocations: usize,
-    pub allocation_count: usize,
-    pub deallocation_count: usize,
-}
-
-impl AllocationInfo {
-    pub fn is_empty(&self) -> bool {
-        self.allocations == 0
-            && self.deallocations == 0
-            && self.allocation_count == 0
-            && self.deallocation_count == 0
-    }
-}
-
-#[derive(Default)]
 struct ThreadLocalCounter {
     /// Thread-local buffer of allocated bytes that have been added to the
     /// global counter desprite not being allocated yet. It is unsigned so that
     /// means the global counter is always equal or greater than the real
     /// value.
     buffer: usize,
-    allocation_info: AllocationInfo,
+    allocation_counters: AllocationCounters,
 }
 
 impl ThreadLocalCounter {
     fn add(&mut self, size: usize) {
-        self.allocation_info.allocations += size;
-        self.allocation_info.allocation_count += 1;
+        self.allocation_counters.allocations += size;
+        self.allocation_counters.allocation_count += 1;
         if self.buffer >= size {
             self.buffer -= size;
         } else {
@@ -54,8 +39,8 @@ impl ThreadLocalCounter {
     }
 
     fn remove(&mut self, size: usize) {
-        self.allocation_info.deallocations += size;
-        self.allocation_info.deallocation_count += 1;
+        self.allocation_counters.deallocations += size;
+        self.allocation_counters.deallocation_count += 1;
         self.buffer += size;
         if self.buffer > MAX_BUFFER {
             let offset = self.buffer - TARGET_BUFFER;
@@ -69,6 +54,7 @@ impl ThreadLocalCounter {
             ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
             self.buffer = 0;
         }
+        self.allocation_counters = AllocationCounters::default();
     }
 }
 
@@ -80,8 +66,8 @@ pub fn get() -> usize {
     ALLOCATED.load(Ordering::Relaxed)
 }
 
-pub fn pop_allocations() -> AllocationInfo {
-    with_local_counter(|local| std::mem::take(&mut local.allocation_info))
+pub fn allocation_counters() -> AllocationCounters {
+    with_local_counter(|local| local.allocation_counters.clone())
 }
 
 fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {

@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     sync::Arc,
 };
 
@@ -13,12 +13,21 @@ use crate::{
     store_container::{StoreContainer, StoreWriteGuard},
 };
 
+#[derive(Default)]
+struct AllocationInfo {
+    allocations: u64,
+    deallocations: u64,
+    allocation_count: u64,
+    deallocation_count: u64,
+}
+
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     active_ids: HashMap<u64, SpanIndex>,
     queued_rows: HashMap<u64, Vec<TraceRow<'static>>>,
     outdated_spans: HashSet<SpanIndex>,
     thread_stacks: HashMap<u64, Vec<SpanIndex>>,
+    thread_allocation_counters: HashMap<u64, AllocationInfo>,
     self_time_started: HashMap<(SpanIndex, u64), u64>,
 }
 
@@ -30,6 +39,7 @@ impl TurbopackFormat {
             queued_rows: HashMap::new(),
             outdated_spans: HashSet::new(),
             thread_stacks: HashMap::new(),
+            thread_allocation_counters: HashMap::new(),
             self_time_started: HashMap::new(),
         }
     }
@@ -221,6 +231,58 @@ impl TurbopackFormat {
                             id,
                             deallocations,
                             deallocation_count,
+                            &mut self.outdated_spans,
+                        );
+                    }
+                }
+            }
+            TraceRow::AllocationCounters {
+                ts: _,
+                thread_id,
+                allocations,
+                allocation_count,
+                deallocations,
+                deallocation_count,
+            } => {
+                let info = AllocationInfo {
+                    allocations,
+                    deallocations,
+                    allocation_count,
+                    deallocation_count,
+                };
+                let mut diff = AllocationInfo::default();
+                match self.thread_allocation_counters.entry(thread_id) {
+                    Entry::Occupied(mut entry) => {
+                        let counter = entry.get_mut();
+                        diff.allocations = info.allocations - counter.allocations;
+                        diff.deallocations = info.deallocations - counter.deallocations;
+                        diff.allocation_count = info.allocation_count - counter.allocation_count;
+                        diff.deallocation_count =
+                            info.deallocation_count - counter.deallocation_count;
+                        counter.allocations = info.allocations;
+                        counter.deallocations = info.deallocations;
+                        counter.allocation_count = info.allocation_count;
+                        counter.deallocation_count = info.deallocation_count;
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(info);
+                    }
+                }
+                let stack = self.thread_stacks.entry(thread_id).or_default();
+                if let Some(&id) = stack.last() {
+                    if diff.allocations > 0 {
+                        store.add_allocation(
+                            id,
+                            diff.allocations,
+                            diff.allocation_count,
+                            &mut self.outdated_spans,
+                        );
+                    }
+                    if diff.deallocations > 0 {
+                        store.add_deallocation(
+                            id,
+                            diff.deallocations,
+                            diff.deallocation_count,
                             &mut self.outdated_spans,
                         );
                     }

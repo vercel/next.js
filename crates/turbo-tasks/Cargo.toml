@@ -42,6 +42,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 
 [dev-dependencies]
 serde_test = "1.0.157"

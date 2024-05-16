@@ -1154,6 +1154,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         duration: Duration,
         _instant: Instant,
+        _memory_usage: usize,
         _stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {

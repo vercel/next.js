@@ -21,17 +21,18 @@ use nohash_hasher::BuildNoHashHasher;
 use serde::{de::Visitor, Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tracing::{info_span, instrument, trace_span, Instrument, Level};
+use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     backend::{Backend, CellContent, PersistentTaskType, TaskExecutionSpec, TransientTaskType},
+    capture_future::{
+        CaptureFuture, {self},
+    },
     event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::{CellId, RawVc},
     registry,
-    timed_future::{
-        TimedFuture, {self},
-    },
     trace::TraceRawVcs,
     util::StaticOrArc,
     Completion, ConcreteTaskInput, InvalidationReason, InvalidationReasonSet, SharedReference,
@@ -478,8 +479,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             };
 
                             async {
-                                let (result, duration, instant) =
-                                    TimedFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+                                let (result, duration, instant, memory_usage) =
+                                    CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
+                                        .await;
 
                                 let result = result.map_err(|any| match any.downcast::<String>() {
                                     Ok(owned) => Some(Cow::Owned(*owned)),
@@ -491,7 +493,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 this.backend.task_execution_result(task_id, result, &*this);
                                 let stateful = this.finish_current_task_state();
                                 this.backend.task_execution_completed(
-                                    task_id, duration, instant, stateful, &*this,
+                                    task_id,
+                                    duration,
+                                    instant,
+                                    memory_usage,
+                                    stateful,
+                                    &*this,
                                 )
                             }
                             .instrument(span)
@@ -1413,16 +1420,18 @@ pub fn emit<T: VcValueTrait + Send>(collectible: Vc<T>) {
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
     let span = trace_span!("blocking operation").or_current();
-    let (r, d) = tokio::task::spawn_blocking(|| {
+    let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
         let start = Instant::now();
+        let start_allocations = TurboMalloc::allocation_counters();
         let r = func();
-        (r, start.elapsed())
+        (r, start.elapsed(), start_allocations.until_now())
     })
     .await
     .unwrap();
-    timed_future::add_duration(d);
-    r
+    capture_future::add_duration(duration);
+    capture_future::add_allocation_info(alloc_info);
+    result
 }
 
 pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {

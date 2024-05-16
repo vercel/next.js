@@ -35,6 +35,7 @@
 #![feature(never_type)]
 
 pub mod backend;
+mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
@@ -64,7 +65,6 @@ pub mod registry;
 pub mod small_duration;
 mod state;
 pub mod task;
-mod timed_future;
 pub mod trace;
 mod trait_ref;
 pub mod util;

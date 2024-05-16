@@ -228,6 +228,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         duration: Duration,
         instant: Instant,
+        memory_usage: usize,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
