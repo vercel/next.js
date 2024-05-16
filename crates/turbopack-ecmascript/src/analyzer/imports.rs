@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display, mem::take};
+use std::{collections::BTreeMap, fmt::Display};
 
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
@@ -14,43 +14,76 @@ use turbo_tasks::Vc;
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{JsValue, ModuleValue};
-use crate::utils::unparen;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Default, Debug, Clone, Hash, PartialOrd, Ord)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
     #[turbo_tasks(trace_ignore)]
-    map: BTreeMap<JsWord, Option<JsWord>>,
+    map: BTreeMap<JsWord, JsWord>,
 }
 
-/// Enables a specified transtion for the annotated import
-static ANNOTATION_TRANSITION: Lazy<JsWord> = Lazy::new(|| "transition".into());
+/// Enables a specified transition for the annotated import
+static ANNOTATION_TRANSITION: Lazy<JsWord> =
+    Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> = Lazy::new(|| "chunking-type".into());
+static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> =
+    Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
+
+/// Changes the type of the resolved module (only "json" is supported currently)
+static ATTRIBUTE_MODULE_TYPE: Lazy<JsWord> = Lazy::new(|| "type".into());
 
 impl ImportAnnotations {
-    fn insert(&mut self, key: JsWord, value: Option<JsWord>) {
-        self.map.insert(key, value);
-    }
+    pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
+        let Some(with) = with else {
+            return ImportAnnotations::default();
+        };
 
-    fn clear(&mut self) {
-        self.map.clear();
+        let mut map = BTreeMap::new();
+
+        // The `with` clause is way more restrictive than `ObjectLit`, it only allows
+        // string -> value and value can only be a string.
+        // We just ignore everything else here till the SWC ast is more restrictive.
+        for (key, value) in with.props.iter().filter_map(|prop| {
+            let kv = prop.as_prop()?.as_key_value()?;
+
+            let Lit::Str(str) = kv.value.as_lit()? else {
+                return None;
+            };
+
+            Some((&kv.key, str))
+        }) {
+            let key = match key {
+                PropName::Ident(ident) => ident.sym.as_str(),
+                PropName::Str(str) => str.value.as_str(),
+                // the rest are invalid, ignore for now till SWC ast is correct
+                _ => continue,
+            };
+
+            map.insert(key.into(), value.value.as_str().into());
+        }
+
+        ImportAnnotations { map }
     }
 
     /// Returns the content on the transition annotation
     pub fn transition(&self) -> Option<&str> {
-        self.map
-            .get(&ANNOTATION_TRANSITION)
-            .and_then(|w| w.as_ref().map(|w| &**w))
+        self.get(&ANNOTATION_TRANSITION)
     }
 
     /// Returns the content on the chunking-type annotation
     pub fn chunking_type(&self) -> Option<&str> {
-        self.map
-            .get(&ANNOTATION_CHUNKING_TYPE)
-            .and_then(|w| w.as_ref().map(|w| &**w))
+        self.get(&ANNOTATION_CHUNKING_TYPE)
+    }
+
+    /// Returns the content on the type attribute
+    pub fn module_type(&self) -> Option<&str> {
+        self.get(&ATTRIBUTE_MODULE_TYPE)
+    }
+
+    pub fn get(&self, key: &JsWord) -> Option<&str> {
+        self.map.get(key).map(|w| w.as_str())
     }
 }
 
@@ -58,20 +91,12 @@ impl Display for ImportAnnotations {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.map.iter();
         if let Some((k, v)) = it.next() {
-            if let Some(v) = v {
-                write!(f, "{{ {k}: {v}")?
-            } else {
-                write!(f, "{{ {k}")?
-            }
+            write!(f, "{{ {k}: {v}")?
         } else {
             return f.write_str("{}");
         };
         for (k, v) in it {
-            if let Some(v) = v {
-                write!(f, "; {k}: {v}")?
-            } else {
-                write!(f, "; {k}")?
-            }
+            write!(f, ", {k}: {v}")?
         }
         f.write_str(" }")
     }
@@ -172,7 +197,6 @@ impl ImportMap {
 
         m.visit_with(&mut Analyzer {
             data: &mut data,
-            current_annotations: ImportAnnotations::default(),
             source,
         });
 
@@ -182,7 +206,6 @@ impl ImportMap {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    current_annotations: ImportAnnotations,
     source: Option<Vc<Box<dyn Source>>>,
 }
 
@@ -222,42 +245,9 @@ fn to_word(name: &ModuleExportName) -> JsWord {
 }
 
 impl Visit for Analyzer<'_> {
-    fn visit_module_item(&mut self, n: &ModuleItem) {
-        if let ModuleItem::Stmt(Stmt::Expr(ExprStmt { expr, .. })) = n {
-            if let Expr::Lit(Lit::Str(s)) = unparen(expr) {
-                if s.value.starts_with("TURBOPACK") {
-                    let value = &*s.value;
-                    let value = value["TURBOPACK".len()..].trim();
-                    if !value.starts_with('{') || !value.ends_with('}') {
-                        // TODO report issue
-                    } else {
-                        value[1..value.len() - 1]
-                            .trim()
-                            .split(';')
-                            .map(|p| p.trim())
-                            .filter(|p| !p.is_empty())
-                            .for_each(|part| {
-                                if let Some(colon) = part.find(':') {
-                                    self.current_annotations.insert(
-                                        part[..colon].trim_end().into(),
-                                        Some(part[colon + 1..].trim_start().into()),
-                                    );
-                                } else {
-                                    self.current_annotations.insert(part.into(), None);
-                                }
-                            })
-                    }
-                    n.visit_children_with(self);
-                    return;
-                }
-            }
-        }
-        n.visit_children_with(self);
-        self.current_annotations.clear();
-    }
-
     fn visit_import_decl(&mut self, import: &ImportDecl) {
-        let annotations = take(&mut self.current_annotations);
+        let annotations = ImportAnnotations::parse(import.with.as_deref());
+
         self.ensure_reference(
             import.span,
             import.src.value.clone(),
@@ -295,7 +285,8 @@ impl Visit for Analyzer<'_> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         self.data.has_exports = true;
 
-        let annotations = take(&mut self.current_annotations);
+        let annotations = ImportAnnotations::parse(export.with.as_deref());
+
         self.ensure_reference(
             export.span,
             export.src.value.clone(),
@@ -313,53 +304,52 @@ impl Visit for Analyzer<'_> {
 
     fn visit_named_export(&mut self, export: &NamedExport) {
         self.data.has_exports = true;
-        if let Some(ref src) = export.src {
-            let annotations = take(&mut self.current_annotations);
 
-            self.ensure_reference(
-                export.span,
-                src.value.clone(),
-                ImportedSymbol::ModuleEvaluation,
-                annotations.clone(),
-            );
+        let Some(ref src) = export.src else {
+            return;
+        };
 
-            for spec in export.specifiers.iter() {
-                let symbol = get_import_symbol_from_export(spec);
+        let annotations = ImportAnnotations::parse(export.with.as_deref());
 
-                let i = self.ensure_reference(
-                    export.span,
-                    src.value.clone(),
-                    symbol,
-                    annotations.clone(),
-                );
+        self.ensure_reference(
+            export.span,
+            src.value.clone(),
+            ImportedSymbol::ModuleEvaluation,
+            annotations.clone(),
+        );
 
-                match spec {
-                    ExportSpecifier::Namespace(n) => {
-                        self.data.reexports.push((
-                            i,
-                            Reexport::Namespace {
-                                exported: to_word(&n.name),
-                            },
-                        ));
-                    }
-                    ExportSpecifier::Default(d) => {
-                        self.data.reexports.push((
-                            i,
-                            Reexport::Named {
-                                imported: js_word!("default"),
-                                exported: d.exported.sym.clone(),
-                            },
-                        ));
-                    }
-                    ExportSpecifier::Named(n) => {
-                        self.data.reexports.push((
-                            i,
-                            Reexport::Named {
-                                imported: to_word(&n.orig),
-                                exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
-                            },
-                        ));
-                    }
+        for spec in export.specifiers.iter() {
+            let symbol = get_import_symbol_from_export(spec);
+
+            let i =
+                self.ensure_reference(export.span, src.value.clone(), symbol, annotations.clone());
+
+            match spec {
+                ExportSpecifier::Namespace(n) => {
+                    self.data.reexports.push((
+                        i,
+                        Reexport::Namespace {
+                            exported: to_word(&n.name),
+                        },
+                    ));
+                }
+                ExportSpecifier::Default(d) => {
+                    self.data.reexports.push((
+                        i,
+                        Reexport::Named {
+                            imported: js_word!("default"),
+                            exported: d.exported.sym.clone(),
+                        },
+                    ));
+                }
+                ExportSpecifier::Named(n) => {
+                    self.data.reexports.push((
+                        i,
+                        Reexport::Named {
+                            imported: to_word(&n.orig),
+                            exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
+                        },
+                    ));
                 }
             }
         }

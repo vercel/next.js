@@ -29,10 +29,12 @@ use constant_value::ConstantValue;
 use indexmap::IndexSet;
 use lazy_static::lazy_static;
 use num_traits::Zero;
+use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use sourcemap::decode_data_url;
 use swc_core::{
+    atoms::JsWord,
     common::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
@@ -113,7 +115,7 @@ use crate::{
     analyzer::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
-        imports::{ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, ModuleValue, RequireContextValue,
@@ -2792,18 +2794,12 @@ async fn resolve_as_webpack_runtime(
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
-pub static TURBOPACK_HELPER: &str = "__turbopackHelper";
+pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
-    import.with.as_ref().map_or(false, |asserts| {
-        asserts.props.iter().any(|assert| {
-            assert
-                .as_prop()
-                .and_then(|prop| prop.as_key_value())
-                .and_then(|kv| kv.key.as_ident())
-                .map_or(false, |ident| &*ident.sym == TURBOPACK_HELPER)
-        })
-    })
+    let annotations = ImportAnnotations::parse(import.with.as_deref());
+
+    annotations.get(&TURBOPACK_HELPER).is_some()
 }
 
 #[derive(Debug)]
