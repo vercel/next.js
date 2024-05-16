@@ -1,5 +1,3 @@
-import { trace } from 'next/dist/trace'
-import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -12,19 +10,14 @@ import {
 const lockFile = 'yarn.lock'
 const files = [...DEFAULT_FILES, lockFile]
 
+// Don't install local next build here as yarn will error with:
+// Usage Error: This project is configured to use pnpm
+
 beforeEach(async () => {
   await command('yarn', ['--version'])
     // install yarn if not available
     .catch(() => command('corepack', ['prepare', '--activate', 'yarn@1.22.19']))
     .catch(() => command('npm', ['i', '-g', 'yarn']))
-})
-
-let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-beforeAll(async () => {
-  nextInstall = await createNextInstall({
-    parentSpan: trace('test'),
-    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
-  })
 })
 
 describe('create-next-app with package manager yarn', () => {
@@ -42,7 +35,7 @@ describe('create-next-app with package manager yarn', () => {
           '--no-tailwind',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        'canary',
         {
           cwd,
         }
@@ -71,7 +64,7 @@ it('should use yarn when user-agent is yarn', async () => {
         '--no-tailwind',
         '--no-import-alias',
       ],
-      nextInstall.installDir,
+      'canary',
       {
         cwd,
         env: { npm_config_user_agent: 'yarn' },
@@ -92,7 +85,7 @@ it('should use yarn for --use-yarn flag with example', async () => {
     const projectName = 'use-yarn-with-example'
     const res = await run(
       [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
-      nextInstall.installDir,
+      'canary',
       { cwd }
     )
 
@@ -110,7 +103,7 @@ it('should use yarn when user-agent is yarn with example', async () => {
     const projectName = 'user-agent-yarn-with-example'
     const res = await run(
       [projectName, '--example', FULL_EXAMPLE_PATH],
-      nextInstall.installDir,
+      'canary',
       {
         cwd,
         env: { npm_config_user_agent: 'yarn' },
