@@ -28,13 +28,6 @@ export async function browser_polyfills(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_regenerator_runtime(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('regenerator-runtime')), '**/*'))
-    .target('src/compiled/regenerator-runtime')
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_styled_jsx_assets(task, opts) {
   // we copy the styled-jsx types so that we can reference them
   // in the next-env.d.ts file so it doesn't matter if the styled-jsx
@@ -131,10 +124,7 @@ export async function copy_babel_runtime(task, opts) {
 
     if (inputPath.endsWith('.js')) {
       contents = contents
-        .replace(
-          'regenerator-runtime',
-          'next/dist/compiled/regenerator-runtime'
-        )
+        .replace('regenerator-runtime', '@next/vendored/regenerator-runtime')
         .replace('@babel/runtime', 'next/dist/compiled/@babel/runtime')
     }
 
@@ -1128,7 +1118,6 @@ export async function ncc(task, opts) {
     [
       'ncc_browserslist',
       'ncc_cssnano_simple_bundle',
-      'copy_regenerator_runtime',
       'copy_babel_runtime',
       'copy_vercel_og',
       'copy_vendor_react',

@@ -188,7 +188,6 @@
     "path-to-regexp": "6.1.0",
     "react-is": "18.2.0",
     "react-refresh": "0.12.0",
-    "regenerator-runtime": "0.13.4",
     "sass-loader": "12.4.0",
     "server-only": "0.0.1",
     "source-map-loader": "5.0.0",
