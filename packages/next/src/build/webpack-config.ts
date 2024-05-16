@@ -1517,7 +1517,11 @@ export default async function getBaseWebpackConfig(
               : []),
             {
               ...codeCondition,
-              use: [...reactRefreshLoaders, defaultLoaders.babel],
+              use: [
+                ...reactRefreshLoaders,
+                defaultLoaders.babel,
+                reactCompilerLoader,
+              ].filter(Boolean),
             },
           ],
         },
