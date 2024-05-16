@@ -264,6 +264,24 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
+  const hasReactCompiler = (() => {
+    if (
+      loaderOptions.reactCompilerPlugins &&
+      loaderOptions.reactCompilerPlugins.length === 0
+    ) {
+      return false
+    }
+
+    if (
+      loaderOptions.reactCompilerExclude &&
+      loaderOptions.reactCompilerExclude(filename)
+    ) {
+      return false
+    }
+
+    return true
+  })()
+
   let { isServer, pagesDir, srcDir, development } = loaderOptions
 
   let options = {
@@ -304,7 +322,7 @@ function getFreshConfig(
   if (loaderOptions.transformMode === 'standalone') {
     options.plugins = [
       '@babel/plugin-syntax-jsx',
-      ...(loaderOptions.plugins ?? []),
+      ...(hasReactCompiler ? loaderOptions.reactCompilerPlugins ?? [] : []),
     ]
     options.presets = [
       [
@@ -314,7 +332,7 @@ function getFreshConfig(
     ]
     options.caller = baseCaller
   } else {
-    let { configFile, plugins, hasJsxRuntime } = loaderOptions
+    let { configFile, reactCompilerPlugins, hasJsxRuntime } = loaderOptions
     let customConfig: any = configFile
       ? getCustomBabelConfig(configFile)
       : undefined
@@ -330,7 +348,7 @@ function getFreshConfig(
 
     options.plugins = [
       ...getPlugins(loaderOptions, cacheCharacteristics),
-      ...(plugins || []),
+      ...(hasReactCompiler ? reactCompilerPlugins || [] : []),
       ...(customConfig?.plugins || []),
     ]
 

@@ -1177,7 +1177,8 @@ function bindingToApi(
                   originalNextConfig.experimental.reactCompiler,
                   projectPath,
                   nextConfig.dev,
-                  false
+                  false,
+                  undefined
                 ),
               ],
             },

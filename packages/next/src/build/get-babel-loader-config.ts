@@ -35,7 +35,8 @@ const getBabelLoader = (
   srcDir: string,
   dev: boolean,
   isClient: boolean,
-  reactCompilerOptions: boolean | ReactCompilerOptions | undefined
+  reactCompilerOptions: boolean | ReactCompilerOptions | undefined,
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
   if (!useSWCLoader) {
     return {
@@ -51,7 +52,12 @@ const getBabelLoader = (
         development: dev,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
-        plugins: getReactCompilerPlugins(reactCompilerOptions, dev, isServer),
+        reactCompilerPlugins: getReactCompilerPlugins(
+          reactCompilerOptions,
+          dev,
+          isServer
+        ),
+        reactCompilerExclude,
       },
     }
   }
@@ -69,7 +75,8 @@ const getReactCompilerLoader = (
   options: boolean | ReactCompilerOptions | undefined,
   cwd: string,
   isDev: boolean,
-  isServer: boolean
+  isServer: boolean,
+  exclude: ((excludePath: string) => boolean) | undefined
 ) => {
   const plugins = getReactCompilerPlugins(options, isDev, isServer)
   if (!plugins) {
@@ -82,6 +89,7 @@ const getReactCompilerLoader = (
       transformMode: 'standalone',
       cwd,
       plugins,
+      exclude,
     },
   }
 }
