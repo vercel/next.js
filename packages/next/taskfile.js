@@ -466,9 +466,10 @@ export async function ncc_edge_runtime(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/eval\("require"\)/g, 'require')
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      /eval\("require"\)/g,
+      'require'
+    )
   )
 }
 
@@ -799,9 +800,10 @@ export async function ncc_stream_browserify(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(`require("stream")`, `require("events").EventEmitter`)
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      `require("stream")`,
+      `require("events").EventEmitter`
+    )
   )
 }
 
@@ -2627,6 +2629,7 @@ export default async function (task) {
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('src/experimental/testmode', 'experimental_testmode', opts)
   await task.watch('src/export', 'nextbuildstatic', opts)
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
@@ -2703,7 +2706,9 @@ export async function server_wasm(task, opts) {
 export async function experimental_testmode(task, opts) {
   await task
     .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', {})
+    .swc('server', {
+      dev: opts.dev,
+    })
     .target('dist/experimental/testmode')
 }
 

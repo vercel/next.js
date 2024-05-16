@@ -11,7 +11,7 @@ interface LoaderComparable<D> {
  */
 export abstract class CachedRouteMatcherProvider<
   M extends RouteMatcher = RouteMatcher,
-  D = any
+  D = any,
 > implements RouteMatcherProvider<M>
 {
   private data?: D

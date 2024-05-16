@@ -1018,6 +1018,14 @@ async fn directory_tree_to_loader_tree(
         );
     }
 
+    if tree.parallel_routes.len() > 1
+        && tree.parallel_routes.keys().next().map(|s| s.as_str()) != Some("children")
+    {
+        // children must go first for next.js to work correctly
+        tree.parallel_routes
+            .move_index(tree.parallel_routes.len() - 1, 0);
+    }
+
     Ok(Vc::cell(Some(tree.cell())))
 }
 

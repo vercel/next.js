@@ -6,6 +6,7 @@ use turbopack_binding::{
     turbopack::{
         browser::BrowserChunkingContext,
         core::{
+            chunk::ChunkingContext,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -13,7 +14,6 @@ use turbopack_binding::{
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
-        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
         turbopack::resolve_options_context::ResolveOptionsContext,
     },
@@ -25,6 +25,7 @@ use crate::{
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
         UnsupportedModulesResolvePlugin,
     },
@@ -99,6 +100,32 @@ pub async fn get_edge_resolve_options_context(
 
     let ty = ty.into_value();
 
+    let mut plugins = match ty {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppSSR { .. } => {
+            vec![]
+        }
+        ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::PagesData { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation => {
+            vec![
+                Vc::upcast(get_invalid_client_only_resolve_plugin(project_path)),
+                Vc::upcast(get_invalid_styled_jsx_resolve_plugin(project_path)),
+            ]
+        }
+    };
+
+    let base_plugins = vec![
+        Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
+        Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
+        Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
+    ];
+
+    plugins.extend_from_slice(&base_plugins);
+
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![mode.await?.condition().to_string()];
     custom_conditions.extend(
@@ -119,11 +146,7 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
-        ],
+        plugins,
         ..Default::default()
     };
 
@@ -150,7 +173,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
@@ -175,7 +198,7 @@ pub async fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());
     let next_mode = mode.await?;
     Ok(Vc::upcast(

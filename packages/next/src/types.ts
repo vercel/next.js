@@ -142,16 +142,6 @@ export type PageConfig = {
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_includeFiles?: string[]
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_excludeFiles?: string[]
 }
 
 export type {
@@ -170,7 +160,7 @@ export type PreviewData = string | false | object | undefined
  */
 export type GetStaticPropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData
+  Preview extends PreviewData = PreviewData,
 > = {
   params?: Params
   preview?: boolean
@@ -205,7 +195,7 @@ export type GetStaticPropsResult<Props> =
 export type GetStaticProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData
+  Preview extends PreviewData = PreviewData,
 > = (
   context: GetStaticPropsContext<Params, Preview>
 ) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
@@ -225,7 +215,7 @@ export type GetStaticPathsContext = {
  * @link https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#getstaticpaths-return-values
  */
 export type GetStaticPathsResult<
-  Params extends ParsedUrlQuery = ParsedUrlQuery
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
   fallback: boolean | 'blocking'
@@ -252,7 +242,7 @@ export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
  */
 export type GetServerSidePropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData
+  Preview extends PreviewData = PreviewData,
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
@@ -291,7 +281,7 @@ export type GetServerSidePropsResult<Props> =
 export type GetServerSideProps<
   Props extends { [key: string]: any } = { [key: string]: any },
   Params extends ParsedUrlQuery = ParsedUrlQuery,
-  Preview extends PreviewData = PreviewData
+  Preview extends PreviewData = PreviewData,
 > = (
   context: GetServerSidePropsContext<Params, Preview>
 ) => Promise<GetServerSidePropsResult<Props>>
@@ -315,7 +305,7 @@ declare global {
         | Float32Array
         | Float64Array
         | DataView
-        | null
+        | null,
     >(
       array: T
     ): T

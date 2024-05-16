@@ -73,6 +73,28 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
+export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(chunk)
+      controller.close()
+    },
+  })
+}
+
+export async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  const buffers: Buffer[] = []
+
+  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
+  for await (const chunk of stream) {
+    buffers.push(chunk)
+  }
+
+  return Buffer.concat(buffers)
+}
+
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {

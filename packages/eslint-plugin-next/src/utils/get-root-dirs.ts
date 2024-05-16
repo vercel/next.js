@@ -14,7 +14,7 @@ const processRootDir = (rootDir: string): string[] => {
  * Gets one or more Root, returns an array of root directories.
  */
 export const getRootDirs = (context: Rule.RuleContext) => {
-  let rootDirs = [context.getCwd()]
+  let rootDirs = [context.cwd]
 
   const nextSettings: { rootDir?: string | string[] } =
     context.settings.next || {}

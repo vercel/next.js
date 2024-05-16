@@ -183,37 +183,6 @@ describe('parallel-routes-and-interception', () => {
       expect(pageText).toContain('parallel/(new)/@baz/nested/page')
     })
 
-    it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
-      await next.stop()
-      await next.patchFile(
-        'app/parallel/nested-2/page.js',
-        outdent`
-            export default function Page() {
-              return 'hello world'
-            }
-          `
-      )
-
-      await next.start()
-
-      const html = await next.render('/parallel/nested-2')
-
-      // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
-      // but we've added a more specific page, so it should match that instead
-      if (process.env.TURBOPACK) {
-        // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
-        // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
-        // we'll just verify that the page is rendered and some content was matched.
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
-      } else {
-        expect(html).toContain('hello world')
-      }
-
-      await next.stop()
-      await next.deleteFile('app/parallel/nested-2/page.js')
-      await next.start()
-    })
-
     it('should throw a 404 when no matching parallel route is found', async () => {
       const browser = await next.browser('/parallel-tab-bar')
       // we make sure the page is available through navigating
@@ -906,6 +875,47 @@ describe('parallel-routes-and-interception', () => {
           expect(route.endsWith('/default')).toBe(false)
         }
       })
+    }
+  })
+})
+
+describe('parallel-routes-and-interception with patching', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  afterEach(async () => {
+    try {
+      await next.stop()
+    } finally {
+      await next.deleteFile('app/parallel/nested-2/page.js')
+    }
+  })
+
+  it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
+    await next.patchFile(
+      'app/parallel/nested-2/page.js',
+      outdent`
+          export default function Page() {
+            return 'hello world'
+          }
+        `
+    )
+
+    await next.start()
+
+    const html = await next.render('/parallel/nested-2')
+
+    // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
+    // but we've added a more specific page, so it should match that instead
+    if (process.env.TURBOPACK) {
+      // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
+      // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
+      // we'll just verify that the page is rendered and some content was matched.
+      expect(html).toContain('parallel/(new)/@baz/nested/page')
+    } else {
+      expect(html).toContain('hello world')
     }
   })
 })

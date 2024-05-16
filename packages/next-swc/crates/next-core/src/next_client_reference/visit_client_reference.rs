@@ -56,7 +56,7 @@ pub struct ClientReferenceGraphResult {
 #[turbo_tasks::value(transparent)]
 pub struct ClientReferenceTypes(IndexSet<ClientReferenceType>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct ClientReferenceGraph {
     graph: AdjacencyMap<VisitClientReferenceNode>,
 }

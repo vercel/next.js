@@ -41,8 +41,8 @@ export function patchSetHeaderWithCookieSupport(
             ...(typeof value === 'string'
               ? [value]
               : Array.isArray(value)
-              ? value
-              : []),
+                ? value
+                : []),
           ]),
         ]
       }
