@@ -7,7 +7,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
  */
 export interface RouteModuleOptions<
   D extends RouteDefinition = RouteDefinition,
-  U = unknown
+  U = unknown,
 > {
   readonly definition: Readonly<D>
   readonly userland: Readonly<U>
@@ -30,7 +30,7 @@ export interface RouteModuleHandleContext {
  */
 export abstract class RouteModule<
   D extends RouteDefinition = RouteDefinition,
-  U = unknown
+  U = unknown,
 > {
   /**
    * The userland module. This is the module that is exported from the user's

@@ -34,7 +34,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EvaluatableAssets,
+            },
             context::AssetContext,
             file_source::FileSource,
             issue::IssueSeverity,
@@ -48,9 +51,7 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            resolve::esm_resolve,
-            EcmascriptModuleAsset,
+            chunk::EcmascriptChunkPlaceable, resolve::esm_resolve, EcmascriptModuleAsset,
         },
         nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
@@ -705,7 +706,7 @@ impl PageEndpoint {
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
         chunking_context: Vc<NodeJsChunkingContext>,
-        edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
     ) -> Result<Vc<SsrChunk>> {
@@ -1095,6 +1096,7 @@ impl PageEndpoint {
                     page: original_name.to_string(),
                     regions: None,
                     matchers: vec![matchers],
+                    env: this.pages_project.project().edge_env().await?.clone_value(),
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -1143,8 +1145,8 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
+        let original_name = this.original_name.await?;
         let span = {
-            let original_name = this.original_name.await?;
             match this.ty {
                 PageEndpointType::Html => {
                     tracing::info_span!("page endpoint HTML", name = *original_name)
@@ -1197,10 +1199,11 @@ impl Endpoint for PageEndpoint {
                 },
             };
 
-            Ok(written_endpoint.cell())
+            anyhow::Ok(written_endpoint.cell())
         }
         .instrument(span)
         .await
+        .with_context(|| format!("Failed to write page endpoint {}", *original_name))
     }
 
     #[turbo_tasks::function]

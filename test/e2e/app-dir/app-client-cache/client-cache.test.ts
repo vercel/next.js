@@ -75,9 +75,8 @@ describe('app dir client cache semantics', () => {
       })
 
       it('should prefetch the full page', async () => {
-        const { getRequests, clearRequests } = await createRequestsListener(
-          browser
-        )
+        const { getRequests, clearRequests } =
+          await createRequestsListener(browser)
         await check(() => {
           return getRequests().some(
             ([url, didPartialPrefetch]) =>
@@ -129,9 +128,8 @@ describe('app dir client cache semantics', () => {
       })
 
       it('should prefetch again after 5 mins if the link is visible again', async () => {
-        const { getRequests, clearRequests } = await createRequestsListener(
-          browser
-        )
+        const { getRequests, clearRequests } =
+          await createRequestsListener(browser)
 
         await check(() => {
           return getRequests().some(
@@ -240,9 +238,8 @@ describe('app dir client cache semantics', () => {
       })
 
       it('should prefetch partially a dynamic page', async () => {
-        const { getRequests, clearRequests } = await createRequestsListener(
-          browser
-        )
+        const { getRequests, clearRequests } =
+          await createRequestsListener(browser)
 
         await check(() => {
           return getRequests().some(

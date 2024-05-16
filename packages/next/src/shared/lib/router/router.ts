@@ -1878,9 +1878,8 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      const { page: Component, styleSheets } =
+        await this.fetchComponent('/_error')
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,

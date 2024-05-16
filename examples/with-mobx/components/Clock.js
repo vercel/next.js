@@ -13,7 +13,10 @@ const Clock = observer(function Clock(props) {
           padding: 15px;
           color: #82fa58;
           display: inline-block;
-          font: 50px menlo, monaco, monospace;
+          font:
+            50px menlo,
+            monaco,
+            monospace;
           background-color: #000;
         }
 

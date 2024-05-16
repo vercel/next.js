@@ -376,7 +376,9 @@ describe('app dir - basic', () => {
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await next.render('/dashboard/index')
       expect(html).toMatch(
-        /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
+        isTurbopack
+          ? /<script src="\/_next\/static\/chunks\/[\w-]*polyfill-nomodule\.js" noModule="">/
+          : /<script src="\/_next\/static\/chunks\/polyfills(-\w+)?\.js" noModule="">/
       )
     })
   }
@@ -1424,7 +1426,8 @@ describe('app dir - basic', () => {
         const browser = await next.browser('/react-cache/client-component')
         const val1 = await browser.elementByCss('#value-1').text()
         const val2 = await browser.elementByCss('#value-2').text()
-        expect(val1).toBe(val2)
+        // React.cache is not supported in client components.
+        expect(val1).not.toBe(val2)
       })
 
       it('client component client-navigation', async () => {
@@ -1436,7 +1439,8 @@ describe('app dir - basic', () => {
           .waitForElementByCss('#value-1', 10000)
         const val1 = await browser.elementByCss('#value-1').text()
         const val2 = await browser.elementByCss('#value-2').text()
-        expect(val1).toBe(val2)
+        // React.cache is not supported in client components.
+        expect(val1).not.toBe(val2)
       })
 
       it('middleware overriding headers', async () => {
@@ -1695,6 +1699,16 @@ describe('app dir - basic', () => {
           expect(order?.length).toBe(2)
         })
       }
+    })
+
+    it('should pass nonce when using next/font', async () => {
+      const html = await next.render('/script-nonce/with-next-font')
+      const $ = cheerio.load(html)
+      const scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
     })
   })
 

@@ -7,12 +7,12 @@ describe('app-dir action allowed origins', () => {
     files: join(__dirname, 'safe-origins'),
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-04b058868c-20240508',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
       'server-only': 'latest',
     },
     // An arbitrary & random port.
-    forcedPort: '41831',
+    forcedPort: 'random',
   })
 
   if (skipped) {

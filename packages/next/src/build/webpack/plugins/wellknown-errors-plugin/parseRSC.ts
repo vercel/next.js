@@ -34,7 +34,7 @@ function formatRSCErrorMessage(
     } else {
       formattedMessage = message.replace(
         NEXT_RSC_ERR_REACT_API,
-        `\n\nYou're importing a component that needs $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n`
+        `\n\nYou're importing a component that needs $1. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive. \n\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n`
       )
     }
     formattedVerboseMessage =

@@ -233,9 +233,8 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     "The request could not be resolved by Node.js from the importing module. The \
                      way Node.js resolves modules is slightly different from the way Next.js \
                      resolves modules. Next.js was able to resolve it, while Node.js would not be \
-                     able to.\nTry to remove this package from \
-                     serverComponentsExternalPackages.\nOr update the import side to use a \
-                     compatible request that can be resolved by Node.js.",
+                     able to.\nTry to remove this package from serverExternalPackages.\nOr update \
+                     the import side to use a compatible request that can be resolved by Node.js.",
                 );
             };
             break result_from_original_location;
@@ -486,7 +485,7 @@ impl Issue for UnableToExternalize {
             StyledString::Text("Package ".to_string()),
             StyledString::Code(package),
             StyledString::Text(" (".to_string()),
-            StyledString::Code("serverComponentsExternalPackages".to_string()),
+            StyledString::Code("serverExternalPackages".to_string()),
             StyledString::Text(" or default list) can't be external".to_string()),
         ])
         .cell())
@@ -510,7 +509,7 @@ impl Issue for UnableToExternalize {
                     StyledString::Text("The request ".to_string()),
                     StyledString::Code(self.request.to_string()),
                     StyledString::Text(" matches ".to_string()),
-                    StyledString::Code("serverComponentsExternalPackages".to_string()),
+                    StyledString::Code("serverExternalPackages".to_string()),
                     StyledString::Text(
                         " (or the default list), but it can't be external:".to_string(),
                     ),

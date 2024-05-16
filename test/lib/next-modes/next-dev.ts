@@ -12,6 +12,7 @@ export class NextDevInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan })
   }
 

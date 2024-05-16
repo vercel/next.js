@@ -20,15 +20,16 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    it('should render app with react canary', async () => {
+    it('should render app with react beta', async () => {
       const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-canary/)
+      expect($('body').text()).toMatch(/app: .+-beta/)
     })
 
-    it('should not render pages with react canary', async () => {
+    it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
       expect($('body').text()).toMatch(/pages:/)
-      expect($('body').text()).not.toMatch(/canary/)
+      // TODO: should not match beta once React 19 stable is out
+      expect($('body').text()).toMatch(/beta/)
     })
   })
 })
