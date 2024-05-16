@@ -23,6 +23,7 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import { isStaticGenEnabled } from '../../server/future/route-modules/app-route/helpers/is-static-gen-enabled'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -84,22 +85,7 @@ export async function exportAppRoute(
     const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
     const userland = module.userland
 
-    // route handlers are only statically optimized if they define
-    // one of these top-level configs manually
-    //   - dynamic = 'force-static'
-    //   - dynamic = 'error'
-    //   - revalidate = 1
-    //   - revalidate = false
-    //   - generateStaticParams
-    if (
-      !(
-        userland.dynamic === 'force-static' ||
-        userland.dynamic === 'error' ||
-        userland.revalidate === false ||
-        (userland.revalidate !== undefined && userland.revalidate > 0) ||
-        typeof userland.generateStaticParams == 'function'
-      )
-    ) {
+    if (!isStaticGenEnabled(userland)) {
       return { revalidate: 0 }
     }
 
