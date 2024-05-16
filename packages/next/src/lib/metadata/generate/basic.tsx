@@ -131,8 +131,15 @@ export function FacebookMeta({
   facebook: ResolvedMetadata['facebook']
 }) {
   if (!facebook) return null
-  const { appId } = facebook
-  return <meta property="fb:app_id" content={appId} />
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
 }
 
 const formatDetectionKeys = [

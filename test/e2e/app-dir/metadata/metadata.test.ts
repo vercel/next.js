@@ -301,10 +301,11 @@ describe('app dir - metadata', () => {
 
     it('should support facebook related tags', async () => {
       const browser = await next.browser('/facebook')
-      const matchDom = createDomMatcher(browser)
+      const matchMultiDom = createMultiDomMatcher(browser)
 
-      await matchDom('meta', 'property="fb:app_id"', {
-        content: '12345678',
+      await matchMultiDom('meta', 'property', 'content', {
+        'fb:app_id': '12345678',
+        'fb:admins': ['120', '122', '124'],
       })
     })
 

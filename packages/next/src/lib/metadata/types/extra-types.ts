@@ -88,8 +88,18 @@ export type ResolvedAppleWebApp = {
   statusBarStyle?: 'default' | 'black' | 'black-translucent'
 }
 
-export type Facebook = {
+export type Facebook = FacebookAppId | FacebookAdmins
+export type FacebookAppId = {
+  appId: string
+  admins?: never
+}
+export type FacebookAdmins = {
+  appId?: never
+  admins: string | string[]
+}
+export type ResolvedFacebook = {
   appId?: string
+  admins?: string[]
 }
 
 // Format Detection

@@ -11,6 +11,7 @@ import type {
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
+  ResolvedFacebook,
   ViewportLayout,
 } from './extra-types'
 import type {
@@ -323,6 +324,7 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The Facebook metadata for the document.
+   * You can specify either appId or admins, but not both.
    * @example
    * ```tsx
    * { appId: "12345678" }
@@ -330,6 +332,12 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta property="fb:app_id" content="12345678" />
    * ```
    *
+   * @example
+   * ```tsx
+   * { admins: ["12345678"] }
+   *
+   * <meta property="fb:admins" content="12345678" />
+   * ```
    */
   facebook?: null | Facebook
 
@@ -521,7 +529,7 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
 
   twitter: null | ResolvedTwitterMetadata
 
-  facebook: null | Facebook
+  facebook: null | ResolvedFacebook
 
   // common verification tokens
   verification: null | ResolvedVerification

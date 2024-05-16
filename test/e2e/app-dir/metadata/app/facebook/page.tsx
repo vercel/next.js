@@ -6,6 +6,7 @@ export async function generateMetadata() {
   const metadata = {
     facebook: {
       appId: '12345678',
+      admins: ['120', '122', '124'],
     },
   }
   return metadata
