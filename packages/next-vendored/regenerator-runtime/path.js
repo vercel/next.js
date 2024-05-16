@@ -5,4 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-exports.path = require('path').join(__dirname, 'runtime.js')
+exports.path = require("path").join(
+  __dirname,
+  "runtime.js"
+);

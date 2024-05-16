@@ -40,3 +40,11 @@ bench/nested-deps/components/**/*
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
 test/e2e/async-modules/amp-validator-wasm.js
+
+# @next/vendored packages
+packages/next-vendored/**/*
+!packages/next-vendored/src
+!packages/next-vendored/package.json
+!packages/next-vendored/README.md
+!packages/next-vendored/tsconfig.json
+!packages/next-vendored/modules.d.ts
