@@ -237,7 +237,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('beta')
+sync('rc')
   .then(() => sync('experimental'))
   .catch((error) => {
     console.error(error)
