@@ -22,6 +22,7 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     // ensure Vercel CLI is installed

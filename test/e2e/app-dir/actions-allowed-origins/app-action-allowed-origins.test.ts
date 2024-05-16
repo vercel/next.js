@@ -12,7 +12,7 @@ describe('app-dir action allowed origins', () => {
       'server-only': 'latest',
     },
     // An arbitrary & random port.
-    forcedPort: '41831',
+    forcedPort: 'random',
   })
 
   if (skipped) {
