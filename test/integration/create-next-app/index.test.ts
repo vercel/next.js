@@ -6,6 +6,16 @@ import {
   projectFilesShouldExist,
   projectFilesShouldNotExist,
 } from './utils'
+import { createNextInstall } from '../../lib/create-next-install'
+import { trace } from 'next/dist/trace'
+
+let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
+beforeAll(async () => {
+  nextInstall = await createNextInstall({
+    parentSpan: trace('test'),
+    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+  })
+})
 
 describe('create-next-app', () => {
   it('should not create if the target directory is not empty', async () => {
@@ -25,6 +35,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
           reject: false,
@@ -64,6 +75,7 @@ describe('create-next-app', () => {
           '--no-src-dir',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
           reject: false,
@@ -93,6 +105,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--skip-install',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
