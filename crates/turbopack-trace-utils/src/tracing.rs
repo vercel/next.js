@@ -84,6 +84,22 @@ pub enum TraceRow<'a> {
         /// Deallocation count
         deallocation_count: u64,
     },
+    /// Data about (de)allocations per thread counters. Actual allocations can
+    /// be computed from the difference.
+    AllocationCounters {
+        /// Timestamp
+        ts: u64,
+        /// The thread id of the thread where allocations happend.
+        thread_id: u64,
+        /// Allocations
+        allocations: u64,
+        /// Allocation count
+        allocation_count: u64,
+        /// Deallocations
+        deallocations: u64,
+        /// Deallocation count
+        deallocation_count: u64,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

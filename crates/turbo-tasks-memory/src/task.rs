@@ -961,6 +961,7 @@ impl Task {
         &self,
         duration: Duration,
         instant: Instant,
+        _memory_usage: usize,
         stateful: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
