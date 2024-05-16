@@ -1,6 +1,6 @@
 var _typeof = require("./typeof.js")["default"];
 function _regeneratorRuntime() {
-  "use strict"; /*! next/dist/compiled/regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
+  "use strict"; /*! @next/vendored/regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
   module.exports = _regeneratorRuntime = function _regeneratorRuntime() {
     return exports;
   }, module.exports.__esModule = true, module.exports["default"] = module.exports;

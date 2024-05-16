@@ -1,6 +1,6 @@
 import _typeof from "./typeof.js";
 export default function _regeneratorRuntime() {
-  "use strict"; /*! next/dist/compiled/regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
+  "use strict"; /*! @next/vendored/regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
   _regeneratorRuntime = function _regeneratorRuntime() {
     return exports;
   };
