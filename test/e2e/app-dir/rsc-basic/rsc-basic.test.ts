@@ -59,7 +59,7 @@ describe('app dir - rsc basics', () => {
     })
   }
 
-  describe('next internal shared context should work correctly', () => {
+  describe('next internal shared context', () => {
     it('should not error if just load next/navigation module in pages/api', async () => {
       const res = await next.fetch('/api/navigation')
       expect(res.status).toBe(200)
