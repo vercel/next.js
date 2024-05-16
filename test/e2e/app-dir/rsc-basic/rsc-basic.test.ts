@@ -59,6 +59,20 @@ describe('app dir - rsc basics', () => {
     })
   }
 
+  describe('next internal shared context', () => {
+    it('should not error if just load next/navigation module in pages/api', async () => {
+      const res = await next.fetch('/api/navigation')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('just work')
+    })
+
+    it('should not error if just load next/router module in app page', async () => {
+      const res = await next.fetch('/shared-context/server')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('just work')
+    })
+  })
+
   it('should correctly render page returning null', async () => {
     const homeHTML = await next.render('/return-null/page')
     const $ = cheerio.load(homeHTML)

@@ -109,7 +109,10 @@ export default class FetchCache implements CacheHandler {
             }
             // rough estimate of size of cache value
             return (
-              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+              value.html.length +
+              (JSON.stringify(
+                value.kind === 'APP_PAGE' ? value.rscData : value.pageData
+              )?.length || 0)
             )
           },
         })

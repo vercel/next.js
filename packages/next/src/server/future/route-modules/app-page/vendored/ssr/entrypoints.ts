@@ -2,6 +2,8 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
+//@ts-expect-error TODO: current @types/react does not have exported types for this import
+import * as ReactCompilerRuntime from 'react/compiler-runtime'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as ReactDOMServerEdge from 'react-dom/server.edge'
@@ -54,6 +56,7 @@ export {
   React,
   ReactJsxDevRuntime,
   ReactJsxRuntime,
+  ReactCompilerRuntime,
   ReactDOM,
   ReactDOMServerEdge,
   ReactServerDOMTurbopackClientEdge,

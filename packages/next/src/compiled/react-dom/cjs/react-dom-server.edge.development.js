@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '19.0.0-beta-4508873393-20240430';
+var ReactVersion = '19.0.0-beta-04b058868c-20240508';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
@@ -99,6 +99,7 @@ var REACT_SCOPE_TYPE = Symbol.for('react.scope');
 var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
+var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -2606,11 +2607,7 @@ var startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 function pushAdditionalFormField(value, key) {
   var target = this;
   target.push(startHiddenInputChunk);
-
-  if (typeof value !== 'string') {
-    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'It probably means you are closing over binary data or FormData in a Server Action.');
-  }
-
+  validateAdditionalFormField(value);
   pushStringAttribute(target, 'name', key);
   pushStringAttribute(target, 'value', value);
   target.push(endOfStartTagSelfClosing);
@@ -2623,6 +2620,21 @@ function pushAdditionalFormFields(target, formData) {
   }
 }
 
+function validateAdditionalFormField(value, key) {
+  if (typeof value !== 'string') {
+    throw new Error('File/Blob fields are not yet supported in progressive forms. ' + 'Will fallback to client hydration.');
+  }
+}
+
+function validateAdditionalFormFields(formData) {
+  if (formData != null) {
+    // $FlowFixMe[prop-missing]: FormData has forEach.
+    formData.forEach(validateAdditionalFormField);
+  }
+
+  return formData;
+}
+
 function getCustomFormFields(resumableState, formAction) {
   var customAction = formAction.$$FORM_ACTION;
 
@@ -2630,7 +2642,13 @@ function getCustomFormFields(resumableState, formAction) {
     var prefix = makeFormFieldPrefix(resumableState);
 
     try {
-      return formAction.$$FORM_ACTION(prefix);
+      var customFields = formAction.$$FORM_ACTION(prefix);
+
+      if (customFields) {
+        validateAdditionalFormFields(customFields.data);
+      }
+
+      return customFields;
     } catch (x) {
       if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
         // Rethrow suspense.
@@ -8463,6 +8481,16 @@ function useCacheRefresh() {
   return unsupportedRefresh;
 }
 
+function useMemoCache(size) {
+  var data = new Array(size);
+
+  for (var i = 0; i < size; i++) {
+    data[i] = REACT_MEMO_CACHE_SENTINEL;
+  }
+
+  return data;
+}
+
 function noop$1() {}
 
 var HooksDispatcher = {
@@ -8491,6 +8519,10 @@ var HooksDispatcher = {
 
 {
   HooksDispatcher.useCacheRefresh = useCacheRefresh;
+}
+
+{
+  HooksDispatcher.useMemoCache = useMemoCache;
 }
 
 {

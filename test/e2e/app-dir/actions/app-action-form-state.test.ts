@@ -6,8 +6,8 @@ describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
+      react: '19.0.0-beta-04b058868c-20240508',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
     },
   })
   it('should support submitting form state with JS', async () => {
