@@ -20,6 +20,8 @@ use crate::{
     store_container::StoreContainer,
 };
 
+const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
+
 trait TraceFormat {
     fn read(&mut self, buffer: &[u8]) -> Result<usize>;
     fn stats(&self) -> String {
@@ -115,17 +117,7 @@ impl TraceReader {
         let mut format: Option<Box<dyn TraceFormat>> = None;
 
         let mut current_read = 0;
-        let mut initial_read = {
-            if let Ok(pos) = file.seek(SeekFrom::End(0)) {
-                if pos > 100 * 1024 * 1024 {
-                    Some(pos)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        };
+        let mut initial_read = { file.seek(SeekFrom::End(0)).ok() };
         if file.seek(SeekFrom::Start(0)).is_err() {
             return false;
         }
@@ -145,7 +137,9 @@ impl TraceReader {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
-                        if let Some(value) = self.wait_for_more_data(&mut file, &mut initial_read) {
+                        if let Some(value) =
+                            self.wait_for_more_data(&mut file, &mut initial_read, format.as_deref())
+                        {
                             return value;
                         }
                     } else {
@@ -220,7 +214,9 @@ impl TraceReader {
                 }
                 Err(err) => {
                     if err.kind() == io::ErrorKind::UnexpectedEof {
-                        if let Some(value) = self.wait_for_more_data(&mut file, &mut initial_read) {
+                        if let Some(value) =
+                            self.wait_for_more_data(&mut file, &mut initial_read, format.as_deref())
+                        {
                             return value;
                         }
                     } else {
@@ -237,12 +233,19 @@ impl TraceReader {
         &mut self,
         file: &mut TraceFile,
         initial_read: &mut Option<u64>,
+        format: Option<&dyn TraceFormat>,
     ) -> Option<bool> {
         let Ok(pos) = file.stream_position() else {
             return Some(true);
         };
         if let Some(total) = initial_read.take() {
-            println!("Initial read completed ({} MB)", total / (1024 * 1024),);
+            if let Some(format) = format {
+                let stats = format.stats();
+                println!("{}", stats);
+            }
+            if total > MIN_INITIAL_REPORT_SIZE {
+                println!("Initial read completed ({} MB)", total / (1024 * 1024));
+            }
         }
         thread::sleep(Duration::from_millis(100));
         let Ok(end) = file.seek(SeekFrom::End(0)) else {
