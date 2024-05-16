@@ -57,6 +57,6 @@ If a route segment is marked to throw an error unless it's static, a dynamic fun
 
 > **Good to know**:
 >
-> - This method should be called at the top of the catch block, passing the error object as its only argument. It can also be used within a .catch handler of a promise.
+> - This method should be called at the top of the catch block, passing the error object as its only argument. It can also be used within a `.catch` handler of a promise.
 > - If you ensure that your calls to APIs that throw are not wrapped in a try/catch then you don't need to use `unstable_rethrow`
 > - Any resource cleanup (like clearing intervals, timers, etc) would have to either happen prior to the call to `unstable_rethrow` or within a `finally` block.
