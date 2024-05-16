@@ -3,9 +3,10 @@ import type { ReactCompilerOptions } from '../server/config-shared'
 
 const getReactCompilerPlugins = (
   options: boolean | ReactCompilerOptions | undefined,
-  isDev: boolean
+  isDev: boolean,
+  isServer: boolean
 ) => {
-  if (!options) {
+  if (!options || isServer) {
     return undefined
   }
 
@@ -50,7 +51,7 @@ const getBabelLoader = (
         development: dev,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
-        plugins: getReactCompilerPlugins(reactCompilerOptions, dev),
+        plugins: getReactCompilerPlugins(reactCompilerOptions, dev, isServer),
       },
     }
   }
@@ -67,9 +68,11 @@ const getBabelLoader = (
 const getReactCompilerLoader = (
   options: boolean | ReactCompilerOptions | undefined,
   cwd: string,
-  isDev: boolean
+  isDev: boolean,
+  isServer: boolean
 ) => {
-  if (!options) {
+  const plugins = getReactCompilerPlugins(options, isDev, isServer)
+  if (!plugins) {
     return undefined
   }
 
@@ -78,7 +81,7 @@ const getReactCompilerLoader = (
     options: {
       transformMode: 'standalone',
       cwd,
-      plugins: getReactCompilerPlugins(options, isDev),
+      plugins,
     },
   }
 }

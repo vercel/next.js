@@ -1,4 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe.each(
@@ -19,9 +20,13 @@ describe.each(
   })
 
   it('should render', async () => {
-    const $ = await next.render$('/')
-    expect($('h1').text()).toMatch(
-      /React compiler is enabled with .+ memo slots/
-    )
+    const browser = await next.browser('/')
+
+    await retry(async () => {
+      const text = await browser
+        .elementByCss('#react-compiler-enabled-message')
+        .text()
+      expect(text).toMatch(/React compiler is enabled with \d+ memo slots/)
+    })
   })
 })

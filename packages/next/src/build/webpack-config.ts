@@ -425,7 +425,12 @@ export default async function getBaseWebpackConfig(
 
   const reactCompilerLoader = babelLoader
     ? undefined
-    : getReactCompilerLoader(config.experimental?.reactCompiler, dir, dev)
+    : getReactCompilerLoader(
+        config.experimental?.reactCompiler,
+        dir,
+        dev,
+        isNodeOrEdgeCompilation
+      )
 
   let swcTraceProfilingInitialized = false
   const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
