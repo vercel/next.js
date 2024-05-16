@@ -1194,8 +1194,11 @@ async function renderToHTMLOrFlightImpl(
                 if (!(resumeStream instanceof ReadableStream)) {
                   throw new Error("Invariant: stream wasn't a ReadableStream")
                 }
+
+                const resultStream2 = chainStreams(stream, resumeStream)
+
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(stream, resumeStream)
+                renderedHTMLStream = convertReadable(resultStream2)
               }
 
               return {
@@ -1401,6 +1404,7 @@ async function renderToHTMLOrFlightImpl(
               polyfills,
               renderServerInsertedHTML,
               serverCapturedErrors: [],
+              tracingMetadata: undefined,
               basePath: renderOpts.basePath,
             }),
             serverInsertedHTMLToHead: true,

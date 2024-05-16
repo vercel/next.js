@@ -126,22 +126,20 @@ export async function pipeToNodeResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
 ) {
-  if (!(readable instanceof ReadableStream)) {
-    const { Readable } = require('node:stream') as typeof import('node:stream')
-    readable = Readable.toWeb(readable) as ReadableStream<Uint8Array>
-  }
   try {
     // If the response has already errored, then just return now.
     const { errored, destroyed } = res
     if (errored || destroyed) return
 
-    // Create a new AbortController so that we can abort the readable if the
-    // client disconnects.
-    const controller = createAbortController(res)
-
-    const writer = createWriterFromResponse(res, waitUntilForEnd)
-
-    await readable.pipeTo(writer, { signal: controller.signal })
+    if (readable instanceof ReadableStream) {
+      // Create a new AbortController so that we can abort the readable if the
+      // client disconnects.
+      const controller = createAbortController(res)
+      const writer = createWriterFromResponse(res, waitUntilForEnd)
+      await readable.pipeTo(writer, { signal: controller.signal })
+    } else {
+      readable.pipe(res)
+    }
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
     if (isAbortError(err)) return
