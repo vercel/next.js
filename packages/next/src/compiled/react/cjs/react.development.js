@@ -20,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-var ReactVersion = '19.0.0-beta-26f2496093-20240514';
+var ReactVersion = '19.0.0-beta-04b058868c-20240508';
 
 // -----------------------------------------------------------------------------
 
@@ -1133,7 +1133,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
+function ReactElement(type, key, _ref, self, source, owner, props) {
   var ref;
 
   {

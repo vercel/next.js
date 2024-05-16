@@ -8,8 +8,8 @@ describe('Error Overlay invalid imports', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-beta-26f2496093-20240514',
-      'react-dom': '19.0.0-beta-26f2496093-20240514',
+      react: '19.0.0-beta-04b058868c-20240508',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
       'server-only': 'latest',
       'client-only': 'latest',
     },

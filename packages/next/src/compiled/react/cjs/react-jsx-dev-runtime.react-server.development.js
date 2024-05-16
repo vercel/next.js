@@ -850,7 +850,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
+function ReactElement(type, key, _ref, self, source, owner, props) {
   var ref;
 
   {
