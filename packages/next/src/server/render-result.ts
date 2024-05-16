@@ -2,14 +2,20 @@ import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { Revalidate } from './lib/revalidate'
 import type { FetchMetrics } from './base-http'
 
-import { chainStreams, streamFromString, streamToString } from './stream-utils'
+import {
+  chainStreams,
+  streamFromBuffer,
+  streamFromString,
+  streamToBuffer,
+  streamToString,
+} from './stream-utils'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 import type { Readable, Writable } from 'stream'
 
 type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
-  flightData?: string
+  flightData?: Buffer
   revalidate?: Revalidate
   staticBailoutInfo?: {
     stack?: string
@@ -49,6 +55,7 @@ export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
+  | Buffer
   | null
 
 export type RenderResultOptions<
@@ -88,7 +95,7 @@ export default class RenderResult<
    * @param value the static response value
    * @returns a new RenderResult instance
    */
-  public static fromStatic(value: string) {
+  public static fromStatic(value: string | Buffer) {
     return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
   }
 
@@ -122,6 +129,26 @@ export default class RenderResult<
    */
   public get isDynamic(): boolean {
     return typeof this.response !== 'string'
+  }
+
+  public toUnchunkedBuffer(stream?: false): Buffer
+  public toUnchunkedBuffer(stream: true): Promise<Buffer>
+  public toUnchunkedBuffer(stream = false): Promise<Buffer> | Buffer {
+    if (this.response === null) {
+      throw new Error('Invariant: null responses cannot be unchunked')
+    }
+
+    if (typeof this.response !== 'string') {
+      if (!stream) {
+        throw new Error(
+          'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
+        )
+      }
+
+      return streamToBuffer(this.readable)
+    }
+
+    return Buffer.from(this.response)
   }
 
   /**
@@ -163,6 +190,10 @@ export default class RenderResult<
       throw new Error('Invariant: static responses cannot be streamed')
     }
 
+    if (Buffer.isBuffer(this.response)) {
+      return streamFromBuffer(this.response)
+    }
+
     // If the response is an array of streams, then chain them together.
     if (Array.isArray(this.response)) {
       return chainStreams(...this.response)
@@ -191,6 +222,8 @@ export default class RenderResult<
       responses = [streamFromString(this.response)]
     } else if (Array.isArray(this.response)) {
       responses = this.response
+    } else if (Buffer.isBuffer(this.response)) {
+      responses = [streamFromBuffer(this.response)]
     } else {
       // @ts-ignore
       responses = [this.response]
