@@ -1,5 +1,10 @@
 import { useParams } from 'next/navigation'
+import { useRouter } from 'next/router'
 
 export default function handle(_, res) {
-  res.send(`${typeof useParams}`)
+  const values = [
+    typeof useRouter,
+    typeof useParams
+  ]
+  res.send(values.join())
 }
