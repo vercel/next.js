@@ -89,8 +89,11 @@ const getReactCompilerLoader = (
       transformMode: 'standalone',
       cwd,
       reactCompilerPlugins,
-      reactCompilerExclude,
     },
+  }
+
+  if (reactCompilerExclude) {
+    config.options.reactCompilerExclude = reactCompilerExclude
   }
 
   return config
