@@ -65,9 +65,9 @@ export function normalizeMetadataRoute(page: string) {
     route += '.txt'
   } else if (page === '/manifest') {
     route += '.webmanifest'
-  } else if (page.endsWith('/sitemap')) {
-    route += '.xml'
-  } else {
+  }
+  // For sitemap, we don't automatically add the route suffix since it can have sub-routes
+  else if (!page.endsWith('/sitemap')) {
     // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
     const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
     suffix = getMetadataRouteSuffix(pathnamePrefix)

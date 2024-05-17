@@ -7,9 +7,9 @@ describe('app-dir action progressive enhancement', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      react: 'latest',
+      react: '19.0.0-beta-04b058868c-20240508',
       nanoid: 'latest',
-      'react-dom': 'latest',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
       'server-only': 'latest',
     },
   })

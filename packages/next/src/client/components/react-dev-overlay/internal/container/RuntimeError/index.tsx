@@ -200,10 +200,10 @@ export const styles = css`
     border: none;
     padding: 0;
   }
-  [data-nextjs-container-errors-pseudo-html--diff-add] {
+  [data-nextjs-container-errors-pseudo-html--diff='add'] {
     color: var(--color-ansi-green);
   }
-  [data-nextjs-container-errors-pseudo-html--diff-remove] {
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     color: var(--color-ansi-red);
   }
   [data-nextjs-container-errors-pseudo-html--tag-error] {

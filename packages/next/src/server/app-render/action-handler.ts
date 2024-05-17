@@ -8,6 +8,8 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_ROUTER_STATE_TREE,
+  ACTION,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -113,9 +115,12 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all(
-    Object.values(staticGenerationStore.pendingRevalidates || [])
-  )
+  await Promise.all([
+    staticGenerationStore.incrementalCache?.revalidateTag(
+      staticGenerationStore.revalidatedTags || []
+    ),
+    ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+  ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
@@ -289,7 +294,10 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    forwardedHeaders.delete('next-router-state-tree')
+    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE)
+    // When an action follows a redirect, it's no longer handling an action: it's just a normal RSC request
+    // to the requested URL. We should remove the `next-action` header so that it's not treated as an action
+    forwardedHeaders.delete(ACTION)
 
     try {
       const response = await fetch(fetchUrl, {
@@ -432,11 +440,11 @@ export async function handleAction({
         value: forwardedHostHeader,
       }
     : hostHeader
-    ? {
-        type: HostType.Host,
-        value: hostHeader,
-      }
-    : undefined
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
 
   let warning: string | undefined = undefined
 
@@ -480,9 +488,12 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all(
-          Object.values(staticGenerationStore.pendingRevalidates || [])
-        )
+        await Promise.all([
+          staticGenerationStore.incrementalCache?.revalidateTag(
+            staticGenerationStore.revalidatedTags || []
+          ),
+          ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ])
 
         const promise = Promise.reject(error)
         try {
@@ -867,9 +878,12 @@ export async function handleAction({
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all(
-        Object.values(staticGenerationStore.pendingRevalidates || [])
-      )
+      await Promise.all([
+        staticGenerationStore.incrementalCache?.revalidateTag(
+          staticGenerationStore.revalidatedTags || []
+        ),
+        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+      ])
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
