@@ -765,6 +765,8 @@ function createHints() {
 
 var supportsRequestStorage = false;
 var requestStorage = null;
+var supportsComponentStorage = false;
+var componentStorage = null;
 
 var TEMPORARY_REFERENCE_TAG = Symbol.for('react.temporary.reference'); // eslint-disable-next-line no-unused-vars
 
@@ -1111,6 +1113,16 @@ function use(usable) {
   }
 }
 
+var currentOwner = null;
+function setCurrentOwner(componentInfo) {
+  currentOwner = componentInfo;
+}
+function resolveOwner() {
+  if (currentOwner) return currentOwner;
+
+  return null;
+}
+
 function resolveCache() {
   var request = resolveRequest();
 
@@ -1135,16 +1147,9 @@ var DefaultAsyncDispatcher = {
     return entry;
   }
 };
-var currentOwner = null;
 
 {
-  DefaultAsyncDispatcher.getOwner = function () {
-    return currentOwner;
-  };
-}
-
-function setCurrentOwner(componentInfo) {
-  currentOwner = componentInfo;
+  DefaultAsyncDispatcher.getOwner = resolveOwner;
 }
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
@@ -1722,8 +1727,11 @@ function renderFunctionComponent(request, task, key, Component, props, owner) {
   // component suspends we can reuse the same task object. If the same
   // component suspends again, the thenable state will be restored.
   var prevThenableState = task.thenableState;
-  task.thenableState = null;
-  var componentDebugInfo = null;
+  task.thenableState = null; // The secondArg is always undefined in Server Components since refs error early.
+
+  var secondArg = undefined;
+  var result;
+  var componentDebugInfo;
 
   {
     if (debugID === null) {
@@ -1751,18 +1759,14 @@ function renderFunctionComponent(request, task, key, Component, props, owner) {
       outlineModel(request, componentDebugInfo);
       emitDebugChunk(request, componentDebugID, componentDebugInfo);
     }
-  }
 
-  prepareToUseHooksForComponent(prevThenableState, componentDebugInfo); // The secondArg is always undefined in Server Components since refs error early.
-
-  var secondArg = undefined;
-  var result;
-
-  {
+    prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
     setCurrentOwner(componentDebugInfo);
 
     try {
-      result = Component(props, secondArg);
+      if (supportsComponentStorage) ; else {
+        result = Component(props, secondArg);
+      }
     } finally {
       setCurrentOwner(null);
     }
@@ -1901,9 +1905,8 @@ function renderFragment(request, task, children) {
 
 function renderClientElement(task, type, key, props, owner) // DEV-only
 {
+  // We prepend the terminal client element that actually gets serialized with
   // the keys of any Server Components which are not serialized.
-
-
   var keyPath = task.keyPath;
 
   if (key === null) {
@@ -2047,7 +2050,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
   if (typeof model === 'object' && model !== null) {
     // If we're about to write this into a new task we can assign it an ID early so that
     // any other references can refer to the value we're about to write.
-    if ((keyPath !== null || implicitSlot)) ; else {
+    if (keyPath !== null || implicitSlot) ; else {
       request.writtenObjects.set(model, id);
     }
   }
@@ -2389,7 +2392,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
           var _existingId = _writtenObjects.get(value);
 
           if (_existingId !== undefined) {
-            if ((task.keyPath !== null || task.implicitSlot)) ; else if (modelRoot === value) {
+            if (task.keyPath !== null || task.implicitSlot) ; else if (modelRoot === value) {
               // This is the ID we're currently emitting so we need to write it
               // once but if we discover it again, we refer to it by id.
               modelRoot = null;
@@ -2494,7 +2497,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (typeof value.then === 'function') {
       if (existingId !== undefined) {
-        if ((task.keyPath !== null || task.implicitSlot)) {
+        if (task.keyPath !== null || task.implicitSlot) {
           // If we're in some kind of context we can't reuse the result of this render or
           // previous renders of this element. We only reuse Promises if they're not wrapped
           // by another Server Component.
@@ -3535,7 +3538,6 @@ function loadChunk(chunkId, filename) {
   return __webpack_chunk_load__(chunkId);
 }
 
-// The server acts as a Client of itself when resolving Server References.
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
 var RESOLVED_MODEL = 'resolved_model';
@@ -3613,7 +3615,7 @@ function wakeChunk(listeners, value) {
 
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
-    // We already resolved. We didn't expect to see this.
+
     return;
   }
 
@@ -3660,7 +3662,7 @@ function loadServerReference$1(response, id, bound, parentChunk, parentObject, k
     }
   }
 
-  promise.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk)); // We need a placeholder value that will be replaced later.
+  promise.then(createModelResolver(parentChunk, parentObject, key, false, response, createModel), createModelReject(parentChunk)); // We need a placeholder value that will be replaced later.
 
   return null;
 }
@@ -3737,21 +3739,30 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
     blocked = initializingChunkBlockedModel;
-    blocked.deps++;
+
+    if (!cyclic) {
+      blocked.deps++;
+    }
   } else {
     blocked = initializingChunkBlockedModel = {
-      deps: 1,
+      deps: cyclic ? 0 : 1,
       value: null
     };
   }
 
   return function (value) {
-    parentObject[key] = value;
+    parentObject[key] = map(response, value); // If this is the root object for a model reference, where `blocked.value`
+    // is a stale `null`, the resolved value can be used directly.
+
+    if (key === '' && blocked.value === null) {
+      blocked.value = parentObject[key];
+    }
+
     blocked.deps--;
 
     if (blocked.deps === 0) {
@@ -3777,19 +3788,46 @@ function createModelReject(chunk) {
   };
 }
 
-function getOutlinedModel(response, id) {
+function getOutlinedModel(response, id, parentObject, key, map) {
   var chunk = getChunk(response, id);
 
-  if (chunk.status === RESOLVED_MODEL) {
-    initializeModelChunk(chunk);
-  }
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  } // The status might have changed after initialization.
 
-  if (chunk.status !== INITIALIZED) {
-    // We know that this is emitted earlier so otherwise it's an error.
-    throw chunk.reason;
-  }
 
-  return chunk.value;
+  switch (chunk.status) {
+    case INITIALIZED:
+      return map(response, chunk.value);
+
+    case PENDING:
+    case BLOCKED:
+      var parentChunk = initializingChunk;
+      chunk.then(createModelResolver(parentChunk, parentObject, key, false, response, map), createModelReject(parentChunk));
+      return null;
+
+    default:
+      throw chunk.reason;
+  }
+}
+
+function createMap(response, model) {
+  return new Map(model);
+}
+
+function createSet(response, model) {
+  return new Set(model);
+}
+
+function extractIterator(response, model) {
+  // $FlowFixMe[incompatible-use]: This uses raw Symbols because we're extracting from a native array.
+  return model[Symbol.iterator]();
+}
+
+function createModel(response, model) {
+  return model;
 }
 
 function parseModelString(response, obj, key, value) {
@@ -3806,9 +3844,8 @@ function parseModelString(response, obj, key, value) {
           // Promise
           var _id = parseInt(value.slice(2), 16);
 
-          var _chunk = getChunk(response, _id);
-
-          return _chunk;
+          var chunk = getChunk(response, _id);
+          return chunk;
         }
 
       case 'F':
@@ -3817,7 +3854,7 @@ function parseModelString(response, obj, key, value) {
           var _id2 = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = getOutlinedModel(response, _id2);
+          var metaData = getOutlinedModel(response, _id2, obj, key, createModel);
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, obj, key);
         }
 
@@ -3832,8 +3869,7 @@ function parseModelString(response, obj, key, value) {
           // Map
           var _id3 = parseInt(value.slice(2), 16);
 
-          var data = getOutlinedModel(response, _id3);
-          return new Map(data);
+          return getOutlinedModel(response, _id3, obj, key, createMap);
         }
 
       case 'W':
@@ -3841,9 +3877,7 @@ function parseModelString(response, obj, key, value) {
           // Set
           var _id4 = parseInt(value.slice(2), 16);
 
-          var _data = getOutlinedModel(response, _id4);
-
-          return new Set(_data);
+          return getOutlinedModel(response, _id4, obj, key, createSet);
         }
 
       case 'K':
@@ -3851,9 +3885,7 @@ function parseModelString(response, obj, key, value) {
           // FormData
           var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
-
-          var _data2 = new FormData();
-
+          var data = new FormData();
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
           // entry that it references so we can assume they all exist in the
           // backing store already.
@@ -3861,10 +3893,10 @@ function parseModelString(response, obj, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              _data2.append(entryKey.slice(formPrefix.length), entry);
+              data.append(entryKey.slice(formPrefix.length), entry);
             }
           });
-          return _data2;
+          return data;
         }
 
       case 'i':
@@ -3872,9 +3904,7 @@ function parseModelString(response, obj, key, value) {
           // Iterator
           var _id5 = parseInt(value.slice(2), 16);
 
-          var _data3 = getOutlinedModel(response, _id5);
-
-          return _data3[Symbol.iterator]();
+          return getOutlinedModel(response, _id5, obj, key, extractIterator);
         }
 
       case 'I':
@@ -3921,28 +3951,7 @@ function parseModelString(response, obj, key, value) {
 
 
     var id = parseInt(value.slice(1), 16);
-    var chunk = getChunk(response, id);
-
-    switch (chunk.status) {
-      case RESOLVED_MODEL:
-        initializeModelChunk(chunk);
-        break;
-    } // The status might have changed after initialization.
-
-
-    switch (chunk.status) {
-      case INITIALIZED:
-        return chunk.value;
-
-      case PENDING:
-      case BLOCKED:
-        var parentChunk = initializingChunk;
-        chunk.then(createModelResolver(parentChunk, obj, key), createModelReject(parentChunk));
-        return null;
-
-      default:
-        throw chunk.reason;
-    }
+    return getOutlinedModel(response, id, obj, key, createModel);
   }
 
   return value;

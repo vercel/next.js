@@ -859,6 +859,8 @@ function initAsyncDebugInfo() {
 
 var supportsRequestStorage = true;
 var requestStorage = new async_hooks.AsyncLocalStorage();
+var supportsComponentStorage = true;
+var componentStorage = new async_hooks.AsyncLocalStorage() ;
 
 var TEMPORARY_REFERENCE_TAG = Symbol.for('react.temporary.reference'); // eslint-disable-next-line no-unused-vars
 
@@ -1206,6 +1208,21 @@ function use(usable) {
   }
 }
 
+var currentOwner = null;
+function setCurrentOwner(componentInfo) {
+  currentOwner = componentInfo;
+}
+function resolveOwner() {
+  if (currentOwner) return currentOwner;
+
+  {
+    var owner = componentStorage.getStore();
+    if (owner) return owner;
+  }
+
+  return null;
+}
+
 function resolveCache() {
   var request = resolveRequest();
 
@@ -1230,16 +1247,9 @@ var DefaultAsyncDispatcher = {
     return entry;
   }
 };
-var currentOwner = null;
 
 {
-  DefaultAsyncDispatcher.getOwner = function () {
-    return currentOwner;
-  };
-}
-
-function setCurrentOwner(componentInfo) {
-  currentOwner = componentInfo;
+  DefaultAsyncDispatcher.getOwner = resolveOwner;
 }
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
@@ -1623,7 +1633,7 @@ function patchConsole(consoleInst, methodName) {
         // refer to previous logs in debug info to associate them with a component.
 
         var id = request.nextChunkId++;
-        var owner = currentOwner;
+        var owner = resolveOwner();
         emitConsoleChunk(request, id, methodName, owner, stack, arguments);
       } // $FlowFixMe[prop-missing]
 
@@ -2120,8 +2130,11 @@ function renderFunctionComponent(request, task, key, Component, props, owner) {
   // component suspends we can reuse the same task object. If the same
   // component suspends again, the thenable state will be restored.
   var prevThenableState = task.thenableState;
-  task.thenableState = null;
-  var componentDebugInfo = null;
+  task.thenableState = null; // The secondArg is always undefined in Server Components since refs error early.
+
+  var secondArg = undefined;
+  var result;
+  var componentDebugInfo;
 
   {
     if (debugID === null) {
@@ -2149,18 +2162,15 @@ function renderFunctionComponent(request, task, key, Component, props, owner) {
       outlineModel(request, componentDebugInfo);
       emitDebugChunk(request, componentDebugID, componentDebugInfo);
     }
-  }
 
-  prepareToUseHooksForComponent(prevThenableState, componentDebugInfo); // The secondArg is always undefined in Server Components since refs error early.
-
-  var secondArg = undefined;
-  var result;
-
-  {
+    prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
     setCurrentOwner(componentDebugInfo);
 
     try {
-      result = Component(props, secondArg);
+      if (supportsComponentStorage) {
+        // Run the component in an Async Context that tracks the current owner.
+        result = componentStorage.run(componentDebugInfo, Component, props, secondArg);
+      }
     } finally {
       setCurrentOwner(null);
     }
@@ -2362,9 +2372,8 @@ function renderAsyncFragment(request, task, children, getAsyncIterator) {
 
 function renderClientElement(task, type, key, props, owner) // DEV-only
 {
+  // We prepend the terminal client element that actually gets serialized with
   // the keys of any Server Components which are not serialized.
-
-
   var keyPath = task.keyPath;
 
   if (key === null) {
@@ -2508,7 +2517,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
   if (typeof model === 'object' && model !== null) {
     // If we're about to write this into a new task we can assign it an ID early so that
     // any other references can refer to the value we're about to write.
-    if ((keyPath !== null || implicitSlot)) ; else {
+    if (keyPath !== null || implicitSlot) ; else {
       request.writtenObjects.set(model, id);
     }
   }
@@ -2920,7 +2929,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
           var _existingId = _writtenObjects.get(value);
 
           if (_existingId !== undefined) {
-            if ((task.keyPath !== null || task.implicitSlot)) ; else if (modelRoot === value) {
+            if (task.keyPath !== null || task.implicitSlot) ; else if (modelRoot === value) {
               // This is the ID we're currently emitting so we need to write it
               // once but if we discover it again, we refer to it by id.
               modelRoot = null;
@@ -3033,7 +3042,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
     if (typeof value.then === 'function') {
       if (existingId !== undefined) {
-        if ((task.keyPath !== null || task.implicitSlot)) {
+        if (task.keyPath !== null || task.implicitSlot) {
           // If we're in some kind of context we can't reuse the result of this render or
           // previous renders of this element. We only reuse Promises if they're not wrapped
           // by another Server Component.
@@ -4346,7 +4355,6 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
-// The server acts as a Client of itself when resolving Server References.
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
 var RESOLVED_MODEL = 'resolved_model';
@@ -4445,7 +4453,15 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
 
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
-    // We already resolved. We didn't expect to see this.
+    {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason; // $FlowFixMe[incompatible-call]: The error method should accept mixed.
+
+      controller.error(error);
+    }
+
     return;
   }
 
@@ -4466,7 +4482,19 @@ function createResolvedModelChunk(response, value) {
 
 function resolveModelChunk(chunk, value) {
   if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
+    {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason;
+
+      if (value[0] === 'C') {
+        controller.close(value === 'C' ? '"$undefined"' : value.slice(1));
+      } else {
+        controller.enqueueModel(value);
+      }
+    }
+
     return;
   }
 
@@ -4484,6 +4512,26 @@ function resolveModelChunk(chunk, value) {
 
     wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
   }
+}
+
+function createInitializedStreamChunk(response, value, controller) {
+  // We use the reason field to stash the controller since we already have that
+  // field. It's a bit of a hack but efficient.
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, value, controller, response);
+}
+
+function createResolvedIteratorResultChunk(response, value, done) {
+  // To reuse code as much code as possible we add the wrapper element as part of the JSON.
+  var iteratorResultJSON = (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + '}'; // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+
+  return new Chunk(RESOLVED_MODEL, iteratorResultJSON, null, response);
+}
+
+function resolveIteratorResultChunk(chunk, value, done) {
+  // To reuse code as much code as possible we add the wrapper element as part of the JSON.
+  var iteratorResultJSON = (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + '}';
+  resolveModelChunk(chunk, iteratorResultJSON);
 }
 
 function bindArgs$1(fn, args) {
@@ -4514,7 +4562,7 @@ function loadServerReference$1(response, id, bound, parentChunk, parentObject, k
     }
   }
 
-  promise.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk)); // We need a placeholder value that will be replaced later.
+  promise.then(createModelResolver(parentChunk, parentObject, key, false, response, createModel), createModelReject(parentChunk)); // We need a placeholder value that will be replaced later.
 
   return null;
 }
@@ -4591,21 +4639,30 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
     blocked = initializingChunkBlockedModel;
-    blocked.deps++;
+
+    if (!cyclic) {
+      blocked.deps++;
+    }
   } else {
     blocked = initializingChunkBlockedModel = {
-      deps: 1,
+      deps: cyclic ? 0 : 1,
       value: null
     };
   }
 
   return function (value) {
-    parentObject[key] = value;
+    parentObject[key] = map(response, value); // If this is the root object for a model reference, where `blocked.value`
+    // is a stale `null`, the resolved value can be used directly.
+
+    if (key === '' && blocked.value === null) {
+      blocked.value = parentObject[key];
+    }
+
     blocked.deps--;
 
     if (blocked.deps === 0) {
@@ -4631,19 +4688,46 @@ function createModelReject(chunk) {
   };
 }
 
-function getOutlinedModel(response, id) {
+function getOutlinedModel(response, id, parentObject, key, map) {
   var chunk = getChunk(response, id);
 
-  if (chunk.status === RESOLVED_MODEL) {
-    initializeModelChunk(chunk);
-  }
+  switch (chunk.status) {
+    case RESOLVED_MODEL:
+      initializeModelChunk(chunk);
+      break;
+  } // The status might have changed after initialization.
 
-  if (chunk.status !== INITIALIZED) {
-    // We know that this is emitted earlier so otherwise it's an error.
-    throw chunk.reason;
-  }
 
-  return chunk.value;
+  switch (chunk.status) {
+    case INITIALIZED:
+      return map(response, chunk.value);
+
+    case PENDING:
+    case BLOCKED:
+      var parentChunk = initializingChunk;
+      chunk.then(createModelResolver(parentChunk, parentObject, key, false, response, map), createModelReject(parentChunk));
+      return null;
+
+    default:
+      throw chunk.reason;
+  }
+}
+
+function createMap(response, model) {
+  return new Map(model);
+}
+
+function createSet(response, model) {
+  return new Set(model);
+}
+
+function extractIterator(response, model) {
+  // $FlowFixMe[incompatible-use]: This uses raw Symbols because we're extracting from a native array.
+  return model[Symbol.iterator]();
+}
+
+function createModel(response, model) {
+  return model;
 }
 
 function parseTypedArray(response, reference, constructor, bytesPerElement, parentObject, parentKey) {
@@ -4657,11 +4741,206 @@ function parseTypedArray(response, reference, constructor, bytesPerElement, pare
   var promise = constructor === ArrayBuffer ? backingEntry.arrayBuffer() : backingEntry.arrayBuffer().then(function (buffer) {
     return new constructor(buffer);
   }); // Since loading the buffer is an async operation we'll be blocking the parent
-  // chunk. TODO: This is not safe if the parent chunk needs a mapper like Map.
+  // chunk.
 
   var parentChunk = initializingChunk;
-  promise.then(createModelResolver(parentChunk, parentObject, parentKey), createModelReject(parentChunk));
+  promise.then(createModelResolver(parentChunk, parentObject, parentKey, false, response, createModel), createModelReject(parentChunk));
   return null;
+}
+
+function resolveStream(response, id, stream, controller) {
+  var chunks = response._chunks;
+  var chunk = createInitializedStreamChunk(response, stream, controller);
+  chunks.set(id, chunk);
+  var prefix = response._prefix;
+  var key = prefix + id;
+
+  var existingEntries = response._formData.getAll(key);
+
+  for (var i = 0; i < existingEntries.length; i++) {
+    // We assume that this is a string entry for now.
+    var value = existingEntries[i];
+
+    if (value[0] === 'C') {
+      controller.close(value === 'C' ? '"$undefined"' : value.slice(1));
+    } else {
+      controller.enqueueModel(value);
+    }
+  }
+}
+
+function parseReadableStream(response, reference, type, parentObject, parentKey) {
+  var id = parseInt(reference.slice(2), 16);
+  var controller = null;
+  var stream = new ReadableStream({
+    type: type,
+    start: function (c) {
+      controller = c;
+    }
+  });
+  var previousBlockedChunk = null;
+  var flightController = {
+    enqueueModel: function (json) {
+      if (previousBlockedChunk === null) {
+        // If we're not blocked on any other chunks, we can try to eagerly initialize
+        // this as a fast-path to avoid awaiting them.
+        var chunk = createResolvedModelChunk(response, json);
+        initializeModelChunk(chunk);
+        var initializedChunk = chunk;
+
+        if (initializedChunk.status === INITIALIZED) {
+          controller.enqueue(initializedChunk.value);
+        } else {
+          chunk.then(function (v) {
+            return controller.enqueue(v);
+          }, function (e) {
+            return controller.error(e);
+          });
+          previousBlockedChunk = chunk;
+        }
+      } else {
+        // We're still waiting on a previous chunk so we can't enqueue quite yet.
+        var blockedChunk = previousBlockedChunk;
+
+        var _chunk = createPendingChunk(response);
+
+        _chunk.then(function (v) {
+          return controller.enqueue(v);
+        }, function (e) {
+          return controller.error(e);
+        });
+
+        previousBlockedChunk = _chunk;
+        blockedChunk.then(function () {
+          if (previousBlockedChunk === _chunk) {
+            // We were still the last chunk so we can now clear the queue and return
+            // to synchronous emitting.
+            previousBlockedChunk = null;
+          }
+
+          resolveModelChunk(_chunk, json);
+        });
+      }
+    },
+    close: function (json) {
+      if (previousBlockedChunk === null) {
+        controller.close();
+      } else {
+        var blockedChunk = previousBlockedChunk; // We shouldn't get any more enqueues after this so we can set it back to null.
+
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.close();
+        });
+      }
+    },
+    error: function (error) {
+      if (previousBlockedChunk === null) {
+        // $FlowFixMe[incompatible-call]
+        controller.error(error);
+      } else {
+        var blockedChunk = previousBlockedChunk; // We shouldn't get any more enqueues after this so we can set it back to null.
+
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.error(error);
+        });
+      }
+    }
+  };
+  resolveStream(response, id, stream, flightController);
+  return stream;
+}
+
+function asyncIterator() {
+  // Self referencing iterator.
+  return this;
+}
+
+function createIterator(next) {
+  var iterator = {
+    next: next // TODO: Add return/throw as options for aborting.
+
+  }; // TODO: The iterator could inherit the AsyncIterator prototype which is not exposed as
+  // a global but exists as a prototype of an AsyncGenerator. However, it's not needed
+  // to satisfy the iterable protocol.
+
+  iterator[ASYNC_ITERATOR] = asyncIterator;
+  return iterator;
+}
+
+function parseAsyncIterable(response, reference, iterator, parentObject, parentKey) {
+  var id = parseInt(reference.slice(2), 16);
+  var buffer = [];
+  var closed = false;
+  var nextWriteIndex = 0;
+  var flightController = {
+    enqueueModel: function (value) {
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createResolvedIteratorResultChunk(response, value, false);
+      } else {
+        resolveIteratorResultChunk(buffer[nextWriteIndex], value, false);
+      }
+
+      nextWriteIndex++;
+    },
+    close: function (value) {
+      closed = true;
+
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createResolvedIteratorResultChunk(response, value, true);
+      } else {
+        resolveIteratorResultChunk(buffer[nextWriteIndex], value, true);
+      }
+
+      nextWriteIndex++;
+
+      while (nextWriteIndex < buffer.length) {
+        // In generators, any extra reads from the iterator have the value undefined.
+        resolveIteratorResultChunk(buffer[nextWriteIndex++], '"$undefined"', true);
+      }
+    },
+    error: function (error) {
+      closed = true;
+
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createPendingChunk(response);
+      }
+
+      while (nextWriteIndex < buffer.length) {
+        triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+      }
+    }
+  };
+
+  var iterable = _defineProperty({}, ASYNC_ITERATOR, function () {
+    var nextReadIndex = 0;
+    return createIterator(function (arg) {
+      if (arg !== undefined) {
+        throw new Error('Values cannot be passed to next() of AsyncIterables passed to Client Components.');
+      }
+
+      if (nextReadIndex === buffer.length) {
+        if (closed) {
+          // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+          return new Chunk(INITIALIZED, {
+            done: true,
+            value: undefined
+          }, null, response);
+        }
+
+        buffer[nextReadIndex] = createPendingChunk(response);
+      }
+
+      return buffer[nextReadIndex++];
+    });
+  }); // TODO: If it's a single shot iterator we can optimize memory by cleaning up the buffer after
+  // reading through the end, but currently we favor code size over this optimization.
+
+
+  var stream = iterator ? iterable[ASYNC_ITERATOR]() : iterable;
+  resolveStream(response, id, stream, flightController);
+  return stream;
 }
 
 function parseModelString(response, obj, key, value) {
@@ -4678,9 +4957,8 @@ function parseModelString(response, obj, key, value) {
           // Promise
           var _id = parseInt(value.slice(2), 16);
 
-          var _chunk = getChunk(response, _id);
-
-          return _chunk;
+          var chunk = getChunk(response, _id);
+          return chunk;
         }
 
       case 'F':
@@ -4689,7 +4967,7 @@ function parseModelString(response, obj, key, value) {
           var _id2 = parseInt(value.slice(2), 16); // TODO: Just encode this in the reference inline instead of as a model.
 
 
-          var metaData = getOutlinedModel(response, _id2);
+          var metaData = getOutlinedModel(response, _id2, obj, key, createModel);
           return loadServerReference$1(response, metaData.id, metaData.bound, initializingChunk, obj, key);
         }
 
@@ -4704,8 +4982,7 @@ function parseModelString(response, obj, key, value) {
           // Map
           var _id3 = parseInt(value.slice(2), 16);
 
-          var data = getOutlinedModel(response, _id3);
-          return new Map(data);
+          return getOutlinedModel(response, _id3, obj, key, createMap);
         }
 
       case 'W':
@@ -4713,9 +4990,7 @@ function parseModelString(response, obj, key, value) {
           // Set
           var _id4 = parseInt(value.slice(2), 16);
 
-          var _data = getOutlinedModel(response, _id4);
-
-          return new Set(_data);
+          return getOutlinedModel(response, _id4, obj, key, createSet);
         }
 
       case 'K':
@@ -4723,9 +4998,7 @@ function parseModelString(response, obj, key, value) {
           // FormData
           var stringId = value.slice(2);
           var formPrefix = response._prefix + stringId + '_';
-
-          var _data2 = new FormData();
-
+          var data = new FormData();
           var backingFormData = response._formData; // We assume that the reference to FormData always comes after each
           // entry that it references so we can assume they all exist in the
           // backing store already.
@@ -4733,10 +5006,10 @@ function parseModelString(response, obj, key, value) {
 
           backingFormData.forEach(function (entry, entryKey) {
             if (entryKey.startsWith(formPrefix)) {
-              _data2.append(entryKey.slice(formPrefix.length), entry);
+              data.append(entryKey.slice(formPrefix.length), entry);
             }
           });
-          return _data2;
+          return data;
         }
 
       case 'i':
@@ -4744,9 +5017,7 @@ function parseModelString(response, obj, key, value) {
           // Iterator
           var _id5 = parseInt(value.slice(2), 16);
 
-          var _data3 = getOutlinedModel(response, _id5);
-
-          return _data3[Symbol.iterator]();
+          return getOutlinedModel(response, _id5, obj, key, extractIterator);
         }
 
       case 'I':
@@ -4846,32 +5117,35 @@ function parseModelString(response, obj, key, value) {
             return backingEntry;
           }
       }
+    }
+
+    {
+      switch (value[1]) {
+        case 'R':
+          {
+            return parseReadableStream(response, value, undefined);
+          }
+
+        case 'r':
+          {
+            return parseReadableStream(response, value, 'bytes');
+          }
+
+        case 'X':
+          {
+            return parseAsyncIterable(response, value, false);
+          }
+
+        case 'x':
+          {
+            return parseAsyncIterable(response, value, true);
+          }
+      }
     } // We assume that anything else is a reference ID.
 
 
     var id = parseInt(value.slice(1), 16);
-    var chunk = getChunk(response, id);
-
-    switch (chunk.status) {
-      case RESOLVED_MODEL:
-        initializeModelChunk(chunk);
-        break;
-    } // The status might have changed after initialization.
-
-
-    switch (chunk.status) {
-      case INITIALIZED:
-        return chunk.value;
-
-      case PENDING:
-      case BLOCKED:
-        var parentChunk = initializingChunk;
-        chunk.then(createModelResolver(parentChunk, obj, key), createModelReject(parentChunk));
-        return null;
-
-      default:
-        throw chunk.reason;
-    }
+    return getOutlinedModel(response, id, obj, key, createModel);
   }
 
   return value;
