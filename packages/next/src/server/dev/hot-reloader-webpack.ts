@@ -838,8 +838,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             )
               ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
-              ? PAGE_TYPES.APP
-              : PAGE_TYPES.ROOT
+                ? PAGE_TYPES.APP
+                : PAGE_TYPES.ROOT
 
             if (pageType === 'pages') {
               this.hasPagesRouterEntrypoints = true

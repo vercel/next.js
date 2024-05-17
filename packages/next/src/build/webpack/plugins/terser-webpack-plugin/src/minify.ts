@@ -7,8 +7,8 @@ function buildTerserOptions(terserOptions: any = {}) {
       terserOptions.mangle == null
         ? true
         : typeof terserOptions.mangle === 'boolean'
-        ? terserOptions.mangle
-        : { ...terserOptions.mangle },
+          ? terserOptions.mangle
+          : { ...terserOptions.mangle },
     // Ignoring sourceMap from options
     // eslint-disable-next-line no-undefined
     sourceMap: undefined,

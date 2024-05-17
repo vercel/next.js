@@ -122,8 +122,8 @@ async function lint(
             (packageManager === 'yarn'
               ? 'yarn add --dev'
               : packageManager === 'pnpm'
-              ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' eslint'
+                ? 'pnpm install --save-dev'
+                : 'npm install --save-dev') + ' eslint'
           )
         )}`
       )
@@ -160,9 +160,8 @@ async function lint(
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
 
-      const completeConfig: Config = await eslint.calculateConfigForFile(
-        configFile
-      )
+      const completeConfig: Config =
+        await eslint.calculateConfigForFile(configFile)
 
       if (completeConfig.plugins?.includes('@next/next')) {
         nextEslintPluginIsEnabled = true
@@ -252,10 +251,12 @@ async function lint(
         lintFix: !!options.fix,
         nextEslintPluginVersion:
           nextEslintPluginIsEnabled && deps.resolved.has('eslint-config-next')
-            ? require(path.join(
-                path.dirname(deps.resolved.get('eslint-config-next')!),
-                'package.json'
-              )).version
+            ? require(
+                path.join(
+                  path.dirname(deps.resolved.get('eslint-config-next')!),
+                  'package.json'
+                )
+              ).version
             : null,
         nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
         nextEslintPluginWarningsCount:

@@ -42,7 +42,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { Telemetry } from '../../telemetry/storage'
 import { type Span, setGlobal, trace } from '../../trace'
 import { findPageFile } from '../lib/find-page-file'
-import { getNodeOptionsWithoutInspect } from '../lib/utils'
+import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import { loadDefaultErrorComponents } from '../load-default-error-components'
 import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
@@ -133,7 +133,7 @@ export default class DevServer extends Server {
           // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
           // the number of workers Next.js tries to launch. The only worker users are interested in debugging
           // is the main Next.js one
-          NODE_OPTIONS: getNodeOptionsWithoutInspect(),
+          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
         },
       },
     }) as Worker & {
@@ -596,11 +596,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(pathJoin(
-          this.distDir,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await require(
+          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        )
         await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -715,7 +713,6 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
-          ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
       } finally {
@@ -751,8 +748,8 @@ export default class DevServer extends Server {
             fallback === 'blocking'
               ? 'blocking'
               : fallback === true
-              ? 'static'
-              : fallback,
+                ? 'static'
+                : fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value

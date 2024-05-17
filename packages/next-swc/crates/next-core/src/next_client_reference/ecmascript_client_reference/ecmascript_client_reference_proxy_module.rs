@@ -19,7 +19,7 @@ use turbopack_binding::turbopack::{
     ecmascript::{
         chunk::{
             EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-            EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
+            EcmascriptChunkType, EcmascriptExports,
         },
         utils::StringifyJs,
         EcmascriptModuleAsset,
@@ -30,7 +30,7 @@ use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 
 /// A [`EcmascriptClientReferenceProxyModule`] is used in RSC to represent
 /// a client or SSR asset.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct EcmascriptClientReferenceProxyModule {
     server_module_ident: Vc<AssetIdent>,
     server_asset_context: Vc<Box<dyn AssetContext>>,
@@ -221,13 +221,6 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     EcmascriptClientReferenceProxyModule",
-                )?;
 
         Ok(Vc::upcast(
             ProxyModuleChunkItem {
@@ -256,7 +249,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceProxyModule {
 struct ProxyModuleChunkItem {
     client_proxy_asset: Vc<EcmascriptClientReferenceProxyModule>,
     inner_proxy_module_chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::function]
@@ -314,7 +307,7 @@ impl EcmascriptChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         EcmascriptChunkItem::chunking_context(self.inner_proxy_module_chunk_item)
     }
 }

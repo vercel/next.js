@@ -17,7 +17,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkItemExt, ChunkableModule, EvaluatableAsset},
+            chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
             context::AssetContext,
             module::Module,
             output::OutputAsset,
@@ -29,9 +29,8 @@ use turbopack_binding::{
             virtual_source::VirtualSource,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            parse::ParseResult,
-            EcmascriptModuleAsset, EcmascriptModuleAssetType,
+            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
+            EcmascriptModuleAssetType,
         },
     },
 };
@@ -51,7 +50,7 @@ pub(crate) async fn create_server_actions_manifest(
     page_name: &str,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =

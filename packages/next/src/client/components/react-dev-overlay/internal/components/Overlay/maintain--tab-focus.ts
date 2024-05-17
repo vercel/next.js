@@ -1393,13 +1393,13 @@ function isFocusRelevantRules() {
   ) {
     // IE10-11 considers the <img> in <a href><img ismap> focusable
     // https://github.com/medialize/ally.js/issues/20
-    var hasLinkParent = getParents({ context: element }).some(function (
-      parent
-    ) {
-      return (
-        parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
-      )
-    })
+    var hasLinkParent = getParents({ context: element }).some(
+      function (parent) {
+        return (
+          parent.nodeName.toLowerCase() === 'a' && parent.hasAttribute('href')
+        )
+      }
+    )
 
     if (hasLinkParent) {
       return true

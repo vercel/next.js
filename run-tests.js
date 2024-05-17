@@ -85,6 +85,7 @@ const testFilters = {
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
+  traceFn: (fn) => fn(mockTrace()),
   traceChild: () => mockTrace(),
 })
 
@@ -404,7 +405,7 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'beta'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -528,6 +529,8 @@ ${ENDGROUP}`)
           ...process.env,
           ...env,
         },
+        // See: https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
+        shell: process.platform === 'win32',
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))

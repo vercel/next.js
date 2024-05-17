@@ -9,10 +9,13 @@ import { createReadStream } from 'fs'
 import path from 'path'
 import { Telemetry } from '../telemetry/storage'
 
+const COMMON_ALLOWED_EVENTS = ['memory-usage']
+
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
 // it'll up uploaded to the trace server.
-const EVENT_FILTER = new Set([
+const DEV_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
   'client-hmr-latency',
   'hot-reloader',
   'webpack-invalid-client',
@@ -22,6 +25,34 @@ const EVENT_FILTER = new Set([
   'compile-path',
   'memory-usage',
   'server-restart-close-to-memory-threshold',
+])
+
+const BUILD_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
+  'next-build',
+  'webpack-compilation',
+  'run-webpack-compiler',
+  'create-entrypoints',
+  'worker-main-edge-server',
+  'worker-main-client',
+  'worker-main-server',
+  'server',
+  'make',
+  'seal',
+  'chunk-graph',
+  'optimize-modules',
+  'optimize-chunks',
+  'optimize',
+  'optimize-tree',
+  'optimize-chunk-modules',
+  'module-hash',
+  'client',
+  'static-check',
+  'node-file-trace-build',
+  'static-generation',
+  'next-export',
+  'verify-typescript-setup',
+  'verify-and-lint',
 ])
 
 const {
@@ -107,7 +138,9 @@ interface TraceMetadata {
         // Always include root spans
         event.parentId === undefined ||
         shouldUploadFullTrace ||
-        EVENT_FILTER.has(event.name)
+        (mode === 'dev'
+          ? DEV_ALLOWED_EVENTS.has(event.name)
+          : BUILD_ALLOWED_EVENTS.has(event.name))
       ) {
         let trace = traces.get(event.traceId)
         if (trace === undefined) {

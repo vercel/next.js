@@ -118,7 +118,7 @@ export default async function nextFontLoader(this: any) {
       // Exports will be exported as is from css-loader instead of a CSS module export
       const exports: { name: any; value: any }[] = []
 
-      // Generate a hash from the CSS content. Used to generate classnames and font families
+      // Generate a hash from the CSS content. Used to generate classnames
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
         'sha1',
@@ -133,7 +133,6 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash,
               fallbackFonts,
               weight,
               style,

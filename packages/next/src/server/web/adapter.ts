@@ -2,7 +2,7 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
-import { fromNodeOutgoingHttpHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -12,7 +12,6 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
-import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
@@ -108,18 +107,14 @@ export async function adapter(
   for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
-    if (
-      key !== NEXT_QUERY_PARAM_PREFIX &&
-      key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-    ) {
-      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+    normalizeNextQueryParam(key, (normalizedKey) => {
       requestUrl.searchParams.delete(normalizedKey)
 
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
       requestUrl.searchParams.delete(key)
-    }
+    })
   }
 
   // Ensure users only see page requests, never data requests.

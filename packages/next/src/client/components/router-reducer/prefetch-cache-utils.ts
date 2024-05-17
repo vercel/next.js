@@ -110,12 +110,7 @@ export function getOrCreatePrefetchCacheEntry({
     buildId,
     nextUrl,
     prefetchCache,
-    kind:
-      kind ||
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      (process.env.NODE_ENV === 'development'
-        ? PrefetchKind.AUTO
-        : PrefetchKind.TEMPORARY),
+    kind: kind || PrefetchKind.TEMPORARY,
   })
 }
 

@@ -24,10 +24,6 @@ declare module '@next/vendored/image-size' {
   import m from 'image-size'
   export = m
 }
-declare module '@next/vendored/get-orientation' {
-  import m from 'get-orientation'
-  export = m
-}
 declare module '@next/vendored/@hapi/accept' {
   import m from '@hapi/accept'
   export = m

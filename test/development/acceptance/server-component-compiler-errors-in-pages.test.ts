@@ -28,8 +28,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
   const { next } = nextTestSetup({
     files: {},
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-beta-04b058868c-20240508',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
     },
     skipStart: true,
   })
@@ -65,14 +65,14 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           3 | export default function Page() {
           4 |   return <p>hello world</p>
 
-        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
+        You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
       `)
     } else {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js
         Error: 
-          x You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+          x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
           | react-essentials#server-components
           | 
           | 
@@ -124,14 +124,14 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           3 | export default function Page() {
           4 |   return 'hello world'
 
-        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
+        You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
       `)
     } else {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js
         Error: 
-          x You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+          x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
           | react-essentials#server-components
           | 
           | 

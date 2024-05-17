@@ -85,7 +85,6 @@ const nccTasks: Record<
   ncc_p_limit: 'p-limit',
   ncc_raw_body: 'raw-body',
   ncc_image_size: 'image-size',
-  ncc_get_orientation: 'get-orientation',
   ncc_hapi_accept: '@hapi/accept',
   ncc_commander: 'commander',
   ncc_node_fetch: 'node-fetch',

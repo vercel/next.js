@@ -47,11 +47,12 @@ export async function invokeIpcMethod({
     const res = await invokeRequest(
       `http://${fetchHostname}:${ipcPort}?key=${ipcKey}&method=${
         method as string
-      }&args=${encodeURIComponent(JSON.stringify(args))}`,
+      }`,
       {
-        method: 'GET',
+        method: 'POST',
         headers: {},
-      }
+      },
+      JSON.stringify(args)
     )
     const body = await res.text()
 
