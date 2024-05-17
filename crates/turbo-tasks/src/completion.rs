@@ -1,4 +1,4 @@
-use crate::{self as turbo_tasks, RawVc, Vc};
+use crate::{self as turbo_tasks, RawVc, TryJoinIterExt, Vc};
 /// Just an empty type, but it's never equal to itself.
 /// [Vc<Completion>] can be used as return value instead of `()`
 /// to have a concrete reference that can be awaited.
@@ -55,9 +55,14 @@ impl Completions {
     /// Merges the list of completions into one.
     #[turbo_tasks::function]
     pub async fn completed(self: Vc<Self>) -> anyhow::Result<Vc<Completion>> {
-        for c in self.await?.iter() {
-            c.await?;
-        }
+        self.await?
+            .iter()
+            .map(|&c| async move {
+                c.await?;
+                Ok(())
+            })
+            .try_join()
+            .await?;
         Ok(Completion::new())
     }
 }

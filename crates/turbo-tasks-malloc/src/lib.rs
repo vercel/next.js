@@ -61,6 +61,10 @@ impl TurboMalloc {
     pub fn allocation_counters() -> AllocationCounters {
         self::counter::allocation_counters()
     }
+
+    pub fn reset_allocation_counters(start: AllocationCounters) {
+        self::counter::reset_allocation_counters(start);
+    }
 }
 
 #[cfg(all(

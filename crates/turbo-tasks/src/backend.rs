@@ -7,7 +7,7 @@ use std::{
     mem::take,
     pin::Pin,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Result};
@@ -227,7 +227,6 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         duration: Duration,
-        instant: Instant,
         memory_usage: usize,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,

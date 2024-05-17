@@ -1,15 +1,13 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
-    cmp::{max, Reverse},
-    collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
     mem::{replace, take},
     pin::Pin,
     sync::{atomic::AtomicU32, Arc},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -18,14 +16,13 @@ use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
-use stats::TaskStats;
 use tokio::task_local;
 use tracing::Span;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, NativeFunction, RawVc, StatsType, TaskId,
-    TaskIdSet, TraitType, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, NativeFunction, RawVc, TaskId, TaskIdSet,
+    TraitType, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
 };
 
 use crate::{
@@ -34,9 +31,8 @@ use crate::{
         AggregationDataGuard, PreparedOperation,
     },
     cell::Cell,
-    gc::{to_exp_u8, GcPriority, GcStats, GcTaskState},
+    gc::{GcQueue, GcTaskState},
     output::{Output, OutputContent},
-    stats::{ReferenceType, StatsReferences, StatsTaskType},
     task::aggregation::{TaskAggregationContext, TaskChange},
     MemoryBackend,
 };
@@ -46,7 +42,6 @@ pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 mod aggregation;
 mod meta_state;
-mod stats;
 
 #[derive(Hash, Copy, Clone, PartialEq, Eq)]
 pub enum TaskDependency {
@@ -192,16 +187,10 @@ struct TaskState {
 
     // GC state:
     gc: GcTaskState,
-
-    // Stats:
-    stats: TaskStats,
 }
 
 impl TaskState {
-    fn new(
-        description: impl Fn() -> String + Send + Sync + 'static,
-        stats_type: StatsType,
-    ) -> Self {
+    fn new(description: impl Fn() -> String + Send + Sync + 'static) -> Self {
         Self {
             aggregation_node: TaskAggregationNode::new(),
             state_type: Dirty {
@@ -215,16 +204,12 @@ impl TaskState {
             prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             gc: Default::default(),
-            stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
             last_waiting_task: Default::default(),
         }
     }
 
-    fn new_scheduled(
-        description: impl Fn() -> String + Send + Sync + 'static,
-        stats_type: StatsType,
-    ) -> Self {
+    fn new_scheduled(description: impl Fn() -> String + Send + Sync + 'static) -> Self {
         Self {
             aggregation_node: TaskAggregationNode::new(),
             state_type: Scheduled {
@@ -238,7 +223,6 @@ impl TaskState {
             prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             gc: Default::default(),
-            stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
             last_waiting_task: Default::default(),
         }
@@ -251,14 +235,13 @@ impl TaskState {
 /// A Task can get into this state when it is unloaded by garbage collection,
 /// but is still attached to parents and aggregated.
 struct PartialTaskState {
-    stats_type: StatsType,
-    aggregation_leaf: TaskAggregationNode,
+    aggregation_node: TaskAggregationNode,
 }
 
 impl PartialTaskState {
     fn into_full(self, description: impl Fn() -> String + Send + Sync + 'static) -> TaskState {
         TaskState {
-            aggregation_node: self.aggregation_leaf,
+            aggregation_node: self.aggregation_node,
             state_type: Dirty {
                 event: Event::new(move || format!("TaskState({})::event", description())),
                 outdated_dependencies: Default::default(),
@@ -270,7 +253,6 @@ impl PartialTaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            stats: TaskStats::new(self.stats_type),
         }
     }
 }
@@ -279,9 +261,7 @@ impl PartialTaskState {
 /// being referenced by any parent. This state is stored inlined instead of in a
 /// [Box] to reduce the memory consumption. Make sure to not add more fields
 /// than the size of a [Box].
-struct UnloadedTaskState {
-    stats_type: StatsType,
-}
+struct UnloadedTaskState {}
 
 #[cfg(test)]
 #[test]
@@ -304,14 +284,12 @@ impl UnloadedTaskState {
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
-            stats: TaskStats::new(self.stats_type),
         }
     }
 
     fn into_partial(self) -> PartialTaskState {
         PartialTaskState {
-            aggregation_leaf: TaskAggregationNode::new(),
-            stats_type: self.stats_type,
+            aggregation_node: TaskAggregationNode::new(),
         }
     }
 }
@@ -414,7 +392,7 @@ enum TaskStateType {
 
     /// Invalid execution is happening
     ///
-    /// on finish this will move to Dirty or Scheduled depending on active flag
+    /// on finish this will move to Scheduled
     InProgressDirty { event: Event },
 }
 
@@ -428,20 +406,13 @@ use self::{
 };
 
 impl Task {
-    pub(crate) fn new_persistent(
-        id: TaskId,
-        task_type: Arc<PersistentTaskType>,
-        stats_type: StatsType,
-    ) -> Self {
+    pub(crate) fn new_persistent(id: TaskId, task_type: Arc<PersistentTaskType>) -> Self {
         let ty = TaskType::Persistent { ty: task_type };
         let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
             ty,
-            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new(
-                description,
-                stats_type,
-            )))),
+            state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new(description)))),
             graph_modification_in_progress_counter: AtomicU32::new(0),
         }
     }
@@ -449,7 +420,6 @@ impl Task {
     pub(crate) fn new_root(
         id: TaskId,
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
-        stats_type: StatsType,
     ) -> Self {
         let ty = TaskType::Root(Box::new(Box::new(functor)));
         let description = Self::get_event_description_static(id, &ty);
@@ -458,7 +428,6 @@ impl Task {
             ty,
             state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new_scheduled(
                 description,
-                stats_type,
             )))),
             graph_modification_in_progress_counter: AtomicU32::new(0),
         }
@@ -467,7 +436,6 @@ impl Task {
     pub(crate) fn new_once(
         id: TaskId,
         functor: impl Future<Output = Result<RawVc>> + Send + 'static,
-        stats_type: StatsType,
     ) -> Self {
         let ty = TaskType::Once(Box::new(Mutex::new(Some(Box::pin(functor)))));
         let description = Self::get_event_description_static(id, &ty);
@@ -476,7 +444,6 @@ impl Task {
             ty,
             state: RwLock::new(TaskMetaState::Full(Box::new(TaskState::new_scheduled(
                 description,
-                stats_type,
             )))),
             graph_modification_in_progress_counter: AtomicU32::new(0),
         }
@@ -724,7 +691,7 @@ impl Task {
                     #[cfg(not(feature = "lazy_remove_children"))]
                     {
                         remove_job = state
-                            .aggregation_leaf
+                            .aggregation_node
                             .remove_children_job(&aggregation_context, outdated_children);
                     }
                     state.state_type = InProgress {
@@ -734,7 +701,6 @@ impl Task {
                         outdated_children,
                         outdated_collectibles,
                     };
-                    state.stats.increment_executions();
                 }
                 Dirty { .. } => {
                     let state_type = Task::state_string(&state);
@@ -960,8 +926,8 @@ impl Task {
     pub(crate) fn execution_completed(
         &self,
         duration: Duration,
-        instant: Instant,
-        _memory_usage: usize,
+        memory_usage: usize,
+        generation: u32,
         stateful: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
@@ -977,8 +943,8 @@ impl Task {
                 let mut state = self.full_state_mut();
 
                 state
-                    .stats
-                    .register_execution(duration, turbo_tasks.program_duration_until(instant));
+                    .gc
+                    .execution_completed(duration, memory_usage, generation);
                 match state.state_type {
                     InProgress {
                         ref mut event,
@@ -992,13 +958,15 @@ impl Task {
                         let outdated_children = take(outdated_children);
                         let outdated_collectibles = outdated_collectibles.take_collectibles();
                         let mut dependencies = take(&mut dependencies);
-                        // This will stay here for longer, so make sure to not consume too much
-                        // memory
-                        dependencies.shrink_to_fit();
-                        for cells in state.cells.values_mut() {
-                            cells.shrink_to_fit();
+                        if !backend.has_gc() {
+                            // This will stay here for longer, so make sure to not consume too much
+                            // memory
+                            dependencies.shrink_to_fit();
+                            for cells in state.cells.values_mut() {
+                                cells.shrink_to_fit();
+                            }
+                            state.cells.shrink_to_fit();
                         }
-                        state.cells.shrink_to_fit();
                         state.stateful = stateful;
                         state.state_type = Done { dependencies };
                         if !count_as_finished {
@@ -1285,6 +1253,7 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
+        let _span = tracing::trace_span!("turbo_tasks::recompute", id = *self.id).entered();
         self.make_dirty_internal(true, backend, turbo_tasks)
     }
 
@@ -1301,8 +1270,19 @@ impl Task {
     }
 
     /// Access to a cell.
-    pub(crate) fn with_cell_mut<T>(&self, index: CellId, func: impl FnOnce(&mut Cell) -> T) -> T {
+    pub(crate) fn with_cell_mut<T>(
+        &self,
+        index: CellId,
+        gc_queue: Option<&GcQueue>,
+        func: impl FnOnce(&mut Cell) -> T,
+    ) -> T {
         let mut state = self.full_state_mut();
+        if let Some(gc_queue) = gc_queue {
+            let generation = gc_queue.generation();
+            if state.gc.on_read(generation) {
+                gc_queue.task_accessed(self.id);
+            }
+        }
         let list = state.cells.entry(index.type_id).or_default();
         let i = index.index as usize;
         if list.len() <= i {
@@ -1337,13 +1317,6 @@ impl Task {
         }
     }
 
-    /// For testing purposes
-    pub fn reset_executions(&self) {
-        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-            state.stats.reset_executions()
-        }
-    }
-
     pub fn is_pending(&self) -> bool {
         if let TaskMetaStateReadGuard::Full(state) = self.state() {
             !matches!(state.state_type, TaskStateType::Done { .. })
@@ -1358,94 +1331,6 @@ impl Task {
         } else {
             false
         }
-    }
-
-    pub fn reset_stats(&self) {
-        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-            state.stats.reset();
-        }
-    }
-
-    pub fn get_stats_info(&self, _backend: &MemoryBackend) -> TaskStatsInfo {
-        match self.state() {
-            TaskMetaStateReadGuard::Full(state) => {
-                let (total_duration, last_duration, executions) = match &state.stats {
-                    TaskStats::Essential(stats) => (None, stats.last_duration(), None),
-                    TaskStats::Full(stats) => (
-                        Some(stats.total_duration()),
-                        stats.last_duration(),
-                        Some(stats.executions()),
-                    ),
-                };
-
-                TaskStatsInfo {
-                    total_duration,
-                    last_duration,
-                    executions,
-                    unloaded: false,
-                }
-            }
-            TaskMetaStateReadGuard::Partial(_) => TaskStatsInfo {
-                total_duration: None,
-                last_duration: Duration::ZERO,
-                executions: None,
-                unloaded: true,
-            },
-            TaskMetaStateReadGuard::Unloaded => TaskStatsInfo {
-                total_duration: None,
-                last_duration: Duration::ZERO,
-                executions: None,
-                unloaded: true,
-            },
-        }
-    }
-
-    pub fn get_stats_type(self: &Task) -> StatsTaskType {
-        match &self.ty {
-            TaskType::Root(_) => StatsTaskType::Root(self.id),
-            TaskType::Once(_) => StatsTaskType::Once(self.id),
-            TaskType::Persistent { ty, .. } => match &**ty {
-                PersistentTaskType::Native(f, _) => StatsTaskType::Native(*f),
-                PersistentTaskType::ResolveNative(f, _) => StatsTaskType::ResolveNative(*f),
-                PersistentTaskType::ResolveTrait(t, n, _) => {
-                    StatsTaskType::ResolveTrait(*t, n.to_string())
-                }
-            },
-        }
-    }
-
-    pub fn get_stats_references(&self) -> StatsReferences {
-        let mut refs = Vec::new();
-        if let TaskMetaStateReadGuard::Full(state) = self.state() {
-            for child in state.children.iter() {
-                refs.push((ReferenceType::Child, *child));
-            }
-            if let Done { ref dependencies } = state.state_type {
-                for dep in dependencies.iter() {
-                    match dep {
-                        TaskDependency::Output(task)
-                        | TaskDependency::Cell(task, _)
-                        | TaskDependency::Collectibles(task, _) => {
-                            refs.push((ReferenceType::Dependency, *task))
-                        }
-                    }
-                }
-            }
-        }
-        if let TaskType::Persistent { ty, .. } = &self.ty {
-            match &**ty {
-                PersistentTaskType::Native(_, inputs)
-                | PersistentTaskType::ResolveNative(_, inputs)
-                | PersistentTaskType::ResolveTrait(_, _, inputs) => {
-                    for input in inputs.iter() {
-                        if let Some(task) = input.get_task_id() {
-                            refs.push((ReferenceType::Input, task));
-                        }
-                    }
-                }
-            }
-        }
-        StatsReferences { tasks: refs }
     }
 
     fn state_string(state: &TaskState) -> &'static str {
@@ -1483,6 +1368,8 @@ impl Task {
                     } = &mut state.state_type
                     {
                         if outdated_children.remove(&child_id) {
+                            drop(state);
+                            aggregation_context.apply_queued_updates();
                             return;
                         }
                     }
@@ -1653,297 +1540,62 @@ impl Task {
         aggregation_context.apply_queued_updates();
     }
 
-    pub(crate) fn gc_check_inactive(&self, backend: &MemoryBackend) {
-        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-            if state.gc.inactive {
-                return;
-            }
-            state.gc.inactive = true;
-            backend.on_task_flagged_inactive(self.id, state.stats.last_duration());
-            for &child in state.children.iter() {
-                backend.on_task_might_become_inactive(child);
-            }
-        }
-    }
-
-    pub(crate) fn run_gc(
-        &self,
-        now_relative_to_start: Duration,
-        max_priority: GcPriority,
-        task_duration_cache: &mut HashMap<TaskId, Duration, BuildNoHashHasher<TaskId>>,
-        stats: &mut GcStats,
-        backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> Option<GcPriority> {
+    pub(crate) fn run_gc(&self, generation: u32) -> bool {
         if !self.is_pure() {
-            stats.no_gc_needed += 1;
-            return None;
+            return false;
         }
+
         let mut cells_to_drop = Vec::new();
-        // We don't want to access other tasks under this task lock, so we aggregate
-        // missing information first, gather it and then retry.
-        let mut missing_durations = Vec::new();
-        loop {
-            // This might be slightly inaccurate as we don't hold the lock for the whole
-            // duration so it might be too large when concurrent modifications
-            // happen, but that's fine.
-            let mut dependent_tasks_compute_duration = Duration::ZERO;
-            let mut included_tasks = HashSet::with_hasher(BuildNoHashHasher::<TaskId>::default());
-            // Fill up missing durations
-            for task_id in missing_durations.drain(..) {
-                backend.with_task(task_id, |task| {
-                    let duration = task.gc_compute_duration();
-                    task_duration_cache.insert(task_id, duration);
-                    dependent_tasks_compute_duration += duration;
-                })
+
+        let result = if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
+            if state.gc.generation > generation || state.stateful {
+                return false;
             }
 
-            let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
-            let active = query_root_info(&aggregation_context, ActiveQuery::default(), self.id);
-
-            if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-                if state.stateful {
-                    stats.no_gc_possible += 1;
-                    return None;
+            match &mut state.state_type {
+                TaskStateType::Done { dependencies } => {
+                    dependencies.shrink_to_fit();
                 }
-                match &mut state.state_type {
-                    TaskStateType::Done { dependencies } => {
-                        dependencies.shrink_to_fit();
-                    }
-                    TaskStateType::Dirty { .. } => {}
-                    _ => {
-                        // GC can't run in this state. We will reschedule it when the execution
-                        // completes.
-                        stats.no_gc_needed += 1;
-                        return None;
-                    }
+                TaskStateType::Dirty { .. } => {}
+                _ => {
+                    // GC can't run in this state. We will reschedule it when the execution
+                    // completes.
+                    return false;
                 }
-
-                // Check if the task need to be activated again
-                if state.gc.inactive && active {
-                    state.gc.inactive = false;
-                }
-
-                let last_duration = state.stats.last_duration();
-                let compute_duration = last_duration.into();
-
-                let age = to_exp_u8(
-                    (now_relative_to_start
-                        .saturating_sub(state.stats.last_execution_relative_to_start()))
-                    .as_secs(),
-                );
-
-                let min_prio_that_needs_total_duration = if active {
-                    GcPriority::EmptyCells {
-                        total_compute_duration: to_exp_u8(last_duration.as_millis() as u64),
-                        age: Reverse(age),
-                    }
-                } else {
-                    GcPriority::InactiveUnload {
-                        total_compute_duration: to_exp_u8(last_duration.as_millis() as u64),
-                        age: Reverse(age),
-                    }
-                };
-
-                let need_total_duration = max_priority >= min_prio_that_needs_total_duration;
-                let has_unused_cells = state.cells.values().any(|cells| {
-                    cells
-                        .iter()
-                        .any(|cell| cell.has_value() && !cell.has_dependent_tasks())
-                });
-
-                let empty_unused_priority = if active {
-                    GcPriority::EmptyUnusedCells { compute_duration }
-                } else {
-                    GcPriority::InactiveEmptyUnusedCells { compute_duration }
-                };
-
-                if !need_total_duration {
-                    // Fast mode, no need for total duration
-
-                    if has_unused_cells {
-                        if empty_unused_priority <= max_priority {
-                            // Empty unused cells
-                            for cells in state.cells.values_mut() {
-                                cells.shrink_to_fit();
-                                for cell in cells.iter_mut() {
-                                    if !cell.has_dependent_tasks() {
-                                        cells_to_drop.extend(cell.gc_content());
-                                    }
-                                    cell.shrink_to_fit();
-                                }
-                            }
-                            stats.empty_unused_fast += 1;
-                            return Some(GcPriority::EmptyCells {
-                                total_compute_duration: to_exp_u8(
-                                    Duration::from(compute_duration).as_millis() as u64,
-                                ),
-                                age: Reverse(age),
-                            });
-                        } else {
-                            stats.priority_updated_fast += 1;
-                            return Some(empty_unused_priority);
-                        }
-                    } else if active {
-                        stats.priority_updated += 1;
-                        return Some(GcPriority::EmptyCells {
-                            total_compute_duration: to_exp_u8(
-                                Duration::from(compute_duration).as_millis() as u64,
-                            ),
-                            age: Reverse(age),
-                        });
-                    } else {
-                        stats.priority_updated += 1;
-                        return Some(GcPriority::InactiveUnload {
-                            total_compute_duration: to_exp_u8(
-                                Duration::from(compute_duration).as_millis() as u64,
-                            ),
-                            age: Reverse(age),
-                        });
-                    }
-                } else {
-                    // Slow mode, need to compute total duration
-
-                    let mut has_used_cells = false;
-                    for cells in state.cells.values_mut() {
-                        for cell in cells.iter_mut() {
-                            if cell.has_value() && cell.has_dependent_tasks() {
-                                has_used_cells = true;
-                                for &task_id in cell.dependent_tasks() {
-                                    if included_tasks.insert(task_id) {
-                                        if let Some(duration) = task_duration_cache.get(&task_id) {
-                                            dependent_tasks_compute_duration += *duration;
-                                        } else {
-                                            missing_durations.push(task_id);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if !active {
-                        for &task_id in state.output.dependent_tasks() {
-                            if included_tasks.insert(task_id) {
-                                if let Some(duration) = task_duration_cache.get(&task_id) {
-                                    dependent_tasks_compute_duration += *duration;
-                                } else {
-                                    missing_durations.push(task_id);
-                                }
-                            }
-                        }
-                    }
-
-                    let total_compute_duration =
-                        max(last_duration, dependent_tasks_compute_duration);
-                    let total_compute_duration_u8 =
-                        to_exp_u8(total_compute_duration.as_millis() as u64);
-
-                    // When we have all information available, we can either run the GC or return a
-                    // new GC priority.
-                    if missing_durations.is_empty() {
-                        let mut new_priority = GcPriority::Placeholder;
-                        if !active {
-                            new_priority = GcPriority::InactiveUnload {
-                                age: Reverse(age),
-                                total_compute_duration: total_compute_duration_u8,
-                            };
-                            if new_priority <= max_priority {
-                                // Unload task
-                                if self.unload(state, backend, turbo_tasks) {
-                                    stats.unloaded += 1;
-                                    return None;
-                                } else {
-                                    // unloading will fail if the task go active again
-                                    return Some(GcPriority::EmptyCells {
-                                        total_compute_duration: total_compute_duration_u8,
-                                        age: Reverse(age),
-                                    });
-                                }
-                            }
-                        }
-
-                        // always shrinking memory
-                        state.output.dependent_tasks.shrink_to_fit();
-                        if active && (has_unused_cells || has_used_cells) {
-                            new_priority = GcPriority::EmptyCells {
-                                total_compute_duration: total_compute_duration_u8,
-                                age: Reverse(age),
-                            };
-                            if new_priority <= max_priority {
-                                // Empty cells
-                                let cells = take(&mut state.cells);
-                                for cells in cells.into_values() {
-                                    for mut cell in cells {
-                                        if cell.has_value() {
-                                            cells_to_drop.extend(cell.gc_content());
-                                        }
-                                    }
-                                }
-                                stats.empty_cells += 1;
-                                return None;
-                            }
-                        }
-
-                        // always shrinking memory
-                        state.cells.shrink_to_fit();
-                        if has_unused_cells && active {
-                            new_priority = empty_unused_priority;
-                            if new_priority <= max_priority {
-                                // Empty unused cells
-                                for cells in state.cells.values_mut() {
-                                    cells.shrink_to_fit();
-                                    for cell in cells.iter_mut() {
-                                        if !cell.has_dependent_tasks() {
-                                            cells_to_drop.extend(cell.gc_content());
-                                        }
-                                        cell.shrink_to_fit();
-                                    }
-                                }
-                                stats.empty_unused += 1;
-                                return Some(GcPriority::EmptyCells {
-                                    total_compute_duration: total_compute_duration_u8,
-                                    age: Reverse(age),
-                                });
-                            }
-                        }
-
-                        // Shrink memory
-                        for cells in state.cells.values_mut() {
-                            cells.shrink_to_fit();
-                            for cell in cells.iter_mut() {
-                                cell.shrink_to_fit();
-                            }
-                        }
-
-                        // Return new gc priority if any
-                        if new_priority != GcPriority::Placeholder {
-                            stats.priority_updated += 1;
-
-                            return Some(new_priority);
-                        } else {
-                            stats.no_gc_needed += 1;
-
-                            return None;
-                        }
-                    }
-                }
-            } else {
-                // Task is already unloaded, we are done with GC for it
-                stats.no_gc_needed += 1;
-                return None;
             }
-        }
-    }
 
-    pub(crate) fn gc_compute_duration(&self) -> Duration {
-        if let TaskMetaStateReadGuard::Full(state) = self.state() {
-            state.stats.last_duration()
+            // shrinking memory and dropping cells
+            state.output.dependent_tasks.shrink_to_fit();
+            state.cells.shrink_to_fit();
+            for cells in state.cells.values_mut() {
+                cells.shrink_to_fit();
+                for cell in cells.iter_mut() {
+                    if cell.has_value() {
+                        cells_to_drop.extend(cell.gc_content());
+                    }
+                    cell.shrink_to_fit();
+                }
+            }
+            true
         } else {
-            Duration::ZERO
+            false
+        };
+
+        drop(cells_to_drop);
+
+        result
+    }
+
+    pub(crate) fn gc_state(&self) -> Option<GcTaskState> {
+        if let TaskMetaStateReadGuard::Full(state) = self.state() {
+            Some(state.gc)
+        } else {
+            None
         }
     }
 
+    // TODO not used yet, but planned
+    #[allow(dead_code)]
     fn unload(
         &self,
         mut full_state: FullTaskWriteGuard<'_>,
@@ -1954,7 +1606,7 @@ impl Task {
         let mut clear_dependencies = None;
         let mut change_job = None;
         let TaskState {
-            aggregation_node: ref mut aggregation_leaf,
+            ref mut aggregation_node,
             ref mut state_type,
             ..
         } = *full_state;
@@ -1962,7 +1614,7 @@ impl Task {
             Done {
                 ref mut dependencies,
             } => {
-                change_job = aggregation_leaf.apply_change(
+                change_job = aggregation_node.apply_change(
                     &aggregation_context,
                     TaskChange {
                         unfinished: 1,
@@ -1979,10 +1631,7 @@ impl Task {
                 // We want to get rid of this Event, so notify it to make sure it's empty.
                 event.notify(usize::MAX);
                 if !outdated_dependencies.is_empty() {
-                    // TODO we need to find a way to handle this case without introducting a race
-                    // condition
-
-                    return false;
+                    clear_dependencies = Some(take(outdated_dependencies));
                 }
             }
             _ => {
@@ -1996,9 +1645,7 @@ impl Task {
         let old_state = replace(
             &mut *state,
             // placeholder
-            TaskMetaState::Unloaded(UnloadedTaskState {
-                stats_type: StatsType::Essential,
-            }),
+            TaskMetaState::Unloaded(UnloadedTaskState {}),
         );
         let TaskState {
             children,
@@ -2006,7 +1653,6 @@ impl Task {
             output,
             collectibles,
             mut aggregation_node,
-            stats,
             // can be dropped as it will be recomputed on next execution
             stateful: _,
             // can be dropped as it can be recomputed
@@ -2039,20 +1685,13 @@ impl Task {
             None
         };
 
-        // TODO aggregation_leaf
+        // TODO aggregation_node
         let unset = false;
 
-        let stats_type = match stats {
-            TaskStats::Essential(_) => StatsType::Essential,
-            TaskStats::Full(_) => StatsType::Full,
-        };
         if unset {
-            *state = TaskMetaState::Unloaded(UnloadedTaskState { stats_type });
+            *state = TaskMetaState::Unloaded(UnloadedTaskState {});
         } else {
-            *state = TaskMetaState::Partial(Box::new(PartialTaskState {
-                aggregation_leaf: aggregation_node,
-                stats_type,
-            }));
+            *state = TaskMetaState::Partial(Box::new(PartialTaskState { aggregation_node }));
         }
         drop(state);
 
@@ -2070,7 +1709,9 @@ impl Task {
         }
         output.gc_drop(turbo_tasks);
 
-        // We can clear the dependencies as we are already marked as dirty
+        // TODO This is a race condition, the task might be executed again while
+        // removing dependencies We can clear the dependencies as we are already
+        // marked as dirty
         if let Some(dependencies) = clear_dependencies {
             self.clear_dependencies(dependencies, backend, turbo_tasks);
         }
@@ -2109,10 +1750,3 @@ impl PartialEq for Task {
 }
 
 impl Eq for Task {}
-
-pub struct TaskStatsInfo {
-    pub total_duration: Option<Duration>,
-    pub last_duration: Duration,
-    pub executions: Option<u32>,
-    pub unloaded: bool,
-}

@@ -5,6 +5,7 @@ use tracing::{
     span, Subscriber,
 };
 use tracing_subscriber::{registry::LookupSpan, Layer};
+use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     flavor::BufFlavor,
@@ -30,10 +31,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     }
 
     fn write(&self, data: TraceRow<'_>) {
+        let start = TurboMalloc::allocation_counters();
         // Buffer is recycled
         let buf = self.trace_writer.try_get_buffer().unwrap_or_default();
         let buf = postcard::serialize_with_flavor(&data, BufFlavor { buf }).unwrap();
         self.trace_writer.write(buf);
+        TurboMalloc::reset_allocation_counters(start);
     }
 
     fn report_allocations(&self, ts: u64, thread_id: u64) {

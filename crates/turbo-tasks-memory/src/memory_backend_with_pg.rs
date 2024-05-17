@@ -9,7 +9,7 @@ use std::{
         atomic::{AtomicU32, AtomicUsize, Ordering},
         Mutex, MutexGuard,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{anyhow, Result};
@@ -1153,7 +1153,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         duration: Duration,
-        _instant: Instant,
         _memory_usage: usize,
         _stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,

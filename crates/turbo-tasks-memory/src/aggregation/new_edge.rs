@@ -20,9 +20,9 @@ const MAX_AFFECTED_NODES: usize = 4096;
 /// Handle the addition of a new edge to a node. The the edge is propagated to
 /// the uppers of that node or added a inner node.
 #[tracing::instrument(level = tracing::Level::TRACE, name = "handle_new_edge_preparation", skip_all)]
-pub fn handle_new_edge<'l, C: AggregationContext>(
+pub fn handle_new_edge<C: AggregationContext>(
     ctx: &C,
-    origin: &mut C::Guard<'l>,
+    origin: &mut C::Guard<'_>,
     origin_id: &C::NodeRef,
     target_id: &C::NodeRef,
     number_of_children: usize,

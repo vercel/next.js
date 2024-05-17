@@ -6,7 +6,6 @@ mod nft_json;
 use std::{
     collections::{BTreeSet, HashMap},
     env::current_dir,
-    fs,
     future::Future,
     path::{Path, PathBuf},
     pin::Pin,
@@ -24,15 +23,12 @@ use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
     backend::Backend, util::FormatDuration, TaskId, TransientInstance, TransientValue, TurboTasks,
-    TurboTasksBackendApi, UpdateInfo, Value, Vc,
+    UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
 };
-use turbo_tasks_memory::{
-    stats::{ReferenceType, Stats},
-    viz, MemoryBackend,
-};
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
     ModuleAssetContext,
@@ -100,10 +96,6 @@ pub struct CommonArgs {
     #[cfg_attr(feature = "cli", clap(flatten))]
     #[cfg_attr(feature = "node-api", serde(default))]
     cache: CacheArgs,
-
-    #[cfg_attr(feature = "cli", clap(short, long))]
-    #[cfg_attr(feature = "node-api", serde(default))]
-    visualize_graph: bool,
 
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
@@ -325,7 +317,6 @@ pub async fn start(
 ) -> Result<Vec<String>> {
     register();
     let &CommonArgs {
-        visualize_graph,
         memory_limit,
         #[cfg(feature = "persistent_cache")]
             cache: CacheArgs {
@@ -390,22 +381,7 @@ pub async fn start(
                 TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX)))
             })
         },
-        |tt, root_task, _| async move {
-            if visualize_graph {
-                let mut stats = Stats::new();
-                let b = tt.backend();
-                b.with_all_cached_tasks(|task| {
-                    stats.add_id(b, task);
-                });
-                stats.add_id(b, root_task);
-                // stats.merge_resolve();
-                let tree = stats.treeify(ReferenceType::Child);
-                let graph =
-                    viz::graph::visualize_stats_tree(tree, ReferenceType::Child, tt.stats_type());
-                fs::write("graph.html", viz::graph::wrap_html(&graph)).unwrap();
-                println!("graph.html written");
-            }
-        },
+        |_, _, _| async move {},
         module_options,
         resolve_options,
     )

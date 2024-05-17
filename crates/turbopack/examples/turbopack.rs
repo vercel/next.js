@@ -3,19 +3,14 @@
 use std::{
     collections::HashMap,
     env::current_dir,
-    fs,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{util::FormatDuration, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc};
+use turbo_tasks::{util::FormatDuration, TurboTasks, UpdateInfo, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbo_tasks_memory::{
-    stats::{ReferenceType, Stats},
-    viz::graph::{visualize_stats_tree, wrap_html},
-    MemoryBackend,
-};
+use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAsset, register};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -94,37 +89,6 @@ async fn main() -> Result<()> {
     .unwrap();
 
     loop {
-        println!("writing graph.html...");
-        // create a graph
-        let mut stats = Stats::new();
-
-        let b = tt.backend();
-
-        // graph root node
-        stats.add_id(b, task);
-
-        // graph tasks in cache
-        b.with_all_cached_tasks(|task| {
-            stats.add_id(b, task);
-        });
-
-        // prettify graph
-        stats.merge_resolve();
-
-        let tree = stats.treeify(ReferenceType::Child);
-
-        // write HTML
-        fs::write(
-            "graph.html",
-            wrap_html(&visualize_stats_tree(
-                tree,
-                ReferenceType::Child,
-                tt.stats_type(),
-            )),
-        )
-        .unwrap();
-        println!("graph.html written");
-
         sleep(Duration::from_secs(10)).await;
     }
 }
