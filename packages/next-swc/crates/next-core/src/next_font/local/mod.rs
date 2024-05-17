@@ -88,7 +88,6 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
         let context = lookup_path;
         let query = query_vc.await?.to_string();
         let request_hash = get_request_hash(&query).await?;
-
         let options = font_options_from_query_map(*query_vc);
 
         match request_key.as_str() {
@@ -199,7 +198,6 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
                     ResolveResult::source(Vc::upcast(css_asset)).into(),
                 ))
             }
-
             "@vercel/turbopack-next/internal/font/local/font" => {
                 let NextFontLocalFontFileOptions {
                     path,
