@@ -85,15 +85,9 @@ a.secondary {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: color 0.2s;
 }
 
-.footer a:last-of-type {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.footer svg {
+.footer img {
   flex-shrink: 0;
 }
 
@@ -110,7 +104,8 @@ a.secondary {
   }
 
   .footer a:hover {
-    color: var(--secondary);
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 }
 

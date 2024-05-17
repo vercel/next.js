@@ -1,7 +1,6 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --secondary: #666;
 
   --gray-rgb: 0, 0, 0;
   --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
@@ -15,7 +14,6 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
-    --secondary: #a0a0a0;
 
     --gray-rgb: 255, 255, 255;
     --gray-alpha-200: rgba(var(--gray-rgb), 0.145);
