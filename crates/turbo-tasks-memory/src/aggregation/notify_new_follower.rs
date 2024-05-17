@@ -4,6 +4,7 @@ use super::{
     balance_queue::BalanceQueue,
     followers::add_follower,
     in_progress::{finish_in_progress_without_node, start_in_progress},
+    increase::IncreaseReason,
     increase_aggregation_number_internal,
     optimize::optimize_aggregation_number_for_uppers,
     uppers::add_upper,
@@ -195,6 +196,7 @@ impl<C: AggregationContext> PreparedInternalOperation<C> for PreparedNotifyNewFo
                                         &follower_id,
                                         upper_aggregation_number + 1,
                                         upper_aggregation_number + 1,
+                                        IncreaseReason::EqualAggregationNumberOnNewFollower,
                                     );
                                     // retry
                                 } else {

@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use super::{
     increase_aggregation_number_internal, AggregationContext, AggregationNode, AggregationNodeGuard,
 };
-use crate::aggregation::balance_queue::BalanceQueue;
+use crate::aggregation::{balance_queue::BalanceQueue, increase::IncreaseReason};
 
 /// Gives an reference to the aggregated data for a given item. This will
 /// convert the item to a fully aggregated node.
@@ -26,6 +26,7 @@ where
             node_id,
             u32::MAX,
             u32::MAX,
+            IncreaseReason::AggregationData,
         );
         balance_queue.process(ctx);
         let guard = ctx.node(node_id);
@@ -45,6 +46,7 @@ pub fn prepare_aggregation_data<C: AggregationContext>(ctx: &C, node_id: &C::Nod
         node_id,
         u32::MAX,
         u32::MAX,
+        IncreaseReason::AggregationData,
     );
     balance_queue.process(ctx);
 }

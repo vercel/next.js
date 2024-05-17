@@ -6,6 +6,20 @@ use super::{
 };
 pub(super) const LEAF_NUMBER: u32 = 64;
 
+#[derive(Debug)]
+pub enum IncreaseReason {
+    Upgraded,
+    AggregationData,
+    EqualAggregationNumberOnBalance,
+    EqualAggregationNumberOnNewFollower,
+    OptimizeForUppers,
+    OptimizeForFollowers,
+    LeafEdge,
+    LeafEdgeAfterIncrease,
+    #[cfg(test)]
+    Test,
+}
+
 impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
     /// Increase the aggregation number of a node. This might temporarily
     /// violate the graph invariants between uppers and followers of that node.
@@ -21,6 +35,7 @@ impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
         node_id: &C::NodeRef,
         min_aggregation_number: u32,
         target_aggregation_number: u32,
+        reason: IncreaseReason,
     ) -> Option<PreparedInternalIncreaseAggregationNumber<C>> {
         if self.aggregation_number() >= min_aggregation_number {
             return None;
@@ -30,6 +45,7 @@ impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
             uppers: self.uppers_mut().iter().cloned().collect(),
             min_aggregation_number,
             target_aggregation_number,
+            reason,
         })
     }
 
@@ -47,6 +63,7 @@ impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
             node_id,
             new_aggregation_number,
             new_aggregation_number,
+            IncreaseReason::Test,
         )
         .map(PreparedIncreaseAggregationNumber)
     }
@@ -64,10 +81,17 @@ pub(super) fn increase_aggregation_number_immediately<C: AggregationContext>(
     node_id: C::NodeRef,
     min_aggregation_number: u32,
     target_aggregation_number: u32,
+    reason: IncreaseReason,
 ) -> Option<PreparedInternalIncreaseAggregationNumber<C>> {
     if node.aggregation_number() >= min_aggregation_number {
         return None;
     }
+
+    let _span = tracing::trace_span!(
+        "increase_aggregation_number_immediately",
+        reason = debug(&reason)
+    )
+    .entered();
     let children = matches!(**node, AggregationNode::Leaf { .. })
         .then(|| node.children().collect::<StackVec<_>>());
     match &mut **node {
@@ -128,6 +152,7 @@ pub enum PreparedInternalIncreaseAggregationNumber<C: AggregationContext> {
         uppers: StackVec<C::NodeRef>,
         min_aggregation_number: u32,
         target_aggregation_number: u32,
+        reason: IncreaseReason,
     },
     Leaf {
         children: StackVec<C::NodeRef>,
@@ -152,6 +177,7 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                 mut target_aggregation_number,
                 node_id,
                 uppers,
+                reason,
             } => {
                 let mut need_to_run = true;
                 while need_to_run {
@@ -178,6 +204,9 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                 if node.aggregation_number() >= min_aggregation_number {
                     return;
                 }
+                let _span =
+                    tracing::trace_span!("increase_aggregation_number", reason = debug(&reason))
+                        .entered();
                 let children = matches!(*node, AggregationNode::Leaf { .. })
                     .then(|| node.children().collect::<StackVec<_>>());
                 let (uppers, followers) = match &mut *node {
@@ -197,6 +226,7 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                                     &child_id,
                                     target_aggregation_number + 1,
                                     target_aggregation_number + 1,
+                                    IncreaseReason::LeafEdgeAfterIncrease,
                                 );
                             }
                             return;
@@ -253,6 +283,7 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                         &child_id,
                         target_aggregation_number + 1,
                         target_aggregation_number + 1,
+                        IncreaseReason::LeafEdgeAfterIncrease,
                     );
                 }
             }
@@ -285,12 +316,14 @@ pub fn increase_aggregation_number_internal<C: AggregationContext>(
     node_id: &C::NodeRef,
     min_aggregation_number: u32,
     target_aggregation_number: u32,
+    reason: IncreaseReason,
 ) {
     let prepared = node.increase_aggregation_number_internal(
         ctx,
         node_id,
         min_aggregation_number,
         target_aggregation_number,
+        reason,
     );
     drop(node);
     prepared.apply(ctx, balance_queue);

@@ -1,6 +1,8 @@
+use tracing::Level;
+
 use super::{
     balance_queue::BalanceQueue,
-    increase::{increase_aggregation_number_internal, LEAF_NUMBER},
+    increase::{increase_aggregation_number_internal, IncreaseReason, LEAF_NUMBER},
     AggregationContext, StackVec,
 };
 
@@ -12,6 +14,7 @@ pub const MAX_FOLLOWERS: usize = 128;
 /// The goal is to reduce the number of upper nodes, so we try to find a
 /// aggregation number that is higher than some of the upper nodes.
 /// Returns true if the aggregation number was increased.
+#[tracing::instrument(level = Level::TRACE, skip(ctx, balance_queue, node_id, uppers))]
 pub fn optimize_aggregation_number_for_uppers<C: AggregationContext>(
     ctx: &C,
     balance_queue: &mut BalanceQueue<C::NodeRef>,
@@ -55,6 +58,7 @@ pub fn optimize_aggregation_number_for_uppers<C: AggregationContext>(
             node_id,
             aggregation_number,
             aggregation_number,
+            IncreaseReason::OptimizeForUppers,
         );
         return true;
     } else {
@@ -69,6 +73,7 @@ pub fn optimize_aggregation_number_for_uppers<C: AggregationContext>(
                     node_id,
                     aggregation_number,
                     aggregation_number,
+                    IncreaseReason::OptimizeForUppers,
                 );
                 return true;
             }
@@ -81,6 +86,7 @@ pub fn optimize_aggregation_number_for_uppers<C: AggregationContext>(
 /// The goal is to reduce the number of followers, so we try to find a
 /// aggregation number that is higher than some of the followers.
 /// Returns true if the aggregation number was increased.
+#[tracing::instrument(level = Level::TRACE, skip(ctx, balance_queue, node_id, followers))]
 pub fn optimize_aggregation_number_for_followers<C: AggregationContext>(
     ctx: &C,
     balance_queue: &mut BalanceQueue<C::NodeRef>,
@@ -131,6 +137,7 @@ pub fn optimize_aggregation_number_for_followers<C: AggregationContext>(
                 node_id,
                 aggregation_number,
                 aggregation_number,
+                IncreaseReason::OptimizeForFollowers,
             );
             return true;
         }
