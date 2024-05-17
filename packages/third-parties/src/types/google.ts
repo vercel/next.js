@@ -7,6 +7,7 @@ declare global {
 
 export type GTMParams = {
   gtmId: string
+  gtmScriptUrl?: string
   dataLayer?: string[]
   dataLayerName?: string
   auth?: string
