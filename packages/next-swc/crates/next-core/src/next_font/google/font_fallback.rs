@@ -48,7 +48,6 @@ struct Fallback {
 pub(super) async fn get_font_fallback(
     context: Vc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
-    request_hash: u32,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
@@ -70,7 +69,6 @@ pub(super) async fn get_font_fallback(
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback.cell(),
                         options_vc.font_family(),
-                        request_hash,
                     ),
                     local_font_family: Vc::cell(fallback.font_family),
                     adjustment: fallback.adjustment,

@@ -31,6 +31,7 @@ var util = require("util"),
   REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   isArrayImpl = Array.isArray;
 function flushBuffered(destination) {
@@ -448,20 +449,28 @@ var actionJavaScriptURL = stringToPrecomputedChunk(
   startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 function pushAdditionalFormField(value, key) {
   this.push(startHiddenInputChunk);
-  if ("string" !== typeof value)
-    throw Error(
-      "File/Blob fields are not yet supported in progressive forms. It probably means you are closing over binary data or FormData in a Server Action."
-    );
+  validateAdditionalFormField(value);
   pushStringAttribute(this, "name", key);
   pushStringAttribute(this, "value", value);
   this.push(endOfStartTagSelfClosing);
+}
+function validateAdditionalFormField(value) {
+  if ("string" !== typeof value)
+    throw Error(
+      "File/Blob fields are not yet supported in progressive forms. Will fallback to client hydration."
+    );
 }
 function getCustomFormFields(resumableState, formAction) {
   if ("function" === typeof formAction.$$FORM_ACTION) {
     var id = resumableState.nextFormID++;
     resumableState = resumableState.idPrefix + id;
     try {
-      return formAction.$$FORM_ACTION(resumableState);
+      var customFields = formAction.$$FORM_ACTION(resumableState);
+      if (customFields) {
+        var formData = customFields.data;
+        null != formData && formData.forEach(validateAdditionalFormField);
+      }
+      return customFields;
     } catch (x) {
       if ("object" === typeof x && null !== x && "function" === typeof x.then)
         throw x;
@@ -3231,6 +3240,11 @@ var HooksDispatcher = {
   useCacheRefresh: function () {
     return unsupportedRefresh;
   },
+  useMemoCache: function (size) {
+    for (var data = Array(size), i = 0; i < size; i++)
+      data[i] = REACT_MEMO_CACHE_SENTINEL;
+    return data;
+  },
   useHostTransitionStatus: function () {
     resolveCurrentlyRenderingComponent();
     return sharedNotPendingObject;
@@ -5765,4 +5779,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-beta-4508873393-20240430";
+exports.version = "19.0.0-beta-04b058868c-20240508";
