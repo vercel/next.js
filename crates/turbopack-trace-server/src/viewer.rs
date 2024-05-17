@@ -237,6 +237,13 @@ impl<'a> QueueItem<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum FilterMode {
+    SelectedItem,
+    Parent,
+    Child,
+}
+
 #[derive(Debug)]
 struct QueueItemWithState<'a> {
     item: QueueItem<'a>,
@@ -244,7 +251,7 @@ struct QueueItemWithState<'a> {
     start: u64,
     placeholder: bool,
     view_mode: ViewMode,
-    filtered: bool,
+    filtered: Option<FilterMode>,
 }
 
 struct ChildItem<'a> {
@@ -264,7 +271,13 @@ impl Viewer {
 
     pub fn compute_update(&mut self, store: &Store, view_rect: &ViewRect) -> Update {
         let mut highlighted_spans: HashSet<SpanId> = HashSet::new();
+        let mut highlighted_span_parents: HashSet<SpanId> = HashSet::new();
         let search_mode = !view_rect.query.is_empty();
+        let (query, focus_mode) = if let Some(query) = view_rect.query.strip_suffix('!') {
+            (query, true)
+        } else {
+            (view_rect.query.as_str(), false)
+        };
 
         let default_view_mode = view_rect.view_mode.as_str();
         let (default_view_mode, default_sorted) = default_view_mode
@@ -356,6 +369,7 @@ impl Viewer {
             root_spans.sort_by_key(|span| span.start());
             root_spans
         };
+
         let mut children = Vec::new();
         let mut current = 0;
         let offset = root_spans
@@ -379,16 +393,20 @@ impl Viewer {
                 default_view_mode,
                 value_mode,
                 QueueItem::Span(span),
-                false,
+                Some(if search_mode {
+                    FilterMode::Parent
+                } else {
+                    FilterMode::SelectedItem
+                }),
             ) && search_mode
             {
                 let mut has_results = false;
-                for mut result in span.search(&view_rect.query) {
+                for mut result in span.search(query) {
                     has_results = true;
                     highlighted_spans.insert(result.id());
                     while let Some(parent) = result.parent() {
                         result = parent;
-                        if !highlighted_spans.insert(result.id()) {
+                        if !highlighted_span_parents.insert(result.id()) {
                             break;
                         }
                     }
@@ -396,7 +414,7 @@ impl Viewer {
                 if has_results {
                     highlighted_spans.insert(span.id());
                 } else {
-                    children.last_mut().unwrap().item.filtered = true;
+                    children.last_mut().unwrap().item.filtered = None;
                 }
             }
         }
@@ -457,9 +475,35 @@ impl Viewer {
             let width = span.value(value_mode);
             let secondary = span.value(value_mode.secondary());
 
+            let skipped_by_focus =
+                focus_mode && matches!(filtered, Some(FilterMode::Parent) | None);
+
+            let get_filter_mode = |span: SpanId| {
+                if focus_mode
+                    && matches!(filtered, Some(FilterMode::SelectedItem | FilterMode::Child))
+                {
+                    Some(FilterMode::Child)
+                } else if search_mode {
+                    if highlighted_spans.contains(&span) {
+                        Some(FilterMode::SelectedItem)
+                    } else if highlighted_span_parents.contains(&span) {
+                        Some(FilterMode::Parent)
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(FilterMode::SelectedItem)
+                }
+            };
+
             // compute children
             let mut children = Vec::new();
             let mut current = start;
+            let child_line_index = if skipped_by_focus {
+                line_index
+            } else {
+                line_index + 1
+            };
             match &span {
                 QueueItem::Span(span) => {
                     let (selected_view_mode, inherit) = self
@@ -484,7 +528,7 @@ impl Viewer {
                     };
 
                     let selected_view_mode =
-                        if search_mode && highlighted_spans.contains(&span.id()) {
+                        if search_mode && highlighted_span_parents.contains(&span.id()) {
                             selected_view_mode.as_spans()
                         } else {
                             selected_view_mode
@@ -506,11 +550,11 @@ impl Viewer {
                                     &mut children,
                                     &mut current,
                                     view_rect,
-                                    line_index + 1,
+                                    child_line_index,
                                     view_mode,
                                     value_mode,
                                     QueueItem::SpanBottomUp(child),
-                                    false,
+                                    Some(FilterMode::SelectedItem),
                                 );
                             }
                         } else {
@@ -524,13 +568,12 @@ impl Viewer {
                                 Either::Right(bottom_up)
                             };
                             for child in bottom_up {
-                                let filtered =
-                                    search_mode && !highlighted_spans.contains(&child.id());
+                                let filtered = get_filter_mode(child.id());
                                 add_child_item(
                                     &mut children,
                                     &mut current,
                                     view_rect,
-                                    line_index + 1,
+                                    child_line_index,
                                     view_mode,
                                     value_mode,
                                     QueueItem::SpanBottomUpSpan(child),
@@ -547,12 +590,12 @@ impl Viewer {
                             Either::Right(span.children())
                         };
                         for child in spans {
-                            let filtered = search_mode && !highlighted_spans.contains(&child.id());
+                            let filtered = get_filter_mode(child.id());
                             add_child_item(
                                 &mut children,
                                 &mut current,
                                 view_rect,
-                                line_index + 1,
+                                child_line_index,
                                 view_mode,
                                 value_mode,
                                 QueueItem::Span(child),
@@ -568,7 +611,11 @@ impl Viewer {
                             Either::Right(span.graph())
                         };
                         for event in events {
-                            let filtered = search_mode;
+                            let filtered = if search_mode {
+                                None
+                            } else {
+                                Some(FilterMode::SelectedItem)
+                            };
                             match event {
                                 SpanGraphEventRef::SelfTime { duration: _ } => {}
                                 SpanGraphEventRef::Child { graph } => {
@@ -576,7 +623,7 @@ impl Viewer {
                                         &mut children,
                                         &mut current,
                                         view_rect,
-                                        line_index + 1,
+                                        child_line_index,
                                         view_mode,
                                         value_mode,
                                         QueueItem::SpanGraph(graph),
@@ -615,11 +662,11 @@ impl Viewer {
                                     &mut children,
                                     &mut current,
                                     view_rect,
-                                    line_index + 1,
+                                    child_line_index,
                                     view_mode,
                                     value_mode,
                                     QueueItem::SpanBottomUp(child),
-                                    false,
+                                    Some(FilterMode::SelectedItem),
                                 );
                             }
                         } else {
@@ -633,13 +680,12 @@ impl Viewer {
                                 Either::Right(bottom_up)
                             };
                             for child in bottom_up {
-                                let filtered =
-                                    search_mode && !highlighted_spans.contains(&child.id());
+                                let filtered = get_filter_mode(child.id());
                                 add_child_item(
                                     &mut children,
                                     &mut current,
                                     view_rect,
-                                    line_index + 1,
+                                    child_line_index,
                                     view_mode,
                                     value_mode,
                                     QueueItem::SpanBottomUpSpan(child),
@@ -656,12 +702,12 @@ impl Viewer {
                             Either::Right(span_graph.root_spans())
                         };
                         for child in spans {
-                            let filtered = search_mode && !highlighted_spans.contains(&child.id());
+                            let filtered = get_filter_mode(child.id());
                             add_child_item(
                                 &mut children,
                                 &mut current,
                                 view_rect,
-                                line_index + 1,
+                                child_line_index,
                                 view_mode,
                                 value_mode,
                                 QueueItem::Span(child),
@@ -678,12 +724,16 @@ impl Viewer {
                         };
                         for child in events {
                             if let SpanGraphEventRef::Child { graph } = child {
-                                let filtered = search_mode;
+                                let filtered = if search_mode {
+                                    None
+                                } else {
+                                    Some(FilterMode::SelectedItem)
+                                };
                                 add_child_item(
                                     &mut children,
                                     &mut current,
                                     view_rect,
-                                    line_index + 1,
+                                    child_line_index,
                                     view_mode,
                                     value_mode,
                                     QueueItem::SpanGraph(graph),
@@ -715,11 +765,11 @@ impl Viewer {
                                 &mut children,
                                 &mut current,
                                 view_rect,
-                                line_index + 1,
+                                child_line_index,
                                 view_mode,
                                 value_mode,
                                 QueueItem::SpanBottomUp(child),
-                                false,
+                                Some(FilterMode::SelectedItem),
                             );
                         }
                     } else {
@@ -731,12 +781,12 @@ impl Viewer {
                             Either::Right(bottom_up.spans())
                         };
                         for child in spans {
-                            let filtered = search_mode && !highlighted_spans.contains(&child.id());
+                            let filtered = get_filter_mode(child.id());
                             add_child_item(
                                 &mut children,
                                 &mut current,
                                 view_rect,
-                                line_index + 1,
+                                child_line_index,
                                 view_mode,
                                 value_mode,
                                 QueueItem::SpanBottomUpSpan(child),
@@ -754,7 +804,7 @@ impl Viewer {
             if placeholder {
                 let child = children
                     .into_iter()
-                    .max_by_key(|ChildItem { item, depth, .. }| (!item.filtered, *depth));
+                    .max_by_key(|ChildItem { item, depth, .. }| (item.filtered.is_some(), *depth));
                 if let Some(ChildItem {
                     item: mut entry, ..
                 }) = child
@@ -763,35 +813,39 @@ impl Viewer {
                     queue.push(entry);
                 }
 
-                // add span to line
-                line.push(LineEntry {
-                    start,
-                    width,
-                    secondary: 0,
-                    ty: LineEntryType::Placeholder(filtered),
-                });
+                if !skipped_by_focus {
+                    // add span to line
+                    line.push(LineEntry {
+                        start,
+                        width,
+                        secondary: 0,
+                        ty: LineEntryType::Placeholder(filtered),
+                    });
+                }
             } else {
                 // add children to queue
                 enqueue_children(children, &mut queue);
 
-                // add span to line
-                line.push(LineEntry {
-                    start,
-                    width,
-                    secondary,
-                    ty: match span {
-                        QueueItem::Span(span) => LineEntryType::Span { span, filtered },
-                        QueueItem::SpanGraph(span_graph) => {
-                            LineEntryType::SpanGraph(span_graph, filtered)
-                        }
-                        QueueItem::SpanBottomUp(bottom_up) => {
-                            LineEntryType::SpanBottomUp(bottom_up, filtered)
-                        }
-                        QueueItem::SpanBottomUpSpan(bottom_up_span) => {
-                            LineEntryType::SpanBottomUpSpan(bottom_up_span, filtered)
-                        }
-                    },
-                });
+                if !skipped_by_focus {
+                    // add span to line
+                    line.push(LineEntry {
+                        start,
+                        width,
+                        secondary,
+                        ty: match span {
+                            QueueItem::Span(span) => LineEntryType::Span { span, filtered },
+                            QueueItem::SpanGraph(span_graph) => {
+                                LineEntryType::SpanGraph(span_graph, filtered)
+                            }
+                            QueueItem::SpanBottomUp(bottom_up) => {
+                                LineEntryType::SpanBottomUp(bottom_up, filtered)
+                            }
+                            QueueItem::SpanBottomUpSpan(bottom_up_span) => {
+                                LineEntryType::SpanBottomUpSpan(bottom_up_span, filtered)
+                            }
+                        },
+                    });
+                }
             }
         }
 
@@ -810,7 +864,10 @@ impl Viewer {
                             category: String::new(),
                             text: String::new(),
                             count: 1,
-                            kind: if filtered { 11 } else { 1 },
+                            kind: match filtered {
+                                Some(_) => 1,
+                                None => 11,
+                            },
                             start_in_parent: 0,
                             end_in_parent: 0,
                             secondary: 0,
@@ -841,7 +898,10 @@ impl Viewer {
                                 category: category.to_string(),
                                 text: text.to_string(),
                                 count: 1,
-                                kind: if filtered { 10 } else { 0 },
+                                kind: match filtered {
+                                    Some(_) => 0,
+                                    None => 10,
+                                },
                                 start_in_parent,
                                 end_in_parent,
                                 secondary: entry.secondary,
@@ -856,7 +916,10 @@ impl Viewer {
                                 category: category.to_string(),
                                 text: text.to_string(),
                                 count: graph.count() as u64,
-                                kind: if filtered { 10 } else { 0 },
+                                kind: match filtered {
+                                    Some(_) => 0,
+                                    None => 10,
+                                },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
                                 secondary: entry.secondary,
@@ -871,7 +934,10 @@ impl Viewer {
                                 category: category.to_string(),
                                 text: text.to_string(),
                                 count: bottom_up.count() as u64,
-                                kind: if filtered { 12 } else { 2 },
+                                kind: match filtered {
+                                    Some(_) => 2,
+                                    None => 12,
+                                },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
                                 secondary: entry.secondary,
@@ -886,7 +952,10 @@ impl Viewer {
                                 category: category.to_string(),
                                 text: text.to_string(),
                                 count: 1,
-                                kind: if filtered { 12 } else { 2 },
+                                kind: match filtered {
+                                    Some(_) => 2,
+                                    None => 12,
+                                },
                                 start_in_parent: 0,
                                 end_in_parent: 0,
                                 secondary: entry.secondary,
@@ -896,6 +965,7 @@ impl Viewer {
                     .collect(),
             })
             .collect();
+
         Update {
             lines,
             max: max(1, current),
@@ -912,7 +982,7 @@ fn add_child_item<'a>(
     view_mode: ViewMode,
     value_mode: ValueMode,
     child: QueueItem<'a>,
-    filtered: bool,
+    filtered: Option<FilterMode>,
 ) -> bool {
     let child_width = child.value(value_mode);
     let max_depth = child.max_depth();
@@ -1001,9 +1071,12 @@ struct LineEntry<'a> {
 }
 
 enum LineEntryType<'a> {
-    Placeholder(bool),
-    Span { span: SpanRef<'a>, filtered: bool },
-    SpanGraph(SpanGraphRef<'a>, bool),
-    SpanBottomUp(SpanBottomUpRef<'a>, bool),
-    SpanBottomUpSpan(SpanRef<'a>, bool),
+    Placeholder(Option<FilterMode>),
+    Span {
+        span: SpanRef<'a>,
+        filtered: Option<FilterMode>,
+    },
+    SpanGraph(SpanGraphRef<'a>, Option<FilterMode>),
+    SpanBottomUp(SpanBottomUpRef<'a>, Option<FilterMode>),
+    SpanBottomUpSpan(SpanRef<'a>, Option<FilterMode>),
 }
