@@ -1,6 +1,6 @@
 import { _ as _class_call_check } from "@swc/helpers/_/_class_call_check";
-import { useEffect } from "react";
-import { select, selectAll } from "d3-selection";
+import { useEffect } from 'react';
+import { select, selectAll } from 'd3-selection';
 export default function Home() {
     useEffect(function() {
         new MyClass();
@@ -14,7 +14,7 @@ export default function Home() {
 var MyClass = function MyClass() {
     "use strict";
     _class_call_check(this, MyClass);
-    selectAll(".group").each(function() {
-        select(this).selectAll("path");
+    selectAll('.group').each(function() {
+        select(this).selectAll('path');
     });
 };
