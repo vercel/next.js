@@ -71,7 +71,7 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
         let this = &*self.await?;
         let request = &*request_vc.await?;
 
-        let Some(request_str) = request.request() else {
+        let Some(request_key) = request.request() else {
             return Ok(ResolveResultOption::none());
         };
 
@@ -85,152 +85,153 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
             return Ok(ResolveResultOption::none());
         };
 
-        if !can_use_next_font(this.root, *query_vc).await? {
-            return Ok(ResolveResultOption::none());
-        }
-
         let context = lookup_path;
         let query = query_vc.await?.to_string();
         let request_hash = get_request_hash(&query).await?;
 
         let options = font_options_from_query_map(*query_vc);
 
-        if request_str == "next/font/local/target.css" {
-            let query = query_vc.await?.to_string();
-            let request_hash = get_request_hash(&query).await?;
-            let qstr = qstring::QString::from(query.as_str());
-            let query_vc = Vc::cell(query);
-            let options_vc = font_options_from_query_map(query_vc);
-            let font_fallbacks = get_font_fallbacks(context, options_vc);
-            let properties = get_font_css_properties(options_vc, font_fallbacks).await;
+        match request_key.as_str() {
+            "next/font/local/target.css" => {
+                if !can_use_next_font(this.root, *query_vc).await? {
+                    return Ok(ResolveResultOption::none());
+                }
 
-            if let Err(e) = &properties {
-                for source_error in e.chain() {
-                    if let Some(FontError::FontFileNotFound(font_path)) =
-                        source_error.downcast_ref::<FontError>()
-                    {
-                        return Ok(ResolveResultOption::some(
-                            ResolveResult::primary_with_key(
-                                RequestKey::new(font_path.to_string()),
-                                ResolveResultItem::Error(
-                                    StyledString::Line(vec![
-                                        StyledString::Text(
-                                            "Font file not found: Can't resolve '".to_string(),
-                                        ),
-                                        StyledString::Code(font_path.to_string()),
-                                        StyledString::Text("'".to_string()),
-                                    ])
-                                    .cell(),
-                                ),
-                            )
-                            .into(),
-                        ));
+                let query = query_vc.await?.to_string();
+                let request_hash = get_request_hash(&query).await?;
+                let qstr = qstring::QString::from(query.as_str());
+                let query_vc = Vc::cell(query);
+                let options_vc = font_options_from_query_map(query_vc);
+                let font_fallbacks = get_font_fallbacks(context, options_vc);
+                let properties = get_font_css_properties(options_vc, font_fallbacks).await;
+
+                if let Err(e) = &properties {
+                    for source_error in e.chain() {
+                        if let Some(FontError::FontFileNotFound(font_path)) =
+                            source_error.downcast_ref::<FontError>()
+                        {
+                            return Ok(ResolveResultOption::some(
+                                ResolveResult::primary_with_key(
+                                    RequestKey::new(font_path.to_string()),
+                                    ResolveResultItem::Error(
+                                        StyledString::Line(vec![
+                                            StyledString::Text(
+                                                "Font file not found: Can't resolve '".to_string(),
+                                            ),
+                                            StyledString::Code(font_path.to_string()),
+                                            StyledString::Text("'".to_string()),
+                                        ])
+                                        .cell(),
+                                    ),
+                                )
+                                .into(),
+                            ));
+                        }
                     }
                 }
+
+                let properties = properties?;
+                let file_content = formatdoc!(
+                    r#"
+                    import cssModule from "@vercel/turbopack-next/internal/font/local/cssmodule.module.css?{}";
+                    const fontData = {{
+                        className: cssModule.className,
+                        style: {{
+                            fontFamily: "{}",
+                            {}{}
+                        }},
+                    }};
+
+                    if (cssModule.variable != null) {{
+                        fontData.variable = cssModule.variable;
+                    }}
+
+                    export default fontData;
+                "#,
+                    // Pass along whichever options we received to the css handler
+                    qstr,
+                    properties.font_family.await?,
+                    properties
+                        .weight
+                        .await?
+                        .as_ref()
+                        .map(|w| format!("fontWeight: {},\n", w))
+                        .unwrap_or_else(|| "".to_owned()),
+                    properties
+                        .style
+                        .await?
+                        .as_ref()
+                        .map(|s| format!("fontStyle: \"{}\",\n", s))
+                        .unwrap_or_else(|| "".to_owned()),
+                );
+                let js_asset = VirtualSource::new(
+                    context.join(format!(
+                        "{}.js",
+                        get_request_id(options_vc.font_family(), request_hash).await?
+                    )),
+                    AssetContent::file(FileContent::Content(file_content.into()).into()),
+                );
+
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(Vc::upcast(js_asset)).into(),
+                ))
+            }
+            "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
+                let css_virtual_path = context.join(format!(
+                    "/{}.module.css",
+                    get_request_id(options.font_family(), request_hash).await?
+                ));
+                let fallback = get_font_fallbacks(context, options);
+
+                let stylesheet = build_stylesheet(
+                    font_options_from_query_map(*query_vc),
+                    fallback,
+                    get_font_css_properties(options, fallback),
+                )
+                .await?;
+
+                let css_asset = VirtualSource::new(
+                    css_virtual_path,
+                    AssetContent::file(FileContent::Content(stylesheet.into()).into()),
+                );
+
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(Vc::upcast(css_asset)).into(),
+                ))
             }
 
-            let properties = properties?;
-            let file_content = formatdoc!(
-                r#"
-                import cssModule from "@vercel/turbopack-next/internal/font/local/cssmodule.module.css?{}";
-                const fontData = {{
-                    className: cssModule.className,
-                    style: {{
-                        fontFamily: "{}",
-                        {}{}
-                    }},
-                }};
+            "@vercel/turbopack-next/internal/font/local/font" => {
+                let NextFontLocalFontFileOptions {
+                    path,
+                    preload,
+                    has_size_adjust: size_adjust,
+                } = font_file_options_from_query_map(*query_vc).await?;
 
-                if (cssModule.variable != null) {{
-                    fontData.variable = cssModule.variable;
-                }}
+                let (filename, ext) = split_extension(&path);
+                let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
 
-                export default fontData;
-            "#,
-                // Pass along whichever options we received to the css handler
-                qstr,
-                properties.font_family.await?,
-                properties
-                    .weight
-                    .await?
-                    .as_ref()
-                    .map(|w| format!("fontWeight: {},\n", w))
-                    .unwrap_or_else(|| "".to_owned()),
-                properties
-                    .style
-                    .await?
-                    .as_ref()
-                    .map(|s| format!("fontStyle: \"{}\",\n", s))
-                    .unwrap_or_else(|| "".to_owned()),
-            );
-            let js_asset = VirtualSource::new(
-                context.join(format!(
-                    "{}.js",
-                    get_request_id(options_vc.font_family(), request_hash).await?
-                )),
-                AssetContent::file(FileContent::Content(file_content.into()).into()),
-            );
+                // remove dashes and dots as they might be used for the markers below.
+                let mut name = filename.replace(['-', '.'], "_");
+                if size_adjust {
+                    name.push_str("-s")
+                }
+                if preload {
+                    name.push_str(".p")
+                }
 
-            return Ok(ResolveResultOption::some(
-                ResolveResult::source(Vc::upcast(js_asset)).into(),
-            ));
-        }
+                let font_virtual_path = context.join(format!("/{}.{}", name, ext));
 
-        if request_str == "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" {
-            let css_virtual_path = context.join(format!(
-                "/{}.module.css",
-                get_request_id(options.font_family(), request_hash).await?
-            ));
-            let fallback = get_font_fallbacks(context, options);
+                let font_file = context.join(path.clone()).read();
 
-            let stylesheet = build_stylesheet(
-                font_options_from_query_map(*query_vc),
-                fallback,
-                get_font_css_properties(options, fallback),
-            )
-            .await?;
+                let font_source =
+                    VirtualSource::new(font_virtual_path, AssetContent::file(font_file));
 
-            let css_asset = VirtualSource::new(
-                css_virtual_path,
-                AssetContent::file(FileContent::Content(stylesheet.into()).into()),
-            );
-
-            return Ok(ResolveResultOption::some(
-                ResolveResult::source(Vc::upcast(css_asset)).into(),
-            ));
-        }
-
-        if request_str == "@vercel/turbopack-next/internal/font/local/font" {
-            let NextFontLocalFontFileOptions {
-                path,
-                preload,
-                has_size_adjust: size_adjust,
-            } = font_file_options_from_query_map(*query_vc).await?;
-
-            let (filename, ext) = split_extension(&path);
-            let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
-
-            // remove dashes and dots as they might be used for the markers below.
-            let mut name = filename.replace(['-', '.'], "_");
-            if size_adjust {
-                name.push_str("-s")
+                Ok(ResolveResultOption::some(
+                    ResolveResult::source(Vc::upcast(font_source)).into(),
+                ))
             }
-            if preload {
-                name.push_str(".p")
-            }
-
-            let font_virtual_path = context.join(format!("/{}.{}", name, ext));
-
-            let font_file = context.join(path.clone()).read();
-
-            let font_source = VirtualSource::new(font_virtual_path, AssetContent::file(font_file));
-
-            return Ok(ResolveResultOption::some(
-                ResolveResult::source(Vc::upcast(font_source)).into(),
-            ));
+            _ => Ok(ResolveResultOption::none()),
         }
-
-        Ok(ResolveResultOption::none())
     }
 }
 
