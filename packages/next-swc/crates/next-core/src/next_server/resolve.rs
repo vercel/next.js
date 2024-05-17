@@ -11,7 +11,7 @@ use turbopack_binding::{
             node::{node_cjs_resolve_options, node_esm_resolve_options},
             package_json,
             parse::Request,
-            plugin::{ResolvePlugin, ResolvePluginCondition},
+            plugin::{AfterResolvePlugin, ResolvePluginCondition},
             resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
             ResolveResultOption,
         },
@@ -66,7 +66,7 @@ fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
+impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
         condition(self.root)

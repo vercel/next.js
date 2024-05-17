@@ -14,7 +14,7 @@ use turbopack_binding::{
         resolve::{
             options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
             parse::Request,
-            plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
+            plugin::BeforeResolvePlugin,
             RequestKey, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
         virtual_source::VirtualSource,

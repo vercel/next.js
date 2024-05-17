@@ -158,10 +158,10 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
+        before_resolve_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
             project_path,
         ))],
-        plugins: vec![
+        after_resolve_plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),

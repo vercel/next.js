@@ -101,7 +101,7 @@ pub async fn get_edge_resolve_options_context(
 
     let ty = ty.into_value();
 
-    let mut plugins = match ty {
+    let mut after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppSSR { .. } => {
@@ -125,7 +125,7 @@ pub async fn get_edge_resolve_options_context(
         Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
     ];
 
-    plugins.extend_from_slice(&base_plugins);
+    after_resolve_plugins.extend_from_slice(&base_plugins);
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![mode.await?.condition().to_string()];
@@ -147,8 +147,8 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins,
-        before_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
+        after_resolve_plugins,
+        before_resolve_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
             project_path,
         ))],
         ..Default::default()

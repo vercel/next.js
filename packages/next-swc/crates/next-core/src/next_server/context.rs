@@ -200,7 +200,7 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let mut plugins = match ty {
+    let mut after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
@@ -256,8 +256,8 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
-            plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -272,7 +272,7 @@ pub async fn get_server_resolve_options_context(
         module: true,
         custom_conditions,
         import_map: Some(next_server_import_map),
-        plugins,
+        after_resolve_plugins,
         ..Default::default()
     };
 
@@ -280,7 +280,7 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        before_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
+        before_resolve_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
             project_path,
         ))],
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
