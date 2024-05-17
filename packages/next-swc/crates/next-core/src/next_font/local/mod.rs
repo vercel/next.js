@@ -10,7 +10,7 @@ use turbopack_binding::{
     },
     turbopack::core::{
         asset::AssetContent,
-        issue::StyledString,
+        issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
         reference_type::ReferenceType,
         resolve::{
             parse::Request,
@@ -117,19 +117,20 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         if let Some(FontError::FontFileNotFound(font_path)) =
                             source_error.downcast_ref::<FontError>()
                         {
+                            FontResolvingIssue {
+                                origin_path: lookup_path,
+                                font_path: Vc::cell(font_path.to_string()),
+                            }
+                            .cell()
+                            .emit();
+
                             return Ok(ResolveResultOption::some(
                                 ResolveResult::primary_with_key(
                                     RequestKey::new(font_path.to_string()),
-                                    ResolveResultItem::Error(
-                                        StyledString::Line(vec![
-                                            StyledString::Text(
-                                                "Font file not found: Can't resolve '".to_string(),
-                                            ),
-                                            StyledString::Code(font_path.to_string()),
-                                            StyledString::Text("'".to_string()),
-                                        ])
-                                        .cell(),
-                                    ),
+                                    ResolveResultItem::Error(Vc::cell(format!(
+                                        "Font file not found: Can't resolve {}'",
+                                        font_path
+                                    ))),
                                 )
                                 .into(),
                             ));
@@ -305,4 +306,39 @@ async fn font_file_options_from_query_map(
     };
 
     parse_json_with_source_context(&json)
+}
+
+#[turbo_tasks::value(shared)]
+struct FontResolvingIssue {
+    font_path: Vc<String>,
+    origin_path: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for FontResolvingIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        IssueSeverity::Error.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.await?.origin_path)
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
+        let this = self.await?;
+        Ok(StyledString::Line(vec![
+            StyledString::Text("Font file not found: Can't resolve '".to_string()),
+            StyledString::Code(this.font_path.await?.to_string()),
+            StyledString::Text("'".to_string()),
+        ])
+        .cell())
+    }
 }
