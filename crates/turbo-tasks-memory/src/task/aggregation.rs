@@ -432,8 +432,9 @@ impl<'l> Deref for TaskGuard<'l> {
     fn deref(&self) -> &Self::Target {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref guard) => &guard.aggregation_node,
-            TaskMetaStateWriteGuard::Partial(ref guard) => &guard.aggregation_leaf,
+            TaskMetaStateWriteGuard::Partial(ref guard) => &guard.aggregation_node,
             TaskMetaStateWriteGuard::Unloaded(_) => unreachable!(),
+            TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
 }
@@ -442,8 +443,9 @@ impl<'l> DerefMut for TaskGuard<'l> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref mut guard) => &mut guard.aggregation_node,
-            TaskMetaStateWriteGuard::Partial(ref mut guard) => &mut guard.aggregation_leaf,
+            TaskMetaStateWriteGuard::Partial(ref mut guard) => &mut guard.aggregation_node,
             TaskMetaStateWriteGuard::Unloaded(_) => unreachable!(),
+            TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
 }
@@ -483,6 +485,7 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
                 None.into_iter().flatten()
             }
+            TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
 
@@ -528,6 +531,7 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                 }
             }
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => None,
+            TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
 
@@ -573,6 +577,7 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                 }
             }
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => None,
+            TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
 

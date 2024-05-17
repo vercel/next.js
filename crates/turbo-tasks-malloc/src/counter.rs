@@ -70,6 +70,10 @@ pub fn allocation_counters() -> AllocationCounters {
     with_local_counter(|local| local.allocation_counters.clone())
 }
 
+pub fn reset_allocation_counters(start: AllocationCounters) {
+    with_local_counter(|local| local.allocation_counters = start);
+}
+
 fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
     LOCAL_COUNTER.with(|local| {
         let ptr = local.get();

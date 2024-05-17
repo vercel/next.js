@@ -75,41 +75,6 @@ impl Cell {
         }
     }
 
-    /// Returns true if the cell has dependent tasks.
-    pub fn has_dependent_tasks(&self) -> bool {
-        match self {
-            Cell::Empty => false,
-            Cell::Recomputing {
-                dependent_tasks, ..
-            }
-            | Cell::Value {
-                dependent_tasks, ..
-            }
-            | Cell::TrackedValueless {
-                dependent_tasks, ..
-            } => !dependent_tasks.is_empty(),
-        }
-    }
-
-    /// Returns the list of dependent tasks.
-    pub fn dependent_tasks(&self) -> &TaskIdSet {
-        match self {
-            Cell::Empty => {
-                static EMPTY: TaskIdSet = AutoSet::with_hasher();
-                &EMPTY
-            }
-            Cell::Value {
-                dependent_tasks, ..
-            }
-            | Cell::TrackedValueless {
-                dependent_tasks, ..
-            }
-            | Cell::Recomputing {
-                dependent_tasks, ..
-            } => dependent_tasks,
-        }
-    }
-
     /// Switch the cell to recomputing state.
     fn recompute(
         &mut self,
@@ -235,6 +200,9 @@ impl Cell {
             } => {
                 // Assigning to a cell will invalidate all dependent tasks as the content might
                 // have changed.
+                // TODO this leads to flagging task unnecessarily dirty when a GC'ed task is
+                // recomputed. We need to use the notification of changed cells for the current
+                // task to check if it's valid to skip the invalidation here
                 if !dependent_tasks.is_empty() {
                     turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
                 }

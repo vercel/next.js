@@ -95,10 +95,6 @@ impl Output {
         }
     }
 
-    pub fn dependent_tasks(&self) -> &TaskIdSet {
-        &self.dependent_tasks
-    }
-
     pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         // notify
         if !self.dependent_tasks.is_empty() {

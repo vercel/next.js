@@ -89,7 +89,7 @@ pub use keyed_cell::{global_keyed_cell, keyed_cell};
 pub use manager::{
     dynamic_call, emit, get_invalidator, mark_finished, mark_stateful, prevent_gc, run_once,
     run_once_with_reason, spawn_blocking, spawn_thread, trait_call, turbo_tasks, CurrentCellRef,
-    Invalidator, StatsType, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
+    Invalidator, TaskIdProvider, TurboTasks, TurboTasksApi, TurboTasksBackendApi,
     TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::NativeFunction;

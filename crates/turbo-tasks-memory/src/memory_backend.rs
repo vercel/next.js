@@ -1,7 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
     cell::RefCell,
-    cmp::min,
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     pin::Pin,
@@ -9,7 +8,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::{bail, Result};
@@ -30,7 +29,7 @@ use turbo_tasks::{
 
 use crate::{
     cell::RecomputingCell,
-    gc::GcQueue,
+    gc::{GcQueue, PERCENTAGE_IDLE_TARGET_MEMORY, PERCENTAGE_TARGET_MEMORY},
     output::Output,
     task::{Task, TaskDependency, TaskDependencySet, DEPENDENCIES_TO_TRACK},
 };
@@ -89,6 +88,10 @@ impl MemoryBackend {
         id
     }
 
+    pub(crate) fn has_gc(&self) -> bool {
+        self.gc_queue.is_some()
+    }
+
     fn try_get_output<T, F: FnOnce(&mut Output) -> Result<T>>(
         &self,
         id: TaskId,
@@ -118,54 +121,40 @@ impl MemoryBackend {
         self.memory_tasks.get(*id as usize).unwrap()
     }
 
-    pub fn on_task_might_become_inactive(&self, task: TaskId) {
+    /// Runs the garbage collection until reaching the target memory. An `idle`
+    /// garbage collection has a lower target memory. Returns true, when
+    /// memory was collected.
+    pub fn run_gc(
+        &self,
+        idle: bool,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> bool {
         if let Some(gc_queue) = &self.gc_queue {
-            gc_queue.task_might_become_inactive(task);
-        }
-    }
+            let mut did_something = false;
+            loop {
+                let mem_limit = self.memory_limit;
 
-    pub fn on_task_flagged_inactive(&self, task: TaskId, compute_duration: Duration) {
-        if let Some(gc_queue) = &self.gc_queue {
-            gc_queue.task_flagged_inactive(task, compute_duration);
-        }
-    }
-
-    pub fn run_gc(&self, idle: bool, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
-        if let Some(gc_queue) = &self.gc_queue {
-            const MAX_COLLECT_FACTOR: u8 = u8::MAX / 8;
-
-            let mem_limit = self.memory_limit;
-
-            let usage = turbo_tasks_malloc::TurboMalloc::memory_usage();
-            let target = if idle {
-                mem_limit * 3 / 4
-            } else {
-                mem_limit * 7 / 8
-            };
-            if usage < target {
-                if idle {
-                    // Always run propagation when idle
-                    gc_queue.run_gc(0, self, turbo_tasks);
-                }
-                return;
-            }
-
-            let collect_factor = min(
-                MAX_COLLECT_FACTOR as usize,
-                (usage - target) * u8::MAX as usize / (mem_limit - target),
-            ) as u8;
-
-            let collected = gc_queue.run_gc(collect_factor, self, turbo_tasks);
-
-            if idle {
-                if let Some((_collected, _count, _stats)) = collected {
-                    let job = self.create_backend_job(Job::GarbageCollection);
-                    turbo_tasks.schedule_backend_background_job(job);
+                let usage = turbo_tasks_malloc::TurboMalloc::memory_usage();
+                let target = if idle {
+                    mem_limit * PERCENTAGE_IDLE_TARGET_MEMORY / 100
                 } else {
-                    self.idle_gc_active.store(false, Ordering::Release);
+                    mem_limit * PERCENTAGE_TARGET_MEMORY / 100
+                };
+                if usage < target {
+                    return did_something;
                 }
+
+                let collected = gc_queue.run_gc(self);
+
+                // Collecting less than 100 tasks is not worth it
+                if !collected.map_or(false, |(_, count)| count > 100) {
+                    return true;
+                }
+
+                did_something = true;
             }
         }
+        false
     }
 
     fn insert_and_connect_fresh_task<K: Eq + Hash, H: BuildHasher + Clone>(
@@ -320,18 +309,29 @@ impl Backend for MemoryBackend {
         &self,
         task_id: TaskId,
         duration: Duration,
-        instant: Instant,
         memory_usage: usize,
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> bool {
+        let generation = if let Some(gc_queue) = &self.gc_queue {
+            gc_queue.generation()
+        } else {
+            0
+        };
         let reexecute = self.with_task(task_id, |task| {
-            task.execution_completed(duration, instant, memory_usage, stateful, self, turbo_tasks)
+            task.execution_completed(
+                duration,
+                memory_usage,
+                generation,
+                stateful,
+                self,
+                turbo_tasks,
+            )
         });
         if !reexecute {
-            self.run_gc(false, turbo_tasks);
             if let Some(gc_queue) = &self.gc_queue {
-                gc_queue.task_executed(task_id, duration);
+                gc_queue.task_executed(task_id);
+                self.run_gc(false, turbo_tasks);
             }
         }
         reexecute
@@ -388,7 +388,7 @@ impl Backend for MemoryBackend {
         } else {
             Task::add_dependency_to_current(TaskDependency::Cell(task_id, index));
             self.with_task(task_id, |task| {
-                match task.with_cell_mut(index, |cell| {
+                match task.with_cell_mut(index, self.gc_queue.as_ref(), |cell| {
                     cell.read_content(
                         reader,
                         move || format!("{task_id} {index}"),
@@ -425,7 +425,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<CellContent, EventListener>> {
         self.with_task(task_id, |task| {
-            match task.with_cell_mut(index, |cell| {
+            match task.with_cell_mut(index, self.gc_queue.as_ref(), |cell| {
                 cell.read_content_untracked(
                     move || format!("{task_id}"),
                     move || format!("reading {} {} untracked", task_id, index),
@@ -485,7 +485,9 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(task, |task| {
-            task.with_cell_mut(index, |cell| cell.assign(content, turbo_tasks))
+            task.with_cell_mut(index, self.gc_queue.as_ref(), |cell| {
+                cell.assign(content, turbo_tasks)
+            })
         })
     }
 
@@ -532,7 +534,6 @@ impl Backend for MemoryBackend {
                 // control of the task
                 *unsafe { id.get_unchecked() },
                 task_type.clone(),
-                turbo_tasks.stats_type(),
             );
             self.insert_and_connect_fresh_task(
                 parent_task,
@@ -568,17 +569,16 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
-        let stats_type = turbo_tasks.stats_type();
         let id = id.into();
         match task_type {
             TransientTaskType::Root(f) => {
-                let task = Task::new_root(id, move || f() as _, stats_type);
+                let task = Task::new_root(id, move || f() as _);
                 // SAFETY: We have a fresh task id where nobody knows about yet
                 unsafe { self.memory_tasks.insert(*id as usize, task) };
                 Task::set_root(id, self, turbo_tasks);
             }
             TransientTaskType::Once(f) => {
-                let task = Task::new_once(id, f, stats_type);
+                let task = Task::new_once(id, f);
                 // SAFETY: We have a fresh task id where nobody knows about yet
                 unsafe { self.memory_tasks.insert(*id as usize, task) };
                 Task::set_once(id, self, turbo_tasks);
@@ -608,7 +608,12 @@ impl Job {
         match self {
             Job::GarbageCollection => {
                 let _guard = trace_span!("Job::GarbageCollection").entered();
-                backend.run_gc(true, turbo_tasks);
+                if backend.run_gc(true, turbo_tasks) {
+                    let job = backend.create_backend_job(Job::GarbageCollection);
+                    turbo_tasks.schedule_backend_background_job(job);
+                } else {
+                    backend.idle_gc_active.store(false, Ordering::Release);
+                }
             }
         }
     }

@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    StatsType, TransientInstance, TurboTasks, TurboTasksBackendApi, UpdateInfo, Value, Vc,
+    TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -47,7 +47,6 @@ use crate::{
     },
 };
 
-pub(crate) mod turbo_tasks_viz;
 pub(crate) mod web_entry_source;
 
 pub struct TurbopackDevServerBuilder {
@@ -217,7 +216,6 @@ impl TurbopackDevServerBuilder {
                 project_dir.clone(),
                 entry_requests.clone().into(),
                 eager_compile,
-                turbo_tasks.clone().into(),
                 browserslist_query.clone(),
             )
         };
@@ -233,7 +231,6 @@ async fn source(
     project_dir: String,
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
-    turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     browserslist_query: String,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
@@ -293,7 +290,6 @@ async fn source(
         NodeEnv::Development.cell(),
         browserslist_query,
     );
-    let viz = Vc::upcast(turbo_tasks_viz::TurboTasksSource::new(turbo_tasks.into()));
     let static_source = Vc::upcast(StaticAssetsContentSource::new(
         String::new(),
         project_path.join("public".to_string()),
@@ -308,10 +304,7 @@ async fn source(
     let main_source = Vc::upcast(main_source);
     let source = Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![
-            ("__turbopack__".to_string(), introspect),
-            ("__turbo_tasks__".to_string(), viz),
-        ],
+        vec![("__turbopack__".to_string(), introspect)],
         main_source,
     ));
 
@@ -341,12 +334,6 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
             .memory_limit
             .map_or(usize::MAX, |l| l * 1024 * 1024),
     ));
-
-    let stats_type = match args.common.full_stats {
-        true => StatsType::Full,
-        false => StatsType::Essential,
-    };
-    tt.set_stats_type(stats_type);
 
     let tt_clone = tt.clone();
 

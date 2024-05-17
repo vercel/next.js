@@ -9,16 +9,13 @@
 
 mod aggregation;
 mod cell;
-mod concurrent_priority_queue;
 mod count_hash_set;
 mod gc;
 mod map_guard;
 mod memory_backend;
 mod memory_backend_with_pg;
 mod output;
-pub mod stats;
 mod task;
-pub mod viz;
 
 pub use memory_backend::MemoryBackend;
 pub use memory_backend_with_pg::MemoryBackendWithPersistedGraph;
