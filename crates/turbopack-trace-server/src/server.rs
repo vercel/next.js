@@ -171,7 +171,7 @@ fn handle_connection(
         Ok(())
     }
     loop {
-        match websocket.read().unwrap() {
+        match websocket.read()? {
             Message::Frame(_frame) => {}
             Message::Text(text) => {
                 let message: ClientToServerMessage = serde_json::from_str(&text)?;
