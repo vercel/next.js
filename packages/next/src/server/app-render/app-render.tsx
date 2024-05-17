@@ -113,9 +113,9 @@ import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import {
-  uiErrorTypesWithStatusCodes,
-  uiErrorTypesWithStatusCodesMap,
-} from '../future/route-modules/helpers/respone-ui-errors'
+  uiErrorFileTypes,
+  uiErrorsWithStatusCodesMap,
+} from '../../shared/lib/ui-error-types'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1245,12 +1245,12 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        const uiErrorType = uiErrorTypesWithStatusCodes.find((errorType) =>
-          uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+        const uiErrorType = uiErrorFileTypes.find((errorType) =>
+          uiErrorsWithStatusCodesMap[errorType].matcher(err)
         )
 
         if (uiErrorType) {
-          const errorTypeObj = uiErrorTypesWithStatusCodesMap[uiErrorType]
+          const errorTypeObj = uiErrorsWithStatusCodesMap[uiErrorType]
           res.statusCode = errorTypeObj.statusCode
         }
         let hasRedirectError = false
@@ -1273,7 +1273,7 @@ async function renderToHTMLOrFlightImpl(
           setHeader('Location', redirectUrl)
         }
         const internalHandledStatusCodes = Object.values(
-          uiErrorTypesWithStatusCodesMap
+          uiErrorsWithStatusCodesMap
         ).map((x) => +x.statusCode)
 
         if (
@@ -1362,7 +1362,7 @@ async function renderToHTMLOrFlightImpl(
               require('../../client/components/dev-root-not-found-boundary').bailOnUIError
 
             if (uiErrorType) {
-              const errorTypeObj = uiErrorTypesWithStatusCodesMap[uiErrorType]
+              const errorTypeObj = uiErrorsWithStatusCodesMap[uiErrorType]
               bailOnUIError(errorTypeObj.helperName)
             }
           }

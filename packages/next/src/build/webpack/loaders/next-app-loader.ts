@@ -55,20 +55,24 @@ export type AppLoaderOptions = {
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
+const UI_FILE_TYPES = {
+  'not-found': 'not-found',
+  forbidden: 'forbidden',
+} as const
+
 const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
   loading: 'loading',
-  'not-found': 'not-found',
-  forbidden: 'forbidden',
+  ...UI_FILE_TYPES,
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultUIErrorPaths = {
+const defaultUIErrorPaths: { [k in keyof typeof UI_FILE_TYPES]: string } = {
   'not-found': 'next/dist/client/components/not-found-error',
   forbidden: 'next/dist/client/components/forbidden-error',
 }
@@ -206,10 +210,9 @@ async function createTreeCodeFromPath(
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
 
-  const uiErrorFileTypes = [
-    'not-found',
-    'forbidden',
-  ] satisfies (keyof typeof FILE_TYPES)[]
+  const uiErrorFileTypes = Object.keys(
+    UI_FILE_TYPES
+  ) as (keyof typeof UI_FILE_TYPES)[]
 
   const uiErrorPaths = await Promise.all(
     uiErrorFileTypes.map((fileType) =>
@@ -390,11 +393,6 @@ async function createTreeCodeFromPath(
 
         return types.map((t) => (dictionary.get(t) || 0) >= 1)
       }
-
-      const uiErrorFileTypes = [
-        'not-found',
-        'forbidden',
-      ] satisfies (keyof typeof FILE_TYPES)[]
 
       // Check if ui error files exist for this segment path
       const fileTypeCounters = createFileTypeCounters(

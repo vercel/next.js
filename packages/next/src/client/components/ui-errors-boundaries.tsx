@@ -9,12 +9,12 @@ import {
 import { isForbiddenError } from './forbidden'
 import { isNotFoundError } from './not-found'
 
-type ForbiddenBoundaryProps = Pick<
+type BoundaryConsumerProps = Pick<
   UIErrorBoundaryWrapperProps,
   'uiComponent' | 'uiComponentStyles' | 'children'
 >
 
-export function ForbiddenBoundary(props: ForbiddenBoundaryProps) {
+export function ForbiddenBoundary(props: BoundaryConsumerProps) {
   return (
     <UIErrorBoundaryWrapper
       nextError={'forbidden'}
@@ -24,12 +24,7 @@ export function ForbiddenBoundary(props: ForbiddenBoundaryProps) {
   )
 }
 
-type NotFoundBoundaryProps = Pick<
-  UIErrorBoundaryWrapperProps,
-  'uiComponent' | 'uiComponentStyles' | 'children'
->
-
-export function NotFoundBoundary(props: NotFoundBoundaryProps) {
+export function NotFoundBoundary(props: BoundaryConsumerProps) {
   return (
     <UIErrorBoundaryWrapper
       nextError={'not-found'}

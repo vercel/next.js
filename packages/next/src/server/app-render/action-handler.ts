@@ -42,10 +42,10 @@ import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import {
-  type UIErrorType,
-  uiErrorTypesWithStatusCodes,
-  uiErrorTypesWithStatusCodesMap,
-} from '../future/route-modules/helpers/respone-ui-errors'
+  type UIErrorFileType,
+  uiErrorFileTypes,
+  uiErrorsWithStatusCodesMap,
+} from '../../shared/lib/ui-error-types'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -398,7 +398,7 @@ export async function handleAction({
 }): Promise<
   | undefined
   | {
-      type: UIErrorType
+      type: UIErrorFileType
     }
   | {
       type: 'done'
@@ -852,10 +852,10 @@ export async function handleAction({
       }
       // Any next router error but redirect
     } else if (isNextRouterError(err)) {
-      const errorType = uiErrorTypesWithStatusCodes.find((errorType) =>
-        uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+      const errorType = uiErrorFileTypes.find((type) =>
+        uiErrorsWithStatusCodesMap[type].matcher(err)
       )!
-      const errorTypeObj = uiErrorTypesWithStatusCodesMap[errorType]
+      const errorTypeObj = uiErrorsWithStatusCodesMap[errorType]
 
       res.statusCode = errorTypeObj.statusCode
 

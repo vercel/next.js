@@ -5,9 +5,9 @@ import {
 } from '../../../../../client/components/redirect'
 import { handleRedirectResponse } from '../../helpers/response-handlers'
 import {
-  uiErrorTypesWithStatusCodes,
-  uiErrorTypesWithStatusCodesMap,
-} from '../../helpers/respone-ui-errors'
+  uiErrorFileTypes,
+  uiErrorsWithStatusCodesMap,
+} from '../../../../../shared/lib/ui-error-types'
 
 export function resolveHandlerError(err: any): Response | false {
   if (isRedirectError(err)) {
@@ -22,13 +22,13 @@ export function resolveHandlerError(err: any): Response | false {
     return handleRedirectResponse(redirect, err.mutableCookies, status)
   }
 
-  const uiError = uiErrorTypesWithStatusCodes.find((errorType) =>
-    uiErrorTypesWithStatusCodesMap[errorType].matcher(err)
+  const uiError = uiErrorFileTypes.find((errorType) =>
+    uiErrorsWithStatusCodesMap[errorType].matcher(err)
   )
 
   if (uiError) {
     return new Response(null, {
-      status: uiErrorTypesWithStatusCodesMap[uiError].statusCode,
+      status: uiErrorsWithStatusCodesMap[uiError].statusCode,
     })
   }
 

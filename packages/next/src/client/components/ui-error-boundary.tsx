@@ -4,6 +4,7 @@ import React, { useContext } from 'react'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { usePathname } from './navigation'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
+import type { UIErrorFileType } from '../../shared/lib/ui-error-types'
 
 interface UIErrorBoundaryProps {
   uiComponent?: React.ReactNode
@@ -13,7 +14,7 @@ interface UIErrorBoundaryProps {
   pathname: string
   matcher: (error: unknown) => boolean
   missingSlots: Set<string>
-  nextError: 'forbidden' | 'not-found'
+  nextError: UIErrorFileType
 }
 
 interface UIErrorBoundaryState {
