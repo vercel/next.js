@@ -1,6 +1,6 @@
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('next.config.js schema validating - defaultConfig', () => {
   const { next, skipped } = nextTestSetup({
@@ -52,7 +52,7 @@ describe('next.config.js schema validating - invalid config', () => {
   }
 
   it('should warn the invalid next config', async () => {
-    await check(() => {
+    await retry(() => {
       const output = stripAnsi(next.cliOutput)
       const warningTimes = output.split('badKey').length - 1
 
@@ -60,8 +60,6 @@ describe('next.config.js schema validating - invalid config', () => {
       expect(output).toContain('badKey')
       // for next start and next build we both display the warnings
       expect(warningTimes).toBe(isNextStart ? 2 : 1)
-
-      return 'success'
-    }, 'success')
+    })
   })
 })

@@ -1,6 +1,6 @@
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -19,13 +19,11 @@ describe('router autoscrolling on navigation', () => {
     browser,
     options: { x: number; y: number }
   ) =>
-    check(async () => {
+    retry(async () => {
       const top = await getTopScroll(browser)
       const left = await getLeftScroll(browser)
-      return top === options.y && left === options.x
-        ? 'success'
-        : JSON.stringify({ top, left })
-    }, 'success')
+      expect(top === options.y && left === options.x).toBeTruthy()
+    })
 
   const scrollTo = async (
     browser: BrowserInterface,
@@ -171,7 +169,9 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-invisible-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(() => {
+        expect(browser.eval('window.scrollY')).toBe(0)
+      })
     })
 
     it('Should scroll to the top of the layout when the first child is position fixed', async () => {
@@ -181,20 +181,23 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-fixed-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(() => {
+        expect(browser.eval('window.scrollY')).toBe(0)
+      })
 
       if (isNextDev) {
         // Check that we've logged a warning
-        await check(async () => {
+        await retry(async () => {
           const logs = await browser.log()
-          return logs.some((log) =>
-            log.message.includes(
-              'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+
+          expect(
+            logs.some((log) =>
+              log.message.includes(
+                'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+              )
             )
-          )
-            ? 'success'
-            : undefined
-        }, 'success')
+          ).toBeTruthy()
+        })
       }
     })
 
@@ -205,20 +208,23 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-sticky-first-element')
         .click()
         .waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(() => {
+        expect(browser.eval('window.scrollY')).toBe(0)
+      })
 
       if (isNextDev) {
         // Check that we've logged a warning
-        await check(async () => {
+        await retry(async () => {
           const logs = await browser.log()
-          return logs.some((log) =>
-            log.message.includes(
-              'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+
+          expect(
+            logs.some((log) =>
+              log.message.includes(
+                'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+              )
             )
-          )
-            ? 'success'
-            : undefined
-        }, 'success')
+          ).toBeTruthy()
+        })
       }
     })
 
@@ -229,9 +235,13 @@ describe('router autoscrolling on navigation', () => {
         .elementByCss('#to-loading-scroll')
         .click()
         .waitForElementByCss('#loading-component')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(() => {
+        expect(browser.eval('window.scrollY')).toBe(0)
+      })
       await browser.waitForElementByCss('#content-that-is-visible')
-      await check(() => browser.eval('window.scrollY'), 0)
+      await retry(() => {
+        expect(browser.eval('window.scrollY')).toBe(0)
+      })
     })
   })
 })

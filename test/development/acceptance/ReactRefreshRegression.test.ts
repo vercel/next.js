@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -229,10 +229,11 @@ describe('ReactRefreshRegression', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
-    )
+    await retry(async () => {
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toEqual('0')
+    })
 
     await session.evaluate(() => document.querySelector('button').click())
     expect(

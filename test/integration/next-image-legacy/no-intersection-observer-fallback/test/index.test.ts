@@ -1,10 +1,10 @@
 import {
-  check,
   findPort,
   killApp,
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -30,9 +30,9 @@ describe('Image Component No IntersectionObserver test', () => {
           browser = await webdriver(appPort, '/no-observer')
 
           // Make sure the IntersectionObserver is mocked to null during the test
-          await check(() => {
-            return browser.eval('IntersectionObserver')
-          }, /null/)
+          await retry(async () => {
+            expect(await browser.eval('IntersectionObserver')).toMatch(/null/)
+          })
 
           expect(
             await browser.elementById('lazy-no-observer').getAttribute('src')
@@ -52,9 +52,9 @@ describe('Image Component No IntersectionObserver test', () => {
           browser = await webdriver(appPort, '/')
 
           // Make sure the IntersectionObserver is mocked to null during the test
-          await check(() => {
-            return browser.eval('IntersectionObserver')
-          }, /null/)
+          await retry(async () => {
+            expect(await browser.eval('IntersectionObserver')).toMatch(/null/)
+          })
 
           await browser.waitForElementByCss('#link-no-observer').click()
 

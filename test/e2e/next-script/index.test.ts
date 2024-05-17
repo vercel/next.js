@@ -1,7 +1,7 @@
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
   let next: NextInstance
@@ -360,14 +360,12 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
+          await retry(async () => {
             const processedWorkerScripts = await browser.eval(
               `document.querySelectorAll('script[type="text/partytown-x"]').length`
             )
-            return processedWorkerScripts > 0
-              ? 'success'
-              : processedWorkerScripts
-          }, 'success')
+            expect(processedWorkerScripts > 0).toBeTruthy()
+          })
         } finally {
           if (browser) await browser.close()
         }
@@ -426,12 +424,12 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
+          await retry(async () => {
             const processedWorkerScripts = await browser.eval(
               `document.querySelectorAll('script[type="text/partytown-x"]').length`
             )
-            return processedWorkerScripts + ''
-          }, '1')
+            expect((await processedWorkerScripts) + '').toEqual('1')
+          })
 
           const text = await browser.elementById('text').text()
           expect(text).toBe('abc')
@@ -451,12 +449,12 @@ describe('empty strategy in document body', () => {
           browser = await webdriver(next.url, '/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
-          await check(async () => {
+          await retry(async () => {
             const processedWorkerScripts = await browser.eval(
               `document.querySelectorAll('script[type="text/partytown-x"]').length`
             )
-            return processedWorkerScripts + ''
-          }, '1')
+            expect((await processedWorkerScripts) + '').toEqual('1')
+          })
 
           const text = await browser.elementById('text').text()
           expect(text).toBe('abcd')

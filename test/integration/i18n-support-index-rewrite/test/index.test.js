@@ -11,7 +11,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -57,7 +57,7 @@ const runTests = () => {
         window.next.router.push('/')
       })()`)
 
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         const props = JSON.parse(cheerio.load(html)('#props').text())
         assert.deepEqual(props, {
@@ -67,8 +67,7 @@ const runTests = () => {
           locale,
           hello: 'world',
         })
-        return 'success'
-      }, 'success')
+      })
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }

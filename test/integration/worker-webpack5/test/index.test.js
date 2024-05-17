@@ -1,11 +1,11 @@
 /* eslint-env jest */
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextStart,
   nextBuild,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -21,9 +21,17 @@ const runTests = () => {
     try {
       browser = await webdriver(appPort, '/')
       await browser.waitForElementByCss('#web-status')
-      await check(() => browser.elementByCss('#web-status').text(), /PASS/i)
+      await retry(async () => {
+        expect(await browser.elementByCss('#web-status').text()).toMatch(
+          /PASS/i
+        )
+      })
       await browser.waitForElementByCss('#worker-status')
-      await check(() => browser.elementByCss('#worker-status').text(), /PASS/i)
+      await retry(async () => {
+        expect(await browser.elementByCss('#worker-status').text()).toMatch(
+          /PASS/i
+        )
+      })
     } finally {
       if (browser) {
         await browser.close()

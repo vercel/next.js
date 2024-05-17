@@ -1,6 +1,6 @@
 import type { BrowserInterface } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -431,10 +431,11 @@ describe('app dir - metadata', () => {
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
       await browser.loadPage(next.url + '/async/blog?q=xxx')
-      await check(
-        () => browser.elementByCss('p').text(),
-        /params - blog query - xxx/
-      )
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(
+          /params - blog query - xxx/
+        )
+      })
     })
 
     it('should handle metadataBase for urls resolved as only URL type', async () => {
@@ -766,11 +767,11 @@ describe('app dir - metadata', () => {
           'app/icons/static/icon2.png'
         )
 
-        await check(async () => {
+        await retry(async () => {
           const $ = await next.render$('/icons/static')
           const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-          return $icon.attr('href')
-        }, /\/icons\/static\/icon2/)
+          expect(await $icon.attr('href')).toMatch(/\/icons\/static\/icon2/)
+        })
 
         await next.renameFile(
           'app/icons/static/icon2.png',

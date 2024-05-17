@@ -8,7 +8,7 @@ import {
   launchApp,
   killApp,
   waitFor,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -60,10 +60,10 @@ describe('Empty Project', () => {
         }
         window.next.router.replace('/another')
       })()`)
-      await check(async () => {
+      await retry(async () => {
         const gotWarn = await browser.eval(`window.gotWarn`)
-        return gotWarn ? 'pass' : 'fail'
-      }, 'pass')
+        expect(gotWarn).toBeTruthy()
+      })
     } finally {
       await browser.close()
     }

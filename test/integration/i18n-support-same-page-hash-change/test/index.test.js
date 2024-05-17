@@ -8,7 +8,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -21,16 +21,26 @@ const runTests = () => {
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/fr/about')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/fr/about'
+      )
+    })
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#hash')
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
     expect(await browser.elementByCss('#props-locale').text()).toBe('fr')
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/about')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual('/about')
+    })
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#hash')
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
@@ -41,16 +51,26 @@ const runTests = () => {
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/fr/posts/a')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/fr/posts/a'
+      )
+    })
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#hash')
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
     expect(await browser.elementByCss('#props-locale').text()).toBe('fr')
 
     await browser.elementByCss('#change-locale').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/posts/a')
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual('/posts/a')
+    })
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#hash')
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
@@ -59,14 +79,22 @@ const runTests = () => {
   it('should trigger hash change events', async () => {
     const browser = await webdriver(appPort, `/about#hash`)
 
-    await check(() => browser.eval('window.location.hash'), '#hash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#hash')
+    })
 
     await browser.elementByCss('#hash-change').click()
 
-    await check(() => browser.eval('window.hashChangeStart'), 'yes')
-    await check(() => browser.eval('window.hashChangeComplete'), 'yes')
+    await retry(async () => {
+      expect(await browser.eval('window.hashChangeStart')).toEqual('yes')
+    })
+    await retry(async () => {
+      expect(await browser.eval('window.hashChangeComplete')).toEqual('yes')
+    })
 
-    await check(() => browser.eval('window.location.hash'), '#newhash')
+    await retry(async () => {
+      expect(await browser.eval('window.location.hash')).toEqual('#newhash')
+    })
   })
 }
 

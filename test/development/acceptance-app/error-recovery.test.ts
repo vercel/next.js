@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import { describeVariants as describe, retry } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -68,10 +68,11 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     expect(await session.hasRedbox()).toBe(false)
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      /Count: 1/
-    )
+    await retry(async () => {
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toMatch(/Count: 1/)
+    })
 
     await cleanup()
   })
@@ -105,7 +106,9 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         `
       )
 
-      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toEqual('Hello world 2')
+      })
       await cleanup()
     }
   )
@@ -470,10 +473,10 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
     expect(await session.hasRedbox()).toBe(true)
 
-    await check(async () => {
+    await retry(async () => {
       const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+      expect(source?.includes('render() {')).toBeTruthy()
+    })
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"
@@ -489,7 +492,9 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
-    await check(() => session.getRedboxSource(true), /Failed to compile/)
+    await retry(async () => {
+      expect(await session.getRedboxSource(true)).toMatch(/Failed to compile/)
+    })
 
     await cleanup()
   })

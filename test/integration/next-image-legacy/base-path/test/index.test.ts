@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import {
-  check,
   findPort,
   getRedboxHeader,
   hasRedbox,
@@ -10,6 +9,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -63,7 +63,7 @@ function runTests(mode) {
   it('should load the images', async () => {
     let browser = await webdriver(appPort, '/docs')
     try {
-      await check(async () => {
+      await retry(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
         )
@@ -71,9 +71,7 @@ function runTests(mode) {
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
-
-        return 'result-correct'
-      }, /result-correct/)
+      })
 
       expect(
         await hasImageMatchingUrl(
@@ -89,17 +87,19 @@ function runTests(mode) {
   it('should update the image on src change', async () => {
     let browser = await webdriver(appPort, '/docs/update')
     try {
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.jpg/
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval(`document.getElementById("update-image").src`)
+        ).toMatch(/test\.jpg/)
+      })
 
       await browser.eval(`document.getElementById("toggle").click()`)
 
-      await check(
-        () => browser.eval(`document.getElementById("update-image").src`),
-        /test\.png/
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval(`document.getElementById("update-image").src`)
+        ).toMatch(/test\.png/)
+      })
     } finally {
       await browser.close()
     }
@@ -108,16 +108,14 @@ function runTests(mode) {
   it('should work when using flexbox', async () => {
     let browser = await webdriver(appPort, '/docs/flex')
     try {
-      await check(async () => {
+      await retry(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').width`
         )
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
-
-        return 'result-correct'
-      }, /result-correct/)
+      })
     } finally {
       await browser.close()
     }
@@ -162,12 +160,11 @@ function runTests(mode) {
       const delta = 250
       const id = 'intrinsic1'
 
-      await check(async () => {
+      await retry(async () => {
         expect(await getSrc(browser, id)).toBe(
           '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
         )
-        return 'success'
-      }, 'success')
+      })
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
       )
@@ -203,12 +200,11 @@ function runTests(mode) {
       const delta = 250
       const id = 'responsive1'
 
-      await check(async () => {
+      await retry(async () => {
         expect(await getSrc(browser, id)).toBe(
           '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
         )
-        return 'success'
-      }, 'success')
+      })
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -244,12 +240,11 @@ function runTests(mode) {
       const delta = 150
       const id = 'fill1'
 
-      await check(async () => {
+      await retry(async () => {
         expect(await getSrc(browser, id)).toBe(
           '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
         )
-        return 'success'
-      }, 'success')
+      })
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -285,12 +280,11 @@ function runTests(mode) {
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
 
-      await check(async () => {
+      await retry(async () => {
         expect(await getSrc(browser, id)).toBe(
           '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
         )
-        return 'success'
-      }, 'success')
+      })
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -336,12 +330,11 @@ function runTests(mode) {
       const delta = 250
       const id = 'sizes1'
 
-      await check(async () => {
+      await retry(async () => {
         expect(await getSrc(browser, id)).toBe(
           '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
         )
-        return 'success'
-      }, 'success')
+      })
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=16&q=75 16w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -377,9 +370,11 @@ function runTests(mode) {
 
       expect(await hasRedbox(browser)).toBe(false)
 
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image is missing required "src" property/gm)
+      await retry(async () => {
+        expect(
+          await (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
     })
 
     it('should show invalid src error', async () => {
@@ -410,7 +405,7 @@ function runTests(mode) {
       const id = 'prose-image'
 
       // Wait for image to load:
-      await check(async () => {
+      await retry(async () => {
         const result = await browser.eval(
           `document.getElementById(${JSON.stringify(id)}).naturalWidth`
         )
@@ -418,9 +413,7 @@ function runTests(mode) {
         if (result < 1) {
           throw new Error('Image not ready')
         }
-
-        return 'result-correct'
-      }, /result-correct/)
+      })
 
       await waitFor(1000)
 
@@ -440,7 +433,7 @@ function runTests(mode) {
         const id = 'exif-rotation-image'
 
         // Wait for image to load:
-        await check(async () => {
+        await retry(async () => {
           const result = await browser.eval(
             `document.getElementById(${JSON.stringify(id)}).naturalWidth`
           )
@@ -448,9 +441,7 @@ function runTests(mode) {
           if (result < 1) {
             throw new Error('Image not ready')
           }
-
-          return 'result-correct'
-        }, /result-correct/)
+        })
 
         await waitFor(1000)
 

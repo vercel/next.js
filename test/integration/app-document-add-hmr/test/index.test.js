@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { killApp, findPort, launchApp, check } from 'next-test-utils'
+import { killApp, findPort, launchApp, retry } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const appPage = join(appDir, 'pages/_app.js')
@@ -41,20 +41,20 @@ describe('_app/_document add HMR', () => {
       `
       )
 
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _app') && html.includes('index page')
-          ? 'success'
-          : html
-      }, 'success')
+        expect(
+          html.includes('custom _app') && html.includes('index page')
+        ).toBeTruthy()
+      })
     } finally {
       await fs.remove(appPage)
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _app') && html.includes('index page')
-          ? 'restored'
-          : html
-      }, 'restored')
+        expect(
+          !html.includes('custom _app') && html.includes('index page')
+        ).toBeTruthy()
+      })
     }
   })
 
@@ -96,20 +96,20 @@ describe('_app/_document add HMR', () => {
       `
       )
 
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _document') && html.includes('index page')
-          ? 'success'
-          : html
-      }, 'success')
+        expect(
+          html.includes('custom _document') && html.includes('index page')
+        ).toBeTruthy()
+      })
     } finally {
       await fs.remove(documentPage)
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _document') && html.includes('index page')
-          ? 'restored'
-          : html
-      }, 'restored')
+        expect(
+          !html.includes('custom _document') && html.includes('index page')
+        ).toBeTruthy()
+      })
     }
   })
 })

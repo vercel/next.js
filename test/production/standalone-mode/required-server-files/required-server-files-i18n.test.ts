@@ -5,13 +5,13 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
 
@@ -593,39 +593,27 @@ describe('required server files i18n', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () =>
-        errors.join('').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('').includes('gip hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for gssp page', async () => {
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n').includes('gssp hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for gsp page', async () => {
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n').includes('gsp hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for API page', async () => {
@@ -633,13 +621,11 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
+    await retry(() => {
+      expect(
         errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+      ).toBeTruthy()
+    })
   })
 
   it('should normalize optional values correctly for SSP page', async () => {

@@ -10,7 +10,7 @@ import {
   nextBuild,
   nextStart,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -257,10 +257,11 @@ const runTests = (isDev) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.documentElement.innerHTML),
-      /oops not found/
-    )
+    await retry(async () => {
+      expect(
+        await browser.eval(() => document.documentElement.innerHTML)
+      ).toMatch(/oops not found/)
+    })
 
     const initialHref = await browser.eval(() => window.initialHref)
     expect(initialHref).toBeFalsy()
@@ -279,10 +280,11 @@ const runTests = (isDev) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.location.hostname),
-      'example.vercel.sh'
-    )
+    await retry(async () => {
+      expect(await browser.eval(() => document.location.hostname)).toEqual(
+        'example.vercel.sh'
+      )
+    })
 
     const initialHref = await browser.eval(() => window.initialHref)
     expect(initialHref).toBeFalsy()
@@ -297,10 +299,11 @@ const runTests = (isDev) => {
       }
     )
 
-    await check(
-      () => browser.eval(() => document.location.hostname),
-      'example.vercel.sh'
-    )
+    await retry(async () => {
+      expect(await browser.eval(() => document.location.hostname)).toEqual(
+        'example.vercel.sh'
+      )
+    })
 
     const initialHref = await browser.eval(() => window.initialHref)
     expect(initialHref).toBeFalsy()

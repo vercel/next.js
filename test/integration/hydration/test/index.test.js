@@ -9,7 +9,7 @@ import {
   findPort,
   killApp,
   launchApp,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -31,10 +31,11 @@ const runTests = () => {
     const browser = await webdriver(appPort, '//')
     await browser.eval('window.beforeNav = true')
     await browser.eval('window.next.router.push("/details")')
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /details/
-    )
+    await retry(async () => {
+      expect(await browser.eval('document.documentElement.innerHTML')).toMatch(
+        /details/
+      )
+    })
     expect(await browser.eval('window.beforeNav')).toBe(true)
   })
 }

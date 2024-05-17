@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('parallel-routes-revalidation', () => {
   const { next } = nextTestSetup({
@@ -8,69 +8,103 @@ describe('parallel-routes-revalidation', () => {
 
   it('should submit the action and revalidate the page data', async () => {
     const browser = await next.browser('/')
-    await check(() => browser.hasElementByCssSelector('#create-entry'), false)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#create-entry')).toMatch(
+        false
+      )
+    })
 
     // there shouldn't be any data yet
     expect((await browser.elementsByCss('#entries li')).length).toBe(0)
 
     await browser.elementByCss("[href='/revalidate-modal']").click()
 
-    await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#create-entry')).toMatch(
+        true
+      )
+    })
 
     await browser.elementById('create-entry').click()
 
     // we created an entry and called revalidate, so we should have 1 entry
-    await check(
-      async () => (await browser.elementsByCss('#entries li')).length,
-      1
-    )
+    await retry(async () => {
+      expect((await browser.elementsByCss('#entries li')).length).toBe(1)
+    })
 
     await browser.elementById('create-entry').click()
 
     // we created an entry and called revalidate, so we should have 2 entries
-    await check(
-      async () => (await browser.elementsByCss('#entries li')).length,
-      2
-    )
+    await retry(async () => {
+      expect((await browser.elementsByCss('#entries li')).length).toBe(2)
+    })
 
     await browser.elementByCss("[href='/']").click()
 
     // following a link back to `/` should close the modal
-    await check(() => browser.hasElementByCssSelector('#create-entry'), false)
-    await check(() => browser.elementByCss('body').text(), /Current Data/)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#create-entry')).toMatch(
+        false
+      )
+    })
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toMatch(/Current Data/)
+    })
   })
 
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/')
-    await check(() => browser.hasElementByCssSelector('#refresh-router'), false)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#refresh-router')).toMatch(
+        false
+      )
+    })
     const currentRandomNumber = (
       await browser.elementById('random-number')
     ).text()
     await browser.elementByCss("[href='/refresh-modal']").click()
-    await check(() => browser.hasElementByCssSelector('#refresh-router'), true)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#refresh-router')).toMatch(
+        true
+      )
+    })
     await browser.elementById('refresh-router').click()
 
-    await check(async () => {
+    await retry(async () => {
       const randomNumber = (await browser.elementById('random-number')).text()
-      return randomNumber !== currentRandomNumber
-    }, true)
+      expect((await randomNumber) !== currentRandomNumber).toMatch(true)
+    })
 
     await browser.elementByCss("[href='/']").click()
 
     // following a link back to `/` should close the modal
-    await check(() => browser.hasElementByCssSelector('#create-entry'), false)
-    await check(() => browser.elementByCss('body').text(), /Current Data/)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#create-entry')).toMatch(
+        false
+      )
+    })
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toMatch(/Current Data/)
+    })
   })
 
   it('should handle a redirect action when called in a slot', async () => {
     const browser = await next.browser('/')
-    await check(() => browser.hasElementByCssSelector('#redirect'), false)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#redirect')).toMatch(false)
+    })
     await browser.elementByCss("[href='/redirect-modal']").click()
-    await check(() => browser.hasElementByCssSelector('#redirect'), true)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#redirect')).toMatch(true)
+    })
     await browser.elementById('redirect').click()
 
-    await check(() => browser.hasElementByCssSelector('#redirect'), false)
-    await check(() => browser.elementByCss('body').text(), /Current Data/)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#redirect')).toMatch(false)
+    })
+    await retry(async () => {
+      expect(await browser.elementByCss('body').text()).toMatch(/Current Data/)
+    })
   })
 
   it.each([
@@ -188,7 +222,11 @@ describe('parallel-routes-revalidation', () => {
 
     await browser.elementByCss("[href='/revalidate-modal']").click()
 
-    await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#create-entry')).toMatch(
+        true
+      )
+    })
 
     await browser.elementById('clear-entries').click()
 

@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { createNextApp, projectFilesShouldExist, useTempDir } from './utils'
 
 let testVersion
@@ -152,7 +152,11 @@ describe.skip('create-next-app prompts', () => {
         // cursor forward, choose 'Yes' for custom import alias
         childProcess.stdin.write('\u001b[C\n')
         // used check here since it needs to wait for the prompt
-        await check(() => output, /What import alias would you like configured/)
+        await retry(async () => {
+          expect(await output).toMatch(
+            /What import alias would you like configured/
+          )
+        })
         childProcess.stdin.write('@/something/*\n')
       })
 

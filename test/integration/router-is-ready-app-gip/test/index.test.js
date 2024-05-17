@@ -9,7 +9,7 @@ import {
   nextStart,
   nextBuild,
   File,
-  check,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -18,12 +18,12 @@ const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 const checkIsReadyValues = (browser, expected = []) => {
-  return check(async () => {
+  return retry(async () => {
     const values = JSON.stringify(
       (await browser.eval('window.isReadyValues')).sort()
     )
-    return JSON.stringify(expected.sort()) === values ? 'success' : values
-  }, 'success')
+    expect(JSON.stringify(expected.sort()) === values).toBeTruthy()
+  })
 }
 
 function runTests() {

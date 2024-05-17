@@ -3,7 +3,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 
@@ -46,8 +46,14 @@ describe('Middleware custom matchers basePath', () => {
   // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
   itif(!isModeDeploy)('should match query path', async () => {
     const browser = await webdriver(next.url, '/base/random')
-    await check(() => browser.elementById('router-path').text(), 'random')
+    await retry(async () => {
+      expect(await browser.elementById('router-path').text()).toEqual('random')
+    })
     await browser.elementById('linkelement').click()
-    await check(() => browser.elementById('router-path').text(), 'another-page')
+    await retry(async () => {
+      expect(await browser.elementById('router-path').text()).toEqual(
+        'another-page'
+      )
+    })
   })
 })

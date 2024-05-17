@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type { Response } from 'playwright'
 
 describe('app-dir action progressive enhancement', () => {
@@ -32,9 +32,11 @@ describe('app-dir action progressive enhancement', () => {
     await browser.eval(`document.getElementById('name').value = 'test'`)
     await browser.elementByCss('#submit').click()
 
-    await check(() => {
-      return browser.eval('window.location.pathname + window.location.search')
-    }, '/header?name=test&hidden-info=hi')
+    await retry(async () => {
+      expect(
+        await browser.eval('window.location.pathname + window.location.search')
+      ).toEqual('/header?name=test&hidden-info=hi')
+    })
 
     expect(responseCode).toBe(303)
   })
@@ -47,8 +49,10 @@ describe('app-dir action progressive enhancement', () => {
     await browser.eval(`document.getElementById('client-name').value = 'test'`)
     await browser.elementByCss('#there').click()
 
-    await check(() => {
-      return browser.eval('window.location.pathname + window.location.search')
-    }, '/header?name=test&hidden-info=hi')
+    await retry(async () => {
+      expect(
+        await browser.eval('window.location.pathname + window.location.search')
+      ).toEqual('/header?name=test&hidden-info=hi')
+    })
   })
 })

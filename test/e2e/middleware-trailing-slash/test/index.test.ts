@@ -5,7 +5,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { fetchViaHTTP, waitFor, retry } from 'next-test-utils'
 
 describe('Middleware Runtime trailing slash', () => {
   let next: NextInstance
@@ -178,7 +178,9 @@ describe('Middleware Runtime trailing slash', () => {
       const browser = await webdriver(next.url, '/to-ssg/')
       await browser.eval('window.beforeNav = 1')
 
-      await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(/\/to-ssg/)
+      })
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         from: 'middleware',
@@ -195,10 +197,11 @@ describe('Middleware Runtime trailing slash', () => {
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(
-        () => browser.eval('next.router.isReady ? "yes" : "no"'),
-        'yes'
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('next.router.isReady ? "yes" : "no"')
+        ).toEqual('yes')
+      })
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -217,7 +220,11 @@ describe('Middleware Runtime trailing slash', () => {
       expect(await browser.elementByCss('#as-path').text()).toBe('/blog/first/')
 
       await browser.eval('window.next.router.push("/blog/second")')
-      await check(() => browser.elementByCss('body').text(), /"slug":"second"/)
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toMatch(
+          /"slug":"second"/
+        )
+      })
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
         slug: 'second',
@@ -237,10 +244,11 @@ describe('Middleware Runtime trailing slash', () => {
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(
-        () => browser.eval('next.router.isReady ? "yes" : "no"'),
-        'yes'
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('next.router.isReady ? "yes" : "no"')
+        ).toEqual('yes')
+      })
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
       await browser.waitForElementByCss('#blog')
@@ -264,10 +272,11 @@ describe('Middleware Runtime trailing slash', () => {
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(
-        () => browser.eval('next.router.isReady ? "yes" : "no"'),
-        'yes'
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('next.router.isReady ? "yes" : "no"')
+        ).toEqual('yes')
+      })
       await browser.eval('window.beforeNav = 1')
       await browser.eval(
         'window.next.router.push("/rewrite-to-config-rewrite")'
@@ -294,10 +303,11 @@ describe('Middleware Runtime trailing slash', () => {
 
     it('should have correct route params for rewrite from config dynamic route', async () => {
       const browser = await webdriver(next.url, '/404')
-      await check(
-        () => browser.eval('next.router.isReady ? "yes" : "no"'),
-        'yes'
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('next.router.isReady ? "yes" : "no"')
+        ).toEqual('yes')
+      })
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-3")')
       await browser.waitForElementByCss('#blog')
@@ -322,10 +332,11 @@ describe('Middleware Runtime trailing slash', () => {
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
-      await check(
-        () => browser.eval('document.documentElement.innerHTML'),
-        /Hello World/
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toMatch(/Hello World/)
+      })
 
       expect(await browser.eval('window.next.router.query')).toEqual({
         from: 'config',
@@ -343,10 +354,10 @@ describe('Middleware Runtime trailing slash', () => {
 
       const browser = await webdriver(next.url, `/`)
       await browser.eval(`next.router.push('/redirect-1')`)
-      await check(async () => {
+      await retry(async () => {
         const pathname = await browser.eval('location.pathname')
-        return pathname === '/somewhere/else/' ? 'success' : pathname
-      }, 'success')
+        expect(pathname === '/somewhere/else/').toBeTruthy()
+      })
     })
 
     it('should rewrite the same for direct visit and client-transition', async () => {
@@ -355,16 +366,17 @@ describe('Middleware Runtime trailing slash', () => {
       expect(await res.text()).toContain('Hello World')
 
       const browser = await webdriver(next.url, `/404`)
-      await check(
-        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
-        'yes'
-      )
+      await retry(async () => {
+        expect(
+          await browser.eval('next.router.isReady ? "yes" : "nope"')
+        ).toEqual('yes')
+      })
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
-      await check(async () => {
+      await retry(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
-        return content.includes('Hello World') ? 'success' : content
-      }, 'success')
+        expect(content.includes('Hello World')).toBeTruthy()
+      })
       expect(await browser.eval('window.beforeNav')).toBe(1)
     })
 
@@ -375,10 +387,10 @@ describe('Middleware Runtime trailing slash', () => {
 
       const browser = await webdriver(next.url, `/404`)
       await browser.eval(`next.router.push('/rewrite-2')`)
-      await check(async () => {
+      await retry(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
-        return content.includes('AboutA') ? 'success' : content
-      }, 'success')
+        expect(content.includes('AboutA')).toBeTruthy()
+      })
     })
 
     it('should respond with 400 on decode failure', async () => {

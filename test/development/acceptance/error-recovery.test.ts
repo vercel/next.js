@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import { describeVariants as describe, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -62,10 +62,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      /Count: 1/
-    )
+    await retry(async () => {
+      expect(
+        await session.evaluate(() => document.querySelector('p').textContent)
+      ).toMatch(/Count: 1/)
+    })
 
     expect(await session.hasRedbox()).toBe(false)
 
@@ -303,10 +304,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     expect(await session.hasRedbox()).toBe(true)
 
-    await check(async () => {
+    await retry(async () => {
       const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
+      expect(source?.includes('render() {')).toBeTruthy()
+    })
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"

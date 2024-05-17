@@ -10,9 +10,9 @@ import {
   killApp,
   renderViaHTTP,
   fetchViaHTTP,
-  check,
   File,
   nextBuild,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -198,7 +198,11 @@ describe.each([
 
           indexPg.replace('Asset', 'Asset!!')
 
-          await check(() => browser.elementByCss('#go-asset').text(), /Asset!!/)
+          await retry(async () => {
+            expect(await browser.elementByCss('#go-asset').text()).toMatch(
+              /Asset!!/
+            )
+          })
         } finally {
           if (browser) {
             await browser.close()
@@ -299,7 +303,9 @@ describe.each([
         }
       )
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
-      await check(() => stderr, /unhandledRejection/)
+      await retry(async () => {
+        expect(await stderr).toMatch(/unhandledRejection/)
+      })
       expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
       expect(stderr).toContain('server.js:38:22')
     })

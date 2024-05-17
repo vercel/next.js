@@ -6,7 +6,7 @@ import {
   hasRedbox,
   getRedboxHeader,
   waitFor,
-  check,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
@@ -126,10 +126,11 @@ describe('Client Navigation', () => {
         `/absolute-url?port=${next.appPort}`
       )
       await browser.waitForElementByCss('#absolute-link').click()
-      await check(
-        () => browser.eval(() => window.location.origin),
-        'https://vercel.com'
-      )
+      await retry(async () => {
+        expect(await browser.eval(() => window.location.origin)).toEqual(
+          'https://vercel.com'
+        )
+      })
     })
 
     it('should call mouse handlers with an absolute url', async () => {
@@ -967,10 +968,10 @@ describe('Client Navigation', () => {
     expect(scrollPosition).toBeGreaterThan(3000)
 
     await browser.elementByCss('#increaseWithScroll').click()
-    await check(async () => {
+    await retry(async () => {
       const newScrollPosition = await browser.eval('window.pageYOffset')
-      return newScrollPosition === 0 ? 'success' : 'fail'
-    }, 'success')
+      expect(newScrollPosition === 0).toBeTruthy()
+    })
   })
 
   describe('with URL objects', () => {
@@ -1067,7 +1068,11 @@ describe('Client Navigation', () => {
       try {
         await browser.elementByCss('#link').click()
 
-        await check(() => browser.waitForElementByCss('#prop').text(), 'foo')
+        await retry(async () => {
+          expect(await browser.waitForElementByCss('#prop').text()).toEqual(
+            'foo'
+          )
+        })
       } finally {
         await browser.close()
       }
@@ -1078,7 +1083,11 @@ describe('Client Navigation', () => {
       try {
         await browser.elementByCss('#router-push').click()
 
-        await check(() => browser.waitForElementByCss('#prop').text(), 'bar')
+        await retry(async () => {
+          expect(await browser.waitForElementByCss('#prop').text()).toEqual(
+            'bar'
+          )
+        })
       } finally {
         await browser.close()
       }
@@ -1089,7 +1098,11 @@ describe('Client Navigation', () => {
       try {
         await browser.elementByCss('#router-replace').click()
 
-        await check(() => browser.waitForElementByCss('#prop').text(), 'baz')
+        await retry(async () => {
+          expect(await browser.waitForElementByCss('#prop').text()).toEqual(
+            'baz'
+          )
+        })
       } finally {
         await browser.close()
       }
@@ -1102,10 +1115,11 @@ describe('Client Navigation', () => {
         // the error occurs on every replace() after the first one
         await browser.elementByCss('#router-replace').click()
 
-        await check(
-          () => browser.waitForElementByCss('#routeState').text(),
-          '{"completed":2,"errors":0}'
-        )
+        await retry(async () => {
+          expect(
+            await browser.waitForElementByCss('#routeState').text()
+          ).toEqual('{"completed":2,"errors":0}')
+        })
       } finally {
         await browser.close()
       }
@@ -1244,10 +1258,11 @@ describe('Client Navigation', () => {
           `/absolute-url?port=${next.appPort}`
         )
         await browser.waitForElementByCss('#router-push').click()
-        await check(
-          () => browser.eval(() => window.location.origin),
-          'https://vercel.com'
-        )
+        await retry(async () => {
+          expect(await browser.eval(() => window.location.origin)).toEqual(
+            'https://vercel.com'
+          )
+        })
       })
 
       it('should navigate an absolute url on replace', async () => {
@@ -1256,10 +1271,11 @@ describe('Client Navigation', () => {
           `/absolute-url?port=${next.appPort}`
         )
         await browser.waitForElementByCss('#router-replace').click()
-        await check(
-          () => browser.eval(() => window.location.origin),
-          'https://vercel.com'
-        )
+        await retry(async () => {
+          expect(await browser.eval(() => window.location.origin)).toEqual(
+            'https://vercel.com'
+          )
+        })
       })
 
       it('should navigate an absolute local url on push', async () => {
@@ -1604,10 +1620,10 @@ describe('Client Navigation', () => {
       window.next.router.push('#third')
     })()`)
 
-    await check(async () => {
+    await retry(async () => {
       const errorCount = await browser.eval('window.routeErrors.length')
-      return errorCount > 0 ? 'success' : errorCount
-    }, 'success')
+      expect(errorCount > 0).toBeTruthy()
+    })
   })
 
   it('should navigate to paths relative to the current page', async () => {

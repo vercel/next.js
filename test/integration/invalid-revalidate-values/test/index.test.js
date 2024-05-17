@@ -7,8 +7,8 @@ import {
   File,
   launchApp,
   renderViaHTTP,
-  check,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -64,10 +64,11 @@ describe('Invalid revalidate values', () => {
     pageFile.replace('revalidate: 1', 'revalidate: "1"')
 
     try {
-      await check(
-        () => renderViaHTTP(appPort, '/ssg'),
-        /A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received/
-      )
+      await retry(async () => {
+        expect(await renderViaHTTP(appPort, '/ssg')).toMatch(
+          /A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received/
+        )
+      })
     } finally {
       pageFile.restore()
     }
@@ -77,10 +78,11 @@ describe('Invalid revalidate values', () => {
     pageFile.replace('revalidate: 1', 'revalidate: null')
 
     try {
-      await check(
-        () => renderViaHTTP(appPort, '/ssg'),
-        /A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received/
-      )
+      await retry(async () => {
+        expect(await renderViaHTTP(appPort, '/ssg')).toMatch(
+          /A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received/
+        )
+      })
     } finally {
       pageFile.restore()
     }
@@ -90,10 +92,11 @@ describe('Invalid revalidate values', () => {
     pageFile.replace('revalidate: 1', 'revalidate: 1.1')
 
     try {
-      await check(
-        () => renderViaHTTP(appPort, '/ssg'),
-        /A page's revalidate option must be seconds expressed as a natural number for \/ssg. Mixed numbers, such as/
-      )
+      await retry(async () => {
+        expect(await renderViaHTTP(appPort, '/ssg')).toMatch(
+          /A page's revalidate option must be seconds expressed as a natural number for \/ssg. Mixed numbers, such as/
+        )
+      })
     } finally {
       pageFile.restore()
     }

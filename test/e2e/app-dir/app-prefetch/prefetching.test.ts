@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
@@ -95,14 +95,14 @@ describe('app dir - prefetching', () => {
       'window.nd.router.prefetch("/static-page", {kind: "auto"})'
     )
 
-    await check(() => {
-      return requests.some(
-        (req) =>
-          req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
-      )
-        ? 'success'
-        : JSON.stringify(requests)
-    }, 'success')
+    await retry(() => {
+      expect(
+        requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
+      ).toBeTruthy()
+    })
 
     await browser
       .elementByCss('#to-static-page')
@@ -126,14 +126,14 @@ describe('app dir - prefetching', () => {
     await browser.eval(
       `window.nd.router.prefetch("/static-page", {kind: "auto"})`
     )
-    await check(() => {
-      return requests.some(
-        (req) =>
-          req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
-      )
-        ? 'success'
-        : JSON.stringify(requests)
-    }, 'success')
+    await retry(() => {
+      expect(
+        requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
+      ).toBeTruthy()
+    })
 
     await browser
       .elementByCss('#to-static-page')
@@ -173,22 +173,18 @@ describe('app dir - prefetching', () => {
     await browser.eval(
       `window.nd.router.prefetch("/static-page", {kind: "auto"})`
     )
-    await check(() => {
-      return staticPageRequests.length === 1
-        ? 'success'
-        : JSON.stringify(staticPageRequests)
-    }, 'success')
+    await retry(() => {
+      expect(staticPageRequests.length === 1).toBeTruthy()
+    })
 
     // Unable to clear router cache so mpa navigation
     await browser.eval('location.href = "/dashboard"')
     await browser.eval(
       `window.nd.router.prefetch("/static-page", {kind: "auto"})`
     )
-    await check(() => {
-      return staticPageRequests.length === 2
-        ? 'success'
-        : JSON.stringify(staticPageRequests)
-    }, 'success')
+    await retry(() => {
+      expect(staticPageRequests.length === 2).toBeTruthy()
+    })
 
     expect(staticPageRequests[0]).toMatch('/static-page?_rsc=')
     expect(staticPageRequests[1]).toMatch('/static-page?_rsc=')
@@ -333,7 +329,11 @@ describe('app dir - prefetching', () => {
           .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
           .click()
 
-        await check(() => browser.hasElementByCssSelector('#sub-page'), true)
+        await retry(async () => {
+          expect(await browser.hasElementByCssSelector('#sub-page')).toMatch(
+            true
+          )
+        })
 
         const newRandomNumber = await browser
           .elementById('random-number')
@@ -341,36 +341,40 @@ describe('app dir - prefetching', () => {
 
         expect(initialRandomNumber).toBe(newRandomNumber)
 
-        await check(() => {
+        await retry(() => {
           const logOccurrences =
             next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
               .length - 1
 
-          return logOccurrences
-        }, 1)
+          expect(logOccurrences).toBe(1)
+        })
       })
 
       it('should update search params following a link click', async () => {
         const browser = await next.browser(`${basePath}/search-params`)
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
-        )
+        await retry(async () => {
+          expect(
+            await browser.elementById('search-params-data').text()
+          ).toMatch(/{}/)
+        })
         await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
+        await retry(async () => {
+          expect(
+            await browser.elementById('search-params-data').text()
+          ).toMatch(/{"foo":"true"}/)
+        })
         await browser.elementByCss(`[href="${basePath}/search-params"]`).click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{}/
-        )
+        await retry(async () => {
+          expect(
+            await browser.elementById('search-params-data').text()
+          ).toMatch(/{}/)
+        })
         await browser.elementByCss('[href="?foo=true"]').click()
-        await check(
-          () => browser.elementById('search-params-data').text(),
-          /{"foo":"true"}/
-        )
+        await retry(async () => {
+          expect(
+            await browser.elementById('search-params-data').text()
+          ).toMatch(/{"foo":"true"}/)
+        })
       })
     })
 

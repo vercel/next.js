@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { renderViaHTTP, check } from 'next-test-utils'
+import { renderViaHTTP, retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
@@ -36,11 +36,19 @@ describe('React Context', () => {
       )
 
       try {
-        await check(() => renderViaHTTP(next.url, '/'), /Value: .*?new value/)
+        await retry(async () => {
+          expect(await renderViaHTTP(next.url, '/')).toMatch(
+            /Value: .*?new value/
+          )
+        })
       } finally {
         await next.patchFile(aboutAppPagePath, originalContent)
       }
-      await check(() => renderViaHTTP(next.url, '/'), /Value: .*?hello world/)
+      await retry(async () => {
+        expect(await renderViaHTTP(next.url, '/')).toMatch(
+          /Value: .*?hello world/
+        )
+      })
     })
   }
 })

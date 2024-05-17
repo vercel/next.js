@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-dir action allowed origins', () => {
@@ -24,8 +24,8 @@ describe('app-dir action allowed origins', () => {
 
     await browser.elementByCss('button').click()
 
-    await check(async () => {
-      return await browser.elementByCss('#res').text()
-    }, 'hi')
+    await retry(async () => {
+      expect(await browser.elementByCss('#res').text()).toEqual('hi')
+    })
   })
 })

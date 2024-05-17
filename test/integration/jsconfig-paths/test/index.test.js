@@ -11,8 +11,8 @@ import {
   launchApp,
   nextBuild,
   killApp,
-  check,
   File,
+  retry,
 } from 'next-test-utils'
 import * as JSON5 from 'json5'
 
@@ -69,14 +69,12 @@ function runTests() {
       try {
         await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
 
-        const found = await check(
-          async () => {
-            await renderViaHTTP(appPort, '/basic-alias')
-            return stripAnsi(output)
-          },
-          /Module not found: Can't resolve '@c\/worldd'/,
-          false
-        )
+        const found = await retry(async () => {
+          await renderViaHTTP(appPort, '/basic-alias')
+          expect(await stripAnsi(output)).toMatch(
+            /Module not found: Can't resolve '@c\/worldd'/
+          )
+        })
         expect(found).toBe(true)
       } finally {
         await fs.writeFile(basicPage, contents)

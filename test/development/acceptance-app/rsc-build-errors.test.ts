@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
@@ -368,10 +368,11 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
-    await check(
-      () => session.getRedboxSource(),
-      /must be a Client \n| Component/
-    )
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatch(
+        /must be a Client \n| Component/
+      )
+    })
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
@@ -417,7 +418,11 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
     expect(await session.hasRedbox()).toBe(true)
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatch(
+        /must be a Client Component/
+      )
+    })
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -463,10 +468,9 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.patch(pagePath, content)
 
-    await check(
-      async () => ((await session.hasRedbox()) ? 'success' : 'fail'),
-      /success/
-    )
+    await retry(async () => {
+      expect(await session.hasRedbox()).toBeTruthy()
+    })
 
     expect(await session.getRedboxDescription()).toContain(
       'Cannot add property x, object is not extensible'

@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, retry } from 'next-test-utils'
 
 describe('ENOENT during require', () => {
   let next: NextInstance
@@ -41,14 +41,12 @@ describe('ENOENT during require', () => {
   afterAll(() => next.destroy())
 
   it('should show ENOENT error correctly', async () => {
-    await check(async () => {
+    await retry(async () => {
       await renderViaHTTP(next.url, '/')
       console.error(next.cliOutput)
 
-      return next.cliOutput.includes('non-existent-folder')
-        ? 'success'
-        : next.cliOutput
-    }, 'success')
+      expect(next.cliOutput.includes('non-existent-folder')).toBeTruthy()
+    })
 
     expect(next.cliOutput).not.toContain('Cannot destructure property')
   })

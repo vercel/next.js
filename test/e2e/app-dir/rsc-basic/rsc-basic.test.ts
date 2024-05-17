@@ -1,5 +1,5 @@
 import path from 'path'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -37,7 +37,7 @@ describe('app dir - rsc basics', () => {
   if (isNextDev && !isTurbopack) {
     it('should have correct client references keys in manifest', async () => {
       await next.render('/')
-      await check(async () => {
+      await retry(async () => {
         // Check that the client-side manifest is correct before any requests
         const clientReferenceManifest = JSON.parse(
           (
@@ -53,9 +53,7 @@ describe('app dir - rsc basics', () => {
           const [, key] = name.split('#', 2)
           return key === undefined || key === '' || key === 'default'
         })
-
-        return 'success'
-      }, 'success')
+      })
     })
   }
 
@@ -190,20 +188,25 @@ describe('app dir - rsc basics', () => {
 
     await browser.waitForElementByCss('#goto-next-link').click()
     await new Promise((res) => setTimeout(res, 1000))
-    await check(() => browser.url(), `${next.url}/next-api/link`)
+    await retry(async () => {
+      expect(await browser.url()).toMatch(`${next.url}/next-api/link`)
+    })
     await browser.waitForElementByCss('#goto-home').click()
     await new Promise((res) => setTimeout(res, 1000))
-    await check(() => browser.url(), `${next.url}/root`)
+    await retry(async () => {
+      expect(await browser.url()).toMatch(`${next.url}/root`)
+    })
     const content = await browser.elementByCss('body').text()
     expect(content).toContain('component:root.server')
 
     await browser.waitForElementByCss('#goto-streaming-rsc').click()
 
     // Wait for navigation and streaming to finish.
-    await check(
-      () => browser.elementByCss('#content').text(),
-      'next_streaming_data'
-    )
+    await retry(async () => {
+      expect(await browser.elementByCss('#content').text()).toEqual(
+        'next_streaming_data'
+      )
+    })
     expect(await browser.url()).toBe(`${next.url}/streaming-rsc`)
   })
 
@@ -239,10 +242,14 @@ describe('app dir - rsc basics', () => {
       await browser.eval('window.beforeNav = 1')
 
       await browser.waitForElementByCss('#next_id').click()
-      await check(() => browser.elementByCss('#query').text(), 'query:1')
+      await retry(async () => {
+        expect(await browser.elementByCss('#query').text()).toEqual('query:1')
+      })
 
       await browser.waitForElementByCss('#next_id').click()
-      await check(() => browser.elementByCss('#query').text(), 'query:2')
+      await retry(async () => {
+        expect(await browser.elementByCss('#query').text()).toEqual('query:2')
+      })
 
       if (isNextDev) {
         expect(await browser.eval('window.beforeNav')).toBe(1)

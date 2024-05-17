@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-prefetch-false-loading', () => {
   const { next } = nextTestSetup({
@@ -19,21 +19,22 @@ describe('app-prefetch-false-loading', () => {
     await browser.elementByCss('[href="/en/testing/test"]').click()
     expect(await browser.hasElementByCssSelector('#loading')).toBeFalsy()
 
-    await check(
-      () => browser.hasElementByCssSelector('#nested-testing-page'),
-      true
-    )
+    await retry(async () => {
+      expect(
+        await browser.hasElementByCssSelector('#nested-testing-page')
+      ).toMatch(true)
+    })
 
     const newRandomNumber = await browser.elementById('random-number').text()
 
     expect(initialRandomNumber).toBe(newRandomNumber)
 
-    await check(() => {
+    await retry(() => {
       const logOccurrences =
         next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
           .length - 1
 
-      return logOccurrences
-    }, 1)
+      expect(logOccurrences).toBe(1)
+    })
   })
 })

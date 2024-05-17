@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -18,6 +17,7 @@ import {
   nextBuild,
   startStaticServer,
   stopApp,
+  retry,
 } from 'next-test-utils'
 
 const glob = promisify(globOrig)
@@ -159,58 +159,80 @@ export async function runTests({
         const source = await getRedboxSource(browser)
         expect(`${header}\n${source}`).toContain(expectedErrMsg)
       } else {
-        await check(() => result.stderr, /error/i)
+        await retry(async () => {
+          expect(await result.stderr).toMatch(/error/i)
+        })
       }
       expect(result.stderr).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
       const browser = await webdriver(port, '/')
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Home')
+      })
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'another no trailingslash'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Another')
+      })
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Home')
+      })
       expect(await browser.elementByCss(a(2)).text()).toBe(
         'another has trailingslash'
       )
       await browser.elementByCss(a(2)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Another')
+      })
       expect(await browser.elementByCss(a(1)).text()).toBe(
         'Visit the home page'
       )
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Home')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Home')
+      })
       expect(await browser.elementByCss(a(3)).text()).toBe('another first page')
       await browser.elementByCss(a(3)).click()
-      await check(() => browser.elementByCss('h1').text(), 'first')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('first')
+      })
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Another')
+      })
       expect(await browser.elementByCss(a(4)).text()).toBe(
         'another second page'
       )
       await browser.elementByCss(a(4)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'second')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('second')
+      })
       expect(await browser.elementByCss(a(1)).text()).toBe('Visit another page')
       await browser.elementByCss(a(1)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Another')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Another')
+      })
       expect(await browser.elementByCss(a(5)).text()).toBe('image import page')
       await browser.elementByCss(a(5)).click()
 
-      await check(() => browser.elementByCss('h1').text(), 'Image Import')
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toEqual('Image Import')
+      })
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
       expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
         /\/test\.(.*)\.png/

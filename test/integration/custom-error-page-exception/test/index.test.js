@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { nextBuild, nextStart, findPort, killApp, check } from 'next-test-utils'
+import { nextBuild, nextStart, findPort, killApp, retry } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 const nodeArgs = ['-r', join(appDir, '../../lib/react-channel-require-hook.js')]
@@ -29,10 +29,11 @@ describe.skip('Custom error page exception', () => {
         const browser = await webdriver(appPort, '/')
         await browser.waitForElementByCss(navSel).elementByCss(navSel).click()
 
-        await check(
-          () => browser.eval('document.documentElement.innerHTML'),
-          /Application error: a client-side exception has occurred/
-        )
+        await retry(async () => {
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toMatch(/Application error: a client-side exception has occurred/)
+        })
       })
     }
   )

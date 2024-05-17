@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-render-error-log', () => {
   const { next } = nextTestSetup({
@@ -9,10 +9,14 @@ describe('app-render-error-log', () => {
     const outputIndex = next.cliOutput.length
     await next.fetch('/')
 
-    await check(() => next.cliOutput.slice(outputIndex), /at Page/)
+    await retry(async () => {
+      expect(await next.cliOutput.slice(outputIndex)).toMatch(/at Page/)
+    })
     const cliOutput = next.cliOutput.slice(outputIndex)
 
-    await check(() => cliOutput, /digest:/)
+    await retry(async () => {
+      expect(await cliOutput).toMatch(/digest:/)
+    })
     expect(cliOutput).toInclude('Error: boom')
     expect(cliOutput).toInclude('at fn2 (./app/fn.ts')
     expect(cliOutput).toMatch(/at (Module\.)?fn1 \(\.\/app\/fn\.ts/)
@@ -25,10 +29,14 @@ describe('app-render-error-log', () => {
     const outputIndex = next.cliOutput.length
     await next.fetch('/edge')
 
-    await check(() => next.cliOutput.slice(outputIndex), /at EdgePage/)
+    await retry(async () => {
+      expect(await next.cliOutput.slice(outputIndex)).toMatch(/at EdgePage/)
+    })
     const cliOutput = next.cliOutput.slice(outputIndex)
 
-    await check(() => cliOutput, /digest:/)
+    await retry(async () => {
+      expect(await cliOutput).toMatch(/digest:/)
+    })
     expect(cliOutput).toInclude('Error: boom')
     expect(cliOutput).toInclude('at fn2 (./app/fn.ts')
     expect(cliOutput).toMatch(/at (Module\.)?fn1 \(\.\/app\/fn\.ts/)

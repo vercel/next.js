@@ -3,12 +3,12 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 import {
-  check,
   File,
   findPort,
   killApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -38,7 +38,9 @@ describe('app dir - with output export (next start)', () => {
             stderr += msg || ''
           },
         })
-        await check(() => stderr, /error/i)
+        await retry(async () => {
+          expect(await stderr).toMatch(/error/i)
+        })
         expect(stderr).toContain(
           '"next start" does not work with "output: export" configuration. Use "npx serve@latest out" instead.'
         )
@@ -59,7 +61,10 @@ describe('app dir - with output export (next start)', () => {
               stderr += msg || ''
             },
           })
-          await check(() => stderr, /⚠/i)
+          await retry(async () => {
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(await stderr).toMatch(/⚠/i)
+          })
           // eslint-disable-next-line jest/no-standalone-expect
           expect(stderr).toContain(
             `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`

@@ -13,7 +13,7 @@ import {
   fetchViaHTTP,
   File,
   launchApp,
-  check,
+  retry,
 } from 'next-test-utils'
 import assert from 'assert'
 
@@ -232,7 +232,7 @@ describe('i18n Support', () => {
             document.querySelector('#to-gsp-fr').scrollIntoView()
           })()`)
 
-          await check(async () => {
+          await retry(async () => {
             const hrefs = await browser.eval(
               `Object.keys(window.next.router.sdc)`
             )
@@ -246,8 +246,7 @@ describe('i18n Support', () => {
               ),
               ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
             )
-            return 'yes'
-          }, 'yes')
+          })
         })
 
         it('should have correct locale domain hrefs', async () => {

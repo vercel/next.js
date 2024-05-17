@@ -8,8 +8,8 @@ import {
   nextStart,
   findPort,
   killApp,
-  check,
   getPageFileFromBuildManifest,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -30,26 +30,24 @@ describe('Failing to load _error', () => {
         await browser.eval(`window.beforeNavigate = true`)
 
         await browser.elementByCss('#to-broken').moveTo()
-        await check(
-          async () => {
-            const scripts = await browser.elementsByCss('script')
-            let found = false
+        await retry(async () => {
+          const scripts = await browser.elementsByCss('script')
+          let found = false
 
-            for (const script of scripts) {
-              const src = await script.getAttribute('src')
-              if (src.includes('broken-')) {
-                found = true
-                break
-              }
+          for (const script of scripts) {
+            const src = await script.getAttribute('src')
+            if (src.includes('broken-')) {
+              found = true
+              break
             }
-            return found
-          },
-          {
+          }
+
+          expect(await found).toMatch({
             test(content) {
               return content === true
             },
-          }
-        )
+          })
+        })
 
         const errorPageFilePath = getPageFileFromBuildManifest(
           appDir,
@@ -60,11 +58,9 @@ describe('Failing to load _error', () => {
 
         await browser.elementByCss('#to-broken').click()
 
-        await check(async () => {
-          return !(await browser.eval('window.beforeNavigate'))
-            ? 'reloaded'
-            : 'fail'
-        }, /reloaded/)
+        await retry(async () => {
+          expect(!(await browser.eval('window.beforeNavigate'))).toBeTruthy()
+        })
       })
     }
   )

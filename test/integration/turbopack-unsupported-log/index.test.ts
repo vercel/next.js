@@ -1,9 +1,9 @@
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   renderViaHTTP,
+  retry,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -83,13 +83,12 @@ describe('turbopack unsupported features log', () => {
       })
 
       try {
-        await check(() => {
+        await retry(() => {
           expect(output).toContain('(turbo)')
           expect(output).toContain(
             'You are using configuration and/or tools that are not yet'
           )
-          return 'success'
-        }, /success/)
+        })
       } finally {
         await killApp(app).catch(() => {})
         await fs.remove(nextConfigPath)

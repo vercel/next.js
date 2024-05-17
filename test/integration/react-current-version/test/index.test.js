@@ -4,11 +4,11 @@ import { join } from 'path'
 
 import cheerio from 'cheerio'
 import {
-  check,
   File,
   renderViaHTTP,
   runDevSuite,
   runProdSuite,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -96,14 +96,20 @@ function runTestsAgainstRuntime(runtime) {
         expect(stylesOccurrence.length).toBe(1)
 
         await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
-          await check(
-            () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
-            /(?:blue|#00f)/
-          )
-          await check(
-            () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),
-            /red/
-          )
+          await retry(async () => {
+            expect(
+              await browser
+                .waitForElementByCss('#__jsx-900f996af369fc74')
+                .text()
+            ).toMatch(/(?:blue|#00f)/)
+          })
+          await retry(async () => {
+            expect(
+              await browser
+                .waitForElementByCss('#__jsx-8b0811664c4e575e')
+                .text()
+            ).toMatch(/red/)
+          })
         })
       })
 

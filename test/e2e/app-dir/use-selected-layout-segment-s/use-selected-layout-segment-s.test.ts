@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
   let next: NextInstance
@@ -76,10 +76,11 @@ describe('useSelectedLayoutSegment(s)', () => {
   it('should correctly update when changing static segment', async () => {
     browser.elementById('change-static').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/segment-name/param1/different-segment'
-    )
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/segment-name/param1/different-segment'
+      )
+    })
 
     expect(
       await browser.elementByCss('#root > .segments').text()
@@ -97,10 +98,11 @@ describe('useSelectedLayoutSegment(s)', () => {
   it('should correctly update when changing param segment', async () => {
     browser.elementById('change-param').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/segment-name/param1/segment-name2/different-value/value3/value4'
-    )
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/segment-name/param1/segment-name2/different-value/value3/value4'
+      )
+    })
 
     expect(
       await browser.elementByCss('#root > .segments').text()
@@ -120,10 +122,11 @@ describe('useSelectedLayoutSegment(s)', () => {
   it('should correctly update when changing catchall segment', async () => {
     browser.elementById('change-catchall').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/segment-name/param1/segment-name2/value2/different/random/paths'
-    )
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/segment-name/param1/segment-name2/value2/different/random/paths'
+      )
+    })
 
     expect(
       await browser.elementByCss('#root > .segments').text()

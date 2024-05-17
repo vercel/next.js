@@ -7,9 +7,9 @@ import {
   killApp,
   findPort,
   launchApp,
-  check,
   hasRedbox,
   getRedboxSource,
+  retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -49,16 +49,16 @@ describe('server-side dev errors', () => {
       )
       const browser = await webdriver(appPort, '/gsp')
 
-      await check(async () => {
+      await retry(() => {
         const err = stderr.slice(stderrIdx)
 
-        return err.includes('pages/gsp.js') &&
-          err.includes('6:2') &&
-          err.includes('getStaticProps') &&
-          err.includes('missingVar')
-          ? 'success'
-          : err
-      }, 'success')
+        expect(
+          err.includes('pages/gsp.js') &&
+            err.includes('6:2') &&
+            err.includes('getStaticProps') &&
+            err.includes('missingVar')
+        ).toBeTruthy()
+      })
 
       expect(await hasRedbox(browser)).toBe(true)
 
@@ -81,16 +81,16 @@ describe('server-side dev errors', () => {
       )
       const browser = await webdriver(appPort, '/gssp')
 
-      await check(async () => {
+      await retry(() => {
         const err = stderr.slice(stderrIdx)
 
-        return err.includes('pages/gssp.js') &&
-          err.includes('6:2') &&
-          err.includes('getServerSideProps') &&
-          err.includes('missingVar')
-          ? 'success'
-          : err
-      }, 'success')
+        expect(
+          err.includes('pages/gssp.js') &&
+            err.includes('6:2') &&
+            err.includes('getServerSideProps') &&
+            err.includes('missingVar')
+        ).toBeTruthy()
+      })
 
       expect(await hasRedbox(browser)).toBe(true)
 
@@ -113,16 +113,16 @@ describe('server-side dev errors', () => {
       )
       const browser = await webdriver(appPort, '/blog/first')
 
-      await check(async () => {
+      await retry(() => {
         const err = stderr.slice(stderrIdx)
 
-        return err.includes('pages/blog/[slug].js') &&
-          err.includes('6:2') &&
-          err.includes('getServerSideProps') &&
-          err.includes('missingVar')
-          ? 'success'
-          : err
-      }, 'success')
+        expect(
+          err.includes('pages/blog/[slug].js') &&
+            err.includes('6:2') &&
+            err.includes('getServerSideProps') &&
+            err.includes('missingVar')
+        ).toBeTruthy()
+      })
 
       expect(await hasRedbox(browser)).toBe(true)
 
@@ -145,16 +145,16 @@ describe('server-side dev errors', () => {
       )
       const browser = await webdriver(appPort, '/api/hello')
 
-      await check(async () => {
+      await retry(() => {
         const err = stderr.slice(stderrIdx)
 
-        return err.includes('pages/api/hello.js') &&
-          err.includes('2:3') &&
-          err.includes('default') &&
-          err.includes('missingVar')
-          ? 'success'
-          : err
-      }, 'success')
+        expect(
+          err.includes('pages/api/hello.js') &&
+            err.includes('2:3') &&
+            err.includes('default') &&
+            err.includes('missingVar')
+        ).toBeTruthy()
+      })
 
       expect(await hasRedbox(browser)).toBe(true)
 
@@ -177,16 +177,16 @@ describe('server-side dev errors', () => {
       )
       const browser = await webdriver(appPort, '/api/blog/first')
 
-      await check(async () => {
+      await retry(() => {
         const err = stderr.slice(stderrIdx)
 
-        return err.includes('pages/api/blog/[slug].js') &&
-          err.includes('2:3') &&
-          err.includes('default') &&
-          err.includes('missingVar')
-          ? 'success'
-          : err
-      }, 'success')
+        expect(
+          err.includes('pages/api/blog/[slug].js') &&
+            err.includes('2:3') &&
+            err.includes('default') &&
+            err.includes('missingVar')
+        ).toBeTruthy()
+      })
 
       expect(await hasRedbox(browser)).toBe(true)
 
@@ -202,63 +202,63 @@ describe('server-side dev errors', () => {
     const stderrIdx = stderr.length
     await webdriver(appPort, '/uncaught-rejection')
 
-    await check(async () => {
+    await retry(() => {
       const err = stderr.slice(stderrIdx)
 
-      return err.includes('pages/uncaught-rejection.js') &&
-        err.includes('7:20') &&
-        err.includes('getServerSideProps') &&
-        err.includes('catch this rejection')
-        ? 'success'
-        : err
-    }, 'success')
+      expect(
+        err.includes('pages/uncaught-rejection.js') &&
+          err.includes('7:20') &&
+          err.includes('getServerSideProps') &&
+          err.includes('catch this rejection')
+      ).toBeTruthy()
+    })
   })
 
   it('should show server-side error for uncaught empty rejection correctly', async () => {
     const stderrIdx = stderr.length
     await webdriver(appPort, '/uncaught-empty-rejection')
 
-    await check(async () => {
+    await retry(() => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
-      return cleanStderr.includes('pages/uncaught-empty-rejection.js') &&
-        cleanStderr.includes('7:20') &&
-        cleanStderr.includes('getServerSideProps') &&
-        cleanStderr.includes('new Error()')
-        ? 'success'
-        : cleanStderr
-    }, 'success')
+      expect(
+        cleanStderr.includes('pages/uncaught-empty-rejection.js') &&
+          cleanStderr.includes('7:20') &&
+          cleanStderr.includes('getServerSideProps') &&
+          cleanStderr.includes('new Error()')
+      ).toBeTruthy()
+    })
   })
 
   it('should show server-side error for uncaught exception correctly', async () => {
     const stderrIdx = stderr.length
     await webdriver(appPort, '/uncaught-exception')
 
-    await check(async () => {
+    await retry(() => {
       const err = stderr.slice(stderrIdx)
 
-      return err.includes('pages/uncaught-exception.js') &&
-        err.includes('7:11') &&
-        err.includes('getServerSideProps') &&
-        err.includes('catch this exception')
-        ? 'success'
-        : err
-    }, 'success')
+      expect(
+        err.includes('pages/uncaught-exception.js') &&
+          err.includes('7:11') &&
+          err.includes('getServerSideProps') &&
+          err.includes('catch this exception')
+      ).toBeTruthy()
+    })
   })
 
   it('should show server-side error for uncaught empty exception correctly', async () => {
     const stderrIdx = stderr.length
     await webdriver(appPort, '/uncaught-empty-exception')
 
-    await check(async () => {
+    await retry(() => {
       const cleanStderr = stripAnsi(stderr.slice(stderrIdx))
 
-      return cleanStderr.includes('pages/uncaught-empty-exception.js') &&
-        cleanStderr.includes('7:11') &&
-        cleanStderr.includes('getServerSideProps') &&
-        cleanStderr.includes('new Error()')
-        ? 'success'
-        : cleanStderr
-    }, 'success')
+      expect(
+        cleanStderr.includes('pages/uncaught-empty-exception.js') &&
+          cleanStderr.includes('7:11') &&
+          cleanStderr.includes('getServerSideProps') &&
+          cleanStderr.includes('new Error()')
+      ).toBeTruthy()
+    })
   })
 })

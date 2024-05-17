@@ -2,12 +2,12 @@ import { join } from 'path'
 import { createNext, nextTestSetup } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  retry,
 } from 'next-test-utils'
 
 const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
@@ -76,9 +76,9 @@ describe('streaming SSR with custom next configs', () => {
       }
     `
       )
-      await check(async () => {
-        return await renderViaHTTP(next.url, '/')
-      }, /index/)
+      await retry(async () => {
+        expect(await renderViaHTTP(next.url, '/')).toMatch(/index/)
+      })
       await next.deleteFile('pages/_document.js')
     })
   }

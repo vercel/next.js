@@ -12,7 +12,7 @@ import {
   fetchViaHTTP,
   launchApp,
   getBrowserBodyText,
-  check,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -54,7 +54,9 @@ for (const dev of [false, true]) {
           let browser
           try {
             browser = await webdriver(appPort, page)
-            await check(() => getBrowserBodyText(browser), expectedClient)
+            await retry(async () => {
+              expect(await getBrowserBodyText(browser)).toMatch(expectedClient)
+            })
           } finally {
             await browser.close()
           }

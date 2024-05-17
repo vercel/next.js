@@ -13,7 +13,7 @@ import {
   nextStart,
   File,
   fetchViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -93,7 +93,7 @@ const runTests = () => {
 
       await browser.elementByCss('#to-about').click()
 
-      await check(async () => {
+      await retry(async () => {
         const data = JSON.parse(
           cheerio
             .load(await browser.eval('document.documentElement.innerHTML'))(
@@ -102,10 +102,8 @@ const runTests = () => {
             .text()
         )
         console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/about`
-          ? 'success'
-          : 'fail'
-      }, 'success')
+        expect(data.url === `${expectedIndex ? '/fr' : ''}/about`).toBeTruthy()
+      })
 
       await browser
         .back()
@@ -113,7 +111,7 @@ const runTests = () => {
         .elementByCss('#to-catch-all')
         .click()
 
-      await check(async () => {
+      await retry(async () => {
         const data = JSON.parse(
           cheerio
             .load(await browser.eval('document.documentElement.innerHTML'))(
@@ -122,10 +120,8 @@ const runTests = () => {
             .text()
         )
         console.log(data)
-        return data.url === `${expectedIndex ? '/fr' : ''}/hello`
-          ? 'success'
-          : 'fail'
-      }, 'success')
+        expect(data.url === `${expectedIndex ? '/fr' : ''}/hello`).toBeTruthy()
+      })
 
       await browser.back().waitForElementByCss('#links')
 
@@ -133,15 +129,20 @@ const runTests = () => {
 
       await browser.elementByCss('#to-index').click()
 
-      await check(() => browser.eval('window.location.pathname'), locale || '/')
+      await retry(async () => {
+        expect(await browser.eval('window.location.pathname')).toMatch(
+          locale || '/'
+        )
+      })
       expect(await browser.eval('window.beforeNav')).toBe(1)
 
       await browser.elementByCss('#to-links').click()
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `${locale}/links`
-      )
+      await retry(async () => {
+        expect(await browser.eval('window.location.pathname')).toMatch(
+          `${locale}/links`
+        )
+      })
       expect(await browser.eval('window.beforeNav')).toBe(1)
     }
   })

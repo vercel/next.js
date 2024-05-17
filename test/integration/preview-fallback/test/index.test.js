@@ -13,7 +13,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -211,10 +211,10 @@ function runTests(isDev) {
   it('should not write preview dynamic non-prerendered SSG page to cache with fallback', async () => {
     let browser = await webdriver(appPort, '/fallback/second')
 
-    await check(async () => {
+    await retry(async () => {
       const props = JSON.parse(await browser.elementByCss('#props').text())
-      return props.params ? 'pass' : 'fail'
-    }, 'pass')
+      expect(props.params).toBeTruthy()
+    })
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
 
@@ -251,10 +251,10 @@ function runTests(isDev) {
 
     browser = await webdriver(appPort, '/fallback/second')
 
-    await check(async () => {
+    await retry(async () => {
       const props = JSON.parse(await browser.elementByCss('#props').text())
-      return props.params ? 'pass' : 'fail'
-    }, 'pass')
+      expect(props.params).toBeTruthy()
+    })
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
 

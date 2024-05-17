@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-identical-title */
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -97,19 +97,19 @@ describe('Middleware can set the matcher in its config', () => {
   it('should load matches in client matchers correctly', async () => {
     const browser = await webdriver(next.url, '/')
 
-    await check(async () => {
+    await retry(async () => {
       const matchers = await browser.eval(
         (global as any).isNextDev
           ? 'window.__DEV_MIDDLEWARE_MATCHERS'
           : 'window.__MIDDLEWARE_MATCHERS'
       )
 
-      return matchers &&
-        matchers.some((m) => m.regexp.includes('with-middleware')) &&
-        matchers.some((m) => m.regexp.includes('another-middleware'))
-        ? 'success'
-        : 'failed'
-    }, 'success')
+      expect(
+        matchers &&
+          matchers.some((m) => m.regexp.includes('with-middleware')) &&
+          matchers.some((m) => m.regexp.includes('another-middleware'))
+      ).toBeTruthy()
+    })
   })
 
   it('should navigate correctly with matchers', async () => {
@@ -136,10 +136,11 @@ describe('Middleware can set the matcher in its config', () => {
     })
 
     await browser.elementByCss('#to-blog-slug-2').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /"slug":"slug-2"/
-    )
+    await retry(async () => {
+      expect(await browser.eval('document.documentElement.innerHTML')).toMatch(
+        /"slug":"slug-2"/
+      )
+    })
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       message: 'Hello, magnificent world.',
       params: {

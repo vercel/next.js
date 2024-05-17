@@ -1,11 +1,11 @@
 import {
-  check,
   findAllTelemetryEvents,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextLint,
+  retry,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
@@ -103,7 +103,9 @@ describe('config telemetry', () => {
             NEXT_TELEMETRY_DEBUG: 1,
           },
         })
-        await check(() => stderr2, /NEXT_CLI_SESSION_STARTED/)
+        await retry(async () => {
+          expect(await stderr2).toMatch(/NEXT_CLI_SESSION_STARTED/)
+        })
         await killApp(app)
 
         await fs.rename(

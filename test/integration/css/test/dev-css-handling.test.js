@@ -1,12 +1,12 @@
 /* eslint-env jest */
 import { remove } from 'fs-extra'
 import {
-  check,
   File,
   findPort,
   killApp,
   launchApp,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -50,13 +50,13 @@ describe('Can hot reload CSS without losing state', () => {
       try {
         cssFile.replace('color: red', 'color: purple')
 
-        await check(
-          () =>
-            browser.eval(
+        await retry(async () => {
+          expect(
+            await browser.eval(
               `window.getComputedStyle(document.querySelector('.red-text')).color`
-            ),
-          'rgb(128, 0, 128)'
-        )
+            )
+          ).toEqual('rgb(128, 0, 128)')
+        })
 
         // ensure text remained
         expect(await browser.elementById('text-input').getValue()).toBe(

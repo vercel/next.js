@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef, type NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 const pathnames = {
   '/404': ['/not/a/real/page?with=query', '/not/a/real/page'],
@@ -126,10 +126,11 @@ describe('404-page-router', () => {
           const browser = await webdriver(next.url, url)
 
           try {
-            await check(
-              () => browser.eval('next.router.isReady ? "yes" : "no"'),
-              'yes'
-            )
+            await retry(async () => {
+              expect(
+                await browser.eval('next.router.isReady ? "yes" : "no"')
+              ).toEqual('yes')
+            })
             expect(await browser.elementById('pathname').text()).toEqual(
               pathname
             )
@@ -145,10 +146,11 @@ describe('404-page-router', () => {
       // https://github.com/vercel/next.js/issues/44293
       it('should not throw any errors when re-fetching the route info', async () => {
         const browser = await webdriver(next.url, '/?test=1')
-        await check(
-          () => browser.eval('next.router.isReady ? "yes" : "no"'),
-          'yes'
-        )
+        await retry(async () => {
+          expect(
+            await browser.eval('next.router.isReady ? "yes" : "no"')
+          ).toEqual('yes')
+        })
         expect(await browser.elementById('query').text()).toEqual('test=1')
       })
     }

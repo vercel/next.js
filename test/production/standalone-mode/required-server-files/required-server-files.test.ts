@@ -6,13 +6,13 @@ import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 describe('required server files', () => {
@@ -183,7 +183,9 @@ describe('required server files', () => {
       })
 
       expect(res.status).toBe(500)
-      await check(() => stderr, /Invariant: failed to load static page/)
+      await retry(async () => {
+        expect(await stderr).toMatch(/Invariant: failed to load static page/)
+      })
     } finally {
       await next.renameFile(`${toRename}.bak`, toRename)
     }
@@ -291,10 +293,11 @@ describe('required server files', () => {
 
   it('should warn when "next" is imported directly', async () => {
     await renderViaHTTP(appPort, '/gssp')
-    await check(
-      () => stderr,
-      /"next" should not be imported directly, imported in/
-    )
+    await retry(async () => {
+      expect(await stderr).toMatch(
+        /"next" should not be imported directly, imported in/
+      )
+    })
   })
 
   it('`compress` should be `false` in nextEnv', async () => {
@@ -963,13 +966,9 @@ describe('required server files', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () =>
-        errors.join('\n').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n').includes('gip hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for gssp page', async () => {
@@ -977,13 +976,9 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n').includes('gssp hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for gsp page', async () => {
@@ -991,13 +986,9 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+    await retry(() => {
+      expect(errors.join('\n').includes('gsp hit an oops')).toBeTruthy()
+    })
   })
 
   it('should bubble error correctly for API page', async () => {
@@ -1005,13 +996,11 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(appPort, '/api/error')
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
+    await retry(() => {
+      expect(
         errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
-    )
+      ).toBeTruthy()
+    })
   })
 
   it('should normalize optional values correctly for SSP page', async () => {

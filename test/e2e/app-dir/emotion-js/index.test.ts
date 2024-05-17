@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - emotion-js', () => {
   const { next, skipped } = nextTestSetup({
@@ -19,12 +19,12 @@ describe('app dir - emotion-js', () => {
     const browser = await next.browser('/')
     const el = browser.elementByCss('h1')
     expect(await el.text()).toBe('Blue')
-    await check(
-      async () =>
+    await retry(async () => {
+      expect(
         await browser.eval(
           `window.getComputedStyle(document.querySelector('h1')).color`
-        ),
-      'rgb(0, 0, 255)'
-    )
+        )
+      ).toEqual('rgb(0, 0, 255)')
+    })
   })
 })
