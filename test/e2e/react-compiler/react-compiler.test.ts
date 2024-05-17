@@ -19,6 +19,11 @@ describe.each(
     },
   })
 
+  it('should show an experimental warning', async () => {
+    expect(next.cliOutput).toContain('Experiments (use with caution)')
+    expect(next.cliOutput).toContain('reactCompiler')
+  })
+
   it('should render', async () => {
     const browser = await next.browser('/')
 

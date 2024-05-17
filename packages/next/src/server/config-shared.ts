@@ -464,7 +464,7 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
   /**
-   * Enable experimental react compiler optimization.
+   * Enable experimental React compiler optimization.
    * Configuration accepts partial config object to the compiler, if provided
    * compiler will be enabled.
    */
@@ -962,6 +962,7 @@ export const defaultConfig: NextConfig = {
       static: 300,
     },
     allowDevelopmentBuild: undefined,
+    reactCompiler: undefined,
   },
   bundlePagesRouterDependencies: false,
 }
