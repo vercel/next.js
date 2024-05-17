@@ -866,8 +866,8 @@ function serializeReadableStream(request, task, stream) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$8) {
-          error(x$8);
+        } catch (x$9) {
+          error(x$9);
         }
   }
   function error(reason) {
@@ -942,8 +942,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$9) {
-          error(x$9);
+        } catch (x$10) {
+          error(x$10);
         }
   }
   function error(reason) {
@@ -1046,11 +1046,11 @@ function renderFunctionComponent(request, task, key, Component, props) {
           Component instanceof ReadableStream)
       )
     ) {
-      var iterableChild$10 = Component;
+      var iterableChild$11 = Component;
       Component = {};
       Component =
         ((Component[ASYNC_ITERATOR] = function () {
-          return iterableChild$10[ASYNC_ITERATOR]();
+          return iterableChild$11[ASYNC_ITERATOR]();
         }),
         Component);
     }
@@ -1576,10 +1576,10 @@ function renderModelDestructive(
   }
   if ("symbol" === typeof value) {
     task = request.writtenSymbols;
-    var existingId$17 = task.get(value);
-    if (void 0 !== existingId$17) return serializeByValueID(existingId$17);
-    existingId$17 = value.description;
-    if (Symbol.for(existingId$17) !== value)
+    var existingId$18 = task.get(value);
+    if (void 0 !== existingId$18) return serializeByValueID(existingId$18);
+    existingId$18 = value.description;
+    if (Symbol.for(existingId$18) !== value)
       throw Error(
         "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
           (value.description + ") cannot be found among global symbols.") +
@@ -1590,7 +1590,7 @@ function renderModelDestructive(
     parentPropertyName = encodeReferenceChunk(
       request,
       parent,
-      "$S" + existingId$17
+      "$S" + existingId$18
     );
     request.completedImportChunks.push(parentPropertyName);
     task.set(value, parent);
@@ -1915,7 +1915,7 @@ function abort(request, reason) {
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
-      var error$25 =
+      var error$26 =
         "object" === typeof reason &&
         null !== reason &&
         reason.$$typeof === REACT_POSTPONE_TYPE
@@ -1924,14 +1924,14 @@ function abort(request, reason) {
           ? Error("The render was aborted by the server without a reason.")
           : reason;
       abortListeners.forEach(function (callback) {
-        return callback(error$25);
+        return callback(error$26);
       });
       abortListeners.clear();
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$26) {
-    logRecoverableError(request, error$26), fatalError(request, error$26);
+  } catch (error$27) {
+    logRecoverableError(request, error$27), fatalError(request, error$27);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2002,16 +2002,61 @@ Chunk.prototype.then = function (resolve, reject) {
       reject(this.reason);
   }
 };
+function createPendingChunk(response) {
+  return new Chunk("pending", null, null, response);
+}
 function wakeChunk(listeners, value) {
   for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
 }
 function triggerErrorOnChunk(chunk, error) {
-  if ("pending" === chunk.status || "blocked" === chunk.status) {
+  if ("pending" !== chunk.status && "blocked" !== chunk.status)
+    chunk.reason.error(error);
+  else {
     var listeners = chunk.reason;
     chunk.status = "rejected";
     chunk.reason = error;
     null !== listeners && wakeChunk(listeners, error);
   }
+}
+function resolveModelChunk(chunk, value) {
+  if ("pending" !== chunk.status)
+    (chunk = chunk.reason),
+      "C" === value[0]
+        ? chunk.close("C" === value ? '"$undefined"' : value.slice(1))
+        : chunk.enqueueModel(value);
+  else {
+    var resolveListeners = chunk.value,
+      rejectListeners = chunk.reason;
+    chunk.status = "resolved_model";
+    chunk.value = value;
+    if (null !== resolveListeners)
+      switch ((initializeModelChunk(chunk), chunk.status)) {
+        case "fulfilled":
+          wakeChunk(resolveListeners, chunk.value);
+          break;
+        case "pending":
+        case "blocked":
+          chunk.value = resolveListeners;
+          chunk.reason = rejectListeners;
+          break;
+        case "rejected":
+          rejectListeners && wakeChunk(rejectListeners, chunk.reason);
+      }
+  }
+}
+function createResolvedIteratorResultChunk(response, value, done) {
+  return new Chunk(
+    "resolved_model",
+    (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}",
+    null,
+    response
+  );
+}
+function resolveIteratorResultChunk(chunk, value, done) {
+  resolveModelChunk(
+    chunk,
+    (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}"
+  );
 }
 function loadServerReference$1(
   response,
@@ -2022,20 +2067,27 @@ function loadServerReference$1(
   key
 ) {
   var serverReference = resolveServerReference(response._bundlerConfig, id);
-  response = preloadModule(serverReference);
+  id = preloadModule(serverReference);
   if (bound)
-    bound = Promise.all([bound, response]).then(function (_ref) {
+    bound = Promise.all([bound, id]).then(function (_ref) {
       _ref = _ref[0];
       var fn = requireModule(serverReference);
       return fn.bind.apply(fn, [null].concat(_ref));
     });
-  else if (response)
-    bound = Promise.resolve(response).then(function () {
+  else if (id)
+    bound = Promise.resolve(id).then(function () {
       return requireModule(serverReference);
     });
   else return requireModule(serverReference);
   bound.then(
-    createModelResolver(parentChunk, parentObject, key),
+    createModelResolver(
+      parentChunk,
+      parentObject,
+      key,
+      !1,
+      response,
+      createModel
+    ),
     createModelReject(parentChunk)
   );
   return null;
@@ -2076,17 +2128,22 @@ function getChunk(response, id) {
     (chunk =
       null != chunk
         ? new Chunk("resolved_model", chunk, null, response)
-        : new Chunk("pending", null, null, response)),
+        : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   if (initializingChunkBlockedModel) {
     var blocked = initializingChunkBlockedModel;
-    blocked.deps++;
-  } else blocked = initializingChunkBlockedModel = { deps: 1, value: null };
+    cyclic || blocked.deps++;
+  } else
+    blocked = initializingChunkBlockedModel = {
+      deps: cyclic ? 0 : 1,
+      value: null
+    };
   return function (value) {
-    parentObject[key] = value;
+    parentObject[key] = map(response, value);
+    "" === key && null === blocked.value && (blocked.value = parentObject[key]);
     blocked.deps--;
     0 === blocked.deps &&
       "blocked" === chunk.status &&
@@ -2101,11 +2158,38 @@ function createModelReject(chunk) {
     return triggerErrorOnChunk(chunk, error);
   };
 }
-function getOutlinedModel(response, id) {
-  response = getChunk(response, id);
-  "resolved_model" === response.status && initializeModelChunk(response);
-  if ("fulfilled" !== response.status) throw response.reason;
-  return response.value;
+function getOutlinedModel(response, id, parentObject, key, map) {
+  id = getChunk(response, id);
+  switch (id.status) {
+    case "resolved_model":
+      initializeModelChunk(id);
+  }
+  switch (id.status) {
+    case "fulfilled":
+      return map(response, id.value);
+    case "pending":
+    case "blocked":
+      var parentChunk = initializingChunk;
+      id.then(
+        createModelResolver(parentChunk, parentObject, key, !1, response, map),
+        createModelReject(parentChunk)
+      );
+      return null;
+    default:
+      throw id.reason;
+  }
+}
+function createMap(response, model) {
+  return new Map(model);
+}
+function createSet(response, model) {
+  return new Set(model);
+}
+function extractIterator(response, model) {
+  return model[Symbol.iterator]();
+}
+function createModel(response, model) {
+  return model;
 }
 function parseTypedArray(
   response,
@@ -2116,19 +2200,181 @@ function parseTypedArray(
   parentKey
 ) {
   reference = parseInt(reference.slice(2), 16);
-  response = response._formData.get(response._prefix + reference);
-  response =
+  reference = response._formData.get(response._prefix + reference);
+  reference =
     constructor === ArrayBuffer
-      ? response.arrayBuffer()
-      : response.arrayBuffer().then(function (buffer) {
+      ? reference.arrayBuffer()
+      : reference.arrayBuffer().then(function (buffer) {
           return new constructor(buffer);
         });
-  reference = initializingChunk;
-  response.then(
-    createModelResolver(reference, parentObject, parentKey),
-    createModelReject(reference)
+  bytesPerElement = initializingChunk;
+  reference.then(
+    createModelResolver(
+      bytesPerElement,
+      parentObject,
+      parentKey,
+      !1,
+      response,
+      createModel
+    ),
+    createModelReject(bytesPerElement)
   );
   return null;
+}
+function resolveStream(response, id, stream, controller) {
+  var chunks = response._chunks;
+  stream = new Chunk("fulfilled", stream, controller, response);
+  chunks.set(id, stream);
+  response = response._formData.getAll(response._prefix + id);
+  for (id = 0; id < response.length; id++)
+    (chunks = response[id]),
+      "C" === chunks[0]
+        ? controller.close("C" === chunks ? '"$undefined"' : chunks.slice(1))
+        : controller.enqueueModel(chunks);
+}
+function parseReadableStream(response, reference, type) {
+  reference = parseInt(reference.slice(2), 16);
+  var controller = null;
+  type = new ReadableStream({
+    type: type,
+    start: function (c) {
+      controller = c;
+    }
+  });
+  var previousBlockedChunk = null;
+  resolveStream(response, reference, type, {
+    enqueueModel: function (json) {
+      if (null === previousBlockedChunk) {
+        var chunk = new Chunk("resolved_model", json, null, response);
+        initializeModelChunk(chunk);
+        "fulfilled" === chunk.status
+          ? controller.enqueue(chunk.value)
+          : (chunk.then(
+              function (v) {
+                return controller.enqueue(v);
+              },
+              function (e) {
+                return controller.error(e);
+              }
+            ),
+            (previousBlockedChunk = chunk));
+      } else {
+        chunk = previousBlockedChunk;
+        var chunk$28 = createPendingChunk(response);
+        chunk$28.then(
+          function (v) {
+            return controller.enqueue(v);
+          },
+          function (e) {
+            return controller.error(e);
+          }
+        );
+        previousBlockedChunk = chunk$28;
+        chunk.then(function () {
+          previousBlockedChunk === chunk$28 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$28, json);
+        });
+      }
+    },
+    close: function () {
+      if (null === previousBlockedChunk) controller.close();
+      else {
+        var blockedChunk = previousBlockedChunk;
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.close();
+        });
+      }
+    },
+    error: function (error) {
+      if (null === previousBlockedChunk) controller.error(error);
+      else {
+        var blockedChunk = previousBlockedChunk;
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.error(error);
+        });
+      }
+    }
+  });
+  return type;
+}
+function asyncIterator() {
+  return this;
+}
+function createIterator(next) {
+  next = { next: next };
+  next[ASYNC_ITERATOR] = asyncIterator;
+  return next;
+}
+function parseAsyncIterable(response, reference, iterator) {
+  reference = parseInt(reference.slice(2), 16);
+  var buffer = [],
+    closed = !1,
+    nextWriteIndex = 0,
+    $jscomp$compprop2 = {};
+  $jscomp$compprop2 =
+    (($jscomp$compprop2[ASYNC_ITERATOR] = function () {
+      var nextReadIndex = 0;
+      return createIterator(function (arg) {
+        if (void 0 !== arg)
+          throw Error(
+            "Values cannot be passed to next() of AsyncIterables passed to Client Components."
+          );
+        if (nextReadIndex === buffer.length) {
+          if (closed)
+            return new Chunk(
+              "fulfilled",
+              { done: !0, value: void 0 },
+              null,
+              response
+            );
+          buffer[nextReadIndex] = createPendingChunk(response);
+        }
+        return buffer[nextReadIndex++];
+      });
+    }),
+    $jscomp$compprop2);
+  iterator = iterator ? $jscomp$compprop2[ASYNC_ITERATOR]() : $jscomp$compprop2;
+  resolveStream(response, reference, iterator, {
+    enqueueModel: function (value) {
+      nextWriteIndex === buffer.length
+        ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+            response,
+            value,
+            !1
+          ))
+        : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !1);
+      nextWriteIndex++;
+    },
+    close: function (value) {
+      closed = !0;
+      nextWriteIndex === buffer.length
+        ? (buffer[nextWriteIndex] = createResolvedIteratorResultChunk(
+            response,
+            value,
+            !0
+          ))
+        : resolveIteratorResultChunk(buffer[nextWriteIndex], value, !0);
+      for (nextWriteIndex++; nextWriteIndex < buffer.length; )
+        resolveIteratorResultChunk(
+          buffer[nextWriteIndex++],
+          '"$undefined"',
+          !0
+        );
+    },
+    error: function (error) {
+      closed = !0;
+      for (
+        nextWriteIndex === buffer.length &&
+        (buffer[nextWriteIndex] = createPendingChunk(response));
+        nextWriteIndex < buffer.length;
+
+      )
+        triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+    }
+  });
+  return iterator;
 }
 function parseModelString(response, obj, key, value) {
   if ("$" === value[0]) {
@@ -2140,7 +2386,7 @@ function parseModelString(response, obj, key, value) {
       case "F":
         return (
           (value = parseInt(value.slice(2), 16)),
-          (value = getOutlinedModel(response, value)),
+          (value = getOutlinedModel(response, value, obj, key, createModel)),
           loadServerReference$1(
             response,
             value.id,
@@ -2154,29 +2400,27 @@ function parseModelString(response, obj, key, value) {
         return createTemporaryReference(value.slice(2));
       case "Q":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          (response = getOutlinedModel(response, obj)),
-          new Map(response)
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, createMap)
         );
       case "W":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          (response = getOutlinedModel(response, obj)),
-          new Set(response)
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, createSet)
         );
       case "K":
         obj = value.slice(2);
         var formPrefix = response._prefix + obj + "_",
-          data$31 = new FormData();
+          data = new FormData();
         response._formData.forEach(function (entry, entryKey) {
           entryKey.startsWith(formPrefix) &&
-            data$31.append(entryKey.slice(formPrefix.length), entry);
+            data.append(entryKey.slice(formPrefix.length), entry);
         });
-        return data$31;
+        return data;
       case "i":
         return (
-          (obj = parseInt(value.slice(2), 16)),
-          getOutlinedModel(response, obj)[Symbol.iterator]()
+          (value = parseInt(value.slice(2), 16)),
+          getOutlinedModel(response, value, obj, key, extractIterator)
         );
       case "I":
         return Infinity;
@@ -2224,28 +2468,18 @@ function parseModelString(response, obj, key, value) {
           response._formData.get(response._prefix + obj)
         );
     }
+    switch (value[1]) {
+      case "R":
+        return parseReadableStream(response, value, void 0);
+      case "r":
+        return parseReadableStream(response, value, "bytes");
+      case "X":
+        return parseAsyncIterable(response, value, !1);
+      case "x":
+        return parseAsyncIterable(response, value, !0);
+    }
     value = parseInt(value.slice(1), 16);
-    response = getChunk(response, value);
-    switch (response.status) {
-      case "resolved_model":
-        initializeModelChunk(response);
-    }
-    switch (response.status) {
-      case "fulfilled":
-        return response.value;
-      case "pending":
-      case "blocked":
-        return (
-          (value = initializingChunk),
-          response.then(
-            createModelResolver(value, obj, key),
-            createModelReject(value)
-          ),
-          null
-        );
-      default:
-        throw response.reason;
-    }
+    return getOutlinedModel(response, value, obj, key, createModel);
   }
   return value;
 }
@@ -2271,30 +2505,10 @@ function createResponse(bundlerConfig, formFieldPrefix) {
 function resolveField(response, key, value) {
   response._formData.append(key, value);
   var prefix = response._prefix;
-  if (
-    key.startsWith(prefix) &&
+  key.startsWith(prefix) &&
     ((response = response._chunks),
     (key = +key.slice(prefix.length)),
-    (key = response.get(key)) &&
-      "pending" === key.status &&
-      ((prefix = key.value),
-      (response = key.reason),
-      (key.status = "resolved_model"),
-      (key.value = value),
-      null !== prefix))
-  )
-    switch ((initializeModelChunk(key), key.status)) {
-      case "fulfilled":
-        wakeChunk(prefix, key.value);
-        break;
-      case "pending":
-      case "blocked":
-        key.value = prefix;
-        key.reason = response;
-        break;
-      case "rejected":
-        response && wakeChunk(response, key.reason);
-    }
+    (key = response.get(key)) && resolveModelChunk(key, value));
 }
 function close(response) {
   reportGlobalError(response, Error("Connection closed."));
@@ -2402,12 +2616,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_209 = [];
+    var JSCompiler_object_inline_chunks_205 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_209.push(chunk);
+      JSCompiler_object_inline_chunks_205.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_209, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_205, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);

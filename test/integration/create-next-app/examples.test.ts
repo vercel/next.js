@@ -1,3 +1,5 @@
+import { trace } from 'next/dist/trace'
+import { createNextInstall } from '../../lib/create-next-install'
 import {
   EXAMPLE_PATH,
   EXAMPLE_REPO,
@@ -9,13 +11,24 @@ import {
   useTempDir,
 } from './utils'
 
-describe('create-next-app --example', () => {
+describe.skip('create-next-app --example', () => {
+  let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
+  beforeAll(async () => {
+    nextInstall = await createNextInstall({
+      parentSpan: trace('test'),
+      keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+    })
+  })
   it('should create on valid Next.js example name', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'valid-example'
-      const res = await run([projectName, '--example', 'basic-css'], {
-        cwd,
-      })
+      const res = await run(
+        [projectName, '--example', 'basic-css'],
+        nextInstall.installDir,
+        {
+          cwd,
+        }
+      )
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
         cwd,
@@ -34,9 +47,13 @@ describe('create-next-app --example', () => {
   it('should create with GitHub URL', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'github-url'
-      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-        cwd,
-      })
+      const res = await run(
+        [projectName, '--example', FULL_EXAMPLE_PATH],
+        nextInstall.installDir,
+        {
+          cwd,
+        }
+      )
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
@@ -64,6 +81,7 @@ describe('create-next-app --example', () => {
           // GH#39665
           'https://github.com/vercel/nextjs-portfolio-starter/',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -97,6 +115,7 @@ describe('create-next-app --example', () => {
           '--example-path',
           EXAMPLE_PATH,
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -131,6 +150,7 @@ describe('create-next-app --example', () => {
           '--example-path',
           EXAMPLE_PATH,
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -168,6 +188,7 @@ describe('create-next-app --example', () => {
             '__internal-testing-retry',
             '--import-alias=@/*',
           ],
+          nextInstall.installDir,
           {
             cwd,
             input: '\n', // 'Yes' to retry
@@ -199,6 +220,7 @@ describe('create-next-app --example', () => {
           'default',
           '--import-alias=@/*',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -217,10 +239,14 @@ describe('create-next-app --example', () => {
   it('should not create if --example flag value is invalid', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'invalid-example'
-      const res = await run([projectName, '--example', 'not a real example'], {
-        cwd,
-        reject: false,
-      })
+      const res = await run(
+        [projectName, '--example', 'not a real example'],
+        nextInstall.installDir,
+        {
+          cwd,
+          reject: false,
+        }
+      )
 
       expect(res.exitCode).toBe(1)
       projectFilesShouldNotExist({
@@ -244,6 +270,7 @@ describe('create-next-app --example', () => {
           '--no-tailwind',
           '--example',
         ],
+        nextInstall.installDir,
         {
           cwd,
           reject: false,

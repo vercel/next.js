@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
@@ -19,7 +19,7 @@ use turbopack_binding::turbopack::{
     turbopack::ecmascript::{
         chunk::{
             EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-            EcmascriptChunkingContext, EcmascriptExports,
+            EcmascriptExports,
         },
         utils::StringifyJs,
     },
@@ -81,16 +81,9 @@ impl ChunkableModule for NextServerComponentModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
-        let context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     NextServerComponentModule",
-                )?;
         Ok(Vc::upcast(
             BuildServerComponentChunkItem {
-                context,
+                chunking_context,
                 inner: self,
             }
             .cell(),
@@ -122,15 +115,15 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
 
 #[turbo_tasks::value]
 struct BuildServerComponentChunkItem {
-    context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     inner: Vc<NextServerComponentModule>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for BuildServerComponentChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        self.context
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -140,7 +133,7 @@ impl EcmascriptChunkItem for BuildServerComponentChunkItem {
 
         let module_id = inner
             .module
-            .as_chunk_item(Vc::upcast(this.context))
+            .as_chunk_item(Vc::upcast(this.chunking_context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {
@@ -173,7 +166,7 @@ impl ChunkItem for BuildServerComponentChunkItem {
 
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.context)
+        self.chunking_context
     }
 
     #[turbo_tasks::function]

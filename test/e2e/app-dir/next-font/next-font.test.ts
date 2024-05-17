@@ -53,9 +53,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
           },
         })
         // page
@@ -67,9 +65,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font2_.{6}', '__font2_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font2', 'font2 Fallback'$/),
           },
         })
         // Comp
@@ -78,9 +74,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font3_.{6}', '__font3_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font3', 'font3 Fallback'$/),
             fontStyle: 'italic',
             fontWeight: 900,
           },
@@ -99,9 +93,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
           },
         })
 
@@ -111,9 +103,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font4_.{6}', '__font4_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font4', 'font4 Fallback'$/),
             fontWeight: 100,
           },
         })
@@ -123,9 +113,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font5_.{6}', '__font5_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font5', 'font5 Fallback'$/),
             fontStyle: 'italic',
           },
         })
@@ -135,9 +123,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font6_.{6}', '__font6_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font6', 'font6 Fallback'$/),
           },
         })
       })
@@ -149,9 +135,7 @@ describe('app dir - next/font', () => {
             process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
           ),
           style: {
-            fontFamily: expect.stringMatching(
-              /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
-            ),
+            fontFamily: expect.stringMatching(/^'font1', 'font1 Fallback'$/),
           },
           variable: expect.stringMatching(
             process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
@@ -169,7 +153,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
           )
-        ).toMatch(/^__font1_.{6}, __font1_Fallback_.{6}$/)
+        ).toMatch(/^font1, "font1 Fallback"$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -186,7 +170,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-page")).fontFamily'
           )
-        ).toMatch(/^__font2_.{6}, __font2_Fallback_.{6}$/)
+        ).toMatch(/^font2, "font2 Fallback"$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-page")).fontWeight'
@@ -203,7 +187,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-comp")).fontFamily'
           )
-        ).toMatch(/^__font3_.{6}, __font3_Fallback_.{6}$/)
+        ).toMatch(/^font3, "font3 Fallback"$$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-comp")).fontWeight'
@@ -224,7 +208,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
           )
-        ).toMatch(/^__font1_.{6}, __font1_Fallback_.{6}$/)
+        ).toMatch(/^font1, "font1 Fallback"$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -241,7 +225,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-layout")).fontFamily'
           )
-        ).toMatch(/^__font4_.{6}, __font4_Fallback_.{6}$/)
+        ).toMatch(/^font4, "font4 Fallback"$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-layout")).fontWeight'
@@ -258,7 +242,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-page")).fontFamily'
           )
-        ).toMatch(/^__font5_.{6}, __font5_Fallback_.{6}$/)
+        ).toMatch(/^font5, "font5 Fallback"$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-page")).fontWeight'
@@ -275,7 +259,7 @@ describe('app dir - next/font', () => {
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-comp")).fontFamily'
           )
-        ).toMatch(/^__font6_.{6}, __font6_Fallback_.{6}$/)
+        ).toMatch(/^font6, "font6 Fallback"$$/)
         expect(
           await browser.eval(
             'getComputedStyle(document.querySelector("#client-comp")).fontWeight'

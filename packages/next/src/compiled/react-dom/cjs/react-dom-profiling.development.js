@@ -12,10 +12,7 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
-
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
+'use strict';
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
@@ -23,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = require("next/dist/compiled/react");
+var React = require("next/dist/compiled/react");
 var Scheduler = require("next/dist/compiled/scheduler");
 var ReactDOM = require('react-dom');
 
@@ -241,6 +238,7 @@ var REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 var REACT_LEGACY_HIDDEN_TYPE = Symbol.for('react.legacy_hidden');
 var REACT_TRACING_MARKER_TYPE = Symbol.for('react.tracing_marker');
+var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -8830,6 +8828,11 @@ function extractEvents$1(dispatchQueue, domEventName, maybeTargetInst, nativeEve
       var temp = submitter.ownerDocument.createElement('input');
       temp.name = submitter.name;
       temp.value = submitter.value;
+
+      if (form.id) {
+        temp.setAttribute('form', form.id);
+      }
+
       submitter.parentNode.insertBefore(temp, submitter);
       formData = new FormData(form);
       temp.parentNode.removeChild(temp);
@@ -17434,7 +17437,8 @@ var createFunctionComponentUpdateQueue;
     return {
       lastEffect: null,
       events: null,
-      stores: null
+      stores: null,
+      memoCache: null
     };
   };
 }
@@ -17478,6 +17482,93 @@ function use(usable) {
 
 
   throw new Error('An unsupported type was passed to use(): ' + String(usable));
+}
+
+function useMemoCache(size) {
+  var memoCache = null; // Fast-path, load memo cache from wip fiber if already prepared
+
+  var updateQueue = currentlyRenderingFiber$1.updateQueue;
+
+  if (updateQueue !== null) {
+    memoCache = updateQueue.memoCache;
+  } // Otherwise clone from the current fiber
+
+
+  if (memoCache == null) {
+    var current = currentlyRenderingFiber$1.alternate;
+
+    if (current !== null) {
+      var currentUpdateQueue = current.updateQueue;
+
+      if (currentUpdateQueue !== null) {
+        var currentMemoCache = currentUpdateQueue.memoCache;
+
+        if (currentMemoCache != null) {
+          memoCache = {
+            // When enableNoCloningMemoCache is enabled, instead of treating the
+            // cache as copy-on-write, like we do with fibers, we share the same
+            // cache instance across all render attempts, even if the component
+            // is interrupted before it commits.
+            //
+            // If an update is interrupted, either because it suspended or
+            // because of another update, we can reuse the memoized computations
+            // from the previous attempt. We can do this because the React
+            // Compiler performs atomic writes to the memo cache, i.e. it will
+            // not record the inputs to a memoization without also recording its
+            // output.
+            //
+            // This gives us a form of "resuming" within components and hooks.
+            //
+            // This only works when updating a component that already mounted.
+            // It has no impact during initial render, because the memo cache is
+            // stored on the fiber, and since we have not implemented resuming
+            // for fibers, it's always a fresh memo cache, anyway.
+            //
+            // However, this alone is pretty useful — it happens whenever you
+            // update the UI with fresh data after a mutation/action, which is
+            // extremely common in a Suspense-driven (e.g. RSC or Relay) app.
+            data: // Clone the memo cache before each render (copy-on-write)
+            currentMemoCache.data.map(function (array) {
+              return array.slice();
+            }),
+            index: 0
+          };
+        }
+      }
+    }
+  } // Finally fall back to allocating a fresh instance of the cache
+
+
+  if (memoCache == null) {
+    memoCache = {
+      data: [],
+      index: 0
+    };
+  }
+
+  if (updateQueue === null) {
+    updateQueue = createFunctionComponentUpdateQueue();
+    currentlyRenderingFiber$1.updateQueue = updateQueue;
+  }
+
+  updateQueue.memoCache = memoCache;
+  var data = memoCache.data[memoCache.index];
+
+  if (data === undefined) {
+    data = memoCache.data[memoCache.index] = new Array(size);
+
+    for (var i = 0; i < size; i++) {
+      data[i] = REACT_MEMO_CACHE_SENTINEL;
+    }
+  } else if (data.length !== size) {
+    // TODO: consider warning or throwing here
+    {
+      error('Expected a constant size argument for each invocation of useMemoCache. ' + 'The previous cache was allocated with size %s but size %s was requested.', data.length, size);
+    }
+  }
+
+  memoCache.index++;
+  return data;
 }
 
 function basicStateReducer(state, action) {
@@ -19279,6 +19370,10 @@ var ContextOnlyDispatcher = {
 }
 
 {
+  ContextOnlyDispatcher.useMemoCache = throwInvalidHookError;
+}
+
+{
   ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
   ContextOnlyDispatcher.useFormState = throwInvalidHookError;
   ContextOnlyDispatcher.useActionState = throwInvalidHookError;
@@ -19423,6 +19518,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
+    HooksDispatcherOnMountInDEV.useMemoCache = useMemoCache;
+  }
+
+  {
     HooksDispatcherOnMountInDEV.useHostTransitionStatus = useHostTransitionStatus;
 
     HooksDispatcherOnMountInDEV.useFormState = function useFormState(action, initialState, permalink) {
@@ -19555,6 +19654,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return mountRefresh();
     };
+  }
+
+  {
+    HooksDispatcherOnMountWithHookTypesInDEV.useMemoCache = useMemoCache;
   }
 
   {
@@ -19694,6 +19797,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
+    HooksDispatcherOnUpdateInDEV.useMemoCache = useMemoCache;
+  }
+
+  {
     HooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
 
     HooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
@@ -19827,6 +19934,10 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       updateHookTypesDev();
       return updateRefresh();
     };
+  }
+
+  {
+    HooksDispatcherOnRerenderInDEV.useMemoCache = useMemoCache;
   }
 
   {
@@ -19981,6 +20092,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       mountHookTypesDev();
       return mountRefresh();
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnMountInDEV.useMemoCache = function (size) {
+      warnInvalidHookAccess();
+      return useMemoCache(size);
     };
   }
 
@@ -20142,6 +20260,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
   }
 
   {
+    InvalidNestedHooksDispatcherOnUpdateInDEV.useMemoCache = function (size) {
+      warnInvalidHookAccess();
+      return useMemoCache(size);
+    };
+  }
+
+  {
     InvalidNestedHooksDispatcherOnUpdateInDEV.useHostTransitionStatus = useHostTransitionStatus;
 
     InvalidNestedHooksDispatcherOnUpdateInDEV.useFormState = function useFormState(action, initialState, permalink) {
@@ -20295,6 +20420,13 @@ var InvalidNestedHooksDispatcherOnRerenderInDEV = null;
       currentHookNameInDev = 'useCacheRefresh';
       updateHookTypesDev();
       return updateRefresh();
+    };
+  }
+
+  {
+    InvalidNestedHooksDispatcherOnRerenderInDEV.useMemoCache = function (size) {
+      warnInvalidHookAccess();
+      return useMemoCache(size);
     };
   }
 
@@ -35876,7 +36008,7 @@ identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transition
   return root;
 }
 
-var ReactVersion = '19.0.0-beta-4508873393-20240430';
+var ReactVersion = '19.0.0-beta-04b058868c-20240508';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -37782,7 +37914,6 @@ exports.unstable_batchedUpdates = batchedUpdates;
 exports.useFormState = useFormState;
 exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
@@ -37790,6 +37921,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }
