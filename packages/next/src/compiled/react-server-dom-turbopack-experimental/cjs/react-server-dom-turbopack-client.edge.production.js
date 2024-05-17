@@ -135,11 +135,102 @@ function processReply(
   reject
 ) {
   function serializeTypedArray(tag, typedArray) {
-    typedArray = new Blob([typedArray]);
+    typedArray = new Blob([
+      new Uint8Array(
+        typedArray.buffer,
+        typedArray.byteOffset,
+        typedArray.byteLength
+      )
+    ]);
     var blobId = nextPartId++;
     null === formData && (formData = new FormData());
     formData.append(formFieldPrefix + blobId, typedArray);
     return "$" + tag + blobId.toString(16);
+  }
+  function serializeBinaryReader(reader) {
+    function progress(entry) {
+      entry.done
+        ? ((entry = nextPartId++),
+          data.append(formFieldPrefix + entry, new Blob(buffer)),
+          data.append(
+            formFieldPrefix + streamId,
+            '"$o' + entry.toString(16) + '"'
+          ),
+          data.append(formFieldPrefix + streamId, "C"),
+          pendingParts--,
+          0 === pendingParts && resolve(data))
+        : (buffer.push(entry.value),
+          reader.read(new Uint8Array(1024)).then(progress, reject));
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++,
+      buffer = [];
+    reader.read(new Uint8Array(1024)).then(progress, reject);
+    return "$r" + streamId.toString(16);
+  }
+  function serializeReader(reader) {
+    function progress(entry) {
+      if (entry.done)
+        data.append(formFieldPrefix + streamId, "C"),
+          pendingParts--,
+          0 === pendingParts && resolve(data);
+      else
+        try {
+          var partJSON = JSON.stringify(entry.value, resolveToJSON);
+          data.append(formFieldPrefix + streamId, partJSON);
+          reader.read().then(progress, reject);
+        } catch (x) {
+          reject(x);
+        }
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    reader.read().then(progress, reject);
+    return "$R" + streamId.toString(16);
+  }
+  function serializeReadableStream(stream) {
+    try {
+      var binaryReader = stream.getReader({ mode: "byob" });
+    } catch (x) {
+      return serializeReader(stream.getReader());
+    }
+    return serializeBinaryReader(binaryReader);
+  }
+  function serializeAsyncIterable(iterable, iterator) {
+    function progress(entry) {
+      if (entry.done) {
+        if (void 0 === entry.value)
+          data.append(formFieldPrefix + streamId, "C");
+        else
+          try {
+            var partJSON = JSON.stringify(entry.value, resolveToJSON);
+            data.append(formFieldPrefix + streamId, "C" + partJSON);
+          } catch (x) {
+            reject(x);
+            return;
+          }
+        pendingParts--;
+        0 === pendingParts && resolve(data);
+      } else
+        try {
+          var partJSON$22 = JSON.stringify(entry.value, resolveToJSON);
+          data.append(formFieldPrefix + streamId, partJSON$22);
+          iterator.next().then(progress, reject);
+        } catch (x$23) {
+          reject(x$23);
+        }
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    iterable = iterable === iterator;
+    iterator.next().then(progress, reject);
+    return "$" + (iterable ? "x" : "X") + streamId.toString(16);
   }
   function resolveToJSON(key, value) {
     if (null === value) return null;
@@ -172,20 +263,20 @@ function processReply(
               "function" === typeof x.then
             ) {
               pendingParts++;
-              var lazyId$22 = nextPartId++;
+              var lazyId$24 = nextPartId++;
               resolvedModel = function () {
                 try {
-                  var partJSON$23 = JSON.stringify(value, resolveToJSON),
-                    data$24 = formData;
-                  data$24.append(formFieldPrefix + lazyId$22, partJSON$23);
+                  var partJSON$25 = JSON.stringify(value, resolveToJSON),
+                    data$26 = formData;
+                  data$26.append(formFieldPrefix + lazyId$24, partJSON$25);
                   pendingParts--;
-                  0 === pendingParts && resolve(data$24);
+                  0 === pendingParts && resolve(data$26);
                 } catch (reason) {
                   reject(reason);
                 }
               };
               x.then(resolvedModel, resolvedModel);
-              return "$" + lazyId$22.toString(16);
+              return "$" + lazyId$24.toString(16);
             }
             reject(x);
             return null;
@@ -197,32 +288,27 @@ function processReply(
         null === formData && (formData = new FormData());
         pendingParts++;
         var promiseId = nextPartId++;
-        value.then(
-          function (partValue) {
-            try {
-              var partJSON$26 = JSON.stringify(partValue, resolveToJSON);
-              partValue = formData;
-              partValue.append(formFieldPrefix + promiseId, partJSON$26);
-              pendingParts--;
-              0 === pendingParts && resolve(partValue);
-            } catch (reason) {
-              reject(reason);
-            }
-          },
-          function (reason) {
+        value.then(function (partValue) {
+          try {
+            var partJSON$28 = JSON.stringify(partValue, resolveToJSON);
+            partValue = formData;
+            partValue.append(formFieldPrefix + promiseId, partJSON$28);
+            pendingParts--;
+            0 === pendingParts && resolve(partValue);
+          } catch (reason) {
             reject(reason);
           }
-        );
+        }, reject);
         return "$@" + promiseId.toString(16);
       }
       if (isArrayImpl(value)) return value;
       if (value instanceof FormData) {
         null === formData && (formData = new FormData());
-        var data$28 = formData;
+        var data$30 = formData;
         resolvedModel = nextPartId++;
         var prefix = formFieldPrefix + resolvedModel + "_";
         value.forEach(function (originalValue, originalKey) {
-          data$28.append(prefix + originalKey, originalValue);
+          data$30.append(prefix + originalKey, originalValue);
         });
         return "$K" + resolvedModel.toString(16);
       }
@@ -242,7 +328,14 @@ function processReply(
           formData.append(formFieldPrefix + lazyId, resolvedModel),
           "$W" + lazyId.toString(16)
         );
-      if (value instanceof ArrayBuffer) return serializeTypedArray("A", value);
+      if (value instanceof ArrayBuffer)
+        return (
+          (resolvedModel = new Blob([value])),
+          (lazyId = nextPartId++),
+          null === formData && (formData = new FormData()),
+          formData.append(formFieldPrefix + lazyId, resolvedModel),
+          "$A" + lazyId.toString(16)
+        );
       if (value instanceof Int8Array) return serializeTypedArray("O", value);
       if (value instanceof Uint8Array) return serializeTypedArray("o", value);
       if (value instanceof Uint8ClampedArray)
@@ -279,6 +372,14 @@ function processReply(
               "$i" + lazyId.toString(16))
             : Array.from(resolvedModel)
         );
+      if (
+        "function" === typeof ReadableStream &&
+        value instanceof ReadableStream
+      )
+        return serializeReadableStream(value);
+      resolvedModel = value[ASYNC_ITERATOR];
+      if ("function" === typeof resolvedModel)
+        return serializeAsyncIterable(value, resolvedModel.call(value));
       resolvedModel = getPrototypeOf(value);
       if (
         resolvedModel !== ObjectPrototype &&
@@ -950,8 +1051,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$43 = createPendingChunk(response);
-        chunk$43.then(
+        var chunk$46 = createPendingChunk(response);
+        chunk$46.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -959,10 +1060,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$43;
+        previousBlockedChunk = chunk$46;
         chunk.then(function () {
-          previousBlockedChunk === chunk$43 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$43, json);
+          previousBlockedChunk === chunk$46 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$46, json);
         });
       }
     },
@@ -1090,8 +1191,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$44 = (i = 0); i$44 < l; i$44++) {
-    var chunk = buffer[i$44];
+  for (var i$47 = (i = 0); i$47 < l; i$47++) {
+    var chunk = buffer[i$47];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }

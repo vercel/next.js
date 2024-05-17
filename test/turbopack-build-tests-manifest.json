@@ -2889,7 +2889,9 @@
         "app dir - rsc basics should suspense next/image in server components",
         "app dir - rsc basics should suspense next/legacy/image in server components",
         "app dir - rsc basics should track client components in dynamic imports",
-        "app dir - rsc basics should use canary react for app"
+        "app dir - rsc basics should use canary react for app",
+        "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
+        "app dir - rsc basics next internal shared context should not error if just load next/router module in app page"
       ],
       "pending": [
         "app dir - rsc basics should support partial hydration with inlined server data in browser",
@@ -11339,10 +11341,21 @@
       "runtimeError": false
     },
     "test/integration/import-assertion/test/index.test.js": {
-      "passed": ["import-assertion dev should handle json assertions"],
-      "failed": [
+      "passed": [
+        "import-assertion dev should handle json assertions",
         "production mode import-assertion prod should handle json assertions"
       ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/import-attributes/test/index.test.js": {
+      "passed": [
+        "import-attributes dev should handle json attributes",
+        "production mode import-attributes prod should handle json attributes"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

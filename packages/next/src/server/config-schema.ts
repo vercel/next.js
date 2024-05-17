@@ -328,7 +328,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         strictNextHead: z.boolean().optional(),
-        swcMinify: z.boolean().optional(),
         swcPlugins: z
           // The specific swc plugin's option is unknown, use z.any() here
           .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
@@ -391,6 +390,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         instrumentationHook: z.boolean().optional(),
+        clientTraceMetadata: z.array(z.string()).optional(),
         turbotrace: z
           .object({
             logLevel: z
@@ -417,11 +417,23 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
-        missingSuspenseWithCSRBailout: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
+        reactCompiler: z.union([
+          z.boolean(),
+          z
+            .object({
+              compilationMode: z
+                .enum(['infer', 'annotation', 'all'])
+                .optional(),
+              panicThreshold: z
+                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .optional(),
+            })
+            .optional(),
+        ]),
       })
       .optional(),
     exportPathMap: z
@@ -575,7 +587,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
-    swcMinify: z.boolean().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),

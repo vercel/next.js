@@ -14,9 +14,9 @@
 /.next/
 /out/
 
-# production
-/build
-/studio/dist
+# sanity
+/.sanity/
+/dist/
 
 # misc
 .DS_Store

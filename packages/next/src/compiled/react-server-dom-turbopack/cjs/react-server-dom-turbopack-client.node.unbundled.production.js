@@ -173,22 +173,17 @@ function processReply(
         null === formData && (formData = new FormData());
         pendingParts++;
         var promiseId = nextPartId++;
-        value.then(
-          function (partValue) {
-            try {
-              var partJSON$25 = JSON.stringify(partValue, resolveToJSON);
-              partValue = formData;
-              partValue.append(formFieldPrefix + promiseId, partJSON$25);
-              pendingParts--;
-              0 === pendingParts && resolve(partValue);
-            } catch (reason) {
-              reject(reason);
-            }
-          },
-          function (reason) {
+        value.then(function (partValue) {
+          try {
+            var partJSON$25 = JSON.stringify(partValue, resolveToJSON);
+            partValue = formData;
+            partValue.append(formFieldPrefix + promiseId, partJSON$25);
+            pendingParts--;
+            0 === pendingParts && resolve(partValue);
+          } catch (reason) {
             reject(reason);
           }
-        );
+        }, reject);
         return "$@" + promiseId.toString(16);
       }
       if (isArrayImpl(value)) return value;

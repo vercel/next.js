@@ -198,6 +198,12 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter is too long' }
     }
 
+    if (url.startsWith('//')) {
+      return {
+        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
@@ -439,7 +445,7 @@ export async function optimizeImage({
 }): Promise<Buffer> {
   const sharp = getSharp()
   const transformer = sharp(buffer, { sequentialRead: true })
-    .timeout({ seconds: 10 })
+    .timeout({ seconds: 7 })
     .rotate()
 
   if (height) {
@@ -470,7 +476,21 @@ export async function optimizeImage({
 }
 
 export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
-  const res = await fetch(href)
+  const res = await fetch(href, {
+    signal: AbortSignal.timeout(7_000),
+  }).catch((err) => err as Error)
+
+  if (res instanceof Error) {
+    const err = res as Error
+    if (err.name === 'TimeoutError') {
+      Log.error('upstream image response timed out for', href)
+      throw new ImageError(
+        504,
+        '"url" parameter is valid but upstream response timed out'
+      )
+    }
+    throw err
+  }
 
   if (!res.ok) {
     Log.error('upstream image response failed for', href, res.status)

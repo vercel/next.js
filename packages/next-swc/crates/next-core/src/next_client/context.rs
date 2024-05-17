@@ -9,6 +9,7 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
+            chunk::ChunkingContext,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -17,7 +18,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
+        ecmascript::TreeShakingMode,
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -324,7 +325,7 @@ pub async fn get_client_chunking_context(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         project_path,

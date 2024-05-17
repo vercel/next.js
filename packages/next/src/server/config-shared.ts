@@ -182,6 +182,18 @@ export interface NextJsWebpackConfig {
   ): any
 }
 
+/**
+ * Set of options for the react compiler next.js
+ * currently supports.
+ *
+ * This can be changed without breaking changes while supporting
+ * react compiler in the experimental phase.
+ */
+export interface ReactCompilerOptions {
+  compilationMode?: 'infer' | 'annotation' | 'all'
+  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+}
+
 export interface ExperimentalConfig {
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
@@ -366,6 +378,11 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
+   * The array of the meta tags to the client injected by tracing propagation data.
+   */
+  clientTraceMetadata?: string[]
+
+  /**
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
@@ -419,17 +436,6 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
-   * if they are not wrapped in a suspense boundary.
-   *
-   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
-   *
-   * @note This flag will be removed in Next.js 15.
-   * @default true
-   */
-  missingSuspenseWithCSRBailout?: boolean
-
-  /**
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
@@ -457,6 +463,12 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
+  /**
+   * Enable experimental React compiler optimization.
+   * Configuration accepts partial config object to the compiler, if provided
+   * compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
 }
 
 export type ExportPathMap = {
@@ -880,7 +892,6 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   staticPageGenerationTimeout: 60,
-  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
@@ -931,6 +942,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
@@ -943,7 +955,6 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: true,
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
@@ -951,6 +962,7 @@ export const defaultConfig: NextConfig = {
       static: 300,
     },
     allowDevelopmentBuild: undefined,
+    reactCompiler: undefined,
   },
   bundlePagesRouterDependencies: false,
 }
