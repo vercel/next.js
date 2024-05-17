@@ -1562,84 +1562,89 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : isClient
-          ? [
-              {
-                resolve: {
-                  fallback:
-                    config.experimental.fallbackNodePolyfills === false
-                      ? {
-                          assert: false,
-                          buffer: false,
-                          constants: false,
-                          crypto: false,
-                          domain: false,
-                          http: false,
-                          https: false,
-                          os: false,
-                          path: false,
-                          punycode: false,
-                          process: false,
-                          querystring: false,
-                          stream: false,
-                          string_decoder: false,
-                          sys: false,
-                          timers: false,
-                          tty: false,
-                          util: false,
-                          vm: false,
-                          zlib: false,
-                          events: false,
-                          setImmediate: false,
-                        }
-                      : {
-                          assert: require.resolve('@next/vendored/assert'),
-                          buffer: require.resolve('@next/vendored/buffer'),
-                          constants: require.resolve(
-                            '@next/vendored/constants-browserify'
-                          ),
-                          crypto: require.resolve(
-                            '@next/vendored/crypto-browserify'
-                          ),
-                          domain: require.resolve(
-                            '@next/vendored/domain-browser'
-                          ),
-                          http: require.resolve('@next/vendored/stream-http'),
-                          https: require.resolve(
-                            '@next/vendored/https-browserify'
-                          ),
-                          os: require.resolve('@next/vendored/os-browserify'),
-                          path: require.resolve(
-                            '@next/vendored/path-browserify'
-                          ),
-                          punycode: require.resolve('@next/vendored/punycode'),
-                          process: require.resolve('./polyfills/process'),
-                          // Handled in separate alias
-                          querystring: require.resolve(
-                            '@next/vendored/querystring-es3'
-                          ),
-                          stream: require.resolve(
-                            '@next/vendored/stream-browserify'
-                          ),
-                          string_decoder: require.resolve(
-                            '@next/vendored/string_decoder'
-                          ),
-                          sys: require.resolve('@next/vendored/util'),
-                          timers: require.resolve(
-                            '@next/vendored/timers-browserify'
-                          ),
-                          tty: require.resolve('@next/vendored/tty-browserify'),
-                          // Handled in separate alias
-                          // url: require.resolve('url/'),
-                          util: require.resolve('@next/vendored/util'),
-                          vm: require.resolve('@next/vendored/vm-browserify'),
-                          zlib: require.resolve(
-                            '@next/vendored/browserify-zlib'
-                          ),
-                          events: require.resolve('@next/vendored/events'),
-                          setImmediate: require.resolve(
-                            '@next/vendored/setimmediate'
-                          ),
-                        },
+            ? [
+                {
+                  resolve: {
+                    fallback:
+                      config.experimental.fallbackNodePolyfills === false
+                        ? {
+                            assert: false,
+                            buffer: false,
+                            constants: false,
+                            crypto: false,
+                            domain: false,
+                            http: false,
+                            https: false,
+                            os: false,
+                            path: false,
+                            punycode: false,
+                            process: false,
+                            querystring: false,
+                            stream: false,
+                            string_decoder: false,
+                            sys: false,
+                            timers: false,
+                            tty: false,
+                            util: false,
+                            vm: false,
+                            zlib: false,
+                            events: false,
+                            setImmediate: false,
+                          }
+                        : {
+                            assert: require.resolve('@next/vendored/assert'),
+                            buffer: require.resolve('@next/vendored/buffer'),
+                            constants: require.resolve(
+                              '@next/vendored/constants-browserify'
+                            ),
+                            crypto: require.resolve(
+                              '@next/vendored/crypto-browserify'
+                            ),
+                            domain: require.resolve(
+                              '@next/vendored/domain-browser'
+                            ),
+                            http: require.resolve('@next/vendored/stream-http'),
+                            https: require.resolve(
+                              '@next/vendored/https-browserify'
+                            ),
+                            os: require.resolve('@next/vendored/os-browserify'),
+                            path: require.resolve(
+                              '@next/vendored/path-browserify'
+                            ),
+                            punycode: require.resolve(
+                              '@next/vendored/punycode'
+                            ),
+                            process: require.resolve('./polyfills/process'),
+                            // Handled in separate alias
+                            querystring: require.resolve(
+                              '@next/vendored/querystring-es3'
+                            ),
+                            stream: require.resolve(
+                              '@next/vendored/stream-browserify'
+                            ),
+                            string_decoder: require.resolve(
+                              '@next/vendored/string_decoder'
+                            ),
+                            sys: require.resolve('@next/vendored/util'),
+                            timers: require.resolve(
+                              '@next/vendored/timers-browserify'
+                            ),
+                            tty: require.resolve(
+                              '@next/vendored/tty-browserify'
+                            ),
+                            // Handled in separate alias
+                            // url: require.resolve('url/'),
+                            util: require.resolve('@next/vendored/util'),
+                            vm: require.resolve('@next/vendored/vm-browserify'),
+                            zlib: require.resolve(
+                              '@next/vendored/browserify-zlib'
+                            ),
+                            events: require.resolve('@next/vendored/events'),
+                            setImmediate: require.resolve(
+                              '@next/vendored/setimmediate'
+                            ),
+                          },
+                  },
                 },
               ]
             : []),
