@@ -31,7 +31,7 @@ export default function Home() {
           >
             <Image
               className="dark:invert"
-              src={"/vercel.svg"}
+              src="/vercel.svg"
               alt="Vercel logomark"
               width={20}
               height={20}
@@ -57,7 +57,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src={"/file-text.svg"}
+            src="/file-text.svg"
             alt="File icon"
             width={16}
             height={16}
@@ -72,7 +72,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src={"/window.svg"}
+            src="/window.svg"
             alt="Window icon"
             width={16}
             height={16}

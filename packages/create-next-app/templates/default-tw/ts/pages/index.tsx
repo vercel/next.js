@@ -43,7 +43,7 @@ export default function Home() {
           >
             <Image
               className="dark:invert"
-              src={"/vercel.svg"}
+              src="/vercel.svg"
               alt="Vercel logomark"
               width={20}
               height={20}
