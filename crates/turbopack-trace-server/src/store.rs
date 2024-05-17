@@ -3,7 +3,7 @@ use std::{
     collections::HashSet,
     mem::replace,
     num::NonZeroUsize,
-    sync::OnceLock,
+    sync::{atomic::AtomicU64, OnceLock},
 };
 
 use crate::{
@@ -19,6 +19,7 @@ const CUT_OFF_DEPTH: u32 = 150;
 pub struct Store {
     pub(crate) spans: Vec<Span>,
     pub(crate) self_time_tree: SelfTimeTree<SpanIndex>,
+    max_self_time_lookup_time: AtomicU64,
 }
 
 fn new_root_span() -> Span {
@@ -52,6 +53,7 @@ impl Store {
         Self {
             spans: vec![new_root_span()],
             self_time_tree: SelfTimeTree::new(),
+            max_self_time_lookup_time: AtomicU64::new(0),
         }
     }
 
@@ -59,6 +61,7 @@ impl Store {
         self.spans.truncate(1);
         self.spans[0] = new_root_span();
         self.self_time_tree = SelfTimeTree::new();
+        *self.max_self_time_lookup_time.get_mut() = 0;
     }
 
     pub fn has_time_info(&self) -> bool {
@@ -125,6 +128,23 @@ impl Store {
         outdated_spans.insert(span_index);
     }
 
+    pub fn set_max_self_time_lookup(&self, time: u64) {
+        let mut old = self
+            .max_self_time_lookup_time
+            .load(std::sync::atomic::Ordering::Relaxed);
+        while old < time {
+            match self.max_self_time_lookup_time.compare_exchange(
+                old,
+                time,
+                std::sync::atomic::Ordering::Relaxed,
+                std::sync::atomic::Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(real_old) => old = real_old,
+            }
+        }
+    }
+
     fn insert_self_time(
         &mut self,
         start: u64,
@@ -132,10 +152,12 @@ impl Store {
         span_index: SpanIndex,
         outdated_spans: &mut HashSet<SpanIndex>,
     ) {
-        self.self_time_tree
-            .for_each_in_range(start, end, |_, _, span| {
-                outdated_spans.insert(*span);
-            });
+        if *self.max_self_time_lookup_time.get_mut() >= start {
+            self.self_time_tree
+                .for_each_in_range(start, end, |_, _, span| {
+                    outdated_spans.insert(*span);
+                });
+        }
         self.self_time_tree.insert(start, end, span_index);
     }
 
@@ -295,6 +317,7 @@ impl Store {
             span.total_deallocations.take();
             span.total_persistent_allocations.take();
             span.total_allocation_count.take();
+            span.total_span_count.take();
             span.extra.take();
         }
 

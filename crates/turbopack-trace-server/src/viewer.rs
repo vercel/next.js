@@ -5,6 +5,7 @@ use std::{
 
 use either::Either;
 use itertools::Itertools;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -361,6 +362,10 @@ impl Viewer {
             .iter()
             .min_by_key(|span| span.start())
             .map_or(0, |span| span.start());
+        root_spans.par_iter().for_each(|span| {
+            span.max_depth();
+            QueueItem::Span(*span).value(value_mode);
+        });
         for span in root_spans {
             if matches!(value_mode, ValueMode::Duration) {
                 // Move current to start if needed.
@@ -396,6 +401,46 @@ impl Viewer {
             }
         }
         enqueue_children(children, &mut queue);
+        queue.par_iter().for_each(|item| {
+            let QueueItem::Span(span) = item.item else {
+                return;
+            };
+            let view_mode = if span.is_complete() {
+                item.view_mode
+            } else {
+                item.view_mode.as_spans()
+            };
+
+            match (view_mode.bottom_up(), view_mode.aggregate_children()) {
+                (false, false) => {}
+                (false, true) => {
+                    span.graph()
+                        .collect::<Vec<_>>()
+                        .par_iter()
+                        .for_each(|event| {
+                            value_mode.value_from_graph_event(event);
+                        });
+                }
+                (true, false) => {
+                    span.bottom_up()
+                        .collect::<Vec<_>>()
+                        .par_iter()
+                        .for_each(|bu| {
+                            bu.spans().collect::<Vec<_>>().par_iter().for_each(|span| {
+                                value_mode.value_from_bottom_up_span(span);
+                            });
+                        });
+                }
+                (true, true) => {
+                    span.bottom_up()
+                        .collect::<Vec<_>>()
+                        .par_iter()
+                        .for_each(|bu| {
+                            value_mode.value_from_bottom_up(bu);
+                        });
+                }
+            }
+        });
 
         let mut lines: Vec<Vec<LineEntry<'_>>> = vec![];
 

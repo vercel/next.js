@@ -264,6 +264,7 @@ impl<'a> SpanRef<'a> {
                     if duration == 0 {
                         continue;
                     }
+                    store.set_max_self_time_lookup(*end);
                     let concurrent_time = store.self_time_tree.lookup_range_count(*start, *end);
                     self_time += duration * duration / concurrent_time;
                 }
