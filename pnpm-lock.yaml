@@ -18,7 +18,7 @@ overrides:
   react: 19.0.0-beta-04b058868c-20240508
   react-dom: 19.0.0-beta-04b058868c-20240508
   react-is: 19.0.0-beta-04b058868c-20240508
-  scheduler: 0.25.0-beta-94eed63c49-20240425
+  scheduler: 0.25.0-beta-04b058868c-20240508
 
 importers:
 
@@ -454,23 +454,23 @@ importers:
         specifier: npm:react-dom@19.0.0-beta-04b058868c-20240508
         version: /react-dom@19.0.0-beta-04b058868c-20240508(react@19.0.0-beta-04b058868c-20240508)
       react-dom-experimental-builtin:
-        specifier: npm:react-dom@0.0.0-experimental-4508873393-20240430
-        version: /react-dom@0.0.0-experimental-4508873393-20240430(react@19.0.0-beta-04b058868c-20240508)
+        specifier: npm:react-dom@0.0.0-experimental-04b058868c-20240508
+        version: /react-dom@0.0.0-experimental-04b058868c-20240508(react@19.0.0-beta-04b058868c-20240508)
       react-experimental-builtin:
-        specifier: npm:react@0.0.0-experimental-4508873393-20240430
-        version: /react@0.0.0-experimental-4508873393-20240430
+        specifier: npm:react@0.0.0-experimental-04b058868c-20240508
+        version: /react@0.0.0-experimental-04b058868c-20240508
       react-server-dom-turbopack:
         specifier: 19.0.0-beta-04b058868c-20240508
         version: 19.0.0-beta-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)
       react-server-dom-turbopack-experimental:
-        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-4508873393-20240430
-        version: /react-server-dom-turbopack@0.0.0-experimental-4508873393-20240430(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)
+        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-04b058868c-20240508
+        version: /react-server-dom-turbopack@0.0.0-experimental-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)
       react-server-dom-webpack:
         specifier: 19.0.0-beta-04b058868c-20240508
         version: 19.0.0-beta-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(webpack@5.90.0)
       react-server-dom-webpack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-4508873393-20240430
-        version: /react-server-dom-webpack@0.0.0-experimental-4508873393-20240430(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(webpack@5.90.0)
+        specifier: npm:react-server-dom-webpack@0.0.0-experimental-04b058868c-20240508
+        version: /react-server-dom-webpack@0.0.0-experimental-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(webpack@5.90.0)
       react-ssr-prepass:
         specifier: 1.0.8
         version: 1.0.8(react-is@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)
@@ -499,11 +499,11 @@ importers:
         specifier: 0.10.9
         version: 0.10.9
       scheduler-builtin:
-        specifier: npm:scheduler@0.25.0-beta-4508873393-20240430
-        version: /scheduler@0.25.0-beta-4508873393-20240430
+        specifier: npm:scheduler@0.25.0-beta-04b058868c-20240508
+        version: /scheduler@0.25.0-beta-04b058868c-20240508
       scheduler-experimental-builtin:
-        specifier: npm:scheduler@0.0.0-experimental-4508873393-20240430
-        version: /scheduler@0.0.0-experimental-4508873393-20240430
+        specifier: npm:scheduler@0.0.0-experimental-04b058868c-20240508
+        version: /scheduler@0.0.0-experimental-04b058868c-20240508
       seedrandom:
         specifier: 3.0.5
         version: 3.0.5
@@ -748,7 +748,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -810,7 +810,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
@@ -938,16 +938,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1568,7 +1568,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.66
+        specifier: 14.3.0-canary.68
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -21326,13 +21326,13 @@ packages:
       strip-json-comments: 2.0.1
     dev: true
 
-  /react-dom@0.0.0-experimental-4508873393-20240430(react@19.0.0-beta-04b058868c-20240508):
-    resolution: {integrity: sha512-xmoRPU8s6sFJmhNhfUTSVztr/ExqJpYBI1NSVr/aQffKAfdriTdRT/iOxxCkPjD9a6eV4kjMagcw29Mt27aybA==}
+  /react-dom@0.0.0-experimental-04b058868c-20240508(react@19.0.0-beta-04b058868c-20240508):
+    resolution: {integrity: sha512-Lln68q2EH1Gjy01IwAsSWmf4bvrH7FFJc5stnTX4TOj4IEfeRxdQgQtSO1c2G065TGe6hua01lDewGifSktT9w==}
     peerDependencies:
       react: 19.0.0-beta-04b058868c-20240508
     dependencies:
       react: 19.0.0-beta-04b058868c-20240508
-      scheduler: 0.25.0-beta-94eed63c49-20240425
+      scheduler: 0.25.0-beta-04b058868c-20240508
     dev: true
 
   /react-dom@17.0.2(react@19.0.0-beta-04b058868c-20240508):
@@ -21343,7 +21343,7 @@ packages:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       react: 19.0.0-beta-04b058868c-20240508
-      scheduler: 0.25.0-beta-94eed63c49-20240425
+      scheduler: 0.25.0-beta-04b058868c-20240508
     dev: true
 
   /react-dom@19.0.0-beta-04b058868c-20240508(react@19.0.0-beta-04b058868c-20240508):
@@ -21352,7 +21352,7 @@ packages:
       react: 19.0.0-beta-04b058868c-20240508
     dependencies:
       react: 19.0.0-beta-04b058868c-20240508
-      scheduler: 0.25.0-beta-94eed63c49-20240425
+      scheduler: 0.25.0-beta-04b058868c-20240508
 
   /react-is@19.0.0-beta-04b058868c-20240508:
     resolution: {integrity: sha512-fn/t9y3/gURwRREkXGoFgvkSWngyHqN2bKg74rNNGtwsFeYqfquqxGHeE1u1Y1lddYupmltCkJR15Eh9RKUTFw==}
@@ -21366,8 +21366,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /react-server-dom-turbopack@0.0.0-experimental-4508873393-20240430(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508):
-    resolution: {integrity: sha512-+TcuMDyyfB2n4axpYzowXnUBYjO4uAjfIeAKVet7qwwWiRRnMOJYACIQDdK3FKYge8CZ5bF3dqZerhbzxc3HrA==}
+  /react-server-dom-turbopack@0.0.0-experimental-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508):
+    resolution: {integrity: sha512-+voMRIMMif4pb1wgvLpxW9qGA21O0G+pc1yLYwr3JLT+8UAWUnDxzneVC40GJ0522g/AKnQ7tCR0blOSyz4MRw==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
       react: 19.0.0-beta-04b058868c-20240508
@@ -21392,8 +21392,8 @@ packages:
       react-dom: 19.0.0-beta-04b058868c-20240508(react@19.0.0-beta-04b058868c-20240508)
     dev: true
 
-  /react-server-dom-webpack@0.0.0-experimental-4508873393-20240430(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(webpack@5.90.0):
-    resolution: {integrity: sha512-RaJGhlOUnHnnOHhN2swOD6DeCNlh/KPPlHRoG7QnkKRjP593tSS68CrP9nnPGvuqZvFSVUP2NpuvOYMJSH+93w==}
+  /react-server-dom-webpack@0.0.0-experimental-04b058868c-20240508(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(webpack@5.90.0):
+    resolution: {integrity: sha512-Y5A/BcgBTHfLovk0od9Fyt+44li9U2H8I5q16TmDnVNnXfntM4L9RdjPgI/T2AOsSmByBJ2Nw1Iwco7k425fnQ==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
       react: 19.0.0-beta-04b058868c-20240508
@@ -21449,8 +21449,8 @@ packages:
       react-lifecycles-compat: 3.0.4
     dev: true
 
-  /react@0.0.0-experimental-4508873393-20240430:
-    resolution: {integrity: sha512-lO/bf0CFNiNy2PxZI0wrwVhUoZ7IYRXaBFTiKJXOY0Inz3QWPaAZitZNccHOL9ug6Q+qOmO7VmK6fkz7yReBrw==}
+  /react@0.0.0-experimental-04b058868c-20240508:
+    resolution: {integrity: sha512-Sw5C323J4jyhwnJM1C3DflomFdvsi6OFn6ygokaUeWjEyUxpzyzXCunfm4hE9PsE/IYqQFMWQY8ZtlTv5eQBHA==}
     engines: {node: '>=0.10.0'}
     dev: true
 
@@ -22452,16 +22452,12 @@ packages:
       xmlchars: 2.2.0
     dev: true
 
-  /scheduler@0.0.0-experimental-4508873393-20240430:
-    resolution: {integrity: sha512-IWqVUYTSfu234x/NmD2lW/0rZlKAzZuABnLTRCohH61//00kgLvFVRxpo15GRtzvRkHBi7vb82cWOHm+AWRigA==}
+  /scheduler@0.0.0-experimental-04b058868c-20240508:
+    resolution: {integrity: sha512-9CYaAmpRK3c2NLiKf48q4pqG2MifEqG1R1lgYTTowMzpeBXyKAamB0CDpvbsdGeXSyLnvdLC3hrMzrbfpuXIfw==}
     dev: true
 
-  /scheduler@0.25.0-beta-4508873393-20240430:
-    resolution: {integrity: sha512-gk9vDoDOjTys0DpLgFll+hYk5gLhLnTipi81Pl+XSRtWkQnqQdjxLO2RF726t0g0jQ5tvwjLfBCgsvusgB6Luw==}
-    dev: true
-
-  /scheduler@0.25.0-beta-94eed63c49-20240425:
-    resolution: {integrity: sha512-U8hoOV7uut5E8cMvRSMikEBBqLXfv2BpdxUsG45euaOfnqEgFrCdLLh6ydM+YBJ36+28olXMNmK2PFFzeg4UdQ==}
+  /scheduler@0.25.0-beta-04b058868c-20240508:
+    resolution: {integrity: sha512-9BiO+0jJiftEqYhVXGIc7MQTxbDAd7mfRMIctKsH0DxvuN8vzzaOQbG5Jy720Pz6KUAjgAAJJ/2nZW35+XwuHg==}
 
   /schema-utils@2.7.1:
     resolution: {integrity: sha512-SHiNtMOUGWBQJwzISiVYKu82GiV4QYGePp3odlY1tuKO7gPtphAT5R/py0fA6xtbgLL/RvtJZnU9b8s0F1q0Xg==}

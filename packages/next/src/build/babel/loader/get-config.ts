@@ -7,6 +7,7 @@ import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
+import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -324,10 +325,7 @@ function getFreshConfig(
   }
 
   if (loaderOptions.transformMode === 'standalone') {
-    options.plugins = [
-      '@babel/plugin-syntax-jsx',
-      ...reactCompilerPluginsIfEnabled,
-    ]
+    options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
     options.presets = [
       [
         require('next/dist/compiled/babel/preset-typescript'),

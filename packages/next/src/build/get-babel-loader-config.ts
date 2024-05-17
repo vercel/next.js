@@ -1,6 +1,18 @@
 import path from 'path'
 import type { ReactCompilerOptions } from '../server/config-shared'
 
+function getReactCompiler() {
+  try {
+    // It's in peerDependencies, so it should be available
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    return require.resolve('babel-plugin-react-compiler')
+  } catch {
+    throw new Error(
+      'Failed to load the `babel-plugin-react-compiler`. It is required to use the React Compiler. Please install it.'
+    )
+  }
+}
+
 const getReactCompilerPlugins = (
   options: boolean | ReactCompilerOptions | undefined,
   isDev: boolean,
@@ -14,7 +26,7 @@ const getReactCompilerPlugins = (
   if (options) {
     return [
       [
-        'babel-plugin-react-compiler',
+        getReactCompiler(),
         {
           panicThreshold: isDev ? undefined : 'NONE',
           ...compilerOptions,
