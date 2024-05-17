@@ -810,10 +810,7 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
-        AliasPattern::exact(
-            "@vercel/turbopack-next/internal/font/google/
-    cssmodule.module.css",
-        ),
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleCssModuleReplacer::new(
             project_path,
             execution_context,
