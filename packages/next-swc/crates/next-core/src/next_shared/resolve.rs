@@ -17,7 +17,7 @@ use turbopack_binding::{
         resolve::{
             parse::Request,
             pattern::Pattern,
-            plugin::{AfterResolvePlugin, ResolvePluginCondition},
+            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
             ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
@@ -62,8 +62,8 @@ impl UnsupportedModulesResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
     }
 
     #[turbo_tasks::function]
@@ -191,8 +191,8 @@ impl InvalidImportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
     }
 
     #[turbo_tasks::function]
@@ -289,8 +289,8 @@ impl NextExternalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(
             self.root.root(),
             Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string()),
         )
@@ -339,8 +339,8 @@ impl NextNodeSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(
             self.root.root(),
             Glob::new("**/next/dist/**/*.shared-runtime.js".to_string()),
         )
@@ -404,8 +404,8 @@ impl ModuleFeatureReportResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
     }
 
     #[turbo_tasks::function]
@@ -457,8 +457,8 @@ impl NextSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(
             self.root.root(),
             Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string()),
         )

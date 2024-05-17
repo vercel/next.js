@@ -22,7 +22,7 @@ use turbopack_binding::{
 use crate::{
     mode::NextMode,
     next_config::NextConfig,
-    next_font::local::NextFontLocalReplacerResolvePlugin,
+    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
@@ -148,9 +148,7 @@ pub async fn get_edge_resolve_options_context(
         module: true,
         browser: true,
         after_resolve_plugins,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalReplacerResolvePlugin::new(
-            project_path,
-        ))],
+        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
         ..Default::default()
     };
 
