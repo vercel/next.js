@@ -541,9 +541,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     middlewareConfig,
   }
 
-  const normalizedPageExtensions = typeof pageExtensions === "string" ? [pageExtensions] : pageExtensions
+  const normalizedPageExtensions =
+    typeof pageExtensions === 'string' ? [pageExtensions] : pageExtensions
 
-  const extensions = normalizedPageExtensions.map((extension) => `.${extension}`)
+  const extensions = normalizedPageExtensions.map(
+    (extension) => `.${extension}`
+  )
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
