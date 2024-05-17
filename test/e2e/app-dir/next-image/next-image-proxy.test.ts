@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { findPort, check } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
@@ -98,7 +98,11 @@ describe('next-image-proxy', () => {
     }
 
     const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
-    await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
+    await retry(async () => {
+      expect(await JSON.stringify({ fulfilledCount, failCount })).toMatch(
+        expected
+      )
+    })
   })
 
   it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {

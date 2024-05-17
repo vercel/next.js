@@ -8,7 +8,7 @@ import {
   findPort,
   killApp,
   launchApp,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -34,17 +34,22 @@ const runTests = () => {
 
   it('Refreshes query on mount', async () => {
     const browser = await webdriver(appPort, '/post-1')
-    await check(() => browser.eval('document.body.innerHTML'), /post.*post-1/)
+    await retry(async () => {
+      expect(await browser.eval('document.body.innerHTML')).toMatch(
+        /post.*post-1/
+      )
+    })
     const html = await browser.eval('document.body.innerHTML')
     expect(html).toMatch(/nextExport/)
   })
 
   it('should update asPath after mount', async () => {
     const browser = await webdriver(appPort, '/zeit/cmnt-2')
-    await check(
-      () => browser.eval(`document.documentElement.innerHTML`),
-      /\/zeit\/cmnt-2/
-    )
+    await retry(async () => {
+      expect(await browser.eval(`document.documentElement.innerHTML`)).toMatch(
+        /\/zeit\/cmnt-2/
+      )
+    })
   })
 
   it('should not replace URL with page name while asPath is delayed', async () => {

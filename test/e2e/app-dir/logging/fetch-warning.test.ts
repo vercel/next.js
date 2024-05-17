@@ -1,4 +1,4 @@
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - fetch warnings', () => {
@@ -21,32 +21,32 @@ describe('app-dir - fetch warnings', () => {
   })
 
   it('should log when request input is a string', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-string on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified'
-      )
-        ? 'success'
-        : 'fail'
-    }, 'success')
+    await retry(() => {
+      expect(
+        next.cliOutput.includes(
+          'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-string on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified'
+        )
+      ).toBeTruthy()
+    })
   })
 
   it('should log when request input is a Request instance', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
-      )
-        ? 'success'
-        : 'fail'
-    }, 'success')
+    await retry(() => {
+      expect(
+        next.cliOutput.includes(
+          'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+        )
+      ).toBeTruthy()
+    })
   })
 
   it('should not log when overriding cache within the Request object', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        `fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input on /cache-revalidate specified "cache: default" and "revalidate: 3", only one should be specified.`
-      )
-        ? 'fail'
-        : 'success'
-    }, 'success')
+    await retry(() => {
+      expect(
+        next.cliOutput.includes(
+          `fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input on /cache-revalidate specified "cache: default" and "revalidate: 3", only one should be specified.`
+        )
+      ).toBeFalsy()
+    })
   })
 })

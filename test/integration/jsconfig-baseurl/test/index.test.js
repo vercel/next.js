@@ -10,7 +10,7 @@ import {
   launchApp,
   killApp,
   nextBuild,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -54,14 +54,12 @@ describe('jsconfig.json baseurl', () => {
           contents.replace('components/world', 'components/worldd')
         )
 
-        const found = await check(
-          async () => {
-            await renderViaHTTP(appPort, '/hello')
-            return stripAnsi(output)
-          },
-          /Module not found: Can't resolve 'components\/worldd'/,
-          false
-        )
+        const found = await retry(async () => {
+          await renderViaHTTP(appPort, '/hello')
+          expect(await stripAnsi(output)).toMatch(
+            /Module not found: Can't resolve 'components\/worldd'/
+          )
+        })
         expect(found).toBe(true)
       } finally {
         await fs.writeFile(basicPage, contents)

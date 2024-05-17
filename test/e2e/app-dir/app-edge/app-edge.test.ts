@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir edge SSR', () => {
   const { next, skipped } = nextTestSetup({
@@ -86,17 +86,17 @@ describe('app-dir edge SSR', () => {
       // Update rendered content
       const updatedContent = content.replace('Edge!', 'edge-hmr')
       await next.patchFile(pageFile, updatedContent)
-      await check(async () => {
+      await retry(async () => {
         const html = await next.render('/edge/basic')
-        return html
-      }, /edge-hmr/)
+        expect(await html).toMatch(/edge-hmr/)
+      })
 
       // Revert
       await next.patchFile(pageFile, content)
-      await check(async () => {
+      await retry(async () => {
         const html = await next.render('/edge/basic')
-        return html
-      }, /Edge!/)
+        expect(await html).toMatch(/Edge!/)
+      })
     })
   } else {
     // Production tests

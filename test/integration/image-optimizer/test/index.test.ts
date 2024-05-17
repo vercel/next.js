@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -588,7 +587,7 @@ describe('Image Optimizer', () => {
             `attachment; filename="test.webp"`
           )
 
-          await check(async () => {
+          await retry(async () => {
             const files = await fsToJson(imagesDir)
 
             let found = false
@@ -603,8 +602,8 @@ describe('Image Optimizer', () => {
                 found = true
               }
             })
-            return found ? 'success' : 'failed'
-          }, 'success')
+            expect(found).toBeTruthy()
+          })
         })
 
         it('should not set max-age header when not matching next.config.js', async () => {
@@ -727,7 +726,7 @@ describe('Image Optimizer', () => {
             `attachment; filename="next-js-bg.webp"`
           )
 
-          await check(async () => {
+          await retry(async () => {
             const files = await fsToJson(imagesDir)
 
             let found = false
@@ -742,8 +741,8 @@ describe('Image Optimizer', () => {
                 found = true
               }
             })
-            return found ? 'success' : 'failed'
-          }, 'success')
+            expect(found).toBeTruthy()
+          })
           await expectWidth(res, 64)
         })
       }

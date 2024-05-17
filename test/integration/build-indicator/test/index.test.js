@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
+import { findPort, launchApp, killApp, waitFor, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '..')
@@ -47,12 +47,13 @@ describe('Build Activity Indicator', () => {
     })
     await fs.remove(configPath)
 
-    await check(
-      () => stripAnsi(stderr),
-      new RegExp(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+    await retry(async () => {
+      expect(await stripAnsi(stderr)).toMatch(
+        new RegExp(
+          `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        )
       )
-    )
+    })
 
     if (app) {
       await killApp(app)

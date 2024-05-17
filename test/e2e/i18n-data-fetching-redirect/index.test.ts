@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('i18n-data-fetching-redirect', () => {
@@ -41,10 +41,11 @@ describe('i18n-data-fetching-redirect', () => {
           `/${fromLocale}/${path}/${toLocale}`
         )
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
-        )
+        await retry(async () => {
+          expect(await browser.eval('window.location.pathname')).toMatch(
+            `/${toLocale}/home`
+          )
+        })
         expect(await browser.elementByCss('#router-locale').text()).toBe(
           toLocale
         )
@@ -73,10 +74,11 @@ describe('i18n-data-fetching-redirect', () => {
 
         await browser.elementByCss(`#to-${path}-${toLocale}`).click()
 
-        await check(
-          () => browser.eval('window.location.pathname'),
-          `/${toLocale}/home`
-        )
+        await retry(async () => {
+          expect(await browser.eval('window.location.pathname')).toMatch(
+            `/${toLocale}/home`
+          )
+        })
 
         expect(await browser.eval('window.beforeNav')).toBe(1)
         expect(await browser.elementByCss('#router-locale').text()).toBe(
@@ -104,10 +106,11 @@ describe('i18n-data-fetching-redirect', () => {
     `('$path $locale', async ({ path, locale }) => {
       const browser = await webdriver(next.url, `/${locale}/${path}/from-ctx`)
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `/${locale}/home`
-      )
+      await retry(async () => {
+        expect(await browser.eval('window.location.pathname')).toMatch(
+          `/${locale}/home`
+        )
+      })
       expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
       expect(await browser.elementByCss('#router-pathname').text()).toBe(
         '/home'
@@ -129,10 +132,11 @@ describe('i18n-data-fetching-redirect', () => {
 
       await browser.elementByCss(`#to-${path}-from-ctx`).click()
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        `/${locale}/home`
-      )
+      await retry(async () => {
+        expect(await browser.eval('window.location.pathname')).toMatch(
+          `/${locale}/home`
+        )
+      })
 
       expect(await browser.eval('window.beforeNav')).toBe(1)
       expect(await browser.elementByCss('#router-locale').text()).toBe(locale)

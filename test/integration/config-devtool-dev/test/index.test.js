@@ -1,12 +1,12 @@
 /* eslint-env jest */
 
 import {
-  check,
   findPort,
   getRedboxSource,
   hasRedbox,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -28,11 +28,9 @@ const appDir = join(__dirname, '../')
         },
       })
 
-      const found = await check(
-        () => stderr,
-        /Reverting webpack devtool to /,
-        false
-      )
+      const found = await retry(async () => {
+        expect(await stderr).toMatch(/Reverting webpack devtool to /)
+      })
 
       const browser = await webdriver(appPort, '/')
       expect(await hasRedbox(browser)).toBe(true)

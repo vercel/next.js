@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 describe('app-dir action handling', () => {
   const { next } = nextTestSetup({
@@ -17,9 +17,9 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#submit').click()
 
-    await check(() => {
-      return browser.elementByCss('#form').text()
-    }, /Loading.../)
+    await retry(async () => {
+      expect(await browser.elementByCss('#form').text()).toMatch(/Loading.../)
+    })
 
     // wait for 2 seconds, since the action takes a second to resolve
     await waitFor(2000)
@@ -40,8 +40,8 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('button').click()
 
-    await check(() => {
-      return (next.cliOutput.match(/addToCart/g) || []).length
-    }, 1)
+    await retry(() => {
+      expect((next.cliOutput.match(/addToCart/g) || []).length).toBe(1)
+    })
   })
 })

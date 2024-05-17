@@ -2,12 +2,12 @@
 
 import fs from 'fs-extra'
 import {
-  check,
   findPort,
   getBrowserBodyText,
   getRedboxHeader,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -36,7 +36,9 @@ describe('TypeScript HMR', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/hello')
-        await check(() => getBrowserBodyText(browser), /Hello World/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/Hello World/)
+        })
 
         const pagePath = join(appDir, 'pages/hello.tsx')
         const originalContent = await fs.readFile(pagePath, 'utf8')
@@ -49,11 +51,15 @@ describe('TypeScript HMR', () => {
 
         // change the content
         await fs.writeFile(pagePath, editedContent, 'utf8')
-        await check(() => getBrowserBodyText(browser), /COOL page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/COOL page/)
+        })
 
         // add the original content
         await fs.writeFile(pagePath, originalContent, 'utf8')
-        await check(() => getBrowserBodyText(browser), /Hello World/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/Hello World/)
+        })
       } finally {
         if (browser) {
           await browser.close()
@@ -72,16 +78,17 @@ describe('TypeScript HMR', () => {
       const errContent = origContent.replace('() =>', '(): boolean =>')
 
       await fs.writeFile(pagePath, errContent)
-      await check(
-        () => getRedboxHeader(browser),
-        /Type 'Element' is not assignable to type 'boolean'/
-      )
+      await retry(async () => {
+        expect(await getRedboxHeader(browser)).toMatch(
+          /Type 'Element' is not assignable to type 'boolean'/
+        )
+      })
 
       await fs.writeFile(pagePath, origContent)
-      await check(async () => {
+      await retry(async () => {
         const html = await browser.eval('document.documentElement.innerHTML')
-        return html.match(/iframe/) ? 'fail' : 'success'
-      }, /success/)
+        expect(html.match(/iframe/)).toBeFalsy()
+      })
     } finally {
       if (browser) browser.close()
       await fs.writeFile(pagePath, origContent)
@@ -103,16 +110,10 @@ describe('TypeScript HMR', () => {
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
       await fs.writeFile(pagePath, errContent)
-      const res = await check(
-        async () => {
-          const html = await browser.eval(
-            'document.querySelector("p").innerText'
-          )
-          return html.match(/hello with error/) ? 'success' : 'fail'
-        },
-        /success/,
-        false
-      )
+      const res = await retry(async () => {
+        const html = await browser.eval('document.querySelector("p").innerText')
+        expect(html.match(/hello with error/)).toBeTruthy()
+      })
 
       expect(res).toBe(true)
     } finally {

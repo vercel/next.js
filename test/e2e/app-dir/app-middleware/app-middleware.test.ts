@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import path from 'path'
 import cheerio from 'cheerio'
-import { check, retry, withQuery } from 'next-test-utils'
+import { retry, withQuery } from 'next-test-utils'
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
@@ -21,9 +21,11 @@ describe('app-dir with middleware', () => {
     await browser.eval('window.beforeNav = 1')
     await browser.eval('window.next.router.push("/rewrite-to-app")')
 
-    await check(async () => {
-      return browser.eval('document.documentElement.innerHTML')
-    }, /app-dir/)
+    await retry(async () => {
+      expect(await browser.eval('document.documentElement.innerHTML')).toMatch(
+        /app-dir/
+      )
+    })
   })
 
   describe.each([

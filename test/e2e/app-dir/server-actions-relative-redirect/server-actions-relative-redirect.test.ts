@@ -1,6 +1,6 @@
 // @ts-check
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('server-actions-relative-redirect', () => {
   const { next } = nextTestSetup({
@@ -11,25 +11,21 @@ describe('server-actions-relative-redirect', () => {
     const browser = await next.browser('/')
     await browser.waitForElementByCss('#relative-redirect').click()
 
-    await check(async () => {
+    await retry(async () => {
       expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
         'hello nested page'
       )
-
-      return 'success'
-    }, 'success')
+    })
   })
 
   it('should work with absolute redirect', async () => {
     const browser = await next.browser('/')
     await browser.waitForElementByCss('#absolute-redirect').click()
 
-    await check(async () => {
+    await retry(async () => {
       expect(await browser.waitForElementByCss('#page-loaded').text()).toBe(
         'hello nested page'
       )
-
-      return 'success'
-    }, 'success')
+    })
   })
 })

@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
@@ -16,9 +16,11 @@ describe('app-dir action useActionState', () => {
     await browser.eval(`document.getElementById('name-input').value = 'test'`)
     await browser.elementByCss('#submit-form').click()
 
-    await check(() => {
-      return browser.elementByCss('#form-state').text()
-    }, 'initial-state:test')
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-state').text()).toEqual(
+        'initial-state:test'
+      )
+    })
   })
 
   it('should support submitting form state without JS', async () => {
@@ -30,9 +32,11 @@ describe('app-dir action useActionState', () => {
     await browser.elementByCss('#submit-form').click()
 
     // It should inline the form state into HTML so it can still be hydrated.
-    await check(() => {
-      return browser.elementByCss('#form-state').text()
-    }, 'initial-state:test')
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-state').text()).toEqual(
+        'initial-state:test'
+      )
+    })
   })
 
   it('should support hydrating the app from progressively enhanced form request', async () => {
@@ -42,14 +46,16 @@ describe('app-dir action useActionState', () => {
     await browser.eval(`document.getElementById('name-input').value = 'test'`)
     await browser.eval(`document.getElementById('form-state-form').submit()`)
 
-    await check(() => {
-      return browser.elementByCss('#form-state').text()
-    }, 'initial-state:test')
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-state').text()).toEqual(
+        'initial-state:test'
+      )
+    })
 
     // Should hydrate successfully
-    await check(() => {
-      return browser.elementByCss('#hydrated').text()
-    }, 'hydrated')
+    await retry(async () => {
+      expect(await browser.elementByCss('#hydrated').text()).toEqual('hydrated')
+    })
   })
 
   it('should send the action to the provided permalink with form state when JS disabled', async () => {
@@ -63,8 +69,10 @@ describe('app-dir action useActionState', () => {
     )
     await browser.eval(`document.getElementById('form-state-form').submit()`)
 
-    await check(() => {
-      return browser.elementByCss('#form-state').text()
-    }, 'initial-state:test-permalink')
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-state').text()).toEqual(
+        'initial-state:test-permalink'
+      )
+    })
   })
 })

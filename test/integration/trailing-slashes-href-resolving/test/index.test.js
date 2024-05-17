@@ -3,12 +3,12 @@ import assert from 'assert'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 
 let app
@@ -76,7 +76,7 @@ const runTests = (dev) => {
     it('should preload SSG routes correctly', async () => {
       const browser = await webdriver(appPort, '/')
 
-      await check(async () => {
+      await retry(async () => {
         const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
         hrefs.sort()
 
@@ -86,8 +86,7 @@ const runTests = (dev) => {
           ),
           ['/top-level-slug.json', '/world.json']
         )
-        return 'yes'
-      }, 'yes')
+      })
     })
   }
 }

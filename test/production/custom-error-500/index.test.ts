@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, retry } from 'next-test-utils'
 
 describe('custom-error-500', () => {
   let next: NextInstance
@@ -54,7 +54,9 @@ describe('custom-error-500', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('pages/500')
 
-    await check(() => next.cliOutput, /called Error\.getInitialProps true/)
+    await retry(async () => {
+      expect(await next.cliOutput).toMatch(/called Error\.getInitialProps true/)
+    })
   })
 
   it('should work correctly with pages/404 present', async () => {
@@ -72,6 +74,8 @@ describe('custom-error-500', () => {
     const html = await renderViaHTTP(next.url, '/')
     expect(html).toContain('pages/500')
 
-    await check(() => next.cliOutput, /called Error\.getInitialProps true/)
+    await retry(async () => {
+      expect(await next.cliOutput).toMatch(/called Error\.getInitialProps true/)
+    })
   })
 })

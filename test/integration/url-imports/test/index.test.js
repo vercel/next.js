@@ -12,9 +12,9 @@ import {
   fetchViaHTTP,
   launchApp,
   getBrowserBodyText,
-  check,
   startStaticServer,
   stopApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -73,7 +73,11 @@ const appDir = join(__dirname, '../')
             let browser
             try {
               browser = await webdriver(appPort, page)
-              await check(() => getBrowserBodyText(browser), expectedClient)
+              await retry(async () => {
+                expect(await getBrowserBodyText(browser)).toMatch(
+                  expectedClient
+                )
+              })
             } finally {
               await browser.close()
             }
@@ -85,10 +89,13 @@ const appDir = join(__dirname, '../')
           try {
             browser = await webdriver(appPort, '/image')
             await browser.waitForElementByCss('#static-image')
-            await check(
-              () => browser.elementByCss('#static-image').getAttribute('src'),
-              /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
-            )
+            await retry(async () => {
+              expect(
+                await browser.elementByCss('#static-image').getAttribute('src')
+              ).toMatch(
+                /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
+              )
+            })
           } finally {
             await browser.close()
           }
@@ -99,13 +106,15 @@ const appDir = join(__dirname, '../')
           try {
             browser = await webdriver(appPort, '/css')
             await browser.waitForElementByCss('#static-css')
-            await check(
-              () =>
-                browser
+            await retry(async () => {
+              expect(
+                await browser
                   .elementByCss('#static-css')
-                  .getComputedCss('background-image'),
-              /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
-            )
+                  .getComputedCss('background-image')
+              ).toMatch(
+                /^url\("http:\/\/localhost:\d+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png"\)$/
+              )
+            })
           } finally {
             await browser.close()
           }

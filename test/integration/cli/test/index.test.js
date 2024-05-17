@@ -1,13 +1,13 @@
 /* eslint-env jest */
 
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   runNextCommand,
   runNextCommandDev,
+  retry,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path, { join } from 'path'
@@ -68,7 +68,9 @@ const testExitSignal = async (
     },
   }).catch((err) => expect.fail(err.message))
 
-  await check(() => output, readyRegex)
+  await retry(async () => {
+    expect(await output).toMatch(readyRegex)
+  })
   instance.kill(killSignal)
 
   const { code, signal } = await cmdPromise
@@ -153,7 +155,7 @@ describe('CLI Usage', () => {
           )
 
           try {
-            await check(() => {
+            await retry(() => {
               // Only display when hostname is provided
               expect(stdout).toMatch(
                 new RegExp(`Network:\\s*http://\\[::\\]:${port}`)
@@ -190,7 +192,11 @@ describe('CLI Usage', () => {
           })
 
           try {
-            await check(() => stderr, /both `sass` and `node-sass` installed/)
+            await retry(async () => {
+              expect(await stderr).toMatch(
+                /both `sass` and `node-sass` installed/
+              )
+            })
           } finally {
             await killApp(instance).catch(() => {})
           }
@@ -455,7 +461,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /- Local:/i)
+        await retry(async () => {
+          expect(await output).toMatch(/- Local:/i)
+        })
       } finally {
         await killApp(app)
       }
@@ -474,7 +482,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
       } finally {
         await killApp(app)
       }
@@ -493,7 +503,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
       } finally {
         await killApp(app)
       }
@@ -517,7 +529,9 @@ describe('CLI Usage', () => {
         },
       })
       try {
-        await check(() => output, /- Local:/)
+        await retry(async () => {
+          expect(await output).toMatch(/- Local:/)
+        })
         // without --hostname, do not log Network: xxx
         const matches = /Network:\s*http:\/\/\[::\]:(\d+)/.exec(output)
         const _port = parseInt(matches)
@@ -548,8 +562,12 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
-        await check(() => errOutput, /Debugger listening on/)
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
+        await retry(async () => {
+          expect(await errOutput).toMatch(/Debugger listening on/)
+        })
         expect(errOutput).not.toContain('address already in use')
         expect(output).toContain(
           'the --inspect option was detected, the Next.js router server should be inspected at'
@@ -581,7 +599,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
         expect(output).toContain(
           'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
         )
@@ -613,7 +633,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
         expect(output).toContain(
           'FILE_WITH_SPACES_TO_REQUIRE_WITH_NODE_REQUIRE_OPTION'
         )
@@ -633,7 +655,9 @@ describe('CLI Usage', () => {
         env: { NODE_OPTIONS: '--inspect' },
       })
       try {
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
       } finally {
         await killApp(app)
       }
@@ -695,11 +719,14 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
-        )
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(
+            new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+          )
+        })
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
       } finally {
         await killApp(app)
       }
@@ -718,11 +745,14 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
-        )
-        await check(() => output, new RegExp(`http://localhost:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(
+            new RegExp(`Network:\\s*http://0.0.0.0:${port}`)
+          )
+        })
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://localhost:${port}`))
+        })
       } finally {
         await killApp(app)
       }
@@ -750,9 +780,15 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /Network:\s*http:\/\/\[::\]:(\d+)/)
-        await check(() => output, /https:\/\/localhost:(\d+)/)
-        await check(() => output, /Certificates created in/)
+        await retry(async () => {
+          expect(await output).toMatch(/Network:\s*http:\/\/\[::\]:(\d+)/)
+        })
+        await retry(async () => {
+          expect(await output).toMatch(/https:\/\/localhost:(\d+)/)
+        })
+        await retry(async () => {
+          expect(await output).toMatch(/Certificates created in/)
+        })
       } finally {
         await killApp(app)
       }
@@ -785,7 +821,9 @@ describe('CLI Usage', () => {
         }
       )
       try {
-        await check(() => output, /https:\/\/localhost:(\d+)/)
+        await retry(async () => {
+          expect(await output).toMatch(/https:\/\/localhost:(\d+)/)
+        })
       } finally {
         await killApp(app)
       }
@@ -805,11 +843,14 @@ describe('CLI Usage', () => {
       )
       try {
         // Only display when hostname is provided
-        await check(
-          () => output,
-          new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`)
-        )
-        await check(() => output, new RegExp(`http://\\[::1\\]:${port}`))
+        await retry(async () => {
+          expect(await output).toMatch(
+            new RegExp(`Network:\\s*\\http://\\[::\\]:${port}`)
+          )
+        })
+        await retry(async () => {
+          expect(await output).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+        })
       } finally {
         await killApp(app).catch(() => {})
       }

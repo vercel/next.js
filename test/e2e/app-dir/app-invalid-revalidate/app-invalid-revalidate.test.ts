@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('app-invalid-revalidate', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -23,12 +23,15 @@ describe('app-invalid-revalidate', () => {
       )
       await next.start().catch(() => {})
 
-      await check(async () => {
+      await retry(async () => {
         if (isNextDev) {
           await next.fetch('/')
         }
-        return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+
+        expect(await next.cliOutput).toMatch(
+          /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/
+        )
+      })
     } finally {
       await next.patchFile('app/layout.tsx', origText)
     }
@@ -45,12 +48,15 @@ describe('app-invalid-revalidate', () => {
       )
       await next.start().catch(() => {})
 
-      await check(async () => {
+      await retry(async () => {
         if (isNextDev) {
           await next.fetch('/')
         }
-        return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+
+        expect(await next.cliOutput).toMatch(
+          /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/
+        )
+      })
     } finally {
       await next.patchFile('app/page.tsx', origText)
     }
@@ -67,12 +73,15 @@ describe('app-invalid-revalidate', () => {
       )
       await next.start().catch(() => {})
 
-      await check(async () => {
+      await retry(async () => {
         if (isNextDev) {
           await next.fetch('/')
         }
-        return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+
+        expect(await next.cliOutput).toMatch(
+          /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/
+        )
+      })
     } finally {
       await next.patchFile('app/page.tsx', origText)
     }
@@ -89,12 +98,14 @@ describe('app-invalid-revalidate', () => {
       )
       await next.start().catch(() => {})
 
-      await check(async () => {
+      await retry(async () => {
         if (isNextDev) {
           await next.fetch('/')
         }
-        return next.cliOutput
-      }, /Invalid revalidate value "1" on "unstable_cache/)
+        expect(await next.cliOutput).toMatch(
+          /Invalid revalidate value "1" on "unstable_cache/
+        )
+      })
     } finally {
       await next.patchFile('app/page.tsx', origText)
     }

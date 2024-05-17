@@ -1,12 +1,6 @@
 import { NextInstance } from 'e2e-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  renderViaHTTP,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP, retry, waitFor } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
@@ -63,11 +57,10 @@ describe('Prerender prefetch', () => {
 
       await browser.elementByCss('#to-blog-first').click()
 
-      await check(async () => {
+      await retry(async () => {
         const data = await getData()
         assert.notDeepEqual(initialData, data)
-        return 'success'
-      }, 'success')
+      })
     })
 
     it('should update cache using prefetch with unstable_skipClientCache', async () => {
@@ -88,7 +81,11 @@ describe('Prerender prefetch', () => {
       await browser.elementByCss('#to-blog-first').click()
       const outputIndex = next.cliOutput.length
 
-      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+      await retry(async () => {
+        expect(await browser.elementByCss('#page').text()).toEqual(
+          'blog/[slug]'
+        )
+      })
 
       expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
         startTime
@@ -96,10 +93,12 @@ describe('Prerender prefetch', () => {
       await browser.back().waitForElementByCss('#to-blog-first')
 
       // trigger revalidation of /blog/first
-      await check(async () => {
+      await retry(async () => {
         await renderViaHTTP(next.url, '/blog/first')
-        return next.cliOutput.substring(outputIndex)
-      }, /revalidating \/blog first/)
+        expect(await next.cliOutput.substring(outputIndex)).toMatch(
+          /revalidating \/blog first/
+        )
+      })
 
       // wait for the revalidation to finish by comparing timestamps
       await retry(async () => {
@@ -121,10 +120,16 @@ describe('Prerender prefetch', () => {
       await browser.eval(
         'next.router.prefetch("/blog/first", undefined, { unstable_skipClientCache: true }).finally(() => { window.prefetchDone = "yes" })'
       )
-      await check(() => browser.eval('window.prefetchDone'), 'yes')
+      await retry(async () => {
+        expect(await browser.eval('window.prefetchDone')).toEqual('yes')
+      })
 
       await browser.elementByCss('#to-blog-first').click()
-      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+      await retry(async () => {
+        expect(await browser.elementByCss('#page').text()).toEqual(
+          'blog/[slug]'
+        )
+      })
 
       const newTime = JSON.parse(
         await browser.elementByCss('#props').text()
@@ -151,7 +156,11 @@ describe('Prerender prefetch', () => {
       await browser.elementByCss('#to-blog-first').click()
       const outputIndex = next.cliOutput.length
 
-      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+      await retry(async () => {
+        expect(await browser.elementByCss('#page').text()).toEqual(
+          'blog/[slug]'
+        )
+      })
 
       expect(JSON.parse(await browser.elementByCss('#props').text()).now).toBe(
         startTime
@@ -159,10 +168,12 @@ describe('Prerender prefetch', () => {
       await browser.back().waitForElementByCss('#to-blog-first')
 
       // trigger revalidation of /blog/first
-      await check(async () => {
+      await retry(async () => {
         await renderViaHTTP(next.url, '/blog/first')
-        return next.cliOutput.substring(outputIndex)
-      }, /revalidating \/blog first/)
+        expect(await next.cliOutput.substring(outputIndex)).toMatch(
+          /revalidating \/blog first/
+        )
+      })
 
       // wait for the revalidation to finish by comparing timestamps
       await retry(async () => {
@@ -184,9 +195,15 @@ describe('Prerender prefetch', () => {
       await browser.eval(
         'next.router.push("/blog/first", undefined, { unstable_skipClientCache: true }).finally(() => { window.prefetchDone = "yes" })'
       )
-      await check(() => browser.eval('window.prefetchDone'), 'yes')
+      await retry(async () => {
+        expect(await browser.eval('window.prefetchDone')).toEqual('yes')
+      })
 
-      await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+      await retry(async () => {
+        expect(await browser.elementByCss('#page').text()).toEqual(
+          'blog/[slug]'
+        )
+      })
 
       const newTime = JSON.parse(
         await browser.elementByCss('#props').text()
@@ -212,7 +229,11 @@ describe('Prerender prefetch', () => {
 
         // ensure stale data is used by default
         await browser.elementByCss('#to-blog-first').click()
-        await check(() => browser.elementByCss('#page').text(), 'blog/[slug]')
+        await retry(async () => {
+          expect(await browser.elementByCss('#page').text()).toEqual(
+            'blog/[slug]'
+          )
+        })
 
         expect(
           JSON.parse(await browser.elementByCss('#props').text()).now
@@ -225,7 +246,7 @@ describe('Prerender prefetch', () => {
         })
 
         // now trigger cache update and navigate again
-        await check(async () => {
+        await retry(async () => {
           if (process.env.DEVICE_NAME) {
             await browser.elementByCss('#to-blog-second').touchStart()
             await browser.elementByCss('#to-blog-first').touchStart()
@@ -233,10 +254,10 @@ describe('Prerender prefetch', () => {
             await browser.elementByCss('#to-blog-second').moveTo()
             await browser.elementByCss('#to-blog-first').moveTo()
           }
-          return requests.some((url) => url.includes('/blog/first.json'))
-            ? 'success'
-            : requests
-        }, 'success')
+          expect(
+            requests.some((url) => url.includes('/blog/first.json'))
+          ).toBeTruthy()
+        })
       })
     } else {
       it('should not attempt client cache update on link hover/touch start', async () => {
@@ -247,15 +268,16 @@ describe('Prerender prefetch', () => {
           requests.push(req.url())
         })
 
-        await check(async () => {
+        await retry(async () => {
           const cacheKeys = await browser.eval(
             'Object.keys(window.next.router.sdc)'
           )
-          return cacheKeys.some((url) => url.includes('/blog/first')) &&
-            cacheKeys.some((url) => url.includes('/blog/second'))
-            ? 'success'
-            : JSON.stringify(requests, null, 2)
-        }, 'success')
+
+          expect(
+            cacheKeys.some((url) => url.includes('/blog/first')) &&
+              cacheKeys.some((url) => url.includes('/blog/second'))
+          ).toBeTruthy()
+        })
 
         requests = []
 

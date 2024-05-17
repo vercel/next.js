@@ -10,7 +10,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
-  check,
+  retry,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -187,10 +187,11 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
-      await check(
-        () => stderr,
-        /You cannot define a route with the same specificity as a optional catch-all route/
-      )
+      await retry(async () => {
+        expect(await stderr).toMatch(
+          /You cannot define a route with the same specificity as a optional catch-all route/
+        )
+      })
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -201,10 +202,11 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
-      await check(
-        () => stderr,
-        /You cannot define a route with the same specificity as a optional catch-all route/
-      )
+      await retry(async () => {
+        expect(await stderr).toMatch(
+          /You cannot define a route with the same specificity as a optional catch-all route/
+        )
+      })
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -215,7 +217,9 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
-      await check(() => stderr, /You cannot use both .+ at the same level/)
+      await retry(async () => {
+        expect(await stderr).toMatch(/You cannot use both .+ at the same level/)
+      })
     } finally {
       await fs.unlink(invalidRoute)
     }
@@ -226,10 +230,11 @@ function runInvalidPagesTests(buildFn) {
     try {
       await fs.outputFile(invalidRoute, DUMMY_PAGE, 'utf-8')
       await buildFn(appDir)
-      await check(
-        () => stderr,
-        /Optional route parameters are not yet supported/
-      )
+      await retry(async () => {
+        expect(await stderr).toMatch(
+          /Optional route parameters are not yet supported/
+        )
+      })
     } finally {
       await fs.unlink(invalidRoute)
     }

@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 describe('correct tsconfig.json defaults', () => {
@@ -30,10 +30,10 @@ describe('correct tsconfig.json defaults', () => {
 
       let content: string
       // wait for tsconfig to be written
-      await check(async () => {
+      await retry(async () => {
         content = await next.readFile('tsconfig.json')
-        return content && content !== '{}' ? 'ready' : 'retry'
-      }, 'ready')
+        expect(content && content !== '{}').toBeTruthy()
+      })
 
       const tsconfig = JSON.parse(content)
       expect(next.cliOutput).not.toContain('moduleResolution')

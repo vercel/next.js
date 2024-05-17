@@ -5,7 +5,7 @@ import { join } from 'path'
 import http from 'http'
 import webdriver from 'next-webdriver'
 import assert from 'assert'
-import { check, renderViaHTTP, waitFor } from 'next-test-utils'
+import { renderViaHTTP, waitFor, retry } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
   if ((global as any).isNextDeploy) {
@@ -118,7 +118,7 @@ describe('manual-client-base-path', () => {
       expect(await browser.eval('window.location.pathname')).toBe(asPath)
       expect(await browser.eval('window.location.search')).toBe('?update=1')
 
-      await check(async () => {
+      await retry(async () => {
         assert.deepEqual(
           JSON.parse(await browser.elementByCss('#router').text()),
           {
@@ -131,8 +131,7 @@ describe('manual-client-base-path', () => {
             basePath,
           }
         )
-        return 'success'
-      }, 'success')
+      })
 
       await waitFor(5 * 1000)
       expect(await browser.eval('window.beforeNav')).toBe(1)
@@ -144,41 +143,59 @@ describe('manual-client-base-path', () => {
     await browser.eval('window.beforeNav = 1')
 
     await browser.elementByCss('#to-another').click()
-    await check(() => browser.elementByCss('#page').text(), 'another page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('another page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/another')
 
     await browser.back()
-    await check(() => browser.elementByCss('#page').text(), 'index page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('index page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.forward()
-    await check(() => browser.elementByCss('#page').text(), 'another page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('another page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/another')
 
     await browser.back()
-    await check(() => browser.elementByCss('#page').text(), 'index page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('index page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.elementByCss('#to-another-slash').click()
-    await check(() => browser.elementByCss('#page').text(), 'another page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('another page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/another')
 
     await browser.back()
-    await check(() => browser.elementByCss('#page').text(), 'index page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('index page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.elementByCss('#to-dynamic').click()
-    await check(() => browser.elementByCss('#page').text(), 'dynamic page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('dynamic page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe(
       '/dynamic/first'
     )
 
     await browser.back()
-    await check(() => browser.elementByCss('#page').text(), 'index page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('index page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.forward()
-    await check(() => browser.elementByCss('#page').text(), 'dynamic page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('dynamic page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe(
       '/dynamic/first'
     )
@@ -191,20 +208,25 @@ describe('manual-client-base-path', () => {
     await browser.eval('window.beforeNav = 1')
 
     await browser.elementByCss('#to-index').click()
-    await check(() => browser.elementByCss('#page').text(), 'index page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('index page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
     await browser.elementByCss('#to-dynamic').click()
-    await check(() => browser.elementByCss('#page').text(), 'dynamic page')
+    await retry(async () => {
+      expect(await browser.elementByCss('#page').text()).toEqual('dynamic page')
+    })
     expect(await browser.eval('window.location.pathname')).toBe(
       '/dynamic/first'
     )
 
     await browser.elementByCss('#to-dynamic').click()
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/dynamic/second'
-    )
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/dynamic/second'
+      )
+    })
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })

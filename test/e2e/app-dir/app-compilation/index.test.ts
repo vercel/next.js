@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, waitFor } from 'next-test-utils'
+import { hasRedbox, waitFor, retry } from 'next-test-utils'
 
 describe('app dir', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
@@ -19,10 +19,11 @@ describe('app dir', () => {
     describe('HMR', () => {
       it('should not cause error when removing loading.js', async () => {
         const browser = await next.browser('/page-with-loading')
-        await check(
-          () => browser.elementByCss('h1').text(),
-          'hello from slow page'
-        )
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toEqual(
+            'hello from slow page'
+          )
+        })
 
         await next.renameFile(
           'app/page-with-loading/loading.js',
@@ -40,10 +41,11 @@ describe('app dir', () => {
           'app/page-with-loading/page.js',
           code.replace('hello from slow page', 'hello from new page')
         )
-        await check(
-          () => browser.elementByCss('h1').text(),
-          'hello from new page'
-        )
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toEqual(
+            'hello from new page'
+          )
+        })
       })
     })
   }

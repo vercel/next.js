@@ -3,8 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   renderViaHTTP,
   startStaticServer,
-  check,
   getBrowserBodyText,
+  retry,
 } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
@@ -283,10 +283,11 @@ describe('static export', () => {
         .click()
         .waitForElementByCss('#dynamic-imports-page')
 
-      await check(
-        () => getBrowserBodyText(browser),
-        /Welcome to dynamic imports/
-      )
+      await retry(async () => {
+        expect(await getBrowserBodyText(browser)).toMatch(
+          /Welcome to dynamic imports/
+        )
+      })
 
       await browser.close()
     })
@@ -306,7 +307,9 @@ describe('static export', () => {
 
         expect(text).toBe('Vercel is awesome')
 
-        await check(() => browser.elementByCss('#hash').text(), /cool/)
+        await retry(async () => {
+          expect(await browser.elementByCss('#hash').text()).toMatch(/cool/)
+        })
       } finally {
         if (browser) {
           await browser.close()
@@ -363,10 +366,11 @@ describe('static export', () => {
           'document.getElementById("level1-home-page").click()'
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 home page/
-        )
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the Level1 home page/
+          )
+        })
 
         await browser.close()
       })
@@ -378,10 +382,11 @@ describe('static export', () => {
           'document.getElementById("level1-about-page").click()'
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the Level1 about page/
-        )
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the Level1 about page/
+          )
+        })
 
         await browser.close()
       })

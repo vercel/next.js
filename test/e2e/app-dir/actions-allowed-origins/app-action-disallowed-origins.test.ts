@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-dir action disallowed origins', () => {
@@ -23,13 +23,14 @@ describe('app-dir action disallowed origins', () => {
 
     await browser.elementByCss('button').click()
 
-    await check(async () => {
+    await retry(async () => {
       const t = await browser.elementByCss('#res').text()
-      return t.includes('Invalid Server Actions request.') ||
-        // In prod the message is hidden
-        t.includes('An error occurred in the Server Components render.')
-        ? 'yes'
-        : 'no'
-    }, 'yes')
+
+      expect(
+        t.includes('Invalid Server Actions request.') ||
+          // In prod the message is hidden
+          t.includes('An error occurred in the Server Components render.')
+      ).toBeTruthy()
+    })
   })
 })

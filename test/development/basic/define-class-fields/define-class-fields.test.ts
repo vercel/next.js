@@ -1,7 +1,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('useDefineForClassFields SWC option', () => {
   const { next } = nextTestSetup({
@@ -20,10 +20,11 @@ describe('useDefineForClassFields SWC option', () => {
     try {
       browser = await webdriver(next.url, '/')
       await browser.elementByCss('#action').click()
-      await check(
-        () => browser.elementByCss('#name').text(),
-        /this is my name: next/
-      )
+      await retry(async () => {
+        expect(await browser.elementByCss('#name').text()).toMatch(
+          /this is my name: next/
+        )
+      })
     } finally {
       if (browser) {
         await browser.close()

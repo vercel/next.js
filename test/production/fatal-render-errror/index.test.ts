@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, renderViaHTTP, waitFor } from 'next-test-utils'
+import { renderViaHTTP, waitFor, retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -40,7 +40,9 @@ describe('fatal-render-errror', () => {
     await browser.eval('window.renderAttempts = 0')
 
     await browser.eval('window.next.router.push("/with-error")')
-    await check(() => browser.eval('location.pathname'), '/with-error')
+    await retry(async () => {
+      expect(await browser.eval('location.pathname')).toEqual('/with-error')
+    })
 
     // wait a bit to see if we are rendering multiple times unexpectedly
     await waitFor(500)

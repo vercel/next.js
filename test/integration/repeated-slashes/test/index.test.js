@@ -15,8 +15,8 @@ import {
   startStaticServer,
   launchApp,
   fetchViaHTTP,
-  check,
   renderViaHTTP,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
@@ -299,13 +299,13 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
     ]
 
     for (const href of invalidHrefs) {
-      await check(
-        () =>
-          browser.eval(
+      await retry(async () => {
+        expect(
+          await browser.eval(
             'window.caughtErrors.map(err => typeof err !== "string" ? err.message : err).join(", ")'
-          ),
-        new RegExp(escapeRegex(`Invalid href '${href}'`))
-      )
+          )
+        ).toMatch(new RegExp(escapeRegex(`Invalid href '${href}'`)))
+      })
     }
   })
 
@@ -341,10 +341,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
           item.as ? `, "${item.as}"` : ''
         })`
       )
-      await check(
-        () => browser.eval('document.readyState'),
-        /interactive|complete/
-      )
+      await retry(async () => {
+        expect(await browser.eval('document.readyState')).toMatch(
+          /interactive|complete/
+        )
+      })
       expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
       expect(await browser.eval('window.location.search')).toBe(
         item.search || ''
@@ -387,10 +388,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         })
       })()`)
 
-      await check(
-        () => browser.eval('window.location.pathname'),
-        item.pathname || item.as || item.href
-      )
+      await retry(async () => {
+        expect(await browser.eval('window.location.pathname')).toMatch(
+          item.pathname || item.as || item.href
+        )
+      })
 
       expect(await browser.eval('window.location.search')).toBe(
         item.search || ''

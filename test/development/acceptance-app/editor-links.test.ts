@@ -1,4 +1,4 @@
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { sandbox } from 'development-sandbox'
@@ -71,7 +71,9 @@ describe('Error overlay - editor links', () => {
 
     expect(await session.hasRedbox()).toBe(true)
     await clickSourceFile(browser)
-    await check(() => editorRequestsCount, /1/)
+    await retry(async () => {
+      expect(await editorRequestsCount).toMatch(/1/)
+    })
 
     await cleanup()
   })
@@ -116,7 +118,9 @@ describe('Error overlay - editor links', () => {
 
         expect(await session.hasRedbox()).toBe(true)
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /4/)
+        await retry(async () => {
+          expect(await editorRequestsCount).toMatch(/4/)
+        })
 
         await cleanup()
       })
@@ -159,7 +163,9 @@ describe('Error overlay - editor links', () => {
 
         expect(await session.hasRedbox()).toBe(true)
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /3/)
+        await retry(async () => {
+          expect(await editorRequestsCount).toMatch(/3/)
+        })
 
         await cleanup()
       })

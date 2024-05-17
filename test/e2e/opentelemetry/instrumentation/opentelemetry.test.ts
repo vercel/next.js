@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -893,7 +893,7 @@ type HierSavedSpan = SavedSpan & { spans?: HierSavedSpan[] }
 type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 
 async function expectTrace(collector: Collector, match: SpanMatch[]) {
-  await check(async () => {
+  await retry(() => {
     const traces = collector.getSpans()
 
     const tree: HierSavedSpan[] = []
@@ -942,6 +942,5 @@ async function expectTrace(collector: Collector, match: SpanMatch[]) {
     })
 
     expect(tree).toMatchObject(match)
-    return 'success'
-  }, 'success')
+  })
 }

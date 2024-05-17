@@ -4,7 +4,7 @@ import {
   hasRedbox,
   getRedboxSource,
   getRedboxDescription,
-  check,
+  retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -43,16 +43,18 @@ describe('fetch failures have good stack traces in edge runtime', () => {
 
     if (process.env.TURBOPACK) {
       // pages_api_unknown-domain-no-await_d8c7f5.js:14:5
-      await check(
-        () => stripAnsi(next.cliOutput),
-        /pages_api_unknown-domain-no-await_.*?\.js/
-      )
+      await retry(async () => {
+        expect(await stripAnsi(next.cliOutput)).toMatch(
+          /pages_api_unknown-domain-no-await_.*?\.js/
+        )
+      })
     } else {
       // webpack-internal:///(middleware)/./pages/api/unknown-domain-no-await.js:10:5
-      await check(
-        () => stripAnsi(next.cliOutput),
-        /at.+\/pages\/api\/unknown-domain-no-await.js/
-      )
+      await retry(async () => {
+        expect(await stripAnsi(next.cliOutput)).toMatch(
+          /at.+\/pages\/api\/unknown-domain-no-await.js/
+        )
+      })
     }
   })
 })

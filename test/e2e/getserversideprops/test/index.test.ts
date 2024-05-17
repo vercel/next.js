@@ -4,13 +4,13 @@ import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
-  check,
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
   normalizeRegEx,
   renderViaHTTP,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -584,11 +584,9 @@ const runTests = (isDev = false, isDeploy = false) => {
   it('should load a fast refresh page', async () => {
     const browser = await webdriver(next.url, '/refresh')
     expect(
-      await check(
-        () => browser.elementByCss('p').text(),
-        /client loaded/,
-        false
-      )
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
+      })
     ).toBe(true)
   })
 
@@ -628,10 +626,12 @@ const runTests = (isDev = false, isDeploy = false) => {
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     expect(
-      await check(() => browser.eval('window.beforeClick'), {
-        test(v) {
-          return v !== 'abc'
-        },
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).toMatch({
+          test(v) {
+            return v !== 'abc'
+          },
+        })
       })
     ).toBe(true)
   })
@@ -679,7 +679,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     await browser.elementByCss('#slow').click()
     await browser.elementByCss('#slow').click()
 
-    await check(() => getBrowserBodyText(browser), /a slow page/)
+    await retry(async () => {
+      expect(await getBrowserBodyText(browser)).toMatch(/a slow page/)
+    })
 
     // Requests should be deduped
     const hitCount = await browser.elementByCss('#hit').text()
@@ -689,7 +691,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#slow')
     await browser.elementByCss('#slow').click()
-    await check(() => getBrowserBodyText(browser), /a slow page/)
+    await retry(async () => {
+      expect(await getBrowserBodyText(browser)).toMatch(/a slow page/)
+    })
 
     const newHitCount = await browser.elementByCss('#hit').text()
     expect(newHitCount).toBe('hit: 2')
@@ -742,10 +746,11 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await check(
-        () => getRedboxHeader(browser),
-        /Error serializing `.time` returned from `getServerSideProps`/
-      )
+      await retry(async () => {
+        expect(await getRedboxHeader(browser)).toMatch(
+          /Error serializing `.time` returned from `getServerSideProps`/
+        )
+      })
     })
 
     it('should show error for accessing res after gssp returns', async () => {
@@ -831,7 +836,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
-      await check(() => getBrowserBodyText(browser), /hello /)
+      await retry(async () => {
+        expect(await getBrowserBodyText(browser)).toMatch(/hello /)
+      })
     })
 
     it('should not show error for accessing res after gssp returns', async () => {

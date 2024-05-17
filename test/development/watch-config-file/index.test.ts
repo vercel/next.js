@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('watch-config-file', () => {
@@ -7,9 +7,11 @@ describe('watch-config-file', () => {
     files: join(__dirname, 'fixture'),
   })
   it('should output config file change', async () => {
-    await check(async () => next.cliOutput, /ready/i)
+    await retry(async () => {
+      expect(await next.cliOutput).toMatch(/ready/i)
+    })
 
-    await check(async () => {
+    await retry(async () => {
       await next.patchFile(
         'next.config.js',
         `
@@ -28,9 +30,14 @@ describe('watch-config-file', () => {
             }
             module.exports = nextConfig`
       )
-      return next.cliOutput
-    }, /Found a change in next\.config\.js\. Restarting the server to apply the changes\.\.\./)
 
-    await check(() => next.fetch('/about').then((res) => res.status), 200)
+      expect(await next.cliOutput).toMatch(
+        /Found a change in next\.config\.js\. Restarting the server to apply the changes\.\.\./
+      )
+    })
+
+    await retry(() => {
+      expect(next.fetch('/about').then((res) => res.status)).toBe(200)
+    })
   })
 })

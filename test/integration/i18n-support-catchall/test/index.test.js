@@ -11,7 +11,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-  check,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -84,7 +84,9 @@ function runTests(isDev) {
 
     await browser.elementByCss('#to-locale-index').click()
 
-    await check(() => browser.eval('window.location.pathname'), '/nl-NL')
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual('/nl-NL')
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -106,7 +108,11 @@ function runTests(isDev) {
 
     await browser.back()
 
-    await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
+    await retry(async () => {
+      expect(await browser.elementByCss('#router-locale').text()).toEqual(
+        'en-US'
+      )
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -132,10 +138,11 @@ function runTests(isDev) {
 
     await browser.elementByCss('#to-locale-another').click()
 
-    await check(
-      () => browser.eval('window.location.pathname'),
-      '/nl-NL/another'
-    )
+    await retry(async () => {
+      expect(await browser.eval('window.location.pathname')).toEqual(
+        '/nl-NL/another'
+      )
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -161,7 +168,11 @@ function runTests(isDev) {
 
     await browser.back()
 
-    await check(() => browser.elementByCss('#router-locale').text(), 'en-US')
+    await retry(async () => {
+      expect(await browser.elementByCss('#router-locale').text()).toEqual(
+        'en-US'
+      )
+    })
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
@@ -195,7 +206,7 @@ function runTests(isDev) {
         document.querySelector('#to-fr-locale-index').scrollIntoView()
       })()`)
 
-      await check(async () => {
+      await retry(async () => {
         const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
         hrefs.sort()
 
@@ -214,8 +225,7 @@ function runTests(isDev) {
             '/nl-NL/another.json',
           ]
         )
-        return 'yes'
-      }, 'yes')
+      })
     })
   }
 }

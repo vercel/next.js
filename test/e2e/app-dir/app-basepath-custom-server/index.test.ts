@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('custom-app-server-action-redirect', () => {
@@ -50,13 +50,15 @@ describe('custom-app-server-action-redirect', () => {
     expect(await browser.url()).toBe(
       `http://localhost:${next.appPort}/base/another`
     )
-    await check(
-      () => browser.eval('document.cookie'),
-      /custom-server-test-cookie/
-    )
-    await check(
-      () => browser.eval('document.cookie'),
-      /custom-server-action-test-cookie/
-    )
+    await retry(async () => {
+      expect(await browser.eval('document.cookie')).toMatch(
+        /custom-server-test-cookie/
+      )
+    })
+    await retry(async () => {
+      expect(await browser.eval('document.cookie')).toMatch(
+        /custom-server-action-test-cookie/
+      )
+    })
   })
 })

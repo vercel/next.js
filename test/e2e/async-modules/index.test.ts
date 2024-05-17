@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('Async modules', () => {
   const { next, isNextDev: dev } = nextTestSetup({
@@ -45,11 +45,11 @@ describe('Async modules', () => {
   // TODO: investigate this test flaking
   it.skip('can render async AMP pages', async () => {
     const browser = await next.browser('/config')
-    await check(
-      () => browser.elementByCss('#amp-timeago').text(),
-      'just now',
-      true
-    )
+    await retry(async () => {
+      expect(await browser.elementByCss('#amp-timeago').text()).toEqual(
+        'just now'
+      )
+    })
   })
   ;(dev ? it.skip : it)('can render async error page', async () => {
     const browser = await next.browser('/make-error')

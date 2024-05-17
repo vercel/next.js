@@ -1,6 +1,5 @@
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   killApp,
@@ -8,6 +7,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  retry,
 } from 'next-test-utils'
 import path from 'path'
 import { remove } from 'fs-extra'
@@ -20,13 +20,14 @@ function test(context: ReturnType<typeof createContext>) {
     expect(await res.text()).toEqual('hello')
     expect(res.status).toBe(200)
     await waitFor(200)
-    await check(
-      () => stripAnsi(context.output),
-      new RegExp(
-        `The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean`,
-        'm'
+    await retry(async () => {
+      expect(await stripAnsi(context.output)).toMatch(
+        new RegExp(
+          `The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean`,
+          'm'
+        )
       )
-    )
+    })
     expect(stripAnsi(context.output)).not.toContain('webpack-internal:')
   }
 }

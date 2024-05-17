@@ -6,11 +6,11 @@ import {
   renderViaHTTP,
   killApp,
   waitFor,
-  check,
   getBrowserBodyText,
   getPageFileFromBuildManifest,
   getBuildManifest,
   initNextServerScript,
+  retry,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -87,10 +87,10 @@ const startServer = async (optEnv = {}, opts) => {
 
       await browser.eval('document.getElementById("to-dynamic").click()')
 
-      await check(async () => {
+      await retry(async () => {
         const text = await getBrowserBodyText(browser)
-        return text
-      }, /Hello/)
+        expect(await text).toMatch(/Hello/)
+      })
     } finally {
       if (browser) {
         await browser.close()

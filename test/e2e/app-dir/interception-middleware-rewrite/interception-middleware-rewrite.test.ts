@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('interception-middleware-rewrite', () => {
   const { next, skipped } = nextTestSetup({
@@ -15,65 +15,82 @@ describe('interception-middleware-rewrite', () => {
   it('should support intercepting routes with a middleware rewrite', async () => {
     const browser = await next.browser('/')
 
-    await check(() => browser.waitForElementByCss('#children').text(), 'root')
+    await retry(async () => {
+      expect(await browser.waitForElementByCss('#children').text()).toEqual(
+        'root'
+      )
+    })
 
-    await check(
-      () =>
-        browser
+    await retry(async () => {
+      expect(
+        await browser
           .elementByCss('[href="/feed"]')
           .click()
           .waitForElementByCss('#modal')
-          .text(),
-      'intercepted'
-    )
+          .text()
+      ).toEqual('intercepted')
+    })
 
-    await check(
-      () => browser.refresh().waitForElementByCss('#children').text(),
-      'not intercepted'
-    )
+    await retry(async () => {
+      expect(
+        await browser.refresh().waitForElementByCss('#children').text()
+      ).toEqual('not intercepted')
+    })
 
-    await check(() => browser.waitForElementByCss('#modal').text(), '')
+    await retry(async () => {
+      expect(await browser.waitForElementByCss('#modal').text()).toEqual('')
+    })
   })
 
   it('should continue to work after using browser back button and following another intercepting route', async () => {
     const browser = await next.browser('/')
-    await check(() => browser.elementById('children').text(), 'root')
+    await retry(async () => {
+      expect(await browser.elementById('children').text()).toEqual('root')
+    })
 
     await browser.elementByCss('[href="/photos/1"]').click()
-    await check(
-      () => browser.elementById('modal').text(),
-      'Intercepted Photo ID: 1'
-    )
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual(
+        'Intercepted Photo ID: 1'
+      )
+    })
     await browser.back()
     await browser.elementByCss('[href="/photos/2"]').click()
-    await check(
-      () => browser.elementById('modal').text(),
-      'Intercepted Photo ID: 2'
-    )
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual(
+        'Intercepted Photo ID: 2'
+      )
+    })
   })
 
   it('should continue to show the intercepted page when revisiting it', async () => {
     const browser = await next.browser('/')
-    await check(() => browser.elementById('children').text(), 'root')
+    await retry(async () => {
+      expect(await browser.elementById('children').text()).toEqual('root')
+    })
 
     await browser.elementByCss('[href="/photos/1"]').click()
 
     // we should be showing the modal and not the page
-    await check(
-      () => browser.elementById('modal').text(),
-      'Intercepted Photo ID: 1'
-    )
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual(
+        'Intercepted Photo ID: 1'
+      )
+    })
 
     await browser.refresh()
 
     // page should show after reloading the browser
-    await check(
-      () => browser.elementById('children').text(),
-      'Page Photo ID: 1'
-    )
+    await retry(async () => {
+      expect(await browser.elementById('children').text()).toEqual(
+        'Page Photo ID: 1'
+      )
+    })
 
     // modal should no longer be showing
-    await check(() => browser.elementById('modal').text(), '')
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual('')
+    })
 
     await browser.back()
 
@@ -81,12 +98,15 @@ describe('interception-middleware-rewrite', () => {
     await browser.elementByCss('[href="/photos/1"]').click()
 
     // ensure that we're still showing the modal and not the page
-    await check(
-      () => browser.elementById('modal').text(),
-      'Intercepted Photo ID: 1'
-    )
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual(
+        'Intercepted Photo ID: 1'
+      )
+    })
 
     // page content should not have changed
-    await check(() => browser.elementById('children').text(), 'root')
+    await retry(async () => {
+      expect(await browser.elementById('children').text()).toEqual('root')
+    })
   })
 })

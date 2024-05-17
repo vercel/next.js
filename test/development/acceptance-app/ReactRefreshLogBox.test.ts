@@ -2,9 +2,9 @@
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
   describeVariants as describe,
   expandCallStack,
+  retry,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -757,17 +757,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     // Unhandled error in event handler
     await browser.elementById('unhandled-error').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /3 errors/
-    )
+    await retry(async () => {
+      expect(await browser.elementByCss('.nextjs-toast-errors').text()).toMatch(
+        /3 errors/
+      )
+    })
 
     // Unhandled rejection in event handler
     await browser.elementById('unhandled-rejection').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /4 errors/
-    )
+    await retry(async () => {
+      expect(await browser.elementByCss('.nextjs-toast-errors').text()).toMatch(
+        /4 errors/
+      )
+    })
     expect(await session.hasRedbox()).toBe(false)
 
     // Add Component error
