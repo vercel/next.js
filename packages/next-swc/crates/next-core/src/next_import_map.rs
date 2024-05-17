@@ -27,11 +27,8 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::{
-        google::{
-            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
-        },
-        local::NextFontLocalFontFileReplacer,
+    next_font::google::{
+        NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -798,8 +795,7 @@ async fn insert_next_shared_aliases(
     // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
     // have ImportMapping replacers here.
     //
-    // TODO: Add BeforeResolve plugins for `@next/font/google` and maybe the
-    // `@next/font/local` file replacer
+    // TODO: Add BeforeResolve plugins for `@next/font/google`
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
@@ -831,11 +827,6 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

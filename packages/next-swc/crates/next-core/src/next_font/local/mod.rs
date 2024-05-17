@@ -85,11 +85,6 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
             return Ok(ResolveResultOption::none());
         };
 
-        let context = lookup_path;
-        let query = query_vc.await?.to_string();
-        let request_hash = get_request_hash(&query).await?;
-        let options = font_options_from_query_map(*query_vc);
-
         match request_key.as_str() {
             "next/font/local/target.css" => {
                 if !can_use_next_font(this.root, *query_vc).await? {
@@ -99,9 +94,8 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
                 let query = query_vc.await?.to_string();
                 let request_hash = get_request_hash(&query).await?;
                 let qstr = qstring::QString::from(query.as_str());
-                let query_vc = Vc::cell(query);
-                let options_vc = font_options_from_query_map(query_vc);
-                let font_fallbacks = get_font_fallbacks(context, options_vc);
+                let options_vc = font_options_from_query_map(*query_vc);
+                let font_fallbacks = get_font_fallbacks(lookup_path, options_vc);
                 let properties = get_font_css_properties(options_vc, font_fallbacks).await;
 
                 if let Err(e) = &properties {
@@ -164,7 +158,7 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
                         .unwrap_or_else(|| "".to_owned()),
                 );
                 let js_asset = VirtualSource::new(
-                    context.join(format!(
+                    lookup_path.join(format!(
                         "{}.js",
                         get_request_id(options_vc.font_family(), request_hash).await?
                     )),
@@ -176,11 +170,14 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
                 ))
             }
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
-                let css_virtual_path = context.join(format!(
+                let query = query_vc.await?.to_string();
+                let request_hash = get_request_hash(&query).await?;
+                let options = font_options_from_query_map(*query_vc);
+                let css_virtual_path = lookup_path.join(format!(
                     "/{}.module.css",
                     get_request_id(options.font_family(), request_hash).await?
                 ));
-                let fallback = get_font_fallbacks(context, options);
+                let fallback = get_font_fallbacks(lookup_path, options);
 
                 let stylesheet = build_stylesheet(
                     font_options_from_query_map(*query_vc),
@@ -217,9 +214,9 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
                     name.push_str(".p")
                 }
 
-                let font_virtual_path = context.join(format!("/{}.{}", name, ext));
+                let font_virtual_path = lookup_path.join(format!("/{}.{}", name, ext));
 
-                let font_file = context.join(path.clone()).read();
+                let font_file = lookup_path.join(path.clone()).read();
 
                 let font_source =
                     VirtualSource::new(font_virtual_path, AssetContent::file(font_file));
