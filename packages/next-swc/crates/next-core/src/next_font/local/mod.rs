@@ -85,7 +85,7 @@ impl BeforeResolvePlugin for NextFontLocalReplacerResolvePlugin {
             return Ok(ResolveResultOption::none());
         };
 
-        if can_use_next_font(this.root, *query_vc).await? {
+        if !can_use_next_font(this.root, *query_vc).await? {
             return Ok(ResolveResultOption::none());
         }
 
