@@ -748,7 +748,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -810,14 +810,14 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-c23de8d-20240515
+        version: 0.0.0-experimental-592953e-20240517
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -938,16 +938,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1568,7 +1568,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.69
+        specifier: 14.3.0-canary.70
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -8842,6 +8842,18 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
+  /babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517:
+    resolution: {integrity: sha512-OjG1SVaeQZaJrqkMFJatg8W/MTow8Ak5rx2SI0ETQBO1XvOk/XZGMbltNCPdFJLKghBYoBjC+Y3Ap/Xr7B01mA==}
+    dependencies:
+      '@babel/generator': 7.2.0
+      '@babel/types': 7.22.5
+      chalk: 4.1.2
+      invariant: 2.2.4
+      pretty-format: 24.9.0
+      zod: 3.23.8
+      zod-validation-error: 2.1.0(zod@3.23.8)
+    dev: false
+
   /babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
     dependencies:
@@ -8852,6 +8864,7 @@ packages:
       pretty-format: 24.9.0
       zod: 3.23.8
       zod-validation-error: 2.1.0(zod@3.23.8)
+    dev: true
 
   /babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
