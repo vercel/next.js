@@ -1333,6 +1333,9 @@ importers:
       is-docker:
         specifier: 2.0.0
         version: 2.0.0
+      is-wsl:
+        specifier: 2.2.0
+        version: 2.2.0
       json5:
         specifier: 2.2.3
         version: 2.2.3
@@ -14644,6 +14647,7 @@ packages:
 
   /is-arrayish@0.3.2:
     resolution: {integrity: sha512-eVRqCvVlZbuw3GrM63ovNSNAeA1K16kaR/LRY/92w0zxQ5/1YzwblUX652i4Xs9RwAGjW9d9y6X88t8OaAJfWQ==}
+    requiresBuild: true
 
   /is-async-function@2.0.0:
     resolution: {integrity: sha512-Y1JXKrfykRJGdlDwdKlLpLyMIiWqWvuSd17TvZk68PLAOGOoF4Xyav1z0Xhoi+gCYjZVeC5SI+hYFOfvXmGRCA==}
@@ -15994,7 +15998,7 @@ packages:
     dependencies:
       '@jest/types': 29.6.3
       '@types/node': 20.12.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.8.0
       graceful-fs: 4.2.11
       picomatch: 2.3.1

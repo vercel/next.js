@@ -2,11 +2,7 @@
   "name": "@next/vendored",
   "version": "14.3.0-canary.12",
   "license": "MIT",
-  "keywords": [
-    "react",
-    "next",
-    "next.js"
-  ],
+  "keywords": ["react", "next", "next.js"],
   "description": "Next.js vendored packages",
   "repository": {
     "type": "git",
@@ -91,6 +87,7 @@
     "ignore-loader": "0.1.2",
     "image-size": "1.1.1",
     "is-docker": "2.0.0",
+    "is-wsl": "2.2.0",
     "json5": "2.2.3",
     "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.0",
