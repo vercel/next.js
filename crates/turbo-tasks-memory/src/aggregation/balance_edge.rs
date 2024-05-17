@@ -7,6 +7,7 @@ use super::{
         RemovePositveFollowerCountResult,
     },
     in_progress::is_in_progress,
+    increase::IncreaseReason,
     increase_aggregation_number_internal,
     uppers::{
         add_upper_count, remove_positive_upper_count, remove_upper_count,
@@ -62,6 +63,7 @@ pub(super) fn balance_edge<C: AggregationContext>(
                             target_id,
                             target_aggregation_number + 1,
                             target_aggregation_number + 1,
+                            IncreaseReason::EqualAggregationNumberOnBalance,
                         );
                     }
                 }

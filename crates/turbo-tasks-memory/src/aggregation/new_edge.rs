@@ -2,8 +2,8 @@ use super::{
     balance_queue::BalanceQueue,
     in_progress::start_in_progress_all,
     increase::{
-        increase_aggregation_number_immediately, PreparedInternalIncreaseAggregationNumber,
-        LEAF_NUMBER,
+        increase_aggregation_number_immediately, IncreaseReason,
+        PreparedInternalIncreaseAggregationNumber, LEAF_NUMBER,
     },
     increase_aggregation_number_internal, notify_new_follower,
     notify_new_follower::PreparedNotifyNewFollower,
@@ -19,7 +19,6 @@ const MAX_AFFECTED_NODES: usize = 4096;
 
 /// Handle the addition of a new edge to a node. The the edge is propagated to
 /// the uppers of that node or added a inner node.
-#[tracing::instrument(level = tracing::Level::TRACE, name = "handle_new_edge_preparation", skip_all)]
 pub fn handle_new_edge<C: AggregationContext>(
     ctx: &C,
     origin: &mut C::Guard<'_>,
@@ -43,6 +42,7 @@ pub fn handle_new_edge<C: AggregationContext>(
                     origin_id.clone(),
                     LEAF_NUMBER,
                     LEAF_NUMBER,
+                    IncreaseReason::Upgraded,
                 )
                 .unwrap();
                 Some(PreparedNewEdge::Upgraded {
@@ -93,7 +93,6 @@ enum PreparedNewEdge<C: AggregationContext> {
 
 impl<C: AggregationContext> PreparedOperation<C> for PreparedNewEdge<C> {
     type Result = ();
-    #[tracing::instrument(level = tracing::Level::TRACE, name = "handle_new_edge", skip_all)]
     fn apply(self, ctx: &C) {
         let mut balance_queue = BalanceQueue::new();
         match self {
@@ -103,20 +102,15 @@ impl<C: AggregationContext> PreparedOperation<C> for PreparedNewEdge<C> {
                 uppers,
                 target_id,
             } => {
-                let _span = tracing::trace_span!("leaf").entered();
-                {
-                    let _span =
-                        tracing::trace_span!("increase_aggregation_number_internal").entered();
-                    // TODO add to prepared
-                    increase_aggregation_number_internal(
-                        ctx,
-                        &mut balance_queue,
-                        ctx.node(&target_id),
-                        &target_id,
-                        min_aggregation_number,
-                        target_aggregation_number,
-                    );
-                }
+                increase_aggregation_number_internal(
+                    ctx,
+                    &mut balance_queue,
+                    ctx.node(&target_id),
+                    &target_id,
+                    min_aggregation_number,
+                    target_aggregation_number,
+                    IncreaseReason::LeafEdge,
+                );
                 let mut affected_nodes = 0;
                 for upper_id in uppers {
                     affected_nodes += notify_new_follower(
@@ -158,7 +152,6 @@ impl<C: AggregationContext> PreparedOperation<C> for PreparedNewEdge<C> {
                 }
             }
         }
-        let _span = tracing::trace_span!("balance_queue").entered();
         balance_queue.process(ctx);
     }
 }
@@ -171,6 +164,7 @@ fn handle_expensive_node<C: AggregationContext>(
     balance_queue: &mut BalanceQueue<C::NodeRef>,
     node_id: &C::NodeRef,
 ) {
+    let _span = tracing::trace_span!("handle_expensive_node").entered();
     let node = ctx.node(node_id);
     let uppers = node.uppers().iter().cloned().collect::<StackVec<_>>();
     let leaf = matches!(*node, AggregationNode::Leaf { .. });
