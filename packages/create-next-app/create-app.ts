@@ -49,10 +49,13 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  turbo: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
+  const template: TemplateType = `${appRouter ? 'app' : 'default'}${
+    tailwind ? '-tw' : ''
+  }${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined

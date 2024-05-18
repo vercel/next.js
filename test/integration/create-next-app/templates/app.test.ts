@@ -223,3 +223,39 @@ describe.skip('create-next-app --app (App Router)', () => {
     })
   })
 })
+
+it('should create a project with Turbopack enabled using --turbo flag', async () => {
+  await useTempDir(async (cwd) => {
+    const projectName = 'app-turbo'
+    const childProcess = createNextApp(
+      [
+        projectName,
+        '--ts',
+        '--app',
+        '--eslint',
+        '--src-dir',
+        '--tailwind',
+        '--no-import-alias',
+        '--turbo',
+      ],
+      {
+        cwd,
+      },
+      testVersion
+    )
+
+    const exitCode = await spawnExitPromise(childProcess)
+    expect(exitCode).toBe(0)
+    shouldBeTemplateProject({
+      cwd,
+      projectName,
+      template: 'app-turbo',
+      mode: 'ts',
+      srcDir: true,
+    })
+    await tryNextDev({
+      cwd,
+      projectName,
+    })
+  })
+})

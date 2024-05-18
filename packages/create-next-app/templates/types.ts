@@ -8,7 +8,9 @@ export type TemplateType =
   | "default"
   | "default-empty"
   | "default-tw"
-  | "default-tw-empty";
+  | "default-tw-empty"
+  | "app-turbo";
+
 export type TemplateMode = "js" | "ts";
 
 export interface GetTemplateFileArgs {
@@ -29,4 +31,5 @@ export interface InstallTemplateArgs {
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
+  turbo: boolean;
 }

@@ -160,6 +160,13 @@ const program = new Commander.Command(packageJson.name)
   Explicitly tell the CLI to skip installing packages
 `
   )
+  .option(
+    '--turbo',
+    `
+
+  Initialize with Turbopack for next dev
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -272,6 +279,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
+      turbo: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -396,6 +404,25 @@ async function run(): Promise<void> {
       }
     }
 
+    if (!process.argv.includes('--turbo')) {
+      if (ciInfo.isCI) {
+        program.turbo = getPrefOrDefault('turbo')
+      } else {
+        const styledTurbo = blue('Turbopack (RC)')
+        const { turbo } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'turbo',
+          message: `Would you like to use ${styledTurbo} for next dev? (RC)`,
+          initial: getPrefOrDefault('turbo'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.turbo = Boolean(turbo)
+        preferences.turbo = Boolean(turbo)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -455,7 +482,20 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
+
+    if (program.turbo) {
+      const packageJsonPath = path.join(resolvedProjectPath, 'package.json')
+      const packageJsonData = JSON.parse(
+        fs.readFileSync(packageJsonPath, 'utf8')
+      )
+      packageJsonData.scripts.dev = 'next dev --turbo'
+      fs.writeFileSync(
+        packageJsonPath,
+        JSON.stringify(packageJsonData, null, 2)
+      )
+    }
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
       throw reason
@@ -485,7 +525,20 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
+
+    if (program.turbo) {
+      const packageJsonPath = path.join(resolvedProjectPath, 'package.json')
+      const packageJsonData = JSON.parse(
+        fs.readFileSync(packageJsonPath, 'utf8')
+      )
+      packageJsonData.scripts.dev = 'next dev --turbo'
+      fs.writeFileSync(
+        packageJsonPath,
+        JSON.stringify(packageJsonData, null, 2)
+      )
+    }
   }
   conf.set('preferences', preferences)
 }
