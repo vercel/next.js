@@ -7,11 +7,13 @@ import type { PrerenderState } from '../../server/app-render/dynamic-rendering'
 
 // Share the instance module in the next-shared layer
 import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import type { ParsedUrlQuery } from 'querystring'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pagePath?: string
   readonly urlPathname: string
+  readonly params?: ParsedUrlQuery
   readonly incrementalCache?: IncrementalCache
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
