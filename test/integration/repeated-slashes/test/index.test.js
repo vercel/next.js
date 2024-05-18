@@ -383,8 +383,8 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
-        item.as ? `, "${item.as}"` : ''
-      })
+          item.as ? `, "${item.as}"` : ''
+        })
       })()`)
 
       await check(
@@ -440,7 +440,7 @@ describe('404 handling', () => {
         isDev: true,
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         describe('next start', () => {
@@ -482,7 +482,7 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const pagesErr = join(appDir, 'pages/_error.js')

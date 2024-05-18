@@ -25,7 +25,11 @@ import {
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
+import {
+  APP_CLIENT_INTERNALS,
+  RSC_MODULE_TYPES,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -46,7 +50,7 @@ import {
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import type { ServerRuntime } from '../../types'
+import type { ServerRuntime } from '../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
@@ -243,7 +247,9 @@ export function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
-        pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
+        if (pageKey === '/not-found') {
+          pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+        }
       }
 
       const normalizedPath = normalizePathSep(
@@ -251,8 +257,8 @@ export function createPagesMapping({
           pagesType === 'pages'
             ? PAGES_DIR_ALIAS
             : pagesType === 'app'
-            ? APP_DIR_ALIAS
-            : ROOT_DIR_ALIAS,
+              ? APP_DIR_ALIAS
+              : ROOT_DIR_ALIAS,
           pagePath
         )
       )
@@ -277,7 +283,8 @@ export function createPagesMapping({
         // If there's any app pages existed, add a default not-found page.
         // If there's any custom not-found page existed, it will override the default one.
         ...(hasAppPages && {
-          '/_not-found': 'next/dist/client/components/not-found-error',
+          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]:
+            'next/dist/client/components/not-found-error',
         }),
         ...pages,
       }
@@ -399,7 +406,6 @@ export function getEdgeServerEntry(opts: {
     absoluteDocumentPath: opts.pages['/_document'],
     absoluteErrorPath: opts.pages['/_error'],
     absolutePagePath: opts.absolutePagePath,
-    buildId: opts.buildId,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
     page: opts.page,
@@ -580,8 +586,9 @@ export async function createEntrypoints(
         pagesType === PAGE_TYPES.PAGES
           ? posix.join('pages', bundleFile)
           : pagesType === PAGE_TYPES.APP
-          ? posix.join('app', bundleFile)
-          : bundleFile.slice(1)
+            ? posix.join('app', bundleFile)
+            : bundleFile.slice(1)
+
       const absolutePagePath = mappings[page]
 
       // Handle paths that have aliases
@@ -647,6 +654,8 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              nextConfigExperimentalUseEarlyImport:
+                config.experimental.useEarlyImport,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
@@ -790,10 +799,10 @@ export function finalizeEntrypoint({
       const layer = isApi
         ? WEBPACK_LAYERS.api
         : isInstrumentation
-        ? WEBPACK_LAYERS.instrument
-        : isServerComponent
-        ? WEBPACK_LAYERS.reactServerComponents
-        : undefined
+          ? WEBPACK_LAYERS.instrument
+          : isServerComponent
+            ? WEBPACK_LAYERS.reactServerComponents
+            : undefined
 
       return {
         publicPath: isApi ? '' : undefined,

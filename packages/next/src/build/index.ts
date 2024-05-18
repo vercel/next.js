@@ -19,6 +19,7 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -44,13 +45,14 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
+import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -71,6 +73,8 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -116,7 +120,7 @@ import {
   copyTracedFiles,
   isReservedPage,
   isAppBuiltinNotFoundPage,
-  serializePageInfos,
+  collectRoutesUsingEdgeRuntime,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -166,8 +170,27 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { getTurbopackJsConfig } from '../server/dev/turbopack-utils'
+import {
+  getTurbopackJsConfig,
+  handleEntrypoints,
+  type EntryIssuesMap,
+  handleRouteType,
+  handlePagesErrorRoute,
+  formatIssue,
+  isRelevantWarning,
+} from '../server/dev/turbopack-utils'
+import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
+import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { createProgress } from './progress'
+import { traceMemoryUsage } from '../lib/memory/trace'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import uploadTrace from '../trace/upload-trace'
+import {
+  checkIsAppPPREnabled,
+  checkIsRoutePPREnabled,
+} from '../server/lib/experimental/ppr'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -320,17 +343,41 @@ async function readManifest<T extends object>(filePath: string): Promise<T> {
 
 async function writePrerenderManifest(
   distDir: string,
-  manifest: Readonly<PrerenderManifest>
+  manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
+  await writeEdgePartialPrerenderManifest(distDir, manifest)
+}
+
+async function writeEdgePartialPrerenderManifest(
+  distDir: string,
+  manifest: DeepReadonly<Partial<PrerenderManifest>>
+): Promise<void> {
+  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
+  // Use env vars in JS bundle and inject the actual vars to edge manifest.
+  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
+    {
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      version: manifest.version,
+      preview: {
+        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
+        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        previewModeEncryptionKey:
+          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+      },
+    }
   await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(JSON.stringify(manifest))}`
+    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
+    `self.__PRERENDER_MANIFEST=${JSON.stringify(
+      JSON.stringify(edgePartialPrerenderManifest)
+    )}`
   )
 }
 
 async function writeClientSsgManifest(
-  prerenderManifest: PrerenderManifest,
+  prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
     buildId,
     distDir,
@@ -651,6 +698,8 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
+const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -659,14 +708,16 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
+  experimentalBuildMode: 'default' | 'compile' | 'generate',
+  traceUploadUrl: string | undefined
 ): Promise<void> {
-  const isCompileMode = buildMode === 'experimental-compile'
-  const isGenerateMode = buildMode === 'experimental-generate'
+  const isCompileMode = experimentalBuildMode === 'compile'
+  const isGenerateMode = experimentalBuildMode === 'generate'
 
+  let loadedConfig: NextConfigComplete | undefined
   try {
     const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: buildMode,
+      buildMode: experimentalBuildMode,
       isTurboBuild: String(turboNextBuild),
       version: process.env.__NEXT_VERSION as string,
     })
@@ -697,8 +748,9 @@ export default async function build(
             turborepoAccessTraceResult
           )
         )
+      loadedConfig = config
 
-      process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       let configOutDir = 'out'
@@ -748,6 +800,11 @@ export default async function build(
         app: typeof appDir === 'string',
         pages: typeof pagesDir === 'string',
       }
+
+      // Generate a random encryption key for this build.
+      // This key is used to encrypt cross boundary values and can be used to generate hashes.
+      const encryptionKey = await generateEncryptionKeyBase64()
+      NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
         .relative(dir, pagesDir || appDir || '')
@@ -941,13 +998,13 @@ export default async function build(
             }
 
             if (
-              pageKey.includes('sitemap.xml/[[...__metadata_id__]]') &&
+              pageKey.includes('sitemap/[[...__metadata_id__]]') &&
               isDynamic
             ) {
               delete mappedAppPages[pageKey]
               mappedAppPages[
                 pageKey.replace(
-                  'sitemap.xml/[[...__metadata_id__]]',
+                  'sitemap/[[...__metadata_id__]]',
                   'sitemap/[__metadata_id__]'
                 )
               ] = pagePath
@@ -1002,23 +1059,26 @@ export default async function build(
         app: appPaths.length > 0 ? appPaths : undefined,
       }
 
-      const numConflictingAppPaths = conflictingAppPagePaths.length
-      if (mappedAppPages && numConflictingAppPaths > 0) {
-        Log.error(
-          `Conflicting app and page file${
-            numConflictingAppPaths === 1 ? ' was' : 's were'
-          } found, please remove the conflicting files to continue:`
-        )
-        for (const [pagePath, appPath] of conflictingAppPagePaths) {
-          Log.error(`  "${pagePath}" - "${appPath}"`)
+      // Turbopack already handles conflicting app and page routes.
+      if (!IS_TURBOPACK_BUILD) {
+        const numConflictingAppPaths = conflictingAppPagePaths.length
+        if (mappedAppPages && numConflictingAppPaths > 0) {
+          Log.error(
+            `Conflicting app and page file${
+              numConflictingAppPaths === 1 ? ' was' : 's were'
+            } found, please remove the conflicting files to continue:`
+          )
+          for (const [pagePath, appPath] of conflictingAppPagePaths) {
+            Log.error(`  "${pagePath}" - "${appPath}"`)
+          }
+          await telemetry.flush()
+          process.exit(1)
         }
-        await telemetry.flush()
-        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
-      const hasApp404 = !!mappedAppPages?.['/_not-found']
+      const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasCustomErrorPage =
         mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
 
@@ -1193,17 +1253,7 @@ export default async function build(
         .traceChild('write-routes-manifest')
         .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
-      // We need to write a partial prerender manifest to make preview mode settings available in edge middleware
-      const partialManifest: Partial<PrerenderManifest> = {
-        preview: previewProps,
-      }
-
-      await writeFileUtf8(
-        path.join(distDir, PRERENDER_MANIFEST).replace(/\.json$/, '.js'),
-        `self.__PRERENDER_MANIFEST=${JSON.stringify(
-          JSON.stringify(partialManifest)
-        )}`
-      )
+      await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
@@ -1283,7 +1333,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1309,38 +1362,248 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
-        if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
+        if (!IS_TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+
+        await validateTurboNextConfig({
+          dir,
+          isDev: false,
+        })
+
+        const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const dev = false
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config.nextConfig,
+          nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
+          dev,
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
-            allowedRevalidateHeaderKeys: undefined,
-            clientRouterFilters: undefined,
+            clientRouterFilters: NextBuildContext.clientRouterFilters,
             config,
-            dev: false,
+            dev,
             distDir,
-            fetchCacheKeyPrefix: undefined,
+            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
             hasRewrites,
+            // TODO: Implement
             middlewareMatchers: undefined,
-            previewModeId: undefined,
           }),
+          buildId: NextBuildContext.buildId!,
+          encryptionKey: NextBuildContext.encryptionKey!,
+          previewProps: NextBuildContext.previewProps!,
         })
+
+        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
+          recursive: true,
+        })
+        await fs.writeFile(
+          path.join(distDir, 'package.json'),
+          JSON.stringify(
+            {
+              type: 'commonjs',
+            },
+            null,
+            2
+          )
+        )
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
-        // for await (const entrypoints of entrypointsSubscription) {
-        // }
-        throw new Error("next build doesn't support turbopack yet")
+        const currentEntrypoints: Entrypoints = {
+          global: {
+            app: undefined,
+            document: undefined,
+            error: undefined,
+
+            middleware: undefined,
+            instrumentation: undefined,
+          },
+
+          app: new Map(),
+          page: new Map(),
+        }
+
+        const currentEntryIssues: EntryIssuesMap = new Map()
+
+        const manifestLoader = new TurbopackManifestLoader({
+          buildId,
+          distDir,
+          encryptionKey,
+        })
+
+        // TODO: implement this
+        const emptyRewritesObjToBeImplemented = {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        }
+
+        const entrypointsResult = await entrypointsSubscription.next()
+        if (entrypointsResult.done) {
+          throw new Error('Turbopack did not return any entrypoints')
+        }
+        entrypointsSubscription.return?.().catch(() => {})
+
+        const entrypoints = entrypointsResult.value
+
+        const topLevelErrors: {
+          message: string
+        }[] = []
+        for (const issue of entrypoints.issues) {
+          topLevelErrors.push({
+            message: formatIssue(issue),
+          })
+        }
+
+        if (topLevelErrors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${
+              topLevelErrors.length
+            } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+          )
+        }
+
+        await handleEntrypoints({
+          entrypoints,
+          currentEntrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          nextConfig: config,
+          rewrites: emptyRewritesObjToBeImplemented,
+          logErrors: false,
+        })
+
+        const progress = createProgress(
+          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
+          'Building'
+        )
+        const promises: Promise<any>[] = []
+        const sema = new Sema(10)
+        const enqueue = (fn: () => Promise<void>) => {
+          promises.push(
+            (async () => {
+              await sema.acquire()
+              try {
+                await fn()
+              } finally {
+                sema.release()
+                progress()
+              }
+            })()
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.page) {
+          enqueue(() =>
+            handleRouteType({
+              dev,
+              page,
+              pathname: page,
+              route,
+
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
+            })
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.app) {
+          enqueue(() =>
+            handleRouteType({
+              page,
+              dev: false,
+              pathname: normalizeAppPath(page),
+              route,
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+              logErrors: false,
+            })
+          )
+        }
+
+        enqueue(() =>
+          handlePagesErrorRoute({
+            currentEntryIssues,
+            entrypoints: currentEntrypoints,
+            manifestLoader,
+            rewrites: emptyRewritesObjToBeImplemented,
+            logErrors: false,
+          })
+        )
+        await Promise.all(promises)
+
+        await manifestLoader.writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          pageEntrypoints: currentEntrypoints.page,
+        })
+
+        const errors: {
+          page: string
+          message: string
+        }[] = []
+        const warnings: {
+          page: string
+          message: string
+        }[] = []
+        for (const [page, entryIssues] of currentEntryIssues) {
+          for (const issue of entryIssues.values()) {
+            if (issue.severity !== 'warning') {
+              errors.push({
+                page,
+                message: formatIssue(issue),
+              })
+            } else {
+              if (isRelevantWarning(issue)) {
+                warnings.push({
+                  page,
+                  message: formatIssue(issue),
+                })
+              }
+            }
+          }
+        }
+
+        if (warnings.length > 0) {
+          Log.warn(
+            `Turbopack build collected ${warnings.length} warnings:\n${warnings
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} errors:\n${errors
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
+              .join('\n')}`
+          )
+        }
+
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
+        }
       }
+
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
@@ -1373,6 +1636,7 @@ export default async function build(
       }
 
       Log.info('Creating an optimized production build ...')
+      traceMemoryUsage('Starting build', nextBuildSpan)
 
       if (!isGenerateMode) {
         if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
@@ -1381,6 +1645,7 @@ export default async function build(
           const serverBuildPromise = webpackBuild(useBuildWorker, [
             'server',
           ]).then((res) => {
+            traceMemoryUsage('Finished server compilation', nextBuildSpan)
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
 
@@ -1399,11 +1664,12 @@ export default async function build(
                   config,
                   distDir,
                   // Serialize Map as this is sent to the worker.
-                  pageInfos: serializePageInfos(new Map()),
+                  edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
                   staticPages: [],
                   hasSsrAmpPages: false,
                   buildTraceContext,
                   outputFileTracingRoot,
+                  isFlyingShuttle: !!config.experimental.flyingShuttle,
                 })
                 .catch((err) => {
                   console.error(err)
@@ -1419,6 +1685,7 @@ export default async function build(
             'edge-server',
           ]).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
           })
           if (runServerAndEdgeInParallel) {
             await serverBuildPromise
@@ -1427,6 +1694,7 @@ export default async function build(
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
+            traceMemoryUsage('Finished client compilation', nextBuildSpan)
           })
 
           Log.event('Compiled successfully')
@@ -1438,15 +1706,16 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
+          traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )
@@ -1456,6 +1725,7 @@ export default async function build(
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
+        traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
@@ -1477,7 +1747,6 @@ export default async function build(
       const additionalSsgPaths = new Map<string, Array<string>>()
       const additionalSsgPathsEncoded = new Map<string, Array<string>>()
       const appStaticPaths = new Map<string, Array<string>>()
-      const appPrefetchPaths = new Map<string, string>()
       const appStaticPathsEncoded = new Map<string, Array<string>>()
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
@@ -1545,7 +1814,7 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          experimental: { ppr: config.experimental.ppr === true },
+          isAppPPREnabled: checkIsAppPPREnabled(config.experimental.ppr),
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -1623,7 +1892,7 @@ export default async function build(
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
-              ppr: config.experimental.ppr === true,
+              pprConfig: config.experimental.ppr,
             })
         )
 
@@ -1654,18 +1923,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
-        const middlewareManifest: MiddlewareManifest = require(path.join(
-          distDir,
-          SERVER_DIRECTORY,
-          MIDDLEWARE_MANIFEST
-        ))
+        const middlewareManifest: MiddlewareManifest = require(
+          path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
+        )
 
         const actionManifest = appDir
-          ? (require(path.join(
-              distDir,
-              SERVER_DIRECTORY,
-              SERVER_REFERENCE_MANIFEST + '.json'
-            )) as ActionManifest)
+          ? (require(
+              path.join(
+                distDir,
+                SERVER_DIRECTORY,
+                SERVER_REFERENCE_MANIFEST + '.json'
+              )
+            ) as ActionManifest)
           : null
         const entriesWithAction = actionManifest ? new Set() : null
         if (actionManifest && entriesWithAction) {
@@ -1721,7 +1990,7 @@ export default async function build(
                   computedManifestData
                 )
 
-                let isPPR = false
+                let isRoutePPREnabled = false
                 let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
@@ -1836,7 +2105,7 @@ export default async function build(
                               : config.experimental.isrFlushToDisk,
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
-                            ppr: config.experimental.ppr === true,
+                            pprConfig: config.experimental.ppr,
                           })
                         }
                       )
@@ -1855,8 +2124,8 @@ export default async function build(
                           // If this route can be partially pre-rendered, then
                           // mark it as such and mark that it can be
                           // generated server-side.
-                          if (workerResult.isPPR) {
-                            isPPR = workerResult.isPPR
+                          if (workerResult.isRoutePPREnabled) {
+                            isRoutePPREnabled = workerResult.isRoutePPREnabled
                             isSSG = true
                             isStatic = true
 
@@ -1911,7 +2180,6 @@ export default async function build(
                                 ])
                                 isStatic = true
                               } else if (
-                                isDynamic &&
                                 !hasGenerateStaticParams &&
                                 (appConfig.dynamic === 'error' ||
                                   appConfig.dynamic === 'force-static')
@@ -1919,7 +2187,7 @@ export default async function build(
                                 appStaticPaths.set(originalAppPath, [])
                                 appStaticPathsEncoded.set(originalAppPath, [])
                                 isStatic = true
-                                isPPR = false
+                                isRoutePPREnabled = false
                               }
                             }
                           }
@@ -1930,18 +2198,6 @@ export default async function build(
                             appDynamicParamPaths.add(originalAppPath)
                           }
                           appDefaultConfigs.set(originalAppPath, appConfig)
-
-                          // Only generate the app prefetch rsc if the route is
-                          // an app page.
-                          if (
-                            !isStatic &&
-                            !isAppRouteRoute(originalAppPath) &&
-                            !isDynamicRoute(originalAppPath) &&
-                            !isPPR &&
-                            !isInterceptionRoute
-                          ) {
-                            appPrefetchPaths.set(originalAppPath, page)
-                          }
                         }
                       } else {
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2065,7 +2321,7 @@ export default async function build(
                   totalSize,
                   isStatic,
                   isSSG,
-                  isPPR,
+                  isRoutePPREnabled,
                   isHybridAmp,
                   ssgPageRoutes,
                   initialRevalidateSeconds: false,
@@ -2095,6 +2351,7 @@ export default async function build(
       })
 
       if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+      traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
         console.warn(
@@ -2126,17 +2383,18 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
+      if (!isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
           distDir,
-          pageInfos,
+          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
           staticPages: [...staticPages],
           nextBuildSpan,
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
+          isFlyingShuttle: !!config.experimental.flyingShuttle,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -2214,6 +2472,10 @@ export default async function build(
           featureName: 'optimizeFonts',
           invocationCount: config.optimizeFonts ? 1 : 0,
         },
+        {
+          featureName: 'experimental/ppr',
+          invocationCount: config.experimental.ppr ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {
@@ -2256,7 +2518,9 @@ export default async function build(
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
-      const isApp404Static = appStaticPaths.has('/_not-found')
+      const isApp404Static = appStaticPaths.has(
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      )
       const hasStaticApp404 = hasApp404 && isApp404Static
 
       // we need to trigger automatic exporting when we have
@@ -2352,33 +2616,23 @@ export default async function build(
               // revalidate periods and dynamicParams settings
               appStaticPaths.forEach((routes, originalAppPath) => {
                 const encodedRoutes = appStaticPathsEncoded.get(originalAppPath)
-                const appConfig = appDefaultConfigs.get(originalAppPath) || {}
+                const appConfig = appDefaultConfigs.get(originalAppPath)
 
                 routes.forEach((route, routeIdx) => {
                   defaultMap[route] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
-                    _isDynamicError: appConfig.dynamic === 'error',
+                    _isDynamicError: appConfig?.dynamic === 'error',
                     _isAppDir: true,
+                    _isRoutePPREnabled: appConfig
+                      ? checkIsRoutePPREnabled(
+                          config.experimental.ppr,
+                          appConfig
+                        )
+                      : undefined,
                   }
                 })
               })
-
-              // Ensure we don't generate explicit app prefetches while in PPR.
-              if (config.experimental.ppr && appPrefetchPaths.size > 0) {
-                throw new Error(
-                  "Invariant: explicit app prefetches shouldn't generated with PPR"
-                )
-              }
-
-              for (const [originalAppPath, page] of appPrefetchPaths) {
-                defaultMap[page] = {
-                  page: originalAppPath,
-                  query: {},
-                  _isAppDir: true,
-                  _isAppPrefetch: true,
-                }
-              }
 
               if (i18n) {
                 for (const page of [
@@ -2411,6 +2665,7 @@ export default async function build(
                   }
                 }
               }
+
               return defaultMap
             },
           }
@@ -2481,8 +2736,9 @@ export default async function build(
 
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
-            const experimentalPPR =
-              !isRouteHandler && config.experimental.ppr === true
+            const experimentalPPR: true | undefined =
+              !isRouteHandler &&
+              checkIsRoutePPREnabled(config.experimental.ppr, appConfig)
                 ? true
                 : undefined
 
@@ -2493,13 +2749,14 @@ export default async function build(
               {
                 type: 'header',
                 key: 'content-type',
-                value: 'multipart/form-data',
+                value: 'multipart/form-data;.*',
               },
             ]
 
-            routes.forEach((route) => {
+            // Always sort the routes to get consistent output in manifests
+            getSortedRoutes(routes).forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
-              if (route === '/_not-found') return
+              if (route === UNDERSCORE_NOT_FOUND_ROUTE) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,
@@ -2553,6 +2810,10 @@ export default async function build(
                   // normalize header values as initialHeaders
                   // must be Record<string, string>
                   for (const key of headerKeys) {
+                    // set-cookie is already handled - the middleware cookie setting case
+                    // isn't needed for the prerender manifest since it can't read cookies
+                    if (key === 'x-middleware-set-cookie') continue
+
                     let value = exportHeaders[key]
 
                     if (Array.isArray(value)) {
@@ -2721,12 +2982,13 @@ export default async function build(
                 if (i18n) {
                   if (additionalSsgFile) return
 
+                  const localeExt = page === '/' ? path.extname(file) : ''
+                  const relativeDestNoPages = relativeDest.slice(
+                    'pages/'.length
+                  )
+
                   for (const locale of i18n.locales) {
                     const curPath = `/${locale}${page === '/' ? '' : page}`
-                    const localeExt = page === '/' ? path.extname(file) : ''
-                    const relativeDestNoPages = relativeDest.slice(
-                      'pages/'.length
-                    )
 
                     if (isSsg && ssgNotFoundPaths.includes(curPath)) {
                       continue
@@ -3038,8 +3300,8 @@ export default async function build(
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
               : ssgStaticFallbackPages.has(tbdRoute)
-              ? `${normalizedRoute}.html`
-              : false,
+                ? `${normalizedRoute}.html`
+                : false,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, ''),
@@ -3058,7 +3320,7 @@ export default async function build(
         NextBuildContext.allowedRevalidateHeaderKeys =
           config.experimental.allowedRevalidateHeaderKeys
 
-        const prerenderManifest: Readonly<PrerenderManifest> = {
+        const prerenderManifest: DeepReadonly<PrerenderManifest> = {
           version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
@@ -3094,19 +3356,6 @@ export default async function build(
         }
         return Promise.reject(err)
       })
-
-      if (debugOutput) {
-        nextBuildSpan
-          .traceChild('print-custom-routes')
-          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
-      }
-
-      // TODO: remove in the next major version
-      if (config.analyticsId) {
-        Log.warn(
-          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-        )
-      }
 
       if (Boolean(config.experimental.nextScriptWorkers)) {
         await nextBuildSpan
@@ -3157,6 +3406,12 @@ export default async function build(
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()
       console.log()
 
+      if (debugOutput) {
+        nextBuildSpan
+          .traceChild('print-custom-routes')
+          .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+      }
+
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {
           distPath: distDir,
@@ -3183,5 +3438,15 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
+
+    if (traceUploadUrl && loadedConfig) {
+      uploadTrace({
+        traceUploadUrl,
+        mode: 'build',
+        projectDir: dir,
+        distDir: loadedConfig.distDir,
+        sync: true,
+      })
+    }
   }
 }

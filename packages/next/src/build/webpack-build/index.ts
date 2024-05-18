@@ -24,8 +24,8 @@ function deepMerge(target: any, source: any) {
     result[key] = Array.isArray(target[key])
       ? (target[key] = [...target[key], ...(source[key] || [])])
       : typeof target[key] == 'object' && typeof source[key] == 'object'
-      ? deepMerge(target[key], source[key])
-      : result[key]
+        ? deepMerge(target[key], source[key])
+        : result[key]
   }
   return result
 }

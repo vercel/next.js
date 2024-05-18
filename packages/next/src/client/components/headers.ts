@@ -33,8 +33,7 @@ export function headers() {
     }
   }
 
-  const requestStore = getExpectedRequestStore(callingExpression)
-  return requestStore.headers
+  return getExpectedRequestStore(callingExpression).headers
 }
 
 export function cookies() {
@@ -54,10 +53,7 @@ export function cookies() {
   const requestStore = getExpectedRequestStore(callingExpression)
 
   const asyncActionStore = actionAsyncStorage.getStore()
-  if (
-    asyncActionStore &&
-    (asyncActionStore.isAction || asyncActionStore.isAppRoute)
-  ) {
+  if (asyncActionStore?.isAction || asyncActionStore?.isAppRoute) {
     // We can't conditionally return different types here based on the context.
     // To avoid confusion, we always return the readonly type here.
     return requestStore.mutableCookies as unknown as ReadonlyRequestCookies

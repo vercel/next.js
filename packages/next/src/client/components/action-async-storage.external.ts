@@ -1,6 +1,7 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import { createAsyncLocalStorage } from './async-local-storage'
 
+// Share the instance module in the next-shared layer
+import { actionAsyncStorage } from './action-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 export interface ActionStore {
   readonly isAction?: boolean
   readonly isAppRoute?: boolean
@@ -8,4 +9,4 @@ export interface ActionStore {
 
 export type ActionAsyncStorage = AsyncLocalStorage<ActionStore>
 
-export const actionAsyncStorage: ActionAsyncStorage = createAsyncLocalStorage()
+export { actionAsyncStorage }

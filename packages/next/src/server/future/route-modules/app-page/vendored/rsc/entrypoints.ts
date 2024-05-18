@@ -1,7 +1,10 @@
 import * as React from 'react'
-import * as ReactDOM from 'react-dom/server-rendering-stub'
+import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
+//@ts-expect-error TODO: current @types/react does not have exported types for this import
+import * as ReactCompilerRuntime from 'react/compiler-runtime'
+import '../../../../../next-fetch'
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
@@ -67,10 +70,19 @@ if (process.env.TURBOPACK) {
   }
 }
 
+if (ReactDOM.version === undefined) {
+  // FIXME: ReactDOM's 'react-server' entrypoint is missing `.version`,
+  // which makes our tests fail when it's used, so this is an ugly workaround
+  // (but should be safe because these are always kept in sync anyway)
+  // @ts-expect-error
+  ReactDOM.version = React.version
+}
+
 export {
   React,
   ReactJsxDevRuntime,
   ReactJsxRuntime,
+  ReactCompilerRuntime,
   ReactDOM,
   ReactServerDOMWebpackServerEdge,
   ReactServerDOMTurbopackServerEdge,

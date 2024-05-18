@@ -12,10 +12,7 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
-
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
+'use strict';
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
@@ -23,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var enableSchedulerDebugging = false;
+var enableSchedulerDebugging = false;
 var enableProfiling = false;
 var frameYieldMs = 5;
 var userBlockingPriorityTimeout = 250;
@@ -160,10 +157,6 @@ var isHostTimeoutScheduled = false; // Capture local references to native APIs, 
 var localSetTimeout = typeof setTimeout === 'function' ? setTimeout : null;
 var localClearTimeout = typeof clearTimeout === 'function' ? clearTimeout : null;
 var localSetImmediate = typeof setImmediate !== 'undefined' ? setImmediate : null; // IE and Node.js + jsdom
-
-typeof navigator !== 'undefined' && // $FlowFixMe[prop-missing]
-navigator.scheduling !== undefined && // $FlowFixMe[incompatible-type]
-navigator.scheduling.isInputPending !== undefined ? navigator.scheduling.isInputPending.bind(navigator.scheduling) : null;
 
 function advanceTimers(currentTime) {
   // Check for tasks that are no longer delayed and add them to the queue.
@@ -491,15 +484,13 @@ function shouldYieldToHost() {
     // The main thread has only been blocked for a really short amount of time;
     // smaller than a single frame. Don't yield yet.
     return false;
-  } // The main thread has been blocked for a non-negligible amount of time. We
+  } // Yield now.
 
 
   return true;
 }
 
-function requestPaint() {
-
-}
+function requestPaint() {}
 
 function forceFrameRate(fps) {
   if (fps < 0 || fps > 125) {
@@ -541,7 +532,7 @@ var performWorkUntilDeadline = function () {
         isMessageLoopRunning = false;
       }
     }
-  } // Yielding to the browser will give it a chance to paint, so we can
+  }
 };
 
 var schedulePerformWorkUntilDeadline;
@@ -618,7 +609,6 @@ exports.unstable_runWithPriority = unstable_runWithPriority;
 exports.unstable_scheduleCallback = unstable_scheduleCallback;
 exports.unstable_shouldYield = shouldYieldToHost;
 exports.unstable_wrapCallback = unstable_wrapCallback;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
@@ -626,6 +616,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }

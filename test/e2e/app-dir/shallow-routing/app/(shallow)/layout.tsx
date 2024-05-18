@@ -6,6 +6,11 @@ export default function ShallowLayout({ children }) {
       <h1>Shallow Routing</h1>
       <div>
         <div>
+          <a href="#content" id="hash-navigation">
+            Hash Navigation (non-Link)
+          </a>
+        </div>
+        <div>
           <Link href="/a" id="to-a">
             To A
           </Link>
@@ -85,7 +90,7 @@ export default function ShallowLayout({ children }) {
           </Link>
         </div>
       </div>
-      {children}
+      <div id="content">{children}</div>
     </>
   )
 }

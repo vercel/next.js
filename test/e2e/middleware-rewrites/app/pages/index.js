@@ -7,6 +7,10 @@ export default function Home() {
     <div>
       <p className="title">Home Page</p>
       <div />
+      <Link href="/article/foo/bar/123" id="to-article-rewrite">
+        to /article/foo/bar/123
+      </Link>
+      <div />
       <Link href="/rewrite-to-ab-test">A/B test homepage</Link>
       <div />
       <Link

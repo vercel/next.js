@@ -60,21 +60,19 @@ Syntax error: Selector "button" is not pure (pure selectors must contain at leas
     | ^"
 `;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 1`] = `"Error: end https://nextjs.org"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 2`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 3`] = `"Error: https://nextjs.org start"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 4`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 5`] = `"Error: middle https://nextjs.org end"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 6`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
-
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
 "index.js (3:7) @ eval
@@ -101,12 +99,12 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
 `;
 
 exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
-"./app/styles1.css:1:1
-Parsing css source code failed
-> 1 | @import "./styles2.css"
-    | ^^^^^^^^^^^^^^^^^^^^^^^
+"./app/styles2.css:1:2
+Module not found: Can't resolve './boom.css'
+> 1 | @import "./boom.css"
+    |  ^
 
-Unexpected end of file, but expected ';' or '{'"
+https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Import trace when module not found in layout 1`] = `
@@ -137,21 +135,36 @@ exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
     |                                                   ^"
 `;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `
+"Child.js (4:11) @ ClickCount.render
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+  2 | export default class ClickCount extends Component {
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
+  6 | }"
+`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+exports[`ReactRefreshLogBox app turbo css syntax errors 1`] = `
+"./index.module.css
+Parsing css source code failed
+Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))"
+`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end https://nextjs.org"`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 2`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 3`] = `"Error: https://nextjs.org start"`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 4`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 5`] = `"Error: middle https://nextjs.org end"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`] = `"https://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
 "index.js (3:7) @ <unknown>

@@ -149,7 +149,7 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/hello.js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'
@@ -181,7 +181,7 @@ describe('server-side dev errors', () => {
         const err = stderr.slice(stderrIdx)
 
         return err.includes('pages/api/blog/[slug].js') &&
-          err.includes('2:2') &&
+          err.includes('2:3') &&
           err.includes('default') &&
           err.includes('missingVar')
           ? 'success'

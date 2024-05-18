@@ -93,6 +93,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--empty',
+    `
+
+  Initialize an empty project.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -146,18 +153,25 @@ const program = new Commander.Command(packageJson.name)
   Explicitly tell the CLI to reset any stored preferences
 `
   )
+  .option(
+    '--skip-install',
+    `
+
+  Explicitly tell the CLI to skip installing packages
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
 const packageManager = !!program.useNpm
   ? 'npm'
   : !!program.usePnpm
-  ? 'pnpm'
-  : !!program.useYarn
-  ? 'yarn'
-  : !!program.useBun
-  ? 'bun'
-  : getPkgManager()
+    ? 'pnpm'
+    : !!program.useYarn
+      ? 'yarn'
+      : !!program.useBun
+        ? 'bun'
+        : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })
@@ -257,6 +271,7 @@ async function run(): Promise<void> {
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
+      empty: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -381,12 +396,15 @@ async function run(): Promise<void> {
       }
     }
 
+    const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
-      !program.importAlias.length
+      !importAliasPattern.test(program.importAlias)
     ) {
       if (ciInfo.isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
+      } else if (process.argv.includes('--no-import-alias')) {
         program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
@@ -412,7 +430,7 @@ async function run(): Promise<void> {
             message: `What ${styledImportAlias} would you like configured?`,
             initial: getPrefOrDefault('importAlias'),
             validate: (value) =>
-              /.+\/\*/.test(value)
+              importAliasPattern.test(value)
                 ? true
                 : 'Import alias must follow the pattern <prefix>/*',
           })
@@ -435,6 +453,8 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -463,6 +483,8 @@ async function run(): Promise<void> {
       appRouter: program.app,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      skipInstall: program.skipInstall,
+      empty: program.empty,
     })
   }
   conf.set('preferences', preferences)
@@ -478,10 +500,10 @@ async function notifyUpdate(): Promise<void> {
         packageManager === 'yarn'
           ? 'yarn global add create-next-app'
           : packageManager === 'pnpm'
-          ? 'pnpm add -g create-next-app'
-          : packageManager === 'bun'
-          ? 'bun add -g create-next-app'
-          : 'npm i -g create-next-app'
+            ? 'pnpm add -g create-next-app'
+            : packageManager === 'bun'
+              ? 'bun add -g create-next-app'
+              : 'npm i -g create-next-app'
 
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +

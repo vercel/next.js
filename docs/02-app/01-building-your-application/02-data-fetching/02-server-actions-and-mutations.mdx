@@ -171,7 +171,7 @@ export default function Page() {
 > **Good to know:**
 >
 > - Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-> - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
+> - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries). For example: `const rawFormData = Object.fromEntries(formData)`. One thing to note is that the `formData` will include additional `$ACTION_` properties.
 > - See [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action) to learn more.
 
 #### Passing Additional Arguments
@@ -243,7 +243,7 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" aria-disabled={pending}>
+    <button type="submit" disabled={pending}>
       Add
     </button>
   )
@@ -259,7 +259,7 @@ export function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" aria-disabled={pending}>
+    <button type="submit" disabled={pending}>
       Add
     </button>
   )
@@ -358,10 +358,10 @@ export default async function createsUser(formData) {
 }
 ```
 
-Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook to show a message to the user.
+Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useActionState`](https://react.dev/reference/react/useActionState) hook to show a message to the user.
 
-- By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
-- `useFormState` is a React hook and therefore must be used in a Client Component.
+- By passing the action to `useActionState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
+- `useActionState` is a React hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -385,12 +385,12 @@ export async function createUser(prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
+Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
 
 ```tsx filename="app/ui/signup.tsx" switcher
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -398,7 +398,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useFormState(createUser, initialState)
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -417,7 +417,7 @@ export function Signup() {
 ```jsx filename="app/ui/signup.js" switcher
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -425,7 +425,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useFormState(createUser, initialState)
+  const [state, formAction] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -460,13 +460,10 @@ type Message = {
 }
 
 export function Thread({ messages }: { messages: Message[] }) {
-  const [optimisticMessages, addOptimisticMessage] = useOptimistic<Message[]>(
-    messages,
-    (state: Message[], newMessage: string) => [
-      ...state,
-      { message: newMessage },
-    ]
-  )
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic<
+    Message[],
+    string
+  >(messages, (state, newMessage) => [...state, { message: newMessage }])
 
   return (
     <div>
@@ -742,7 +739,7 @@ export async function createTodo(prevState, formData) {
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useFormState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
+> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
 
 ### Revalidating data
 
@@ -920,23 +917,7 @@ export function addItem() {
 Defining a Server Action inside a component creates a [closure](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures) where the action has access to the outer function's scope. For example, the `publish` action has access to the `publishVersion` variable:
 
 ```tsx filename="app/page.tsx" switcher
-export default function Page() {
-  const publishVersion = await getLatestVersion();
-
-  async function publish(formData: FormData) {
-    "use server";
-    if (publishVersion !== await getLatestVersion()) {
-      throw new Error('The version has changed since pressing publish');
-    }
-    ...
-  }
-
-  return <button action={publish}>Publish</button>;
-}
-```
-
-```jsx filename="app/page.js" switcher
-export default function Page() {
+export default async function Page() {
   const publishVersion = await getLatestVersion();
 
   async function publish() {
@@ -947,7 +928,31 @@ export default function Page() {
     ...
   }
 
-  return <button action={publish}>Publish</button>;
+  return (
+    <form>
+      <button formAction={publish}>Publish</button>
+    </form>
+  );
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const publishVersion = await getLatestVersion();
+
+  async function publish() {
+    "use server";
+    if (publishVersion !== await getLatestVersion()) {
+      throw new Error('The version has changed since pressing publish');
+    }
+    ...
+  }
+
+  return (
+    <form>
+      <button formAction={publish}>Publish</button>
+    </form>
+  );
 }
 ```
 
@@ -997,5 +1002,5 @@ For more information on Server Actions, check out the following React docs:
 - [`"use server"`](https://react.dev/reference/react/use-server)
 - [`<form>`](https://react.dev/reference/react-dom/components/form)
 - [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
-- [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState)
+- [`useActionState`](https://react.dev/reference/react/useActionState)
 - [`useOptimistic`](https://react.dev/reference/react/useOptimistic)

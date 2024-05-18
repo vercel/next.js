@@ -116,12 +116,12 @@ export async function register() {
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
@@ -132,12 +132,12 @@ sdk.start()
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions'
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SEMRESATTRS_SERVICE_NAME]: 'next-app',
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
 })
@@ -220,6 +220,7 @@ Attributes on spans follow [OpenTelemetry semantic conventions](https://opentele
 - `next.span_name` - duplicates span name
 - `next.span_type` - each span type has a unique identifier
 - `next.route` - The route pattern of the request (e.g., `/[param]/user`).
+- `next.rsc` (true/false) - Whether the request is an RSC request, such as prefetch.
 - `next.page`
   - This is an internal value used by an app router.
   - You can think about it as a route to a special file (like `page.ts`, `layout.ts`, `loading.ts` and others)

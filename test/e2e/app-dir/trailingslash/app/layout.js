@@ -8,3 +8,10 @@ export default function Root({ children }) {
     </html>
   )
 }
+
+export const metadata = {
+  metadataBase: new URL('http://trailingslash.com'),
+  alternates: {
+    canonical: './',
+  },
+}

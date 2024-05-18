@@ -9,7 +9,7 @@ import {
   TEST_TOKEN,
 } from '../../../scripts/reset-project.mjs'
 import fetch from 'node-fetch'
-import { Span } from 'next/src/trace'
+import { Span } from 'next/dist/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -22,6 +22,7 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
 
     // ensure Vercel CLI is installed

@@ -64,7 +64,6 @@ export async function exportAppRoute(
       notFoundRoutes: [],
     },
     renderOpts: {
-      experimental: { ppr: false },
       originalPathname: page,
       nextExport: true,
       supportsDynamicHTML: false,
@@ -91,7 +90,10 @@ export async function exportAppRoute(
     }
 
     const blob = await response.blob()
-    const revalidate = context.renderOpts.store?.revalidate || false
+    const revalidate =
+      typeof context.renderOpts.store?.revalidate === 'undefined'
+        ? false
+        : context.renderOpts.store.revalidate
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
     const cacheTags = (context.renderOpts as any).fetchTags

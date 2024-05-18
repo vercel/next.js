@@ -80,6 +80,7 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
+  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -441,8 +442,8 @@ declare namespace __next_route_internal_types__ {
 }
 
 declare module 'next' {
-  export { default } from 'next/types/index.js'
-  export * from 'next/types/index.js'
+  export { default } from 'next/types.js'
+  export * from 'next/types.js'
 
   export type Route<T extends string = string> =
     __next_route_internal_types__.RouteImpl<T>
@@ -596,8 +597,8 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-      ? '..'
-      : '../..'
+        ? '..'
+        : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
@@ -612,11 +613,7 @@ export class NextTypesPlugin {
         }
         return
       }
-      if (
-        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
-        mod.layer !== WEBPACK_LAYERS.appRouteHandler
-      )
-        return
+      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)

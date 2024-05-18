@@ -35,8 +35,8 @@ export function missingDepsError(
           (packageManager === 'yarn'
             ? 'yarn add --dev'
             : packageManager === 'pnpm'
-            ? 'pnpm install --save-dev'
-            : 'npm install --save-dev') +
+              ? 'pnpm install --save-dev'
+              : 'npm install --save-dev') +
             ' ' +
             packagesCli
         )

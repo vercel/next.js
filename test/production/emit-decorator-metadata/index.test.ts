@@ -1,8 +1,7 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { BrowserInterface } from 'test/lib/browsers/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('emitDecoratorMetadata SWC option', () => {

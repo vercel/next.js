@@ -33,7 +33,10 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
   return sendMessage
 }
 
-export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
+export function useTurbopack(
+  sendMessage: ReturnType<typeof useSendMessage>,
+  onUpdateError: (err: unknown) => void
+) {
   const turbopackState = useRef<{
     init: boolean
     queue: Array<TurbopackMsgToBrowser> | undefined
@@ -78,9 +81,10 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
           current.queue = undefined
         },
         sendMessage,
+        onUpdateError,
       })
     })
-  }, [sendMessage])
+  }, [sendMessage, onUpdateError])
 
   return processTurbopackMessage
 }

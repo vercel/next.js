@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import { join } from 'path'
 import { nanoid } from 'nanoid'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -111,9 +111,10 @@ describe('required server files', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -1289,9 +1290,10 @@ describe('required server files', () => {
     const testServer = join(standaloneDir, 'server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('minimalMode: true', 'minimalMode: false')
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'minimalMode: true',
+        'minimalMode: false'
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(

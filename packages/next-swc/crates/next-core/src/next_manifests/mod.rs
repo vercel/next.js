@@ -4,11 +4,11 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
-use crate::next_config::{CrossOriginConfig, Rewrites};
+use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -44,30 +44,20 @@ impl Default for MiddlewaresManifest {
     }
 }
 
-#[derive(Serialize, Debug)]
-#[serde(tag = "type", rename_all = "kebab-case")]
-pub enum RouteHas {
-    Header {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Cookie {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Query {
-        key: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
-    },
-    Host {
-        value: String,
-    },
-}
-
-#[derive(Serialize, Default, Debug)]
+#[derive(
+    Debug,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Default,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct MiddlewareMatcher {
     // When skipped next.js with fill that during merging.
@@ -98,6 +88,7 @@ pub struct EdgeFunctionDefinition {
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
+    pub env: IndexMap<String, String>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -177,28 +168,28 @@ pub struct LoadableManifest {
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ServerReferenceManifest {
+pub struct ServerReferenceManifest<'a> {
     /// A map from hashed action name to the runtime module we that exports it.
-    pub node: HashMap<String, ActionManifestEntry>,
+    pub node: HashMap<&'a str, ActionManifestEntry<'a>>,
     /// A map from hashed action name to the runtime module we that exports it.
-    pub edge: HashMap<String, ActionManifestEntry>,
+    pub edge: HashMap<&'a str, ActionManifestEntry<'a>>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifestEntry {
+pub struct ActionManifestEntry<'a> {
     /// A mapping from the page that uses the server action to the runtime
     /// module that exports it.
-    pub workers: HashMap<String, ActionManifestWorkerEntry>,
+    pub workers: HashMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: HashMap<String, ActionLayer>,
+    pub layer: HashMap<&'a str, ActionLayer>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-pub enum ActionManifestWorkerEntry {
-    String(String),
+pub enum ActionManifestWorkerEntry<'a> {
+    String(&'a str),
     Number(f64),
 }
 

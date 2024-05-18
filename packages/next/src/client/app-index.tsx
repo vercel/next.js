@@ -7,19 +7,24 @@ import React, { use } from 'react'
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
 import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
-  if (isNextRouterError(args[0])) {
+  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+  if (
+    process.env.NODE_ENV !== 'production'
+      ? isNextRouterError(args[1])
+      : isNextRouterError(args[0])
+  ) {
     return
   }
   origConsoleError.apply(window.console, args)
@@ -130,84 +135,24 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
-function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
-  // TODO: remove in the next major version
-  if (process.env.__NEXT_ANALYTICS_ID) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      require('./performance-relayer-app')()
-    }, [])
-  }
-
+function Root({ children }: React.PropsWithChildren<{}>) {
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
+      window.__NEXT_HYDRATED_CB?.()
     }, [])
   }
 
-  return children as React.ReactElement
+  return children
 }
 
 export function hydrate() {
-  if (process.env.NODE_ENV !== 'production') {
-    const rootLayoutMissingTagsError = (self as any)
-      .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
-      require('./components/react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
-
-    // Don't try to hydrate if root layout is missing required tags, render error instead
-    if (rootLayoutMissingTagsError) {
-      const reactRootElement = document.createElement('div')
-      document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
-        onRecoverableError,
-      })
-
-      reactRoot.render(
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            buildId: 'development',
-            tree: rootLayoutMissingTagsError.tree,
-            changeByServerResponse: () => {},
-            focusAndScrollRef: {
-              apply: false,
-              onlyHashChange: false,
-              hashFragment: null,
-              segmentPaths: [],
-            },
-            nextUrl: null,
-          }}
-        >
-          <HotReload
-            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-            // initialState={{
-            //   rootLayoutMissingTagsError: {
-            //     missingTags: rootLayoutMissingTagsError.missingTags,
-            //   },
-            // }}
-          />
-        </GlobalLayoutRouterContext.Provider>
-      )
-
-      return
-    }
-  }
-
   const actionQueue = createMutableActionQueue()
 
   const reactEl = (
     <StrictModeIfEnabled>
-      <HeadManagerContext.Provider
-        value={{
-          appDir: true,
-        }}
-      >
+      <HeadManagerContext.Provider value={{ appDir: true }}>
         <ActionQueueContext.Provider value={actionQueue}>
           <Root>
             <ServerRoot />
@@ -217,10 +162,14 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
+  const hasMissingTags = !!rootLayoutMissingTags?.length
+
   const options = {
     onRecoverableError,
-  }
-  const isError = document.documentElement.id === '__next_error__'
+  } satisfies ReactDOMClient.RootOptions
+  const isError =
+    document.documentElement.id === '__next_error__' || hasMissingTags
 
   if (process.env.NODE_ENV !== 'production') {
     // Patch console.error to collect information about hydration errors
@@ -236,21 +185,33 @@ export function hydrate() {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/internal/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
+        require('./components/react-dev-overlay/app/ReactDevOverlay')
+          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
           .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
 
-      let errorTree = (
-        <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
-          {reactEl}
-        </ReactDevOverlay>
+      const FallbackLayout = hasMissingTags
+        ? ({ children }: { children: React.ReactNode }) => (
+            <html id="__next_error__">
+              <body>{children}</body>
+            </html>
+          )
+        : React.Fragment
+      const errorTree = (
+        <FallbackLayout>
+          <ReactDevOverlay
+            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
+            onReactError={() => {}}
+          >
+            {reactEl}
+          </ReactDevOverlay>
+        </FallbackLayout>
       )
       const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
       const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
@@ -266,7 +227,9 @@ export function hydrate() {
           return
         }
 
-        if (obj.action === 'serverComponentChanges') {
+        if (
+          obj.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+        ) {
           window.location.reload()
         }
       }

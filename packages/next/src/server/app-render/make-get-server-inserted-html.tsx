@@ -8,15 +8,29 @@ import {
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
+import type { ClientTraceDataEntry } from '../lib/trace/tracer'
+
+export function getTracedMetadata(
+  traceData: ClientTraceDataEntry[],
+  clientTraceMetadata: string[] | undefined
+): ClientTraceDataEntry[] | undefined {
+  if (!clientTraceMetadata) return undefined
+  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
+}
 
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
   serverCapturedErrors,
+  tracingMetadata,
+  basePath,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
+  tracingMetadata: ClientTraceDataEntry[] | undefined
   serverCapturedErrors: Error[]
+  basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
   let hasUnflushedPolyfills = polyfills.length !== 0
@@ -37,13 +51,17 @@ export function makeGetServerInsertedHTML({
           ) : null
         )
       } else if (isRedirectError(error)) {
-        const redirectUrl = getURLFromRedirectError(error)
+        const redirectUrl = addPathPrefix(
+          getURLFromRedirectError(error),
+          basePath
+        )
         const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
           statusCode === RedirectStatusCode.PermanentRedirect ? true : false
         if (redirectUrl) {
           errorMetaTags.push(
             <meta
+              id="__next-page-redirect"
               httpEquiv="refresh"
               content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
               key={error.digest}
@@ -51,6 +69,18 @@ export function makeGetServerInsertedHTML({
           )
         }
       }
+    }
+
+    const serverInsertedHTML = renderServerInsertedHTML()
+
+    // Skip React rendering if we know the content is empty.
+    if (
+      !hasUnflushedPolyfills &&
+      errorMetaTags.length === 0 &&
+      Array.isArray(serverInsertedHTML) &&
+      serverInsertedHTML.length === 0
+    ) {
+      return ''
     }
 
     const stream = await renderToReadableStream(
@@ -62,16 +92,32 @@ export function makeGetServerInsertedHTML({
               return <script key={polyfill.src} {...polyfill} />
             })
         }
-        {renderServerInsertedHTML()}
+        {serverInsertedHTML}
+        {tracingMetadata
+          ? tracingMetadata.map(({ key, value }) => {
+              return (
+                <meta
+                  key={`next-trace-data-${key}:${value}`}
+                  name={key}
+                  content={value}
+                />
+              )
+            })
+          : null}
         {errorMetaTags}
-      </>
+      </>,
+      {
+        // Larger chunk because this isn't sent over the network.
+        // Let's set it to 1MB.
+        progressiveChunkSize: 1024 * 1024,
+      }
     )
 
     hasUnflushedPolyfills = false
 
-    // Wait for the stream to be ready.
-    await stream.allReady
-
+    // There's no need to wait for the stream to be ready
+    // e.g. calling `await stream.allReady` because `streamToString` will
+    // wait and decode the stream progressively with better parallelism.
     return streamToString(stream)
   }
 }

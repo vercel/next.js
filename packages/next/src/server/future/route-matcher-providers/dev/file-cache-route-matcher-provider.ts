@@ -6,7 +6,7 @@ import type { FileReader } from './helpers/file-reader/file-reader'
  * This will memoize the matchers when the file contents are the same.
  */
 export abstract class FileCacheRouteMatcherProvider<
-  M extends RouteMatcher = RouteMatcher
+  M extends RouteMatcher = RouteMatcher,
 > extends CachedRouteMatcherProvider<M, ReadonlyArray<string>> {
   constructor(dir: string, reader: FileReader) {
     super({

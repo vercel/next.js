@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
-    mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
@@ -13,8 +10,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, EdgeFunctionDefinition, LoadableManifest, MiddlewareMatcher,
-        MiddlewaresManifestV2, PagesManifest,
+        BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
+        PagesManifest,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -29,18 +26,18 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{
-    trace::TraceRawVcs, Completion, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
-        build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EvaluatableAssets,
+            },
             context::AssetContext,
             file_source::FileSource,
             issue::IssueSeverity,
@@ -54,10 +51,9 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            resolve::esm_resolve,
-            EcmascriptModuleAsset,
+            chunk::EcmascriptChunkPlaceable, resolve::esm_resolve, EcmascriptModuleAsset,
         },
+        nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -73,23 +69,25 @@ use crate::{
         DynamicImportedChunks,
     },
     font::create_font_manifest,
-    middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
+    loadable_manifest::create_react_loadable_manifest,
+    paths::{
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
+        wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: Vc<Project>,
-    mode: NextMode,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub async fn new(project: Vc<Project>, mode: NextMode) -> Result<Vc<Self>> {
-        Ok(PagesProject { project, mode }.cell())
+    pub async fn new(project: Vc<Project>) -> Result<Vc<Self>> {
+        Ok(PagesProject { project }.cell())
     }
 
     #[turbo_tasks::function]
@@ -184,6 +182,10 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
+        for route in routes.values_mut() {
+            route.resolve().await?;
+        }
+
         Ok(Vc::cell(routes))
     }
 
@@ -261,7 +263,9 @@ impl PagesProject {
         Vc::cell(
             [(
                 "next-dynamic".to_string(),
-                Vc::upcast(NextDynamicTransition::new(self.client_transition())),
+                Vc::upcast(NextDynamicTransition::new(Vc::upcast(
+                    self.client_transition(),
+                ))),
             )]
             .into_iter()
             .collect(),
@@ -280,7 +284,6 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -288,20 +291,19 @@ impl PagesProject {
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -358,7 +360,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.ssr_module_options_context(),
+            self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-ssr".to_string()),
         )
@@ -369,7 +371,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.api_module_options_context(),
+            self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-api".to_string()),
         )
@@ -380,7 +382,7 @@ impl PagesProject {
         ModuleAssetContext::new(
             Default::default(),
             self.project().edge_compile_time_info(),
-            self.ssr_data_module_options_context(),
+            self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("edge-ssr-data".to_string()),
         )
@@ -388,49 +390,92 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::Pages {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
     #[turbo_tasks::function]
     async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesApi {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
+            NextRuntime::NodeJs,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_ssr_data_module_options_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<ModuleOptionsContext>> {
+        Ok(get_server_module_options_context(
+            self.project().project_path(),
+            self.project().execution_context(),
+            Value::new(ServerContextType::PagesData {
+                pages_dir: self.pages_dir(),
+            }),
+            self.project().next_mode(),
+            self.project().next_config(),
+            NextRuntime::Edge,
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
@@ -439,7 +484,7 @@ impl PagesProject {
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -447,7 +492,6 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
@@ -456,7 +500,7 @@ impl PagesProject {
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -464,13 +508,12 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         );
@@ -479,23 +522,21 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
@@ -540,6 +581,13 @@ enum PageEndpointType {
     Html,
     Data,
     SsrOnly,
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+enum SsrChunkType {
+    Page,
+    Data,
+    Api,
 }
 
 #[turbo_tasks::value_impl]
@@ -615,41 +663,50 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let mut client_chunks = client_chunking_context
-                .evaluated_chunk_group_assets(
-                    client_module.ident(),
-                    this.pages_project
-                        .client_runtime_entries()
-                        .with_entry(Vc::upcast(client_main_module))
-                        .with_entry(Vc::upcast(client_module)),
-                    Value::new(AvailabilityInfo::Root),
-                )
-                .await?
-                .clone_value();
+            let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
+                client_module.ident(),
+                this.pages_project
+                    .client_runtime_entries()
+                    .with_entry(Vc::upcast(client_main_module))
+                    .with_entry(Vc::upcast(client_module)),
+                Value::new(AvailabilityInfo::Root),
+            );
 
-            client_chunks.push(Vc::upcast(PageLoaderAsset::new(
-                this.pages_project.project().client_root(),
-                this.pathname,
-                self.client_relative_path(),
-                Vc::cell(client_chunks.clone()),
-            )));
-
-            Ok(Vc::cell(client_chunks))
+            Ok(client_chunks)
         }
         .instrument(tracing::info_span!("page client side rendering"))
         .await
     }
 
     #[turbo_tasks::function]
+    async fn page_loader(
+        self: Vc<Self>,
+        client_chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+        let node_root = project.client_root();
+        let client_relative_path = self.client_relative_path();
+        let page_loader = PageLoaderAsset::new(
+            node_root,
+            this.pathname,
+            client_relative_path,
+            client_chunks,
+        );
+        Ok(Vc::upcast(page_loader))
+    }
+
+    #[turbo_tasks::function]
     async fn internal_ssr_chunk(
         self: Vc<Self>,
+        ty: SsrChunkType,
         reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
         project_root: Vc<FileSystemPath>,
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
-        chunking_context: Vc<BuildChunkingContext>,
-        edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        chunking_context: Vc<NodeJsChunkingContext>,
+        edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
     ) -> Result<Vc<SsrChunk>> {
@@ -684,15 +741,20 @@ impl PageEndpoint {
 
                 let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    Vc::cell(evaluatable_assets.clone()),
+                    Vc::cell(evaluatable_assets),
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(ssr_module)],
+                    this.pages_project.client_module_context(),
+                )
+                .await?;
+                let client_chunking_context =
+                    this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
-                    edge_chunking_context,
+                    Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
-                    Vc::cell(evaluatable_assets.clone()),
                 )
                 .await?;
 
@@ -746,9 +808,15 @@ impl PageEndpoint {
                     .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    [Vc::upcast(ssr_module)],
+                    this.pages_project.client_module_context(),
+                )
+                .await?;
+                let client_chunking_context =
+                    this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
-                    chunking_context,
+                    Vc::upcast(client_chunking_context),
                     dynamic_import_modules,
                     availability_info,
                 )
@@ -761,7 +829,11 @@ impl PageEndpoint {
                 .cell())
             }
         }
-        .instrument(tracing::info_span!("page server side rendering"))
+        .instrument(match ty {
+            SsrChunkType::Page => tracing::info_span!("page server side rendering"),
+            SsrChunkType::Data => tracing::info_span!("server side data"),
+            SsrChunkType::Api => tracing::info_span!("server side api"),
+        })
         .await
     }
 
@@ -769,6 +841,7 @@ impl PageEndpoint {
     async fn ssr_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Page,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -777,8 +850,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -788,6 +861,7 @@ impl PageEndpoint {
     async fn ssr_data_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Data,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -796,8 +870,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(true),
+            this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -807,6 +881,7 @@ impl PageEndpoint {
     async fn api_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Api,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
             this.pages_project
                 .project()
@@ -815,8 +890,8 @@ impl PageEndpoint {
             this.pages_project.project().project_path(),
             this.pages_project.api_module_context(),
             this.pages_project.edge_api_module_context(),
-            this.pages_project.project().server_chunking_context(),
-            this.pages_project.project().edge_chunking_context(),
+            this.pages_project.project().server_chunking_context(false),
+            this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -853,74 +928,19 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn react_loadable_manifest(
-        self: Vc<Self>,
+        &self,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
     ) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let node_root = this.pages_project.project().node_root();
-        let pages_dir = this.pages_project.pages_dir().await?;
-
-        let dynamic_import_entries = &*dynamic_import_entries.await?;
-
-        let mut output = vec![];
-        let mut loadable_manifest: HashMap<String, LoadableManifest> = Default::default();
-        for (origin, dynamic_imports) in dynamic_import_entries.into_iter() {
-            let origin_path = &*origin.ident().path().await?;
-
-            for (import, chunk_output) in dynamic_imports {
-                let chunk_output = chunk_output.await?;
-                output.extend(chunk_output.iter().copied());
-
-                // https://github.com/vercel/next.js/blob/b7c85b87787283d8fb86f705f67bdfabb6b654bb/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L230
-                // For the pages dir, next_dynamic transform puts relative paths to the pages
-                // dir for the origin import.
-                let id = format!(
-                    "{} -> {}",
-                    pages_dir
-                        .get_path_to(origin_path)
-                        .map_or_else(|| origin_path.to_string(), |path| path.to_string()),
-                    import
-                );
-
-                let server_path = node_root.join("server".to_string());
-                let server_path_value = server_path.await?;
-                let files = chunk_output
-                    .iter()
-                    .map(move |file| {
-                        let server_path_value = server_path_value.clone();
-                        async move {
-                            Ok(server_path_value
-                                .get_path_to(&*file.ident().path().await?)
-                                .map(|path| path.to_string()))
-                        }
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                let manifest_item = LoadableManifest {
-                    id: id.clone(),
-                    files,
-                };
-
-                loadable_manifest.insert(id, manifest_item);
-            }
-        }
-
-        let loadable_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
-        let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
+        let node_root = self.pages_project.project().node_root();
+        let client_relative_path = self.pages_project.project().client_relative_path();
+        let loadable_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
+        Ok(create_react_loadable_manifest(
+            dynamic_import_entries,
+            client_relative_path,
             node_root.join(format!(
                 "server/pages{loadable_path_prefix}/react-loadable-manifest.json"
             )),
-            AssetContent::file(
-                FileContent::Content(File::from(serde_json::to_string_pretty(
-                    &loadable_manifest,
-                )?))
-                .cell(),
-            ),
-        ));
-
-        output.push(loadable_manifest);
-        Ok(Vc::cell(output))
+        ))
     }
 
     #[turbo_tasks::function]
@@ -982,6 +1002,8 @@ impl PageEndpoint {
                 let client_chunks = self.client_chunks();
                 client_assets.extend(client_chunks.await?.iter().copied());
                 let build_manifest = self.build_manifest(client_chunks);
+                let page_loader = self.page_loader(client_chunks);
+                client_assets.push(page_loader);
                 server_assets.push(build_manifest);
                 self.ssr_chunk()
             }
@@ -999,9 +1021,9 @@ impl PageEndpoint {
             this.pages_project.project().client_root(),
             this.pages_project.project().node_root(),
             this.pages_project.pages_dir(),
-            "",
-            &pathname,
             &original_name,
+            &get_asset_prefix_from_pathname(&pathname),
+            &pathname,
             client_assets,
             false,
         )
@@ -1074,6 +1096,7 @@ impl PageEndpoint {
                     page: original_name.to_string(),
                     regions: None,
                     matchers: vec![matchers],
+                    env: this.pages_project.project().edge_env().await?.clone_value(),
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -1122,8 +1145,8 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
+        let original_name = this.original_name.await?;
         let span = {
-            let original_name = this.original_name.await?;
             match this.ty {
                 PageEndpointType::Html => {
                     tracing::info_span!("page endpoint HTML", name = *original_name)
@@ -1155,6 +1178,11 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .clone_value();
 
+            let client_relative_root = this.pages_project.project().client_relative_path();
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .await?
+                .clone_value();
+
             let node_root = &node_root.await?;
             let written_endpoint = match *output.await? {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => WrittenEndpoint::NodeJs {
@@ -1163,14 +1191,19 @@ impl Endpoint for PageEndpoint {
                         .context("ssr chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,
+                    client_paths,
                 },
-                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge { server_paths },
+                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                    server_paths,
+                    client_paths,
+                },
             };
 
-            Ok(written_endpoint.cell())
+            anyhow::Ok(written_endpoint.cell())
         }
         .instrument(span)
         .await
+        .with_context(|| format!("Failed to write page endpoint {}", *original_name))
     }
 
     #[turbo_tasks::function]

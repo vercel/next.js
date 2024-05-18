@@ -1,11 +1,13 @@
 use std::{
     collections::BTreeMap,
     convert::{TryFrom, TryInto},
+    mem::take,
 };
 
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
+use swc_core::common::Span;
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -32,6 +34,7 @@ pub struct Config {
 // Using BTreeMap to ensure the order of the actions is deterministic.
 pub type ActionsMap = BTreeMap<String, String>;
 
+#[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
@@ -125,18 +128,20 @@ impl<C: Comments> ServerActions<C> {
         } else {
             // Check if the function has `"use server"`
             if let Some(body) = maybe_body {
+                let mut action_span = None;
                 remove_server_directive_index_in_fn(
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
+                    &mut action_span,
                     self.config.enabled,
                 );
 
-                if is_action_fn && !self.config.is_react_server_layer {
+                if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
-                                body.span,
+                                action_span.unwrap_or(body.span),
                                 "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
                             )
                             .emit()
@@ -420,9 +425,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
-        let current_declared_idents = self.declared_idents.clone();
-        let current_names = self.names.clone();
-        self.names = vec![];
+        let declared_idents_until = self.declared_idents.len();
+        let current_names = take(&mut self.names);
 
         // Visit children
         {
@@ -459,7 +463,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
+            // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_ident(&mut self.action_cnt);
@@ -471,7 +476,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
-            retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+            retain_names_from_declared_idents(
+                &mut child_names,
+                &self.declared_idents[..declared_idents_until],
+            );
 
             let maybe_new_expr =
                 self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
@@ -503,8 +511,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
         let current_declared_idents = self.declared_idents.clone();
-        let current_names = self.names.clone();
-        self.names = vec![];
+        let current_names = take(&mut self.names);
 
         {
             // Visit children
@@ -541,7 +548,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
@@ -565,6 +572,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
+    fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
+        let old_in_export_decl = self.in_export_decl;
+        let old_in_default_export_decl = self.in_default_export_decl;
+        self.in_export_decl = false;
+        self.in_default_export_decl = false;
+        m.visit_mut_children_with(self);
+        self.in_export_decl = old_in_export_decl;
+        self.in_default_export_decl = old_in_default_export_decl;
+    }
+
+    fn visit_mut_class_method(&mut self, m: &mut ClassMethod) {
+        let old_in_export_decl = self.in_export_decl;
+        let old_in_default_export_decl = self.in_default_export_decl;
+        self.in_export_decl = false;
+        self.in_default_export_decl = false;
+        m.visit_mut_children_with(self);
+        self.in_export_decl = old_in_export_decl;
+        self.in_default_export_decl = old_in_default_export_decl;
+    }
+
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
@@ -577,9 +604,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             true,
         );
 
-        let current_declared_idents = self.declared_idents.clone();
-        let current_names = self.names.clone();
-        self.names = vec![];
+        let declared_idents_until = self.declared_idents.len();
+        let current_names = take(&mut self.names);
 
         {
             // Visit children
@@ -623,7 +649,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Collect all the identifiers defined inside the closure and used
         // in the action function. With deduplication.
-        retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
+        retain_names_from_declared_idents(
+            &mut child_names,
+            &self.declared_idents[..declared_idents_until],
+        );
 
         let maybe_new_expr = self.maybe_hoist_and_create_proxy(child_names, None, Some(a));
         self.rewrite_expr_to_proxy_expr = maybe_new_expr;
@@ -1024,6 +1053,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if self.has_action {
             let mut actions = self.export_actions.clone();
+
+            // All exported values are considered as actions if the file is an action file.
             if self.in_action_file {
                 actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };
@@ -1044,19 +1075,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             if self.config.is_react_server_layer {
                 // Inlined actions are only allowed on the server layer.
-                // import { createActionProxy } from 'private-next-rsc-action-proxy'
-                // createActionProxy("action_id")
+                // import { registerServerReference } from 'private-next-rsc-server-reference'
+                // registerServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("createActionProxy"),
+                        local: quote_ident!("registerServerReference"),
                         imported: None,
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-proxy".into(),
+                        value: "private-next-rsc-server-reference".into(),
                         raw: None,
                     }),
                     type_only: false,
@@ -1215,13 +1246,13 @@ fn annotate_ident_as_action(
     file_name: &str,
     export_name: String,
 ) -> Expr {
-    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
+    // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: quote_ident!("createActionProxy").as_callee(),
+        callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             // $$id
             ExprOrSpread {
@@ -1393,6 +1424,7 @@ fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     remove_directive: bool,
     is_action_fn: &mut bool,
+    action_span: &mut Option<Span>,
     enabled: bool,
 ) {
     let mut is_directive = true;
@@ -1404,6 +1436,8 @@ fn remove_server_directive_index_in_fn(
         }) = stmt
         {
             if value == "use server" {
+                *action_span = Some(*span);
+
                 if is_directive {
                     *is_action_fn = true;
                     if !enabled {

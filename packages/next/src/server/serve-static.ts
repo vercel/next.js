@@ -5,6 +5,7 @@ import send from 'next/dist/compiled/send'
 // Although "mime" has already add avif in version 2.4.7, "send" is still using mime@1.6.0
 send.mime.define({
   'image/avif': ['avif'],
+  'image/x-icns': ['icns'],
 })
 
 export function serveStatic(
@@ -27,22 +28,12 @@ export function serveStatic(
   })
 }
 
-export function getContentType(extWithoutDot: string): string | null {
-  const { mime } = send
-  if ('getType' in mime) {
-    // 2.0
-    return mime.getType(extWithoutDot)
-  }
-  // 1.0
-  return (mime as any).lookup(extWithoutDot)
-}
+export const getContentType: (extWithoutDot: string) => string | null =
+  'getType' in send.mime
+    ? (extWithoutDot: string) => send.mime.getType(extWithoutDot)
+    : (extWithoutDot: string) => (send.mime as any).lookup(extWithoutDot)
 
-export function getExtension(contentType: string): string | null {
-  const { mime } = send
-  if ('getExtension' in mime) {
-    // 2.0
-    return mime.getExtension(contentType)
-  }
-  // 1.0
-  return (mime as any).extension(contentType)
-}
+export const getExtension: (contentType: string) => string | null =
+  'getExtension' in send.mime
+    ? (contentType: string) => send.mime.getExtension(contentType)
+    : (contentType: string) => (send.mime as any).extension(contentType)

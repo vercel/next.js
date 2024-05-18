@@ -15,8 +15,8 @@ use turbopack_binding::{
             file_source::FileSource,
             ident::AssetIdent,
             issue::{
-                Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-                StyledString,
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
             },
             source::Source,
         },
@@ -63,8 +63,8 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Default)]
+#[turbo_tasks::value(into = "shared")]
+#[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
@@ -72,6 +72,7 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<String>>,
+    pub experimental_ppr: Option<bool>,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,6 +94,7 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
@@ -100,6 +102,7 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
+        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a paralllel route to this config, returning an
@@ -133,6 +136,7 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
@@ -147,6 +151,11 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "referredRegion",
+        )?;
+        merge_parallel(
+            experimental_ppr,
+            &parallel_config.experimental_ppr,
+            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -173,8 +182,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -221,10 +230,11 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with(".d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
@@ -348,11 +358,10 @@ fn parse_config_value(
                 JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
                     config.revalidate = Some(NextRevalidate::ForceCache);
                 }
-                _ => invalid_config(
-                    "`revalidate` needs to be static false, static 'force-cache' or a static \
-                     positive integer",
-                    &value,
-                ),
+                _ => {
+                    //noop; revalidate validation occurs in runtime at
+                    //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
+                }
             }
         }
         "fetchCache" => {
@@ -422,6 +431,15 @@ fn parse_config_value(
 
             config.preferred_region = Some(preferred_region);
         }
+        "experimental_ppr" => {
+            let value = eval_context.eval(init);
+            let Some(val) = value.as_bool() else {
+                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
+                return;
+            };
+
+            config.experimental_ppr = Some(val);
+        }
         _ => {}
     }
 }
@@ -443,6 +461,7 @@ pub async fn parse_segment_config_from_loader_tree(
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
+
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()

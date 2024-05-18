@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
+import { describeVariants as describe, expandCallStack } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -151,7 +151,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   })
 
   // TODO: investigate why this fails when running outside of the Next.js
-  // monorepo e.g. fails when using yarn create next-app
+  // monorepo e.g. fails when using pnpm create next-app
   // https://github.com/vercel/next.js/pull/23203
   test.skip('internal package errors', async () => {
     const { session, cleanup } = await sandbox(next)
@@ -342,7 +342,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
+    await session.patch('index.module.css', `.button`)
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
@@ -352,13 +352,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
     if (process.env.TURBOPACK) {
-      expect(source).toMatch('> 1 | .button {')
-      expect(source).toMatch('    |         ^')
+      expect(source).toMatch('> 1 | .button')
+      expect(source).toMatch('    |        ')
     } else {
-      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('> 1 | .button')
       expect(source).toMatch('    | ^')
     }
 
@@ -382,7 +382,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('end http://nextjs.org')
+            throw new Error('end https://nextjs.org')
           }, [])
           return (
             <main>
@@ -428,7 +428,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('http://nextjs.org start')
+            throw new Error('https://nextjs.org start')
           }, [])
           return (
             <main>
@@ -474,7 +474,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('middle http://nextjs.org end')
+            throw new Error('middle https://nextjs.org end')
           }, [])
           return (
             <main>
@@ -520,7 +520,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('multiple http://nextjs.org links http://example.com')
+            throw new Error('multiple https://nextjs.org links http://example.com')
           }, [])
           return (
             <main>
@@ -537,8 +537,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
-      `"Error: multiple http://nextjs.org links http://example.com"`
+      `"Error: multiple https://nextjs.org links http://example.com"`
     )
+    // Do not highlight the http://example.com link
     expect(
       await session.evaluate(
         () =>
@@ -547,7 +548,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
-    ).toBe(2)
+    ).toBe(1)
     expect(
       await session.evaluate(
         () =>
@@ -571,7 +572,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await session.patch(
       'index.js',
@@ -580,7 +581,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         export default function Index() {
           const boom = useCallback(() => {
-            throw new Error('multiple http://nextjs.org links (http://example.com)')
+            throw new Error('multiple https://nextjs.org links (http://example.com)')
           }, [])
           return (
             <main>
@@ -597,8 +598,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     const header5 = await session.getRedboxDescription()
     expect(header5).toMatchInlineSnapshot(
-      `"Error: multiple http://nextjs.org links (http://example.com)"`
+      `"Error: multiple https://nextjs.org links (http://example.com)"`
     )
+    // Do not highlight the http://example.com link
     expect(
       await session.evaluate(
         () =>
@@ -607,7 +609,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
             .length
       )
-    ).toBe(2)
+    ).toBe(1)
     expect(
       await session.evaluate(
         () =>
@@ -631,7 +633,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toBe(null)
 
     await cleanup()
   })
@@ -741,6 +743,113 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
     )
+
+    await cleanup()
+  })
+
+  test('Call stack count is correct for pages error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          outdent`
+            export default function Page() {
+              if (typeof window !== 'undefined') {
+                throw new Error('Client error')
+              }
+              return null
+            }
+          `,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+
+    await expandCallStack(browser)
+
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+
+    expect(callStackFrames.length).toBeGreaterThan(9)
+
+    const moduleGroup = await browser.elementsByCss(
+      '[data-nextjs-collapsed-call-stack-details]'
+    )
+    // Expect some of the call stack frames to be grouped (by React or Next.js)
+    expect(moduleGroup.length).toBeGreaterThan(0)
+
+    await cleanup()
+  })
+
+  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          // TODO: repro stringify (<anonymous>)
+          outdent`
+          export default function Page() {
+            const e = new Error("Client error!");
+            e.stack += \`
+              at stringify (<anonymous>)
+              at <unknown> (<anonymous>)
+              at foo (bar:1:1)\`;
+              throw e;
+            }
+            `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+    let callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    expect(texts).not.toContain('stringify\n<anonymous>')
+    expect(texts).not.toContain('<unknown>\n<anonymous>')
+    expect(texts).toContain('foo\nbar (1:1)')
+
+    await cleanup()
+  })
+
+  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          // Node.js will throw an error about the invalid URL since it happens server-side
+          outdent`
+      export default function Page() {}
+      
+      export function getServerSideProps() {
+        new URL("/", "invalid");
+        return { props: {} };
+      }`,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+
+    // Should still show the errored line in source code
+    const source = await session.getRedboxSource()
+    expect(source).toContain('pages/index.js')
+    expect(source).toContain(`new URL("/", "invalid")`)
+
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+
+    expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
 
     await cleanup()
   })
