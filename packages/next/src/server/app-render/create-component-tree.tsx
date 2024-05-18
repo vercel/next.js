@@ -15,6 +15,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -395,6 +396,10 @@ async function createComponentTreeInternal({
           // This behavior predates PPR and is only relevant if the
           // PPR flag is not enabled.
           isPrefetch &&
+          // If we'd be rendering the default parallel route component, we include it in the tree.
+          // Otherwise, the prefetch would cause any parallel routes rendering the default state
+          // to be refetched on navigation, because the server will have cleared them.
+          parallelRoute[0] !== DEFAULT_SEGMENT_KEY &&
           (Loading || !hasLoadingComponentInTree(parallelRoute)) &&
           // The approach with PPR is different — loading.tsx behaves like a
           // regular Suspense boundary and has no special behavior.
