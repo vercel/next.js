@@ -403,7 +403,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!program.turbo) {
+    if (!program.turbo && !process.argv.includes('--no-turbo')) {
       if (ciInfo.isCI) {
         program.turbo = getPrefOrDefault('turbo')
       } else {
