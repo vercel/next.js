@@ -36,6 +36,7 @@ export async function createApp({
   importAlias,
   skipInstall,
   empty,
+  turbo,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -49,6 +50,7 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  turbo: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -235,6 +237,16 @@ export async function createApp({
   if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
     console.log()
+  }
+
+  if (hasPackageJson) {
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+    if (turbo) {
+      packageJson.scripts.dev = 'next dev --turbo'
+    } else {
+      packageJson.scripts.dev = 'next dev'
+    }
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
   }
 
   let cdpath: string
