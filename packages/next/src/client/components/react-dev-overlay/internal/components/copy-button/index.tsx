@@ -10,13 +10,14 @@ export function CopyButton({
   return (
     <span
       {...props}
+      title={label}
+      aria-label={label}
       role="button"
       onClick={() => {
         navigator.clipboard.writeText(content)
       }}
     >
       <CopyIcon />
-      {label}
     </span>
   )
 }

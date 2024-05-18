@@ -83,6 +83,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             {error.error.stack && (
               <CopyButton
                 data-nextjs-data-runtime-error-copy-stack
+                label="Copy error stack"
                 content={error.error.stack}
               />
             )}
