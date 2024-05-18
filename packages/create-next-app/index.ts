@@ -405,7 +405,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for next dev? (RC)`,
+          message: `Would you like to use ${styledTurbo} for `next dev`? (RC)`,
           initial: getPrefOrDefault('turbo'),
           active: 'Yes',
           inactive: 'No',
