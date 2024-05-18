@@ -67,7 +67,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -81,7 +80,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
           />
         </React.Fragment>
       ) : undefined}
