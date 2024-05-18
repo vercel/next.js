@@ -86,6 +86,12 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--turbo',
+    `
+  Enable Turbopack by default for development.
+`
+  )
+  .option(
     '--import-alias <alias-to-configure>',
     `
 
@@ -396,7 +402,8 @@ async function run(): Promise<void> {
         program.app = Boolean(appRouter)
       }
     }
-    if (!process.argv.includes('--turbo') && !process.argv.includes('--no-turbo')) {
+
+    if (!program.turbo && !process.argv.includes('--no-turbo')) {
       if (ciInfo.isCI) {
         program.turbo = getPrefOrDefault('turbo')
       } else {
@@ -405,7 +412,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for `next dev`? (RC)`,
+          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
           initial: getPrefOrDefault('turbo'),
           active: 'Yes',
           inactive: 'No',
@@ -414,6 +421,7 @@ async function run(): Promise<void> {
         preferences.turbo = Boolean(turbo)
       }
     }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -455,24 +463,6 @@ async function run(): Promise<void> {
           program.importAlias = importAlias
           preferences.importAlias = importAlias
         }
-      }
-    }
-    if (!process.argv.includes('--turbo') && !process.argv.includes('--no-turbo')) {
-      if (ciInfo.isCI) {
-        program.turbo = getPrefOrDefault('turbo')
-      } else {
-        const styledTurbo = blue('Turbopack')
-        const { turbo } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for `next dev`? (RC)`,
-          initial: getPrefOrDefault('turbo'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.turbo = Boolean(turbo)
-        preferences.turbo = Boolean(turbo)
       }
     }
   }
@@ -522,6 +512,7 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
   }
   conf.set('preferences', preferences)
