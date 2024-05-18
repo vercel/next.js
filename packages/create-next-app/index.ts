@@ -272,6 +272,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
+      turbo: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -395,7 +396,24 @@ async function run(): Promise<void> {
         program.app = Boolean(appRouter)
       }
     }
-
+    if (!process.argv.includes('--turbo') && !process.argv.includes('--no-turbo')) {
+      if (ciInfo.isCI) {
+        program.turbo = getPrefOrDefault('turbo')
+      } else {
+        const styledTurbo = blue('Turbopack')
+        const { turbo } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'turbo',
+          message: `Would you like to use ${styledTurbo} for next dev? (RC)`,
+          initial: getPrefOrDefault('turbo'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.turbo = Boolean(turbo)
+        preferences.turbo = Boolean(turbo)
+      }
+    }
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -473,6 +491,7 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
