@@ -133,12 +133,16 @@ function setDraftMode<T>(
   res: NextApiResponse<T>,
   options: {
     enable: boolean
+    experimentalHttpsServer: boolean
     previewModeId?: string
   }
 ): NextApiResponse<T> {
   if (!isValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
+  const secure = Boolean(
+    process.env.NODE_ENV !== 'development' || options.experimentalHttpsServer
+  )
   const expires = options.enable ? undefined : new Date(0)
   // To delete a cookie, set `expires` to a date in the past:
   // https://tools.ietf.org/html/rfc6265#section-4.1.1
@@ -154,8 +158,8 @@ function setDraftMode<T>(
         : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       expires,
     }),
@@ -169,6 +173,7 @@ function setPreviewData<T>(
   options: {
     maxAge?: number
     path?: string
+    experimentalHttpsServer: boolean
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
   if (!isValidData(options.previewModeId)) {
@@ -209,6 +214,9 @@ function setPreviewData<T>(
     )
   }
 
+  const secure = Boolean(
+    process.env.NODE_ENV !== 'development' || options.experimentalHttpsServer
+  )
   const { serialize } =
     require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
@@ -220,8 +228,8 @@ function setPreviewData<T>(
         : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
@@ -232,8 +240,8 @@ function setPreviewData<T>(
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       ...(options.maxAge !== undefined
         ? ({ maxAge: options.maxAge } as CookieSerializeOptions)

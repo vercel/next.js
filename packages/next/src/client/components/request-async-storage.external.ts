@@ -17,6 +17,7 @@ export interface RequestStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix: string
+  readonly experimentalHttpsServer: boolean
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

@@ -107,12 +107,16 @@ export function clearPreviewData<T>(
   res: NextApiResponse<T>,
   options: {
     path?: string
+    experimentalHttpsServer: boolean
   } = {}
 ): NextApiResponse<T> {
   if (SYMBOL_CLEARED_COOKIES in res) {
     return res
   }
 
+  const secure = Boolean(
+    process.env.NODE_ENV !== 'development' || options.experimentalHttpsServer
+  )
   const { serialize } =
     require('next/dist/compiled/cookie') as typeof import('cookie')
   const previous = res.getHeader('Set-Cookie')
@@ -128,8 +132,8 @@ export function clearPreviewData<T>(
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       ...(options.path !== undefined
         ? ({ path: options.path } as CookieSerializeOptions)
@@ -141,8 +145,8 @@ export function clearPreviewData<T>(
       // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
       expires: new Date(0),
       httpOnly: true,
-      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
-      secure: process.env.NODE_ENV !== 'development',
+      sameSite: secure ? 'none' : 'lax',
+      secure,
       path: '/',
       ...(options.path !== undefined
         ? ({ path: options.path } as CookieSerializeOptions)
