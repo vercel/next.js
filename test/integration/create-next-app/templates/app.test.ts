@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import {
   createNextApp,
   projectShouldHaveNoGitChanges,
@@ -220,6 +221,34 @@ describe.skip('create-next-app --app (App Router)', () => {
         projectName,
         isEmpty,
       })
+    })
+  })
+
+  it('should enable turbopack on --turbo flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'app-turbo'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--turbo',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      const projectRoot = join(cwd, projectName)
+      const pkgJson = require(join(projectRoot, 'package.json'))
+      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
     })
   })
 })

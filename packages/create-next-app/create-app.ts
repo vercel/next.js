@@ -231,22 +231,13 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
+      turbo,
     })
   }
 
   if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
     console.log()
-  }
-
-  if (hasPackageJson) {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    if (turbo) {
-      packageJson.scripts.dev = 'next dev --turbo'
-    } else {
-      packageJson.scripts.dev = 'next dev'
-    }
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
   }
 
   let cdpath: string
