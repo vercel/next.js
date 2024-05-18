@@ -12,20 +12,12 @@ export async function fromResponseCacheEntry(
         ? {
             kind: 'PAGE',
             html: await cacheEntry.value.html.toUnchunkedString(true),
+            postponed: cacheEntry.value.postponed,
             pageData: cacheEntry.value.pageData,
             headers: cacheEntry.value.headers,
             status: cacheEntry.value.status,
           }
-        : cacheEntry.value?.kind === 'APP_PAGE'
-          ? {
-              kind: 'APP_PAGE',
-              html: await cacheEntry.value.html.toUnchunkedString(true),
-              postponed: cacheEntry.value.postponed,
-              rscData: cacheEntry.value.rscData,
-              headers: cacheEntry.value.headers,
-              status: cacheEntry.value.status,
-            }
-          : cacheEntry.value,
+        : cacheEntry.value,
   }
 }
 
@@ -50,18 +42,10 @@ export async function toResponseCacheEntry(
             kind: 'PAGE',
             html: RenderResult.fromStatic(response.value.html),
             pageData: response.value.pageData,
+            postponed: response.value.postponed,
             headers: response.value.headers,
             status: response.value.status,
           }
-        : response.value?.kind === 'APP_PAGE'
-          ? {
-              kind: 'APP_PAGE',
-              html: RenderResult.fromStatic(response.value.html),
-              rscData: response.value.rscData,
-              headers: response.value.headers,
-              status: response.value.status,
-              postponed: response.value.postponed,
-            }
-          : response.value,
+        : response.value,
   }
 }
