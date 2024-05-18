@@ -419,6 +419,7 @@ async function run(): Promise<void> {
           inactive: 'No',
         })
         program.turbo = Boolean(turbo)
+        preferences.turbo = Boolean(turbo)
       }
     }
 
