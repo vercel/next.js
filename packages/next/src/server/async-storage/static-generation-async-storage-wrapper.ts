@@ -6,6 +6,7 @@ import type { RenderOptsPartial } from '../app-render/types'
 
 import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
+import type { ParsedUrlQuery } from 'querystring'
 
 export type StaticGenerationContext = {
   urlPathname: string
@@ -17,6 +18,7 @@ export type StaticGenerationContext = {
     isServerAction?: boolean
     waitUntil?: Promise<any>
     experimental?: Pick<RenderOptsPartial['experimental'], 'isRoutePPREnabled'>
+    params?: ParsedUrlQuery
 
     /**
      * Fetch metrics attached in patch-fetch.ts
@@ -84,6 +86,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
     const store: StaticGenerationStore = {
       isStaticGeneration,
       urlPathname,
+      params: renderOpts.params,
       pagePath: renderOpts.originalPathname,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
