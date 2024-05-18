@@ -4,6 +4,7 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
+import { CopyButton } from '../../components/copy-button'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -77,7 +78,16 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h2>Call Stack</h2>
+          <h2>
+            Call Stack
+            {error.error.stack && (
+              <CopyButton
+                data-nextjs-data-runtime-error-copy-stack
+                content={error.error.stack}
+              />
+            )}
+          </h2>
+
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
           />
@@ -112,6 +122,17 @@ export const styles = css`
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
+  }
+
+  [data-nextjs-data-runtime-error-copy-stack] {
+    margin-left: var(--size-gap);
+    cursor: pointer;
+  }
+  [data-nextjs-data-runtime-error-copy-stack] > svg {
+    vertical-align: middle;
+  }
+  [data-nextjs-data-runtime-error-copy-stack]:hover {
+    opacity: 0.8;
   }
 
   [data-nextjs-call-stack-frame] > h3,
