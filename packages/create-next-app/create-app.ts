@@ -36,6 +36,7 @@ export async function createApp({
   importAlias,
   skipInstall,
   empty,
+  turbo,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -49,6 +50,7 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  turbo: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -191,8 +193,8 @@ export async function createApp({
     if (!fs.existsSync(ignorePath)) {
       fs.copyFileSync(
         getTemplateFile({ template, mode, file: 'gitignore' }),
-        ignorePath
-      )
+        ignorePath,
+      );
     }
 
     // Copy `next-env.d.ts` to any example that is typescript
@@ -200,7 +202,7 @@ export async function createApp({
     if (fs.existsSync(tsconfigPath)) {
       fs.copyFileSync(
         getTemplateFile({ template, mode: 'ts', file: 'next-env.d.ts' }),
-        path.join(root, 'next-env.d.ts')
+        path.join(root, 'next-env.d.ts'),
       )
     }
 
@@ -246,7 +248,13 @@ export async function createApp({
 
   console.log(`${green('Success!')} Created ${appName} at ${appPath}`)
 
+  const isTurbo = turbo ? 'next dev --turbo' : 'next dev'
+
   if (hasPackageJson) {
+    // Modify the dev script in package.json if it exists
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+    packageJson.scripts.dev = isTurbo
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
     console.log('Inside that directory, you can run several commands:')
     console.log()
     console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
@@ -262,6 +270,29 @@ export async function createApp({
     console.log()
     console.log(cyan('  cd'), cdpath)
     console.log(`  ${cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`)
+  } else {
+    // Add the dev script to package.json if it doesn't exist
+    const packageJson = {
+      name: appName,
+      version: '0.1.0',
+      private: true,
+      scripts: {
+        dev: isTurbo,
+        build: 'next build',
+        start: 'next start',
+      },
+    }
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
+    console.log('    Starts the development server.')
+    console.log()
+    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
+    console.log('    Builds the app for production.')
+    console.log()
+    console.log(cyan(`  ${packageManager} start`))
+    console.log('    Runs the built app in production mode.')
+    console.log()
   }
+
   console.log()
 }
