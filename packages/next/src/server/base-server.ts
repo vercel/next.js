@@ -516,7 +516,7 @@ export default abstract class Server<
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
-      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
+      strictNextHead: this.nextConfig.experimental.strictNextHead ?? true,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
@@ -555,9 +555,8 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
         isAppPPREnabled,
-        missingSuspenseWithCSRBailout:
-          this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
+        clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
       },
     }
 
@@ -622,7 +621,14 @@ export default abstract class Server<
       // revalidation requests and we want the cache to instead depend on the
       // request path for flight information.
       stripFlightHeaders(req.headers)
+
       return false
+    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+      addRequestMeta(req, 'isRSCRequest', true)
+
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+        addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      }
     } else {
       // Otherwise just return without doing anything.
       return false
@@ -810,27 +816,30 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    const rsc = isRSCRequestCheck(req) ? 'RSC ' : ''
 
     const tracer = getTracer()
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${rsc}${method} ${req.url}`,
+          spanName: `${method} ${req.url}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
             'http.target': req.url,
-            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
+
+            const isRSCRequest = isRSCRequestCheck(req) ?? false
+
             span.setAttributes({
               'http.status_code': res.statusCode,
+              'next.rsc': isRSCRequest,
             })
+
             const rootSpanAttributes = tracer.getRootSpanAttributes()
             // We were unable to get attributes, probably OTEL is not enabled
             if (!rootSpanAttributes) return
@@ -849,13 +858,22 @@ export default abstract class Server<
 
             const route = rootSpanAttributes.get('next.route')
             if (route) {
-              const newName = `${rsc}${method} ${route}`
+              const name = isRSCRequest
+                ? `RSC ${method} ${route}`
+                : `${method} ${route}`
+
               span.setAttributes({
                 'next.route': route,
                 'http.route': route,
-                'next.span_name': newName,
+                'next.span_name': name,
               })
-              span.updateName(newName)
+              span.updateName(name)
+            } else {
+              span.updateName(
+                isRSCRequest
+                  ? `RSC ${method} ${req.url}`
+                  : `${method} ${req.url}`
+              )
             }
           })
       )
@@ -930,11 +948,8 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      let finished: boolean = false
-      if (this.minimalMode && this.enabledDirectories.app) {
-        finished = await this.handleRSCRequest(req, res, parsedUrl)
-        if (finished) return
-      }
+      let finished = await this.handleRSCRequest(req, res, parsedUrl)
+      if (finished) return
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
@@ -3590,8 +3605,5 @@ export default abstract class Server<
 }
 
 export function isRSCRequestCheck(req: BaseNextRequest): boolean {
-  return (
-    req.headers[RSC_HEADER.toLowerCase()] === '1' ||
-    Boolean(getRequestMeta(req, 'isRSCRequest'))
-  )
+  return getRequestMeta(req, 'isRSCRequest') === true
 }

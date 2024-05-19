@@ -416,12 +416,11 @@ export async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    strictNextHead: !!nextConfig.experimental.strictNextHead,
+    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     experimental: {
       isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
-      missingSuspenseWithCSRBailout:
-        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+      clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       swrDelta: nextConfig.experimental.swrDelta,
     },
   }

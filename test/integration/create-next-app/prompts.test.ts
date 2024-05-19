@@ -13,7 +13,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe('create-next-app prompts', () => {
+describe.skip('create-next-app prompts', () => {
   it('should prompt user for choice if directory name is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-dir-name'

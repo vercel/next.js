@@ -175,7 +175,7 @@ Further, there is less code to be serialized, as un-rendered data does not cross
 For [`getStaticProps`](/docs/pages/api-reference/functions/get-static-props), [`getStaticPaths`](/docs/pages/api-reference/functions/get-static-paths), and [`getServerSideProps`](/docs/pages/api-reference/functions/get-server-side-props), you can use the `GetStaticProps`, `GetStaticPaths`, and `GetServerSideProps` types respectively:
 
 ```tsx filename="pages/blog/[slug].tsx"
-import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
+import type { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
 
 export const getStaticProps = (async (context) => {
   // ...

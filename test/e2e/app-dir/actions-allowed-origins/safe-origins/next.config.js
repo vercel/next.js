@@ -6,7 +6,7 @@ module.exports = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:41831'],
+      allowedOrigins: ['localhost:' + process.env.PORT],
     },
   },
 }

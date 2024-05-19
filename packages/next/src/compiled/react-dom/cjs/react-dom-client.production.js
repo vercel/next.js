@@ -55,7 +55,8 @@ Symbol.for("react.debug_trace_mode");
 var REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen");
 Symbol.for("react.legacy_hidden");
 Symbol.for("react.tracing_marker");
-var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
+var REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+  MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
   maybeIterable =
@@ -2289,6 +2290,8 @@ function extractEvents$1(
                   var temp = submitter.ownerDocument.createElement("input");
                   temp.name = submitter.name;
                   temp.value = submitter.value;
+                  nativeEventTarget.id &&
+                    temp.setAttribute("form", nativeEventTarget.id);
                   submitter.parentNode.insertBefore(temp, submitter);
                   var formData = new FormData(nativeEventTarget);
                   temp.parentNode.removeChild(temp);
@@ -5601,7 +5604,7 @@ function updateWorkInProgressHook() {
 }
 var createFunctionComponentUpdateQueue;
 createFunctionComponentUpdateQueue = function () {
-  return { lastEffect: null, events: null, stores: null };
+  return { lastEffect: null, events: null, stores: null, memoCache: null };
 };
 function useThenable(thenable) {
   var index = thenableIndexCounter;
@@ -5621,6 +5624,40 @@ function use(usable) {
     if (usable.$$typeof === REACT_CONTEXT_TYPE) return readContext(usable);
   }
   throw Error(formatProdErrorMessage(438, String(usable)));
+}
+function useMemoCache(size) {
+  var memoCache = null,
+    updateQueue = currentlyRenderingFiber$1.updateQueue;
+  null !== updateQueue && (memoCache = updateQueue.memoCache);
+  if (null == memoCache) {
+    var current = currentlyRenderingFiber$1.alternate;
+    null !== current &&
+      ((current = current.updateQueue),
+      null !== current &&
+        ((current = current.memoCache),
+        null != current &&
+          (memoCache = {
+            data: current.data.map(function (array) {
+              return array.slice();
+            }),
+            index: 0
+          })));
+  }
+  null == memoCache && (memoCache = { data: [], index: 0 });
+  null === updateQueue &&
+    ((updateQueue = createFunctionComponentUpdateQueue()),
+    (currentlyRenderingFiber$1.updateQueue = updateQueue));
+  updateQueue.memoCache = memoCache;
+  updateQueue = memoCache.data[memoCache.index];
+  if (void 0 === updateQueue)
+    for (
+      updateQueue = memoCache.data[memoCache.index] = Array(size), current = 0;
+      current < size;
+      current++
+    )
+      updateQueue[current] = REACT_MEMO_CACHE_SENTINEL;
+  memoCache.index++;
+  return updateQueue;
 }
 function basicStateReducer(state, action) {
   return "function" === typeof action ? action(state) : action;
@@ -6435,6 +6472,7 @@ var ContextOnlyDispatcher = {
   useId: throwInvalidHookError
 };
 ContextOnlyDispatcher.useCacheRefresh = throwInvalidHookError;
+ContextOnlyDispatcher.useMemoCache = throwInvalidHookError;
 ContextOnlyDispatcher.useHostTransitionStatus = throwInvalidHookError;
 ContextOnlyDispatcher.useFormState = throwInvalidHookError;
 ContextOnlyDispatcher.useActionState = throwInvalidHookError;
@@ -6598,6 +6636,7 @@ var HooksDispatcherOnMount = {
     ));
   }
 };
+HooksDispatcherOnMount.useMemoCache = useMemoCache;
 HooksDispatcherOnMount.useHostTransitionStatus = useHostTransitionStatus;
 HooksDispatcherOnMount.useFormState = mountActionState;
 HooksDispatcherOnMount.useActionState = mountActionState;
@@ -6660,6 +6699,7 @@ var HooksDispatcherOnUpdate = {
   useId: updateId
 };
 HooksDispatcherOnUpdate.useCacheRefresh = updateRefresh;
+HooksDispatcherOnUpdate.useMemoCache = useMemoCache;
 HooksDispatcherOnUpdate.useHostTransitionStatus = useHostTransitionStatus;
 HooksDispatcherOnUpdate.useFormState = updateActionState;
 HooksDispatcherOnUpdate.useActionState = updateActionState;
@@ -6708,6 +6748,7 @@ var HooksDispatcherOnRerender = {
   useId: updateId
 };
 HooksDispatcherOnRerender.useCacheRefresh = updateRefresh;
+HooksDispatcherOnRerender.useMemoCache = useMemoCache;
 HooksDispatcherOnRerender.useHostTransitionStatus = useHostTransitionStatus;
 HooksDispatcherOnRerender.useFormState = rerenderActionState;
 HooksDispatcherOnRerender.useActionState = rerenderActionState;
@@ -14501,7 +14542,7 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 var devToolsConfig$jscomp$inline_1641 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-beta-4508873393-20240430",
+  version: "19.0.0-beta-04b058868c-20240508",
   rendererPackageName: "react-dom"
 };
 var internals$jscomp$inline_2019 = {
@@ -14531,7 +14572,7 @@ var internals$jscomp$inline_2019 = {
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-beta-4508873393-20240430"
+  reconcilerVersion: "19.0.0-beta-04b058868c-20240508"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2020 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -14637,4 +14678,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.0.0-beta-4508873393-20240430";
+exports.version = "19.0.0-beta-04b058868c-20240508";

@@ -88,6 +88,18 @@ pub struct NextConfig {
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
 
+    /// Enables the bundling of node_modules packages (externals) for pages
+    /// server-side bundles.
+    ///
+    /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
+    pub bundle_pages_router_dependencies: Option<bool>,
+
+    /// A list of packages that should be treated as external on the server
+    /// build.
+    ///
+    /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
+    pub server_external_packages: Option<Vec<String>>,
+
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
 
@@ -109,20 +121,15 @@ pub struct NextConfig {
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
     on_demand_entries: OnDemandEntriesConfig,
-    output_file_tracing: bool,
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
-    swc_minify: Option<bool>,
     target: Option<String>,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
-    /// A list of packages that should be treated as external in the RSC server
-    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_external_packages)
-    pub server_external_packages: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -412,7 +419,7 @@ pub struct ExperimentalTurboConfig {
     pub use_swc_css: Option<bool>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
@@ -420,14 +427,14 @@ pub struct RuleConfigItemOptions {
     pub rename_as: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItemOrShortcut {
     Loaders(Vec<LoaderItem>),
     Advanced(RuleConfigItem),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
@@ -435,7 +442,7 @@ pub enum RuleConfigItem {
     Boolean(bool),
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum LoaderItem {
     LoaderName(String),
@@ -448,6 +455,36 @@ pub enum MdxRsOptions {
     Boolean(bool),
     Option(MdxTransformOptions),
 }
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ReactCompilerMode {
+    Infer,
+    Annotation,
+    All,
+}
+
+/// Subset of react compiler options
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compilation_mode: Option<ReactCompilerMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub panic_threshold: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ReactCompilerOptionsOrBoolean {
+    Boolean(bool),
+    Option(ReactCompilerOptions),
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
@@ -482,6 +519,7 @@ pub struct ExperimentalConfig {
     pub web_vitals_attribution: Option<Vec<String>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
+    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
 
     // ---
     // UNSUPPORTED
@@ -507,6 +545,7 @@ pub struct ExperimentalConfig {
     gzip_size: Option<bool>,
 
     instrumentation_hook: Option<bool>,
+    client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
     logging: Option<serde_json::Value>,
     memory_based_workers_count: Option<bool>,
@@ -527,7 +566,6 @@ pub struct ExperimentalConfig {
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
-    swc_minify: Option<bool>,
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
@@ -734,6 +772,11 @@ impl NextConfig {
         let config: NextConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
         Ok(config.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn bundle_pages_router_dependencies(&self) -> Vc<bool> {
+        Vc::cell(self.bundle_pages_router_dependencies.unwrap_or_default())
     }
 
     #[turbo_tasks::function]
@@ -951,15 +994,33 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn react_compiler(self: Vc<Self>) -> Result<Vc<OptionalReactCompilerOptions>> {
+        let options = &self.await?.experimental.react_compiler;
+
+        let options = match options {
+            Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
+                OptionalReactCompilerOptions(Some(
+                    ReactCompilerOptions {
+                        compilation_mode: None,
+                        panic_threshold: None,
+                    }
+                    .cell(),
+                ))
+            }
+            Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
+                Some(ReactCompilerOptions { ..options.clone() }.cell()),
+            ),
+            _ => OptionalReactCompilerOptions(None),
+        };
+
+        Ok(options.cell())
+    }
+
+    #[turbo_tasks::function]
     pub async fn sass_config(self: Vc<Self>) -> Result<Vc<JsonValue>> {
         Ok(Vc::cell(
             self.await?.sass_options.clone().unwrap_or_default(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn swc_minify(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.swc_minify.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]

@@ -29,7 +29,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -499,7 +499,7 @@ The form above has two input fields for capturing the user's email and password.
 You can then call your Authentication Provider's API in the API route to handle authentication:
 
 ```ts filename="pages/api/auth/login.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { signIn } from '@/auth'
 
 export default async function handler(
@@ -981,7 +981,7 @@ After implementing session management, you'll need to add authorization logic to
 
 ```ts filename="pages/api/create-session.ts" switcher
 import db from '../../lib/db'
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
   req: NextApiRequest,

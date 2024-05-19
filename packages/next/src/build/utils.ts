@@ -1769,12 +1769,6 @@ export async function isPageStatic({
         ? {}
         : componentsResult.pageConfig
 
-      if (config.unstable_includeFiles || config.unstable_excludeFiles) {
-        Log.warn(
-          `unstable_includeFiles/unstable_excludeFiles has been removed in favor of the option in next.config.js.\nSee more info here: https://nextjs.org/docs/advanced-features/output-file-tracing#caveats`
-        )
-      }
-
       let isStatic = false
       if (!hasStaticProps && !hasGetInitialProps && !hasServerProps) {
         isStatic = true
@@ -2244,6 +2238,15 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
+// Use next/dist/compiled/react packages instead of installed react
+export function isWebpackBuiltinReactLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.builtinReact.includes(layer as any)
+  )
+}
+
 export function isWebpackServerOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -2266,8 +2269,8 @@ export function isWebpackDefaultLayer(
   return layer === null || layer === undefined
 }
 
-export function isWebpackAppLayer(
+export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }

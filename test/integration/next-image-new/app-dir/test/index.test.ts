@@ -180,6 +180,21 @@ function runTests(mode) {
         referrerpolicy: 'no-referrer',
       })
 
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
         await browser.elementById('basic-image').getAttribute('loading')
@@ -215,6 +230,13 @@ function runTests(mode) {
       expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
         'lazy'
       )
+
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
 
       const warnings = (await browser.log('browser'))
         .map((log) => log.message)
@@ -890,6 +912,22 @@ function runTests(mode) {
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
+    it('should show invalid src with leading space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-leading-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-trailing-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
       )
     })
 

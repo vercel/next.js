@@ -998,13 +998,13 @@ export default async function build(
             }
 
             if (
-              pageKey.includes('sitemap.xml/[[...__metadata_id__]]') &&
+              pageKey.includes('sitemap/[[...__metadata_id__]]') &&
               isDynamic
             ) {
               delete mappedAppPages[pageKey]
               mappedAppPages[
                 pageKey.replace(
-                  'sitemap.xml/[[...__metadata_id__]]',
+                  'sitemap/[[...__metadata_id__]]',
                   'sitemap/[__metadata_id__]'
                 )
               ] = pagePath
@@ -2383,7 +2383,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
+      if (!isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,

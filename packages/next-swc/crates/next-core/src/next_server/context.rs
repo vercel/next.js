@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
@@ -105,6 +105,7 @@ impl ServerContextType {
             ServerContextType::AppRSC { .. }
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
+                | ServerContextType::Middleware { .. }
         )
     }
 }
@@ -128,6 +129,13 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
+    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
+    transpile_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
         project_path,
@@ -135,15 +143,25 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    let transpile_packages = next_config.transpile_packages().await?;
-    external_packages.retain(|item| !transpile_packages.contains(item));
+    let server_external_packages = &*next_config.server_external_packages().await?;
+
+    let conflicting_packages = transpile_packages
+        .iter()
+        .filter(|package| server_external_packages.contains(package))
+        .collect::<Vec<_>>();
+
+    if !conflicting_packages.is_empty() {
+        bail!(
+            "The packages specified in the 'transpilePackages' conflict with the \
+             'serverExternalPackages': {:?}",
+            conflicting_packages
+        );
+    }
 
     // Add the config's own list of external packages.
-    external_packages.extend(
-        (*next_config.server_external_packages().await?)
-            .iter()
-            .cloned(),
-    );
+    external_packages.extend(server_external_packages.iter().cloned());
+
+    external_packages.retain(|item| !transpile_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
@@ -166,12 +184,16 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push("react-server".to_string());
     };
 
-    let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path,
-        project_path.root(),
-        ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-        *next_config.import_externals().await?,
-    );
+    let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
+        server_external_packages_plugin
+    } else {
+        ExternalCjsModulesResolvePlugin::new(
+            project_path,
+            project_path.root(),
+            ExternalPredicate::AllExcept(Vc::cell(transpile_packages)).cell(),
+            *next_config.import_externals().await?,
+        )
+    };
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
     let next_node_shared_runtime_plugin =
@@ -179,8 +201,8 @@ pub async fn get_server_resolve_options_context(
 
     let mut plugins = match ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::PagesData { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
@@ -225,13 +247,13 @@ pub async fn get_server_resolve_options_context(
     // means each resolve plugin must be injected only for the context where the
     // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
     match ty {
-        ServerContextType::Pages { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             //noop
         }
         ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
             plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
@@ -239,9 +261,6 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
             // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        }
-        ServerContextType::Middleware => {
-            //noop
         }
     }
 
