@@ -39,9 +39,35 @@ const data = unstable_cache(fetchData, keyParts, options)()
   - `tags`: An array of tags that can be used to control cache invalidation.
   - `revalidate`: The number of seconds after which the cache should be revalidated. Omit or pass `false` to cache indefinitely or until matching `revalidateTag()` or `revalidatePath()` methods are called.
 
+> **Tags vs KeyParts**:
+>
+> - tags: They are used for cache invalidation, NextJS does not use it to identify the function signature. 
+> - keyParts: They are used by NextJS to uniquely identify the key of the data cached.
+
 ## Returns
 
 `unstable_cache` returns a function that when invoked, returns a Promise that resolves to the cached data. If the data is not in the cache, the provided function will be invoked, and its result will be cached and returned.
+
+## Example
+
+```jsx
+import { getUser } from './data';
+import { unstable_cache } from 'next/cache';
+
+
+
+export default async function Page({ params }: { params: { userID: string } }) {
+ const getCachedUser = unstable_cache(
+  async () => getUser(params.userID), 
+  [params.userID], // here we add the userID in the keyparts so NextJS can make seperate caches for the different userID's.
+  {
+    tags: ["cached-user-tag"],
+    revalidate: 60,
+  }
+);
+  ...
+}
+```
 
 ## Version History
 
