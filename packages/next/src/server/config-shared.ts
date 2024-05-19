@@ -383,6 +383,7 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
+   * Enables Partial Prerendering feature in Next.js
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
