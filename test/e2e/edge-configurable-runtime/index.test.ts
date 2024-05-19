@@ -40,6 +40,13 @@ const apiPath = 'pages/api/edge.js'
         expect(next.cliOutput).not.toInclude('error')
         expect(next.cliOutput).not.toInclude('warn')
       })
+      it('runs with no warning page on the edge runtime', async () => {
+        await next.start()
+        const res = await fetchViaHTTP(next.url, `/`)
+        expect(res.status).toEqual(200)
+        expect(next.cliOutput).not.toInclude('error')
+        expect(next.cliOutput).not.toInclude('warn')
+      })
 
       it('warns about API route using experimental-edge runtime', async () => {
         await next.patchFile(
@@ -57,7 +64,7 @@ const apiPath = 'pages/api/edge.js'
           `/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
       })
-      it('warns about page using edge runtime', async () => {
+      it('warns about page using experimental-edge runtime', async () => {
         await next.patchFile(
           pagePath,
           `
@@ -70,25 +77,8 @@ const apiPath = 'pages/api/edge.js'
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `You are using an experimental edge runtime, the API might change.`
+          `/ provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
-      })
-
-      it('errors about page using edge runtime', async () => {
-        await next.patchFile(
-          pagePath,
-          `
-            export default () => (<p>hello world</p>);
-            export const runtime = 'edge';
-          `
-        )
-        await next.start()
-        const res = await fetchViaHTTP(next.url, `/`)
-        expect(res.status).toEqual(200)
-        expect(stripAnsi(next.cliOutput)).toInclude(
-          `Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-        )
-        expect(next.cliOutput).not.toInclude('warn')
       })
     })
   } else if ((global as any).isNextStart) {
@@ -99,11 +89,7 @@ const apiPath = 'pages/api/edge.js'
         api.restore()
       })
 
-      it('builds with API route on the edge runtime and page on the experimental edge runtime', async () => {
-        page.write(`
-          export default () => (<p>hello world</p>);
-          export const runtime = 'experimental-edge';
-        `)
+      it('builds with API route on the edge runtime and page on the edge runtime', async () => {
         const output = await nextBuild(appDir, undefined, {
           stdout: true,
           stderr: true,
@@ -111,22 +97,6 @@ const apiPath = 'pages/api/edge.js'
         expect(output.code).toBe(0)
         expect(output.stderr).not.toContain(`error`)
         expect(output.stdout).not.toContain(`warn`)
-      })
-
-      it('does not build with page on the edge runtime', async () => {
-        page.write(`
-          export default () => (<p>hello world</p>);
-          export const runtime = 'edge';
-        `)
-        const output = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-        })
-        expect(output.code).toBe(1)
-        expect(output.stderr).not.toContain(`Build failed`)
-        expect(stripAnsi(output.stderr)).toContain(
-          `Error: Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-        )
       })
     })
   } else {

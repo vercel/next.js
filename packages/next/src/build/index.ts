@@ -2203,7 +2203,7 @@ export default async function build(
                         if (isEdgeRuntime(pageRuntime)) {
                           if (workerResult.hasStaticProps) {
                             console.warn(
-                              `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
+                              `"getStaticProps" is not yet supported fully with "edge" or "experimental-edge", detected on ${page}`
                             )
                           }
                           // TODO: add handling for statically rendering edge

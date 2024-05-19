@@ -424,22 +424,18 @@ function getMiddlewareConfig(
 }
 
 const apiRouteWarnings = new LRUCache({ max: 250 })
-function warnAboutExperimentalEdge(apiRoute: string | null) {
+function warnAboutExperimentalEdge(route: string) {
   if (
     process.env.NODE_ENV === 'production' &&
     process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
   ) {
     return
   }
-  if (apiRouteWarnings.has(apiRoute)) {
+  if (apiRouteWarnings.has(route)) {
     return
   }
-  Log.warn(
-    apiRoute
-      ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
-      : `You are using an experimental edge runtime, the API might change.`
-  )
-  apiRouteWarnings.set(apiRoute, 1)
+  Log.warn(`${route} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`)
+  apiRouteWarnings.set(route, 1)
 }
 
 const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
@@ -605,29 +601,13 @@ export async function getPageStaticInfo(params: {
 
     const requiresServerRuntime = ssr || ssg || pageType === PAGE_TYPES.APP
 
-    const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
-
     resolvedRuntime =
       isEdgeRuntime(resolvedRuntime) || requiresServerRuntime
         ? resolvedRuntime
         : undefined
 
     if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
-      warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
-    }
-
-    if (
-      resolvedRuntime === SERVER_RUNTIME.edge &&
-      pageType === PAGE_TYPES.PAGES &&
-      page &&
-      !isAnAPIRoute
-    ) {
-      const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-      if (isDev) {
-        Log.error(message)
-      } else {
-        throw new Error(message)
-      }
+      warnAboutExperimentalEdge(page!)
     }
 
     const middlewareConfig = getMiddlewareConfig(
