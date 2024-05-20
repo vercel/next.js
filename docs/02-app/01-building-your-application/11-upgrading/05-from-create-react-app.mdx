@@ -311,8 +311,6 @@ This directory is what is called an [optional catch-all route segment](/docs/app
 **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
-
 export function generateStaticParams() {
   return [{ slug: [''] }]
 }
@@ -323,8 +321,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
-
 export function generateStaticParams() {
   return [{ slug: [''] }]
 }
@@ -375,7 +371,6 @@ const App = dynamic(() => import('../../App'), { ssr: false })
 Now, update your entrypoint page to use the new component:
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -388,7 +383,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
