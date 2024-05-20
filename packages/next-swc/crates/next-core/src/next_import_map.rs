@@ -27,13 +27,8 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::{
-        google::{
-            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
-        },
-        local::{
-            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
-        },
+    next_font::google::{
+        NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -797,6 +792,11 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
+    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
+    // have ImportMapping replacers here.
+    //
+    // TODO: Add BeforeResolve plugins for `@next/font/google`
+
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/google/target.css"),
@@ -824,28 +824,6 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("@next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

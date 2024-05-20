@@ -15,6 +15,7 @@ use crate::next_font::{
         AutomaticFontFallback, DefaultFallbackFont, FontAdjustment, FontFallback, FontFallbacks,
         DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT,
     },
+    local::errors::FontError,
     util::{get_scoped_font_family, FontFamilyType},
 };
 
@@ -74,7 +75,7 @@ async fn get_font_adjustment(
     let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
     let font_file = &*context.join(main_descriptor.path.clone()).read().await?;
     let font_file_rope = match font_file {
-        FileContent::NotFound => bail!("Expected font file content"),
+        FileContent::NotFound => bail!(FontError::FontFileNotFound(main_descriptor.path.clone())),
         FileContent::Content(file) => file.content(),
     };
 
