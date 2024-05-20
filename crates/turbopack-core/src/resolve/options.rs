@@ -9,9 +9,10 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
+    plugin::BeforeResolvePlugin,
     AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::ResolvePlugin};
+use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -433,7 +434,8 @@ pub struct ResolveOptions {
     /// An import map to use when a request is otherwise unresolveable.
     pub fallback_import_map: Option<Vc<ImportMap>>,
     pub resolved_map: Option<Vc<ResolvedMap>>,
-    pub plugins: Vec<Vc<Box<dyn ResolvePlugin>>>,
+    pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
+    pub plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
     pub placeholder_for_future_extensions: (),
 }
 
