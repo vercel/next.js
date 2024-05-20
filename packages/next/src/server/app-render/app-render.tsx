@@ -1358,8 +1358,8 @@ async function renderToHTMLOrFlightImpl(
           }
         } catch (finalErr: any) {
           if (process.env.NODE_ENV === 'development') {
-            const bailOnUIError: typeof import('../../client/components/dev-root-not-found-boundary').bailOnUIError =
-              require('../../client/components/dev-root-not-found-boundary').bailOnUIError
+            const bailOnUIError: typeof import('../../client/components/dev-root-ui-error-boundary').bailOnUIError =
+              require('../../client/components/dev-root-ui-error-boundary').bailOnUIError
 
             if (uiErrorType) {
               const errorTypeObj = uiErrorsWithStatusCodesMap[uiErrorType]

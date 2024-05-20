@@ -60,6 +60,10 @@ const UI_FILE_TYPES = {
   forbidden: 'forbidden',
 } as const
 
+type UIFileType = keyof typeof UI_FILE_TYPES
+
+const UI_FILE_TYPES_AS_VALUES = Object.keys(UI_FILE_TYPES) as UIFileType[]
+
 const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
@@ -72,7 +76,7 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultUIErrorPaths: { [k in keyof typeof UI_FILE_TYPES]: string } = {
+const defaultUIErrorPaths: Record<UIFileType, string> = {
   'not-found': 'next/dist/client/components/not-found-error',
   forbidden: 'next/dist/client/components/forbidden-error',
 }
@@ -210,13 +214,9 @@ async function createTreeCodeFromPath(
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
 
-  const uiErrorFileTypes = Object.keys(
-    UI_FILE_TYPES
-  ) as (keyof typeof UI_FILE_TYPES)[]
-
   const uiErrorPaths = await Promise.all(
-    uiErrorFileTypes.map((fileType) =>
-      resolver(`${appDirPrefix}/${FILE_TYPES[fileType]}`)
+    UI_FILE_TYPES_AS_VALUES.map((fileType) =>
+      resolver(`${appDirPrefix}/${UI_FILE_TYPES[fileType]}`)
     )
   )
 
@@ -377,9 +377,10 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
 
+      // Mark used ui error files by the route segment
       function createFileTypeCounters(
         paths: typeof filePaths,
-        types: (keyof typeof FILE_TYPES)[]
+        types: UIFileType[]
       ) {
         const dictionary = new Map<string, number>()
         for (const [type] of paths) {
@@ -397,7 +398,7 @@ async function createTreeCodeFromPath(
       // Check if ui error files exist for this segment path
       const fileTypeCounters = createFileTypeCounters(
         definedFilePaths,
-        uiErrorFileTypes
+        UI_FILE_TYPES_AS_VALUES
       )
 
       // If the first layer is a group route, we treat it as root layer
@@ -405,8 +406,8 @@ async function createTreeCodeFromPath(
         segments.length === 1 &&
         subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
 
-      for (let i = 0; i < uiErrorFileTypes.length; i++) {
-        const fileType = uiErrorFileTypes[i]
+      for (let i = 0; i < UI_FILE_TYPES_AS_VALUES.length; i++) {
+        const fileType = UI_FILE_TYPES_AS_VALUES[i]
         const hasFileType = fileTypeCounters[i]
         const hasRootFileType = uiErrorPaths[i]
 

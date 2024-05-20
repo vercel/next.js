@@ -663,8 +663,8 @@ function Router({
 
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
-      const DevRootUIErrorsBoundary: typeof import('./dev-root-not-found-boundary').DevRootUIErrorsBoundary =
-        require('./dev-root-not-found-boundary').DevRootUIErrorsBoundary
+      const DevRootUIErrorsBoundary: typeof import('./dev-root-ui-error-boundary').DevRootUIErrorsBoundary =
+        require('./dev-root-ui-error-boundary').DevRootUIErrorsBoundary
       content = (
         <DevRootUIErrorsBoundary>
           <MissingSlotContext.Provider value={missingSlots}>
