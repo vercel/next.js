@@ -412,6 +412,11 @@ export function Signup() {
 }
 ```
 
+> **Good to know:**
+>
+> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
+> - In earlier React Canary versions, this API was part of React DOM and called `useFormState`.
+
 ### Pending states
 
 The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.

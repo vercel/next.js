@@ -86,10 +86,24 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--turbo',
+    `
+    
+  Enable Turbopack by default for development.
+`
+  )
+  .option(
     '--import-alias <alias-to-configure>',
     `
 
   Specify import alias to use (default "@/*").
+`
+  )
+  .option(
+    '--empty',
+    `
+
+  Initialize an empty project.
 `
   )
   .option(
@@ -264,6 +278,8 @@ async function run(): Promise<void> {
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
+      empty: false,
+      turbo: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -388,6 +404,25 @@ async function run(): Promise<void> {
       }
     }
 
+    if (!program.turbo && !process.argv.includes('--no-turbo')) {
+      if (ciInfo.isCI) {
+        program.turbo = getPrefOrDefault('turbo')
+      } else {
+        const styledTurbo = blue('Turbopack')
+        const { turbo } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'turbo',
+          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
+          initial: getPrefOrDefault('turbo'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.turbo = Boolean(turbo)
+        preferences.turbo = Boolean(turbo)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -446,6 +481,8 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
+      turbo: program.turbo,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -475,6 +512,8 @@ async function run(): Promise<void> {
       srcDir: program.srcDir,
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
+      empty: program.empty,
+      turbo: program.turbo,
     })
   }
   conf.set('preferences', preferences)

@@ -19,9 +19,9 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        react: '19.0.0-beta-4508873393-20240430',
+        react: '19.0.0-beta-04b058868c-20240508',
         nanoid: 'latest',
-        'react-dom': '19.0.0-beta-4508873393-20240430',
+        'react-dom': '19.0.0-beta-04b058868c-20240508',
         'server-only': 'latest',
       },
     })
@@ -1308,6 +1308,24 @@ describe('app-dir action handling', () => {
 
       // verify that the cookies were merged correctly
       expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
+    })
+
+    it('should not forward next-action header to a redirected RSC request', async () => {
+      const browser = await next.browser('/redirects/action-redirect')
+
+      await browser.elementById('redirect-with-search-params').click()
+      await retry(async () => {
+        expect(await browser.url()).toMatch(
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+      })
+      // verify that the search params was set correctly
+      expect(await browser.elementByCss('h2').text()).toBe('baz=1')
+
+      // we should not have the next-action header in the redirected request
+      expect(next.cliOutput).not.toContain(
+        'Action header should not be present'
+      )
     })
 
     it.each(['307', '308'])(

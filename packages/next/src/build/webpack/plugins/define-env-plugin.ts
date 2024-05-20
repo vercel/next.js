@@ -170,6 +170,7 @@ export function getDefineEnv({
         : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
+    'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
@@ -224,7 +225,7 @@ export function getDefineEnv({
     ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_STRICT_NEXT_HEAD':
-      config.experimental.strictNextHead ?? false,
+      config.experimental.strictNextHead ?? true,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,

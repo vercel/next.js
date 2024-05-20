@@ -10,7 +10,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackAppLayer, isWebpackServerOnlyLayer } from './utils'
+import { isWebpackBundledLayer, isWebpackServerOnlyLayer } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
@@ -174,14 +174,14 @@ export function makeExternalHandler({
       return `commonjs next/dist/lib/import-next-warning`
     }
 
-    const isAppLayer = isWebpackAppLayer(layer)
+    const isAppLayer = isWebpackBundledLayer(layer)
 
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (!isLocal) {
-      if (/^(?:next$)/.test(request)) {
+      if (/^next$/.test(request)) {
         return `commonjs ${request}`
       }
 
@@ -380,6 +380,7 @@ function resolveBundlingOptOutPackages({
   if (nodeModulesRegex.test(resolvedRes)) {
     const shouldBundlePages =
       !isAppLayer && config.bundlePagesRouterDependencies && !isOptOutBundling
+
     const shouldBeBundled =
       shouldBundlePages ||
       isResourceInPackages(
@@ -387,6 +388,7 @@ function resolveBundlingOptOutPackages({
         config.transpilePackages,
         resolvedExternalPackageDirs
       )
+
     if (!shouldBeBundled) {
       return `${externalType} ${request}` // Externalize if not bundled or opted out
     }

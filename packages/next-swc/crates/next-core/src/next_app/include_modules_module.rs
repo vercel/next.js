@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::turbopack::{
@@ -12,7 +12,7 @@ use turbopack_binding::turbopack::{
     },
     ecmascript::chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptChunkingContext, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports,
     },
 };
 
@@ -81,13 +81,6 @@ impl ChunkableModule for IncludeModulesModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        let chunking_context =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkingContext>>(chunking_context)
-                .await?
-                .context(
-                    "chunking context must impl EcmascriptChunkingContext to use \
-                     EcmascriptClientReferenceProxyModule",
-                )?;
         Ok(Vc::upcast(
             IncludeModulesChunkItem {
                 module: self,
@@ -102,7 +95,7 @@ impl ChunkableModule for IncludeModulesModule {
 #[turbo_tasks::value]
 struct IncludeModulesChunkItem {
     module: Vc<IncludeModulesModule>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -135,7 +128,7 @@ impl ChunkItem for IncludeModulesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

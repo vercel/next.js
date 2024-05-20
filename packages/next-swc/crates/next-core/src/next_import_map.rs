@@ -613,6 +613,7 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
@@ -634,22 +635,6 @@ async fn insert_next_server_special_aliases(
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
                     "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                },
-            );
-        }
-        // Potential the bundle introduced into middleware and api can be poisoned by
-        // client-only but not being used, so we disabled the `client-only` erroring
-        // on these layers. `server-only` is still available.
-        ServerContextType::Middleware => {
-            insert_exact_alias_map(
-                import_map,
-                project_path,
-                indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
-                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
@@ -679,6 +664,7 @@ async fn rsc_aliases(
         "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
         "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
         "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+        "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
         "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
         "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
         "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
@@ -702,6 +688,7 @@ async fn rsc_aliases(
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
                     "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
                     "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
                     "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
@@ -712,6 +699,7 @@ async fn rsc_aliases(
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
                     "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
                     "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
                     "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
@@ -734,8 +722,10 @@ async fn rsc_aliases(
             "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
             "next/dist/compiled/react-experimental" =>  format!("next/dist/compiled/react-experimental/react.react-server"),
             "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
             "next/dist/compiled/react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
             "next/dist/compiled/react-experimental/jsx-runtime" => format!("next/dist/compiled/react-experimental/jsx-runtime.react-server"),
+            "next/dist/compiled/react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
             "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
             "next/dist/compiled/react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
             "next/dist/compiled/react-experimental/jsx-dev-runtime" => format!("next/dist/compiled/react-experimental/jsx-dev-runtime.react-server"),
