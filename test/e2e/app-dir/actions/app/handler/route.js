@@ -1,7 +1,5 @@
 import { cookies } from 'next/headers'
 
-export const revalidate = 1
-
 export const GET = async () => {
   cookies().set('foo', 'foo1')
   cookies().set('bar', 'bar1')
