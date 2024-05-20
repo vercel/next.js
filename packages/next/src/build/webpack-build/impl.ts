@@ -39,6 +39,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
+import prettyBytes from '../../lib/pretty-bytes'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -62,6 +63,105 @@ function isTraceEntryPointsPlugin(
   plugin: unknown
 ): plugin is TraceEntryPointsPlugin {
   return plugin instanceof TraceEntryPointsPlugin
+}
+
+/**
+ * Prints out information about duplicate memory in Webpack that could be
+ * deduplicated to save memory.
+ */
+function printMemorySavings(
+  label: string,
+  stats: webpack.Stats | undefined
+): void {
+  if (!stats) {
+    return
+  }
+  const allModules = [...(stats.compilation.modules ?? [])]
+  const modulesWithDuplicateContent = new Map<string, typeof allModules>()
+  for (const module of allModules) {
+    // @ts-expect-error: `module.resource` is defined on NormalModule
+    const resource = module.resource
+    if (!resource) {
+      continue
+    }
+    if (!modulesWithDuplicateContent.has(resource)) {
+      modulesWithDuplicateContent.set(resource, [module])
+    } else {
+      modulesWithDuplicateContent.get(resource)!.push(module)
+    }
+  }
+  let duplicateStringAndBufferMemory = 0
+  const sourcesOfDuplicateStringAndBufferMemory = new Map<string, number>()
+  for (let i = 0; i < allModules.length; i++) {
+    const module = allModules[i]
+    // @ts-expect-error: `module._source` is fine
+    if (module._source?._valueAsString && module._source?._valueAsBuffer) {
+      // @ts-expect-error: `module._source` is fine
+      duplicateStringAndBufferMemory += module._source._valueAsString.length
+      // @ts-expect-error: `module._source` is fine
+      const sourceConstructor = module._source?.constructor.name
+      if (!sourcesOfDuplicateStringAndBufferMemory.has(sourceConstructor)) {
+        sourcesOfDuplicateStringAndBufferMemory.set(sourceConstructor, 0)
+      }
+      sourcesOfDuplicateStringAndBufferMemory.set(
+        sourceConstructor,
+        (sourcesOfDuplicateStringAndBufferMemory.get(sourceConstructor) ?? 0) +
+          1
+      )
+    }
+  }
+  console.log(sourcesOfDuplicateStringAndBufferMemory.entries())
+  const filesWithDuplicateContent = new Set<string>()
+  let approxStringMemorysavings = 0
+  let approxBufferMemorySavings = 0
+  for (const [resource, modules] of modulesWithDuplicateContent) {
+    if (modules.length > 1) {
+      const firstModule = modules[0]
+      for (let i = 1; i < modules.length; i++) {
+        const module = modules[i]
+        if (
+          // @ts-expect-error: `module._source` is fine
+          module._source?._valueAsString === firstModule._source?._valueAsString
+        ) {
+          approxStringMemorysavings +=
+            // @ts-expect-error: `module._source` is fine
+            module._source?._valueAsString?.length ?? 0
+          filesWithDuplicateContent.add(resource)
+        }
+        if (
+          // @ts-expect-error: `module._source` is fine
+          module._source?._valueAsBuffer?.equals(
+            // @ts-expect-error: `module._source` is fine
+            firstModule._source?._valueAsBuffer
+          ) &&
+          // @ts-expect-error: `module._source` is fine
+          module._source?._valueAsBuffer !== firstModule._source?._valueAsBuffer
+        ) {
+          approxBufferMemorySavings +=
+            // @ts-expect-error: `module._source` is fine
+            module._source?._valueAsBuffer?.length ?? 0
+          filesWithDuplicateContent.add(resource)
+        }
+      }
+    }
+  }
+  console.log('')
+  console.log(`------- Estimated Memory Savings (${label}) -------`)
+  console.log(
+    ` - ${prettyBytes(duplicateStringAndBufferMemory)} is duplicated by defining both string and buffer in a Webpack Module.`
+  )
+  console.log(
+    ` - ${prettyBytes(approxStringMemorysavings)} is duplicated by defining the same string in multiple Webpack NormalModules.`
+  )
+  console.log(
+    ` - ${prettyBytes(approxBufferMemorySavings)} is duplicated by defining the same Buffer in multiple Webpack NormalModules.`
+  )
+  console.log(
+    ` = ${prettyBytes(duplicateStringAndBufferMemory + approxStringMemorysavings + approxBufferMemorySavings)} approximate memory savings`
+  )
+  console.log(`------- Estimated Memory Savings (${label}) -------`)
+  console.log('')
+  debugger
 }
 
 export async function webpackBuildImpl(
@@ -207,6 +307,7 @@ export async function webpackBuildImpl(
         inputFileSystem,
       })
       debug(`server compiler finished ${Date.now() - start}ms`)
+      printMemorySavings('server', serverResult.stats)
     }
 
     if (!compilerName || compilerName === 'edge-server') {
@@ -216,6 +317,7 @@ export async function webpackBuildImpl(
         ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
         : [null]
       debug(`edge-server compiler finished ${Date.now() - start}ms`)
+      printMemorySavings('edge-server', edgeServerResult?.stats)
     }
 
     // Only continue if there were no errors
@@ -251,6 +353,7 @@ export async function webpackBuildImpl(
           inputFileSystem,
         })
         debug(`client compiler finished ${Date.now() - start}ms`)
+        printMemorySavings('client', clientResult.stats)
       }
     }
 
