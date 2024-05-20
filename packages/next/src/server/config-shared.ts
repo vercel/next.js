@@ -791,6 +791,8 @@ export interface NextConfig extends Record<string, any> {
       | {
           useLightningcss?: boolean
         }
+
+    decoratorVersion?: 'legacy' | '2021-12' | '2022-03'
   }
 
   /**
