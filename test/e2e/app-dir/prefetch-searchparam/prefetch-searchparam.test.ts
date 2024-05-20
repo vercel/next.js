@@ -4,23 +4,18 @@ describe('prefetch-searchparam', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-  // Recommended for tests that need a full browser
   it('should work using browser', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('{}')
+    // load with search param
+    const browser = await next.browser('/?q=foo')
+    expect(await browser.elementByCss('p').text()).toBe('{"q":"foo"}')
 
-    await browser.elementByCss('[id="1"]').click()
+    // navigate to different search param, should update the search param
+    await browser.elementByCss('[href="/?q=bar"]').click()
     await browser.waitForElementByCss('p', 5000)
-    expect(await browser.elementByCss('p').text()).toBe('{"foo":"bar1"}')
+    expect(await browser.elementByCss('p').text()).toBe('{"q":"bar"}')
 
-    // refresh the page
-    await browser.refresh()
-
-    await browser.elementByCss('[id="2"]').click()
-    await browser.waitForElementByCss('p', 5000)
-    expect(await browser.elementByCss('p').text()).toBe('{"foo":"bar2"}')
-
-    await browser.elementByCss('[id="3"]').click()
+    // navigate to home, should clear the search param
+    await browser.elementByCss('[href="/"]').click()
     await browser.waitForElementByCss('p', 5000)
     expect(await browser.elementByCss('p').text()).toBe('{}')
   })
