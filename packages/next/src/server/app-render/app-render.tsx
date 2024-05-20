@@ -113,8 +113,10 @@ import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import {
-  uiErrorFileTypes,
-  uiErrorsWithStatusCodesMap,
+  getUIErrorHelperName,
+  getUIErrorStatusCode,
+  matchUIError,
+  uiErrorStatusCodes,
 } from '../../shared/lib/ui-error-types'
 
 export type GetDynamicParamFromSegment = (
@@ -1245,14 +1247,11 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        const uiErrorType = uiErrorFileTypes.find((errorType) =>
-          uiErrorsWithStatusCodesMap[errorType].matcher(err)
-        )
-
+        const uiErrorType = matchUIError(err)
         if (uiErrorType) {
-          const errorTypeObj = uiErrorsWithStatusCodesMap[uiErrorType]
-          res.statusCode = errorTypeObj.statusCode
+          res.statusCode = getUIErrorStatusCode(uiErrorType)
         }
+
         let hasRedirectError = false
         if (isRedirectError(err)) {
           hasRedirectError = true
@@ -1272,12 +1271,9 @@ async function renderToHTMLOrFlightImpl(
           )
           setHeader('Location', redirectUrl)
         }
-        const internalHandledStatusCodes = Object.values(
-          uiErrorsWithStatusCodesMap
-        ).map((x) => +x.statusCode)
 
         if (
-          !internalHandledStatusCodes.includes(res.statusCode || 0) &&
+          !uiErrorStatusCodes.includes(res.statusCode || 0) &&
           !hasRedirectError &&
           !shouldBailoutToCSR
         ) {
@@ -1286,9 +1282,7 @@ async function renderToHTMLOrFlightImpl(
 
         // TODO(@panteliselef): Maybe create specific type for `forbidden`
         // This is probably is used to generate metadata.
-        const errorType = internalHandledStatusCodes.includes(
-          res.statusCode || 0
-        )
+        const errorType = uiErrorStatusCodes.includes(res.statusCode || 0)
           ? 'not-found'
           : hasRedirectError
             ? 'redirect'
@@ -1362,8 +1356,7 @@ async function renderToHTMLOrFlightImpl(
               require('../../client/components/dev-root-ui-error-boundary').bailOnUIError
 
             if (uiErrorType) {
-              const errorTypeObj = uiErrorsWithStatusCodesMap[uiErrorType]
-              bailOnUIError(errorTypeObj.helperName)
+              bailOnUIError(getUIErrorHelperName(uiErrorType))
             }
           }
           throw finalErr

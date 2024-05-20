@@ -14,16 +14,40 @@ const uiErrorsWithStatusCodesMap = {
   },
 } as const
 
+type UIErrorsWithStatusCodesMap = typeof uiErrorsWithStatusCodesMap
+type UIErrorFileType = keyof UIErrorsWithStatusCodesMap
+
 const uiErrorFileTypes = Object.keys(
   uiErrorsWithStatusCodesMap
-) as (keyof typeof uiErrorsWithStatusCodesMap)[]
+) as UIErrorFileType[]
 
-type UIErrorsWithStatusCodesMap = typeof uiErrorsWithStatusCodesMap
+const uiErrorStatusCodes = Object.values(uiErrorsWithStatusCodesMap).map(
+  (x) => +x.statusCode
+)
 
-type UIErrorFileType = keyof UIErrorsWithStatusCodesMap
+function matchUIError(err: unknown) {
+  return uiErrorFileTypes.find((errorType) =>
+    uiErrorsWithStatusCodesMap[errorType].matcher(err)
+  )
+}
+
+function getUIErrorStatusCode(type: UIErrorFileType) {
+  return uiErrorsWithStatusCodesMap[type].statusCode
+}
+
+function getUIErrorHelperName(type: UIErrorFileType) {
+  return uiErrorsWithStatusCodesMap[type].helperName
+}
 
 type UIErrorHelper = UIErrorsWithStatusCodesMap[UIErrorFileType]['helperName']
 
-export { uiErrorFileTypes, uiErrorsWithStatusCodesMap }
+export {
+  uiErrorFileTypes,
+  uiErrorsWithStatusCodesMap,
+  uiErrorStatusCodes,
+  matchUIError,
+  getUIErrorStatusCode,
+  getUIErrorHelperName,
+}
 
 export type { UIErrorFileType, UIErrorHelper }

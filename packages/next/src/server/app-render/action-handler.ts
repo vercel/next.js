@@ -42,9 +42,9 @@ import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import {
+  getUIErrorStatusCode,
+  matchUIError,
   type UIErrorFileType,
-  uiErrorFileTypes,
-  uiErrorsWithStatusCodesMap,
 } from '../../shared/lib/ui-error-types'
 
 function formDataFromSearchQueryString(query: string) {
@@ -852,12 +852,10 @@ export async function handleAction({
       }
       // Any next router error but redirect
     } else if (isNextRouterError(err)) {
-      const errorType = uiErrorFileTypes.find((type) =>
-        uiErrorsWithStatusCodesMap[type].matcher(err)
-      )!
-      const errorTypeObj = uiErrorsWithStatusCodesMap[errorType]
-
-      res.statusCode = errorTypeObj.statusCode
+      const errorType = matchUIError(err)!
+      if (errorType) {
+        res.statusCode = getUIErrorStatusCode(errorType)
+      }
 
       await addRevalidationHeader(res, {
         staticGenerationStore,
