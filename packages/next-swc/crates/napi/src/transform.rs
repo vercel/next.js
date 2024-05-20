@@ -121,8 +121,8 @@ impl Task for TransformTask {
 
                                 match options.decorator_version {
                                     next_custom_transforms::chain_transforms::DecoratorVersion::Legacy => {
-                                        v.decorator_version=None;
-                                        v.legacy_decorator=true.into();
+                                        v.decorator_version = None;
+                                        v.legacy_decorator = true.into();
 ;                                    },
                                     next_custom_transforms::chain_transforms::DecoratorVersion::V202112 => {
                                         v.decorator_version = Some(turbopack_binding::swc::core::base::config::DecoratorVersion::V202112);
@@ -132,9 +132,8 @@ impl Task for TransformTask {
                                         v.decorator_version = Some(turbopack_binding::swc::core::base::config::DecoratorVersion::V202203);
                                     }
                                 }
-                                v
-                            }
-                            .into();
+                                Some(v).into()
+                            };
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
