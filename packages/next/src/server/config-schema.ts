@@ -248,6 +248,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
@@ -421,6 +422,19 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
+        reactCompiler: z.union([
+          z.boolean(),
+          z
+            .object({
+              compilationMode: z
+                .enum(['infer', 'annotation', 'all'])
+                .optional(),
+              panicThreshold: z
+                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .optional(),
+            })
+            .optional(),
+        ]),
       })
       .optional(),
     exportPathMap: z

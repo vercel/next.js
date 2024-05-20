@@ -83,6 +83,8 @@ export abstract class BaseNextResponse<Destination = any> {
 
   abstract send(): void
 
+  abstract onClose(callback: () => void): void
+
   // Utils implemented using the abstract methods above
 
   public redirect(destination: string, statusCode: number) {

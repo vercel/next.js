@@ -255,9 +255,12 @@ export class AppRouteRouteModule extends RouteModule<
       req: rawRequest,
     }
 
-    // TODO: types for renderOpts should include previewProps
-    ;(requestContext as any).renderOpts = {
+    requestContext.renderOpts = {
+      // @ts-expect-error TODO: types for renderOpts should include previewProps
       previewProps: context.prerenderManifest.preview,
+      waitUntil: context.renderOpts.waitUntil,
+      onClose: context.renderOpts.onClose,
+      experimental: context.renderOpts.experimental,
     }
 
     // Get the context for the static generation.
@@ -400,7 +403,7 @@ export class AppRouteRouteModule extends RouteModule<
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.renderOpts.waitUntil = Promise.all([
+                    context.renderOpts.pendingWaitUntil = Promise.all([
                       staticGenerationStore.incrementalCache?.revalidateTag(
                         staticGenerationStore.revalidatedTags || []
                       ),
