@@ -2,7 +2,7 @@ import type { NextConfig } from './config'
 import { VALID_LOADERS } from '../shared/lib/image-config'
 
 import { z } from 'next/dist/compiled/zod'
-import type zod from 'next/dist/compiled/zod'
+import zod from 'next/dist/compiled/zod'
 
 import type { SizeLimit } from '../types'
 import type {
@@ -365,6 +365,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
+        webpackMemoryOptimizations: z.boolean().optional(),
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
