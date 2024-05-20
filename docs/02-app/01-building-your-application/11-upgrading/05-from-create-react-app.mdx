@@ -444,7 +444,7 @@ The main difference is the prefix used to expose environment variables on the cl
 
 ### Step 9: Update Scripts in `package.json`
 
-You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, `next-env.d.ts`, and `dist` to your `.gitignore` file:
+You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, and `next-env.d.ts` to your `.gitignore` file:
 
 ```json filename="package.json"
 {
@@ -460,7 +460,6 @@ You should now be able to run your application to test if you successfully migra
 # ...
 .next
 next-env.d.ts
-dist
 ```
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
@@ -469,8 +468,9 @@ Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000)
 
 You can now clean up your codebase from Create React App related artifacts:
 
-- Delete `src/index.tsx`
 - Delete `public/index.html`
+- Delete `src/index.tsx`
+- Delete `src/react-app-env.d.ts`
 - Delete `reportWebVitals` setup
 - Uninstall CRA dependencies (`react-scripts`)
 
