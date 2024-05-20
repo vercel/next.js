@@ -79,6 +79,11 @@ declare module 'next/dist/compiled/p-limit' {
   export = m
 }
 
+declare module 'next/dist/compiled/p-queue' {
+  import m from 'p-queue'
+  export = m
+}
+
 declare module 'next/dist/compiled/raw-body' {
   import m from 'raw-body'
   export = m
