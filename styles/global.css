@@ -1,0 +1,51 @@
+/* Global styles according to the "Curious Cartography of Cognition" Style Guide */
+:root {
+  --deep-blue: #0A2E5E;
+  --warm-orange: #FF6B35;
+  --rich-green: #2E5E0A;
+  --muted-yellow: #FFD700;
+  --soft-red: #E57373;
+  --pale-blue: #90CAF9;
+  --warm-white: #F5F5F5;
+}
+
+body {
+  background-color: var(--warm-white);
+  color: var(--deep-blue);
+  font-family: 'Freight Text Pro', serif;
+}
+
+h1, h2, .icon {
+  color: var(--deep-blue);
+  font-family: 'Gotham Bold', sans-serif;
+}
+
+h3 {
+  color: var(--warm-orange);
+}
+
+.author-name, h4 {
+  color: var(--rich-green);
+}
+
+.bullet-point, .emphasis {
+  color: var(--muted-yellow);
+}
+
+.quote-background, .aside {
+  background-color: var(--pale-blue);
+}
+
+/* Additional styles for responsiveness and accessibility */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none;
+    transition: none;
+  }
+}
