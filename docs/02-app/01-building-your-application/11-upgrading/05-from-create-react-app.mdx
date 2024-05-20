@@ -343,7 +343,6 @@ Now, let's move the rest of our CRA application which will run client-only.
 ```tsx filename="app/[[...slug]]/client.tsx" switcher
 'use client'
 
-import React from 'react'
 import dynamic from 'next/dynamic'
 
 const App = dynamic(() => import('../../App'), { ssr: false })
@@ -356,7 +355,6 @@ export function ClientOnly() {
 ```jsx filename="app/[[...slug]]/client.js" switcher
 'use client'
 
-import React from 'react'
 import dynamic from 'next/dynamic'
 
 const App = dynamic(() => import('../../App'), { ssr: false })
