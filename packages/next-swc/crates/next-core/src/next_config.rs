@@ -526,6 +526,7 @@ pub struct ExperimentalConfig {
     // ---
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
+    after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
     case_sensitive_routes: Option<bool>,

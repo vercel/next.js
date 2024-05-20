@@ -20,6 +20,8 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
+import { createAfterContext, type AfterContext } from '../after/after-context'
+import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -38,10 +40,21 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
+export type WrapperRenderOpts = Omit<RenderOpts, 'experimental'> &
+  RequestLifecycleOpts &
+  Partial<
+    Pick<
+      RenderOpts,
+      'ComponentMod' // can be undefined in a route handler
+    >
+  > & {
+    experimental: Pick<RenderOpts['experimental'], 'after'>
+  }
+
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
   res?: ServerResponse | BaseNextResponse
-  renderOpts?: RenderOpts
+  renderOpts?: WrapperRenderOpts
 }
 
 export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
@@ -68,6 +81,8 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       // TODO: investigate why previewProps isn't on RenderOpts
       previewProps = (renderOpts as any).previewProps
     }
+
+    const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
 
     function defaultOnUpdateCookies(cookies: string[]) {
       if (res) {
@@ -148,10 +163,37 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
         return cache.draftMode
       },
+
       reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
       assetPrefix: renderOpts?.assetPrefix || '',
+      afterContext,
     }
-
-    return storage.run(store, callback, store)
+    return wrapWithAfter(store, () => storage.run(store, callback, store))
   },
+}
+
+function createAfterWrapper(
+  renderOpts: WrapperRenderOpts | undefined
+): [
+  wrap: <Result>(requestStore: RequestStore, callback: () => Result) => Result,
+  afterContext: AfterContext | undefined,
+] {
+  const isAfterEnabled = renderOpts?.experimental?.after ?? false
+  if (!renderOpts || !isAfterEnabled) {
+    return [(_, callback) => callback(), undefined]
+  }
+
+  const { waitUntil, onClose } = renderOpts
+  const cacheScope = renderOpts.ComponentMod?.createCacheScope()
+
+  const afterContext = createAfterContext({
+    waitUntil,
+    onClose,
+    cacheScope,
+  })
+
+  const wrap = <Result>(requestStore: RequestStore, callback: () => Result) =>
+    afterContext.run(requestStore, callback)
+
+  return [wrap, afterContext]
 }

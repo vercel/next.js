@@ -143,6 +143,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import { getBuiltinWaitUntil } from './after/wait-until-builtin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -229,7 +230,14 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+export type LoadedRenderOpts = RenderOpts &
+  LoadComponentsReturnType &
+  RequestLifecycleOpts
+
+export type RequestLifecycleOpts = {
+  waitUntil: ((promise: Promise<any>) => void) | undefined
+  onClose: ((callback: () => void) => void) | undefined
+}
 
 type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
@@ -557,6 +565,7 @@ export default abstract class Server<
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
+        after: this.nextConfig.experimental.after ?? false,
       },
     }
 
@@ -1655,6 +1664,26 @@ export default abstract class Server<
     )
   }
 
+  private getWaitUntil() {
+    const useBuiltinWaitUntil =
+      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
+
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
+    }
+
+    return waitUntil
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2284,7 +2313,6 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2326,6 +2354,8 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        waitUntil: this.getWaitUntil(),
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2359,10 +2389,15 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
+              experimental: {
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
+              waitUntil: this.getWaitUntil(),
+              onClose: res.onClose.bind(res),
             },
           }
 
@@ -2413,7 +2448,12 @@ export default abstract class Server<
             }
 
             // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response, context.renderOpts.waitUntil)
+            await sendResponse(
+              req,
+              res,
+              response,
+              context.renderOpts.pendingWaitUntil
+            )
             return null
           } catch (err) {
             // If this is during static generation, throw the error again.

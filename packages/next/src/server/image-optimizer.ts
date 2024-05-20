@@ -1,6 +1,5 @@
 import { createHash } from 'crypto'
 import { promises } from 'fs'
-import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
@@ -52,7 +51,9 @@ function getSharp() {
       // We more aggressively reduce in dev but also reduce in prod.
       // https://sharp.pixelplumbing.com/api-utility#concurrency
       const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-      _sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+      _sharp.concurrency(
+        Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+      )
     }
   } catch (e: unknown) {
     if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
@@ -444,9 +445,7 @@ export async function optimizeImage({
   nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   const sharp = getSharp()
-  const transformer = sharp(buffer, { sequentialRead: true })
-    .timeout({ seconds: 7 })
-    .rotate()
+  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -457,17 +456,16 @@ export async function optimizeImage({
   }
 
   if (contentType === AVIF) {
-    const avifQuality = quality - 15
+    const avifQuality = quality - 20
     transformer.avif({
-      quality: Math.max(avifQuality, 0),
-      chromaSubsampling: '4:2:0', // same as webp
+      quality: Math.max(avifQuality, 1),
     })
   } else if (contentType === WEBP) {
     transformer.webp({ quality })
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, progressive: true })
+    transformer.jpeg({ quality, mozjpeg: true })
   }
 
   const optimizedBuffer = await transformer.toBuffer()

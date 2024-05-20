@@ -470,6 +470,11 @@ export interface ExperimentalConfig {
    * compiler will be enabled.
    */
   reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -964,6 +969,7 @@ export const defaultConfig: NextConfig = {
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
+    after: false,
   },
   bundlePagesRouterDependencies: false,
 }
