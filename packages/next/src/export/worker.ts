@@ -248,7 +248,8 @@ async function exportPageImpl(
         incrementalCache,
         distDir,
         htmlFilepath,
-        fileWriter
+        fileWriter,
+        input.renderOpts.experimental
       )
     }
 
@@ -274,6 +275,8 @@ async function exportPageImpl(
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {
