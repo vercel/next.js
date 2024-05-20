@@ -23,6 +23,16 @@ describe('options-request', () => {
     expect(await res.text()).toBe('')
   })
 
+  // In pages router, unless the handler explicitly handles OPTIONS, it will handle the request normally
+  it('should respond with a 200 + response body when invoking a pages API route with an OPTIONS request', async () => {
+    const res = await next.fetch('/api/pages-api-handler', {
+      method: 'OPTIONS',
+    })
+    expect(res.status).toBe(200)
+    // There should be no response body
+    expect((await res.json()).message).toBe('Hello from Next.js!')
+  })
+
   it('should 404 for an OPTIONS request to a non-existent route', async () => {
     const res = await next.fetch('/non-existent-route', { method: 'OPTIONS' })
     expect(res.status).toBe(404)

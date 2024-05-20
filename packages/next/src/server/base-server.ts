@@ -2473,7 +2473,7 @@ export default abstract class Server<
           isPagesRouteModule(routeModule) ||
           isAppPageRouteModule(routeModule)
         ) {
-          // An OPTIONS request to a page/app route is invalid.
+          // An OPTIONS request to a page handler is invalid.
           if (req.method === 'OPTIONS' && !is404Page) {
             await sendResponse(req, res, handleBadRequestResponse())
             return null

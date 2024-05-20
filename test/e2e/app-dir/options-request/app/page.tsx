@@ -4,15 +4,15 @@ export default function Page() {
     <>
       <button
         onClick={async () => {
-          const response = await fetch('/foo', { method: 'OPTIONS' })
+          const response = await fetch('/app-route', { method: 'OPTIONS' })
           console.log(await response.json())
         }}
       >
-        Trigger Options Request (route)
+        Trigger Options Request (/app route)
       </button>
       <button
         onClick={async () => {
-          const response = await fetch('/foo-page', { method: 'OPTIONS' })
+          const response = await fetch('/app-page', { method: 'OPTIONS' })
           console.log(await response.text())
         }}
       >
@@ -20,11 +20,21 @@ export default function Page() {
       </button>
       <button
         onClick={async () => {
-          const response = await fetch('/bar-page', { method: 'OPTIONS' })
+          const response = await fetch('/pages-page', { method: 'OPTIONS' })
           console.log(await response.text())
         }}
       >
         Trigger Options Request (/pages page)
+      </button>
+      <button
+        onClick={async () => {
+          const response = await fetch('/api/pages-api-handler', {
+            method: 'OPTIONS',
+          })
+          console.log(await response.text())
+        }}
+      >
+        Trigger Options Request (/pages API route)
       </button>
     </>
   )
