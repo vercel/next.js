@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('prefetch-searchparam', () => {
   const { next } = nextTestSetup({
@@ -11,12 +12,14 @@ describe('prefetch-searchparam', () => {
 
     // navigate to different search param, should update the search param
     await browser.elementByCss('[href="/?q=bar"]').click()
-    await browser.waitForElementByCss('p', 5000)
-    expect(await browser.elementByCss('p').text()).toBe('{"q":"bar"}')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('{"q":"bar"}')
+    })
 
     // navigate to home, should clear the searchParams value
     await browser.elementByCss('[href="/"]').click()
-    await browser.waitForElementByCss('p', 5000)
-    expect(await browser.elementByCss('p').text()).toBe('{}')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('{}')
+    })
   })
 })
