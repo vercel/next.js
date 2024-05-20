@@ -49,9 +49,14 @@ In addition to supporting native [Request](https://developer.mozilla.org/docs/We
 
 ### Caching
 
-Route Handlers are cached by default when using the `GET` method with the `Response` object.
+Route Handlers are dynamic by default since v15 of Next.js. To opt-in to caching for GET requests in route handlers you can specify via the following config.
 
 ```ts filename="app/items/route.ts" switcher
+// opt in to caching the route handler
+export const dynamic = 'force-static' // or 'error'
+// or
+export const revalidate = false // or a value > 0
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
