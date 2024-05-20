@@ -379,8 +379,13 @@ async function generateFlight(
     process.env.NEXT_RUNTIME === 'nodejs' &&
     !(flightReadableStream instanceof ReadableStream)
   ) {
-    const { PassThrough } = require('node:stream')
-    resultStream = flightReadableStream.pipe(new PassThrough())
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    let pt = new PassThrough()
+    pt.on('error', (err) => {
+      console.log('PassThrough from `generateFlight` errored', err)
+    })
+    resultStream = flightReadableStream.pipe(pt)
   } else if (!(flightReadableStream instanceof ReadableStream)) {
     throw new Error(
       'Invariant. Stream is not a ReadableStream in non-Node.js runtime.'
@@ -425,6 +430,8 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   return async () => {
     // Resolve the promise to get the flight data or error.
     const result = await promise
+
+    console.log('creatFlightDataResolver result', result)
 
     // If the flight data failed to render due to an error, re-throw the error
     // here.
@@ -617,7 +624,7 @@ function ReactServerEntrypoint<T>({
   clientReferenceManifest,
   nonce,
 }: {
-  reactServerStream: BinaryStreamOf<T>
+  reactServerStream: Readable | BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   nonce?: string
@@ -985,9 +992,6 @@ async function renderToHTMLOrFlightImpl(
       ) {
         const { PassThrough, Readable } =
           require('node:stream') as typeof import('node:stream')
-        console.warn(
-          'Converting stream returned from `ComponentMod.renderToStream` to a ReadableStream.'
-        )
         resultStream = Readable.toWeb(
           serverStream.pipe(new PassThrough())
         ) as ReadableStream<Uint8Array>
@@ -998,11 +1002,6 @@ async function renderToHTMLOrFlightImpl(
       } else {
         resultStream = serverStream
       }
-
-      console.log(
-        'Result stream is instance of ReadableStream',
-        resultStream instanceof ReadableStream
-      )
 
       // We are going to consume this render both for SSR and for inlining the flight data
       let [renderStream, dataStream] = resultStream.tee()
@@ -1353,9 +1352,6 @@ async function renderToHTMLOrFlightImpl(
         ) {
           const { PassThrough, Readable } =
             require('node:stream') as typeof import('node:stream')
-          console.warn(
-            'Converting stream returned from `ComponentMod.renderToStream` to a ReadableStream.'
-          )
           resultStream2 = Readable.toWeb(
             errorServerStream.pipe(new PassThrough())
           ) as ReadableStream<Uint8Array>
@@ -1364,11 +1360,6 @@ async function renderToHTMLOrFlightImpl(
         } else {
           resultStream2 = errorServerStream
         }
-
-        console.log(
-          'Result stream 2 is instance of ReadableStream',
-          resultStream2 instanceof ReadableStream
-        )
 
         try {
           let fizzStream = await renderToInitialFizzStream({

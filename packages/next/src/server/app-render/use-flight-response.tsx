@@ -3,6 +3,7 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { Readable } from 'node:stream'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -11,7 +12,10 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
-const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
+const flightResponses = new WeakMap<
+  Readable | BinaryStreamOf<any>,
+  Promise<any>
+>()
 const encoder = new TextEncoder()
 
 /**
@@ -19,7 +23,7 @@ const encoder = new TextEncoder()
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function useFlightStream<T>(
-  flightStream: BinaryStreamOf<T>,
+  flightStream: Readable | BinaryStreamOf<T>,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce?: string
 ): Promise<T> {
@@ -30,19 +34,27 @@ export function useFlightStream<T>(
   }
 
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  let createFromReadableStream
+  let createFromStream
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
+    createFromStream =
+      flightStream instanceof ReadableStream
+        ? // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-turbopack/client.edge')
+            .createFromReadableStream
+        : // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-turbopack/client.node').createFromNodeStream
   } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
+    createFromStream =
+      flightStream instanceof ReadableStream
+        ? // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-webpack/client.edge')
+            .createFromReadableStream
+        : // eslint-disable-next-line import/no-extraneous-dependencies
+          require('react-server-dom-webpack/client.node').createFromNodeStream
   }
 
-  const newResponse = createFromReadableStream(flightStream, {
+  const newResponse = createFromStream(flightStream, {
     ssrManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
