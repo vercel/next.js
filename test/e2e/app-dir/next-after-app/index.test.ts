@@ -104,6 +104,22 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     // TODO: server seems to close before the response fully returns?
   })
 
+  it('runs callbacks from nested unstable_after calls', async () => {
+    await next.browser('/nested-after')
+
+    await retry(() => {
+      for (const id of [1, 2, 3]) {
+        expect(getLogs()).toContainEqual({
+          source: `[page] /nested-after (after #${id})`,
+          assertions: {
+            'cache() works in after()': true,
+            'headers() works in after()': true,
+          },
+        })
+      }
+    })
+  })
+
   describe('interrupted RSC renders', () => {
     it('runs callbacks if redirect() was called', async () => {
       await next.browser('/interrupted/calls-redirect')

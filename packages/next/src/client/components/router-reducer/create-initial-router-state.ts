@@ -101,7 +101,10 @@ export function createInitialRouterState({
     // Seed the prefetch cache with this page's data.
     // This is to prevent needlessly re-prefetching a page that is already reusable,
     // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
-    const url = new URL(location.pathname, location.origin)
+    const url = new URL(
+      `${location.pathname}${location.search}`,
+      location.origin
+    )
 
     const initialFlightData: FlightData = [['', initialTree, null, null]]
     createPrefetchCacheEntryForInitialLoad({
