@@ -398,7 +398,7 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   // Generate the flight data and as soon as it can, convert it into a string.
   const promise = generateFlight(ctx)
     .then(async (result) => ({
-      flightData: await result.toUnchunkedBuffer(true),
+      flightData: await result.toUnchunkedString(true),
     }))
     // Otherwise if it errored, return the error.
     .catch((err) => ({ err }))

@@ -2428,7 +2428,7 @@ export async function nextbuild_esm(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/build')
 }
 
@@ -2456,7 +2456,7 @@ export async function client(task, opts) {
 export async function client_esm(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, esm: true })
+    .swc('client', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/client')
 }
 
@@ -2482,7 +2482,6 @@ export async function pages_app(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2494,7 +2493,6 @@ export async function pages_error(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2506,7 +2504,6 @@ export async function pages_document(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
     })
     .target('dist/pages')
 }
@@ -2517,7 +2514,6 @@ export async function pages_app_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2529,7 +2525,6 @@ export async function pages_error_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2541,7 +2536,6 @@ export async function pages_document_esm(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
