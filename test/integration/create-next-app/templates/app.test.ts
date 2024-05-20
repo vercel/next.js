@@ -8,7 +8,7 @@ import {
   useTempDir,
 } from '../utils'
 
-let testVersion
+let testVersion: string
 beforeAll(async () => {
   if (testVersion) return
   // TODO: investigate moving this post publish or create deployed GH#57025
@@ -224,7 +224,7 @@ describe.skip('create-next-app --app (App Router)', () => {
     })
   })
 
-  it('should enable turbopack on --turbo flag', async () => {
+  it('should enable turbopack dev with --turbo flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-turbo'
       const childProcess = createNextApp(
