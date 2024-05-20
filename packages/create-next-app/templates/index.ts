@@ -39,6 +39,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
+  turbo,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -174,7 +175,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: "next dev",
+      dev: `next dev${turbo ? " --turbo" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
