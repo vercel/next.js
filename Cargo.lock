@@ -2048,7 +2048,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.6",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -2598,9 +2598,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0d1876c6046ed009d60145501187245afc823bcce50ed15964c7801f41592f4"
+checksum = "6517fd00c4d56ef4ab207d346614715c472db7a144d6aaf522dc9eaabfa47b05"
 dependencies = [
  "cssparser",
  "lightningcss",
