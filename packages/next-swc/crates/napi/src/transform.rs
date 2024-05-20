@@ -110,6 +110,31 @@ impl Task for TransformTask {
                             let unresolved_mark = Mark::new();
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
+                            options.swc.config.jsc.transform = {
+                                let mut v = options
+                                    .swc
+                                    .config
+                                    .jsc
+                                    .transform
+                                    .into_inner()
+                                    .unwrap_or_default();
+
+                                match options.decorator_version {
+                                    next_custom_transforms::chain_transforms::DecoratorVersion::Legacy => {
+                                        v.decorator_version=None;
+                                        v.legacy_decorator=true.into();
+;                                    },
+                                    next_custom_transforms::chain_transforms::DecoratorVersion::V202112 => {
+                                        v.decorator_version = Some(turbopack_binding::swc::core::base::config::DecoratorVersion::V202112);
+
+                                    },
+                                    next_custom_transforms::chain_transforms::DecoratorVersion::V202203 =>{
+                                        v.decorator_version = Some(turbopack_binding::swc::core::base::config::DecoratorVersion::V202203);
+                                    }
+                                }
+                                v
+                            }
+                            .into();
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
