@@ -123,7 +123,7 @@ impl Task for TransformTask {
                                     next_custom_transforms::chain_transforms::DecoratorVersion::Legacy => {
                                         v.decorator_version = None;
                                         v.legacy_decorator = true.into();
-;                                    },
+                                    },
                                     next_custom_transforms::chain_transforms::DecoratorVersion::V202112 => {
                                         v.decorator_version = Some(turbopack_binding::swc::core::base::config::DecoratorVersion::V202112);
 
