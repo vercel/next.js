@@ -29,19 +29,19 @@ const runTests = () => {
       //cached response (revalidate is 2 seconds)
       await waitFor(1000)
       const newRandom = await getRandom('/')
-      expect(random).toBe(newRandom)  
+      expect(random).toBe(newRandom)
     }
     {
       //stale response, triggers revalidate
       await waitFor(1000)
       const newRandom = await getRandom('/')
-      expect(random).toBe(newRandom)  
+      expect(random).toBe(newRandom)
     }
     {
       //new response
       await waitFor(100)
       const newRandom = await getRandom('/')
-      expect(random).not.toBe(newRandom)  
+      expect(random).not.toBe(newRandom)
     }
   })
 }
