@@ -101,6 +101,19 @@ pub async fn get_edge_resolve_options_context(
 
     let ty = ty.into_value();
 
+    let before_resolve_plugins = match ty {
+        ServerContextType::Pages { .. }
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. } => {
+            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation => vec![],
+    };
+
     let mut after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
@@ -148,7 +161,7 @@ pub async fn get_edge_resolve_options_context(
         module: true,
         browser: true,
         after_resolve_plugins,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
+        before_resolve_plugins,
         ..Default::default()
     };
 

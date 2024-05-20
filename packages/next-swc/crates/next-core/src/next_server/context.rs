@@ -200,6 +200,19 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
+    let before_resolve_plugins = match ty {
+        ServerContextType::Pages { .. }
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. } => {
+            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation => vec![],
+    };
+
     let mut after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
@@ -272,6 +285,7 @@ pub async fn get_server_resolve_options_context(
         module: true,
         custom_conditions,
         import_map: Some(next_server_import_map),
+        before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
     };
@@ -280,7 +294,6 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition,
