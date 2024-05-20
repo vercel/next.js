@@ -1,6 +1,8 @@
+import { stringifyCookie } from '../../web/spec-extension/cookies'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import { ReflectAdapter } from './adapters/reflect'
 
 import { ResponseCookies } from './cookies'
 
@@ -41,11 +43,43 @@ export class NextResponse<Body = unknown> extends Response {
   constructor(body?: BodyInit | null, init: ResponseInit = {}) {
     super(body, init)
 
+    const headers = this.headers
+    const cookies = new ResponseCookies(headers)
+
+    const cookiesProxy = new Proxy(cookies, {
+      get(target, prop, receiver) {
+        switch (prop) {
+          case 'delete':
+          case 'set': {
+            return (...args: [string, string]) => {
+              const result = Reflect.apply(target[prop], target, args)
+              const newHeaders = new Headers(headers)
+
+              if (result instanceof ResponseCookies) {
+                headers.set(
+                  'x-middleware-set-cookie',
+                  result
+                    .getAll()
+                    .map((cookie) => stringifyCookie(cookie))
+                    .join(',')
+                )
+              }
+
+              handleMiddlewareField(init, newHeaders)
+              return result
+            }
+          }
+          default:
+            return ReflectAdapter.get(target, prop, receiver)
+        }
+      },
+    })
+
     this[INTERNALS] = {
-      cookies: new ResponseCookies(this.headers),
+      cookies: cookiesProxy,
       url: init.url
         ? new NextURL(init.url, {
-            headers: toNodeOutgoingHttpHeaders(this.headers),
+            headers: toNodeOutgoingHttpHeaders(headers),
             nextConfig: init.nextConfig,
           })
         : undefined,

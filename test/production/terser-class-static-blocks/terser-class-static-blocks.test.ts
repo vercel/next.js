@@ -1,17 +1,13 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'terser-class-static-blocks',
-  {
+describe('terser-class-static-blocks', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    nextConfig: {
-      swcMinify: false,
-    },
-  },
-  ({ next }) => {
-    it('should work using cheerio', async () => {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('hello world')
-    })
-  }
-)
+    nextConfig: {},
+  })
+
+  it('should work using cheerio', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toBe('hello world')
+  })
+})

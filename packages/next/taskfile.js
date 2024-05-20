@@ -466,9 +466,10 @@ export async function ncc_edge_runtime(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/eval\("require"\)/g, 'require')
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      /eval\("require"\)/g,
+      'require'
+    )
   )
 }
 
@@ -664,15 +665,6 @@ export async function ncc_image_size(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['get-orientation'] = 'next/dist/compiled/get-orientation'
-export async function ncc_get_orientation(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('get-orientation')))
-    .ncc({ packageName: 'get-orientation', externals })
-    .target('src/compiled/get-orientation')
-}
-
-// eslint-disable-next-line camelcase
 externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
@@ -808,9 +800,10 @@ export async function ncc_stream_browserify(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(`require("stream")`, `require("events").EventEmitter`)
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      `require("stream")`,
+      `require("events").EventEmitter`
+    )
   )
 }
 
@@ -2180,7 +2173,6 @@ export async function ncc(task, opts) {
         'ncc_p_limit',
         'ncc_raw_body',
         'ncc_image_size',
-        'ncc_get_orientation',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_fetch',
@@ -2436,7 +2428,7 @@ export async function nextbuild_esm(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/build')
 }
 
@@ -2464,7 +2456,7 @@ export async function client(task, opts) {
 export async function client_esm(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, esm: true })
+    .swc('client', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/client')
 }
 
@@ -2490,7 +2482,6 @@ export async function pages_app(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2502,7 +2493,6 @@ export async function pages_error(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2514,7 +2504,6 @@ export async function pages_document(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
     })
     .target('dist/pages')
 }
@@ -2525,7 +2514,6 @@ export async function pages_app_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2537,7 +2525,6 @@ export async function pages_error_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2549,7 +2536,6 @@ export async function pages_document_esm(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2637,6 +2623,7 @@ export default async function (task) {
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('src/experimental/testmode', 'experimental_testmode', opts)
   await task.watch('src/export', 'nextbuildstatic', opts)
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
@@ -2713,7 +2700,9 @@ export async function server_wasm(task, opts) {
 export async function experimental_testmode(task, opts) {
   await task
     .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', {})
+    .swc('server', {
+      dev: opts.dev,
+    })
     .target('dist/experimental/testmode')
 }
 

@@ -17,9 +17,9 @@ import {
   RequestCookiesAdapter,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
-import type { ResponseCookies } from '../web/spec-extension/cookies'
-import { RequestCookies } from '../web/spec-extension/cookies'
+import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
+import { splitCookiesString } from '../web/utils'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -28,13 +28,6 @@ function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   }
 
   return HeadersAdapter.seal(cleaned)
-}
-
-function getCookies(
-  headers: Headers | IncomingHttpHeaders
-): ReadonlyRequestCookies {
-  const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return RequestCookiesAdapter.seal(cookies)
 }
 
 function getMutableCookies(
@@ -101,9 +94,34 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       },
       get cookies() {
         if (!cache.cookies) {
+          // if middleware is setting cookie(s), then include those in
+          // the initial cached cookies so they can be read in render
+          const requestCookies = new RequestCookies(
+            HeadersAdapter.from(req.headers)
+          )
+
+          if (
+            'x-middleware-set-cookie' in req.headers &&
+            typeof req.headers['x-middleware-set-cookie'] === 'string'
+          ) {
+            const setCookieValue = req.headers['x-middleware-set-cookie']
+            const responseHeaders = new Headers()
+
+            for (const cookie of splitCookiesString(setCookieValue)) {
+              responseHeaders.append('set-cookie', cookie)
+            }
+
+            const responseCookies = new ResponseCookies(responseHeaders)
+
+            // Transfer cookies from ResponseCookies to RequestCookies
+            for (const cookie of responseCookies.getAll()) {
+              requestCookies.set(cookie.name, cookie.value ?? '')
+            }
+          }
+
           // Seal the cookies object that'll freeze out any methods that could
           // mutate the underlying data.
-          cache.cookies = getCookies(req.headers)
+          cache.cookies = RequestCookiesAdapter.seal(requestCookies)
         }
 
         return cache.cookies

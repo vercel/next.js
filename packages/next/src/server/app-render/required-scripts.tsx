@@ -12,7 +12,7 @@ export function getRequiredScripts(
   nonce: string | undefined
 ): [
   () => void,
-  { src: string; integrity?: string; crossOrigin?: string | undefined }
+  { src: string; integrity?: string; crossOrigin?: string | undefined },
 ] {
   let preinitScripts: () => void
   let preinitScriptCommands: string[] = []

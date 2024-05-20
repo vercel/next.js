@@ -1,8 +1,8 @@
 import React from 'react'
 import Link from 'next/link'
 import { createContext } from 'react'
-// eslint-disable-next-line react/no-deprecated
-import { render } from 'react-dom'
+import { flushSync } from 'react-dom'
+import { createRoot } from 'react-dom/client'
 import App, { AppContext } from 'next/app'
 import { renderToString } from 'react-dom/server'
 
@@ -22,7 +22,9 @@ export default class MyApp extends App<{ html: string }> {
     if (typeof window !== 'undefined') {
       const el = document.createElement('div')
       document.querySelector('body')?.appendChild(el)
-      render(toRender, el)
+      flushSync(() => {
+        createRoot(el).render(toRender)
+      })
       html = el.innerHTML
       el.remove()
     } else {

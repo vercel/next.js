@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
   forwardRef,
-  version,
+  use,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -168,11 +168,8 @@ function handleLoading(
 function getDynamicProps(
   fetchPriority?: string
 ): Record<string, string | undefined> {
-  const [majorStr, minorStr] = version.split('.', 2)
-  const major = parseInt(majorStr, 10)
-  const minor = parseInt(minorStr, 10)
-  if (major > 18 || (major === 18 && minor >= 3)) {
-    // In React 18.3.0 or newer, we must use camelCase
+  if (Boolean(use)) {
+    // In React 19.0.0 or newer, we must use camelCase
     // prop to avoid "Warning: Invalid DOM property".
     // See https://github.com/facebook/react/pull/25927
     return { fetchPriority }

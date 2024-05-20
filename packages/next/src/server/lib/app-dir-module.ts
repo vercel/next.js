@@ -7,7 +7,7 @@ import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 export type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
+  components: ComponentsType,
 ]
 
 export async function getLayoutOrPageModule(loaderTree: LoaderTree) {

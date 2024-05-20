@@ -16,15 +16,12 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react");
 
-var Internals = {
-  usingClientEntryPoint: false,
-  Events: null,
-  Dispatcher: {
-    current: null
-  }
-};
+var ReactSharedInternalsServer = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
-var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+if (!ReactSharedInternalsServer) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
 
 function error(format) {
   {
@@ -42,8 +39,7 @@ function printWarning(level, format, args) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
+    var stack = ReactSharedInternalsServer.getStackAddendum();
 
     if (stack !== '') {
       format += '%s';
@@ -62,6 +58,67 @@ function printWarning(level, format, args) {
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
 }
+
+var NoLane =
+/*                          */
+0;
+
+var NoEventPriority = NoLane;
+
+function noop() {}
+
+function requestFormReset(element) {
+  throw new Error('Invalid form element. requestFormReset must be passed a form that was ' + 'rendered by React.');
+}
+
+var DefaultDispatcher = {
+  f
+  /* flushSyncWork */
+  : noop,
+  r
+  /* requestFormReset */
+  : requestFormReset,
+  D
+  /* prefetchDNS */
+  : noop,
+  C
+  /* preconnect */
+  : noop,
+  L
+  /* preload */
+  : noop,
+  m
+  /* preloadModule */
+  : noop,
+  X
+  /* preinitScript */
+  : noop,
+  S
+  /* preinitStyle */
+  : noop,
+  M
+  /* preinitModuleScript */
+  : noop
+};
+var Internals = {
+  d
+  /* ReactDOMCurrentDispatcher */
+  : DefaultDispatcher,
+  p
+  /* currentUpdatePriority */
+  : NoEventPriority,
+  findDOMNode: null
+};
+
+{
+  if (typeof Map !== 'function' || // $FlowFixMe[prop-missing] Flow incorrectly thinks Map has no prototype
+  Map.prototype == null || typeof Map.prototype.forEach !== 'function' || typeof Set !== 'function' || // $FlowFixMe[prop-missing] Flow incorrectly thinks Set has no prototype
+  Set.prototype == null || typeof Set.prototype.clear !== 'function' || typeof Set.prototype.forEach !== 'function') {
+    error('React depends on Map and Set built-in types. Make sure that you load a ' + 'polyfill in older browsers. https://reactjs.org/link/react-polyfills');
+  }
+}
+
+var ReactDOMSharedInternals = Internals;
 
 function getCrossOriginString(input) {
   if (typeof input === 'string') {
@@ -82,7 +139,6 @@ function getCrossOriginStringAs(as, input) {
   return undefined;
 }
 
-var Dispatcher = Internals.Dispatcher;
 function prefetchDNS(href) {
   {
     if (typeof href !== 'string' || !href) {
@@ -98,10 +154,12 @@ function prefetchDNS(href) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
-    dispatcher.prefetchDNS(href);
+  if (typeof href === 'string') {
+    ReactDOMSharedInternals.d
+    /* ReactDOMCurrentDispatcher */
+    .D(
+    /* prefetchDNS */
+    href);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -118,11 +176,13 @@ function preconnect(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     var crossOrigin = options ? getCrossOriginString(options.crossOrigin) : null;
-    dispatcher.preconnect(href, crossOrigin);
+    ReactDOMSharedInternals.d
+    /* ReactDOMCurrentDispatcher */
+    .C(
+    /* preconnect */
+    href, crossOrigin);
   } // We don't error because preconnect needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
   // so we favor silent bailout over warning or erroring.
@@ -147,13 +207,15 @@ function preload(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
+  if (typeof href === 'string' && // We check existence because we cannot enforce this function is actually called with the stated type
   typeof options === 'object' && options !== null && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
-    dispatcher.preload(href, as, {
+    ReactDOMSharedInternals.d
+    /* ReactDOMCurrentDispatcher */
+    .L(
+    /* preload */
+    href, as, {
       crossOrigin: crossOrigin,
       integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
       nonce: typeof options.nonce === 'string' ? options.nonce : undefined,
@@ -161,7 +223,8 @@ function preload(href, options) {
       fetchPriority: typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined,
       referrerPolicy: typeof options.referrerPolicy === 'string' ? options.referrerPolicy : undefined,
       imageSrcSet: typeof options.imageSrcSet === 'string' ? options.imageSrcSet : undefined,
-      imageSizes: typeof options.imageSizes === 'string' ? options.imageSizes : undefined
+      imageSizes: typeof options.imageSizes === 'string' ? options.imageSizes : undefined,
+      media: typeof options.media === 'string' ? options.media : undefined
     });
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -187,18 +250,24 @@ function preloadModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (options) {
       var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-      dispatcher.preloadModule(href, {
+      ReactDOMSharedInternals.d
+      /* ReactDOMCurrentDispatcher */
+      .m(
+      /* preloadModule */
+      href, {
         as: typeof options.as === 'string' && options.as !== 'script' ? options.as : undefined,
         crossOrigin: crossOrigin,
         integrity: typeof options.integrity === 'string' ? options.integrity : undefined
       });
     } else {
-      dispatcher.preloadModule(href);
+      ReactDOMSharedInternals.d
+      /* ReactDOMCurrentDispatcher */
+      .m(
+      /* preloadModule */
+      href);
     }
   } // We don't error because preload needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -216,22 +285,28 @@ function preinit(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string' && options && typeof options.as === 'string') {
+  if (typeof href === 'string' && options && typeof options.as === 'string') {
     var as = options.as;
     var crossOrigin = getCrossOriginStringAs(as, options.crossOrigin);
     var integrity = typeof options.integrity === 'string' ? options.integrity : undefined;
     var fetchPriority = typeof options.fetchPriority === 'string' ? options.fetchPriority : undefined;
 
     if (as === 'style') {
-      dispatcher.preinitStyle(href, typeof options.precedence === 'string' ? options.precedence : undefined, {
+      ReactDOMSharedInternals.d
+      /* ReactDOMCurrentDispatcher */
+      .S(
+      /* preinitStyle */
+      href, typeof options.precedence === 'string' ? options.precedence : undefined, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority
       });
     } else if (as === 'script') {
-      dispatcher.preinitScript(href, {
+      ReactDOMSharedInternals.d
+      /* ReactDOMCurrentDispatcher */
+      .X(
+      /* preinitScript */
+      href, {
         crossOrigin: crossOrigin,
         integrity: integrity,
         fetchPriority: fetchPriority,
@@ -279,20 +354,26 @@ function preinitModule(href, options) {
     }
   }
 
-  var dispatcher = Dispatcher.current;
-
-  if (dispatcher && typeof href === 'string') {
+  if (typeof href === 'string') {
     if (typeof options === 'object' && options !== null) {
       if (options.as == null || options.as === 'script') {
         var crossOrigin = getCrossOriginStringAs(options.as, options.crossOrigin);
-        dispatcher.preinitModuleScript(href, {
+        ReactDOMSharedInternals.d
+        /* ReactDOMCurrentDispatcher */
+        .M(
+        /* preinitModuleScript */
+        href, {
           crossOrigin: crossOrigin,
           integrity: typeof options.integrity === 'string' ? options.integrity : undefined,
           nonce: typeof options.nonce === 'string' ? options.nonce : undefined
         });
       }
     } else if (options == null) {
-      dispatcher.preinitModuleScript(href);
+      ReactDOMSharedInternals.d
+      /* ReactDOMCurrentDispatcher */
+      .M(
+      /* preinitModuleScript */
+      href);
     }
   } // We don't error because preinit needs to be resilient to being called in a variety of scopes
   // and the runtime may not be capable of responding. The function is optimistic and not critical
@@ -308,7 +389,7 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   return thing === null ? '`null`' : thing === undefined ? '`undefined`' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : typeof thing === 'number' ? '`' + thing + '`' : "something with type \"" + typeof thing + "\"";
 }
 
-exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
+exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = Internals;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
 exports.preinit = preinit;
