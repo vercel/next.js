@@ -4,7 +4,7 @@ import type { AppRouteModule } from '../module.compiled'
 // one of these top-level configs manually
 //   - dynamic = 'force-static'
 //   - dynamic = 'error'
-//   - revalidate = 1
+//   - revalidate > 0
 //   - revalidate = false
 //   - generateStaticParams
 export function isStaticGenEnabled(
