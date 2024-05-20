@@ -3354,33 +3354,6 @@ export declare function Bricolage_Grotesque<
   subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
   axes?: ('opsz' | 'wdth')[]
 }): T extends undefined ? NextFont : NextFontWithVariable
-export declare function Briem_Hand<
-  T extends CssVariable | undefined = undefined,
->(options?: {
-  weight?:
-    | '100'
-    | '200'
-    | '300'
-    | '400'
-    | '500'
-    | '600'
-    | '700'
-    | '800'
-    | '900'
-    | 'variable'
-    | Array<
-        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
-      >
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<
-    'cyrillic-ext' | 'greek-ext' | 'latin' | 'latin-ext' | 'vietnamese'
-  >
-}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bruno_Ace<
   T extends CssVariable | undefined = undefined,
 >(options: {
