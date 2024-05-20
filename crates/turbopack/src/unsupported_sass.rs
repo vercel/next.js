@@ -8,7 +8,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     resolve::{
         parse::Request,
-        plugin::{ResolvePlugin, ResolvePluginCondition},
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
         ResolveResultOption,
     },
 };
@@ -28,10 +28,13 @@ impl UnsupportedSassResolvePlugin {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolvePlugin for UnsupportedSassResolvePlugin {
+impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
-        ResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".to_string()))
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
+        AfterResolvePluginCondition::new(
+            self.root.root(),
+            Glob::new("**/*.{sass,scss}".to_string()),
+        )
     }
 
     #[turbo_tasks::function]
