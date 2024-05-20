@@ -383,6 +383,7 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
+   * Enables experimental Partial Prerendering feature of Next.js
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
@@ -464,11 +465,16 @@ export interface ExperimentalConfig {
    */
   serverComponentsExternalPackages?: string[]
   /**
-   * Enable experimental react compiler optimization.
+   * Enable experimental React compiler optimization.
    * Configuration accepts partial config object to the compiler, if provided
    * compiler will be enabled.
    */
   reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -896,7 +902,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   experimental: {
     flyingShuttle: false,
-    prerenderEarlyExit: false,
+    prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -962,6 +968,8 @@ export const defaultConfig: NextConfig = {
       static: 300,
     },
     allowDevelopmentBuild: undefined,
+    reactCompiler: undefined,
+    after: false,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -1170,14 +1170,18 @@ function bindingToApi(
 
         for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
           nextConfig.experimental.turbo.rules[key] = {
-            foreign: false,
-            loaders: [
-              getReactCompilerLoader(
-                originalNextConfig.experimental.reactCompiler,
-                projectPath,
-                nextConfig.dev
-              ),
-            ],
+            browser: {
+              foreign: false,
+              loaders: [
+                getReactCompilerLoader(
+                  originalNextConfig.experimental.reactCompiler,
+                  projectPath,
+                  nextConfig.dev,
+                  false,
+                  undefined
+                ),
+              ],
+            },
           }
         }
       }
