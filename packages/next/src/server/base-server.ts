@@ -110,7 +110,10 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
-import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import {
+  handleBadRequestResponse,
+  handleInternalServerErrorResponse,
+} from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
@@ -143,6 +146,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import { getBuiltinWaitUntil } from './after/wait-until-builtin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -229,7 +233,14 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+export type LoadedRenderOpts = RenderOpts &
+  LoadComponentsReturnType &
+  RequestLifecycleOpts
+
+export type RequestLifecycleOpts = {
+  waitUntil: ((promise: Promise<any>) => void) | undefined
+  onClose: ((callback: () => void) => void) | undefined
+}
 
 type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
@@ -557,6 +568,7 @@ export default abstract class Server<
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
+        after: this.nextConfig.experimental.after ?? false,
       },
     }
 
@@ -1655,6 +1667,26 @@ export default abstract class Server<
     )
   }
 
+  private getWaitUntil() {
+    const useBuiltinWaitUntil =
+      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
+
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
+    }
+
+    return waitUntil
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2284,7 +2316,6 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2326,6 +2357,8 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        waitUntil: this.getWaitUntil(),
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2359,10 +2392,15 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
+              experimental: {
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
+              waitUntil: this.getWaitUntil(),
+              onClose: res.onClose.bind(res),
             },
           }
 
@@ -2413,7 +2451,12 @@ export default abstract class Server<
             }
 
             // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response, context.renderOpts.waitUntil)
+            await sendResponse(
+              req,
+              res,
+              response,
+              context.renderOpts.pendingWaitUntil
+            )
             return null
           } catch (err) {
             // If this is during static generation, throw the error again.
@@ -2426,46 +2469,59 @@ export default abstract class Server<
 
             return null
           }
-        } else if (isPagesRouteModule(routeModule)) {
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend
-          // the object here but only updating its `clientReferenceManifest` and
-          // `nextFontManifest` properties.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-          renderOpts.clientReferenceManifest =
-            components.clientReferenceManifest
+        } else if (
+          isPagesRouteModule(routeModule) ||
+          isAppPageRouteModule(routeModule)
+        ) {
+          // An OPTIONS request to a page handler is invalid.
+          if (req.method === 'OPTIONS' && !is404Page) {
+            await sendResponse(req, res, handleBadRequestResponse())
+            return null
+          }
 
-          const request = isNodeNextRequest(req) ? req.originalRequest : req
-          const response = isNodeNextResponse(res) ? res.originalResponse : res
+          if (isPagesRouteModule(routeModule)) {
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend
+            // the object here but only updating its `clientReferenceManifest` and
+            // `nextFontManifest` properties.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+            renderOpts.clientReferenceManifest =
+              components.clientReferenceManifest
 
-          // Call the built-in render method on the module.
-          result = await routeModule.render(
-            // TODO: fix this type
-            // @ts-expect-error - preexisting accepted this
-            request,
-            response,
-            {
-              page: pathname,
+            const request = isNodeNextRequest(req) ? req.originalRequest : req
+            const response = isNodeNextResponse(res)
+              ? res.originalResponse
+              : res
+
+            // Call the built-in render method on the module.
+            result = await routeModule.render(
+              // TODO: fix this type
+              // @ts-expect-error - preexisting accepted this
+              request,
+              response,
+              {
+                page: pathname,
+                params: opts.params,
+                query,
+                renderOpts,
+              }
+            )
+          } else {
+            const module = components.routeModule as AppPageRouteModule
+
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+            // object here but only updating its `nextFontManifest` field.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+
+            // Call the built-in render method on the module.
+            result = await module.render(req, res, {
+              page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
               renderOpts,
-            }
-          )
-        } else if (isAppPageRouteModule(routeModule)) {
-          const module = components.routeModule as AppPageRouteModule
-
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-          // object here but only updating its `nextFontManifest` field.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-
-          // Call the built-in render method on the module.
-          result = await module.render(req, res, {
-            page: is404Page ? '/404' : pathname,
-            params: opts.params,
-            query,
-            renderOpts,
-          })
+            })
+          }
         } else {
           throw new Error('Invariant: Unknown route module type')
         }
