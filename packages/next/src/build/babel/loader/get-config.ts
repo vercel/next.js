@@ -7,6 +7,7 @@ import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
+import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -264,6 +265,28 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
+  const hasReactCompiler = (() => {
+    if (
+      loaderOptions.reactCompilerPlugins &&
+      loaderOptions.reactCompilerPlugins.length === 0
+    ) {
+      return false
+    }
+
+    if (
+      loaderOptions.reactCompilerExclude &&
+      loaderOptions.reactCompilerExclude(filename)
+    ) {
+      return false
+    }
+
+    return true
+  })()
+
+  const reactCompilerPluginsIfEnabled = hasReactCompiler
+    ? loaderOptions.reactCompilerPlugins ?? []
+    : []
+
   let { isServer, pagesDir, srcDir, development } = loaderOptions
 
   let options = {
@@ -302,10 +325,7 @@ function getFreshConfig(
   }
 
   if (loaderOptions.transformMode === 'standalone') {
-    options.plugins = [
-      '@babel/plugin-syntax-jsx',
-      ...(loaderOptions.plugins ?? []),
-    ]
+    options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
     options.presets = [
       [
         require('next/dist/compiled/babel/preset-typescript'),
@@ -314,7 +334,7 @@ function getFreshConfig(
     ]
     options.caller = baseCaller
   } else {
-    let { configFile, plugins, hasJsxRuntime } = loaderOptions
+    let { configFile, hasJsxRuntime } = loaderOptions
     let customConfig: any = configFile
       ? getCustomBabelConfig(configFile)
       : undefined
@@ -330,7 +350,7 @@ function getFreshConfig(
 
     options.plugins = [
       ...getPlugins(loaderOptions, cacheCharacteristics),
-      ...(plugins || []),
+      ...reactCompilerPluginsIfEnabled,
       ...(customConfig?.plugins || []),
     ]
 

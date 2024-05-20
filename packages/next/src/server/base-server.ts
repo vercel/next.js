@@ -13,8 +13,6 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type {
-  CachedAppPageValue,
-  CachedPageValue,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -145,6 +143,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import { getBuiltinWaitUntil } from './after/wait-until-builtin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -231,7 +230,14 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+export type LoadedRenderOpts = RenderOpts &
+  LoadComponentsReturnType &
+  RequestLifecycleOpts
+
+export type RequestLifecycleOpts = {
+  waitUntil: ((promise: Promise<any>) => void) | undefined
+  onClose: ((callback: () => void) => void) | undefined
+}
 
 type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
@@ -559,6 +565,7 @@ export default abstract class Server<
         isAppPPREnabled,
         swrDelta: this.nextConfig.experimental.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
+        after: this.nextConfig.experimental.after ?? false,
       },
     }
 
@@ -1657,6 +1664,26 @@ export default abstract class Server<
     )
   }
 
+  private getWaitUntil() {
+    const useBuiltinWaitUntil =
+      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
+
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
+    }
+
+    return waitUntil
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2286,7 +2313,6 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2328,6 +2354,8 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        waitUntil: this.getWaitUntil(),
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2361,10 +2389,15 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
+              experimental: {
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
+              waitUntil: this.getWaitUntil(),
+              onClose: res.onClose.bind(res),
             },
           }
 
@@ -2415,7 +2448,12 @@ export default abstract class Server<
             }
 
             // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response, context.renderOpts.waitUntil)
+            await sendResponse(
+              req,
+              res,
+              response,
+              context.renderOpts.pendingWaitUntil
+            )
             return null
           } catch (err) {
             // If this is during static generation, throw the error again.
@@ -2545,29 +2583,16 @@ export default abstract class Server<
         return null
       }
 
-      if (isAppPath) {
-        return {
-          value: {
-            kind: 'APP_PAGE',
-            html: result,
-            headers,
-            rscData: metadata.flightData,
-            postponed: metadata.postponed,
-            status: res.statusCode,
-          } satisfies CachedAppPageValue,
-          revalidate: metadata.revalidate,
-        }
-      }
-
       // We now have a valid HTML result that we can return to the user.
       return {
         value: {
           kind: 'PAGE',
           html: result,
-          pageData: metadata.pageData,
+          pageData: metadata.pageData ?? metadata.flightData,
+          postponed: metadata.postponed,
           headers,
-          status: res.statusCode,
-        } satisfies CachedPageValue,
+          status: isAppPath ? res.statusCode : undefined,
+        },
         revalidate: metadata.revalidate,
       }
     }
@@ -2680,6 +2705,7 @@ export default abstract class Server<
               value: {
                 kind: 'PAGE',
                 html: RenderResult.fromStatic(html),
+                postponed: undefined,
                 status: undefined,
                 headers: undefined,
                 pageData: {},
@@ -2748,7 +2774,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'APP_PAGE' &&
+      cacheEntry.value?.kind === 'PAGE' &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2915,11 +2941,7 @@ export default abstract class Server<
     } else if (isAppPath) {
       // If the request has a postponed state and it's a resume request we
       // should error.
-      if (
-        cachedData.kind === 'APP_PAGE' &&
-        cachedData.postponed &&
-        minimalPostponed
-      ) {
+      if (cachedData.postponed && minimalPostponed) {
         throw new Error(
           'Invariant: postponed state should not be present on a resume request'
         )
@@ -2967,11 +2989,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone if this is a data request.
-      if (
-        cachedData.kind === 'APP_PAGE' &&
-        cachedData.postponed &&
-        isRSCRequest
-      ) {
+      if (cachedData.postponed && isRSCRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -2982,15 +3000,8 @@ export default abstract class Server<
       if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
-          if (cachedData.kind !== 'APP_PAGE') {
-            console.error({ url: req.url, pathname }, cachedData)
-            throw new Error(
-              `Invariant: expected cache data kind of APP_PAGE got ${cachedData.kind}`
-            )
-          }
-
-          if (cachedData.rscData) {
-            throw new Error('Invariant: Expected rscData to be undefined')
+          if (cachedData.pageData) {
+            throw new Error('Invariant: Expected pageData to be undefined')
           }
 
           if (cachedData.postponed) {
@@ -3009,15 +3020,9 @@ export default abstract class Server<
           }
         }
 
-        if (cachedData.kind !== 'APP_PAGE') {
+        if (typeof cachedData.pageData !== 'string') {
           throw new Error(
-            `Invariant: expected cached data to be APP_PAGE got ${cachedData.kind}`
-          )
-        }
-
-        if (!Buffer.isBuffer(cachedData.rscData)) {
-          throw new Error(
-            `Invariant: expected rscData to be a Buffer, got ${typeof cachedData.rscData}`
+            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
           )
         }
 
@@ -3025,7 +3030,7 @@ export default abstract class Server<
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.rscData),
+          body: RenderResult.fromStatic(cachedData.pageData),
           revalidate: cacheEntry.revalidate,
         }
       }
@@ -3036,10 +3041,7 @@ export default abstract class Server<
       // If there's no postponed state, we should just serve the HTML. This
       // should also be the case for a resume request because it's completed
       // as a server render (rather than a static render).
-      if (
-        !(cachedData.kind === 'APP_PAGE' && cachedData.postponed) ||
-        this.minimalMode
-      ) {
+      if (!cachedData.postponed || this.minimalMode) {
         return {
           type: 'html',
           body,
@@ -3068,7 +3070,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'APP_PAGE') {
+          if (result.value?.kind !== 'PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )
@@ -3094,11 +3096,6 @@ export default abstract class Server<
         revalidate: 0,
       }
     } else if (isDataReq) {
-      if (cachedData.kind !== 'PAGE') {
-        throw new Error(
-          `Invariant: expected cached data to be PAGE got ${cachedData.kind}`
-        )
-      }
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),

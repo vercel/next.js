@@ -759,17 +759,25 @@ var actionJavaScriptURL = stringToPrecomputedChunk(
   startHiddenInputChunk = stringToPrecomputedChunk('<input type="hidden"');
 function pushAdditionalFormField(value, key) {
   this.push(startHiddenInputChunk);
-  if ("string" !== typeof value) throw Error(formatProdErrorMessage(480));
+  validateAdditionalFormField(value);
   pushStringAttribute(this, "name", key);
   pushStringAttribute(this, "value", value);
   this.push(endOfStartTagSelfClosing);
+}
+function validateAdditionalFormField(value) {
+  if ("string" !== typeof value) throw Error(formatProdErrorMessage(480));
 }
 function getCustomFormFields(resumableState, formAction) {
   if ("function" === typeof formAction.$$FORM_ACTION) {
     var id = resumableState.nextFormID++;
     resumableState = resumableState.idPrefix + id;
     try {
-      return formAction.$$FORM_ACTION(resumableState);
+      var customFields = formAction.$$FORM_ACTION(resumableState);
+      if (customFields) {
+        var formData = customFields.data;
+        null != formData && formData.forEach(validateAdditionalFormField);
+      }
+      return customFields;
     } catch (x) {
       if ("object" === typeof x && null !== x && "function" === typeof x.then)
         throw x;
@@ -6534,4 +6542,4 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-4508873393-20240430";
+exports.version = "19.0.0-experimental-04b058868c-20240508";

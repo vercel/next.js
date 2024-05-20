@@ -40,22 +40,12 @@ export interface CachedRedirectValue {
   props: Object
 }
 
-export interface CachedAppPageValue {
-  kind: 'APP_PAGE'
-  // this needs to be a RenderResult so since renderResponse
-  // expects that type instead of a string
-  html: RenderResult
-  rscData: Buffer | undefined
-  status: number | undefined
-  postponed: string | undefined
-  headers: OutgoingHttpHeaders | undefined
-}
-
-export interface CachedPageValue {
+interface CachedPageValue {
   kind: 'PAGE'
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
+  postponed: string | undefined
   pageData: Object
   status: number | undefined
   headers: OutgoingHttpHeaders | undefined
@@ -79,23 +69,13 @@ export interface CachedImageValue {
   isStale?: boolean
 }
 
-export interface IncrementalCachedAppPageValue {
-  kind: 'APP_PAGE'
-  // this needs to be a string since the cache expects to store
-  // the string value
-  html: string
-  rscData: Buffer | undefined
-  headers: OutgoingHttpHeaders | undefined
-  postponed: string | undefined
-  status: number | undefined
-}
-
-export interface IncrementalCachedPageValue {
+interface IncrementalCachedPageValue {
   kind: 'PAGE'
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
   pageData: Object
+  postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
   status: number | undefined
 }
@@ -112,7 +92,6 @@ export type IncrementalCacheEntry = {
 export type IncrementalCacheValue =
   | CachedRedirectValue
   | IncrementalCachedPageValue
-  | IncrementalCachedAppPageValue
   | CachedImageValue
   | CachedFetchValue
   | CachedRouteValue
@@ -120,7 +99,6 @@ export type IncrementalCacheValue =
 export type ResponseCacheValue =
   | CachedRedirectValue
   | CachedPageValue
-  | CachedAppPageValue
   | CachedImageValue
   | CachedRouteValue
 
