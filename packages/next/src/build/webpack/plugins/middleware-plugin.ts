@@ -28,7 +28,10 @@ import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
+} from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
@@ -272,7 +275,8 @@ function buildWebpackError({
 }
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
-  return parser.state.module?.layer === 'middleware'
+  const layer = parser.state.module?.layer
+  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.api
 }
 
 function isNodeJsModule(moduleName: string) {
@@ -840,15 +844,19 @@ export function getEdgePolyfilledModules() {
 export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
-  _contextInfo,
+  contextInfo,
   getResolve,
 }: {
   request: string
   context: string
-  _contextInfo: any
+  contextInfo: any
   getResolve: () => any
 }) {
-  if (isNodeJsModule(request) && !supportedEdgePolyfills.has(request)) {
+  if (
+    isInMiddlewareLayer(contextInfo.issuerLayer) &&
+    isNodeJsModule(request) &&
+    !supportedEdgePolyfills.has(request)
+  ) {
     // allows user to provide and use their polyfills, as we do with buffer.
     try {
       await getResolve()(context, request)
