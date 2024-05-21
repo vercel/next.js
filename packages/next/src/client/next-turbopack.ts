@@ -3,6 +3,8 @@
 
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter, hydrate } from './'
+// TODO: This seems necessary, but is a module in the `dev` directory.
+import { displayContent } from './dev/fouc'
 
 window.next = {
   version: `${version}-turbo`,
@@ -32,7 +34,7 @@ initialize({})
       )
     }
 
-    return hydrate()
+    return hydrate({ beforeRender: displayContent })
   })
   .catch((err) => {
     console.error('Error was not caught', err)
