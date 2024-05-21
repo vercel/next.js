@@ -28,8 +28,7 @@ There are 4 ways you can fetch data in Next.js:
 
 ## `fetch` API
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to allow you to configure the [caching](/docs/app/building-your-application/caching-and-revalidating#fetch-requests)
-and [revalidating](/docs/app/building-your-application/caching-and-revalidating) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to allow you to configure the [caching](/docs/app/building-your-application/caching-and-revalidating#fetch-requests) and [revalidating](/docs/app/building-your-application/caching-and-revalidating#revalidating-data) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
