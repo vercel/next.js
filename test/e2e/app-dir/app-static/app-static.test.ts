@@ -704,8 +704,6 @@ describe('app-dir static/dynamic handling', () => {
           "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
           "force-dynamic-prerender/[slug]/page.js",
           "force-dynamic-prerender/[slug]/page_client-reference-manifest.js",
-          "force-no-store-bailout/page.js",
-          "force-no-store-bailout/page_client-reference-manifest.js",
           "force-no-store/page.js",
           "force-no-store/page_client-reference-manifest.js",
           "force-static-fetch-no-store.html",
@@ -1902,17 +1900,6 @@ describe('app-dir static/dynamic handling', () => {
           },
         }
       `)
-    })
-
-    it('should output debug info for static bailouts', async () => {
-      const cleanedOutput = stripAnsi(next.cliOutput)
-
-      expect(cleanedOutput).toContain(
-        'Static generation failed due to dynamic usage on /force-static, reason: headers'
-      )
-      expect(cleanedOutput).toContain(
-        'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
-      )
     })
 
     // build cache not leveraged for custom cache handler so not seeded

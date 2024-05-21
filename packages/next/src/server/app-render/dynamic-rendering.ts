@@ -172,21 +172,6 @@ export function Postpone({
   postponeWithTracking(prerenderState, reason, pathname)
 }
 
-// @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
-// is too explicit about postponing if we are in a prerender and patch-fetch contains a lot of logic for determining
-// what makes the fetch "dynamic". It also doesn't handle Non PPR cases so it is isn't as consistent with the other
-// dynamic-rendering methods.
-export function trackDynamicFetch(
-  store: StaticGenerationStore,
-  expression: string
-) {
-  // If we aren't in a prerender, or we're in an unstable cache callback, we
-  // don't need to postpone.
-  if (!store.prerenderState || store.isUnstableCacheCallback) return
-
-  postponeWithTracking(store.prerenderState, expression, store.urlPathname)
-}
-
 function postponeWithTracking(
   prerenderState: PrerenderState,
   expression: string,

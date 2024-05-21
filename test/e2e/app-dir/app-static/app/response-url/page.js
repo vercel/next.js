@@ -1,4 +1,5 @@
-export const fetchCache = 'default-cache'
+// bail from ISR
+export const dynamic = 'force-dynamic'
 
 export default async function Page() {
   const [urlDefaultCache, valueDefaultCache] = await fetch(

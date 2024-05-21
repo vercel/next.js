@@ -1,4 +1,5 @@
-export const revalidate = 5
+// bail from ISR
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const data = await fetch(

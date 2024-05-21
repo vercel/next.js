@@ -1,3 +1,8 @@
+// bail from ISR
+export const dynamic = 'force-dynamic'
+// override root default-cache
+export const fetchCache = 'default-no-store'
+
 export default async function Page() {
   const dataNoCache = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a2',
