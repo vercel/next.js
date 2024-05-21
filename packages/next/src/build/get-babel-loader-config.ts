@@ -1,11 +1,24 @@
 import path from 'path'
 import type { ReactCompilerOptions } from '../server/config-shared'
 
+function getReactCompiler() {
+  try {
+    // It's in peerDependencies, so it should be available
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    return require.resolve('babel-plugin-react-compiler')
+  } catch {
+    throw new Error(
+      'Failed to load the `babel-plugin-react-compiler`. It is required to use the React Compiler. Please install it.'
+    )
+  }
+}
+
 const getReactCompilerPlugins = (
   options: boolean | ReactCompilerOptions | undefined,
-  isDev: boolean
+  isDev: boolean,
+  isServer: boolean
 ) => {
-  if (!options) {
+  if (!options || isServer) {
     return undefined
   }
 
@@ -13,7 +26,7 @@ const getReactCompilerPlugins = (
   if (options) {
     return [
       [
-        'babel-plugin-react-compiler',
+        getReactCompiler(),
         {
           panicThreshold: isDev ? undefined : 'NONE',
           ...compilerOptions,
@@ -34,7 +47,8 @@ const getBabelLoader = (
   srcDir: string,
   dev: boolean,
   isClient: boolean,
-  reactCompilerOptions: boolean | ReactCompilerOptions | undefined
+  reactCompilerOptions: boolean | ReactCompilerOptions | undefined,
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
   if (!useSWCLoader) {
     return {
@@ -50,7 +64,12 @@ const getBabelLoader = (
         development: dev,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
-        plugins: getReactCompilerPlugins(reactCompilerOptions, dev),
+        reactCompilerPlugins: getReactCompilerPlugins(
+          reactCompilerOptions,
+          dev,
+          isServer
+        ),
+        reactCompilerExclude,
       },
     }
   }
@@ -67,20 +86,29 @@ const getBabelLoader = (
 const getReactCompilerLoader = (
   options: boolean | ReactCompilerOptions | undefined,
   cwd: string,
-  isDev: boolean
+  isDev: boolean,
+  isServer: boolean,
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
-  if (!options) {
+  const reactCompilerPlugins = getReactCompilerPlugins(options, isDev, isServer)
+  if (!reactCompilerPlugins) {
     return undefined
   }
 
-  return {
+  const config: any = {
     loader: require.resolve('./babel/loader/index'),
     options: {
       transformMode: 'standalone',
       cwd,
-      plugins: getReactCompilerPlugins(options, isDev),
+      reactCompilerPlugins,
     },
   }
+
+  if (reactCompilerExclude) {
+    config.options.reactCompilerExclude = reactCompilerExclude
+  }
+
+  return config
 }
 
 export { getBabelLoader, getReactCompilerLoader }
