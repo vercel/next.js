@@ -23,6 +23,7 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import { isStaticGenEnabled } from '../../server/future/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 
 export const enum ExportedAppRouteFiles {
@@ -87,6 +88,12 @@ export async function exportAppRoute(
   try {
     // Route module loading and handling.
     const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
+    const userland = module.userland
+
+    if (!isStaticGenEnabled(userland)) {
+      return { revalidate: 0 }
+    }
+
     const response = await module.handle(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
