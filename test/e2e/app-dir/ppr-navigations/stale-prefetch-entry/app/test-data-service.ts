@@ -25,6 +25,9 @@ async function getTestData(key: string, isStatic: boolean): Promise<string> {
     }
     return key
   }
+  if (!isStatic) {
+    unstable_noStore()
+  }
   const response = await fetch(
     TEST_DATA_SERVICE_URL + '?' + searchParams.toString(),
     {
