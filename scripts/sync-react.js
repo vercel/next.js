@@ -189,11 +189,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   const pageSize = 50
   let changelog = []
   for (let currentPage = 0; ; currentPage++) {
-    const response = await fetch(
-      `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
-    )
+    const url = `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
+    const headers = {}
+    // GITHUB_TOKEN is optional but helps in case of rate limiting during development.
+    if (process.env.GITHUB_TOKEN) {
+      headers.Authorization = `token ${process.env.GITHUB_TOKEN}`
+    }
+    const response = await fetch(url, {
+      headers,
+    })
     if (!response.ok) {
-      throw new Error('Failed to fetch commit log from GitHub.')
+      throw new Error(
+        `${response.url}: Failed to fetch commit log from GitHub:\n${response.statusText}\n${await response.text()}`
+      )
     }
     const data = await response.json()
 
