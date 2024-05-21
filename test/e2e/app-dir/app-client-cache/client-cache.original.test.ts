@@ -8,9 +8,13 @@ import {
   getPathname,
 } from './test-utils'
 
-describe('app dir client cache semantics', () => {
+// This preserves existing tests for the 30s/5min heuristic (previous router defaults)
+describe('app dir client cache semantics (30s/5min)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      experimental: { staleTimes: { dynamic: 30, static: 180 } },
+    },
   })
 
   if (isNextDev) {
