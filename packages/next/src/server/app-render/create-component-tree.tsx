@@ -460,7 +460,9 @@ async function createComponentTreeInternal({
           parallelRouteKey,
           <LayoutRouter
             parallelRouterKey={parallelRouteKey}
-            segmentPath={createSegmentPath(currentSegmentPath)}
+            segmentPath={JSON.parse(
+              JSON.stringify(createSegmentPath(currentSegmentPath))
+            )}
             // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
             error={ErrorComponent}
             errorStyles={errorStyles}
