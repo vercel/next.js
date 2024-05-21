@@ -10,7 +10,7 @@ import { isNextRouterError } from './is-next-router-error'
  *
  * Read more: [Next.js Docs: `unstable_rethrow`](https://nextjs.org/docs/app/api-reference/functions/unstable_rethrow)
  */
-export function unstable_rethrow(error: unknown): void | never {
+export function unstable_rethrow(error: unknown): void {
   if (
     isNextRouterError(error) ||
     isBailoutToCSRError(error) ||
