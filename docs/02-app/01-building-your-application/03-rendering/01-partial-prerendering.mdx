@@ -5,11 +5,7 @@ description: Learn how to combine the benefits of static and dynamic rendering w
 
 > Partial Prerendering is an **experimental** feature and subject to change.
 
-Partial Prerendering (PPR) is a rendering strategy that combines the benefits of static and dynamic rendering on the same route.
-
-Next.js currently defaults to static rendering unless you use [dynamic functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions). These APIs opt a whole route into dynamic rendering.
-
-With PPR, you can wrap any dynamic UI in a [Suspense](https://react.dev/reference/react/Suspense) boundary. When a new request comes in, Next.js will immediately serve a static HTML shell from the cache, then render and [stream](/docs/app/building-your-application/rendering/server-components#streaming) the dynamic parts in the same HTTP request.
+Partial Prerendering (PPR) is a rendering strategy that combines the benefits of static and dynamic rendering on the same route. With PPR, you can wrap any [dynamic](/docs/app/building-your-application/rendering/dynamic-rendering) components in a [Suspense](https://react.dev/reference/react/Suspense) boundary. When a new request comes in, Next.js will immediately serve a static HTML shell from the cache, then render and [stream](/docs/app/building-your-application/rendering/server-components#streaming) the dynamic parts in the same HTTP request.
 
 <Image
   alt="Partially Prerendered Product Page showing static nav and product information, and dynamic cart and recommended products"
@@ -18,6 +14,8 @@ With PPR, you can wrap any dynamic UI in a [Suspense](https://react.dev/referenc
   width="1600"
   height="632"
 />
+
+> **🎥 Watch:** Why PPR and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
 ## Incremental Adoption (Version 15)
 
