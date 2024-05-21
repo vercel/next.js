@@ -543,7 +543,7 @@ export default async function getBaseWebpackConfig(
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: true,
+      serverComponents: false,
       bundleLayer: WEBPACK_LAYERS.middleware,
     }),
     babelLoader,
