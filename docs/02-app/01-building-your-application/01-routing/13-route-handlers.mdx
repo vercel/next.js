@@ -484,8 +484,6 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers for a specific Route Handler using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET(request: Request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -499,8 +497,6 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET(request) {
   return new Response('Hello, Next.js!', {
     status: 200,
@@ -563,8 +559,6 @@ Notably, unlike API Routes with the Pages Router, you do not need to use `bodyPa
 You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET() {
   return new Response(
     `<?xml version="1.0" encoding="UTF-8" ?>
@@ -587,8 +581,6 @@ export async function GET() {
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
-
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">

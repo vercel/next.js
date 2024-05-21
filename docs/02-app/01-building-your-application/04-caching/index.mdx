@@ -364,7 +364,7 @@ The cache is stored in the browser's temporary memory. Two factors determine how
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
 - **Automatic Invalidation Period**: The cache of an individual segment is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch):
-  - **Default Prefetching** (`prefetch={null}` or unspecified): 30 seconds
+  - **Default Prefetching** (`prefetch={null}` or unspecified): 0 seconds
   - **Full Prefetching**: (`prefetch={true}` or `router.prefetch`): 5 minutes
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
