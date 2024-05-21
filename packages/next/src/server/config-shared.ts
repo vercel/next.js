@@ -964,7 +964,7 @@ export const defaultConfig: NextConfig = {
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
-      dynamic: 30,
+      dynamic: 0,
       static: 300,
     },
     allowDevelopmentBuild: undefined,

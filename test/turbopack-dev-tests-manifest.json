@@ -2674,9 +2674,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
+  "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts": {
     "passed": [
-      "app dir client cache semantics should renew the 30s cache once the data is revalidated"
+      "app dir client cache semantics (30s/5min) should renew the 30s cache once the data is revalidated"
     ],
     "failed": [],
     "pending": [],
