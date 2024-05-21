@@ -69,7 +69,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Next.js also optimizes some libraries automatically. See the [full list](https://nextjs.org/docs/app/api-reference/next-config-js/optimizePackageImports)
+Next.js also optimizes some libraries automatically, thus they do not need to be included in the optimizePackageImports list. See the [full list](https://nextjs.org/docs/app/api-reference/next-config-js/optimizePackageImports).
 
 <PagesOnly>
 
@@ -131,5 +131,7 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+Next.js includes a list of popular packages that currently are working on compatibility and automatically opt-ed out. See the [full list](/docs/app/api-reference/next-config-js/serverExternalPackages).
 
 </AppOnly>
