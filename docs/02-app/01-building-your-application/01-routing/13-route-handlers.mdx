@@ -25,12 +25,10 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request) {}
 ```
 
@@ -49,9 +47,13 @@ In addition to supporting native [Request](https://developer.mozilla.org/docs/We
 
 ### Caching
 
-Route Handlers are cached by default when using the `GET` method with the `Response` object.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. To do so, use a route config option such as `export const dynamic = 'force-static'` in your Route Handler file.
+
+> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that integrates deeply with React is being worked on.
 
 ```ts filename="app/items/route.ts" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -66,6 +68,8 @@ export async function GET() {
 ```
 
 ```js filename="app/items/route.js" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -81,86 +85,9 @@ export async function GET() {
 
 > **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
 
-### Opting out of caching
+### Special Route Handlers
 
-You can opt out of caching by:
-
-- Using the `Request` object with the `GET` method.
-- Using any of the other HTTP methods.
-- Using [Dynamic Functions](#dynamic-functions) like `cookies` and `headers`.
-- The [Segment Config Options](#segment-config-options) manually specifies dynamic mode.
-
-For example:
-
-```ts filename="app/products/api/route.ts" switcher
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-  const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
-    },
-  })
-  const product = await res.json()
-
-  return Response.json({ product })
-}
-```
-
-```js filename="app/products/api/route.js" switcher
-export async function GET(request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-  const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
-    },
-  })
-  const product = await res.json()
-
-  return Response.json({ product })
-}
-```
-
-Similarly, the `POST` method will cause the Route Handler to be evaluated dynamically.
-
-```ts filename="app/items/route.ts" switcher
-export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
-    },
-    body: JSON.stringify({ time: new Date().toISOString() }),
-  })
-
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-```js filename="app/items/route.js" switcher
-export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
-    },
-    body: JSON.stringify({ time: new Date().toISOString() }),
-  })
-
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-> **Good to know**: Like API Routes, Route Handlers can be used for cases like handling form submissions. A new abstraction for [handling forms and mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that integrates deeply with React is being worked on.
+Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons) are static by default unless they use dynamic functions or dynamic config options.
 
 ### Route Resolution
 
