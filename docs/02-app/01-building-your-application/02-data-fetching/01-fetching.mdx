@@ -15,20 +15,20 @@ For most cases, where you don't need real-time data (e.g. polling), you can fetc
 - You can fetch data in a single server-round trip, reducing the number of network requests and client-server waterfalls.
 - Prevent sensitive information, such as access tokens and API keys, from being exposed to the client (which would require an intermediate API route).
 - Reduce latency by fetching data close to the source (if your application code and database are in the same region).
-- Data requests can be [cached](/docs/app/building-your-application/data-fetching/caching-and-revalidating#caching) and [revalidated](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating).
+- Data requests can be [cached](/docs/app/building-your-application/data-fetching/caching-and-revalidating#caching) and [revalidated](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data).
 
 However, server-side data fetching will cause the whole page to be re-rendered on the server. In cases where you need to mutate/revalidate smaller pieces of UI or continually fetch real-time data (e.g. live views), client-side data fetching might be better suited, as it'll allow you to re-render the specific piece of UI on the client.
 
 There are 4 ways you can fetch data in Next.js:
 
-- [`fetch` API](#using-fetch) on the server.
+- [`fetch` API](#fetch-api) on the server.
 - [ORMs or Database Clients](#orms-and-database-clients) on the server.
 - [Route Handlers](#route-handlers) on the server, via the client.
 - [Data Fetching Libraries](#data-fetching-libraries) on the client.
 
 ## `fetch` API
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to allow you to configure the [caching](/docs/app/building-your-application/caching-and-revalidating#fetch-requests) and [revalidating](/docs/app/building-your-application/caching-and-revalidating#revalidating-data) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
