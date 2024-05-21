@@ -144,7 +144,9 @@ Or, run this command with no arguments to use the most recently published versio
         `GitHub reported no changes between ${baseSha} and ${newSha}.`
       )
     } else {
-      console.log(`### React upstream changes\n\n${changelog}\n\n`)
+      console.log(
+        `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+      )
     }
   } catch (error) {
     console.error(error)
