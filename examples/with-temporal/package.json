@@ -15,7 +15,7 @@
     "node-fetch": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "temporalio": "^0.17.2"
+    "temporalio": "^1.9.1"
   },
   "devDependencies": {
     "@babel/core": "7.22.5",
