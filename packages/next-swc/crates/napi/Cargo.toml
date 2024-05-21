@@ -85,6 +85,7 @@ napi = { version = "2", default-features = false, features = [
 ] }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
+rand = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
