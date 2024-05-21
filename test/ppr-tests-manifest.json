@@ -16,6 +16,11 @@
         "app dir client cache semantics (30s/5min) prefetch={undefined} - default should refetch the full page after 5 mins"
       ]
     },
+    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+      "failed": [
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
+      ]
+    },
     "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
       "failed": [
         "headers-static-bailout it provides a helpful link in case static generation bailout is uncaught"

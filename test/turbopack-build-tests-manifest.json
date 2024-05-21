@@ -1076,6 +1076,7 @@
         "app dir - basic <Link /> should push to external url",
         "app dir - basic <Link /> should replace to external url",
         "app dir - basic <Link /> should soft push",
+        "app dir - basic <Link /> should soft replace",
         "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
         "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
         "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
@@ -1173,7 +1174,6 @@
         "app dir - basic template component should render the template that is a server component and rerender on navigation"
       ],
       "pending": [
-        "app dir - basic <Link /> should soft replace",
         "app dir - basic known bugs should support React fetch instrumentation client component",
         "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",
         "app dir - basic should handle css imports in next/dynamic correctly",
