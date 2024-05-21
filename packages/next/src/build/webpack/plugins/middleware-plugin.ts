@@ -853,7 +853,8 @@ export async function handleWebpackExternalForEdgeRuntime({
   getResolve: () => any
 }) {
   if (
-    isInMiddlewareLayer(contextInfo.issuerLayer) &&
+    (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
+      contextInfo.issuerLayer === WEBPACK_LAYERS.api) &&
     isNodeJsModule(request) &&
     !supportedEdgePolyfills.has(request)
   ) {
