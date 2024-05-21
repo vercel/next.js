@@ -87,7 +87,7 @@ See the [caching and revalidating](/docs/app/building-your-application/data-fetc
 
 ### Request Memoization
 
-If you need to fetch the same data in multiple components in a tree, you do not have to fetch data globally and pass props down. Instead, you can fetch data in the component that needs it without worrying about the performance implications of making multiple requests for the same data.
+If you need to fetch the same data in multiple components in a tree, you do not have to fetch data globally and pass props down. Instead, you can fetch data in the components that need the data without worrying about the performance implications of making multiple requests for the same data.
 
 This is possible because `fetch` requests with the same URL and options are automatically memoized during a React render pass.
 
@@ -165,9 +165,9 @@ You can also configure the caching and revalidating behavior of these requests u
 
 ## Data Fetching Libraries
 
-You can fetch data in Client Components using data fetching libraries such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries provide their APIs for caching, revalidating, and mutating data.
+You can fetch data in Client Components using data fetching libraries such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries provide their own APIs for caching, revalidating, and mutating data.
 
-For example, using SWR to fetch data periodically fetch data on the client:
+For example, using SWR to fetch data periodically on the client:
 
 ```tsx filename="app/page.tsx switcher
 "use client"
@@ -229,7 +229,7 @@ export default function Message() {
 }
 ```
 
-```tsx filename="app/api/messages.ts" switcher
+```tsx filename="app/api/messages/route.ts" switcher
 export async function GET() {
   const data = await fetch('https://...', {
     headers: {
@@ -242,7 +242,7 @@ export async function GET() {
 }
 ```
 
-```js filename="app/api/messages.js" switcher
+```js filename="app/api/messages/route.js" switcher
 export async function GET() {
   const data = await fetch('https://...', {
     headers: {
