@@ -144,7 +144,9 @@ Or, run this command with no arguments to use the most recently published versio
         `GitHub reported no changes between ${baseSha} and ${newSha}.`
       )
     } else {
-      console.log(`### React upstream changes\n\n${changelog}\n\n`)
+      console.log(
+        `<details>\n<summary>React upstream changes</summary>\n\n${changelog}\n\n</details>`
+      )
     }
   } catch (error) {
     console.error(error)
@@ -187,11 +189,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   const pageSize = 50
   let changelog = []
   for (let currentPage = 0; ; currentPage++) {
-    const response = await fetch(
-      `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
-    )
+    const url = `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
+    const headers = {}
+    // GITHUB_TOKEN is optional but helps in case of rate limiting during development.
+    if (process.env.GITHUB_TOKEN) {
+      headers.Authorization = `token ${process.env.GITHUB_TOKEN}`
+    }
+    const response = await fetch(url, {
+      headers,
+    })
     if (!response.ok) {
-      throw new Error('Failed to fetch commit log from GitHub.')
+      throw new Error(
+        `${response.url}: Failed to fetch commit log from GitHub:\n${response.statusText}\n${await response.text()}`
+      )
     }
     const data = await response.json()
 
@@ -215,7 +225,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
       }
     }
 
-    if (commits.length !== pageSize) {
+    if (commits.length < pageSize) {
       // If the number of commits is less than the page size, we've reached
       // the end. Otherwise we'll keep fetching until we run out.
       break
