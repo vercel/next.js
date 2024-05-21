@@ -359,6 +359,26 @@ function createPatchedFetcher(
           staticGenerationStore.urlPathname
         )
 
+        const _headers = getRequestMeta('headers')
+        const initHeaders: Headers =
+          typeof _headers?.get === 'function'
+            ? _headers
+            : new Headers(_headers || {})
+
+        const hasUnCacheableHeader =
+          initHeaders.get('authorization') || initHeaders.get('cookie')
+
+        const isUnCacheableMethod = !['get', 'head'].includes(
+          getRequestMeta('method')?.toLowerCase() || 'get'
+        )
+
+        // if there are authorized headers or a POST method and
+        // dynamic data usage was present above the tree we bail
+        // e.g. if cookies() is used before an authed/POST fetch
+        const autoNoCache =
+          (hasUnCacheableHeader || isUnCacheableMethod) &&
+          staticGenerationStore.revalidate === 0
+
         switch (fetchCacheMode) {
           case 'force-no-store': {
             cacheReason = 'fetchCache = force-no-store'
@@ -399,7 +419,7 @@ function createPatchedFetcher(
           // simplify the switch case and ensure we have an exhaustive switch handling all modes
         }
 
-        if (typeof finalRevalidate === 'undefined') {
+        if (!autoNoCache && typeof finalRevalidate === 'undefined') {
           if (fetchCacheMode === 'default-cache') {
             finalRevalidate = false
             cacheReason = 'fetchCache = default-cache'
