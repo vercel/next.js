@@ -14,6 +14,7 @@ export declare function ABeeZee<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -26,6 +27,7 @@ export declare function ADLaM_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -44,6 +46,7 @@ export declare function AR_One_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -57,6 +60,7 @@ export declare function Abel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -75,6 +79,7 @@ export declare function Abhaya_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -87,6 +92,7 @@ export declare function Aboreto<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -99,6 +105,7 @@ export declare function Abril_Fatface<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -111,6 +118,7 @@ export declare function Abyssinica_SIL<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -123,6 +131,7 @@ export declare function Aclonica<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -135,6 +144,7 @@ export declare function Acme<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -147,6 +157,7 @@ export declare function Actor<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -159,6 +170,7 @@ export declare function Adamina<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -184,6 +196,7 @@ export declare function Advent_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -203,6 +216,7 @@ export declare function Afacad<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -217,6 +231,7 @@ export declare function Agbalumo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -229,6 +244,7 @@ export declare function Agdasima<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -241,6 +257,7 @@ export declare function Aguafina_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -260,6 +277,7 @@ export declare function Akatab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -272,6 +290,7 @@ export declare function Akaya_Kanadaka<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -284,6 +303,7 @@ export declare function Akaya_Telivigala<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -296,6 +316,7 @@ export declare function Akronim<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -315,6 +336,7 @@ export declare function Akshar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -327,6 +349,7 @@ export declare function Aladin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -339,6 +362,7 @@ export declare function Alata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -351,6 +375,7 @@ export declare function Alatsi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -376,6 +401,7 @@ export declare function Albert_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -388,6 +414,7 @@ export declare function Aldrich<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -400,6 +427,7 @@ export declare function Alef<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -420,6 +448,7 @@ export declare function Alegreya<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -446,6 +475,7 @@ export declare function Alegreya_SC<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -474,6 +504,7 @@ export declare function Alegreya_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -502,6 +533,7 @@ export declare function Alegreya_Sans_SC<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -535,6 +567,7 @@ export declare function Aleo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -547,6 +580,7 @@ export declare function Alex_Brush<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -572,6 +606,7 @@ export declare function Alexandria<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -584,6 +619,7 @@ export declare function Alfa_Slab_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -596,6 +632,7 @@ export declare function Alice<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -608,6 +645,7 @@ export declare function Alike<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -620,6 +658,7 @@ export declare function Alike_Angular<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -632,6 +671,7 @@ export declare function Alkalami<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -650,6 +690,7 @@ export declare function Alkatra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -662,6 +703,7 @@ export declare function Allan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -674,6 +716,7 @@ export declare function Allerta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -686,6 +729,7 @@ export declare function Allerta_Stencil<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -698,6 +742,7 @@ export declare function Allison<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -710,6 +755,7 @@ export declare function Allura<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -722,6 +768,7 @@ export declare function Almarai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -734,6 +781,7 @@ export declare function Almendra<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -746,6 +794,7 @@ export declare function Almendra_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -758,6 +807,7 @@ export declare function Almendra_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -783,6 +833,7 @@ export declare function Alumni_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -797,6 +848,7 @@ export declare function Alumni_Sans_Collegiate_One<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -809,6 +861,7 @@ export declare function Alumni_Sans_Inline_One<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -821,6 +874,7 @@ export declare function Alumni_Sans_Pinstripe<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -835,6 +889,7 @@ export declare function Amarante<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -847,6 +902,7 @@ export declare function Amaranth<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -859,6 +915,7 @@ export declare function Amatic_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -871,6 +928,7 @@ export declare function Amethysta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -883,6 +941,7 @@ export declare function Amiko<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -895,6 +954,7 @@ export declare function Amiri<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -907,6 +967,7 @@ export declare function Amiri_Quran<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -919,6 +980,7 @@ export declare function Amita<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -931,6 +993,7 @@ export declare function Anaheim<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -950,6 +1013,7 @@ export declare function Andada_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -962,6 +1026,7 @@ export declare function Andika<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -986,6 +1051,7 @@ export declare function Anek_Bangla<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1009,6 +1075,7 @@ export declare function Anek_Devanagari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1032,6 +1099,7 @@ export declare function Anek_Gujarati<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1055,6 +1123,7 @@ export declare function Anek_Gurmukhi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1078,6 +1147,7 @@ export declare function Anek_Kannada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1101,6 +1171,7 @@ export declare function Anek_Latin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1124,6 +1195,7 @@ export declare function Anek_Malayalam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1147,6 +1219,7 @@ export declare function Anek_Odia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1170,6 +1243,7 @@ export declare function Anek_Tamil<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1193,6 +1267,7 @@ export declare function Anek_Telugu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1206,6 +1281,7 @@ export declare function Angkor<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1218,6 +1294,7 @@ export declare function Annapurna_SIL<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1230,6 +1307,7 @@ export declare function Annie_Use_Your_Telescope<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1242,6 +1320,7 @@ export declare function Anonymous_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1254,6 +1333,7 @@ export declare function Anta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1266,6 +1346,7 @@ export declare function Antic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1278,6 +1359,7 @@ export declare function Antic_Didone<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1290,6 +1372,7 @@ export declare function Antic_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1302,6 +1385,7 @@ export declare function Anton<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1323,6 +1407,7 @@ export declare function Antonio<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1344,6 +1429,7 @@ export declare function Anuphan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1371,6 +1457,7 @@ export declare function Anybody<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1384,6 +1471,7 @@ export declare function Aoboshi_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1396,6 +1484,7 @@ export declare function Arapey<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1408,6 +1497,7 @@ export declare function Arbutus<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1420,6 +1510,7 @@ export declare function Arbutus_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1432,6 +1523,7 @@ export declare function Architects_Daughter<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1457,6 +1549,7 @@ export declare function Archivo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1470,6 +1563,7 @@ export declare function Archivo_Black<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1488,6 +1582,7 @@ export declare function Archivo_Narrow<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1500,6 +1595,7 @@ export declare function Are_You_Serious<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1512,6 +1608,7 @@ export declare function Aref_Ruqaa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1524,6 +1621,7 @@ export declare function Aref_Ruqaa_Ink<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1545,6 +1643,7 @@ export declare function Arima<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1571,6 +1670,7 @@ export declare function Arimo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1592,6 +1692,7 @@ export declare function Arizonia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1604,6 +1705,7 @@ export declare function Armata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1616,6 +1718,7 @@ export declare function Arsenal<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1630,6 +1733,7 @@ export declare function Artifika<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1642,6 +1746,7 @@ export declare function Arvo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1654,6 +1759,7 @@ export declare function Arya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1679,6 +1785,7 @@ export declare function Asap<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1701,6 +1808,7 @@ export declare function Asap_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1713,6 +1821,7 @@ export declare function Asar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1725,6 +1834,7 @@ export declare function Asset<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1746,6 +1856,7 @@ export declare function Assistant<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1758,6 +1869,7 @@ export declare function Astloch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1770,6 +1882,7 @@ export declare function Asul<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1789,6 +1902,7 @@ export declare function Athiti<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1801,6 +1915,7 @@ export declare function Atkinson_Hyperlegible<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1819,6 +1934,7 @@ export declare function Atma<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1831,6 +1947,7 @@ export declare function Atomic_Age<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1843,6 +1960,7 @@ export declare function Aubrey<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1855,6 +1973,7 @@ export declare function Audiowide<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1867,6 +1986,7 @@ export declare function Autour_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1879,6 +1999,7 @@ export declare function Average<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1891,6 +2012,7 @@ export declare function Average_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1903,6 +2025,7 @@ export declare function Averia_Gruesa_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1915,6 +2038,7 @@ export declare function Averia_Libre<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1927,6 +2051,7 @@ export declare function Averia_Sans_Libre<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1939,6 +2064,7 @@ export declare function Averia_Serif_Libre<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1964,6 +2090,7 @@ export declare function Azeret_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1976,6 +2103,7 @@ export declare function B612<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -1988,6 +2116,7 @@ export declare function B612_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2000,6 +2129,7 @@ export declare function BIZ_UDGothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2012,6 +2142,7 @@ export declare function BIZ_UDMincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2024,6 +2155,7 @@ export declare function BIZ_UDPGothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2036,6 +2168,7 @@ export declare function BIZ_UDPMincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2048,6 +2181,7 @@ export declare function Babylonica<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2060,6 +2194,7 @@ export declare function Bacasime_Antique<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2072,6 +2207,7 @@ export declare function Bad_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2084,6 +2220,7 @@ export declare function Bagel_Fat_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2096,6 +2233,7 @@ export declare function Bahiana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2108,6 +2246,7 @@ export declare function Bahianita<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2127,6 +2266,7 @@ export declare function Bai_Jamjuree<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2139,6 +2279,7 @@ export declare function Bakbak_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2151,6 +2292,7 @@ export declare function Ballet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2171,6 +2313,7 @@ export declare function Baloo_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2190,6 +2333,7 @@ export declare function Baloo_Bhai_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2209,6 +2353,7 @@ export declare function Baloo_Bhaijaan_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2228,6 +2373,7 @@ export declare function Baloo_Bhaina_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2247,6 +2393,7 @@ export declare function Baloo_Chettan_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2266,6 +2413,7 @@ export declare function Baloo_Da_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2285,6 +2433,7 @@ export declare function Baloo_Paaji_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2304,6 +2453,7 @@ export declare function Baloo_Tamma_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2323,6 +2473,7 @@ export declare function Baloo_Tammudu_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2342,6 +2493,7 @@ export declare function Baloo_Thambi_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2354,6 +2506,7 @@ export declare function Balsamiq_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2366,6 +2519,7 @@ export declare function Balthazar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2378,6 +2532,7 @@ export declare function Bangers<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2402,6 +2557,7 @@ export declare function Barlow<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2426,6 +2582,7 @@ export declare function Barlow_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2450,6 +2607,7 @@ export declare function Barlow_Semi_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2462,6 +2620,7 @@ export declare function Barriecito<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2474,6 +2633,7 @@ export declare function Barrio<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2486,6 +2646,7 @@ export declare function Basic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2498,6 +2659,7 @@ export declare function Baskervville<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2516,6 +2678,7 @@ export declare function Battambang<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2528,6 +2691,7 @@ export declare function Baumans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2540,6 +2704,7 @@ export declare function Bayon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2564,6 +2729,7 @@ export declare function Be_Vietnam_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2576,6 +2742,7 @@ export declare function Beau_Rivage<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2588,6 +2755,7 @@ export declare function Bebas_Neue<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2600,6 +2768,7 @@ export declare function Belanosima<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2612,6 +2781,7 @@ export declare function Belgrano<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2624,6 +2794,7 @@ export declare function Bellefair<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2636,6 +2807,7 @@ export declare function Belleza<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2648,6 +2820,7 @@ export declare function Bellota<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2660,6 +2833,7 @@ export declare function Bellota_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2672,6 +2846,7 @@ export declare function BenchNine<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2684,6 +2859,7 @@ export declare function Benne<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2696,6 +2872,7 @@ export declare function Bentham<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2708,6 +2885,7 @@ export declare function Berkshire_Swash<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2728,6 +2906,7 @@ export declare function Besley<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2740,6 +2919,7 @@ export declare function Beth_Ellen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2752,6 +2932,7 @@ export declare function Bevan<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2764,6 +2945,7 @@ export declare function BhuTuka_Expanded_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2789,6 +2971,7 @@ export declare function Big_Shoulders_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2814,6 +2997,7 @@ export declare function Big_Shoulders_Inline_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2839,6 +3023,7 @@ export declare function Big_Shoulders_Inline_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2864,6 +3049,7 @@ export declare function Big_Shoulders_Stencil_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2889,6 +3075,7 @@ export declare function Big_Shoulders_Stencil_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2914,6 +3101,7 @@ export declare function Big_Shoulders_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2926,6 +3114,7 @@ export declare function Bigelow_Rules<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2938,6 +3127,7 @@ export declare function Bigshot_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2950,6 +3140,7 @@ export declare function Bilbo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2962,6 +3153,7 @@ export declare function Bilbo_Swash_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -2983,6 +3175,7 @@ export declare function BioRhyme<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3002,6 +3195,7 @@ export declare function BioRhyme_Expanded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3014,6 +3208,7 @@ export declare function Birthstone<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3026,6 +3221,7 @@ export declare function Birthstone_Bounce<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3046,6 +3242,7 @@ export declare function Biryani<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3071,6 +3268,7 @@ export declare function Bitter<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3085,6 +3283,7 @@ export declare function Black_And_White_Picture<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3097,6 +3296,7 @@ export declare function Black_Han_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3109,6 +3309,7 @@ export declare function Black_Ops_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3121,6 +3322,7 @@ export declare function Blaka<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3133,6 +3335,7 @@ export declare function Blaka_Hollow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3145,6 +3348,7 @@ export declare function Blaka_Ink<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3166,6 +3370,7 @@ export declare function Blinker<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3186,6 +3391,7 @@ export declare function Bodoni_Moda<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3199,6 +3405,7 @@ export declare function Bokor<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3211,6 +3418,7 @@ export declare function Bona_Nova<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3231,6 +3439,7 @@ export declare function Bonbon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3243,6 +3452,7 @@ export declare function Bonheur_Royale<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3255,6 +3465,7 @@ export declare function Boogaloo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3267,6 +3478,7 @@ export declare function Borel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3279,6 +3491,7 @@ export declare function Bowlby_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3291,6 +3504,7 @@ export declare function Bowlby_One_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3303,6 +3517,7 @@ export declare function Braah_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3315,6 +3530,7 @@ export declare function Brawler<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3327,6 +3543,7 @@ export declare function Bree_Serif<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3348,6 +3565,7 @@ export declare function Bricolage_Grotesque<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3361,6 +3579,7 @@ export declare function Bruno_Ace<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3373,6 +3592,7 @@ export declare function Bruno_Ace_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3391,6 +3611,7 @@ export declare function Brygada_1918<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3405,6 +3626,7 @@ export declare function Bubblegum_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3417,6 +3639,7 @@ export declare function Bubbler_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3429,6 +3652,7 @@ export declare function Buda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3441,6 +3665,7 @@ export declare function Buenard<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3453,6 +3678,7 @@ export declare function Bungee<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3465,6 +3691,7 @@ export declare function Bungee_Hairline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3477,6 +3704,7 @@ export declare function Bungee_Inline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3489,6 +3717,7 @@ export declare function Bungee_Outline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3501,6 +3730,7 @@ export declare function Bungee_Shade<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3513,6 +3743,7 @@ export declare function Bungee_Spice<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3525,6 +3756,7 @@ export declare function Butcherman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3537,6 +3769,7 @@ export declare function Butterfly_Kids<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3555,6 +3788,7 @@ export declare function Cabin<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3568,6 +3802,7 @@ export declare function Cabin_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3580,6 +3815,7 @@ export declare function Cabin_Sketch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3592,6 +3828,7 @@ export declare function Caesar_Dressing<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3604,6 +3841,7 @@ export declare function Cagliostro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3629,6 +3867,7 @@ export declare function Cairo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3655,6 +3894,7 @@ export declare function Cairo_Play<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3668,6 +3908,7 @@ export declare function Caladea<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3680,6 +3921,7 @@ export declare function Calistoga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3692,6 +3934,7 @@ export declare function Calligraffitti<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3704,6 +3947,7 @@ export declare function Cambay<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3716,6 +3960,7 @@ export declare function Cambo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3728,6 +3973,7 @@ export declare function Candal<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3740,6 +3986,7 @@ export declare function Cantarell<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3752,6 +3999,7 @@ export declare function Cantata_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3764,6 +4012,7 @@ export declare function Cantora_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3776,6 +4025,7 @@ export declare function Caprasimo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3788,6 +4038,7 @@ export declare function Capriola<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3800,6 +4051,7 @@ export declare function Caramel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3812,6 +4064,7 @@ export declare function Carattere<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3824,6 +4077,7 @@ export declare function Cardo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3836,6 +4090,7 @@ export declare function Carlito<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3856,6 +4111,7 @@ export declare function Carme<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3868,6 +4124,7 @@ export declare function Carrois_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3880,6 +4137,7 @@ export declare function Carrois_Gothic_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3892,6 +4150,7 @@ export declare function Carter_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3904,6 +4163,7 @@ export declare function Castoro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3916,6 +4176,7 @@ export declare function Castoro_Titling<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3941,6 +4202,7 @@ export declare function Catamaran<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3953,6 +4215,7 @@ export declare function Caudex<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3971,6 +4234,7 @@ export declare function Caveat<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3983,6 +4247,7 @@ export declare function Caveat_Brush<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -3995,6 +4260,7 @@ export declare function Cedarville_Cursive<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4007,6 +4273,7 @@ export declare function Ceviche_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4025,6 +4292,7 @@ export declare function Chakra_Petch<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4046,6 +4314,7 @@ export declare function Changa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4058,6 +4327,7 @@ export declare function Changa_One<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4070,6 +4340,7 @@ export declare function Chango<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4082,6 +4353,7 @@ export declare function Charis_SIL<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4096,6 +4368,7 @@ export declare function Charm<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4108,6 +4381,7 @@ export declare function Charmonman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4126,6 +4400,7 @@ export declare function Chathura<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4138,6 +4413,7 @@ export declare function Chau_Philomene_One<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4150,6 +4426,7 @@ export declare function Chela_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4162,6 +4439,7 @@ export declare function Chelsea_Market<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4174,6 +4452,7 @@ export declare function Chenla<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4186,6 +4465,7 @@ export declare function Cherish<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4198,6 +4478,7 @@ export declare function Cherry_Bomb_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4210,6 +4491,7 @@ export declare function Cherry_Cream_Soda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4222,6 +4504,7 @@ export declare function Cherry_Swash<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4234,6 +4517,7 @@ export declare function Chewy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4246,6 +4530,7 @@ export declare function Chicle<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4258,6 +4543,7 @@ export declare function Chilanka<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4283,6 +4569,7 @@ export declare function Chivo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4308,6 +4595,7 @@ export declare function Chivo_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4320,6 +4608,7 @@ export declare function Chokokutai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4332,6 +4621,7 @@ export declare function Chonburi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4352,6 +4642,7 @@ export declare function Cinzel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4364,6 +4655,7 @@ export declare function Cinzel_Decorative<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4376,6 +4668,7 @@ export declare function Clicker_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4388,6 +4681,7 @@ export declare function Climate_Crisis<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4401,6 +4695,7 @@ export declare function Coda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4413,6 +4708,7 @@ export declare function Codystar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4425,6 +4721,7 @@ export declare function Coiny<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4437,6 +4734,7 @@ export declare function Combo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4456,6 +4754,7 @@ export declare function Comfortaa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4470,6 +4769,7 @@ export declare function Comforter<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4482,6 +4782,7 @@ export declare function Comforter_Brush<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4494,6 +4795,7 @@ export declare function Comic_Neue<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4506,6 +4808,7 @@ export declare function Coming_Soon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4531,6 +4834,7 @@ export declare function Comme<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4556,6 +4860,7 @@ export declare function Commissioner<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4571,6 +4876,7 @@ export declare function Concert_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4583,6 +4889,7 @@ export declare function Condiment<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4595,6 +4902,7 @@ export declare function Content<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4607,6 +4915,7 @@ export declare function Contrail_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4619,6 +4928,7 @@ export declare function Convergence<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4631,6 +4941,7 @@ export declare function Cookie<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4643,6 +4954,7 @@ export declare function Copse<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4655,6 +4967,7 @@ export declare function Corben<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4667,6 +4980,7 @@ export declare function Corinthia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4686,6 +5000,7 @@ export declare function Cormorant<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4706,6 +5021,7 @@ export declare function Cormorant_Garamond<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4726,6 +5042,7 @@ export declare function Cormorant_Infant<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4746,6 +5063,7 @@ export declare function Cormorant_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4766,6 +5084,7 @@ export declare function Cormorant_Unicase<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4786,6 +5105,7 @@ export declare function Cormorant_Upright<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4798,6 +5118,7 @@ export declare function Courgette<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4810,6 +5131,7 @@ export declare function Courier_Prime<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4822,6 +5144,7 @@ export declare function Cousine<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4843,6 +5166,7 @@ export declare function Coustard<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4855,6 +5179,7 @@ export declare function Covered_By_Your_Grace<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4867,6 +5192,7 @@ export declare function Crafty_Girls<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4879,6 +5205,7 @@ export declare function Creepster<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4891,6 +5218,7 @@ export declare function Crete_Round<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4913,6 +5241,7 @@ export declare function Crimson_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4925,6 +5254,7 @@ export declare function Crimson_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4937,6 +5267,7 @@ export declare function Croissant_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4949,6 +5280,7 @@ export declare function Crushed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4967,6 +5299,7 @@ export declare function Cuprum<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4981,6 +5314,7 @@ export declare function Cute_Font<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -4993,6 +5327,7 @@ export declare function Cutive<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5005,6 +5340,7 @@ export declare function Cutive_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5017,6 +5353,7 @@ export declare function DM_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5052,6 +5389,7 @@ export declare function DM_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5065,6 +5403,7 @@ export declare function DM_Serif_Display<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5077,6 +5416,7 @@ export declare function DM_Serif_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5095,6 +5435,7 @@ export declare function Dai_Banna_SIL<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5107,6 +5448,7 @@ export declare function Damion<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5125,6 +5467,7 @@ export declare function Dancing_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5137,6 +5480,7 @@ export declare function Danfo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5150,6 +5494,7 @@ export declare function Dangrek<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5171,6 +5516,7 @@ export declare function Darker_Grotesque<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5183,6 +5529,7 @@ export declare function Darumadrop_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5195,6 +5542,7 @@ export declare function David_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5209,6 +5557,7 @@ export declare function Dawning_of_a_New_Day<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5221,6 +5570,7 @@ export declare function Days_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5233,6 +5583,7 @@ export declare function Dekko<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5245,6 +5596,7 @@ export declare function Dela_Gothic_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5257,6 +5609,7 @@ export declare function Delicious_Handrawn<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5269,6 +5622,7 @@ export declare function Delius<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5281,6 +5635,7 @@ export declare function Delius_Swash_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5293,6 +5648,7 @@ export declare function Delius_Unicase<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5305,6 +5661,7 @@ export declare function Della_Respira<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5317,6 +5674,7 @@ export declare function Denk_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5329,6 +5687,7 @@ export declare function Devonshire<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5341,6 +5700,7 @@ export declare function Dhurjati<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5353,6 +5713,7 @@ export declare function Didact_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5367,6 +5728,7 @@ export declare function Diphylleia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5379,6 +5741,7 @@ export declare function Diplomata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5391,6 +5754,7 @@ export declare function Diplomata_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5403,6 +5767,7 @@ export declare function Do_Hyeon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5415,6 +5780,7 @@ export declare function Dokdo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5433,6 +5799,7 @@ export declare function Domine<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5445,6 +5812,7 @@ export declare function Donegal_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5457,6 +5825,7 @@ export declare function Dongle<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5469,6 +5838,7 @@ export declare function Doppio_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5481,6 +5851,7 @@ export declare function Dorsa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5502,6 +5873,7 @@ export declare function Dosis<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5514,6 +5886,7 @@ export declare function DotGothic16<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5526,6 +5899,7 @@ export declare function Dr_Sugiyama<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5538,6 +5912,7 @@ export declare function Duru_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5556,6 +5931,7 @@ export declare function DynaPuff<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5569,6 +5945,7 @@ export declare function Dynalight<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5588,6 +5965,7 @@ export declare function EB_Garamond<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5608,6 +5986,7 @@ export declare function Eagle_Lake<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5620,6 +5999,7 @@ export declare function East_Sea_Dokdo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5632,6 +6012,7 @@ export declare function Eater<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5644,6 +6025,7 @@ export declare function Economica<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5663,6 +6045,7 @@ export declare function Eczar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5681,6 +6064,7 @@ export declare function Edu_NSW_ACT_Foundation<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5699,6 +6083,7 @@ export declare function Edu_QLD_Beginner<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5717,6 +6102,7 @@ export declare function Edu_SA_Beginner<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5735,6 +6121,7 @@ export declare function Edu_TAS_Beginner<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5753,6 +6140,7 @@ export declare function Edu_VIC_WA_NT_Beginner<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5771,6 +6159,7 @@ export declare function El_Messiri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5783,6 +6172,7 @@ export declare function Electrolize<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5795,6 +6185,7 @@ export declare function Elsie<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5807,6 +6198,7 @@ export declare function Elsie_Swash_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5819,6 +6211,7 @@ export declare function Emblema_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5831,6 +6224,7 @@ export declare function Emilys_Candy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5856,6 +6250,7 @@ export declare function Encode_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5881,6 +6276,7 @@ export declare function Encode_Sans_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5905,6 +6301,7 @@ export declare function Encode_Sans_Expanded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5930,6 +6327,7 @@ export declare function Encode_Sans_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5955,6 +6353,7 @@ export declare function Encode_Sans_Semi_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5979,6 +6378,7 @@ export declare function Encode_Sans_Semi_Expanded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -5991,6 +6391,7 @@ export declare function Engagement<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6003,6 +6404,7 @@ export declare function Englebert<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6015,6 +6417,7 @@ export declare function Enriqueta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6027,6 +6430,7 @@ export declare function Ephesis<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6052,6 +6456,7 @@ export declare function Epilogue<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6064,6 +6469,7 @@ export declare function Erica_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6076,6 +6482,7 @@ export declare function Esteban<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6088,6 +6495,7 @@ export declare function Estonia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6100,6 +6508,7 @@ export declare function Euphoria_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6112,6 +6521,7 @@ export declare function Ewert<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6137,6 +6547,7 @@ export declare function Exo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6162,6 +6573,7 @@ export declare function Exo_2<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6182,6 +6594,7 @@ export declare function Expletus_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6194,6 +6607,7 @@ export declare function Explora<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6213,6 +6627,7 @@ export declare function Fahkwang<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6231,6 +6646,7 @@ export declare function Familjen_Grotesk<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6243,6 +6659,7 @@ export declare function Fanwood_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6255,6 +6672,7 @@ export declare function Farro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6267,6 +6685,7 @@ export declare function Farsan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6279,6 +6698,7 @@ export declare function Fascinate<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6291,6 +6711,7 @@ export declare function Fascinate_Inline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6303,6 +6724,7 @@ export declare function Faster_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6315,6 +6737,7 @@ export declare function Fasthand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6327,6 +6750,7 @@ export declare function Fauna_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6347,6 +6771,7 @@ export declare function Faustina<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6359,6 +6784,7 @@ export declare function Federant<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6371,6 +6797,7 @@ export declare function Federo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6383,6 +6810,7 @@ export declare function Felipa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6395,6 +6823,7 @@ export declare function Fenix<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6407,6 +6836,7 @@ export declare function Festive<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6428,6 +6858,7 @@ export declare function Figtree<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6440,6 +6871,7 @@ export declare function Finger_Paint<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6458,6 +6890,7 @@ export declare function Finlandica<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6477,6 +6910,7 @@ export declare function Fira_Code<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6491,6 +6925,7 @@ export declare function Fira_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6517,6 +6952,7 @@ export declare function Fira_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6549,6 +6985,7 @@ export declare function Fira_Sans_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6581,6 +7018,7 @@ export declare function Fira_Sans_Extra_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6601,6 +7039,7 @@ export declare function Fjalla_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6613,6 +7052,7 @@ export declare function Fjord_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6625,6 +7065,7 @@ export declare function Flamenco<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6637,6 +7078,7 @@ export declare function Flavors<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6649,6 +7091,7 @@ export declare function Fleur_De_Leah<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6661,6 +7104,7 @@ export declare function Flow_Block<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6675,6 +7119,7 @@ export declare function Flow_Circular<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6689,6 +7134,7 @@ export declare function Flow_Rounded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6716,6 +7162,7 @@ export declare function Foldit<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6728,6 +7175,7 @@ export declare function Fondamento<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6740,6 +7188,7 @@ export declare function Fontdiner_Swanky<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6752,6 +7201,7 @@ export declare function Forum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6764,6 +7214,7 @@ export declare function Fragment_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6776,6 +7227,7 @@ export declare function Francois_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6797,6 +7249,7 @@ export declare function Frank_Ruhl_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6822,6 +7275,7 @@ export declare function Fraunces<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6835,6 +7289,7 @@ export declare function Freckle_Face<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6847,6 +7302,7 @@ export declare function Fredericka_the_Great<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6866,6 +7322,7 @@ export declare function Fredoka<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6879,6 +7336,7 @@ export declare function Freehand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6891,6 +7349,7 @@ export declare function Freeman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6903,6 +7362,7 @@ export declare function Fresca<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6915,6 +7375,7 @@ export declare function Frijole<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6927,6 +7388,7 @@ export declare function Fruktur<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6939,6 +7401,7 @@ export declare function Fugaz_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6951,6 +7414,7 @@ export declare function Fuggles<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6963,6 +7427,7 @@ export declare function Fuzzy_Bubbles<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6975,6 +7440,7 @@ export declare function GFS_Didot<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -6987,6 +7453,7 @@ export declare function GFS_Neohellenic<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7007,6 +7474,7 @@ export declare function Gabarito<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7019,6 +7487,7 @@ export declare function Gabriela<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7031,6 +7500,7 @@ export declare function Gaegu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7043,6 +7513,7 @@ export declare function Gafata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7055,6 +7526,7 @@ export declare function Gajraj_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7067,6 +7539,7 @@ export declare function Galada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7079,6 +7552,7 @@ export declare function Galdeano<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7091,6 +7565,7 @@ export declare function Galindo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7103,6 +7578,7 @@ export declare function Gamja_Flower<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7128,6 +7604,7 @@ export declare function Gantari<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7140,6 +7617,7 @@ export declare function Gasoek_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7152,6 +7630,7 @@ export declare function Gayathri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7170,6 +7649,7 @@ export declare function Gelasio<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7191,6 +7671,7 @@ export declare function Gemunu_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7216,6 +7697,7 @@ export declare function Genos<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7228,6 +7710,7 @@ export declare function Gentium_Book_Plus<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7248,6 +7731,7 @@ export declare function Gentium_Plus<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7268,6 +7752,7 @@ export declare function Geo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7293,6 +7778,7 @@ export declare function Geologica<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7321,6 +7807,7 @@ export declare function Georama<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7334,6 +7821,7 @@ export declare function Geostar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7346,6 +7834,7 @@ export declare function Geostar_Fill<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7358,6 +7847,7 @@ export declare function Germania_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7370,6 +7860,7 @@ export declare function Gideon_Roman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7382,6 +7873,7 @@ export declare function Gidugu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7394,6 +7886,7 @@ export declare function Gilda_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7406,6 +7899,7 @@ export declare function Girassol<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7418,6 +7912,7 @@ export declare function Give_You_Glory<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7430,6 +7925,7 @@ export declare function Glass_Antiqua<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7442,6 +7938,7 @@ export declare function Glegoo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7454,6 +7951,7 @@ export declare function Gloock<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7466,6 +7964,7 @@ export declare function Gloria_Hallelujah<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7488,6 +7987,7 @@ export declare function Glory<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7513,6 +8013,7 @@ export declare function Gluten<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7526,6 +8027,7 @@ export declare function Goblin_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7538,6 +8040,7 @@ export declare function Gochi_Hand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7550,6 +8053,7 @@ export declare function Goldman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7570,6 +8074,7 @@ export declare function Golos_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7582,6 +8087,7 @@ export declare function Gorditas<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7606,6 +8112,7 @@ export declare function Gothic_A1<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7618,6 +8125,7 @@ export declare function Gotu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7630,6 +8138,7 @@ export declare function Goudy_Bookletter_1911<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7642,6 +8151,7 @@ export declare function Gowun_Batang<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7654,6 +8164,7 @@ export declare function Gowun_Dodum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7666,6 +8177,7 @@ export declare function Graduate<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7678,6 +8190,7 @@ export declare function Grand_Hotel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7690,6 +8203,7 @@ export declare function Grandiflora_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7715,6 +8229,7 @@ export declare function Grandstander<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7727,6 +8242,7 @@ export declare function Grape_Nuts<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7739,6 +8255,7 @@ export declare function Gravitas_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7751,6 +8268,7 @@ export declare function Great_Vibes<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7770,6 +8288,7 @@ export declare function Grechen_Fuemen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7794,6 +8313,7 @@ export declare function Grenze<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7819,6 +8339,7 @@ export declare function Grenze_Gotisch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7831,6 +8352,7 @@ export declare function Grey_Qo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7843,6 +8365,7 @@ export declare function Griffy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7855,6 +8378,7 @@ export declare function Gruppo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7867,6 +8391,7 @@ export declare function Gudea<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7879,6 +8404,7 @@ export declare function Gugi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7891,6 +8417,7 @@ export declare function Gulzar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7903,6 +8430,7 @@ export declare function Gupter<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7915,6 +8443,7 @@ export declare function Gurajada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7927,6 +8456,7 @@ export declare function Gwendolyn<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7939,6 +8469,7 @@ export declare function Habibi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7951,6 +8482,7 @@ export declare function Hachi_Maru_Pop<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7976,6 +8508,7 @@ export declare function Hahmlet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -7994,6 +8527,7 @@ export declare function Halant<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8006,6 +8540,7 @@ export declare function Hammersmith_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8018,6 +8553,7 @@ export declare function Hanalei<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8030,6 +8566,7 @@ export declare function Hanalei_Fill<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8055,6 +8592,7 @@ export declare function Handjet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8078,6 +8616,7 @@ export declare function Handlee<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8103,6 +8642,7 @@ export declare function Hanken_Grotesk<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8121,6 +8661,7 @@ export declare function Hanuman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8133,6 +8674,7 @@ export declare function Happy_Monkey<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8145,6 +8687,7 @@ export declare function Harmattan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8157,6 +8700,7 @@ export declare function Headland_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8169,6 +8713,7 @@ export declare function Hedvig_Letters_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8181,6 +8726,7 @@ export declare function Hedvig_Letters_Serif<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8207,6 +8753,7 @@ export declare function Heebo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8219,6 +8766,7 @@ export declare function Henny_Penny<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8254,6 +8802,7 @@ export declare function Hepta_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8266,6 +8815,7 @@ export declare function Herr_Von_Muellerhoff<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8278,6 +8828,7 @@ export declare function Hi_Melody<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8290,6 +8841,7 @@ export declare function Hina_Mincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8308,6 +8860,7 @@ export declare function Hind<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8326,6 +8879,7 @@ export declare function Hind_Guntur<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8344,6 +8898,7 @@ export declare function Hind_Madurai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8362,6 +8917,7 @@ export declare function Hind_Siliguri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8380,6 +8936,7 @@ export declare function Hind_Vadodara<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8392,6 +8949,7 @@ export declare function Holtwood_One_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8404,6 +8962,7 @@ export declare function Homemade_Apple<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8416,6 +8975,7 @@ export declare function Homenaje<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8428,6 +8988,7 @@ export declare function Honk<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8441,6 +9002,7 @@ export declare function Hubballi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8453,6 +9015,7 @@ export declare function Hurricane<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8473,6 +9036,7 @@ export declare function IBM_Plex_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8495,6 +9059,7 @@ export declare function IBM_Plex_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8517,6 +9082,7 @@ export declare function IBM_Plex_Sans_Arabic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8537,6 +9103,7 @@ export declare function IBM_Plex_Sans_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8557,6 +9124,7 @@ export declare function IBM_Plex_Sans_Devanagari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8577,6 +9145,7 @@ export declare function IBM_Plex_Sans_Hebrew<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8597,6 +9166,7 @@ export declare function IBM_Plex_Sans_JP<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8617,6 +9187,7 @@ export declare function IBM_Plex_Sans_KR<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8637,6 +9208,7 @@ export declare function IBM_Plex_Sans_Thai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8657,6 +9229,7 @@ export declare function IBM_Plex_Sans_Thai_Looped<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8677,6 +9250,7 @@ export declare function IBM_Plex_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8691,6 +9265,7 @@ export declare function IM_Fell_DW_Pica<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8703,6 +9278,7 @@ export declare function IM_Fell_DW_Pica_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8715,6 +9291,7 @@ export declare function IM_Fell_Double_Pica<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8727,6 +9304,7 @@ export declare function IM_Fell_Double_Pica_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8739,6 +9317,7 @@ export declare function IM_Fell_English<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8751,6 +9330,7 @@ export declare function IM_Fell_English_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8763,6 +9343,7 @@ export declare function IM_Fell_French_Canon<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8775,6 +9356,7 @@ export declare function IM_Fell_French_Canon_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8787,6 +9369,7 @@ export declare function IM_Fell_Great_Primer<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8799,6 +9382,7 @@ export declare function IM_Fell_Great_Primer_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8817,6 +9401,7 @@ export declare function Ibarra_Real_Nova<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8829,6 +9414,7 @@ export declare function Iceberg<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8841,6 +9427,7 @@ export declare function Iceland<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8866,6 +9453,7 @@ export declare function Imbue<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8879,6 +9467,7 @@ export declare function Imperial_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8891,6 +9480,7 @@ export declare function Imprima<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8903,6 +9493,7 @@ export declare function Inclusive_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8925,6 +9516,7 @@ export declare function Inconsolata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8938,6 +9530,7 @@ export declare function Inder<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8950,6 +9543,7 @@ export declare function Indie_Flower<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8962,6 +9556,7 @@ export declare function Ingrid_Darling<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8974,6 +9569,7 @@ export declare function Inika<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -8994,6 +9590,7 @@ export declare function Inknut_Antiqua<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9006,6 +9603,7 @@ export declare function Inria_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9018,6 +9616,7 @@ export declare function Inria_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9030,6 +9629,7 @@ export declare function Inspiration<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9048,6 +9648,7 @@ export declare function Instrument_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9061,6 +9662,7 @@ export declare function Instrument_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9086,6 +9688,7 @@ export declare function Inter<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9120,6 +9723,7 @@ export declare function Inter_Tight<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9140,6 +9744,7 @@ export declare function Irish_Grover<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9152,6 +9757,7 @@ export declare function Island_Moments<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9164,6 +9770,7 @@ export declare function Istok_Web<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9176,6 +9783,7 @@ export declare function Italiana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9188,6 +9796,7 @@ export declare function Italianno<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9200,6 +9809,7 @@ export declare function Itim<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9212,6 +9822,7 @@ export declare function Jacquard_12<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9224,6 +9835,7 @@ export declare function Jacquard_12_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9236,6 +9848,7 @@ export declare function Jacquard_24<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9248,6 +9861,7 @@ export declare function Jacquard_24_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9260,6 +9874,7 @@ export declare function Jacquarda_Bastarda_9<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9272,6 +9887,7 @@ export declare function Jacquarda_Bastarda_9_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9284,6 +9900,7 @@ export declare function Jacques_Francois<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9296,6 +9913,7 @@ export declare function Jacques_Francois_Shadow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9308,6 +9926,7 @@ export declare function Jaini<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9320,6 +9939,7 @@ export declare function Jaini_Purva<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9332,6 +9952,7 @@ export declare function Jaldi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9344,6 +9965,7 @@ export declare function Jaro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9357,6 +9979,7 @@ export declare function Jersey_10<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9369,6 +9992,7 @@ export declare function Jersey_10_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9381,6 +10005,7 @@ export declare function Jersey_15<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9393,6 +10018,7 @@ export declare function Jersey_15_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9405,6 +10031,7 @@ export declare function Jersey_20<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9417,6 +10044,7 @@ export declare function Jersey_20_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9429,6 +10057,7 @@ export declare function Jersey_25<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9441,6 +10070,7 @@ export declare function Jersey_25_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9463,6 +10093,7 @@ export declare function JetBrains_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9477,6 +10108,7 @@ export declare function Jim_Nightshade<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9489,6 +10121,7 @@ export declare function Joan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9501,6 +10134,7 @@ export declare function Jockey_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9513,6 +10147,7 @@ export declare function Jolly_Lodger<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9525,6 +10160,7 @@ export declare function Jomhuria<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9537,6 +10173,7 @@ export declare function Jomolhari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9558,6 +10195,7 @@ export declare function Josefin_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9579,6 +10217,7 @@ export declare function Josefin_Slab<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9604,6 +10243,7 @@ export declare function Jost<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9616,6 +10256,7 @@ export declare function Joti_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9628,6 +10269,7 @@ export declare function Jua<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9640,6 +10282,7 @@ export declare function Judson<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9652,6 +10295,7 @@ export declare function Julee<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9664,6 +10308,7 @@ export declare function Julius_Sans_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9676,6 +10321,7 @@ export declare function Junge<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9695,6 +10341,7 @@ export declare function Jura<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9716,6 +10363,7 @@ export declare function Just_Another_Hand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9728,6 +10376,7 @@ export declare function Just_Me_Again_Down_Here<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9749,6 +10398,7 @@ export declare function K2D<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9761,6 +10411,7 @@ export declare function Kablammo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9776,6 +10427,7 @@ export declare function Kadwa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9788,6 +10440,7 @@ export declare function Kaisei_Decol<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9800,6 +10453,7 @@ export declare function Kaisei_HarunoUmi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9812,6 +10466,7 @@ export declare function Kaisei_Opti<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9824,6 +10479,7 @@ export declare function Kaisei_Tokumin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9836,6 +10492,7 @@ export declare function Kalam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9857,6 +10514,7 @@ export declare function Kalnia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9876,6 +10534,7 @@ export declare function Kameron<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9900,6 +10559,7 @@ export declare function Kanit<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9921,6 +10581,7 @@ export declare function Kantumruy_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9933,6 +10594,7 @@ export declare function Karantina<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9954,6 +10616,7 @@ export declare function Karla<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9972,6 +10635,7 @@ export declare function Karma<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9984,6 +10648,7 @@ export declare function Katibeh<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -9996,6 +10661,7 @@ export declare function Kaushan_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10008,6 +10674,7 @@ export declare function Kavivanar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10020,6 +10687,7 @@ export declare function Kavoon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10032,6 +10700,7 @@ export declare function Kay_Pho_Du<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10044,6 +10713,7 @@ export declare function Kdam_Thmor_Pro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10056,6 +10726,7 @@ export declare function Keania_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10068,6 +10739,7 @@ export declare function Kelly_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10080,6 +10752,7 @@ export declare function Kenia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10098,6 +10771,7 @@ export declare function Khand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10110,6 +10784,7 @@ export declare function Khmer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10128,6 +10803,7 @@ export declare function Khula<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10140,6 +10816,7 @@ export declare function Kings<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10152,6 +10829,7 @@ export declare function Kirang_Haerang<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10164,6 +10842,7 @@ export declare function Kite_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10176,6 +10855,7 @@ export declare function Kiwi_Maru<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10188,6 +10868,7 @@ export declare function Klee_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10200,6 +10881,7 @@ export declare function Knewave<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10219,6 +10901,7 @@ export declare function KoHo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10238,6 +10921,7 @@ export declare function Kodchasan<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10256,6 +10940,7 @@ export declare function Kode_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10274,6 +10959,7 @@ export declare function Koh_Santepheap<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10286,6 +10972,7 @@ export declare function Kolker_Brush<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10298,6 +10985,7 @@ export declare function Konkhmer_Sleokchher<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10310,6 +10998,7 @@ export declare function Kosugi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10322,6 +11011,7 @@ export declare function Kosugi_Maru<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10334,6 +11024,7 @@ export declare function Kotta_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10346,6 +11037,7 @@ export declare function Koulen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10358,6 +11050,7 @@ export declare function Kranky<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10377,6 +11070,7 @@ export declare function Kreon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10389,6 +11083,7 @@ export declare function Kristi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10401,6 +11096,7 @@ export declare function Krona_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10420,6 +11116,7 @@ export declare function Krub<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10440,6 +11137,7 @@ export declare function Kufam<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10458,6 +11156,7 @@ export declare function Kulim_Park<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10470,6 +11169,7 @@ export declare function Kumar_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10482,6 +11182,7 @@ export declare function Kumar_One_Outline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10507,6 +11208,7 @@ export declare function Kumbh_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10520,6 +11222,7 @@ export declare function Kurale<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10534,6 +11237,7 @@ export declare function La_Belle_Aurore<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10559,6 +11263,7 @@ export declare function Labrada<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10571,6 +11276,7 @@ export declare function Lacquer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10589,6 +11295,7 @@ export declare function Laila<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10601,6 +11308,7 @@ export declare function Lakki_Reddy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10613,6 +11321,7 @@ export declare function Lalezar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10625,6 +11334,7 @@ export declare function Lancelot<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10637,6 +11347,7 @@ export declare function Langar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10657,6 +11368,7 @@ export declare function Lateef<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10675,6 +11387,7 @@ export declare function Lato<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10687,6 +11400,7 @@ export declare function Lavishly_Yours<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10699,6 +11413,7 @@ export declare function League_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10712,6 +11427,7 @@ export declare function League_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10737,6 +11453,7 @@ export declare function League_Spartan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10749,6 +11466,7 @@ export declare function Leckerli_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10761,6 +11479,7 @@ export declare function Ledger<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10773,6 +11492,7 @@ export declare function Lekton<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10785,6 +11505,7 @@ export declare function Lemon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10804,6 +11525,7 @@ export declare function Lemonada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10829,6 +11551,7 @@ export declare function Lexend<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10854,6 +11577,7 @@ export declare function Lexend_Deca<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10879,6 +11603,7 @@ export declare function Lexend_Exa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10904,6 +11629,7 @@ export declare function Lexend_Giga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10929,6 +11655,7 @@ export declare function Lexend_Mega<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10954,6 +11681,7 @@ export declare function Lexend_Peta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -10979,6 +11707,7 @@ export declare function Lexend_Tera<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11004,6 +11733,7 @@ export declare function Lexend_Zetta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11016,6 +11746,7 @@ export declare function Libre_Barcode_128<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11028,6 +11759,7 @@ export declare function Libre_Barcode_128_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11040,6 +11772,7 @@ export declare function Libre_Barcode_39<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11052,6 +11785,7 @@ export declare function Libre_Barcode_39_Extended<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11064,6 +11798,7 @@ export declare function Libre_Barcode_39_Extended_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11076,6 +11811,7 @@ export declare function Libre_Barcode_39_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11088,6 +11824,7 @@ export declare function Libre_Barcode_EAN13_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11100,6 +11837,7 @@ export declare function Libre_Baskerville<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11118,6 +11856,7 @@ export declare function Libre_Bodoni<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11130,6 +11869,7 @@ export declare function Libre_Caslon_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11142,6 +11882,7 @@ export declare function Libre_Caslon_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11167,6 +11908,7 @@ export declare function Libre_Franklin<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11179,6 +11921,7 @@ export declare function Licorice<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11191,6 +11934,7 @@ export declare function Life_Savers<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11203,6 +11947,7 @@ export declare function Lilita_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11215,6 +11960,7 @@ export declare function Lily_Script_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11227,6 +11973,7 @@ export declare function Limelight<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11239,6 +11986,7 @@ export declare function Linden_Hill<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11274,6 +12022,7 @@ export declare function Linefont<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
 
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11296,6 +12045,7 @@ export declare function Lisu_Bosa<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11318,6 +12068,7 @@ export declare function Literata<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11339,6 +12090,7 @@ export declare function Liu_Jian_Mao_Cao<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11360,6 +12112,7 @@ export declare function Livvic<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11372,6 +12125,7 @@ export declare function Lobster<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11386,6 +12140,7 @@ export declare function Lobster_Two<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11398,6 +12153,7 @@ export declare function Londrina_Outline<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11410,6 +12166,7 @@ export declare function Londrina_Shadow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11422,6 +12179,7 @@ export declare function Londrina_Sketch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11434,6 +12192,7 @@ export declare function Londrina_Solid<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11446,6 +12205,7 @@ export declare function Long_Cang<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11464,6 +12224,7 @@ export declare function Lora<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11484,6 +12245,7 @@ export declare function Love_Light<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11496,6 +12258,7 @@ export declare function Love_Ya_Like_A_Sister<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11508,6 +12271,7 @@ export declare function Loved_by_the_King<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11520,6 +12284,7 @@ export declare function Lovers_Quarrel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11532,6 +12297,7 @@ export declare function Luckiest_Guy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11544,6 +12310,7 @@ export declare function Lugrasimo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11556,6 +12323,7 @@ export declare function Lumanosimo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11568,6 +12336,7 @@ export declare function Lunasima<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11589,6 +12358,7 @@ export declare function Lusitana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11601,6 +12371,7 @@ export declare function Lustria<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11613,6 +12384,7 @@ export declare function Luxurious_Roman<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11625,6 +12397,7 @@ export declare function Luxurious_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11650,6 +12423,7 @@ export declare function M_PLUS_1<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11671,6 +12445,7 @@ export declare function M_PLUS_1_Code<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11691,6 +12466,7 @@ export declare function M_PLUS_1p<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11725,6 +12501,7 @@ export declare function M_PLUS_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11746,6 +12523,7 @@ export declare function M_PLUS_Code_Latin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11767,6 +12545,7 @@ export declare function M_PLUS_Rounded_1c<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11788,6 +12567,7 @@ export declare function Ma_Shan_Zheng<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11800,6 +12580,7 @@ export declare function Macondo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11812,6 +12593,7 @@ export declare function Macondo_Swash_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11834,6 +12616,7 @@ export declare function Mada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11846,6 +12629,7 @@ export declare function Madimi_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11858,6 +12642,7 @@ export declare function Magra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11870,6 +12655,7 @@ export declare function Maiden_Orange<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11889,6 +12675,7 @@ export declare function Maitree<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11901,6 +12688,7 @@ export declare function Major_Mono_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11913,6 +12701,7 @@ export declare function Mako<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11932,6 +12721,7 @@ export declare function Mali<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11944,6 +12734,7 @@ export declare function Mallanna<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11956,6 +12747,7 @@ export declare function Mandali<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11968,6 +12760,7 @@ export declare function Manjari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -11989,6 +12782,7 @@ export declare function Manrope<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12003,6 +12797,7 @@ export declare function Mansalva<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12023,6 +12818,7 @@ export declare function Manuale<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12035,6 +12831,7 @@ export declare function Marcellus<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12047,6 +12844,7 @@ export declare function Marcellus_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12059,6 +12857,7 @@ export declare function Marck_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12071,6 +12870,7 @@ export declare function Margarine<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12090,6 +12890,7 @@ export declare function Marhey<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12108,6 +12909,7 @@ export declare function Markazi_Text<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12120,6 +12922,7 @@ export declare function Marko_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12132,6 +12935,7 @@ export declare function Marmelad<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12154,6 +12958,7 @@ export declare function Martel<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12174,6 +12979,7 @@ export declare function Martel_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12196,6 +13002,7 @@ export declare function Martian_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12209,6 +13016,7 @@ export declare function Marvel<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12221,6 +13029,7 @@ export declare function Mate<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12233,6 +13042,7 @@ export declare function Mate_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12253,6 +13063,7 @@ export declare function Maven_Pro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12265,6 +13076,7 @@ export declare function McLaren<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12277,6 +13089,7 @@ export declare function Mea_Culpa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12289,6 +13102,7 @@ export declare function Meddon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12301,6 +13115,7 @@ export declare function MedievalSharp<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12313,6 +13128,7 @@ export declare function Medula_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12325,6 +13141,7 @@ export declare function Meera_Inimai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12337,6 +13154,7 @@ export declare function Megrim<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12349,6 +13167,7 @@ export declare function Meie_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12361,6 +13180,7 @@ export declare function Meow_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12382,6 +13202,7 @@ export declare function Merienda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12394,6 +13215,7 @@ export declare function Merriweather<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12416,6 +13238,7 @@ export declare function Merriweather_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12428,6 +13251,7 @@ export declare function Metal<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12440,6 +13264,7 @@ export declare function Metal_Mania<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12452,6 +13277,7 @@ export declare function Metamorphous<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12464,6 +13290,7 @@ export declare function Metrophobic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12476,6 +13303,7 @@ export declare function Michroma<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12488,6 +13316,7 @@ export declare function Micro_5<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12500,6 +13329,7 @@ export declare function Micro_5_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12512,6 +13342,7 @@ export declare function Milonga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12524,6 +13355,7 @@ export declare function Miltonian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12536,6 +13368,7 @@ export declare function Miltonian_Tattoo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12548,6 +13381,7 @@ export declare function Mina<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12560,6 +13394,7 @@ export declare function Mingzat<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12572,6 +13407,7 @@ export declare function Miniver<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12584,6 +13420,7 @@ export declare function Miriam_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12596,6 +13433,7 @@ export declare function Mirza<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12608,6 +13446,7 @@ export declare function Miss_Fajardose<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12627,6 +13466,7 @@ export declare function Mitr<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12639,6 +13479,7 @@ export declare function Mochiy_Pop_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12651,6 +13492,7 @@ export declare function Mochiy_Pop_P_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12663,6 +13505,7 @@ export declare function Modak<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12675,6 +13518,7 @@ export declare function Modern_Antiqua<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12687,6 +13531,7 @@ export declare function Mogra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12706,6 +13551,7 @@ export declare function Mohave<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12718,6 +13564,7 @@ export declare function Moirai_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12730,6 +13577,7 @@ export declare function Molengo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12742,6 +13590,7 @@ export declare function Molle<
   style?: 'italic' | Array<'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12754,6 +13603,7 @@ export declare function Monda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12766,6 +13616,7 @@ export declare function Monofett<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12778,6 +13629,7 @@ export declare function Monomaniac_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12790,6 +13642,7 @@ export declare function Monoton<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12802,6 +13655,7 @@ export declare function Monsieur_La_Doulaise<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12814,6 +13668,7 @@ export declare function Montaga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12835,6 +13690,7 @@ export declare function Montagu_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12848,6 +13704,7 @@ export declare function MonteCarlo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12860,6 +13717,7 @@ export declare function Montez<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12885,6 +13743,7 @@ export declare function Montserrat<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12911,6 +13770,7 @@ export declare function Montserrat_Alternates<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12925,6 +13785,7 @@ export declare function Montserrat_Subrayada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12937,6 +13798,7 @@ export declare function Moo_Lah_Lah<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12949,6 +13811,7 @@ export declare function Mooli<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12961,6 +13824,7 @@ export declare function Moon_Dance<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12973,6 +13837,7 @@ export declare function Moul<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12985,6 +13850,7 @@ export declare function Moulpali<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -12997,6 +13863,7 @@ export declare function Mountains_of_Christmas<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13009,6 +13876,7 @@ export declare function Mouse_Memoirs<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13021,6 +13889,7 @@ export declare function Mr_Bedfort<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13033,6 +13902,7 @@ export declare function Mr_Dafoe<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13045,6 +13915,7 @@ export declare function Mr_De_Haviland<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13057,6 +13928,7 @@ export declare function Mrs_Saint_Delafield<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13069,6 +13941,7 @@ export declare function Mrs_Sheppards<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13081,6 +13954,7 @@ export declare function Ms_Madi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13101,6 +13975,7 @@ export declare function Mukta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13121,6 +13996,7 @@ export declare function Mukta_Mahee<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13141,6 +14017,7 @@ export declare function Mukta_Malar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13161,6 +14038,7 @@ export declare function Mukta_Vaani<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13186,6 +14064,7 @@ export declare function Mulish<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13213,6 +14092,7 @@ export declare function Murecho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13238,6 +14118,7 @@ export declare function MuseoModerno<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13250,6 +14131,7 @@ export declare function My_Soul<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13262,6 +14144,7 @@ export declare function Mynerve<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13274,6 +14157,7 @@ export declare function Mystery_Quest<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13286,6 +14170,7 @@ export declare function NTR<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13298,6 +14183,7 @@ export declare function Nabla<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13319,6 +14205,7 @@ export declare function Namdhinggo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13331,6 +14218,7 @@ export declare function Nanum_Brush_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13343,6 +14231,7 @@ export declare function Nanum_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13355,6 +14244,7 @@ export declare function Nanum_Gothic_Coding<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13367,6 +14257,7 @@ export declare function Nanum_Myeongjo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13379,6 +14270,7 @@ export declare function Nanum_Pen_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13397,6 +14289,7 @@ export declare function Narnoor<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13409,6 +14302,7 @@ export declare function Neonderthaw<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13421,6 +14315,7 @@ export declare function Nerko_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13433,6 +14328,7 @@ export declare function Neucha<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13451,6 +14347,7 @@ export declare function Neuton<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13463,6 +14360,7 @@ export declare function New_Rocker<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13475,6 +14373,7 @@ export declare function New_Tegomin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13487,6 +14386,7 @@ export declare function News_Cycle<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13508,6 +14408,7 @@ export declare function Newsreader<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13521,6 +14422,7 @@ export declare function Niconne<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13540,6 +14442,7 @@ export declare function Niramit<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13552,6 +14455,7 @@ export declare function Nixie_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13564,6 +14468,7 @@ export declare function Nobile<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13582,6 +14487,7 @@ export declare function Nokora<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13594,6 +14500,7 @@ export declare function Norican<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13606,6 +14513,7 @@ export declare function Nosifer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13618,6 +14526,7 @@ export declare function Notable<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13630,6 +14539,7 @@ export declare function Nothing_You_Could_Do<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13642,6 +14552,7 @@ export declare function Noticia_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13654,6 +14565,7 @@ export declare function Noto_Color_Emoji<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13673,6 +14585,7 @@ export declare function Noto_Emoji<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13698,6 +14611,7 @@ export declare function Noto_Kufi_Arabic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13710,6 +14624,7 @@ export declare function Noto_Music<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13728,6 +14643,7 @@ export declare function Noto_Naskh_Arabic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13746,6 +14662,7 @@ export declare function Noto_Nastaliq_Urdu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13771,6 +14688,7 @@ export declare function Noto_Rashi_Hebrew<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13796,6 +14714,7 @@ export declare function Noto_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13824,6 +14743,7 @@ export declare function Noto_Sans_Adlam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13842,6 +14762,7 @@ export declare function Noto_Sans_Adlam_Unjoined<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13854,6 +14775,7 @@ export declare function Noto_Sans_Anatolian_Hieroglyphs<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13879,6 +14801,7 @@ export declare function Noto_Sans_Arabic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13905,6 +14828,7 @@ export declare function Noto_Sans_Armenian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13918,6 +14842,7 @@ export declare function Noto_Sans_Avestan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13936,6 +14861,7 @@ export declare function Noto_Sans_Balinese<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13954,6 +14880,7 @@ export declare function Noto_Sans_Bamum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13972,6 +14899,7 @@ export declare function Noto_Sans_Bassa_Vah<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -13984,6 +14912,7 @@ export declare function Noto_Sans_Batak<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14009,6 +14938,7 @@ export declare function Noto_Sans_Bengali<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14022,6 +14952,7 @@ export declare function Noto_Sans_Bhaiksuki<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14034,6 +14965,7 @@ export declare function Noto_Sans_Brahmi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14046,6 +14978,7 @@ export declare function Noto_Sans_Buginese<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14058,6 +14991,7 @@ export declare function Noto_Sans_Buhid<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14083,6 +15017,7 @@ export declare function Noto_Sans_Canadian_Aboriginal<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14097,6 +15032,7 @@ export declare function Noto_Sans_Carian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14109,6 +15045,7 @@ export declare function Noto_Sans_Caucasian_Albanian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14121,6 +15058,7 @@ export declare function Noto_Sans_Chakma<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14146,6 +15084,7 @@ export declare function Noto_Sans_Cham<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14171,6 +15110,7 @@ export declare function Noto_Sans_Cherokee<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14183,6 +15123,7 @@ export declare function Noto_Sans_Chorasmian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14195,6 +15136,7 @@ export declare function Noto_Sans_Coptic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14207,6 +15149,7 @@ export declare function Noto_Sans_Cuneiform<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14219,6 +15162,7 @@ export declare function Noto_Sans_Cypriot<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14231,6 +15175,7 @@ export declare function Noto_Sans_Cypro_Minoan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14243,6 +15188,7 @@ export declare function Noto_Sans_Deseret<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14268,6 +15214,7 @@ export declare function Noto_Sans_Devanagari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14294,6 +15241,7 @@ export declare function Noto_Sans_Display<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14315,6 +15263,7 @@ export declare function Noto_Sans_Duployan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14327,6 +15276,7 @@ export declare function Noto_Sans_Egyptian_Hieroglyphs<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14339,6 +15289,7 @@ export declare function Noto_Sans_Elbasan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14351,6 +15302,7 @@ export declare function Noto_Sans_Elymaic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14376,6 +15328,7 @@ export declare function Noto_Sans_Ethiopic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14402,6 +15355,7 @@ export declare function Noto_Sans_Georgian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14423,6 +15377,7 @@ export declare function Noto_Sans_Glagolitic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14437,6 +15392,7 @@ export declare function Noto_Sans_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14449,6 +15405,7 @@ export declare function Noto_Sans_Grantha<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14474,6 +15431,7 @@ export declare function Noto_Sans_Gujarati<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14493,6 +15451,7 @@ export declare function Noto_Sans_Gunjala_Gondi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14518,6 +15477,7 @@ export declare function Noto_Sans_Gurmukhi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14544,6 +15504,7 @@ export declare function Noto_Sans_HK<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14562,6 +15523,7 @@ export declare function Noto_Sans_Hanifi_Rohingya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14574,6 +15536,7 @@ export declare function Noto_Sans_Hanunoo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14586,6 +15549,7 @@ export declare function Noto_Sans_Hatran<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14611,6 +15575,7 @@ export declare function Noto_Sans_Hebrew<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14624,6 +15589,7 @@ export declare function Noto_Sans_Imperial_Aramaic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14636,6 +15602,7 @@ export declare function Noto_Sans_Indic_Siyaq_Numbers<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14648,6 +15615,7 @@ export declare function Noto_Sans_Inscriptional_Pahlavi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14660,6 +15628,7 @@ export declare function Noto_Sans_Inscriptional_Parthian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14685,6 +15654,7 @@ export declare function Noto_Sans_JP<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14703,6 +15673,7 @@ export declare function Noto_Sans_Javanese<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14728,6 +15699,7 @@ export declare function Noto_Sans_KR<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14740,6 +15712,7 @@ export declare function Noto_Sans_Kaithi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14765,6 +15738,7 @@ export declare function Noto_Sans_Kannada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14784,6 +15758,7 @@ export declare function Noto_Sans_Kawi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14802,6 +15777,7 @@ export declare function Noto_Sans_Kayah_Li<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14814,6 +15790,7 @@ export declare function Noto_Sans_Kharoshthi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14839,6 +15816,7 @@ export declare function Noto_Sans_Khmer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14852,6 +15830,7 @@ export declare function Noto_Sans_Khojki<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14864,6 +15843,7 @@ export declare function Noto_Sans_Khudawadi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14889,6 +15869,7 @@ export declare function Noto_Sans_Lao<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14915,6 +15896,7 @@ export declare function Noto_Sans_Lao_Looped<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14928,6 +15910,7 @@ export declare function Noto_Sans_Lepcha<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14940,6 +15923,7 @@ export declare function Noto_Sans_Limbu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14952,6 +15936,7 @@ export declare function Noto_Sans_Linear_A<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14964,6 +15949,7 @@ export declare function Noto_Sans_Linear_B<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14982,6 +15968,7 @@ export declare function Noto_Sans_Lisu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -14994,6 +15981,7 @@ export declare function Noto_Sans_Lycian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15006,6 +15994,7 @@ export declare function Noto_Sans_Lydian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15018,6 +16007,7 @@ export declare function Noto_Sans_Mahajani<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15043,6 +16033,7 @@ export declare function Noto_Sans_Malayalam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15056,6 +16047,7 @@ export declare function Noto_Sans_Mandaic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15068,6 +16060,7 @@ export declare function Noto_Sans_Manichaean<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15080,6 +16073,7 @@ export declare function Noto_Sans_Marchen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15092,6 +16086,7 @@ export declare function Noto_Sans_Masaram_Gondi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15104,6 +16099,7 @@ export declare function Noto_Sans_Math<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15116,6 +16112,7 @@ export declare function Noto_Sans_Mayan_Numerals<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15134,6 +16131,7 @@ export declare function Noto_Sans_Medefaidrin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15159,6 +16157,7 @@ export declare function Noto_Sans_Meetei_Mayek<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15171,6 +16170,7 @@ export declare function Noto_Sans_Mende_Kikakui<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15183,6 +16183,7 @@ export declare function Noto_Sans_Meroitic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15201,6 +16202,7 @@ export declare function Noto_Sans_Miao<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15213,6 +16215,7 @@ export declare function Noto_Sans_Modi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15225,6 +16228,7 @@ export declare function Noto_Sans_Mongolian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15250,6 +16254,7 @@ export declare function Noto_Sans_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15271,6 +16276,7 @@ export declare function Noto_Sans_Mro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15283,6 +16289,7 @@ export declare function Noto_Sans_Multani<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15307,6 +16314,7 @@ export declare function Noto_Sans_Myanmar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15319,6 +16327,7 @@ export declare function Noto_Sans_NKo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15337,6 +16346,7 @@ export declare function Noto_Sans_NKo_Unjoined<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15349,6 +16359,7 @@ export declare function Noto_Sans_Nabataean<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15367,6 +16378,7 @@ export declare function Noto_Sans_Nag_Mundari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15379,6 +16391,7 @@ export declare function Noto_Sans_Nandinagari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15397,6 +16410,7 @@ export declare function Noto_Sans_New_Tai_Lue<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15409,6 +16423,7 @@ export declare function Noto_Sans_Newa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15421,6 +16436,7 @@ export declare function Noto_Sans_Nushu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15433,6 +16449,7 @@ export declare function Noto_Sans_Ogham<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15451,6 +16468,7 @@ export declare function Noto_Sans_Ol_Chiki<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15463,6 +16481,7 @@ export declare function Noto_Sans_Old_Hungarian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15475,6 +16494,7 @@ export declare function Noto_Sans_Old_Italic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15487,6 +16507,7 @@ export declare function Noto_Sans_Old_North_Arabian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15499,6 +16520,7 @@ export declare function Noto_Sans_Old_Permic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15511,6 +16533,7 @@ export declare function Noto_Sans_Old_Persian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15523,6 +16546,7 @@ export declare function Noto_Sans_Old_Sogdian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15535,6 +16559,7 @@ export declare function Noto_Sans_Old_South_Arabian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15547,6 +16572,7 @@ export declare function Noto_Sans_Old_Turkic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15572,6 +16598,7 @@ export declare function Noto_Sans_Oriya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15585,6 +16612,7 @@ export declare function Noto_Sans_Osage<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15597,6 +16625,7 @@ export declare function Noto_Sans_Osmanya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15609,6 +16638,7 @@ export declare function Noto_Sans_Pahawh_Hmong<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15621,6 +16651,7 @@ export declare function Noto_Sans_Palmyrene<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15633,6 +16664,7 @@ export declare function Noto_Sans_Pau_Cin_Hau<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15645,6 +16677,7 @@ export declare function Noto_Sans_Phags_Pa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15657,6 +16690,7 @@ export declare function Noto_Sans_Phoenician<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15669,6 +16703,7 @@ export declare function Noto_Sans_Psalter_Pahlavi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15681,6 +16716,7 @@ export declare function Noto_Sans_Rejang<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15693,6 +16729,7 @@ export declare function Noto_Sans_Runic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15718,6 +16755,7 @@ export declare function Noto_Sans_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15730,6 +16768,7 @@ export declare function Noto_Sans_Samaritan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15742,6 +16781,7 @@ export declare function Noto_Sans_Saurashtra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15754,6 +16794,7 @@ export declare function Noto_Sans_Sharada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15766,6 +16807,7 @@ export declare function Noto_Sans_Shavian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15778,6 +16820,7 @@ export declare function Noto_Sans_Siddham<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15790,6 +16833,7 @@ export declare function Noto_Sans_SignWriting<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15815,6 +16859,7 @@ export declare function Noto_Sans_Sinhala<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15828,6 +16873,7 @@ export declare function Noto_Sans_Sogdian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15846,6 +16892,7 @@ export declare function Noto_Sans_Sora_Sompeng<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15858,6 +16905,7 @@ export declare function Noto_Sans_Soyombo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15876,6 +16924,7 @@ export declare function Noto_Sans_Sundanese<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15888,6 +16937,7 @@ export declare function Noto_Sans_Syloti_Nagri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15913,6 +16963,7 @@ export declare function Noto_Sans_Symbols<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15925,6 +16976,7 @@ export declare function Noto_Sans_Symbols_2<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15952,6 +17004,7 @@ export declare function Noto_Sans_Syriac<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -15977,6 +17030,7 @@ export declare function Noto_Sans_Syriac_Eastern<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16002,6 +17056,7 @@ export declare function Noto_Sans_TC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16014,6 +17069,7 @@ export declare function Noto_Sans_Tagalog<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16026,6 +17082,7 @@ export declare function Noto_Sans_Tagbanwa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16038,6 +17095,7 @@ export declare function Noto_Sans_Tai_Le<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16056,6 +17114,7 @@ export declare function Noto_Sans_Tai_Tham<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16068,6 +17127,7 @@ export declare function Noto_Sans_Tai_Viet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16080,6 +17140,7 @@ export declare function Noto_Sans_Takri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16105,6 +17166,7 @@ export declare function Noto_Sans_Tamil<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16118,6 +17180,7 @@ export declare function Noto_Sans_Tamil_Supplement<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16136,6 +17199,7 @@ export declare function Noto_Sans_Tangsa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16161,6 +17225,7 @@ export declare function Noto_Sans_Telugu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16187,6 +17252,7 @@ export declare function Noto_Sans_Thaana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16212,6 +17278,7 @@ export declare function Noto_Sans_Thai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16237,6 +17304,7 @@ export declare function Noto_Sans_Thai_Looped<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16249,6 +17317,7 @@ export declare function Noto_Sans_Tifinagh<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16261,6 +17330,7 @@ export declare function Noto_Sans_Tirhuta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16273,6 +17343,7 @@ export declare function Noto_Sans_Ugaritic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16285,6 +17356,7 @@ export declare function Noto_Sans_Vai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16303,6 +17375,7 @@ export declare function Noto_Sans_Vithkuqi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16315,6 +17388,7 @@ export declare function Noto_Sans_Wancho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16327,6 +17401,7 @@ export declare function Noto_Sans_Warang_Citi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16339,6 +17414,7 @@ export declare function Noto_Sans_Yi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16351,6 +17427,7 @@ export declare function Noto_Sans_Zanabazar_Square<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16376,6 +17453,7 @@ export declare function Noto_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16397,6 +17475,7 @@ export declare function Noto_Serif_Ahom<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16422,6 +17501,7 @@ export declare function Noto_Serif_Armenian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16435,6 +17515,7 @@ export declare function Noto_Serif_Balinese<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16460,6 +17541,7 @@ export declare function Noto_Serif_Bengali<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16486,6 +17568,7 @@ export declare function Noto_Serif_Devanagari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16512,6 +17595,7 @@ export declare function Noto_Serif_Display<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16533,6 +17617,7 @@ export declare function Noto_Serif_Dogra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16558,6 +17643,7 @@ export declare function Noto_Serif_Ethiopic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16584,6 +17670,7 @@ export declare function Noto_Serif_Georgian<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16597,6 +17684,7 @@ export declare function Noto_Serif_Grantha<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16622,6 +17710,7 @@ export declare function Noto_Serif_Gujarati<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16647,6 +17736,7 @@ export declare function Noto_Serif_Gurmukhi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16669,6 +17759,7 @@ export declare function Noto_Serif_HK<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16694,6 +17785,7 @@ export declare function Noto_Serif_Hebrew<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16717,6 +17809,7 @@ export declare function Noto_Serif_JP<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16739,6 +17832,7 @@ export declare function Noto_Serif_KR<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16764,6 +17858,7 @@ export declare function Noto_Serif_Kannada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16776,6 +17871,7 @@ export declare function Noto_Serif_Khitan_Small_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16801,6 +17897,7 @@ export declare function Noto_Serif_Khmer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16820,6 +17917,7 @@ export declare function Noto_Serif_Khojki<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16845,6 +17943,7 @@ export declare function Noto_Serif_Lao<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16858,6 +17957,7 @@ export declare function Noto_Serif_Makasar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16883,6 +17983,7 @@ export declare function Noto_Serif_Malayalam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16907,6 +18008,7 @@ export declare function Noto_Serif_Myanmar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16925,6 +18027,7 @@ export declare function Noto_Serif_NP_Hmong<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16937,6 +18040,7 @@ export declare function Noto_Serif_Old_Uyghur<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16955,6 +18059,7 @@ export declare function Noto_Serif_Oriya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16967,6 +18072,7 @@ export declare function Noto_Serif_Ottoman_Siyaq<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -16989,6 +18095,7 @@ export declare function Noto_Serif_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17014,6 +18121,7 @@ export declare function Noto_Serif_Sinhala<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17037,6 +18145,7 @@ export declare function Noto_Serif_TC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17062,6 +18171,7 @@ export declare function Noto_Serif_Tamil<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17075,6 +18185,7 @@ export declare function Noto_Serif_Tangut<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17100,6 +18211,7 @@ export declare function Noto_Serif_Telugu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17125,6 +18237,7 @@ export declare function Noto_Serif_Thai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17151,6 +18264,7 @@ export declare function Noto_Serif_Tibetan<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17169,6 +18283,7 @@ export declare function Noto_Serif_Toto<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17187,6 +18302,7 @@ export declare function Noto_Serif_Vithkuqi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17205,6 +18321,7 @@ export declare function Noto_Serif_Yezidi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17224,6 +18341,7 @@ export declare function Noto_Traditional_Nushu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17236,6 +18354,7 @@ export declare function Noto_Znamenny_Musical_Notation<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17248,6 +18367,7 @@ export declare function Nova_Cut<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17260,6 +18380,7 @@ export declare function Nova_Flat<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17272,6 +18393,7 @@ export declare function Nova_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17284,6 +18406,7 @@ export declare function Nova_Oval<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17296,6 +18419,7 @@ export declare function Nova_Round<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17308,6 +18432,7 @@ export declare function Nova_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17320,6 +18445,7 @@ export declare function Nova_Slim<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17332,6 +18458,7 @@ export declare function Nova_Square<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17344,6 +18471,7 @@ export declare function Numans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17369,6 +18497,7 @@ export declare function Nunito<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17396,6 +18525,7 @@ export declare function Nunito_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17411,6 +18541,7 @@ export declare function Nuosu_SIL<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17423,6 +18554,7 @@ export declare function Odibee_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17435,6 +18567,7 @@ export declare function Odor_Mean_Chey<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17447,6 +18580,7 @@ export declare function Offside<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17459,6 +18593,7 @@ export declare function Oi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17488,6 +18623,7 @@ export declare function Ojuju<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17500,6 +18636,7 @@ export declare function Old_Standard_TT<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17514,6 +18651,7 @@ export declare function Oldenburg<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17526,6 +18664,7 @@ export declare function Ole<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17538,6 +18677,7 @@ export declare function Oleo_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17550,6 +18690,7 @@ export declare function Oleo_Script_Swash_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17575,6 +18716,7 @@ export declare function Onest<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17587,6 +18729,7 @@ export declare function Oooh_Baby<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17607,6 +18750,7 @@ export declare function Open_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17631,6 +18775,7 @@ export declare function Oranienbaum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17643,6 +18788,7 @@ export declare function Orbit<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17663,6 +18809,7 @@ export declare function Orbitron<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17675,6 +18822,7 @@ export declare function Oregano<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17687,6 +18835,7 @@ export declare function Orelega_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17699,6 +18848,7 @@ export declare function Orienta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17711,6 +18861,7 @@ export declare function Original_Surfer<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17731,6 +18882,7 @@ export declare function Oswald<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17758,6 +18910,7 @@ export declare function Outfit<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17770,6 +18923,7 @@ export declare function Over_the_Rainbow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17782,6 +18936,7 @@ export declare function Overlock<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17794,6 +18949,7 @@ export declare function Overlock_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17819,6 +18975,7 @@ export declare function Overpass<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17840,6 +18997,7 @@ export declare function Overpass_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17854,6 +19012,7 @@ export declare function Ovo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17875,6 +19034,7 @@ export declare function Oxanium<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17887,6 +19047,7 @@ export declare function Oxygen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17899,6 +19060,7 @@ export declare function Oxygen_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17911,6 +19073,7 @@ export declare function PT_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17923,6 +19086,7 @@ export declare function PT_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17935,6 +19099,7 @@ export declare function PT_Sans_Caption<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17947,6 +19112,7 @@ export declare function PT_Sans_Narrow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17959,6 +19125,7 @@ export declare function PT_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17971,6 +19138,7 @@ export declare function PT_Serif_Caption<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17983,6 +19151,7 @@ export declare function Pacifico<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -17997,6 +19166,7 @@ export declare function Padauk<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18009,6 +19179,7 @@ export declare function Padyakke_Expanded_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18029,6 +19200,7 @@ export declare function Palanquin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18041,6 +19213,7 @@ export declare function Palanquin_Dark<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18053,6 +19226,7 @@ export declare function Palette_Mosaic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18065,6 +19239,7 @@ export declare function Pangolin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18079,6 +19254,7 @@ export declare function Paprika<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18091,6 +19267,7 @@ export declare function Parisienne<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18103,6 +19280,7 @@ export declare function Passero_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18115,6 +19293,7 @@ export declare function Passion_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18127,6 +19306,7 @@ export declare function Passions_Conflict<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18152,6 +19332,7 @@ export declare function Pathway_Extreme<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18165,6 +19346,7 @@ export declare function Pathway_Gothic_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18177,6 +19359,7 @@ export declare function Patrick_Hand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18189,6 +19372,7 @@ export declare function Patrick_Hand_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18201,6 +19385,7 @@ export declare function Pattaya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18213,6 +19398,7 @@ export declare function Patua_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18225,6 +19411,7 @@ export declare function Pavanam<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18237,6 +19424,7 @@ export declare function Paytone_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18249,6 +19437,7 @@ export declare function Peddana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18261,6 +19450,7 @@ export declare function Peralta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18273,6 +19463,7 @@ export declare function Permanent_Marker<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18285,6 +19476,7 @@ export declare function Petemoss<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18297,6 +19489,7 @@ export declare function Petit_Formal_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18322,6 +19515,7 @@ export declare function Petrona<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18334,6 +19528,7 @@ export declare function Philosopher<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18355,6 +19550,7 @@ export declare function Phudu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18380,6 +19576,7 @@ export declare function Piazzolla<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18401,6 +19598,7 @@ export declare function Piedra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18413,6 +19611,7 @@ export declare function Pinyon_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18425,6 +19624,7 @@ export declare function Pirata_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18443,6 +19643,7 @@ export declare function Pixelify_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18455,6 +19656,7 @@ export declare function Plaster<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18475,6 +19677,7 @@ export declare function Platypi<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18487,6 +19690,7 @@ export declare function Play<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18501,6 +19705,7 @@ export declare function Playball<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18522,6 +19727,7 @@ export declare function Playfair<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18545,6 +19751,7 @@ export declare function Playfair_Display<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18557,6 +19764,7 @@ export declare function Playfair_Display_SC<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18579,6 +19787,7 @@ export declare function Playpen_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18600,6 +19809,7 @@ export declare function Plus_Jakarta_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18619,6 +19829,7 @@ export declare function Podkova<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18633,6 +19844,7 @@ export declare function Poetsen_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18645,6 +19857,7 @@ export declare function Poiret_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18657,6 +19870,7 @@ export declare function Poller_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18675,6 +19889,7 @@ export declare function Poltawski_Nowy<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18687,6 +19902,7 @@ export declare function Poly<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18699,6 +19915,7 @@ export declare function Pompiere<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18718,6 +19935,7 @@ export declare function Pontano_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18730,6 +19948,7 @@ export declare function Poor_Story<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18754,6 +19973,7 @@ export declare function Poppins<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18766,6 +19986,7 @@ export declare function Port_Lligat_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18778,6 +19999,7 @@ export declare function Port_Lligat_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18790,6 +20012,7 @@ export declare function Potta_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18802,6 +20025,7 @@ export declare function Pragati_Narrow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18814,6 +20038,7 @@ export declare function Praise<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18826,6 +20051,7 @@ export declare function Prata<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18838,6 +20064,7 @@ export declare function Preahvihear<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18850,6 +20077,7 @@ export declare function Press_Start_2P<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18869,6 +20097,7 @@ export declare function Pridi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18881,6 +20110,7 @@ export declare function Princess_Sofia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18893,6 +20123,7 @@ export declare function Prociono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18917,6 +20148,7 @@ export declare function Prompt<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18929,6 +20161,7 @@ export declare function Prosto_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18941,6 +20174,7 @@ export declare function Protest_Guerrilla<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18953,6 +20187,7 @@ export declare function Protest_Revolution<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18965,6 +20200,7 @@ export declare function Protest_Riot<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18977,6 +20213,7 @@ export declare function Protest_Strike<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -18995,6 +20232,7 @@ export declare function Proza_Libre<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19020,6 +20258,7 @@ export declare function Public_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19032,6 +20271,7 @@ export declare function Puppies_Play<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19044,6 +20284,7 @@ export declare function Puritan<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19056,6 +20297,7 @@ export declare function Purple_Purse<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19068,6 +20310,7 @@ export declare function Qahiri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19080,6 +20323,7 @@ export declare function Quando<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19092,6 +20336,7 @@ export declare function Quantico<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19104,6 +20349,7 @@ export declare function Quattrocento<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19116,6 +20362,7 @@ export declare function Quattrocento_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19128,6 +20375,7 @@ export declare function Questrial<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19147,6 +20395,7 @@ export declare function Quicksand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19159,6 +20408,7 @@ export declare function Quintessential<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19171,6 +20421,7 @@ export declare function Qwigley<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19183,6 +20434,7 @@ export declare function Qwitcher_Grypen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19208,6 +20460,7 @@ export declare function REM<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19220,6 +20473,7 @@ export declare function Racing_Sans_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19239,6 +20493,7 @@ export declare function Radio_Canada<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19258,6 +20513,7 @@ export declare function Radio_Canada_Big<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19270,6 +20526,7 @@ export declare function Radley<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19288,6 +20545,7 @@ export declare function Rajdhani<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19300,6 +20558,7 @@ export declare function Rakkas<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19325,6 +20584,7 @@ export declare function Raleway<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19339,6 +20599,7 @@ export declare function Raleway_Dots<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19351,6 +20612,7 @@ export declare function Ramabhadra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19363,6 +20625,7 @@ export declare function Ramaraja<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19375,6 +20638,7 @@ export declare function Rambla<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19387,6 +20651,7 @@ export declare function Rammetto_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19399,6 +20664,7 @@ export declare function Rampart_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19411,6 +20677,7 @@ export declare function Ranchers<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19423,6 +20690,7 @@ export declare function Rancho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19435,6 +20703,7 @@ export declare function Ranga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19454,6 +20723,7 @@ export declare function Rasa<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19466,6 +20736,7 @@ export declare function Rationale<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19478,6 +20749,7 @@ export declare function Ravi_Prakash<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19498,6 +20770,7 @@ export declare function Readex_Pro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19521,6 +20794,7 @@ export declare function Recursive<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19543,6 +20817,7 @@ export declare function Red_Hat_Display<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19562,6 +20837,7 @@ export declare function Red_Hat_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19581,6 +20857,7 @@ export declare function Red_Hat_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19600,6 +20877,7 @@ export declare function Red_Rose<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19612,6 +20890,7 @@ export declare function Redacted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19624,6 +20903,7 @@ export declare function Redacted_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19646,6 +20926,7 @@ export declare function Reddit_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19668,6 +20949,7 @@ export declare function Reddit_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19690,6 +20972,7 @@ export declare function Reddit_Sans_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19702,6 +20985,7 @@ export declare function Redressed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19720,6 +21004,7 @@ export declare function Reem_Kufi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19738,6 +21023,7 @@ export declare function Reem_Kufi_Fun<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19750,6 +21036,7 @@ export declare function Reem_Kufi_Ink<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19762,6 +21049,7 @@ export declare function Reenie_Beanie<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19774,6 +21062,7 @@ export declare function Reggae_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19793,6 +21082,7 @@ export declare function Rethink_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19805,6 +21095,7 @@ export declare function Revalia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19817,6 +21108,7 @@ export declare function Rhodium_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19829,6 +21121,7 @@ export declare function Ribeye<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19841,6 +21134,7 @@ export declare function Ribeye_Marrow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19853,6 +21147,7 @@ export declare function Righteous<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19865,6 +21160,7 @@ export declare function Risque<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19877,6 +21173,7 @@ export declare function Road_Rage<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19896,6 +21193,7 @@ export declare function Roboto<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19929,6 +21227,7 @@ export declare function Roboto_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -19972,6 +21271,7 @@ export declare function Roboto_Flex<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20009,6 +21309,7 @@ export declare function Roboto_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20036,6 +21337,7 @@ export declare function Roboto_Serif<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20064,6 +21366,7 @@ export declare function Roboto_Slab<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20084,6 +21387,7 @@ export declare function Rochester<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20096,6 +21400,7 @@ export declare function Rock_3D<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20108,6 +21413,7 @@ export declare function Rock_Salt<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20120,6 +21426,7 @@ export declare function RocknRoll_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20145,6 +21452,7 @@ export declare function Rokkitt<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20157,6 +21465,7 @@ export declare function Romanesco<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20169,6 +21478,7 @@ export declare function Ropa_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20188,6 +21498,7 @@ export declare function Rosario<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20200,6 +21511,7 @@ export declare function Rosarivo<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20212,6 +21524,7 @@ export declare function Rouge_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20224,6 +21537,7 @@ export declare function Rowdies<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20236,6 +21550,7 @@ export declare function Rozha_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20257,6 +21572,7 @@ export declare function Rubik<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20271,6 +21587,7 @@ export declare function Rubik_80s_Fade<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20285,6 +21602,7 @@ export declare function Rubik_Beastly<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20299,6 +21617,7 @@ export declare function Rubik_Broken_Fax<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20319,6 +21638,7 @@ export declare function Rubik_Bubbles<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20333,6 +21653,7 @@ export declare function Rubik_Burned<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20347,6 +21668,7 @@ export declare function Rubik_Dirt<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20361,6 +21683,7 @@ export declare function Rubik_Distressed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20375,6 +21698,7 @@ export declare function Rubik_Doodle_Shadow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20395,6 +21719,7 @@ export declare function Rubik_Doodle_Triangles<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20415,6 +21740,7 @@ export declare function Rubik_Gemstones<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20429,6 +21755,7 @@ export declare function Rubik_Glitch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20443,6 +21770,7 @@ export declare function Rubik_Glitch_Pop<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20463,6 +21791,7 @@ export declare function Rubik_Iso<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20477,6 +21806,7 @@ export declare function Rubik_Lines<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20497,6 +21827,7 @@ export declare function Rubik_Maps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20517,6 +21848,7 @@ export declare function Rubik_Marker_Hatch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20531,6 +21863,7 @@ export declare function Rubik_Maze<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20545,6 +21878,7 @@ export declare function Rubik_Microbe<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20559,6 +21893,7 @@ export declare function Rubik_Mono_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20571,6 +21906,7 @@ export declare function Rubik_Moonrocks<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20585,6 +21921,7 @@ export declare function Rubik_Pixels<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20599,6 +21936,7 @@ export declare function Rubik_Puddles<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20613,6 +21951,7 @@ export declare function Rubik_Scribble<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20633,6 +21972,7 @@ export declare function Rubik_Spray_Paint<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20647,6 +21987,7 @@ export declare function Rubik_Storm<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20661,6 +22002,7 @@ export declare function Rubik_Vinyl<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20675,6 +22017,7 @@ export declare function Rubik_Wet_Paint<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20697,6 +22040,7 @@ export declare function Ruda<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20709,6 +22053,7 @@ export declare function Rufina<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20721,6 +22066,7 @@ export declare function Ruge_Boogie<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20733,6 +22079,7 @@ export declare function Ruluko<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20745,6 +22092,7 @@ export declare function Rum_Raisin<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20757,6 +22105,7 @@ export declare function Ruslan_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20769,6 +22118,7 @@ export declare function Russo_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20781,6 +22131,7 @@ export declare function Ruthie<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20793,6 +22144,7 @@ export declare function Ruwudu<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20805,6 +22157,7 @@ export declare function Rye<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20823,6 +22176,7 @@ export declare function STIX_Two_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20837,6 +22191,7 @@ export declare function Sacramento<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20849,6 +22204,7 @@ export declare function Sahitya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20861,6 +22217,7 @@ export declare function Sail<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20886,6 +22243,7 @@ export declare function Saira<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20911,6 +22269,7 @@ export declare function Saira_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20935,6 +22294,7 @@ export declare function Saira_Extra_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20959,6 +22319,7 @@ export declare function Saira_Semi_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20971,6 +22332,7 @@ export declare function Saira_Stencil_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20983,6 +22345,7 @@ export declare function Salsa<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -20995,6 +22358,7 @@ export declare function Sanchez<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21007,6 +22371,7 @@ export declare function Sancreek<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21019,6 +22384,7 @@ export declare function Sansita<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21040,6 +22406,7 @@ export declare function Sansita_Swashed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21061,6 +22428,7 @@ export declare function Sarabun<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21073,6 +22441,7 @@ export declare function Sarala<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21085,6 +22454,7 @@ export declare function Sarina<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21104,6 +22474,7 @@ export declare function Sarpanch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21116,6 +22487,7 @@ export declare function Sassy_Frass<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21128,6 +22500,7 @@ export declare function Satisfy<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21140,6 +22513,7 @@ export declare function Sawarabi_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21152,6 +22526,7 @@ export declare function Sawarabi_Mincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21164,6 +22539,7 @@ export declare function Scada<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21176,6 +22552,7 @@ export declare function Scheherazade_New<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21196,6 +22573,7 @@ export declare function Schibsted_Grotesk<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21208,6 +22586,7 @@ export declare function Schoolbell<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21220,6 +22599,7 @@ export declare function Scope_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21232,6 +22612,7 @@ export declare function Seaweed_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21244,6 +22625,7 @@ export declare function Secular_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21256,6 +22638,7 @@ export declare function Sedan<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21268,6 +22651,7 @@ export declare function Sedan_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21280,6 +22664,7 @@ export declare function Sedgwick_Ave<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21292,6 +22677,7 @@ export declare function Sedgwick_Ave_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21311,6 +22697,7 @@ export declare function Sen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21323,6 +22710,7 @@ export declare function Send_Flowers<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21335,6 +22723,7 @@ export declare function Sevillana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21347,6 +22736,7 @@ export declare function Seymour_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21359,6 +22749,7 @@ export declare function Shadows_Into_Light<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21371,6 +22762,7 @@ export declare function Shadows_Into_Light_Two<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21383,6 +22775,7 @@ export declare function Shalimar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21403,6 +22796,7 @@ export declare function Shantell_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21418,6 +22812,7 @@ export declare function Shanti<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21430,6 +22825,7 @@ export declare function Share<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21442,6 +22838,7 @@ export declare function Share_Tech<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21454,6 +22851,7 @@ export declare function Share_Tech_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21466,6 +22864,7 @@ export declare function Shippori_Antique<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21478,6 +22877,7 @@ export declare function Shippori_Antique_B1<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21496,6 +22896,7 @@ export declare function Shippori_Mincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21514,6 +22915,7 @@ export declare function Shippori_Mincho_B1<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21526,6 +22928,7 @@ export declare function Shizuru<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21538,6 +22941,7 @@ export declare function Shojumaru<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21550,6 +22954,7 @@ export declare function Short_Stack<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21562,6 +22967,7 @@ export declare function Shrikhand<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21574,6 +22980,7 @@ export declare function Siemreap<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21586,6 +22993,7 @@ export declare function Sigmar<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21598,6 +23006,7 @@ export declare function Sigmar_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21617,6 +23026,7 @@ export declare function Signika<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21637,6 +23047,7 @@ export declare function Signika_Negative<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21649,6 +23060,7 @@ export declare function Silkscreen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21661,6 +23073,7 @@ export declare function Simonetta<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21673,6 +23086,7 @@ export declare function Single_Day<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
 
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21684,6 +23098,7 @@ export declare function Sintony<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21696,6 +23111,7 @@ export declare function Sirin_Stencil<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21708,6 +23124,7 @@ export declare function Six_Caps<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21720,6 +23137,7 @@ export declare function Sixtyfour<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21733,6 +23151,7 @@ export declare function Skranji<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21745,6 +23164,7 @@ export declare function Slabo_13px<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21757,6 +23177,7 @@ export declare function Slabo_27px<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21769,6 +23190,7 @@ export declare function Slackey<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21781,6 +23203,7 @@ export declare function Slackside_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21793,6 +23216,7 @@ export declare function Smokum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21805,6 +23229,7 @@ export declare function Smooch<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21830,6 +23255,7 @@ export declare function Smooch_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21842,6 +23268,7 @@ export declare function Smythe<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21854,6 +23281,7 @@ export declare function Sniglet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21866,6 +23294,7 @@ export declare function Snippet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21878,6 +23307,7 @@ export declare function Snowburst_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21890,6 +23320,7 @@ export declare function Sofadi_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21902,6 +23333,7 @@ export declare function Sofia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21939,6 +23371,7 @@ export declare function Sofia_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -21976,6 +23409,7 @@ export declare function Sofia_Sans_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22013,6 +23447,7 @@ export declare function Sofia_Sans_Extra_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22050,6 +23485,7 @@ export declare function Sofia_Sans_Semi_Condensed<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22062,6 +23498,7 @@ export declare function Solitreo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22080,6 +23517,7 @@ export declare function Solway<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22098,6 +23536,7 @@ export declare function Sometype_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22110,6 +23549,7 @@ export declare function Song_Myung<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22131,6 +23571,7 @@ export declare function Sono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22144,6 +23585,7 @@ export declare function Sonsie_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22166,6 +23608,7 @@ export declare function Sora<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22178,6 +23621,7 @@ export declare function Sorts_Mill_Goudy<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22200,6 +23644,7 @@ export declare function Source_Code_Pro<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22230,6 +23675,7 @@ export declare function Source_Sans_3<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22260,6 +23706,7 @@ export declare function Source_Serif_4<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22282,6 +23729,7 @@ export declare function Space_Grotesk<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22294,6 +23742,7 @@ export declare function Space_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22306,6 +23755,7 @@ export declare function Special_Elite<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22326,6 +23776,7 @@ export declare function Spectral<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22346,6 +23797,7 @@ export declare function Spectral_SC<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22358,6 +23810,7 @@ export declare function Spicy_Rice<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22370,6 +23823,7 @@ export declare function Spinnaker<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22382,6 +23836,7 @@ export declare function Spirax<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22394,6 +23849,7 @@ export declare function Splash<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22413,6 +23869,7 @@ export declare function Spline_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22432,6 +23889,7 @@ export declare function Spline_Sans_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22444,6 +23902,7 @@ export declare function Squada_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22456,6 +23915,7 @@ export declare function Square_Peg<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22468,6 +23928,7 @@ export declare function Sree_Krushnadevaraya<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22480,6 +23941,7 @@ export declare function Sriracha<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22492,6 +23954,7 @@ export declare function Srisakdi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22504,6 +23967,7 @@ export declare function Staatliches<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22516,6 +23980,7 @@ export declare function Stalemate<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22528,6 +23993,7 @@ export declare function Stalinist_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22540,6 +24006,7 @@ export declare function Stardos_Stencil<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22552,6 +24019,7 @@ export declare function Stick<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22573,6 +24041,7 @@ export declare function Stick_No_Bills<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22585,6 +24054,7 @@ export declare function Stint_Ultra_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22597,6 +24067,7 @@ export declare function Stint_Ultra_Expanded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22609,6 +24080,7 @@ export declare function Stoke<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22621,6 +24093,7 @@ export declare function Strait<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22633,6 +24106,7 @@ export declare function Style_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22645,6 +24119,7 @@ export declare function Stylish<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22657,6 +24132,7 @@ export declare function Sue_Ellen_Francisco<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22669,6 +24145,7 @@ export declare function Suez_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22681,6 +24158,7 @@ export declare function Sulphur_Point<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22693,6 +24171,7 @@ export declare function Sumana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22705,6 +24184,7 @@ export declare function Sunflower<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22717,6 +24197,7 @@ export declare function Sunshiney<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22729,6 +24210,7 @@ export declare function Supermercado_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22741,6 +24223,7 @@ export declare function Sura<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22753,6 +24236,7 @@ export declare function Suranna<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22765,6 +24249,7 @@ export declare function Suravaram<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22783,6 +24268,7 @@ export declare function Suwannaphum<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22795,6 +24281,7 @@ export declare function Swanky_and_Moo_Moo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22807,6 +24294,7 @@ export declare function Syncopate<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22826,6 +24314,7 @@ export declare function Syne<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22838,6 +24327,7 @@ export declare function Syne_Mono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22850,6 +24340,7 @@ export declare function Syne_Tactile<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22862,6 +24353,7 @@ export declare function Tac_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22874,6 +24366,7 @@ export declare function Tai_Heritage_Pro<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22894,6 +24387,7 @@ export declare function Tajawal<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22906,6 +24400,7 @@ export declare function Tangerine<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22918,6 +24413,7 @@ export declare function Tapestry<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22930,6 +24426,7 @@ export declare function Taprom<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22942,6 +24439,7 @@ export declare function Tauri<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22966,6 +24464,7 @@ export declare function Taviraj<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -22985,6 +24484,7 @@ export declare function Teachers<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23004,6 +24504,7 @@ export declare function Teko<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23024,6 +24525,7 @@ export declare function Tektur<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23039,6 +24541,7 @@ export declare function Telex<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23051,6 +24554,7 @@ export declare function Tenali_Ramakrishna<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23063,6 +24567,7 @@ export declare function Tenor_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23075,6 +24580,7 @@ export declare function Text_Me_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23100,6 +24606,7 @@ export declare function Texturina<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23113,6 +24620,7 @@ export declare function Thasadith<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23125,6 +24633,7 @@ export declare function The_Girl_Next_Door<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23137,6 +24646,7 @@ export declare function The_Nautigal<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23149,6 +24659,7 @@ export declare function Tienne<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23167,6 +24678,7 @@ export declare function Tillana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23179,6 +24691,7 @@ export declare function Tilt_Neon<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23192,6 +24705,7 @@ export declare function Tilt_Prism<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23205,6 +24719,7 @@ export declare function Tilt_Warp<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23218,6 +24733,7 @@ export declare function Timmana<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23230,6 +24746,7 @@ export declare function Tinos<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23251,6 +24768,7 @@ export declare function Tiro_Bangla<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23263,6 +24781,7 @@ export declare function Tiro_Devanagari_Hindi<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23275,6 +24794,7 @@ export declare function Tiro_Devanagari_Marathi<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23287,6 +24807,7 @@ export declare function Tiro_Devanagari_Sanskrit<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23299,6 +24820,7 @@ export declare function Tiro_Gurmukhi<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23311,6 +24833,7 @@ export declare function Tiro_Kannada<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23323,6 +24846,7 @@ export declare function Tiro_Tamil<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23335,6 +24859,7 @@ export declare function Tiro_Telugu<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23347,6 +24872,7 @@ export declare function Titan_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23366,6 +24892,7 @@ export declare function Titillium_Web<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23390,6 +24917,7 @@ export declare function Tomorrow<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23415,6 +24943,7 @@ export declare function Tourney<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23428,6 +24957,7 @@ export declare function Trade_Winds<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23440,6 +24970,7 @@ export declare function Train_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23464,6 +24995,7 @@ export declare function Trirong<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23486,6 +25018,7 @@ export declare function Trispace<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23499,6 +25032,7 @@ export declare function Trocchi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23511,6 +25045,7 @@ export declare function Trochut<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23536,6 +25071,7 @@ export declare function Truculenta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23549,6 +25085,7 @@ export declare function Trykker<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23567,6 +25104,7 @@ export declare function Tsukimi_Rounded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23579,6 +25117,7 @@ export declare function Tulpen_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23598,6 +25137,7 @@ export declare function Turret_Road<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23610,6 +25150,7 @@ export declare function Twinkle_Star<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23622,6 +25163,7 @@ export declare function Ubuntu<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23636,6 +25178,7 @@ export declare function Ubuntu_Condensed<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23650,6 +25193,7 @@ export declare function Ubuntu_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23674,6 +25218,7 @@ export declare function Ubuntu_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23695,6 +25240,7 @@ export declare function Ubuntu_Sans_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23709,6 +25255,7 @@ export declare function Uchen<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23721,6 +25268,7 @@ export declare function Ultra<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23743,6 +25291,7 @@ export declare function Unbounded<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23757,6 +25306,7 @@ export declare function Uncial_Antiqua<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23769,6 +25319,7 @@ export declare function Underdog<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23781,6 +25332,7 @@ export declare function Unica_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23793,6 +25345,7 @@ export declare function UnifrakturCook<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23805,6 +25358,7 @@ export declare function UnifrakturMaguntia<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23817,6 +25371,7 @@ export declare function Unkempt<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23829,6 +25384,7 @@ export declare function Unlock<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23841,6 +25397,7 @@ export declare function Unna<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23853,6 +25410,7 @@ export declare function Updock<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23878,6 +25436,7 @@ export declare function Urbanist<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23890,6 +25449,7 @@ export declare function VT323<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23902,6 +25462,7 @@ export declare function Vampiro_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23914,6 +25475,7 @@ export declare function Varela<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23926,6 +25488,7 @@ export declare function Varela_Round<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23945,6 +25508,7 @@ export declare function Varta<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23957,6 +25521,7 @@ export declare function Vast_Shadow<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23982,6 +25547,7 @@ export declare function Vazirmatn<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -23994,6 +25560,7 @@ export declare function Vesper_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24006,6 +25573,7 @@ export declare function Viaoda_Libre<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24020,6 +25588,7 @@ export declare function Vibes<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24032,6 +25601,7 @@ export declare function Vibur<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24053,6 +25623,7 @@ export declare function Victor_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24067,6 +25638,7 @@ export declare function Vidaloka<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24079,6 +25651,7 @@ export declare function Viga<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24091,6 +25664,7 @@ export declare function Vina_Sans<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24103,6 +25677,7 @@ export declare function Voces<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24115,6 +25690,7 @@ export declare function Volkhov<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24135,6 +25711,7 @@ export declare function Vollkorn<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24149,6 +25726,7 @@ export declare function Vollkorn_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24163,6 +25741,7 @@ export declare function Voltaire<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24175,6 +25754,7 @@ export declare function Vujahday_Script<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24187,6 +25767,7 @@ export declare function Waiting_for_the_Sunrise<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24199,6 +25780,7 @@ export declare function Wallpoet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24211,6 +25793,7 @@ export declare function Walter_Turncoat<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24223,6 +25806,7 @@ export declare function Warnes<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24235,6 +25819,7 @@ export declare function Water_Brush<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24247,6 +25832,7 @@ export declare function Waterfall<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24282,6 +25868,7 @@ export declare function Wavefont<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
 
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24295,6 +25882,7 @@ export declare function Wellfleet<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24307,6 +25895,7 @@ export declare function Wendy_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24319,6 +25908,7 @@ export declare function Whisper<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24331,6 +25921,7 @@ export declare function WindSong<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24343,6 +25934,7 @@ export declare function Wire_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24362,6 +25954,7 @@ export declare function Wix_Madefor_Display<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24383,6 +25976,7 @@ export declare function Wix_Madefor_Text<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24410,6 +26004,7 @@ export declare function Work_Sans<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24422,6 +26017,7 @@ export declare function Workbench<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24435,6 +26031,7 @@ export declare function Xanh_Mono<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24455,6 +26052,7 @@ export declare function Yaldevi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24475,6 +26073,7 @@ export declare function Yanone_Kaffeesatz<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24502,6 +26101,7 @@ export declare function Yantramanav<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24514,6 +26114,7 @@ export declare function Yarndings_12<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24526,6 +26127,7 @@ export declare function Yarndings_12_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24538,6 +26140,7 @@ export declare function Yarndings_20<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24550,6 +26153,7 @@ export declare function Yarndings_20_Charted<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24562,6 +26166,7 @@ export declare function Yatra_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24574,6 +26179,7 @@ export declare function Yellowtail<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24586,6 +26192,7 @@ export declare function Yeon_Sung<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24598,6 +26205,7 @@ export declare function Yeseva_One<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24612,6 +26220,7 @@ export declare function Yesteryear<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24624,6 +26233,7 @@ export declare function Yomogi<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24636,6 +26246,7 @@ export declare function Young_Serif<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24655,6 +26266,7 @@ export declare function Yrsa<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24692,6 +26304,7 @@ export declare function Ysabeau<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24738,6 +26351,7 @@ export declare function Ysabeau_Infant<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24784,6 +26398,7 @@ export declare function Ysabeau_Office<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24830,6 +26445,7 @@ export declare function Ysabeau_SC<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24851,6 +26467,7 @@ export declare function Yuji_Boku<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24863,6 +26480,7 @@ export declare function Yuji_Hentaigana_Akari<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24875,6 +26493,7 @@ export declare function Yuji_Hentaigana_Akebono<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24887,6 +26506,7 @@ export declare function Yuji_Mai<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24899,6 +26519,7 @@ export declare function Yuji_Syuku<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24911,6 +26532,7 @@ export declare function Yusei_Magic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24923,6 +26545,7 @@ export declare function ZCOOL_KuaiLe<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24935,6 +26558,7 @@ export declare function ZCOOL_QingKe_HuangYou<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24947,6 +26571,7 @@ export declare function ZCOOL_XiaoWei<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24959,6 +26584,7 @@ export declare function Zen_Antique<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24971,6 +26597,7 @@ export declare function Zen_Antique_Soft<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -24983,6 +26610,7 @@ export declare function Zen_Dots<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25001,6 +26629,7 @@ export declare function Zen_Kaku_Gothic_Antique<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25019,6 +26648,7 @@ export declare function Zen_Kaku_Gothic_New<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25031,6 +26661,7 @@ export declare function Zen_Kurenaido<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25043,6 +26674,7 @@ export declare function Zen_Loop<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25061,6 +26693,7 @@ export declare function Zen_Maru_Gothic<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25079,6 +26712,7 @@ export declare function Zen_Old_Mincho<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25091,6 +26725,7 @@ export declare function Zen_Tokyo_Zoo<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25103,6 +26738,7 @@ export declare function Zeyada<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25115,6 +26751,7 @@ export declare function Zhi_Mang_Xing<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25133,6 +26770,7 @@ export declare function Zilla_Slab<
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
@@ -25145,6 +26783,7 @@ export declare function Zilla_Slab_Highlight<
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
+  text?: string
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean

@@ -14,6 +14,7 @@ type FontOptions = {
   adjustFontFallback: boolean
   variable?: string
   subsets: string[]
+  text?: string
 }
 /**
  * Validate the data recieved from next-swc next-transform-font on next/font/google calls
@@ -32,6 +33,7 @@ export function validateGoogleFontFunctionCall(
     adjustFontFallback = true,
     variable,
     subsets,
+    text,
   } = fontFunctionArgument || ({} as any)
   if (functionName === '') {
     nextFontError(`next/font/google has no default export`)
@@ -150,5 +152,6 @@ export function validateGoogleFontFunctionCall(
     adjustFontFallback,
     variable,
     subsets,
+    text,
   }
 }

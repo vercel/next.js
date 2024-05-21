@@ -10,7 +10,8 @@ export function getGoogleFontsUrl(
     ital?: string[]
     variableAxes?: [string, string][]
   },
-  display: string
+  display: string,
+  text?: string
 ) {
   // Variants are all combinations of weight and style, each variant will result in a separate font file
   const variants: Array<[string, string][]> = []
@@ -60,6 +61,10 @@ export function getGoogleFontsUrl(
   }
 
   url = `${url}&display=${display}`
+
+  if (text) {
+    url = `${url}&text=${encodeURIComponent(text)}`
+  }
 
   return url
 }

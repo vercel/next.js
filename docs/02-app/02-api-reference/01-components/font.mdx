@@ -25,6 +25,7 @@ For usage, review [Google Fonts](/docs/app/building-your-application/optimizing/
 | [`adjustFontFallback`](#adjustfontfallback) | <Check size={18} /> | <Check size={18} /> | Boolean or String          | -                 |
 | [`variable`](#variable)                     | <Check size={18} /> | <Check size={18} /> | String                     | -                 |
 | [`declarations`](#declarations)             | <Cross size={18} /> | <Check size={18} /> | Array of Objects           | -                 |
+| [`text`](#text)                             | <Check size={18} /> | <Cross size={18} /> | String                     | -                 |
 
 ### `src`
 
@@ -161,6 +162,18 @@ Used in `next/font/google` and `next/font/local`
 Examples:
 
 - `variable: '--my-font'`: The CSS variable `--my-font` is declared
+
+### `text`
+
+A string value to define [which characters need to be loaded](https://developers.google.com/fonts/docs/getting_started#optimizing_your_font_requests) for the font. This is useful when you only need to load a part of the font characters to reduce the font file size.
+
+Used in `next/font/google`
+
+- Optional
+
+Examples:
+
+- `text: 'Hello world!'`: Only theses characters `Hello world!` are loaded for the font
 
 ### `declarations`
 

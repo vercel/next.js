@@ -43,6 +43,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     adjustFontFallback,
     variable,
     subsets,
+    text,
   } = validateGoogleFontFunctionCall(functionName, data[0])
 
   // Validate and get the font axes required to generated the URL
@@ -54,7 +55,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
   )
 
   // Generate the Google Fonts URL from the font family, axes and display value
-  const url = getGoogleFontsUrl(fontFamily, fontAxes, display)
+  const url = getGoogleFontsUrl(fontFamily, fontAxes, display, text)
 
   // Get precalculated fallback font metrics, used to generate the fallback font CSS
   const adjustFontFallbackMetrics: AdjustFontFallback | undefined =
