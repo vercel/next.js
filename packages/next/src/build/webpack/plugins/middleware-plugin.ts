@@ -840,19 +840,15 @@ export function getEdgePolyfilledModules() {
 export async function handleWebpackExternalForEdgeRuntime({
   request,
   context,
-  contextInfo,
+  _contextInfo,
   getResolve,
 }: {
   request: string
   context: string
-  contextInfo: any
+  _contextInfo: any
   getResolve: () => any
 }) {
-  if (
-    contextInfo.issuerLayer === 'middleware' &&
-    isNodeJsModule(request) &&
-    !supportedEdgePolyfills.has(request)
-  ) {
+  if (isNodeJsModule(request) && !supportedEdgePolyfills.has(request)) {
     // allows user to provide and use their polyfills, as we do with buffer.
     try {
       await getResolve()(context, request)
