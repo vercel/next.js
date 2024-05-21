@@ -80,7 +80,7 @@ Image Optimization can be used with a [static export](/docs/app/building-your-ap
 
 > **Good to know:**
 >
-> - When self-hosting, consider installing `sharp` for more performant [Image Optimization](/docs/pages/building-your-application/optimizing/images) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
+> - On glibc-based Linux systems, Image Optimization may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 > - Learn more about the [caching behavior of optimized images](/docs/app/api-reference/components/image#caching-behavior) and how to configure the TTL.
 > - You can also [disable Image Optimization](/docs/app/api-reference/components/image#unoptimized) and still retain other benefits of using `next/image` if you prefer. For example, if you are optimizing images yourself separately.
 
