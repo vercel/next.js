@@ -215,7 +215,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
       }
     }
 
-    if (commits.length !== pageSize) {
+    if (commits.length < pageSize) {
       // If the number of commits is less than the page size, we've reached
       // the end. Otherwise we'll keep fetching until we run out.
       break
