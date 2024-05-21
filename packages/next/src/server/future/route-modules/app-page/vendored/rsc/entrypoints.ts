@@ -2,6 +2,8 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
+//@ts-expect-error TODO: current @types/react does not have exported types for this import
+import * as ReactCompilerRuntime from 'react/compiler-runtime'
 import '../../../../../next-fetch'
 
 function getAltProxyForBindingsDEV(
@@ -80,6 +82,7 @@ export {
   React,
   ReactJsxDevRuntime,
   ReactJsxRuntime,
+  ReactCompilerRuntime,
   ReactDOM,
   ReactServerDOMWebpackServerEdge,
   ReactServerDOMTurbopackServerEdge,

@@ -11,8 +11,8 @@ describe('Error overlay for hydration errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
+      react: '19.0.0-beta-04b058868c-20240508',
+      'react-dom': '19.0.0-beta-04b058868c-20240508',
     },
     skipStart: true,
   })
@@ -604,11 +604,11 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundBoundary notFound={[...]} notFoundStyles={[...]}>
-            <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} ...>
-              <RedirectBoundary>
-                <RedirectErrorBoundary router={{...}}>
-                  <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
                     <Page params={{}} searchParams={{}}>
                       <div>
                         <div>

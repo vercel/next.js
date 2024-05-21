@@ -944,12 +944,12 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
                   // While the first promise resolved, its value isn't necessarily what we'll
                   // resolve into because we might suspend again.
                   try {
-                    var _partJSON = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+                    var _partJSON2 = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
                     var _data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-                    _data.append(formFieldPrefix + _lazyId, _partJSON);
+                    _data.append(formFieldPrefix + _lazyId, _partJSON2);
 
                     pendingParts--;
 
@@ -990,12 +990,12 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         _thenable.then(function (partValue) {
           try {
-            var _partJSON2 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+            var _partJSON3 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
             var _data2 = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-            _data2.append(formFieldPrefix + promiseId, _partJSON2);
+            _data2.append(formFieldPrefix + promiseId, _partJSON3);
 
             pendingParts--;
 
@@ -1005,11 +1005,9 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
           } catch (reason) {
             reject(reason);
           }
-        }, function (reason) {
-          // In the future we could consider serializing this as an error
-          // that throws on the server instead.
-          reject(reason);
-        });
+        }, // In the future we could consider serializing this as an error
+        // that throws on the server instead.
+        reject);
 
         return serializePromiseID(promiseId);
       }
@@ -1040,26 +1038,26 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
       }
 
       if (value instanceof Map) {
-        var _partJSON3 = JSON.stringify(Array.from(value), resolveToJSON);
-
-        if (formData === null) {
-          formData = new FormData();
-        }
-
-        var mapId = nextPartId++;
-        formData.append(formFieldPrefix + mapId, _partJSON3);
-        return serializeMapID(mapId);
-      }
-
-      if (value instanceof Set) {
         var _partJSON4 = JSON.stringify(Array.from(value), resolveToJSON);
 
         if (formData === null) {
           formData = new FormData();
         }
 
+        var mapId = nextPartId++;
+        formData.append(formFieldPrefix + mapId, _partJSON4);
+        return serializeMapID(mapId);
+      }
+
+      if (value instanceof Set) {
+        var _partJSON5 = JSON.stringify(Array.from(value), resolveToJSON);
+
+        if (formData === null) {
+          formData = new FormData();
+        }
+
         var setId = nextPartId++;
-        formData.append(formFieldPrefix + setId, _partJSON4);
+        formData.append(formFieldPrefix + setId, _partJSON5);
         return serializeSetID(setId);
       }
 
@@ -1070,19 +1068,19 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         if (iterator === value) {
           // Iterator, not Iterable
-          var _partJSON5 = JSON.stringify(Array.from(iterator), resolveToJSON);
+          var _partJSON6 = JSON.stringify(Array.from(iterator), resolveToJSON);
 
           if (formData === null) {
             formData = new FormData();
           }
 
           var iteratorId = nextPartId++;
-          formData.append(formFieldPrefix + iteratorId, _partJSON5);
+          formData.append(formFieldPrefix + iteratorId, _partJSON6);
           return serializeIteratorID(iteratorId);
         }
 
         return Array.from(iterator);
-      } // Verify that this is a simple plain object.
+      }
 
 
       var proto = getPrototypeOf(value);

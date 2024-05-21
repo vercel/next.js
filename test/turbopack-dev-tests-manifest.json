@@ -4290,15 +4290,15 @@
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
-      "app dir - next/font app app dir - next-font import values should have correct values at /",
-      "app dir - next/font app app dir - next-font import values should have correct values at /client",
-      "app dir - next/font app app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+      "app dir - next/font app dir - next-font computed styles should have correct styles at /",
+      "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
+      "app dir - next/font app dir - next-font import values should have correct values at /",
+      "app dir - next/font app dir - next-font import values should have correct values at /client",
+      "app dir - next/font app dir - next-font import values should transform code in node_modules",
+      "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -13426,11 +13426,22 @@
     "runtimeError": false
   },
   "test/integration/import-assertion/test/index.test.js": {
-    "passed": ["import-assertion dev should handle json assertions"],
-    "failed": [],
-    "pending": [
+    "passed": [
+      "import-assertion dev should handle json assertions",
       "production mode import-assertion prod should handle json assertions"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/import-attributes/test/index.test.js": {
+    "passed": [
+      "import-attributes dev should handle json attributes",
+      "production mode import-attributes prod should handle json attributes"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

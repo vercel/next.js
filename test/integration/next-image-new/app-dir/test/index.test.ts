@@ -915,6 +915,22 @@ function runTests(mode) {
       )
     })
 
+    it('should show invalid src with leading space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-leading-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-trailing-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
+      )
+    })
+
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 

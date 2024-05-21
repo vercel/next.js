@@ -110,7 +110,10 @@ import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
-import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
+import {
+  handleBadRequestResponse,
+  handleInternalServerErrorResponse,
+} from './future/route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
@@ -143,6 +146,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
+import { getBuiltinWaitUntil } from './after/wait-until-builtin'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -229,7 +233,14 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
+export type LoadedRenderOpts = RenderOpts &
+  LoadComponentsReturnType &
+  RequestLifecycleOpts
+
+export type RequestLifecycleOpts = {
+  waitUntil: ((promise: Promise<any>) => void) | undefined
+  onClose: ((callback: () => void) => void) | undefined
+}
 
 type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
@@ -516,7 +527,7 @@ export default abstract class Server<
       supportsDynamicHTML: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
-      strictNextHead: !!this.nextConfig.experimental.strictNextHead,
+      strictNextHead: this.nextConfig.experimental.strictNextHead ?? true,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase || '',
       buildId: this.buildId,
@@ -555,9 +566,9 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
         isAppPPREnabled,
-        missingSuspenseWithCSRBailout:
-          this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
         swrDelta: this.nextConfig.experimental.swrDelta,
+        clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
+        after: this.nextConfig.experimental.after ?? false,
       },
     }
 
@@ -622,7 +633,14 @@ export default abstract class Server<
       // revalidation requests and we want the cache to instead depend on the
       // request path for flight information.
       stripFlightHeaders(req.headers)
+
       return false
+    } else if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+      addRequestMeta(req, 'isRSCRequest', true)
+
+      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
+        addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      }
     } else {
       // Otherwise just return without doing anything.
       return false
@@ -810,27 +828,30 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    const rsc = isRSCRequestCheck(req) ? 'RSC ' : ''
 
     const tracer = getTracer()
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${rsc}${method} ${req.url}`,
+          spanName: `${method} ${req.url}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
             'http.target': req.url,
-            'next.rsc': Boolean(rsc),
           },
         },
         async (span) =>
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
+
+            const isRSCRequest = isRSCRequestCheck(req) ?? false
+
             span.setAttributes({
               'http.status_code': res.statusCode,
+              'next.rsc': isRSCRequest,
             })
+
             const rootSpanAttributes = tracer.getRootSpanAttributes()
             // We were unable to get attributes, probably OTEL is not enabled
             if (!rootSpanAttributes) return
@@ -849,13 +870,22 @@ export default abstract class Server<
 
             const route = rootSpanAttributes.get('next.route')
             if (route) {
-              const newName = `${rsc}${method} ${route}`
+              const name = isRSCRequest
+                ? `RSC ${method} ${route}`
+                : `${method} ${route}`
+
               span.setAttributes({
                 'next.route': route,
                 'http.route': route,
-                'next.span_name': newName,
+                'next.span_name': name,
               })
-              span.updateName(newName)
+              span.updateName(name)
+            } else {
+              span.updateName(
+                isRSCRequest
+                  ? `RSC ${method} ${req.url}`
+                  : `${method} ${req.url}`
+              )
             }
           })
       )
@@ -930,11 +960,8 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      let finished: boolean = false
-      if (this.minimalMode && this.enabledDirectories.app) {
-        finished = await this.handleRSCRequest(req, res, parsedUrl)
-        if (finished) return
-      }
+      let finished = await this.handleRSCRequest(req, res, parsedUrl)
+      if (finished) return
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
         getHostname(parsedUrl, req.headers)
@@ -1640,6 +1667,26 @@ export default abstract class Server<
     )
   }
 
+  private getWaitUntil() {
+    const useBuiltinWaitUntil =
+      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
+
+    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
+
+    if (!waitUntil) {
+      // if we're not running in a serverless environment,
+      // we don't actually need waitUntil -- the server will stay alive anyway.
+      // the only thing we want to do is prevent unhandled rejections.
+      waitUntil = function noopWaitUntil(promise) {
+        promise.catch((err: unknown) => {
+          console.error(err)
+        })
+      }
+    }
+
+    return waitUntil
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2269,7 +2316,6 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
-
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2311,6 +2357,8 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        waitUntil: this.getWaitUntil(),
+        onClose: res.onClose.bind(res),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2344,10 +2392,15 @@ export default abstract class Server<
             params: opts.params,
             prerenderManifest,
             renderOpts: {
+              experimental: {
+                after: renderOpts.experimental.after,
+              },
               originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicHTML,
               incrementalCache,
               isRevalidate: isSSG,
+              waitUntil: this.getWaitUntil(),
+              onClose: res.onClose.bind(res),
             },
           }
 
@@ -2398,7 +2451,12 @@ export default abstract class Server<
             }
 
             // Send the response now that we have copied it into the cache.
-            await sendResponse(req, res, response, context.renderOpts.waitUntil)
+            await sendResponse(
+              req,
+              res,
+              response,
+              context.renderOpts.pendingWaitUntil
+            )
             return null
           } catch (err) {
             // If this is during static generation, throw the error again.
@@ -2411,46 +2469,59 @@ export default abstract class Server<
 
             return null
           }
-        } else if (isPagesRouteModule(routeModule)) {
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend
-          // the object here but only updating its `clientReferenceManifest` and
-          // `nextFontManifest` properties.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-          renderOpts.clientReferenceManifest =
-            components.clientReferenceManifest
+        } else if (
+          isPagesRouteModule(routeModule) ||
+          isAppPageRouteModule(routeModule)
+        ) {
+          // An OPTIONS request to a page handler is invalid.
+          if (req.method === 'OPTIONS' && !is404Page) {
+            await sendResponse(req, res, handleBadRequestResponse())
+            return null
+          }
 
-          const request = isNodeNextRequest(req) ? req.originalRequest : req
-          const response = isNodeNextResponse(res) ? res.originalResponse : res
+          if (isPagesRouteModule(routeModule)) {
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend
+            // the object here but only updating its `clientReferenceManifest` and
+            // `nextFontManifest` properties.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+            renderOpts.clientReferenceManifest =
+              components.clientReferenceManifest
 
-          // Call the built-in render method on the module.
-          result = await routeModule.render(
-            // TODO: fix this type
-            // @ts-expect-error - preexisting accepted this
-            request,
-            response,
-            {
-              page: pathname,
+            const request = isNodeNextRequest(req) ? req.originalRequest : req
+            const response = isNodeNextResponse(res)
+              ? res.originalResponse
+              : res
+
+            // Call the built-in render method on the module.
+            result = await routeModule.render(
+              // TODO: fix this type
+              // @ts-expect-error - preexisting accepted this
+              request,
+              response,
+              {
+                page: pathname,
+                params: opts.params,
+                query,
+                renderOpts,
+              }
+            )
+          } else {
+            const module = components.routeModule as AppPageRouteModule
+
+            // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+            // object here but only updating its `nextFontManifest` field.
+            // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+            renderOpts.nextFontManifest = this.nextFontManifest
+
+            // Call the built-in render method on the module.
+            result = await module.render(req, res, {
+              page: is404Page ? '/404' : pathname,
               params: opts.params,
               query,
               renderOpts,
-            }
-          )
-        } else if (isAppPageRouteModule(routeModule)) {
-          const module = components.routeModule as AppPageRouteModule
-
-          // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-          // object here but only updating its `nextFontManifest` field.
-          // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-          renderOpts.nextFontManifest = this.nextFontManifest
-
-          // Call the built-in render method on the module.
-          result = await module.render(req, res, {
-            page: is404Page ? '/404' : pathname,
-            params: opts.params,
-            query,
-            renderOpts,
-          })
+            })
+          }
         } else {
           throw new Error('Invariant: Unknown route module type')
         }
@@ -3590,8 +3661,5 @@ export default abstract class Server<
 }
 
 export function isRSCRequestCheck(req: BaseNextRequest): boolean {
-  return (
-    req.headers[RSC_HEADER.toLowerCase()] === '1' ||
-    Boolean(getRequestMeta(req, 'isRSCRequest'))
-  )
+  return getRequestMeta(req, 'isRSCRequest') === true
 }
