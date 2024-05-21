@@ -195,7 +195,10 @@ async function getChangelogFromGitHub(baseSha, newSha) {
     }
     const data = await response.json()
 
-    const { commits } = data
+    const { base_commit, commits } = data
+    if (currentPage === 0) {
+      commits.unshift(base_commit)
+    }
     for (const { commit, sha } of commits) {
       const title = commit.message.split('\n')[0] || ''
       // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
