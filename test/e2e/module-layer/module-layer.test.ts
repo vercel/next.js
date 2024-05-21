@@ -25,6 +25,7 @@ describe('module layer', () => {
       '/api/hello',
       '/api/hello-edge',
       '/api/mixed',
+      '/api/react-edge',
     ]
 
     for (const route of routes) {
