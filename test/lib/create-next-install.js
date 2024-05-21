@@ -108,7 +108,7 @@ async function createNextInstall({
         }
 
         // log for clarity of which version we're using
-        require('console').error({
+        require('console').log({
           swcDirectory: process.env.NEXT_TEST_NATIVE_DIR,
         })
 
