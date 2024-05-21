@@ -547,6 +547,8 @@ async fn process_content(
                     ],
                 },
                 dashed_idents: false,
+                grid: false,
+                ..Default::default()
             }),
 
             _ => None,
@@ -1227,6 +1229,8 @@ mod tests {
                 css_modules: Some(lightningcss::css_modules::Config {
                     pattern: Pattern::default(),
                     dashed_idents: false,
+                    grid: false,
+                    ..Default::default()
                 }),
                 ..Default::default()
             },
