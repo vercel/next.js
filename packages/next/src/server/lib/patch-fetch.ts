@@ -441,6 +441,20 @@ function createPatchedFetcher(
           cacheReason = `revalidate: ${finalRevalidate}`
         }
 
+        if (
+          finalRevalidate !== 0 &&
+          // If the revalidate value isn't currently set or the value is less
+          // than the current revalidate value, we should update the
+          // revalidate value.
+          (typeof staticGenerationStore.revalidate === 'undefined' ||
+            (typeof finalRevalidate === 'number' &&
+              (staticGenerationStore.revalidate === false ||
+                (typeof staticGenerationStore.revalidate === 'number' &&
+                  finalRevalidate < staticGenerationStore.revalidate))))
+        ) {
+          staticGenerationStore.revalidate = finalRevalidate
+        }
+
         const isCacheableRevalidate =
           (typeof finalRevalidate === 'number' && finalRevalidate > 0) ||
           finalRevalidate === false
