@@ -45,21 +45,37 @@ describe('app-dir action handling', () => {
     await check(() => browser.elementById('count').text(), '3')
   })
 
-  it('should report errors with bad inputs correctly', async () => {
+  it('should report errors with bad input handling on the server', async () => {
     const browser = await next.browser('/error-handling', {
       pushErrorAsConsoleLog: true,
     })
 
     await browser.elementByCss('#submit').click()
 
-    const logs = await browser.log()
-    expect(
-      logs.some((log) =>
-        log.message.includes(
-          'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
+    await retry(async () => {
+      const logs = await browser.log()
+      if (isNextDev) {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'Cannot access someProperty on the server. You cannot dot into a temporary client reference from a server component. You can only pass the value through to the client.'
+              ),
+            }),
+          ])
         )
-      )
-    ).toBe(true)
+      } else {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'An error occurred in the Server Components render.'
+              ),
+            }),
+          ])
+        )
+      }
+    })
   })
 
   it('should support headers and cookies', async () => {
@@ -559,6 +575,19 @@ describe('app-dir action handling', () => {
     expect(
       logs.some((log) => log.message === 'error caught in user code')
     ).toBe(true)
+  })
+
+  it('should support React Elements in state', async () => {
+    const browser = await next.browser('/elements')
+
+    await browser.elementByCss('[type="submit"]').click()
+
+    await retry(async () => {
+      const form = await browser.elementByCss('form')
+      await expect(form.getAttribute('aria-busy')).resolves.toBe('false')
+    })
+
+    expect(await browser.elementByCss('output').text()).toBe('Hello, Dave!')
   })
 
   it.each(['node', 'edge'])(

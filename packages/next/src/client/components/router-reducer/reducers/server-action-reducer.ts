@@ -14,7 +14,7 @@ import {
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { encodeReply } from 'react-server-dom-webpack/client'
-const { createFromFetch, encodeReply } = (
+const { createFromFetch, createTemporaryReferenceSet, encodeReply } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
@@ -57,7 +57,10 @@ async function fetchServerAction(
   nextUrl: ReadonlyReducerState['nextUrl'],
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
-  const body = await encodeReply(actionArgs)
+  const temporaryReferences = createTemporaryReferenceSet()
+  const body = await encodeReply(actionArgs, {
+    temporaryReferences: temporaryReferences,
+  })
 
   const res = await fetch('', {
     method: 'POST',
@@ -114,6 +117,7 @@ async function fetchServerAction(
       Promise.resolve(res),
       {
         callServer,
+        temporaryReferences,
       }
     )
 

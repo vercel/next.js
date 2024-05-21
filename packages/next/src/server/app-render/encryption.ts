@@ -120,7 +120,10 @@ export async function decryptActionBoundArgs(
   // This extra step ensures that the server references are recovered.
   const serverModuleMap = getServerModuleMap()
   const transformed = await decodeReply(
-    await encodeReply(deserialized),
+    await encodeReply(deserialized, {
+      // TODO: How is decryptActionBoundArgs used? Do we need to support temporary references here?
+      temporaryReferences: undefined,
+    }),
     serverModuleMap
   )
 

@@ -6,9 +6,9 @@ export default function Page() {
   return (
     <main>
       <p>
-        This button will call a server action and pass something unserializable
-        like a class instance. We expect this action to error with a reasonable
-        message explaning what happened
+        This button will call a server action and pass something the Server
+        can't dot into. We expect this action to error with a reasonable message
+        explaning what happened.
       </p>
       <button
         id="submit"
@@ -22,4 +22,6 @@ export default function Page() {
   )
 }
 
-class Foo {}
+class Foo {
+  someProperty = 'client'
+}
