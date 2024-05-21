@@ -399,6 +399,33 @@ When configuring the different caching mechanisms, it's important to understand 
 
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Route Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
 - To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+- `GET` functions in Route Handlers are not cached by default. To opt `GET` methods into caching, use a route config option such as `export const dynamic = 'force-static'` in your Route Handler file.
+
+  ```js
+  export const dynamic = 'force-static'
+
+  export async function GET() {
+    // your code here
+  }
+  ```
+
+- When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are not reused from the client-side router cache. However, they are reused during browser backward and forward navigation. To opt into caching page segments, use the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option.
+
+  ```js filename="next.config.js"
+  /** @type {import('next').NextConfig} */
+  const nextConfig = {
+    experimental: {
+      staleTimes: {
+        dynamic: 30,
+        static: 180,
+      },
+    },
+  }
+
+  module.exports = nextConfig
+  ```
+
+  [Layouts](/docs/app/api-reference/file-conventions/layout) and [loading states](/docs/app/api-reference/file-conventions/loading) _are_ cached and reused on navigation.
 
 ## APIs
 
