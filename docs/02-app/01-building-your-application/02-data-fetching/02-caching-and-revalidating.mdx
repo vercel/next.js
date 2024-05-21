@@ -6,25 +6,11 @@ description: Learn how to cache and revalidate data in your Next.js application.
 
 ## Caching
 
-Caching is the process of storing data to reduce the number of requests made to the server. Next.js provides a built-in [Data Cache](/docs/app/building-your-application/caching) that caches individual data requests.
+Caching is the process of storing data to reduce the number of requests made to the server. Next.js provides a built-in [Data Cache](/docs/app/building-your-application/caching) for individual data requests, giving you granular control of caching behavior.
 
 ### `fetch` requests
 
-Whether `fetch` requests are [cached](/docs/app/building-your-application/caching#data-cache) or not depends on the context and APIs used:
-
-| **Context**                                                                                                      | **Cached** | **Default Setting**  |
-| ---------------------------------------------------------------------------------------------------------------- | ---------- | -------------------- |
-| Static [Server Components](/docs/app/building-your-application/rendering/server-components)                      | Yes        | `cache: force-cache` |
-| `GET` method in [Route Handlers](/docs/app/building-your-application/rendering/server-components)                | Yes        | `cache: force-cache` |
-| [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)                 | No         | `cache: no-store`    |
-| `POST` and mutation methods in [Route Handlers](/docs/app/building-your-application/rendering/server-components) | No         | `cache: no-store`    |
-| After [dynamic functions](/docs/app/building-your-application/routing/route-handlers#dynamic-functions)          | No         | `cache: no-store`    |
-| Using dynamic [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config)            | No         | `cache: no-store`    |
-
-Overall, there are two scenarios where `fetch` requests are not cached:
-
-- Mutations: such as in `POST` methods or [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
-- Dynamic Rendering: When using [dynamic functions](/docs/app/building-your-application/routing/route-handlers#dynamic-functions) or [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config) that cause the route segment to be dynamically rendered.
+By default, `fetch` requests fetch fresh data at runtime.
 
 To cache an individual `fetch` request, you can use the `cache: 'force-cache'` option:
 
@@ -39,11 +25,11 @@ To opt out of caching for individual `fetch` requests, you can use the `cache: '
 fetch('https://...', { cache: 'no-store' })
 ```
 
-If you have multiple `fetch` requests in a layout or page, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
+> **Advanced**: If you have multiple `fetch` requests in a layout or page segment, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 ### Data Fetching Libraries and ORMs
 
-Whether a data request is cached or not will depend the default semantics of your Data Fetching Library, Database, or ORM.
+Whether a data request is cached will depend on the default semantics of your Data Fetching Library, Database Client, or ORM.
 
 To cache specific requests, you can use the [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) API:
 
@@ -102,7 +88,7 @@ export async function getTransactions() {
 
 ## Revalidating Data
 
-Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information, while still benefiting from the speed of static rendering.
+Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information while still benefiting from the speed of static rendering.
 
 Cached data can be revalidated in two ways:
 
@@ -129,7 +115,7 @@ Learn [how time-based revalidation works](/docs/app/building-your-application/ca
 >
 > - If you have multiple fetch requests in a statically rendered route, and each has a different revalidation frequency. The lowest time will be used for all requests.
 > - For dynamically rendered routes, each `fetch` request will be revalidated independently.
-> - To save server resources, we recommend setting a high revalidation time whenever possible. For instance, 1 minute instead of 1 second for data that changes frequently. If you need real-time data, consider switching to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) or [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering) for the specific route.
+> - To save server resources, we recommend setting a high revalidation time whenever possible. For instance, 1 hour instead of 1 second. If you need real-time data, consider switching to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) or client-side data fetching.
 
 ### On-demand Revalidation
 
@@ -187,8 +173,27 @@ export default async function Page() {
 You can then revalidate this `fetch` call tagged with `collection` by calling `revalidateTag`:
 
 ```ts filename="@/app/actions.ts" switcher
+'use server'
 
 import { revalidateTag } from 'next/cache'
 
-However, we recommend configuring the caching behavior of each `fetch` request individually. This gives you more granular control over the caching behavior.
+export default async function action() {
+  revalidateTag('collection')
+}
 ```
+
+```js filename="@/app/actions.js" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function action() {
+  revalidateTag('collection')
+}
+```
+
+Learn [how on-demand revalidation works](/docs/app/building-your-application/caching#on-demand-revalidation).
+
+### Error handling and revalidation
+
+If an error is thrown while attempting to revalidate data, the last successfully generated data will continue to be served from the cache. On the next subsequent request, Next.js will retry revalidating the data.
