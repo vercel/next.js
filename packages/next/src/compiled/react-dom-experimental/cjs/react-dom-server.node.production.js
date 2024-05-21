@@ -6537,4 +6537,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.0.0-experimental-04b058868c-20240508";
+exports.version = "19.0.0-experimental-8f3c0525f9-20240521";

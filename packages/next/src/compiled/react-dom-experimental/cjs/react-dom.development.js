@@ -126,7 +126,7 @@ var Internals = {
   findDOMNode: null
 };
 
-var ReactVersion = '19.0.0-experimental-04b058868c-20240508';
+var ReactVersion = '19.0.0-experimental-8f3c0525f9-20240521';
 
 /**
  * HTML nodeType values that represent the type of the node
