@@ -332,9 +332,9 @@ impl<'a> SpanRef<'a> {
     pub fn bottom_up(self) -> impl Iterator<Item = SpanBottomUpRef<'a>> {
         self.extra()
             .bottom_up
-            .get_or_init(|| build_bottom_up_graph([self]))
+            .get_or_init(|| build_bottom_up_graph([self].into_iter()))
             .iter()
-            .map(|bottom_up| SpanBottomUpRef {
+            .map(move |bottom_up| SpanBottomUpRef {
                 bottom_up: bottom_up.clone(),
                 store: self.store,
             })
