@@ -1,0 +1,27 @@
+---
+title: reactCompiler (Experimental)
+description: Enable the React Compiler to automatically optimize component rendering.
+---
+
+> This feature is **experimental** and may change in future releases.
+
+Next.js 15 introduced experimental support for the [React Compiler](https://react.dev/learn/react-compiler). The compiler improves performance by automatically optimizing component rendering. This reduces the amount of manual memoization developers have to do through APIs such as `useMemo` and `useCallback`.
+
+To use it, upgrade to Next.js 15, install the `babel-plugin-react-compiler`, and add `experimental.reactCompiler` to your `next.config.js`:
+
+```bash filename="Terminal"
+npm install next@canary babel-plugin-react-compiler
+```
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    reactCompiler: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Alternatively, you can pass a configuration object. See the [React Compiler](https://react.dev/learn/react-compiler) to learn more.
