@@ -9,10 +9,10 @@
     "build:mesh": "mesh build"
   },
   "dependencies": {
-    "@graphql-mesh/cli": "0.68.1",
+    "@graphql-mesh/cli": "0.78.7",
     "@graphql-mesh/config": "0.35.1",
     "@graphql-mesh/new-openapi": "0.4.10",
-    "@graphql-mesh/runtime": "0.34.1",
+    "@graphql-mesh/runtime": "0.34.9",
     "@graphql-yoga/node": "latest",
     "graphql": "16.3.0",
     "next": "latest",
