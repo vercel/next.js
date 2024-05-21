@@ -2068,6 +2068,7 @@
         "app dir - navigation hash should scroll to the specified hash",
         "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
         "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+        "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
         "app dir - navigation navigating to a page with async metadata should render the final state of the page with correct metadata",
         "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
         "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
@@ -2110,6 +2111,48 @@
         "app dir - navigation query string useParams identity between renders should be stable in pages"
       ],
       "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-after-app/index.test.ts": {
+      "passed": [
+        "unstable_after() in edge runtime does not allow modifying cookies in a callback",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "unstable_after() in edge runtime only runs callbacks after the response is fully sent",
+        "unstable_after() in edge runtime runs callbacks from nested unstable_after calls",
+        "unstable_after() in edge runtime runs in dynamic pages",
+        "unstable_after() in edge runtime runs in dynamic route handlers",
+        "unstable_after() in edge runtime runs in generateMetadata()",
+        "unstable_after() in edge runtime runs in middleware",
+        "unstable_after() in edge runtime runs in server actions",
+        "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "unstable_after() in nodejs runtime only runs callbacks after the response is fully sent",
+        "unstable_after() in nodejs runtime runs callbacks from nested unstable_after calls",
+        "unstable_after() in nodejs runtime runs in dynamic pages",
+        "unstable_after() in nodejs runtime runs in dynamic route handlers",
+        "unstable_after() in nodejs runtime runs in generateMetadata()",
+        "unstable_after() in nodejs runtime runs in middleware",
+        "unstable_after() in nodejs runtime runs in server actions"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-after-pages/index.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
+        "unstable_after() - pages runs in middleware"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -2253,6 +2296,19 @@
       "passed": [
         "app dir - not-found - group route with default runtime should use the not-found page under group routes",
         "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/options-request/options-request.test.ts": {
+      "passed": [
+        "options-request should 404 for an OPTIONS request to a non-existent route",
+        "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
+        "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
+        "options-request should return a 400 status code when invoking /app-page with an OPTIONS request",
+        "options-request should return a 400 status code when invoking /pages-page with an OPTIONS request"
       ],
       "failed": [],
       "pending": [],
@@ -2840,6 +2896,15 @@
         "ppr with suspense for /suspense/edge should eventually render the dynamic part",
         "ppr with suspense for /suspense/node should eventually render the dynamic part",
         "ppr without suspense for /no-suspense should immediately render the dynamic part"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/prefetch-searchparam/prefetch-searchparam.test.ts": {
+      "passed": [
+        "prefetch-searchparam should set prefetch cache properly on different search params"
       ],
       "failed": [],
       "pending": [],
@@ -6744,53 +6809,49 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/bun.test.ts": {
-      "passed": [
-        "should use bun for --use-bun flag with example",
-        "should use bun when user-agent is bun",
-        "should use bun when user-agent is bun with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager bun should use bun for --use-bun flag"
+        "create-next-app with package manager bun should use bun for --use-bun flag",
+        "create-next-app with package manager bun should use bun for --use-bun flag with example",
+        "create-next-app with package manager bun should use bun when user-agent is bun",
+        "create-next-app with package manager bun should use bun when user-agent is bun with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/npm.test.ts": {
-      "passed": [
-        "should use npm for --use-npm flag with example",
-        "should use npm when user-agent is npm",
-        "should use npm when user-agent is npm with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager npm should use npm for --use-npm flag"
+        "create-next-app with package manager npm should use npm for --use-npm flag",
+        "create-next-app with package manager npm should use npm for --use-npm flag with example",
+        "create-next-app with package manager npm should use npm when user-agent is npm",
+        "create-next-app with package manager npm should use npm when user-agent is npm with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/pnpm.test.ts": {
-      "passed": [
-        "should use pnpm for --use-pnpm flag with example",
-        "should use pnpm when user-agent is pnpm",
-        "should use pnpm when user-agent is pnpm with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag"
+        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
+        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
+        "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
+        "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/yarn.test.ts": {
-      "passed": [
-        "should use yarn for --use-yarn flag with example",
-        "should use yarn when user-agent is yarn",
-        "should use yarn when user-agent is yarn with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager yarn should use yarn for --use-yarn flag"
+        "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+        "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
+        "create-next-app with package manager yarn should use yarn when user-agent is yarn",
+        "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6816,7 +6877,8 @@
         "create-next-app --app (App Router) should create TypeScript project with --ts flag",
         "create-next-app --app (App Router) should create an empty TailwindCSS project with --empty flag",
         "create-next-app --app (App Router) should create an empty project with --empty flag",
-        "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
+        "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
+        "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6830,7 +6892,8 @@
         "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
         "create-next-app --no-app (Pages Router) should create an empty TailwindCSS project with --empty flag",
         "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
-        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
+        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
+        "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbo flag"
       ],
       "flakey": [],
       "runtimeError": false
@@ -13718,6 +13781,15 @@
         "rewrites manual href/as development mode should allow manual href/as on dynamic page",
         "rewrites manual href/as development mode should allow manual href/as on index page"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/root-catchall-cache/test/index.test.js": {
+      "passed": [
+        "Root Catch-all Cache production mode should cache / correctly"
+      ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
