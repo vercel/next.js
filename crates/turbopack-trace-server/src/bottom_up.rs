@@ -1,7 +1,5 @@
 use std::{collections::HashMap, env, sync::Arc};
 
-use either::Either;
-
 use crate::{
     span::{SpanBottomUp, SpanIndex},
     span_ref::SpanRef,
@@ -36,16 +34,22 @@ impl SpanBottomUpBuilder {
 }
 
 pub fn build_bottom_up_graph<'a>(
-    spans: impl IntoIterator<Item = SpanRef<'a>>,
+    spans: impl Iterator<Item = SpanRef<'a>>,
 ) -> Vec<Arc<SpanBottomUp>> {
     let max_depth = env::var("BOTTOM_UP_DEPTH")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(usize::MAX);
     let mut roots = HashMap::new();
-    let mut current_iterators = vec![Either::Left(
-        spans.into_iter().flat_map(|span| span.children()),
-    )];
+
+    // unfortunately there is a rustc bug that fails the typechecking here
+    // when using Either<impl Iterator, impl Iterator>. This error appears
+    // in certain cases when building next-swc.
+    //
+    // see here: https://github.com/rust-lang/rust/issues/124891
+    let mut current_iterators: Vec<Box<dyn Iterator<Item = SpanRef<'_>>>> =
+        vec![Box::new(spans.flat_map(|span| span.children()))];
+
     let mut current_path: Vec<(&'_ str, SpanIndex)> = vec![];
     while let Some(mut iter) = current_iterators.pop() {
         if let Some(child) = iter.next() {
@@ -73,7 +77,7 @@ pub fn build_bottom_up_graph<'a>(
             }
 
             current_path.push((child.group_name(), child.index()));
-            current_iterators.push(Either::Right(child.children()));
+            current_iterators.push(Box::new(child.children()));
         } else {
             current_path.pop();
         }
