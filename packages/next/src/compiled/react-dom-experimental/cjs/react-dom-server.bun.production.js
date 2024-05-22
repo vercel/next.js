@@ -5951,4 +5951,4 @@ exports.renderToReadableStream = function (children, options) {
       safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
   });
 };
-exports.version = "19.0.0-experimental-81c5ff2e04-20240521";
+exports.version = "19.0.0-experimental-f994737d14-20240522";

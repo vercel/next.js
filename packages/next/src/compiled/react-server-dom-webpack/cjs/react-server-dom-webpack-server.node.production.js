@@ -2619,8 +2619,12 @@ exports.decodeReply = function (body, webpackMap, options) {
   close(body);
   return webpackMap;
 };
-exports.decodeReplyFromBusboy = function (busboyStream, webpackMap) {
-  var response = createResponse(webpackMap, ""),
+exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
+  var response = createResponse(
+      webpackMap,
+      "",
+      options ? options.temporaryReferences : void 0
+    ),
     pendingFiles = 0,
     queuedFields = [];
   busboyStream.on("field", function (name, value) {

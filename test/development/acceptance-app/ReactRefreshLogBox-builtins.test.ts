@@ -9,8 +9,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-rc-81c5ff2e04-20240521',
-      'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
+      react: '19.0.0-rc-f994737d14-20240522',
+      'react-dom': '19.0.0-rc-f994737d14-20240522',
     },
     skipStart: true,
   })
