@@ -117,7 +117,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
+    const nccSubprocess = execa('pnpm', ['ncc-compiled'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
@@ -161,7 +161,7 @@ Or, run this command with no arguments to use the most recently published versio
 To finish upgrading, complete the following steps:
 
 - Install the updated dependencies: pnpm install
-- Build the vendored React files: (inside packages/next dir) pnpm taskr ncc
+- Build the vendored React files: (inside packages/next dir) pnpm ncc-compiled
 
 Or run this command again without the --no-install flag to do both automatically.
     `
