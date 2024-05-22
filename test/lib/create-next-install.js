@@ -100,8 +100,17 @@ async function createNextInstall({
           const swcDirectory = fs
             .readdirSync(path.join(origRepoDir, 'node_modules/@next'))
             .find((directory) => directory.startsWith('swc-'))
-          process.env.NEXT_TEST_NATIVE_DIR = swcDirectory
+          process.env.NEXT_TEST_NATIVE_DIR = path.join(
+            origRepoDir,
+            'node_modules/@next',
+            swcDirectory
+          )
         }
+
+        // log for clarity of which version we're using
+        require('console').log({
+          swcDirectory: process.env.NEXT_TEST_NATIVE_DIR,
+        })
 
         pkgPaths = await rootSpan
           .traceChild('linkPackages')

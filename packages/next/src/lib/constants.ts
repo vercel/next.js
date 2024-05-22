@@ -159,11 +159,6 @@ export type WebpackLayerName =
 const WEBPACK_LAYERS = {
   ...WEBPACK_LAYERS_NAMES,
   GROUP: {
-    builtinReact: [
-      WEBPACK_LAYERS_NAMES.reactServerComponents,
-      WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
-    ],
     serverOnly: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
@@ -179,7 +174,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
     ],
-    bundled: [
+    app: [
       WEBPACK_LAYERS_NAMES.reactServerComponents,
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
