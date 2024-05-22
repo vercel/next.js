@@ -34,6 +34,9 @@ pub enum ValueMode {
     PersistentAllocations,
     AllocationCount,
     Count,
+    AllocationsPerTime,
+    PersistentAllocationsPerTime,
+    AllocationCountPerTime,
 }
 
 impl ValueMode {
@@ -46,6 +49,9 @@ impl ValueMode {
             ValueMode::PersistentAllocations => ValueMode::Allocations,
             ValueMode::AllocationCount => ValueMode::Allocations,
             ValueMode::Count => ValueMode::Count,
+            ValueMode::AllocationsPerTime => ValueMode::PersistentAllocationsPerTime,
+            ValueMode::PersistentAllocationsPerTime => ValueMode::AllocationsPerTime,
+            ValueMode::AllocationCountPerTime => ValueMode::AllocationsPerTime,
         }
     }
 
@@ -58,6 +64,16 @@ impl ValueMode {
             ValueMode::PersistentAllocations => span.total_persistent_allocations(),
             ValueMode::AllocationCount => span.total_allocation_count(),
             ValueMode::Count => span.total_span_count(),
+            ValueMode::AllocationsPerTime => {
+                value_over_time(span.total_allocations(), span.corrected_total_time())
+            }
+            ValueMode::AllocationCountPerTime => {
+                value_over_time(span.total_allocation_count(), span.corrected_total_time())
+            }
+            ValueMode::PersistentAllocationsPerTime => value_over_time(
+                span.total_persistent_allocations(),
+                span.corrected_total_time(),
+            ),
         }
     }
 
@@ -70,6 +86,16 @@ impl ValueMode {
             ValueMode::PersistentAllocations => graph.total_persistent_allocations(),
             ValueMode::AllocationCount => graph.total_allocation_count(),
             ValueMode::Count => graph.total_span_count(),
+            ValueMode::AllocationsPerTime => {
+                value_over_time(graph.total_allocations(), graph.corrected_total_time())
+            }
+            ValueMode::AllocationCountPerTime => {
+                value_over_time(graph.total_allocation_count(), graph.corrected_total_time())
+            }
+            ValueMode::PersistentAllocationsPerTime => value_over_time(
+                graph.total_persistent_allocations(),
+                graph.corrected_total_time(),
+            ),
         }
     }
 
@@ -82,6 +108,16 @@ impl ValueMode {
             ValueMode::PersistentAllocations => event.total_persistent_allocations(),
             ValueMode::AllocationCount => event.total_allocation_count(),
             ValueMode::Count => event.total_span_count(),
+            ValueMode::AllocationsPerTime => {
+                value_over_time(event.total_allocations(), event.corrected_total_time())
+            }
+            ValueMode::AllocationCountPerTime => {
+                value_over_time(event.total_allocation_count(), event.corrected_total_time())
+            }
+            ValueMode::PersistentAllocationsPerTime => value_over_time(
+                event.total_persistent_allocations(),
+                event.corrected_total_time(),
+            ),
         }
     }
 
@@ -94,6 +130,18 @@ impl ValueMode {
             ValueMode::PersistentAllocations => bottom_up.self_persistent_allocations(),
             ValueMode::AllocationCount => bottom_up.self_allocation_count(),
             ValueMode::Count => bottom_up.self_span_count(),
+            ValueMode::AllocationsPerTime => value_over_time(
+                bottom_up.self_allocations(),
+                bottom_up.corrected_self_time(),
+            ),
+            ValueMode::AllocationCountPerTime => value_over_time(
+                bottom_up.self_allocation_count(),
+                bottom_up.corrected_self_time(),
+            ),
+            ValueMode::PersistentAllocationsPerTime => value_over_time(
+                bottom_up.self_persistent_allocations(),
+                bottom_up.corrected_self_time(),
+            ),
         }
     }
 
@@ -106,7 +154,30 @@ impl ValueMode {
             ValueMode::PersistentAllocations => bottom_up_span.self_persistent_allocations(),
             ValueMode::AllocationCount => bottom_up_span.self_allocation_count(),
             ValueMode::Count => bottom_up_span.self_span_count(),
+            ValueMode::AllocationsPerTime => value_over_time(
+                bottom_up_span.self_allocations(),
+                bottom_up_span.corrected_self_time(),
+            ),
+            ValueMode::AllocationCountPerTime => value_over_time(
+                bottom_up_span.self_allocation_count(),
+                bottom_up_span.corrected_self_time(),
+            ),
+            ValueMode::PersistentAllocationsPerTime => value_over_time(
+                bottom_up_span.self_persistent_allocations(),
+                bottom_up_span.corrected_self_time(),
+            ),
         }
+    }
+}
+
+/// this is unfortunately int division but itll have to do.
+///
+/// cases where count per time is very low is probably not important
+fn value_over_time(value: u64, time: u64) -> u64 {
+    if time == 0 {
+        0
+    } else {
+        value / time
     }
 }
 
@@ -335,6 +406,9 @@ impl Viewer {
             "deallocations" => ValueMode::Deallocations,
             "persistent-deallocations" => ValueMode::PersistentAllocations,
             "allocation-count" => ValueMode::AllocationCount,
+            "allocations-per-time" => ValueMode::AllocationsPerTime,
+            "allocation-count-per-time" => ValueMode::AllocationCountPerTime,
+            "persistent-allocations-per-time" => ValueMode::PersistentAllocationsPerTime,
             "count" => ValueMode::Count,
             _ => ValueMode::Duration,
         };
