@@ -11,6 +11,6 @@ describeVariants.each(['default'])('experimental decorators', () => {
     const resp = await next.fetch('/api/hello')
     const json = await resp.json()
 
-    expect(json).toEqual({ text: 'hello' })
+    expect(json).toEqual({ text: 'hello world' })
   })
 })

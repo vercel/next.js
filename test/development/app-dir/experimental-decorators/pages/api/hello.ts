@@ -6,10 +6,11 @@ type Data = {
 }
 
 function loggedMethod(originalMethod: any, _context: any) {
+  console.log('decorator hit')
   function replacementMethod(this: any, ...args: any[]) {
     console.log('hit')
     const result = originalMethod.call(this, ...args)
-    return result
+    return result + ' world'
   }
   return replacementMethod
 }
