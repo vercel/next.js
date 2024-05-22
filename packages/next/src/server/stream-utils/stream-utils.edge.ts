@@ -98,12 +98,18 @@ export function streamFromBuffer(
 export async function streamToBuffer(
   stream: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
-  const buffer: Uint8Array = new Uint8Array(0)
-  let byteOffset = 0
-  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
+  let chunks = []
+  let byteLength = 0
+  // @ts-expect-error
   for await (const chunk of stream) {
-    buffer.set(chunk, byteOffset)
-    byteOffset += chunk.length
+    chunks.push(chunk)
+    byteLength += chunk.length
+  }
+
+  const buffer: Uint8Array = new Uint8Array(byteLength)
+  for (let i = 0, byteOffset = 0; i < chunks.length; i++) {
+    buffer.set(chunks[i], byteOffset)
+    byteOffset += chunks[i].byteLength
   }
 
   return buffer

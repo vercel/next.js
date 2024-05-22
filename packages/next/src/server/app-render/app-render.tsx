@@ -381,11 +381,7 @@ async function generateFlight(
   ) {
     const { PassThrough } =
       require('node:stream') as typeof import('node:stream')
-    let pt = new PassThrough()
-    pt.on('error', (err) => {
-      console.log('PassThrough from `generateFlight` errored', err)
-    })
-    resultStream = flightReadableStream.pipe(pt)
+    resultStream = flightReadableStream.pipe(new PassThrough())
   } else if (!(flightReadableStream instanceof ReadableStream)) {
     throw new Error(
       'Invariant. Stream is not a ReadableStream in non-Node.js runtime.'
@@ -430,8 +426,6 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   return async () => {
     // Resolve the promise to get the flight data or error.
     const result = await promise
-
-    console.log('creatFlightDataResolver result', result)
 
     // If the flight data failed to render due to an error, re-throw the error
     // here.

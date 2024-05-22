@@ -96,12 +96,18 @@ export function streamFromBuffer(chunk: Uint8Array): Readable {
 }
 
 export async function streamToBuffer(stream: Readable): Promise<Uint8Array> {
-  const buffer: Uint8Array = new Uint8Array(0)
-  let byteOffset = 0
+  let chunks = []
+  let byteLength = 0
 
   for await (const chunk of stream) {
-    buffer.set(chunk, byteOffset)
-    byteOffset += chunk.length
+    chunks.push(chunk)
+    byteLength += chunk.length
+  }
+
+  const buffer: Uint8Array = new Uint8Array(byteLength)
+  for (let i = 0, byteOffset = 0; i < chunks.length; i++) {
+    buffer.set(chunks[i], byteOffset)
+    byteOffset += chunks[i].byteLength
   }
 
   return buffer
@@ -261,7 +267,7 @@ function createHeadInsertionTransformStream(
     },
     flush(callback) {
       if (hasBytes) {
-        insert()
+        return insert()
           .then((insertion) => {
             return callback(null, insertion && encoder.encode(insertion))
           })
