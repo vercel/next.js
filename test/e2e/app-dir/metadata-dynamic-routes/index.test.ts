@@ -463,17 +463,14 @@ describe('app dir - metadata dynamic routes', () => {
       }
       `
 
-      const outputBeforeFetch = next.cliOutput + ''
+      const originalOutputIndex = next.cliOutput.length
 
       await next.patchFile(iconFilePath, contentMissingIdProperty)
       await next.fetch('/metadata-base/unset/icon/100')
 
-      const outputAfterFetch = next.cliOutput + ''
-      const output = outputAfterFetch.replace(outputBeforeFetch, '')
-
       try {
         await check(async () => {
-          expect(output).toContain(
+          expect(next.cliOutput.substring(originalOutputIndex)).toContain(
             `id property is required for every item returned from generateImageMetadata`
           )
           return 'success'
@@ -504,17 +501,14 @@ describe('app dir - metadata dynamic routes', () => {
         ]
       }`
 
-      const outputBeforeFetch = next.cliOutput + ''
+      const originalOutputIndex = next.cliOutput.length
 
       await next.patchFile(sitemapFilePath, contentMissingIdProperty)
       await next.fetch('/metadata-base/unset/sitemap/0')
 
-      const outputAfterFetch = next.cliOutput + ''
-      const output = outputAfterFetch.replace(outputBeforeFetch, '')
-
       try {
         await check(async () => {
-          expect(output).toContain(
+          expect(next.cliOutput.substring(originalOutputIndex)).toContain(
             `id property is required for every item returned from generateSitemaps`
           )
           return 'success'
