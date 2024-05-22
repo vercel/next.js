@@ -57,6 +57,7 @@ Or, run this command with no arguments to use the most recently published versio
     await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
   )
   const devDependencies = pkgJson.devDependencies
+  const resolutions = pkgJson.resolutions
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
@@ -93,9 +94,19 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
+  for (const [dep, version] of Object.entries(resolutions)) {
+    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
+      resolutions[dep] = version.replace(
+        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
+        `${newReleaseLabel}-${newSha}-${newDateString}`
+      )
+    }
+  }
   await fsp.writeFile(
     path.join(cwd, 'package.json'),
-    JSON.stringify(pkgJson, null, 2)
+    JSON.stringify(pkgJson, null, 2) +
+      // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+      '\n'
   )
   console.log('Successfully updated React dependencies in package.json.\n')
 
@@ -117,7 +128,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
+    const nccSubprocess = execa('pnpm', ['ncc-compiled'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
@@ -161,7 +172,7 @@ Or, run this command with no arguments to use the most recently published versio
 To finish upgrading, complete the following steps:
 
 - Install the updated dependencies: pnpm install
-- Build the vendored React files: (inside packages/next dir) pnpm taskr ncc
+- Build the vendored React files: (inside packages/next dir) pnpm ncc-compiled
 
 Or run this command again without the --no-install flag to do both automatically.
     `
