@@ -20,7 +20,7 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '19.0.0-beta-04b058868c-20240508';
+var ReactVersion = '19.0.0-rc-81c5ff2e04-20240521';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
@@ -1264,6 +1264,9 @@ var possibleStandardNames = {
   pointsatx: 'pointsAtX',
   pointsaty: 'pointsAtY',
   pointsatz: 'pointsAtZ',
+  popover: 'popover',
+  popovertarget: 'popoverTarget',
+  popovertargetaction: 'popoverTargetAction',
   prefix: 'prefix',
   preservealpha: 'preserveAlpha',
   preserveaspectratio: 'preserveAspectRatio',

@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '19.0.0-experimental-04b058868c-20240508';
+var ReactVersion = '19.0.0-experimental-81c5ff2e04-20240521';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
@@ -1207,6 +1207,9 @@ var possibleStandardNames = {
   pointsatx: 'pointsAtX',
   pointsaty: 'pointsAtY',
   pointsatz: 'pointsAtZ',
+  popover: 'popover',
+  popovertarget: 'popoverTarget',
+  popovertargetaction: 'popoverTargetAction',
   prefix: 'prefix',
   preservealpha: 'preserveAlpha',
   preserveaspectratio: 'preserveAspectRatio',

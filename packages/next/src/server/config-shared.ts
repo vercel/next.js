@@ -373,6 +373,15 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
+   * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
+   * but may increase compile times slightly.
+   * Valid values are:
+   * - `false`: Disable Webpack memory optimizations (default).
+   * - `true`: Enables Webpack memory optimizations.
+   */
+  webpackMemoryOptimizations?: boolean
+
+  /**
    *
    */
   instrumentationHook?: boolean
@@ -961,6 +970,7 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     webpackBuildWorker: undefined,
+    webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
