@@ -18,11 +18,10 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
-use tokio::time::Instant;
+use rand::Rng;
+use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{
-    prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
-};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
@@ -364,7 +363,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     ));
 
     // try to get the real file path on disk so that we can use it with tokio
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(temp_path.fs())
+    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
         .await?
         .context(anyhow!(
             "expected node_root to be a DiskFileSystem, cannot benchmark"
@@ -372,15 +371,24 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
         .await?;
     let temp_path = fs.to_sys_path(temp_path).await?;
 
+    let mut random_buffer = [0u8; 512];
+    rand::thread_rng().fill(&mut random_buffer[..]);
+
     // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
     // additional noise/overhead of tasks caching, invalidation, file locks,
     // etc.
     let start = Instant::now();
     async move {
-        // create a new empty file
-        tokio::fs::write(&temp_path, b"").await?;
-        // remove the file
-        tokio::fs::remove_file(temp_path).await?;
+        for _ in 0..3 {
+            // create a new empty file
+            let mut file = tokio::fs::File::create(&temp_path).await?;
+            file.write_all(&random_buffer).await?;
+            file.sync_all().await?;
+            drop(file);
+
+            // remove the file
+            tokio::fs::remove_file(&temp_path).await?;
+        }
         anyhow::Ok(())
     }
     .instrument(tracing::info_span!("benchmark file IO (measurement)"))
@@ -389,8 +397,8 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     if Instant::now().duration_since(start) > SLOW_FILESYSTEM_THRESHOLD {
         println!(
             "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
-             folder.",
-            directory.await?,
+             folder. If you have an antivirus enabled, consider excluding your project directory.",
+            fs.to_sys_path(directory).await?.to_string_lossy(),
         );
     }
 
