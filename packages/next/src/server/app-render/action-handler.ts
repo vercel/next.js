@@ -379,7 +379,6 @@ export async function handleAction({
   requestStore,
   serverActions,
   ctx,
-  temporaryReferences,
 }: {
   req: BaseNextRequest
   res: BaseNextResponse
@@ -390,7 +389,6 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
-  temporaryReferences: unknown
 }): Promise<
   | undefined
   | {
@@ -400,6 +398,7 @@ export async function handleAction({
       type: 'done'
       result: RenderResult | undefined
       formState?: any
+      temporaryReferences: unknown
     }
 > {
   const contentType = req.headers['content-type']
@@ -515,6 +514,7 @@ export async function handleAction({
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
           }),
+          temporaryReferences: undefined,
         }
       }
 
@@ -556,6 +556,7 @@ export async function handleAction({
           ctx.renderOpts.basePath,
           staticGenerationStore
         ),
+        temporaryReferences: undefined,
       }
     }
   }
@@ -569,10 +570,16 @@ export async function handleAction({
         isWebNextRequest(req)
       ) {
         // Use react-server-dom-webpack/server.edge
-        const { decodeReply, decodeAction, decodeFormState } = ComponentMod
+        const {
+          createTemporaryReferenceSet,
+          decodeReply,
+          decodeAction,
+          decodeFormState,
+        } = ComponentMod
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
+        const temporaryReferences = createTemporaryReferenceSet()
 
         // TODO: add body limit
 
@@ -581,7 +588,7 @@ export async function handleAction({
           const formData = await req.request.formData()
           if (isFetchAction) {
             bound = await decodeReply(formData, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           } else {
             const action = await decodeAction(formData, serverModuleMap)
@@ -622,11 +629,11 @@ export async function handleAction({
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
             bound = await decodeReply(formData, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           } else {
             bound = await decodeReply(actionData, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           }
         }
@@ -638,11 +645,13 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
+          createTemporaryReferenceSet,
           decodeReply,
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
         } = require(`./react-server.node`)
+        const temporaryReferences = createTemporaryReferenceSet()
 
         const { Transform } =
           require('node:stream') as typeof import('node:stream')
@@ -690,7 +699,7 @@ export async function handleAction({
             body.pipe(busboy)
 
             bound = await decodeReplyFromBusboy(busboy, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           } else {
             // React doesn't yet publish a busboy version of decodeAction
@@ -748,11 +757,11 @@ export async function handleAction({
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
             bound = await decodeReply(formData, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           } else {
             bound = await decodeReply(actionData, serverModuleMap, {
-              temporaryReferences: temporaryReferences,
+              temporaryReferences,
             })
           }
         }
@@ -813,6 +822,7 @@ export async function handleAction({
       type: 'done',
       result: actionResult,
       formState,
+      temporaryReferences: undefined,
     }
   } catch (err) {
     if (isRedirectError(err)) {
@@ -839,6 +849,7 @@ export async function handleAction({
             ctx.renderOpts.basePath,
             staticGenerationStore
           ),
+          temporaryReferences: undefined,
         }
       }
 
@@ -856,6 +867,7 @@ export async function handleAction({
       return {
         type: 'done',
         result: RenderResult.fromStatic(''),
+        temporaryReferences: undefined,
       }
     } else if (isNotFoundError(err)) {
       res.statusCode = 404
@@ -883,6 +895,7 @@ export async function handleAction({
             actionResult: promise,
             asNotFound: true,
           }),
+          temporaryReferences: undefined,
         }
       }
       return {
@@ -917,6 +930,7 @@ export async function handleAction({
           skipFlight:
             !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
         }),
+        temporaryReferences: undefined,
       }
     }
 

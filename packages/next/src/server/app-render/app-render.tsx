@@ -388,6 +388,7 @@ type RenderToStreamOptions = {
   asNotFound: boolean
   tree: LoaderTree
   formState: any
+  temporaryReferences: unknown
 }
 
 /**
@@ -906,8 +907,6 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
 
-  const temporaryReferences = ComponentMod.createTemporaryReferenceSet()
-
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
     {
@@ -961,7 +960,6 @@ async function renderToHTMLOrFlightImpl(
         {
           onError: serverComponentsErrorHandler,
           nonce,
-          temporaryReferences: temporaryReferences,
         }
       )
 
@@ -1294,7 +1292,6 @@ async function renderToHTMLOrFlightImpl(
           {
             onError: serverComponentsErrorHandler,
             nonce,
-            temporaryReferences: temporaryReferences,
           }
         )
 
@@ -1368,7 +1365,6 @@ async function renderToHTMLOrFlightImpl(
     requestStore,
     serverActions,
     ctx,
-    temporaryReferences,
   })
 
   let formState: null | any = null
@@ -1379,6 +1375,7 @@ async function renderToHTMLOrFlightImpl(
         asNotFound: true,
         tree: notFoundLoaderTree,
         formState,
+        temporaryReferences: undefined,
       })
 
       return new RenderResult(response.stream, { metadata })
@@ -1400,6 +1397,10 @@ async function renderToHTMLOrFlightImpl(
     asNotFound: isNotFoundPath,
     tree: loaderTree,
     formState,
+    temporaryReferences:
+      actionRequestResult !== undefined
+        ? actionRequestResult.temporaryReferences
+        : undefined,
   })
 
   // If we have pending revalidates, wait until they are all resolved.
