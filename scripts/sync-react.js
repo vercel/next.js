@@ -218,9 +218,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
         changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
       } else {
         changelog.push(
-          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-            commit.author.name
-          })`
+          `- [${commit.message.split('\n')[0]} facebook/react@${sha.slice(0, 9)}](https://github.com/facebook/react/commit/${sha}) (${commit.author.name})`
         )
       }
     }
