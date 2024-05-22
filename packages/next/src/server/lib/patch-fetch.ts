@@ -439,19 +439,20 @@ function createPatchedFetcher(
         }
 
         if (typeof finalRevalidate === 'undefined') {
-          if (pageFetchCacheMode === 'default-cache') {
+          if (pageFetchCacheMode === 'default-cache' && !isUsingNoStore) {
             finalRevalidate = false
             cacheReason = 'fetchCache = default-cache'
-          } else if (autoNoCache) {
-            finalRevalidate = 0
-            cacheReason = 'auto no cache'
           } else if (pageFetchCacheMode === 'default-no-store') {
             finalRevalidate = 0
             cacheReason = 'fetchCache = default-no-store'
           } else if (isUsingNoStore) {
             finalRevalidate = 0
             cacheReason = 'noStore call'
+          } else if (autoNoCache) {
+            finalRevalidate = 0
+            cacheReason = 'auto no cache'
           } else {
+            // TODO: should we consider this case an invariant?
             cacheReason = 'auto cache'
             finalRevalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
