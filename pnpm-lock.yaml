@@ -20,6 +20,11 @@ overrides:
   react-is: 19.0.0-beta-4508873393-20240430
   scheduler: 0.25.0-beta-94eed63c49-20240425
 
+patchedDependencies:
+  webpack-sources@3.2.3:
+    hash: exarmjd4pnde4auoeobjrmju54
+    path: patches/webpack-sources@3.2.3.patch
+
 importers:
 
   .:
@@ -1437,7 +1442,7 @@ importers:
         version: /webpack-sources@1.4.3
       webpack-sources3:
         specifier: npm:webpack-sources@3.2.3
-        version: /webpack-sources@3.2.3
+        version: /webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
       ws:
         specifier: 8.2.3
         version: 8.2.3
@@ -25233,9 +25238,10 @@ packages:
       source-map: 0.6.1
     dev: true
 
-  /webpack-sources@3.2.3:
+  /webpack-sources@3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54):
     resolution: {integrity: sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==}
     engines: {node: '>=10.13.0'}
+    patched: true
 
   /webpack-stats-plugin@1.1.0:
     resolution: {integrity: sha512-D0meHk1WYryUbuCnWJuomJFAYvqs0rxv/JFu1XJT1YYpczdgnP1/vz+u/5Z31jrTxT6dJSxCg+TuKTgjhoZS6g==}
@@ -25274,7 +25280,7 @@ packages:
       tapable: 2.2.0
       terser-webpack-plugin: 5.3.10(@swc/core@1.5.0)(webpack@5.90.0)
       watchpack: 2.4.0
-      webpack-sources: 3.2.3
+      webpack-sources: 3.2.3(patch_hash=exarmjd4pnde4auoeobjrmju54)
     transitivePeerDependencies:
       - '@swc/core'
       - esbuild
