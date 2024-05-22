@@ -108,7 +108,7 @@ impl EcmascriptChunkItemContent {
         if this.options.refresh {
             args.push("k: __turbopack_refresh__");
         }
-        if this.options.module {
+        if this.options.module || this.options.refresh {
             args.push("m: module");
         }
         if this.options.exports {
