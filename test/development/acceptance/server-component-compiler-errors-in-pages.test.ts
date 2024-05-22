@@ -28,8 +28,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
   const { next } = nextTestSetup({
     files: {},
     dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
+      react: '19.0.0-rc-81c5ff2e04-20240521',
+      'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
     },
     skipStart: true,
   })
@@ -138,6 +138,64 @@ describe('Error Overlay for server components compiler errors in pages', () => {
            ,-[TEST_DIR/components/Comp.js:1:1]
          1 | import 'server-only'
            : ^^^^^^^^^^^^^^^^^^^^
+         2 | 
+         3 | export default function Page() {
+         4 |   return 'hello world'
+           \`----
+
+        Import trace for requested module:
+        ./components/Comp.js
+        ./pages/index.js"
+      `)
+    }
+    await cleanup()
+  })
+
+  test("importing unstable_after from 'next/server' in pages", async () => {
+    const { session, cleanup } = await sandbox(next, initialFiles)
+
+    await next.patchFile(
+      'components/Comp.js',
+      outdent`
+        import { unstable_after } from 'next/server'
+
+        export default function Page() {
+          return 'hello world'
+        }
+      `
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    await check(
+      () => session.getRedboxSource(),
+      /That only works in a Server Component/
+    )
+
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./components/Comp.js:1:10
+        Ecmascript file had an error
+        > 1 | import { unstable_after } from 'next/server'
+            |          ^^^^^^^^^^^^^^
+          2 |
+          3 | export default function Page() {
+          4 |   return 'hello world'
+
+        You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components"
+      `)
+    } else {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./components/Comp.js
+        Error: 
+          x You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-
+          | started/react-essentials#server-components
+          | 
+          | 
+           ,-[TEST_DIR/components/Comp.js:1:1]
+         1 | import { unstable_after } from 'next/server'
+           :          ^^^^^^^^^^^^^^
          2 | 
          3 | export default function Page() {
          4 |   return 'hello world'

@@ -38,6 +38,7 @@ use turbopack_binding::{
         browser::BrowserChunkingContext,
         core::{
             changed::content_changed,
+            chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
@@ -50,7 +51,6 @@ use turbopack_binding::{
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
-        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
         nodejs::NodeJsChunkingContext,
         turbopack::{evaluate_context::node_build_environment, ModuleAssetContext},
@@ -625,7 +625,7 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         Ok(get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
@@ -663,7 +663,7 @@ impl Project {
     pub(super) fn edge_chunking_context(
         self: Vc<Self>,
         client_assets: bool,
-    ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
+    ) -> Vc<Box<dyn ChunkingContext>> {
         if client_assets {
             get_edge_chunking_context_with_client_assets(
                 self.next_mode(),
@@ -718,7 +718,6 @@ impl Project {
         // need to confirm what we'll do with turbopack.
         let config = self.next_config();
 
-        emit_event("swcMinify", *config.swc_minify().await?);
         emit_event(
             "skipMiddlewareUrlNormalize",
             *config.skip_middleware_url_normalize().await?,

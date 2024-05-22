@@ -27,10 +27,7 @@ use turbopack_binding::{
             reference_type::EcmaScriptModulesReferenceSubType,
             resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
         },
-        ecmascript::{
-            chunk::EcmascriptChunkingContext, parse::ParseResult, resolve::esm_resolve,
-            EcmascriptModuleAsset,
-        },
+        ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptModuleAsset},
     },
 };
 
@@ -91,7 +88,7 @@ pub(crate) async fn collect_chunk_group(
 }
 
 pub(crate) async fn collect_evaluated_chunk_group(
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |module| async move {

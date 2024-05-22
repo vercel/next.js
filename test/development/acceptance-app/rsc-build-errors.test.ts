@@ -8,8 +8,8 @@ describe('Error overlay - RSC build errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
+      react: '19.0.0-rc-81c5ff2e04-20240521',
+      'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
     },
     skipStart: true,
   })

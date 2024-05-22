@@ -2383,7 +2383,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && config.outputFileTracing && !buildTracesPromise) {
+      if (!isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,

@@ -11,8 +11,8 @@ describe.skip('ReactRefreshLogBox scss app', () => {
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       sass: 'latest',
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
+      react: '19.0.0-rc-81c5ff2e04-20240521',
+      'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
     },
     skipStart: true,
   })

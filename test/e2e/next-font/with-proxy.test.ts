@@ -30,8 +30,8 @@ describe('next/font/google with proxy', () => {
     next = await createNext({
       files: new FileRef(join(__dirname, 'with-proxy')),
       dependencies: {
-        react: '19.0.0-beta-4508873393-20240430',
-        'react-dom': '19.0.0-beta-4508873393-20240430',
+        react: '19.0.0-rc-81c5ff2e04-20240521',
+        'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
       },
       env: {
         http_proxy: 'http://localhost:' + PROXY_PORT,
