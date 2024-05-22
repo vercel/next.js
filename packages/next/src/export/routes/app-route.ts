@@ -29,6 +29,7 @@ import {
   isMetadataRouteFile,
   isStaticMetadataRoute,
 } from '../../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -46,7 +47,6 @@ export async function exportAppRoute(
   fileWriter: FileWriter,
   experimental: Required<Pick<ExperimentalConfig, 'after'>>
 ): Promise<ExportRouteResult> {
-  const pathname = new URL(req.url, 'http://n').pathname
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
 
@@ -96,9 +96,10 @@ export async function exportAppRoute(
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes
+    const normalizedPage = normalizeAppPath(page)
     const isMetadataRoute =
-      isStaticMetadataRoute(pathname) ||
-      isMetadataRouteFile(`${pathname}.ts`, ['ts'], true)
+      isStaticMetadataRoute(normalizedPage) ||
+      isMetadataRouteFile(`${normalizedPage}.ts`, ['ts'], true)
 
     if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
       return { revalidate: 0 }
