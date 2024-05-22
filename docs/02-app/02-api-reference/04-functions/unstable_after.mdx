@@ -21,7 +21,7 @@ module.exports = nextConfig
 ```
 
 ```tsx filename="app/layout.tsx switcher
-import { unstable_after as after } from 'next/after'
+import { unstable_after as after } from 'next/server'
 import { log } from '@/app/utils'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -34,7 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 ```jsx filename="app/layout.js switcher
-import { unstable_after as after } from 'next/after'
+import { unstable_after as after } from 'next/server'
 import { log } from '@/app/utils'
 
 export default function Layout({ children }) {
