@@ -33,7 +33,20 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 
 ## `fetch` requests
 
-[`fetch` requests](/docs/app/api-reference/functions/fetch) are no longer cached by default. To opt `fetch` requests into caching, you can pass the `cache: 'force-cache'` option.
+[`fetch` requests](/docs/app/api-reference/functions/fetch) are no longer cached by default.
+
+To opt all `fetch` requests in a route into caching, you can use the `export const fetchCache = 'default-cache'` [segment config option](/docs/app/api-reference/file-conventions/route-segment-config).
+
+```js filename="app/layout.js"
+// Since this is the root layout, all fetch requests in the app will be cached.
+export const fetchCache = 'default-cache'
+
+export default function RootLayout() {
+  return <></>
+}
+```
+
+To opt specific `fetch` requests into caching, you can pass the `cache: 'force-cache'` option.
 
 ```js filename="app/page.js"
 fetch('https://...', { cache: 'force-cache' })
@@ -53,7 +66,7 @@ export async function GET() {}
 
 When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the client-side router cache. However, they are still reused during browser backward and forward navigation.
 
-To opt into caching page segments, you can use the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option:
+To opt page segments into caching, you can use the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
