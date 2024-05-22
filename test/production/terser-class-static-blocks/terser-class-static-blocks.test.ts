@@ -3,9 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('terser-class-static-blocks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    nextConfig: {
-      swcMinify: false,
-    },
+    nextConfig: {},
   })
 
   it('should work using cheerio', async () => {

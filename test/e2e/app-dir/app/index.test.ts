@@ -666,9 +666,11 @@ describe('app dir - basic', () => {
       }
     })
 
-    // TODO-APP: Re-enable this test.
     it('should soft push', async () => {
       const browser = await next.browser('/link-soft-push')
+
+      // set a flag once the page loads so we can track if a hard nav occurred (which would reset the flag)
+      await browser.eval('window.__nextSoftPushTest = 1')
 
       try {
         // Click the link on the page, and verify that the history entry was
@@ -685,25 +687,24 @@ describe('app dir - basic', () => {
         await browser.back()
         await browser.elementById('link').click()
 
-        // Get the date again, and compare, they should be the same.
+        // Get the ID again, and compare, they should be the same.
         const secondID = await browser.elementById('render-id').text()
 
-        if (isPPREnabledByDefault) {
-          // TODO: Investigate why this fails when PPR is enabled. It doesn't
-          // always fail, though, so we should also fix the flakiness of
-          // the test.
-        } else {
-          // This is the correct behavior.
-          expect(firstID).toBe(secondID)
-        }
+        // router cache should have invalidated the page content, so the IDs should be different
+        expect(firstID).not.toBe(secondID)
+
+        // verify that the flag is still set
+        expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
       } finally {
         await browser.close()
       }
     })
 
-    // TODO-APP: investigate this test
-    it.skip('should soft replace', async () => {
+    it('should soft replace', async () => {
       const browser = await next.browser('/link-soft-replace')
+
+      // set a flag once the page loads so we can track if a hard nav occurred (which would reset the flag)
+      await browser.eval('window.__nextSoftPushTest = 1')
 
       try {
         // Get the render ID so we can compare it.
@@ -713,12 +714,14 @@ describe('app dir - basic', () => {
         // added.
         expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementById('self-link').click()
-        await browser.waitForElementByCss('#render-id')
-        expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the id on the rendered page.
-        const secondID = await browser.elementById('render-id').text()
-        expect(secondID).toBe(firstID)
+        await retry(async () => {
+          // Get the id on the rendered page.
+          const secondID = await browser.elementById('render-id').text()
+          expect(secondID).not.toBe(firstID)
+
+          expect(await browser.eval('window.history.length')).toBe(2)
+        })
 
         // Navigate to the subpage, verify that the history entry was NOT added.
         await browser.elementById('subpage-link').click()
@@ -730,9 +733,12 @@ describe('app dir - basic', () => {
         await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the date again, and compare, they should be the same.
+        // Get the ID again, and compare, they should be the same.
         const thirdID = await browser.elementById('render-id').text()
-        expect(thirdID).toBe(firstID)
+        expect(thirdID).not.toBe(firstID)
+
+        // verify that the flag is still set
+        expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
       } finally {
         await browser.close()
       }
@@ -1699,6 +1705,16 @@ describe('app dir - basic', () => {
           expect(order?.length).toBe(2)
         })
       }
+    })
+
+    it('should pass nonce when using next/font', async () => {
+      const html = await next.render('/script-nonce/with-next-font')
+      const $ = cheerio.load(html)
+      const scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
     })
   })
 

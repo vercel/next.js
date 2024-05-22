@@ -11,22 +11,55 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
     'production mode',
     () => {
       beforeAll(async () => {
-        await nextBuild(appDir, [], { stdout: true })
+        await nextBuild(appDir, [])
       })
+
       it('should have no externals with the config set', async () => {
-        const output = await fs.readFile(
-          join(appDir, '.next/server/pages/index.js'),
-          'utf8'
-        )
-        expect(output).not.toContain('require("external-package")')
+        if (process.env.TURBOPACK) {
+          const ssrPath = join(appDir, '.next/server/chunks/ssr')
+          const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
+            p.match(/\.js$/)
+          )
+          expect(pageBundleBasenames).not.toBeEmpty()
+          let allBundles = ''
+          for (const basename of pageBundleBasenames) {
+            const output = await fs.readFile(join(ssrPath, basename), 'utf8')
+            allBundles += output
+          }
+
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
+          expect(allBundles).not.toContain('("external-package",!0)')
+        } else {
+          const output = await fs.readFile(
+            join(appDir, '.next/server/pages/index.js'),
+            'utf8'
+          )
+          expect(output).not.toContain('require("external-package")')
+        }
       })
 
       it('should respect the serverExternalPackages config', async () => {
-        const output = await fs.readFile(
-          join(appDir, '.next/server/pages/index.js'),
-          'utf8'
-        )
-        expect(output).toContain('require("opted-out-external-package")')
+        if (process.env.TURBOPACK) {
+          const ssrPath = join(appDir, '.next/server/chunks/ssr')
+          const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
+            p.match(/\.js$/)
+          )
+          expect(pageBundleBasenames).not.toBeEmpty()
+          let allBundles = ''
+          for (const basename of pageBundleBasenames) {
+            const output = await fs.readFile(join(ssrPath, basename), 'utf8')
+            allBundles += output
+          }
+
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
+          expect(allBundles).toContain('("opted-out-external-package",!0)')
+        } else {
+          const output = await fs.readFile(
+            join(appDir, '.next/server/pages/index.js'),
+            'utf8'
+          )
+          expect(output).toContain('require("opted-out-external-package")')
+        }
       })
     }
   )

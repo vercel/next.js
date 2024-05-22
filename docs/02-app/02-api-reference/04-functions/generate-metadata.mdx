@@ -14,7 +14,7 @@ related:
 This page covers all **Config-based Metadata** options with `generateMetadata` and the static metadata object.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 // either Static metadata
 export const metadata: Metadata = {
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }) {
 To define static metadata, export a [`Metadata` object](#metadata-fields) from a `layout.js` or `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: '...',
@@ -79,7 +79,7 @@ See the [Metadata Fields](#metadata-fields) for a complete list of supported opt
 Dynamic metadata depends on **dynamic information**, such as the current route parameters, external data, or `metadata` in parent segments, can be set by exporting a `generateMetadata` function that returns a [`Metadata` object](#metadata-fields).
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
-import { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
   params: { id: string }
@@ -188,7 +188,7 @@ export const metadata = {
 #### Template object
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -236,7 +236,7 @@ export const metadata: Metadata = {}
 `title.template` can be used to add a prefix or a suffix to `titles` defined in **child** route segments.
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -256,7 +256,7 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -288,7 +288,7 @@ export const metadata = {
 `title.absolute` can be used to provide a title that **ignores** `title.template` set in parent segments.
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -306,7 +306,7 @@ export const metadata = {
 ```
 
 ```tsx filename="app/about/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: {
@@ -430,8 +430,14 @@ export const metadata = {
 
 If not configured, `metadataBase` has a **default value**.
 
-- When [`VERCEL_PROJECT_PRODUCTION_URL`](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) or [`VERCEL_URL`](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) is detected, it will be used as the **default value**, otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`. This allows Open Graph images to work on both preview and production deployments.
-- When overriding the default, we recommend using environment variables to compute the URL. This allows configuring a URL for local development, staging, and production environments.
+> On Vercel:
+>
+> - For production deployments, `VERCEL_PROJECT_PRODUCTION_URL` will be used.
+> - For preview deployments, `VERCEL_BRANCH_URL` will take priority, and fallback to `VERCEL_URL` if it's not present.
+>
+> If these values are present they will be used as the **default value** of `metadataBase`, otherwise it falls back to `http://localhost:${process.env.PORT || 3000}`. This allows Open Graph images to work on both local build and Vercel preview and production deployments. When overriding the default, we recommend using environment variables to compute the URL. This allows configuring a URL for local development, staging, and production environments.
+>
+> See more details about these environment variables in the [System Environment Variables](https://vercel.com/docs/concepts/projects/environment-variables/system-environment-variables) docs.
 
 #### URL Composition
 
@@ -443,7 +449,7 @@ URL composition favors developer intent over default directory traversal semanti
 For example, given the following `metadataBase`:
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://acme.com'),
@@ -660,7 +666,7 @@ export const metadata = {
 
 The Twitter specification is (surprisingly) used for more than just X (formerly known as Twitter).
 
-Learn more about the [Twitter Card markup reference](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup).
+Learn more about the [Twitter Card markup reference](https://developer.x.com/en/docs/twitter-for-websites/cards/overview/markup).
 
 ```jsx filename="layout.js | page.js"
 export const metadata = {

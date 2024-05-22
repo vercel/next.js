@@ -394,7 +394,7 @@ export type SanityAssistSchemaTypeField = {
 };
 export declare const internalGroqTypeReferenceTo: unique symbol;
 
-// Source: sanity/lib/queries.ts
+// Source: ./sanity/lib/queries.ts
 // Variable: settingsQuery
 // Query: *[_type == "settings"][0]
 export type SettingsQueryResult = {
@@ -454,6 +454,7 @@ export type SettingsQueryResult = {
     _type: "image";
   };
 } | null;
+
 // Variable: heroQuery
 // Query: *[_type == "post" && defined(slug.current)] | order(date desc, _updatedAt desc) [0] {  content,    _id,  "status": select(_originalId in path("drafts.**") => "draft", "published"),  "title": coalesce(title, "Untitled"),  "slug": slug.current,  excerpt,  coverImage,  "date": coalesce(date, _updatedAt),  "author": author->{"name": coalesce(name, "Anonymous"), picture},}
 export type HeroQueryResult = {
@@ -509,6 +510,7 @@ export type HeroQueryResult = {
     } | null;
   } | null;
 } | null;
+
 // Variable: moreStoriesQuery
 // Query: *[_type == "post" && _id != $skip && defined(slug.current)] | order(date desc, _updatedAt desc) [0...$limit] {    _id,  "status": select(_originalId in path("drafts.**") => "draft", "published"),  "title": coalesce(title, "Untitled"),  "slug": slug.current,  excerpt,  coverImage,  "date": coalesce(date, _updatedAt),  "author": author->{"name": coalesce(name, "Anonymous"), picture},}
 export type MoreStoriesQueryResult = Array<{
@@ -546,6 +548,7 @@ export type MoreStoriesQueryResult = Array<{
     } | null;
   } | null;
 }>;
+
 // Variable: postQuery
 // Query: *[_type == "post" && slug.current == $slug] [0] {  content,    _id,  "status": select(_originalId in path("drafts.**") => "draft", "published"),  "title": coalesce(title, "Untitled"),  "slug": slug.current,  excerpt,  coverImage,  "date": coalesce(date, _updatedAt),  "author": author->{"name": coalesce(name, "Anonymous"), picture},}
 export type PostQueryResult = {
@@ -602,7 +605,7 @@ export type PostQueryResult = {
   } | null;
 } | null;
 
-// Source: app/(blog)/posts/[slug]/page.tsx
+// Source: ./app/(blog)/posts/[slug]/page.tsx
 // Variable: postSlugs
 // Query: *[_type == "post"]{slug}
 export type PostSlugsResult = Array<{

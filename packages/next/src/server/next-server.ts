@@ -1592,6 +1592,7 @@ export default class NextNodeServer extends BaseServer<
           basePath: this.nextConfig.basePath,
           i18n: this.nextConfig.i18n,
           trailingSlash: this.nextConfig.trailingSlash,
+          experimental: this.nextConfig.experimental,
         },
         url: url,
         page,
@@ -1810,10 +1811,6 @@ export default class NextNodeServer extends BaseServer<
           ? `https://${req.headers.host || 'localhost'}${req.url}`
           : req.url
 
-    const isRSC = isRSCRequestCheck(req)
-    if (isRSC) {
-      addRequestMeta(req, 'isRSCRequest', true)
-    }
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
     addRequestMeta(req, 'initProtocol', protocol)

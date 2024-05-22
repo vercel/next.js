@@ -9,6 +9,7 @@ use turbopack_binding::{
     turbopack::{
         browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext},
         core::{
+            chunk::ChunkingContext,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -17,7 +18,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
+        ecmascript::TreeShakingMode,
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -40,6 +41,7 @@ use crate::{
     next_build::get_postcss_package_mapping,
     next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
     next_config::NextConfig,
+    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -156,7 +158,8 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        plugins: vec![
+        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
+        after_resolve_plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
@@ -324,7 +327,7 @@ pub async fn get_client_chunking_context(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
         project_path,

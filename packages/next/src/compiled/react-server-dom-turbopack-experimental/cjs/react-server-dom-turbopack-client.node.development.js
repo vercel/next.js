@@ -929,7 +929,9 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
   var formData = null;
 
   function serializeTypedArray(tag, typedArray) {
-    var blob = new Blob([typedArray]);
+    var blob = new Blob([// We should be able to pass the buffer straight through but Node < 18 treat
+    // multi-byte array blobs differently so we first convert it to single-byte.
+    new Uint8Array(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength)]);
     var blobId = nextPartId++;
 
     if (formData === null) {
@@ -938,6 +940,154 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
     formData.append(formFieldPrefix + blobId, blob);
     return '$' + tag + blobId.toString(16);
+  }
+
+  function serializeBinaryReader(reader) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    var buffer = [];
+
+    function progress(entry) {
+      if (entry.done) {
+        var blobId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + blobId, new Blob(buffer)); // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + streamId, '"$o' + blobId.toString(16) + '"'); // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + streamId, 'C'); // Close signal
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        buffer.push(entry.value);
+        reader.read(new Uint8Array(1024)).then(progress, reject);
+      }
+    }
+
+    reader.read(new Uint8Array(1024)).then(progress, reject);
+    return '$r' + streamId.toString(16);
+  }
+
+  function serializeReader(reader) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+
+    function progress(entry) {
+      if (entry.done) {
+        // eslint-disable-next-line react-internal/safe-string-coercion
+        data.append(formFieldPrefix + streamId, 'C'); // Close signal
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        try {
+          // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+          var partJSON = JSON.stringify(entry.value, resolveToJSON); // eslint-disable-next-line react-internal/safe-string-coercion
+
+          data.append(formFieldPrefix + streamId, partJSON);
+          reader.read().then(progress, reject);
+        } catch (x) {
+          reject(x);
+        }
+      }
+    }
+
+    reader.read().then(progress, reject);
+    return '$R' + streamId.toString(16);
+  }
+
+  function serializeReadableStream(stream) {
+    // Detect if this is a BYOB stream. BYOB streams should be able to be read as bytes on the
+    // receiving side. For binary streams, we serialize them as plain Blobs.
+    var binaryReader;
+
+    try {
+      // $FlowFixMe[extra-arg]: This argument is accepted.
+      binaryReader = stream.getReader({
+        mode: 'byob'
+      });
+    } catch (x) {
+      return serializeReader(stream.getReader());
+    }
+
+    return serializeBinaryReader(binaryReader);
+  }
+
+  function serializeAsyncIterable(iterable, iterator) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++; // Generators/Iterators are Iterables but they're also their own iterator
+    // functions. If that's the case, we treat them as single-shot. Otherwise,
+    // we assume that this iterable might be a multi-shot and allow it to be
+    // iterated more than once on the receiving server.
+
+    var isIterator = iterable === iterator; // There's a race condition between when the stream is aborted and when the promise
+    // resolves so we track whether we already aborted it to avoid writing twice.
+
+    function progress(entry) {
+      if (entry.done) {
+        if (entry.value === undefined) {
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          data.append(formFieldPrefix + streamId, 'C'); // Close signal
+        } else {
+          // Unlike streams, the last value may not be undefined. If it's not
+          // we outline it and encode a reference to it in the closing instruction.
+          try {
+            // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+            var partJSON = JSON.stringify(entry.value, resolveToJSON);
+            data.append(formFieldPrefix + streamId, 'C' + partJSON); // Close signal
+          } catch (x) {
+            reject(x);
+            return;
+          }
+        }
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        try {
+          // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+          var _partJSON = JSON.stringify(entry.value, resolveToJSON); // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+          data.append(formFieldPrefix + streamId, _partJSON);
+          iterator.next().then(progress, reject);
+        } catch (x) {
+          reject(x);
+          return;
+        }
+      }
+    }
+
+    iterator.next().then(progress, reject);
+    return '$' + (isIterator ? 'x' : 'X') + streamId.toString(16);
   }
 
   function resolveToJSON(key, value) {
@@ -1009,12 +1159,12 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
                   // While the first promise resolved, its value isn't necessarily what we'll
                   // resolve into because we might suspend again.
                   try {
-                    var _partJSON = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+                    var _partJSON2 = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
                     var _data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-                    _data.append(formFieldPrefix + _lazyId, _partJSON);
+                    _data.append(formFieldPrefix + _lazyId, _partJSON2);
 
                     pendingParts--;
 
@@ -1055,12 +1205,12 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         _thenable.then(function (partValue) {
           try {
-            var _partJSON2 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+            var _partJSON3 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
             var _data2 = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
-            _data2.append(formFieldPrefix + promiseId, _partJSON2);
+            _data2.append(formFieldPrefix + promiseId, _partJSON3);
 
             pendingParts--;
 
@@ -1070,11 +1220,9 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
           } catch (reason) {
             reject(reason);
           }
-        }, function (reason) {
-          // In the future we could consider serializing this as an error
-          // that throws on the server instead.
-          reject(reason);
-        });
+        }, // In the future we could consider serializing this as an error
+        // that throws on the server instead.
+        reject);
 
         return serializePromiseID(promiseId);
       }
@@ -1105,32 +1253,40 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
       }
 
       if (value instanceof Map) {
-        var _partJSON3 = JSON.stringify(Array.from(value), resolveToJSON);
-
-        if (formData === null) {
-          formData = new FormData();
-        }
-
-        var mapId = nextPartId++;
-        formData.append(formFieldPrefix + mapId, _partJSON3);
-        return serializeMapID(mapId);
-      }
-
-      if (value instanceof Set) {
         var _partJSON4 = JSON.stringify(Array.from(value), resolveToJSON);
 
         if (formData === null) {
           formData = new FormData();
         }
 
+        var mapId = nextPartId++;
+        formData.append(formFieldPrefix + mapId, _partJSON4);
+        return serializeMapID(mapId);
+      }
+
+      if (value instanceof Set) {
+        var _partJSON5 = JSON.stringify(Array.from(value), resolveToJSON);
+
+        if (formData === null) {
+          formData = new FormData();
+        }
+
         var setId = nextPartId++;
-        formData.append(formFieldPrefix + setId, _partJSON4);
+        formData.append(formFieldPrefix + setId, _partJSON5);
         return serializeSetID(setId);
       }
 
       {
         if (value instanceof ArrayBuffer) {
-          return serializeTypedArray('A', value);
+          var blob = new Blob([value]);
+          var blobId = nextPartId++;
+
+          if (formData === null) {
+            formData = new FormData();
+          }
+
+          formData.append(formFieldPrefix + blobId, blob);
+          return '$' + 'A' + blobId.toString(16);
         }
 
         if (value instanceof Int8Array) {
@@ -1199,9 +1355,10 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
             formData = new FormData();
           }
 
-          var blobId = nextPartId++;
-          formData.append(formFieldPrefix + blobId, value);
-          return serializeBlobID(blobId);
+          var _blobId = nextPartId++;
+
+          formData.append(formFieldPrefix + _blobId, value);
+          return serializeBlobID(_blobId);
         }
       }
 
@@ -1212,18 +1369,32 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         if (iterator === value) {
           // Iterator, not Iterable
-          var _partJSON5 = JSON.stringify(Array.from(iterator), resolveToJSON);
+          var _partJSON6 = JSON.stringify(Array.from(iterator), resolveToJSON);
 
           if (formData === null) {
             formData = new FormData();
           }
 
           var iteratorId = nextPartId++;
-          formData.append(formFieldPrefix + iteratorId, _partJSON5);
+          formData.append(formFieldPrefix + iteratorId, _partJSON6);
           return serializeIteratorID(iteratorId);
         }
 
         return Array.from(iterator);
+      }
+
+      {
+        // TODO: ReadableStream is not available in old Node. Remove the typeof check later.
+        if (typeof ReadableStream === 'function' && value instanceof ReadableStream) {
+          return serializeReadableStream(value);
+        }
+
+        var getAsyncIterator = value[ASYNC_ITERATOR];
+
+        if (typeof getAsyncIterator === 'function') {
+          // We treat AsyncIterables as a Fragment and as such we might need to key them.
+          return serializeAsyncIterable(value, getAsyncIterator.call(value));
+        }
       } // Verify that this is a simple plain object.
 
 

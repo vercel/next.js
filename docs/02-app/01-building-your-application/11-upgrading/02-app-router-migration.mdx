@@ -169,7 +169,7 @@ export default function RootLayout({
 To manage `<head>` HTML elements, you can use the [built-in SEO support](/docs/app/building-your-application/optimizing/metadata):
 
 ```tsx filename="app/layout.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Home',
@@ -300,7 +300,7 @@ export default function Page() {
 **After:**
 
 ```tsx filename="app/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'My Page Title',

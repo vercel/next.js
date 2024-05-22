@@ -92,8 +92,8 @@ impl NextFontGoogleReplacer {
         let font_data = load_font_data(self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
 
-        let fallback = get_font_fallback(self.project_path, options, request_hash);
-        let properties = get_font_css_properties(options, fallback, request_hash).await?;
+        let fallback = get_font_fallback(self.project_path, options);
+        let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
             next_js_file_path("internal/font/google".to_string())
                 .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?)),
@@ -201,11 +201,8 @@ impl NextFontGoogleCssModuleReplacer {
         let font_data = load_font_data(self.project_path);
         let options = font_options_from_query_map(query_vc, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
-        let scoped_font_family = get_scoped_font_family(
-            FontFamilyType::WebFont.cell(),
-            options.font_family(),
-            request_hash,
-        );
+        let scoped_font_family =
+            get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
         let css_virtual_path = next_js_file_path("internal/font/google".to_string()).join(format!(
             "/{}.module.css",
             get_request_id(options.font_family(), request_hash).await?
@@ -226,7 +223,7 @@ impl NextFontGoogleCssModuleReplacer {
             )
             .await?;
 
-        let font_fallback = get_font_fallback(self.project_path, options, request_hash);
+        let font_fallback = get_font_fallback(self.project_path, options);
 
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
@@ -254,7 +251,7 @@ impl NextFontGoogleCssModuleReplacer {
                 FileContent::Content(
                     build_stylesheet(
                         Vc::cell(stylesheet),
-                        get_font_css_properties(options, font_fallback, request_hash),
+                        get_font_css_properties(options, font_fallback),
                         font_fallback,
                     )
                     .await?
@@ -520,15 +517,10 @@ async fn get_stylesheet_url_from_options(
 async fn get_font_css_properties(
     options_vc: Vc<NextFontGoogleOptions>,
     font_fallback: Vc<FontFallback>,
-    request_hash: u32,
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
-    let scoped_font_family = &*get_scoped_font_family(
-        FontFamilyType::WebFont.cell(),
-        options_vc.font_family(),
-        request_hash,
-    )
-    .await?;
+    let scoped_font_family =
+        &*get_scoped_font_family(FontFamilyType::WebFont.cell(), options_vc.font_family()).await?;
 
     let mut font_families = vec![format!("'{}'", scoped_font_family.clone())];
     let font_fallback = &*font_fallback.await?;

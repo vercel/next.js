@@ -8,6 +8,8 @@ import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_ROUTER_STATE_TREE,
+  ACTION,
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -292,7 +294,10 @@ async function createRedirectRenderResult(
     }
 
     // Ensures that when the path was revalidated we don't return a partial response on redirects
-    forwardedHeaders.delete('next-router-state-tree')
+    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE)
+    // When an action follows a redirect, it's no longer handling an action: it's just a normal RSC request
+    // to the requested URL. We should remove the `next-action` header so that it's not treated as an action
+    forwardedHeaders.delete(ACTION)
 
     try {
       const response = await fetch(fetchUrl, {
