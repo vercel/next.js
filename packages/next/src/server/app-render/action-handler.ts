@@ -379,6 +379,7 @@ export async function handleAction({
   requestStore,
   serverActions,
   ctx,
+  temporaryReferences,
 }: {
   req: BaseNextRequest
   res: BaseNextResponse
@@ -389,6 +390,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
+  temporaryReferences: import('react-dom/server.edge').TemporaryReferencesSet
 }): Promise<
   | undefined
   | {
@@ -398,9 +400,6 @@ export async function handleAction({
       type: 'done'
       result: RenderResult | undefined
       formState?: any
-      temporaryReferences:
-        | import('react-dom/server.edge').TemporaryReferencesSet
-        | undefined
     }
 > {
   const contentType = req.headers['content-type']
@@ -516,7 +515,6 @@ export async function handleAction({
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
           }),
-          temporaryReferences: undefined,
         }
       }
 
@@ -558,14 +556,10 @@ export async function handleAction({
           ctx.renderOpts.basePath,
           staticGenerationStore
         ),
-        temporaryReferences: undefined,
       }
     }
   }
 
-  let temporaryReferences:
-    | import('react-dom/server.edge').TemporaryReferencesSet
-    | undefined
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
       if (
@@ -575,16 +569,10 @@ export async function handleAction({
         isWebNextRequest(req)
       ) {
         // Use react-server-dom-webpack/server.edge
-        const {
-          createTemporaryReferenceSet,
-          decodeReply,
-          decodeAction,
-          decodeFormState,
-        } = ComponentMod
+        const { decodeReply, decodeAction, decodeFormState } = ComponentMod
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
-        temporaryReferences = createTemporaryReferenceSet()
 
         // TODO: add body limit
 
@@ -650,13 +638,11 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
-          createTemporaryReferenceSet,
           decodeReply,
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
         } = require(`./react-server.node`)
-        temporaryReferences = createTemporaryReferenceSet()
 
         const { Transform } =
           require('node:stream') as typeof import('node:stream')
@@ -827,7 +813,6 @@ export async function handleAction({
       type: 'done',
       result: actionResult,
       formState,
-      temporaryReferences,
     }
   } catch (err) {
     if (isRedirectError(err)) {
@@ -854,7 +839,6 @@ export async function handleAction({
             ctx.renderOpts.basePath,
             staticGenerationStore
           ),
-          temporaryReferences: undefined,
         }
       }
 
@@ -900,7 +884,6 @@ export async function handleAction({
             actionResult: promise,
             asNotFound: true,
           }),
-          temporaryReferences,
         }
       }
       return {
@@ -935,7 +918,6 @@ export async function handleAction({
           skipFlight:
             !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
         }),
-        temporaryReferences,
       }
     }
 
