@@ -390,6 +390,23 @@ describe('app-dir action handling', () => {
     })
   })
 
+  it('should not remount client components when revalidateTag is called in a server action', async () => {
+    let browser = await next.browser('/revalidate-3')
+
+    // this triggers a revalidate in a client component
+    await browser.elementById('revalidate-client').click()
+
+    const delay = () =>
+      new Promise<void>((resolve) => setTimeout(resolve, 1000))
+
+    await delay() // wait for component to settle down
+
+    const logs = await browser.log()
+    const messages = logs.map((x) => x.message).join('\n')
+
+    expect(messages).not.toInclude('unmount')
+  })
+
   it('should support next/dynamic with ssr: false', async () => {
     const browser = await next.browser('/dynamic-csr')
 
