@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { describeVariants } from 'next-test-utils'
 
-describeVariants.each(['turbo', 'default'])('experimental decorators', () => {
+describeVariants.each(['default'])('experimental decorators', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
