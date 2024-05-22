@@ -13,7 +13,7 @@ export default function Page() {
         <p>{isPending ? 'Pending' : 'Resolved'}</p>
         <label>
           Render
-          <input defaultValue="Hello, Dave!" type="text" name="value" />
+          <input defaultValue="" type="text" name="value" />
         </label>
         <input type="submit" />
         <output>{state}</output>
