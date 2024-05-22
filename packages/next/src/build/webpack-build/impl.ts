@@ -493,6 +493,11 @@ export async function workerMain(workerData: {
     `worker-main-${workerData.compilerName}`
   )
 
+  if (NextBuildContext.config.experimental.webpackMemoryOptimizations) {
+    stringBufferUtils.disableDualStringBufferCaching()
+    stringBufferUtils.enableStringInterning()
+  }
+
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
   if (entriesTrace) {
@@ -508,6 +513,10 @@ export async function workerMain(workerData: {
   if (chunksTrace?.entryNameFilesMap) {
     const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
+  }
+
+  if (NextBuildContext.config.experimental.webpackMemoryOptimizations) {
+    stringBufferUtils.disableStringInterning()
   }
   NextBuildContext.nextBuildSpan.stop()
   return { ...result, debugTraceEvents: getTraceEvents() }
