@@ -95,7 +95,9 @@ Or, run this command with no arguments to use the most recently published versio
   }
   await fsp.writeFile(
     path.join(cwd, 'package.json'),
-    JSON.stringify(pkgJson, null, 2)
+    JSON.stringify(pkgJson, null, 2) +
+      // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+      '\n'
   )
   console.log('Successfully updated React dependencies in package.json.\n')
 
