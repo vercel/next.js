@@ -379,6 +379,7 @@ export async function handleAction({
   requestStore,
   serverActions,
   ctx,
+  temporaryReferences,
 }: {
   req: BaseNextRequest
   res: BaseNextResponse
@@ -389,6 +390,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
+  temporaryReferences: unknown
 }): Promise<
   | undefined
   | {
@@ -578,7 +580,9 @@ export async function handleAction({
           // TODO-APP: Add streaming support
           const formData = await req.request.formData()
           if (isFetchAction) {
-            bound = await decodeReply(formData, serverModuleMap)
+            bound = await decodeReply(formData, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           } else {
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
@@ -617,9 +621,13 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            bound = await decodeReply(formData, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            bound = await decodeReply(actionData, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           }
         }
       } else if (
@@ -681,7 +689,9 @@ export async function handleAction({
 
             body.pipe(busboy)
 
-            bound = await decodeReplyFromBusboy(busboy, serverModuleMap)
+            bound = await decodeReplyFromBusboy(busboy, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
@@ -737,9 +747,13 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            bound = await decodeReply(formData, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            bound = await decodeReply(actionData, serverModuleMap, {
+              temporaryReferences: temporaryReferences,
+            })
           }
         }
       } else {

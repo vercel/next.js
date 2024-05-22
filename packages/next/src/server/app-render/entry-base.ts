@@ -4,6 +4,7 @@ export {
   decodeReply,
   decodeAction,
   decodeFormState,
+  createTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'

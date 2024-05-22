@@ -906,6 +906,8 @@ async function renderToHTMLOrFlightImpl(
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
 
+  const temporaryReferences = ComponentMod.createTemporaryReferenceSet()
+
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
     {
@@ -959,6 +961,7 @@ async function renderToHTMLOrFlightImpl(
         {
           onError: serverComponentsErrorHandler,
           nonce,
+          temporaryReferences: temporaryReferences,
         }
       )
 
@@ -1291,6 +1294,7 @@ async function renderToHTMLOrFlightImpl(
           {
             onError: serverComponentsErrorHandler,
             nonce,
+            temporaryReferences: temporaryReferences,
           }
         )
 
@@ -1364,6 +1368,7 @@ async function renderToHTMLOrFlightImpl(
     requestStore,
     serverActions,
     ctx,
+    temporaryReferences,
   })
 
   let formState: null | any = null
