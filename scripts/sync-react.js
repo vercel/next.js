@@ -222,16 +222,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
     }
     for (const { commit, sha } of commits) {
       const title = commit.message.split('\n')[0] || ''
-      // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
-      const match = /\(#([0-9]+)\)$/.exec(title)
+      const match =
+        // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
+        /\(#([0-9]+)\)$/.exec(title) ??
+        // or contains "Pull Request resolved: https://github.com/facebook/react/pull/12345" in the body if merged via ghstack (e.g. https://github.com/facebook/react/commit/0a0a5c02f138b37e93d5d93341b494d0f5d52373)
+        /^Pull Request resolved: https:\/\/github.com\/facebook\/react\/pull\/([0-9]+)$/m.exec(
+          commit.message
+        )
       const prNum = match ? match[1] : ''
       if (prNum) {
         changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
       } else {
         changelog.push(
-          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-            commit.author.name
-          })`
+          `- [${commit.message.split('\n')[0]} facebook/react@${sha.slice(0, 9)}](https://github.com/facebook/react/commit/${sha}) (${commit.author.name})`
         )
       }
     }
