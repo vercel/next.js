@@ -31,6 +31,11 @@ declare module 'react-dom/server.edge' {
     }
   ): Promise<ReadableStream<Uint8Array>>
 
+  const REACT_TEMPORARY_REFERENCES_SIGIL: unique symbol
+  export interface TemporaryReferencesSet {
+    [REACT_TEMPORARY_REFERENCES_SIGIL]: never
+  }
+
   /**
    * Options for `renderToReadableStream`.
    *
@@ -61,6 +66,7 @@ declare module 'react-dom/server.edge' {
     formState?: unknown
     onHeaders?: (headers: Headers) => void
     maxHeadersLength?: number
+    temporaryReferences?: TemporaryReferencesSet | undefined
   }
 
   export function renderToReadableStream(

@@ -398,7 +398,9 @@ export async function handleAction({
       type: 'done'
       result: RenderResult | undefined
       formState?: any
-      temporaryReferences: unknown
+      temporaryReferences:
+        | import('react-dom/server.edge').TemporaryReferencesSet
+        | undefined
     }
 > {
   const contentType = req.headers['content-type']
@@ -561,6 +563,9 @@ export async function handleAction({
     }
   }
 
+  let temporaryReferences:
+    | import('react-dom/server.edge').TemporaryReferencesSet
+    | undefined
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
       if (
@@ -579,7 +584,7 @@ export async function handleAction({
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
-        const temporaryReferences = createTemporaryReferenceSet()
+        temporaryReferences = createTemporaryReferenceSet()
 
         // TODO: add body limit
 
@@ -651,7 +656,7 @@ export async function handleAction({
           decodeAction,
           decodeFormState,
         } = require(`./react-server.node`)
-        const temporaryReferences = createTemporaryReferenceSet()
+        temporaryReferences = createTemporaryReferenceSet()
 
         const { Transform } =
           require('node:stream') as typeof import('node:stream')
@@ -822,7 +827,7 @@ export async function handleAction({
       type: 'done',
       result: actionResult,
       formState,
-      temporaryReferences: undefined,
+      temporaryReferences,
     }
   } catch (err) {
     if (isRedirectError(err)) {
@@ -895,7 +900,7 @@ export async function handleAction({
             actionResult: promise,
             asNotFound: true,
           }),
-          temporaryReferences: undefined,
+          temporaryReferences,
         }
       }
       return {
@@ -930,7 +935,7 @@ export async function handleAction({
           skipFlight:
             !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
         }),
-        temporaryReferences: undefined,
+        temporaryReferences,
       }
     }
 

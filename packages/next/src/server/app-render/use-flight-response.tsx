@@ -90,7 +90,7 @@ export async function flightRenderComplete(
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`

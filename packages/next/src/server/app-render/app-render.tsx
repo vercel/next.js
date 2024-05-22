@@ -367,6 +367,7 @@ async function generateFlight(
     {
       onError: ctx.flightDataRendererErrorHandler,
       nonce: ctx.nonce,
+      temporaryReferences: undefined,
     }
   )
 
@@ -388,7 +389,9 @@ type RenderToStreamOptions = {
   asNotFound: boolean
   tree: LoaderTree
   formState: any
-  temporaryReferences: unknown
+  temporaryReferences:
+    | import('react-dom/server.edge').TemporaryReferencesSet
+    | undefined
 }
 
 /**
@@ -919,6 +922,7 @@ async function renderToHTMLOrFlightImpl(
       asNotFound,
       tree,
       formState,
+      temporaryReferences,
     }: RenderToStreamOptions): Promise<RenderToStreamResult> => {
       const tracingMetadata = getTracedMetadata(
         getTracer().getTracePropagationData(),
@@ -960,6 +964,7 @@ async function renderToHTMLOrFlightImpl(
         {
           onError: serverComponentsErrorHandler,
           nonce,
+          temporaryReferences,
         }
       )
 
@@ -1292,6 +1297,7 @@ async function renderToHTMLOrFlightImpl(
           {
             onError: serverComponentsErrorHandler,
             nonce,
+            temporaryReferences,
           }
         )
 
@@ -1311,6 +1317,7 @@ async function renderToHTMLOrFlightImpl(
               // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
               formState,
+              temporaryReferences,
             },
           })
 

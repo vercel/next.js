@@ -110,6 +110,7 @@ export function makeGetServerInsertedHTML({
         // Larger chunk because this isn't sent over the network.
         // Let's set it to 1MB.
         progressiveChunkSize: 1024 * 1024,
+        temporaryReferences: undefined,
       }
     )
 

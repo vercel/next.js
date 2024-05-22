@@ -168,7 +168,7 @@ export function renderToInitialFizzStream({
 }: {
   ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
-  streamOptions?: any
+  streamOptions?: import('react-dom/server.edge').Options
 }): Promise<ReactReadableStream> {
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
