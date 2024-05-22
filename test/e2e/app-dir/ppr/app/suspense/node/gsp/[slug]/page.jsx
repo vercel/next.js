@@ -1,4 +1,3 @@
-import { unstable_noStore } from 'next/cache'
 import { Suspense } from 'react'
 
 export function generateStaticParams() {
@@ -17,8 +16,6 @@ export default async function Page({ params }) {
 }
 
 async function Component({ id }) {
-  unstable_noStore()
-
   const dynamicData = await fetch(
     `https://next-data-api-endpoint.vercel.app/api/random?id=${id}`,
     { cache: 'no-store' }

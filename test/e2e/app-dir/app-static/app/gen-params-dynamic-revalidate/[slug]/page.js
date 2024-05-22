@@ -1,8 +1,6 @@
 import { fetchRetry } from '../../../lib/fetch-retry'
 
 export const revalidate = 3
-// override root default-cache
-export const fetchCache = 'default-no-store'
 
 export async function generateStaticParams() {
   return [{ slug: 'one' }]

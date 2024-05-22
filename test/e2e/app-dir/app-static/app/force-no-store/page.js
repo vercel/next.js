@@ -1,8 +1,5 @@
 import { cache, use } from 'react'
 
-// bail from ISR
-export const dynamic = 'force-dynamic'
-// override root default-cache
 export const fetchCache = 'force-no-store'
 
 export default function Page() {

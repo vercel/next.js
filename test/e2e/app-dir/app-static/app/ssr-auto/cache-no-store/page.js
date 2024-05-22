@@ -1,8 +1,5 @@
 import { cache, use } from 'react'
 
-// bail from ISR
-export const dynamic = 'force-dynamic'
-
 export default function Page() {
   const getData = cache(() =>
     fetch('https://example.vercel.sh', {

@@ -1,6 +1,4 @@
 export const dynamic = 'force-dynamic'
-// override root layout fetchCache = 'default-cache'
-export const fetchCache = 'default-no-store'
 
 export default async function Page() {
   const data = await fetch(
