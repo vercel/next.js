@@ -2512,8 +2512,12 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
   })
@@ -2657,8 +2661,12 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
   })
