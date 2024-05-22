@@ -686,8 +686,19 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
     case "pending":
     case "blocked":
     case "cyclic":
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
+      if (chunk.value)
+        for (var i = 0; i < resolveListeners.length; i++)
+          chunk.value.push(resolveListeners[i]);
+      else chunk.value = resolveListeners;
+      if (chunk.reason) {
+        if (rejectListeners)
+          for (
+            resolveListeners = 0;
+            resolveListeners < rejectListeners.length;
+            resolveListeners++
+          )
+            chunk.reason.push(rejectListeners[resolveListeners]);
+      } else chunk.reason = rejectListeners;
       break;
     case "rejected":
       rejectListeners && wakeChunk(rejectListeners, chunk.reason);
@@ -1088,8 +1099,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$50 = createPendingChunk(response);
-        chunk$50.then(
+        var chunk$51 = createPendingChunk(response);
+        chunk$51.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -1097,10 +1108,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$50;
+        previousBlockedChunk = chunk$51;
         chunk.then(function () {
-          previousBlockedChunk === chunk$50 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$50, json);
+          previousBlockedChunk === chunk$51 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$51, json);
         });
       }
     },
@@ -1228,8 +1239,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$51 = (i = 0); i$51 < l; i$51++) {
-    var chunk = buffer[i$51];
+  for (var i$52 = (i = 0); i$52 < l; i$52++) {
+    var chunk = buffer[i$52];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }

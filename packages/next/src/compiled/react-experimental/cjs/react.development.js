@@ -111,7 +111,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '19.0.0-experimental-8f3c0525f9-20240521';
+var ReactVersion = '19.0.0-experimental-81c5ff2e04-20240521';
 
 // -----------------------------------------------------------------------------
 

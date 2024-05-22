@@ -1983,8 +1983,24 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
     case PENDING:
     case BLOCKED:
     case CYCLIC:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
+      if (chunk.value) {
+        for (var i = 0; i < resolveListeners.length; i++) {
+          chunk.value.push(resolveListeners[i]);
+        }
+      } else {
+        chunk.value = resolveListeners;
+      }
+
+      if (chunk.reason) {
+        if (rejectListeners) {
+          for (var _i = 0; _i < rejectListeners.length; _i++) {
+            chunk.reason.push(rejectListeners[_i]);
+          }
+        }
+      } else {
+        chunk.reason = rejectListeners;
+      }
+
       break;
 
     case ERRORED:
@@ -3083,8 +3099,8 @@ function mergeBuffer(buffer, lastChunk) {
   var result = new Uint8Array(byteLength);
   var offset = 0; // Copy all the buffers into it.
 
-  for (var _i = 0; _i < l; _i++) {
-    var chunk = buffer[_i];
+  for (var _i2 = 0; _i2 < l; _i2++) {
+    var chunk = buffer[_i2];
     result.set(chunk, offset);
     offset += chunk.byteLength;
   }

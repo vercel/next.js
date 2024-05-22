@@ -2100,8 +2100,15 @@ function resolveModelChunk(chunk, value, id) {
         case "pending":
         case "blocked":
         case "cyclic":
-          chunk.value = resolveListeners;
-          chunk.reason = rejectListeners;
+          if (chunk.value)
+            for (value = 0; value < resolveListeners.length; value++)
+              chunk.value.push(resolveListeners[value]);
+          else chunk.value = resolveListeners;
+          if (chunk.reason) {
+            if (rejectListeners)
+              for (value = 0; value < rejectListeners.length; value++)
+                chunk.reason.push(rejectListeners[value]);
+          } else chunk.reason = rejectListeners;
           break;
         case "rejected":
           rejectListeners && wakeChunk(rejectListeners, chunk.reason);
@@ -2395,8 +2402,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$29 = createPendingChunk(response);
-        chunk$29.then(
+        var chunk$30 = createPendingChunk(response);
+        chunk$30.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2404,10 +2411,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$29;
+        previousBlockedChunk = chunk$30;
         chunk.then(function () {
-          previousBlockedChunk === chunk$29 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$29, json, -1);
+          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$30, json, -1);
         });
       }
     },
@@ -2761,12 +2768,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_200 = [];
+    var JSCompiler_object_inline_chunks_203 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_200.push(chunk);
+      JSCompiler_object_inline_chunks_203.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_200, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_203, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
