@@ -2,10 +2,7 @@ import { bold, cyan, red, yellow } from './picocolors'
 import path from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
-import type {
-  MissingDependency,
-  NecessaryDependencies,
-} from './has-necessary-dependencies'
+import type { NecessaryDependencies } from './has-necessary-dependencies'
 import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
 import * as log from '../build/output/log'
@@ -72,37 +69,11 @@ export async function verifyTypeScriptSetup({
       requiredPackages
     )
 
-    const missingTypeDeps: MissingDependency[] = []
-    const missingDepsExceptTypes: MissingDependency[] = []
-    for (const dep of deps.missing) {
-      if (dep.pkg.startsWith('@types/')) {
-        missingTypeDeps.push(dep)
-      } else {
-        missingDepsExceptTypes.push(dep)
-      }
-    }
-
-    // Just warn for potentially missing type deps.
-    // TODO: Fix false-positive in `hasNecessaryDependencies` when `overrides` are used in package managers
-    if (missingTypeDeps.length > 0) {
-      console.log(
-        bold(
-          yellow(
-            `It looks like you're trying to use TypeScript but do not have the required type package(s) installed.`
-          )
-        ) +
-          '\n' +
-          'This may be a bug in Next.js. Please file an issue.\n' +
-          'Make sure the following type packages are installed:\n' +
-          missingTypeDeps.map((dep) => `  ${cyan(dep.pkg)}`).join('\n')
-      )
-    }
-
-    if (missingDepsExceptTypes.length > 0) {
+    if (deps.missing?.length > 0) {
       if (isCI) {
         // we don't attempt auto install in CI to avoid side-effects
         // and instead log the error for installing needed packages
-        missingDepsError(dir, missingDepsExceptTypes)
+        missingDepsError(dir, deps.missing)
       }
       console.log(
         bold(
@@ -120,18 +91,16 @@ export async function verifyTypeScriptSetup({
           ) +
           '\n'
       )
-      await installDependencies(dir, missingDepsExceptTypes, true).catch(
-        (err) => {
-          if (err && typeof err === 'object' && 'command' in err) {
-            console.error(
-              `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
-                (err as any).command +
-                '\n'
-            )
-          }
-          throw err
+      await installDependencies(dir, deps.missing, true).catch((err) => {
+        if (err && typeof err === 'object' && 'command' in err) {
+          console.error(
+            `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
+              (err as any).command +
+              '\n'
+          )
         }
-      )
+        throw err
+      })
       deps = await hasNecessaryDependencies(dir, requiredPackages)
     }
 
