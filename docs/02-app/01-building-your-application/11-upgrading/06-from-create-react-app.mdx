@@ -494,7 +494,9 @@ The main difference is the prefix used to expose environment variables on the cl
 
 ### Step 10: Update scripts in `package.json`
 
-You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, `next-env.d.ts`, and `build` to your `.gitignore` file:
+You are almost ready to run your application and test if you successfully migrated to Next.js.
+
+But before that, you need to update your `scripts` in your `package.json` with Next.js related commands.
 
 ```json filename="package.json"
 {
@@ -506,14 +508,16 @@ You should now be able to run your application to test if you successfully migra
 }
 ```
 
+And add `.next`, `next-env.d.ts`, and `build` to your `.gitignore` file.
+
 ```txt filename=".gitignore"
 # ...
 .next
 next-env.d.ts
-dist
+build
 ```
 
-Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
+Now, run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
 ### Step 11: Clean up
 
