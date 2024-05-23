@@ -2,6 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
+import { outdent } from 'outdent'
 import { sandbox } from '../../../lib/development-sandbox'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -271,6 +272,40 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       })
     } finally {
       await browser.eval('document.cookie = "testCookie=;path=/;max-age=-1"')
+    }
+  })
+
+  it('uses waitUntil from request context if available', async () => {
+    const { cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          // this needs to be injected as early as possible, before the server tries to read the context
+          // (which may be even before we load the page component in dev mode)
+          'instrumentation.js',
+          outdent`
+            import { injectRequestContext } from './utils/provided-request-context'
+            export function register() {
+              injectRequestContext();
+            }
+          `,
+        ],
+      ]),
+      '/provided-request-context'
+    )
+
+    try {
+      await retry(() => {
+        const logs = getLogs()
+        expect(logs).toContainEqual(
+          'waitUntil from "@next/request-context" was called'
+        )
+        expect(logs).toContainEqual({
+          source: '[page] /provided-request-context',
+        })
+      })
+    } finally {
+      await cleanup()
     }
   })
 
