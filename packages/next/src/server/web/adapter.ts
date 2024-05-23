@@ -22,6 +22,8 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { getBuiltinRequestContext } from '../after/builtin-request-context'
+import { lifecycleAsyncStorage } from '../../client/components/lifecycle-async-storage-instance'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -213,13 +215,14 @@ export async function adapter(
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
 
+    const isAfterEnabled =
+      params.request.nextConfig?.experimental?.after ??
+      !!process.env.__NEXT_AFTER
+
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
 
       let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
       let closeController: CloseController | undefined = undefined
@@ -279,6 +282,19 @@ export async function adapter(
         }
       )
     }
+
+    if (isAfterEnabled && !getBuiltinRequestContext()) {
+      // FIXME(after): unify on this method of passing waitUntil around,
+      // there's too much variation around this right now
+      //
+      // (here, we need to do this with an ALS because if the handler is a NextWebServer,
+      // there's currently no other way to pass `waitUntil` into it)
+      return lifecycleAsyncStorage.run(
+        { waitUntil: event.waitUntil.bind(event) },
+        () => params.handler(request, event)
+      )
+    }
+
     return params.handler(request, event)
   })
 

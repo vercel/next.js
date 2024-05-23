@@ -152,6 +152,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
+import { lifecycleAsyncStorage } from '../client/components/lifecycle-async-storage.external'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1676,6 +1677,11 @@ export default abstract class Server<
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `unstable_after` will error.
       return builtinRequestContext.waitUntil
+    }
+
+    const lifecycleStore = lifecycleAsyncStorage.getStore()
+    if (lifecycleStore) {
+      return lifecycleStore.waitUntil
     }
 
     if (process.env.__NEXT_TEST_MODE) {
