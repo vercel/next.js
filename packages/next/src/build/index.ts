@@ -2791,10 +2791,12 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-
+                if (isRouteHandler) {
+                  prefetchDataRoute = null
+                }
                 // We write the `.prefetch.rsc` when the app has PPR enabled, so
                 // always add the prefetch data route to the manifest.
-                if (isAppPPREnabled) {
+                else if (experimentalPPR) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
