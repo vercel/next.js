@@ -68,15 +68,9 @@ describe('ci-missing-typescript-deps', () => {
     })
     try {
       const nextBuild = await next.build()
-      // build doesn't fail because types/ may not be installed.
-      expect(nextBuild.cliOutput.split('\n')).toEqual(
-        expect.arrayContaining([
-          'This may be a bug in Next.js. Please file an issue.',
-          'Make sure the following type packages are installed:',
-          // In cyan color but this changes between CI and local.
-          // TODO: Use picocolors in tests to ensure we can test local and CI.
-          expect.stringContaining('@types/react'),
-        ])
+      expect(nextBuild.cliOutput).toContain(
+        // matching the part of the success message that isn't colored.
+        `We detected TypeScript in your project and created`
       )
     } finally {
       await next.destroy()
