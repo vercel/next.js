@@ -10,7 +10,7 @@ Partial Prerendering is an experimental feature that allows static portions of a
 
 Incremental support is available in Next.js 15, allowing you to opt-in to Partial Prerendering for specific routes and layouts.
 
-To enable Partial Prerendering, set the experimental `ppr` flag `incremental`:
+To enable Partial Prerendering, set the experimental `ppr` flag to `incremental`:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -25,7 +25,7 @@ module.exports = nextConfig
 
 ## Options
 
-- `incremental`: Allowing you to incrementally opt-in layouts and pages, should be used with the [`experimental_ppr`](/docs/app/api-reference/file-conventions/route-segment-config#experimental_ppr) route config option.
+- `incremental`: Allows you to incrementally opt-in layouts and pages, and should be used with the [`experimental_ppr`](/docs/app/api-reference/file-conventions/route-segment-config#experimental_ppr) route config option.
 - `true`: Enables Partial Prerendering for all routes in your application.
 
 We recommend using `incremental` first. Once all the routes in your application have PPR enabled, it’ll be considered safe for you to set the `ppr` value to `true`, and enable it for the entire app and all future routes.

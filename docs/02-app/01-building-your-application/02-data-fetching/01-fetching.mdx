@@ -28,7 +28,7 @@ There are 4 ways you can fetch data in Next.js:
 
 ## `fetch` API
 
-Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to allow you to configure the [caching](/docs/app/building-your-application/data-fetching/caching-and-revalidating#fetch-requests) and [revalidating](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
+Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) `fetch` to allow you to configure the [caching](/docs/app/building-your-application/data-fetching/caching-and-revalidating#fetch-requests) and [revalidating](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) behavior for each fetch request on the server. You can use `fetch` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations). For example:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
@@ -50,7 +50,7 @@ export default async function Page() {
 }
 ```
 
-By default, `fetch` requests fetch fresh data. Using it will cause a whole route to be [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) and data will not be cached.
+By default, `fetch` requests retrieve fresh data. Using it will cause a whole route to be [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) and data will not be cached.
 
 You can cache `fetch` requests by setting the `cache` option to `force-cache`. This means data will be cached, and the component will be [statically rendered](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
 
@@ -58,7 +58,7 @@ You can cache `fetch` requests by setting the `cache` option to `force-cache`. T
 fetch('https://...', { cache: 'force-cache' })
 ```
 
-Alternatively, if using [PPR](/docs/app/building-your-application/rendering/partial-prerendering), we recommend wrapping components that use `fetch` requests in Suspense boundaries. This will ensure only the component that uses `fetch` is dynamically rendered and streamed in, and not the whole page:
+Alternatively, if using [PPR](/docs/app/building-your-application/rendering/partial-prerendering), we recommend wrapping components that use `fetch` requests in Suspense boundaries. This will ensure only the component that uses `fetch` is dynamically rendered and streamed in, rather than the entire page:
 
 ```tsx filename="@/app/ui/cart.tsx switcher
 import { Suspense } from 'react'
@@ -91,7 +91,7 @@ If you need to fetch the same data in multiple components in a tree, you do not 
 
 This is possible because `fetch` requests with the same URL and options are automatically memoized during a React render pass.
 
-Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization)
+Learn more about [request memoization](/docs/app/building-your-application/caching#request-memoization).
 
 ## ORMs and Database Clients
 
@@ -492,7 +492,7 @@ export default async function Page({ params: { id } }) {
 
 > **Good to know:** The "preload" function can also have any name as it's a pattern, not an API.
 
-#### Using React `cache` and `server-only`, and the Preload Pattern
+#### Using React `cache` and `server-only` with the Preload Pattern
 
 You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
 

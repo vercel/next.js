@@ -27,7 +27,7 @@ fetch('https://...', { cache: 'no-store' })
 
 > **Advanced**: If you have multiple `fetch` requests in a layout or page segment, you can configure the caching behavior of all data requests in the segment using the `const dynamic = 'force-dynamic'` or `const fetchCache = 'force-no-store'` [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
-### Data Fetching Libraries and ORMs
+### Data fetching libraries and ORMs
 
 Whether a data request is cached will depend on the default semantics of your Data Fetching Library, Database Client, or ORM.
 
@@ -86,7 +86,7 @@ export async function getTransactions() {
 }
 ```
 
-## Revalidating Data
+## Revalidating data
 
 Revalidation is the process of purging the Data Cache and re-fetching the latest data. This is useful when your data changes and you want to ensure you show the latest information while still benefiting from the speed of static rendering.
 
@@ -95,12 +95,12 @@ Cached data can be revalidated in two ways:
 - **Time-based revalidation**: Automatically revalidate data after a certain amount of time has passed. This is useful for data that changes infrequently and freshness is not as critical.
 - **On-demand revalidation**: Manually revalidate data based on an event (e.g. form submission). On-demand revalidation can use a tag-based or path-based approach to revalidate groups of data at once. This is useful when you want to ensure the latest data is shown as soon as possible (e.g. when content from your headless CMS is updated).
 
-### Time-based Revalidation
+### Time-based revalidation
 
 To revalidate data at a timed interval, you can use the `next.revalidate` option of `fetch` to set the cache lifetime of a resource (in seconds).
 
 ```js
-fetch('https://...', { next: { revalidate: 3600 } })
+fetch('https://...', { next: { revalidate: 3600 } }) // revalidate at most every hour
 ```
 
 Alternatively, to revalidate all requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
@@ -117,9 +117,9 @@ Learn [how time-based revalidation works](/docs/app/building-your-application/ca
 > - For dynamically rendered routes, each `fetch` request will be revalidated independently.
 > - To save server resources, we recommend setting a high revalidation time whenever possible. For instance, 1 hour instead of 1 second. If you need real-time data, consider switching to [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) or client-side data fetching.
 
-### On-demand Revalidation
+### On-demand revalidation
 
-Data can be revalidated on-demand with the ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) and ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) APIs.
+Data can be revalidated on-demand with the [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) APIs.
 
 Use `revalidatePath` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to revalidate data for specific routes:
 

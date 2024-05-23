@@ -29,7 +29,7 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 
 ## Minimum React version
 
-- The minimum `react` and `react-dom` version has been bumped to 19.
+- The minimum `react` and `react-dom` is now 19.
 
 ## `fetch` requests
 
@@ -64,7 +64,7 @@ export async function GET() {}
 
 ## Client-side Router Cache
 
-When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the client-side router cache. However, they are still reused during browser backward and forward navigation.
+When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the client-side router cache. However, they are still reused during browser backward and forward navigation and for shared layouts.
 
 To opt page segments into caching, you can use the [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option:
 

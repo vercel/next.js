@@ -5,7 +5,7 @@ description: Learn how to migrate your existing React application from Create Re
 
 This guide will help you migrate an existing Create React App site to Next.js.
 
-## Why Switch?
+## Why switch?
 
 There are several reasons why you might want to switch from Create React App to Next.js:
 
@@ -28,7 +28,7 @@ While fetching data on the client is supported with Next.js, it also gives you t
 
 ### Fast and intentional loading states
 
-With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls.
+With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can be more intentional about which parts of your UI you want to load first, and in what order, without introducing network waterfalls.
 
 This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
@@ -40,15 +40,15 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 [Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. This is especially useful to avoid having a flash of unauthenticated content when the user visits an authenticated-only page by redirecting the user to a login page. The middleware is also useful for experimentation and [internationalization](/docs/app/building-your-application/routing/internationalization).
 
-### Built-in Optimizations
+### Built-in optimizations
 
 [Images](/docs/app/building-your-application/optimizing/images), [fonts](/docs/app/building-your-application/optimizing/fonts), and [third-party scripts](/docs/app/building-your-application/optimizing/scripts) often have significant impact on an application's performance. Next.js comes with built-in components that automatically optimize those for you.
 
-## Migration Steps
+## Migration steps
 
 Our goal with this migration is to get a working Next.js application as quickly as possible, so that you can then adopt Next.js features incrementally. To begin with, we'll keep it as a purely client-side application (SPA) without migrating your existing router. This helps minimize the chances of encountering issues during the migration process and reduces merge conflicts.
 
-### Step 1: Install the Next.js Dependency
+### Step 1: Install Next.js
 
 The first thing you need to do is to install `next` as a dependency:
 
@@ -56,7 +56,7 @@ The first thing you need to do is to install `next` as a dependency:
 npm install next@latest
 ```
 
-### Step 2: Create the Next.js Configuration File
+### Step 2: Create the Next.js configuration file
 
 Create a `next.config.mjs` at the root of your project. This file will hold your [Next.js configuration options](/docs/app/api-reference/next-config-js).
 
@@ -64,13 +64,13 @@ Create a `next.config.mjs` at the root of your project. This file will hold your
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
+  distDir: './build', // Changes the build output directory to `./build/`.
 }
 
 export default nextConfig
 ```
 
-### Step 3: Update TypeScript Configuration
+### Step 3: Update TypeScript configuration
 
 If you're using TypeScript, you need to update your `tsconfig.json` file with the following changes to make it compatible with Next.js:
 
@@ -189,7 +189,7 @@ export default function RootLayout({ children }) {
 
 ### Step 5: Metadata
 
-Next.js already includes by default the [meta charset](https://developer.mozilla.org/docs/Web/HTML/Element/meta#charset) and [meta viewport](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) tags, so you can safely remove those from your `<head>`:
+Next.js includes by default the [meta charset](https://developer.mozilla.org/docs/Web/HTML/Element/meta#charset) and [meta viewport](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) tags, so you can safely remove those from your `<head>`:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -340,7 +340,7 @@ module.exports = {
 }
 ```
 
-### Step 7: Create the Entrypoint Page
+### Step 7: Create the entrypoint page
 
 On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the entry point of your application.
 
@@ -444,7 +444,7 @@ export default function Page() {
 }
 ```
 
-### Step 8: Update Static Image Imports
+### Step 8: Update static image imports
 
 Next.js handles static image imports slightly different from CRA. With CRA, importing an image file will return its public URL as a string:
 
@@ -486,15 +486,15 @@ Alternatively, you can reference the public URL for the image asset based on the
 
 > **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src` property. You can safely ignore those for now. They will be fixed by the end of this guide.
 
-### Step 9: Migrate the Environment Variables
+### Step 9: Migrate the environment variables
 
 Next.js has support for `.env` [environment variables](/docs/app/building-your-application/configuring/environment-variables) similar to CRA.
 
 The main difference is the prefix used to expose environment variables on the client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
-### Step 10: Update Scripts in `package.json`
+### Step 10: Update scripts in `package.json`
 
-You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, `next-env.d.ts`, and `dist` to your `.gitignore` file:
+You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, `next-env.d.ts`, and `build` to your `.gitignore` file:
 
 ```json filename="package.json"
 {
@@ -515,7 +515,7 @@ dist
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
-### Step 11: Clean Up
+### Step 11: Clean up
 
 You can now clean up your codebase from Create React App related artifacts:
 
@@ -524,7 +524,7 @@ You can now clean up your codebase from Create React App related artifacts:
 - Delete `reportWebVitals` setup
 - Uninstall CRA dependencies (`react-scripts`)
 
-## Bundler Compatibility
+## Bundler compatibility
 
 Create React App and Next.js both default to using webpack for bundling.
 
@@ -532,7 +532,7 @@ When migrating your CRA application to Next.js, you might have a custom webpack 
 
 Further, Next.js has support for [Turbopack](/docs/app/api-reference/next-config-js/turbo) through `next dev --turbo` to improve your local dev performance. Turbopack supports some [webpack loaders](/docs/app/api-reference/next-config-js/turbo) as well for compatibility and incremental adoption.
 
-## Next Steps
+## Next steps
 
 If everything went according to plan, you now have a functioning Next.js application running as a single-page application. However, you aren't yet taking advantage of most of Next.js' benefits, but you can now start making incremental changes to reap all the benefits. Here's what you might want to do next:
 
