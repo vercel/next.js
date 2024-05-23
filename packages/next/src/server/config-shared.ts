@@ -148,6 +148,11 @@ export interface ExperimentalTurboOptions {
    * Use swc_css instead of lightningcss for turbopakc
    */
   useSwcCss?: boolean
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
