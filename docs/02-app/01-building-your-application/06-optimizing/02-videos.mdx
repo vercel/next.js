@@ -216,25 +216,21 @@ If you have subtitles for your video, you can easily add them using the `<track>
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 2
-  });
-  const { url } = blobs[0];
-  const { url: captionsUrl } = blobs[1];
+    limit: 2,
+  })
+  const { url } = blobs[0]
+  const { url: captionsUrl } = blobs[1]
 
   return (
     <video controls preload="none" aria-label="Video player">
       <source src={url} type="video/mp4" />
-      <track
-        src={captionsUrl}
-        kind="subtitles"
-        srcLang="en"
-        label="English">
+      <track src={captionsUrl} kind="subtitles" srcLang="en" label="English" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 By following this approach, you can effectively self-host and integrate videos into your Next.js applications.

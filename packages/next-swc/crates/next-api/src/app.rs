@@ -44,7 +44,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            asset::{Asset, AssetContent},
+            asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
                 EvaluatableAssets,
@@ -52,6 +52,7 @@ use turbopack_binding::{
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            raw_output::RawOutput,
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
@@ -907,7 +908,7 @@ impl AppEndpoint {
             let polyfill_output_path =
                 client_chunking_context.chunk_path(polyfill_source.ident(), ".js".to_string());
             let polyfill_output_asset =
-                VirtualOutputAsset::new(polyfill_output_path, polyfill_source.content());
+                RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
             let polyfill_client_path = client_relative_path_ref
                 .get_path_to(&*polyfill_output_path.await?)
                 .context("failed to resolve client-relative path to polyfill")?
