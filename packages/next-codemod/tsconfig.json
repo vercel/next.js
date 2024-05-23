@@ -5,7 +5,8 @@
     "esModuleInterop": true,
     "target": "es2015",
     "downlevelIteration": true,
-    "preserveWatchOutput": true
+    "preserveWatchOutput": true,
+    "skipLibCheck": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"]
