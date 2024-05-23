@@ -113,7 +113,9 @@ import { Inter } from 'next/font/google'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Before
-  bundlePagesExternals: true,
+  experimental: {
+    bundlePagesExternals: true,
+  }, 
 
   // After
   bundlePagesRouterDependencies: true,
@@ -130,7 +132,9 @@ module.exports = nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Before
-  serverComponentsExternalPackages: ['package-name'],
+  experimental: {
+    serverComponentsExternalPackages: ['package-name'],
+  },
 
   // After
   serverExternalPackages: ['package-name'],
