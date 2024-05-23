@@ -2158,7 +2158,7 @@ function warnAboutTransitionSubscriptions(prevTransition, currentTransition) {
 
 function noop() {}
 
-var ReactVersion = '19.0.0-rc-81c5ff2e04-20240521';
+var ReactVersion = '19.0.0-rc-f994737d14-20240522';
 
 var Children = {
   map: mapChildren,

@@ -12,8 +12,8 @@ describe('ReactRefreshRegression app', () => {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
       '@mdx-js/loader': '0.18.0',
-      react: '19.0.0-rc-81c5ff2e04-20240521',
-      'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
+      react: '19.0.0-rc-f994737d14-20240522',
+      'react-dom': '19.0.0-rc-f994737d14-20240522',
     },
     skipStart: true,
   })
