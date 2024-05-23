@@ -340,6 +340,39 @@ module.exports = {
 }
 ```
 
+Create a `` file at the root of your project:
+
+```ts filename="tailwind.config.ts"
+import type { Config } from 'tailwindcss'
+
+const config: Config = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {},
+  plugins: [],
+}
+export default config
+```
+
+Create an `app/globals.css` and import Tailwind globals:
+
+```css filename="app/globals.css"
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+Lastly, import the `globals.css` file in your `app/layout.tsx` file:
+
+```tsx filename="app/layout.tsx" switcher
+import './globals.css'
+
+// ...
+```
+
 ### Step 7: Create the entrypoint page
 
 On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the entry point of your application.
