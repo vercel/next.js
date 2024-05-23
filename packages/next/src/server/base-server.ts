@@ -146,7 +146,10 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
 import { patchSetHeaderWithCookieSupport } from './lib/patch-set-header'
 import { checkIsAppPPREnabled } from './lib/experimental/ppr'
-import { getBuiltinWaitUntil } from './after/wait-until-builtin'
+import {
+  getBuiltinRequestContext,
+  type WaitUntil,
+} from './after/builtin-request-context'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -566,7 +569,7 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
         isAppPPREnabled,
-        swrDelta: this.nextConfig.experimental.swrDelta,
+        swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
       },
@@ -1625,7 +1628,7 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         revalidate,
-        swrDelta: this.nextConfig.experimental.swrDelta,
+        swrDelta: this.nextConfig.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -1667,24 +1670,36 @@ export default abstract class Server<
     )
   }
 
-  private getWaitUntil() {
-    const useBuiltinWaitUntil =
-      process.env.NEXT_RUNTIME === 'edge' || this.minimalMode
-
-    let waitUntil = useBuiltinWaitUntil ? getBuiltinWaitUntil() : undefined
-
-    if (!waitUntil) {
-      // if we're not running in a serverless environment,
-      // we don't actually need waitUntil -- the server will stay alive anyway.
-      // the only thing we want to do is prevent unhandled rejections.
-      waitUntil = function noopWaitUntil(promise) {
-        promise.catch((err: unknown) => {
-          console.error(err)
-        })
-      }
+  private getWaitUntil(): WaitUntil | undefined {
+    const builtinRequestContext = getBuiltinRequestContext()
+    if (builtinRequestContext) {
+      // the platform provided a request context.
+      // use the `waitUntil` from there, whether actually present or not --
+      // if not present, `unstable_after` will error.
+      return builtinRequestContext.waitUntil
     }
 
-    return waitUntil
+    if (process.env.__NEXT_TEST_MODE) {
+      // we're in a test, use a no-op.
+      return Server.noopWaitUntil
+    }
+
+    if (this.minimalMode || process.env.NEXT_RUNTIME === 'edge') {
+      // we're built for a serverless environment, and `waitUntil` is not available,
+      // but using a noop would likely lead to incorrect behavior,
+      // because we have no way of keeping the invocation alive.
+      // return nothing, and `unstable_after` will error if used.
+      return undefined
+    }
+
+    // we're in `next start` or `next dev`. noop is fine for both.
+    return Server.noopWaitUntil
+  }
+
+  private static noopWaitUntil(promise: Promise<any>) {
+    promise.catch((err: unknown) => {
+      console.error(err)
+    })
   }
 
   private async renderImpl(
@@ -2898,7 +2913,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.experimental.swrDelta,
+            swrDelta: this.nextConfig.swrDelta,
           })
         )
       }
@@ -2920,7 +2935,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.experimental.swrDelta,
+            swrDelta: this.nextConfig.swrDelta,
           })
         )
       }

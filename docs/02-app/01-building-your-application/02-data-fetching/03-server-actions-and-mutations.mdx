@@ -8,9 +8,9 @@ related:
     - app/api-reference/next-config-js/serverActions
 ---
 
-Server Actions are **asynchronous functions** that are executed on the server. They can be used in Server and Client Components to handle form submissions and data mutations in Next.js applications.
+[Server Actions](https://react.dev/reference/rsc/server-actions) are **asynchronous functions** that are executed on the server. They can be called in Server and Client Components to handle form submissions and data mutations in Next.js applications.
 
-> **🎥 Watch:** Learn more about forms and mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
+> **🎥 Watch:** Learn more about mutations with Server Actions → [YouTube (10 minutes)](https://youtu.be/dDpZfOQBMaU?si=cJZHlUu_jFhCzHUg).
 
 ## Convention
 
@@ -21,78 +21,66 @@ A Server Action can be defined with the React [`"use server"`](https://react.dev
 Server Components can use the inline function level or module level `"use server"` directive. To inline a Server Action, add `"use server"` to the top of the function body:
 
 ```tsx filename="app/page.tsx" switcher
-// Server Component
 export default function Page() {
   // Server Action
   async function create() {
     'use server'
-
-    // ...
+    // Mutate data
   }
 
-  return (
-    // ...
-  )
+  return <></>
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-// Server Component
 export default function Page() {
   // Server Action
   async function create() {
     'use server'
-
-    // ...
+    // Mutate data
   }
 
-  return (
-    // ...
-  )
+  return <></>
 }
 ```
 
 ### Client Components
-
-Client Components can only import actions that use the module-level `"use server"` directive.
 
 To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-export async function create() {
-  // ...
-}
+export async function create() {}
 ```
 
 ```js filename="app/actions.js" switcher
 'use server'
 
-export async function create() {
-  // ...
-}
+export async function create() {}
 ```
 
 ```tsx filename="app/ui/button.tsx" switcher
+'use client'
+
 import { create } from '@/app/actions'
 
 export function Button() {
-  return (
-    // ...
-  )
+  return <Button onClick={create} />
 }
 ```
 
 ```jsx filename="app/ui/button.js" switcher
+'use client'
+
 import { create } from '@/app/actions'
 
 export function Button() {
-  return (
-    // ...
-  )
+  return <Button onClick={create} />
 }
 ```
+
+### Passing actions as props
 
 You can also pass a Server Action to a Client Component as a prop:
 
@@ -174,7 +162,7 @@ export default function Page() {
 > - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries). For example: `const rawFormData = Object.fromEntries(formData)`. One thing to note is that the `formData` will include additional `$ACTION_` properties.
 > - See [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action) to learn more.
 
-#### Passing Additional Arguments
+### Passing additional arguments
 
 You can pass additional arguments to a Server Action using the JavaScript `bind` method.
 
@@ -217,9 +205,7 @@ The Server Action will receive the `userId` argument, in addition to the form da
 ```js filename="app/actions.js"
 'use server'
 
-export async function updateUser(userId, formData) {
-  // ...
-}
+export async function updateUser(userId, formData) {}
 ```
 
 > **Good to know**:
@@ -227,78 +213,63 @@ export async function updateUser(userId, formData) {
 > - An alternative is to pass arguments as hidden input fields in the form (e.g. `<input type="hidden" name="userId" value={userId} />`). However, the value will be part of the rendered HTML and will not be encoded.
 > - `.bind` works in both Server and Client Components. It also supports progressive enhancement.
 
-#### Pending states
+### Nested form elements
 
-You can use the React [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state while the form is being submitted.
+You can also invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
 
-- `useFormStatus` returns the status for a specific `<form>`, so it **must be defined as a child of the `<form>` element**.
-- `useFormStatus` is a React hook and therefore must be used in a Client Component.
+This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/reference/react-dom/components/form#handling-multiple-submission-types) for more information.
 
-```tsx filename="app/submit-button.tsx" switcher
+### Programmatic form submission
+
+You can trigger a form submission programmatically using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user submits a form using the `⌘` + `Enter` keyboard shortcut, you can listen for the `onKeyDown` event:
+
+```tsx filename="app/entry.tsx" switcher
 'use client'
 
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
+export function Entry() {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
 
   return (
-    <button type="submit" disabled={pending}>
-      Add
-    </button>
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
   )
 }
 ```
 
-```jsx filename="app/submit-button.jsx" switcher
+```jsx filename="app/entry.jsx" switcher
 'use client'
 
-import { useFormStatus } from 'react-dom'
-
-export function SubmitButton() {
-  const { pending } = useFormStatus()
+export function Entry() {
+  const handleKeyDown = (e) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
 
   return (
-    <button type="submit" disabled={pending}>
-      Add
-    </button>
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
   )
 }
 ```
 
-`<SubmitButton />` can then be nested in any form:
+This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
 
-```tsx filename="app/page.tsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-import { createItem } from '@/app/actions'
-
-// Server Component
-export default async function Home() {
-  return (
-    <form action={createItem}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-```jsx filename="app/page.jsx" switcher
-import { SubmitButton } from '@/app/submit-button'
-import { createItem } from '@/app/actions'
-
-// Server Component
-export default async function Home() {
-  return (
-    <form action={createItem}>
-      <input type="text" name="field-name" />
-      <SubmitButton />
-    </form>
-  )
-}
-```
-
-#### Server-side validation and error handling
+### Server-side form validation
 
 We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
 
@@ -387,7 +358,7 @@ export async function createUser(prevState, formData) {
 
 Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
 
-```tsx filename="app/ui/signup.tsx" switcher
+```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
 'use client'
 
 import { useActionState } from 'react'
@@ -414,7 +385,7 @@ export function Signup() {
 }
 ```
 
-```jsx filename="app/ui/signup.js" switcher
+```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
 'use client'
 
 import { useActionState } from 'react'
@@ -446,9 +417,73 @@ export function Signup() {
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 > - In earlier React Canary versions, this API was part of React DOM and called `useFormState`.
 
-#### Optimistic updates
+### Pending states
 
-You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
+The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
+
+```tsx filename="app/submit-button.tsx" highlight={11,21-23} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction, pending] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/submit-button.jsx" highlight={11,21-23} switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction, pending] = useActionState(createUser, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
+    </form>
+  )
+}
+```
+
+> **Good to know:** Alternatively, you can also use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state for a specific form.
+
+### Optimistic updates
+
+You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes executing, rather than waiting for the response:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
@@ -466,18 +501,18 @@ export function Thread({ messages }: { messages: Message[] }) {
     string
   >(messages, (state, newMessage) => [...state, { message: newMessage }])
 
+  const formAction = async (formData) => {
+    const message = formData.get('message')
+    addOptimisticMessage(message)
+    await send(message)
+  }
+
   return (
     <div>
-      {optimisticMessages.map((m, k) => (
-        <div key={k}>{m.message}</div>
+      {optimisticMessages.map((m, i) => (
+        <div key={i}>{m.message}</div>
       ))}
-      <form
-        action={async (formData: FormData) => {
-          const message = formData.get('message')
-          addOptimisticMessage(message)
-          await send(message)
-        }}
-      >
+      <form action={formAction}>
         <input type="text" name="message" />
         <button type="submit">Send</button>
       </form>
@@ -498,18 +533,18 @@ export function Thread({ messages }) {
     (state, newMessage) => [...state, { message: newMessage }]
   )
 
+  const formAction = async (formData) => {
+    const message = formData.get('message')
+    addOptimisticMessage(message)
+    await send(message)
+  }
+
   return (
     <div>
       {optimisticMessages.map((m) => (
         <div>{m.message}</div>
       ))}
-      <form
-        action={async (formData) => {
-          const message = formData.get('message')
-          addOptimisticMessage(message)
-          await send(message)
-        }}
-      >
+      <form action={formAction}>
         <input type="text" name="message" />
         <button type="submit">Send</button>
       </form>
@@ -518,69 +553,9 @@ export function Thread({ messages }) {
 }
 ```
 
-#### Nested elements
+### Event handlers
 
-You can invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
-
-This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/reference/react-dom/components/form#handling-multiple-submission-types) for more information.
-
-#### Programmatic form submission
-
-You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
-
-```tsx filename="app/entry.tsx" switcher
-'use client'
-
-export function Entry() {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      (e.key === 'Enter' || e.key === 'NumpadEnter')
-    ) {
-      e.preventDefault()
-      e.currentTarget.form?.requestSubmit()
-    }
-  }
-
-  return (
-    <div>
-      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
-    </div>
-  )
-}
-```
-
-```jsx filename="app/entry.jsx" switcher
-'use client'
-
-export function Entry() {
-  const handleKeyDown = (e) => {
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      (e.key === 'Enter' || e.key === 'NumpadEnter')
-    ) {
-      e.preventDefault()
-      e.currentTarget.form?.requestSubmit()
-    }
-  }
-
-  return (
-    <div>
-      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
-    </div>
-  )
-}
-```
-
-This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
-
-### Non-form Elements
-
-While it's common to use Server Actions within `<form>` elements, they can also be invoked from other parts of your code such as event handlers and `useEffect`.
-
-#### Event Handlers
-
-You can invoke a Server Action from event handlers such as `onClick`. For example, to increment a like count:
+While it's common to use Server Actions within `<form>` elements, they can also be invoked with event handlers such as `onClick`. For example, to increment a like count:
 
 ```tsx filename="app/like-button.tsx" switcher
 'use client'
@@ -632,8 +607,6 @@ export default function LikeButton({ initialLikes }) {
 }
 ```
 
-To improve the user experience, we recommend using other React APIs like [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition) to update the UI before the Server Action finishes executing on the server, or to show a pending state.
-
 You can also add event handlers to form elements, for example, to save a form field `onChange`:
 
 ```tsx filename="app/ui/edit-post.tsx"
@@ -658,7 +631,7 @@ export default function EditPost() {
 
 For cases like this, where multiple events might be fired in quick succession, we recommend **debouncing** to prevent unnecessary Server Action invocations.
 
-#### `useEffect`
+### `useEffect`
 
 You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count:
 
@@ -740,7 +713,7 @@ export async function createTodo(prevState, formData) {
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
+> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-form-validation).
 
 ### Revalidating data
 
@@ -961,7 +934,7 @@ Closures are useful when you need to capture a _snapshot_ of data (e.g. `publish
 
 However, for this to happen, the captured variables are sent to the client and back to the server when the action is invoked. To prevent sensitive data from being exposed to the client, Next.js automatically encrypts the closed-over variables. A new private key is generated for each action every time a Next.js application is built. This means actions can only be invoked for a specific build.
 
-> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/patterns#preventing-sensitive-data-from-being-exposed-to-the-client) to proactively prevent specific data from being sent to the client.
+> **Good to know:** We don't recommend relying on encryption alone to prevent sensitive values from being exposed on the client. Instead, you should use the [React taint APIs](/docs/app/building-your-application/data-fetching/fetching#preventing-sensitive-data-from-being-exposed-to-the-client) to proactively prevent specific data from being sent to the client.
 
 ### Overwriting encryption keys (advanced)
 
@@ -1000,6 +973,7 @@ Learn more about [Security and Server Actions](https://nextjs.org/blog/security-
 
 For more information on Server Actions, check out the following React docs:
 
+- [Server Actions](https://react.dev/reference/rsc/server-actions)
 - [`"use server"`](https://react.dev/reference/react/use-server)
 - [`<form>`](https://react.dev/reference/react-dom/components/form)
 - [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)

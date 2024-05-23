@@ -225,7 +225,7 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   /**
-   * period (in seconds) where the server allow to serve stale cache
+   * @deprecated use config.swrDelta instead
    */
   swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
@@ -840,6 +840,11 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -906,6 +911,7 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
@@ -923,7 +929,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
