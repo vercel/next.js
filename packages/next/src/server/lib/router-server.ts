@@ -648,10 +648,10 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
-        const { basePath, assetPrefix } = config
+        const { basePath } = config
 
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${basePath}/_next/webpack-hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
