@@ -566,7 +566,7 @@ export default abstract class Server<
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
         isAppPPREnabled,
-        swrDelta: this.nextConfig.experimental.swrDelta,
+        swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
       },
@@ -1625,7 +1625,7 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         revalidate,
-        swrDelta: this.nextConfig.experimental.swrDelta,
+        swrDelta: this.nextConfig.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -2898,7 +2898,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.experimental.swrDelta,
+            swrDelta: this.nextConfig.swrDelta,
           })
         )
       }
@@ -2920,7 +2920,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.experimental.swrDelta,
+            swrDelta: this.nextConfig.swrDelta,
           })
         )
       }
