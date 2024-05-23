@@ -5702,8 +5702,8 @@ function renderToPipeableStream(model, webpackMap, options) {
   };
 }
 
-function decodeReplyFromBusboy(busboyStream, webpackMap) {
-  var response = createResponse(webpackMap, '');
+function decodeReplyFromBusboy(busboyStream, webpackMap, options) {
+  var response = createResponse(webpackMap, '', options ? options.temporaryReferences : undefined);
   var pendingFiles = 0;
   var queuedFields = [];
   busboyStream.on('field', function (name, value) {

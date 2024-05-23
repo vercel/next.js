@@ -2750,8 +2750,12 @@ exports.decodeReply = function (body, turbopackMap, options) {
   close(body);
   return turbopackMap;
 };
-exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap) {
-  var response = createResponse(turbopackMap, ""),
+exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
+  var response = createResponse(
+      turbopackMap,
+      "",
+      options ? options.temporaryReferences : void 0
+    ),
     pendingFiles = 0,
     queuedFields = [];
   busboyStream.on("field", function (name, value) {

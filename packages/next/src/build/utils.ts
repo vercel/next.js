@@ -1438,6 +1438,21 @@ export async function buildAppStaticPaths({
           const newParams: Params[] = []
 
           if (curGenerate.generateStaticParams) {
+            const curStore =
+              ComponentMod.staticGenerationAsyncStorage.getStore()
+
+            if (curStore) {
+              if (typeof curGenerate?.config?.fetchCache !== 'undefined') {
+                curStore.fetchCache = curGenerate.config.fetchCache
+              }
+              if (typeof curGenerate?.config?.revalidate !== 'undefined') {
+                curStore.revalidate = curGenerate.config.revalidate
+              }
+              if (curGenerate?.config?.dynamic === 'force-dynamic') {
+                curStore.forceDynamic = true
+              }
+            }
+
             for (const params of paramsItems) {
               const result = await curGenerate.generateStaticParams({
                 params,

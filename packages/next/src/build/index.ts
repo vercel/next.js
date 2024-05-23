@@ -1758,6 +1758,8 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
+      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
@@ -1814,7 +1816,7 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          isAppPPREnabled: checkIsAppPPREnabled(config.experimental.ppr),
+          isAppPPREnabled,
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -2789,7 +2791,10 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-                if (experimentalPPR) {
+
+                // We write the `.prefetch.rsc` when the app has PPR enabled, so
+                // always add the prefetch data route to the manifest.
+                if (isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -2858,7 +2863,10 @@ export default async function build(
               )
 
               let prefetchDataRoute: string | null | undefined
-              if (experimentalPPR) {
+
+              // We write the `.prefetch.rsc` when the app has PPR enabled, so
+              // always add the prefetch data route to the manifest.
+              if (isAppPPREnabled) {
                 prefetchDataRoute = path.posix.join(
                   `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                 )
