@@ -3082,6 +3082,7 @@ dependencies = [
  "next-build",
  "next-core",
  "next-custom-transforms",
+ "rand",
  "serde",
  "serde_json",
  "shadow-rs",
