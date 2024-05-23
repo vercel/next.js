@@ -221,7 +221,7 @@ This is useful in cases where you want to call multiple server actions within a 
 
 ### Programmatic form submission
 
-You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
+You can trigger a form submission programmatically using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user submits a form using the `⌘` + `Enter` keyboard shortcut, you can listen for the `onKeyDown` event:
 
 ```tsx filename="app/entry.tsx" switcher
 'use client'
