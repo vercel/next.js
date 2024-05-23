@@ -59,6 +59,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   const getLogs = () => {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
+    }
     return Log.readCliLogs(next.cliOutput.slice(currentCliOutputIndex))
   }
 
