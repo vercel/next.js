@@ -10,7 +10,10 @@ import {
   Writable,
   pipeline,
 } from 'node:stream'
-import type { Options as RenderToPipeableStreamOptions } from 'react-dom/server.node'
+import type {
+  PipeableStream,
+  Options as RenderToPipeableStreamOptions,
+} from 'react-dom/server.node'
 import isError from '../../lib/is-error'
 import {
   indexOfUint8Array,
@@ -18,7 +21,6 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { ENCODED_TAGS } from './encodedTags'
-import { createMergedTransformStream } from './stream-utils.edge'
 
 export * from './stream-utils.edge'
 
@@ -414,7 +416,7 @@ export function continueFizzStream(
     serverInsertedHTMLToHead,
     validateRootLayout,
   }: {
-    inlinedDataStream?: ReadableStream<Uint8Array>
+    inlinedDataStream?: Readable
     isStaticGeneration: boolean
     getServerInsertedHTML?: () => Promise<string>
     serverInsertedHTMLToHead: boolean
@@ -443,8 +445,7 @@ export function continueFizzStream(
   }
 
   if (inlinedDataStream) {
-    // @ts-ignore
-    streams.push(createMergedTransformStream(inlinedDataStream))
+    streams.push(inlinedDataStream.pipe(new PassThrough()))
   }
 
   if (validateRootLayout) {
@@ -476,42 +477,11 @@ export function convertReadable(
     : stream
 }
 
-// export function continueDynamicPrerender(prerenderStream: Readable, { getServerInsertedHTML }: { getServerInsertedHTML: ()=> Promise<string>}) {
-//   const pt = new PassThrough();
-
-//   return new Promise((resolve, reject) => {
-//     // @ts-expect-error
-//     pipeline([
-//       prerenderStream,
-//       createBufferedTransformStream(),
-//       createStripDocumentClosingTagsTransform(),
-//       createHeadInsertionTransformStream(getServerInsertedHTML),
-//       pt
-//     ], (error) => {
-//       if (error) return reject(error)
-//         else return resolve(pt)
-//     })
-//   })
-// }
-
-// export function continueStaticPrerender(
-//   prerenderStream: Readable,
-//   {
-//     inlinedDataStream,
-//     getServerInsertedHTML
-//   }: {
-//     inlinedDataStream: Readable,
-//     getServerInsertedHTML: () => Promise<string>
-//   }
-// ) {
-//   const pt = new PassThrough();
-//   return new Promise((resolve, reject) => {
-//     pipeline(
-//       prerenderStream,
-//       createBufferedTransformStream(),
-//       createHeadInsertionTransformStream(getServerInsertedHTML),
-//       inlinedDataStream,
-//       createMoveSuffixStream('</body></html>')
-//     )
-//   })
-// }
+export function teeReadable(
+  stream: PipeableStream | Readable
+): [Readable, Readable] {
+  if (!(stream instanceof Readable)) {
+    stream = stream.pipe(new PassThrough())
+  }
+  return [stream.pipe(new PassThrough()), stream.pipe(new PassThrough())]
+}

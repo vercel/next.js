@@ -624,7 +624,7 @@ function ReactServerEntrypoint<T>({
   nonce?: string
 }): T {
   preinitScripts()
-  const response = useFlightStream(
+  const response = useFlightStream<T>(
     reactServerStream,
     clientReferenceManifest,
     nonce
@@ -979,26 +979,37 @@ async function renderToHTMLOrFlightImpl(
         }
       )
 
-      let resultStream: ReadableStream<Uint8Array>
+      // let resultStream: ReadableStream<Uint8Array>
+      // if (
+      //   process.env.NEXT_RUNTIME === 'nodejs' &&
+      //   !(serverStream instanceof ReadableStream)
+      // ) {
+      //   const { PassThrough, Readable } =
+      //     require('node:stream') as typeof import('node:stream')
+      //   resultStream = Readable.toWeb(
+      //     serverStream.pipe(new PassThrough())
+      //   ) as ReadableStream<Uint8Array>
+      // } else if (!(serverStream instanceof ReadableStream)) {
+      //   throw new Error(
+      //     'Invariant. Stream is not a ReadableStream in non-Node.js runtime'
+      //   )
+      // } else {
+      //   resultStream = serverStream
+      // }
+
+      let renderStream, dataStream
+
       if (
         process.env.NEXT_RUNTIME === 'nodejs' &&
         !(serverStream instanceof ReadableStream)
       ) {
-        const { PassThrough, Readable } =
-          require('node:stream') as typeof import('node:stream')
-        resultStream = Readable.toWeb(
-          serverStream.pipe(new PassThrough())
-        ) as ReadableStream<Uint8Array>
-      } else if (!(serverStream instanceof ReadableStream)) {
-        throw new Error(
-          'Invariant. Stream is not a ReadableStream in non-Node.js runtime'
-        )
+        const { teeReadable } = require('../stream-utils')
+        ;[renderStream, dataStream] = teeReadable(serverStream)
       } else {
-        resultStream = serverStream
+        // We are going to consume this render both for SSR and for inlining the flight data
+        // @ts-ignore
+        ;[renderStream, dataStream] = serverStream.tee()
       }
-
-      // We are going to consume this render both for SSR and for inlining the flight data
-      let [renderStream, dataStream] = resultStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -1110,7 +1121,20 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const [original, flightSpy] = dataStream.tee()
+            let original, flightSpy
+
+            if (
+              process.env.NEXT_RUNTIME === 'nodejs' &&
+              !(dataStream instanceof ReadableStream)
+            ) {
+              const { teeReadable } = require('../stream-utils')
+              ;[original, flightSpy] = teeReadable(dataStream)
+            } else {
+              // We are going to consume this render both for SSR and for inlining the flight data
+              // @ts-ignore
+              ;[original, flightSpy] = dataStream.tee()
+            }
+
             dataStream = original
 
             await flightRenderComplete(flightSpy)
@@ -1198,13 +1222,23 @@ async function renderToHTMLOrFlightImpl(
                 renderedHTMLStream = convertReadable(resultStream2)
               }
 
+              let inlinedDataStream = createInlinedDataReadableStream(
+                dataStream,
+                nonce,
+                formState
+              )
+
+              if (
+                process.env.NEXT_RUNTIME === 'nodejs' &&
+                !(inlinedDataStream instanceof ReadableStream)
+              ) {
+                inlinedDataStream = convertReadable(inlinedDataStream)
+              }
+
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
-                    nonce,
-                    formState
-                  ),
+                  // @ts-ignore
+                  inlinedDataStream,
                   getServerInsertedHTML,
                 }),
               }
@@ -1213,15 +1247,22 @@ async function renderToHTMLOrFlightImpl(
         } else if (renderOpts.postponed) {
           stream = convertReadable(stream)
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const inlinedDataStream = createInlinedDataReadableStream(
+          let inlinedDataStream = createInlinedDataReadableStream(
             dataStream,
             nonce,
             formState
           )
+          if (
+            process.env.NEXT_RUNTIME === 'nodejs' &&
+            !(inlinedDataStream instanceof ReadableStream)
+          ) {
+            inlinedDataStream = convertReadable(inlinedDataStream)
+          }
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
               stream: await continueDynamicHTMLResume(stream, {
+                // @ts-ignore
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
@@ -1230,6 +1271,7 @@ async function renderToHTMLOrFlightImpl(
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
               stream: await continueDynamicDataResume(stream, {
+                // @ts-ignore
                 inlinedDataStream,
               }),
             }

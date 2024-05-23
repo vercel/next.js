@@ -1,8 +1,8 @@
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { BinaryStreamOf } from './app-render'
+import type { ClientReferenceManifest } from '../../../build/webpack/plugins/flight-manifest-plugin'
+import type { BinaryStreamOf } from '../app-render'
 
-import { htmlEscapeJsonString } from '../htmlescape'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { htmlEscapeJsonString } from '../../htmlescape'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { Readable } from 'node:stream'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -23,7 +23,7 @@ const encoder = new TextEncoder()
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function useFlightStream<T>(
-  flightStream: Readable | BinaryStreamOf<T>,
+  flightStream: BinaryStreamOf<T>,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce?: string
 ): Promise<T> {
@@ -38,20 +38,12 @@ export function useFlightStream<T>(
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
     createFromStream =
-      flightStream instanceof ReadableStream
-        ? // eslint-disable-next-line import/no-extraneous-dependencies
-          require('react-server-dom-turbopack/client.edge')
-            .createFromReadableStream
-        : // eslint-disable-next-line import/no-extraneous-dependencies
-          require('react-server-dom-turbopack/client.node').createFromNodeStream
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-turbopack/client.edge').createFromReadableStream
   } else {
     createFromStream =
-      flightStream instanceof ReadableStream
-        ? // eslint-disable-next-line import/no-extraneous-dependencies
-          require('react-server-dom-webpack/client.edge')
-            .createFromReadableStream
-        : // eslint-disable-next-line import/no-extraneous-dependencies
-          require('react-server-dom-webpack/client.node').createFromNodeStream
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      require('react-server-dom-webpack/client.edge').createFromReadableStream
   }
 
   const newResponse = createFromStream(flightStream, {
