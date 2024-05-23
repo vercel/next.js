@@ -71,7 +71,7 @@ async function main() {
               : semverType === 'minor'
                 ? 'preminor'
                 : 'prerelease'
-          } --preid rc --force-publish && pnpm release --pre --skip-questions --show-url`
+          } --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
         : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
