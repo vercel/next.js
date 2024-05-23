@@ -2791,10 +2791,9 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-
                 // We write the `.prefetch.rsc` when the app has PPR enabled, so
                 // always add the prefetch data route to the manifest.
-                if (isAppPPREnabled) {
+                if (!isRouteHandler && experimentalPPR) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -2858,15 +2857,17 @@ export default async function build(
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(
-                `${normalizedRoute}${RSC_SUFFIX}`
-              )
 
-              let prefetchDataRoute: string | null | undefined
+              let dataRoute: string | null = null
+              if (!isRouteHandler) {
+                dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+              }
+
+              let prefetchDataRoute: string | undefined
 
               // We write the `.prefetch.rsc` when the app has PPR enabled, so
               // always add the prefetch data route to the manifest.
-              if (isAppPPREnabled) {
+              if (!isRouteHandler && isAppPPREnabled) {
                 prefetchDataRoute = path.posix.join(
                   `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                 )
@@ -2894,7 +2895,7 @@ export default async function build(
                 fallback: appDynamicParamPaths.has(originalAppPath)
                   ? null
                   : false,
-                dataRouteRegex: isRouteHandler
+                dataRouteRegex: !dataRoute
                   ? null
                   : normalizeRouteRegex(
                       getNamedRouteRegex(
@@ -2903,18 +2904,17 @@ export default async function build(
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
                 prefetchDataRoute,
-                prefetchDataRouteRegex:
-                  isRouteHandler || !prefetchDataRoute
-                    ? undefined
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
-                      ),
+                prefetchDataRouteRegex: !prefetchDataRoute
+                  ? undefined
+                  : normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                        false
+                      ).re.source.replace(
+                        /\(\?:\\\/\)\?\$$/,
+                        '\\.prefetch\\.rsc$'
+                      )
+                    ),
               }
             }
           }
