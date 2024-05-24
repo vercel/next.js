@@ -6,6 +6,7 @@ members = [
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
   "packages/next-swc/crates/next-api",
+  "packages/next-swc/crates/next-build-test",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
   "packages/next-swc/crates/next-custom-transforms",
@@ -21,6 +22,11 @@ debug-assertions = false
 # Set the settings for build scripts and proc-macros.
 [profile.dev.build-override]
 opt-level = 3
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+lto = "thin"
 
 [workspace.dependencies]
 # Workspace crates
@@ -42,6 +48,7 @@ turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbop
 turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240521.2" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
 turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240521.2" }
+turbo-tasks-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240521.2" }
 
 # General Deps
 

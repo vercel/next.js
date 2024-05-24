@@ -5621,8 +5621,8 @@ function renderToPipeableStream(model, turbopackMap, options) {
   };
 }
 
-function decodeReplyFromBusboy(busboyStream, turbopackMap) {
-  var response = createResponse(turbopackMap, '');
+function decodeReplyFromBusboy(busboyStream, turbopackMap, options) {
+  var response = createResponse(turbopackMap, '', options ? options.temporaryReferences : undefined);
   var pendingFiles = 0;
   var queuedFields = [];
   busboyStream.on('field', function (name, value) {

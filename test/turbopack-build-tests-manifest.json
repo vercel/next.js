@@ -14684,6 +14684,13 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/metadata-static/metadata-static.test.ts": {
+      "passed": [],
+      "pending": [],
+      "failed": [
+        "app dir - metadata should have statically optimized metadata routes by default"
+      ]
+    },
     "test/production/allow-development-build/allow-development-build.test.ts": {
       "passed": [
         "allow-development-build with NODE_ENV not set to development should fail the build with a message about not setting NODE_ENV",

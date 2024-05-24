@@ -25,6 +25,11 @@ import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { isStaticGenEnabled } from '../../server/future/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
+import {
+  isMetadataRouteFile,
+  isStaticMetadataRoute,
+} from '../../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -89,8 +94,14 @@ export async function exportAppRoute(
     // Route module loading and handling.
     const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
     const userland = module.userland
+    // we don't bail from the static optimization for
+    // metadata routes
+    const normalizedPage = normalizeAppPath(page)
+    const isMetadataRoute =
+      isStaticMetadataRoute(normalizedPage) ||
+      isMetadataRouteFile(`${normalizedPage}.ts`, ['ts'], true)
 
-    if (!isStaticGenEnabled(userland)) {
+    if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
       return { revalidate: 0 }
     }
 

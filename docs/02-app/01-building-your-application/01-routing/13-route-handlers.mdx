@@ -32,7 +32,7 @@ export async function GET(request: Request) {}
 export async function GET(request) {}
 ```
 
-Route Handlers can be nested inside the `app` directory, similar to `page.js` and `layout.js`. But there **cannot** be a `route.js` file at the same route segment level as `page.js`.
+Route Handlers can be nested anywhere inside the `app` directory, similar to `page.js` and `layout.js`. But there **cannot** be a `route.js` file at the same route segment level as `page.js`.
 
 ### Supported HTTP Methods
 
@@ -40,18 +40,16 @@ The following [HTTP methods](https://developer.mozilla.org/docs/Web/HTTP/Methods
 
 ### Extended `NextRequest` and `NextResponse` APIs
 
-In addition to supporting native [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response). Next.js extends them with
-[`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response) to provide convenient helpers for advanced use cases.
+In addition to supporting the native [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs, Next.js extends them with [`NextRequest`](/docs/app/api-reference/functions/next-request) and [`NextResponse`](/docs/app/api-reference/functions/next-response) to provide convenient helpers for advanced use cases.
 
 ## Behavior
 
 ### Caching
 
-Route Handlers are dynamic by default as of Next.js v15. To opt-in to caching for `GET` requests, you can use the following config:
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. To do so, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
 ```ts filename="app/items/route.ts" switcher
-// opt in to caching the route handler
-export const dynamic = 'force-static' // or 'error'
+export const dynamic = 'force-static'
 
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
@@ -67,6 +65,8 @@ export async function GET() {
 ```
 
 ```js filename="app/items/route.js" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   const res = await fetch('https://data.mongodb-api.com/...', {
     headers: {
@@ -80,7 +80,9 @@ export async function GET() {
 }
 ```
 
-> **TypeScript Warning:** `Response.json()` is only valid from TypeScript 5.2. If you use a lower TypeScript version, you can use [`NextResponse.json()`](/docs/app/api-reference/functions/next-response#json) for typed responses instead.
+### Special Route Handlers
+
+Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use dynamic functions or dynamic config options.
 
 ### Route Resolution
 
@@ -113,7 +115,7 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) option:
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) option:
 
 ```ts filename="app/items/route.ts" switcher
 export async function GET() {

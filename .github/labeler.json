@@ -48,6 +48,7 @@
     ],
     "created-by: Turbopack team": [
       { "type": "user", "pattern": "bgw" },
+      { "type": "user", "pattern": "arlyon" },
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "kwonoj" },

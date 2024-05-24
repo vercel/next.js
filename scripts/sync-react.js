@@ -57,6 +57,7 @@ Or, run this command with no arguments to use the most recently published versio
     await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
   )
   const devDependencies = pkgJson.devDependencies
+  const resolutions = pkgJson.resolutions
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
@@ -93,9 +94,19 @@ Or, run this command with no arguments to use the most recently published versio
       )
     }
   }
+  for (const [dep, version] of Object.entries(resolutions)) {
+    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
+      resolutions[dep] = version.replace(
+        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
+        `${newReleaseLabel}-${newSha}-${newDateString}`
+      )
+    }
+  }
   await fsp.writeFile(
     path.join(cwd, 'package.json'),
-    JSON.stringify(pkgJson, null, 2)
+    JSON.stringify(pkgJson, null, 2) +
+      // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+      '\n'
   )
   console.log('Successfully updated React dependencies in package.json.\n')
 
@@ -117,7 +128,7 @@ Or, run this command with no arguments to use the most recently published versio
     }
 
     console.log('Building vendored React files...\n')
-    const nccSubprocess = execa('pnpm', ['taskr', 'copy_vendor_react'], {
+    const nccSubprocess = execa('pnpm', ['ncc-compiled'], {
       cwd: path.join(cwd, 'packages', 'next'),
     })
     if (nccSubprocess.stdout) {
@@ -161,7 +172,7 @@ Or, run this command with no arguments to use the most recently published versio
 To finish upgrading, complete the following steps:
 
 - Install the updated dependencies: pnpm install
-- Build the vendored React files: (inside packages/next dir) pnpm taskr ncc
+- Build the vendored React files: (inside packages/next dir) pnpm ncc-compiled
 
 Or run this command again without the --no-install flag to do both automatically.
     `
@@ -211,16 +222,19 @@ async function getChangelogFromGitHub(baseSha, newSha) {
     }
     for (const { commit, sha } of commits) {
       const title = commit.message.split('\n')[0] || ''
-      // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
-      const match = /\(#([0-9]+)\)$/.exec(title)
+      const match =
+        // The "title" looks like "[Fiber][Float] preinitialized stylesheets should support integrity option (#26881)"
+        /\(#([0-9]+)\)$/.exec(title) ??
+        // or contains "Pull Request resolved: https://github.com/facebook/react/pull/12345" in the body if merged via ghstack (e.g. https://github.com/facebook/react/commit/0a0a5c02f138b37e93d5d93341b494d0f5d52373)
+        /^Pull Request resolved: https:\/\/github.com\/facebook\/react\/pull\/([0-9]+)$/m.exec(
+          commit.message
+        )
       const prNum = match ? match[1] : ''
       if (prNum) {
         changelog.push(`- https://github.com/facebook/react/pull/${prNum}`)
       } else {
         changelog.push(
-          `-  ${sha.slice(0, 9)} ${commit.message.split('\n')[0]} (${
-            commit.author.name
-          })`
+          `- [${commit.message.split('\n')[0]} facebook/react@${sha.slice(0, 9)}](https://github.com/facebook/react/commit/${sha}) (${commit.author.name})`
         )
       }
     }

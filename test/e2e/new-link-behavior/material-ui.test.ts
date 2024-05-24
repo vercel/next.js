@@ -24,8 +24,8 @@ describe('New Link Behavior with material-ui', () => {
         '@mui/material': 'latest',
         next: 'latest',
         'prop-types': 'latest',
-        react: '19.0.0-rc-81c5ff2e04-20240521',
-        'react-dom': '19.0.0-rc-81c5ff2e04-20240521',
+        react: '19.0.0-rc-f994737d14-20240522',
+        'react-dom': '19.0.0-rc-f994737d14-20240522',
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
         eslint: '8.56.0',
         'eslint-config-next': 'latest',

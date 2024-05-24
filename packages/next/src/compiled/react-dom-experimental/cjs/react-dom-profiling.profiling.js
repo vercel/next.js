@@ -15471,7 +15471,7 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 var devToolsConfig$jscomp$inline_1718 = {
   findFiberByHostInstance: getClosestInstanceFromNode,
   bundleType: 0,
-  version: "19.0.0-experimental-81c5ff2e04-20240521",
+  version: "19.0.0-experimental-f994737d14-20240522",
   rendererPackageName: "react-dom"
 };
 (function (internals) {
@@ -15514,7 +15514,7 @@ var devToolsConfig$jscomp$inline_1718 = {
   scheduleRoot: null,
   setRefreshHandler: null,
   getCurrentFiber: null,
-  reconcilerVersion: "19.0.0-experimental-81c5ff2e04-20240521"
+  reconcilerVersion: "19.0.0-experimental-f994737d14-20240522"
 });
 function noop() {}
 function getCrossOriginStringAs(as, input) {
@@ -15768,7 +15768,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.0.0-experimental-81c5ff2e04-20240521";
+exports.version = "19.0.0-experimental-f994737d14-20240522";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
