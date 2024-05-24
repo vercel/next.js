@@ -13,8 +13,8 @@ overrides:
   '@babel/parser': 7.22.5
   '@babel/types': 7.22.5
   '@babel/traverse': 7.22.5
-  '@types/react': 18.2.74
-  '@types/react-dom': 18.2.23
+  '@types/react': 18.3.3
+  '@types/react-dom': 18.3.0
   react: 19.0.0-rc-f994737d14-20240522
   react-dom: 19.0.0-rc-f994737d14-20240522
   react-is: 19.0.0-rc-f994737d14-20240522
@@ -61,7 +61,7 @@ importers:
         version: 11.11.0
       '@emotion/react':
         specifier: 11.11.1
-        version: 11.11.1(@types/react@18.2.74)(react@19.0.0-rc-f994737d14-20240522)
+        version: 11.11.1(@types/react@18.3.3)(react@19.0.0-rc-f994737d14-20240522)
       '@fullhuman/postcss-purgecss':
         specifier: 1.3.0
         version: 1.3.0
@@ -136,7 +136,7 @@ importers:
         version: 6.1.2(@types/jest@29.5.5)(jest@29.7.0)
       '@testing-library/react':
         specifier: ^15.0.5
-        version: 15.0.7(@types/react@18.2.74)(react-dom@19.0.0-rc-f994737d14-20240522)(react@19.0.0-rc-f994737d14-20240522)
+        version: 15.0.7(@types/react@18.3.3)(react-dom@19.0.0-rc-f994737d14-20240522)(react@19.0.0-rc-f994737d14-20240522)
       '@types/busboy':
         specifier: 1.5.3
         version: 1.5.3
@@ -171,11 +171,11 @@ importers:
         specifier: 2.6.1
         version: 2.6.1
       '@types/react':
-        specifier: 18.2.74
-        version: 18.2.74
+        specifier: 18.3.3
+        version: 18.3.3
       '@types/react-dom':
-        specifier: 18.2.23
-        version: 18.2.23
+        specifier: 18.3.0
+        version: 18.3.0
       '@types/relay-runtime':
         specifier: 14.1.13
         version: 14.1.13
@@ -1048,11 +1048,11 @@ importers:
         specifier: 1.3.4
         version: 1.3.4
       '@types/react':
-        specifier: 18.2.74
-        version: 18.2.74
+        specifier: 18.3.3
+        version: 18.3.3
       '@types/react-dom':
-        specifier: 18.2.23
-        version: 18.2.23
+        specifier: 18.3.0
+        version: 18.3.0
       '@types/react-is':
         specifier: 18.2.4
         version: 18.2.4
@@ -3650,7 +3650,7 @@ packages:
     resolution: {integrity: sha512-W2P2c/VRW1/1tLox0mVUalvnWXxavmv/Oum2aPsRcoDJuob75FC3Y8FbpfLwUegRcxINtGUMPq0tFCvYNTBXNA==}
     dev: true
 
-  /@emotion/react@11.11.1(@types/react@18.2.74)(react@19.0.0-rc-f994737d14-20240522):
+  /@emotion/react@11.11.1(@types/react@18.3.3)(react@19.0.0-rc-f994737d14-20240522):
     resolution: {integrity: sha512-5mlW1DquU5HaxjLkfkGN1GA/fvVGdyHURRiX/0FHl2cfIfRxSOfmxEH5YS43edp0OldZrZ+dkBKbngxcNCdZvA==}
     peerDependencies:
       '@types/react': '*'
@@ -3666,7 +3666,7 @@ packages:
       '@emotion/use-insertion-effect-with-fallbacks': 1.0.1(react@19.0.0-rc-f994737d14-20240522)
       '@emotion/utils': 1.2.1
       '@emotion/weak-memoize': 0.3.1
-      '@types/react': 18.2.74
+      '@types/react': 18.3.3
       hoist-non-react-statics: 3.3.2
       react: 19.0.0-rc-f994737d14-20240522
     dev: true
@@ -5544,7 +5544,7 @@ packages:
       react: 19.0.0-rc-f994737d14-20240522
     dependencies:
       '@types/mdx': 2.0.3
-      '@types/react': 18.2.74
+      '@types/react': 18.3.3
       react: 19.0.0-rc-f994737d14-20240522
 
   /@mswjs/cookies@0.2.2:
@@ -6913,11 +6913,11 @@ packages:
       redent: 3.0.0
     dev: true
 
-  /@testing-library/react@15.0.7(@types/react@18.2.74)(react-dom@19.0.0-rc-f994737d14-20240522)(react@19.0.0-rc-f994737d14-20240522):
+  /@testing-library/react@15.0.7(@types/react@18.3.3)(react-dom@19.0.0-rc-f994737d14-20240522)(react@19.0.0-rc-f994737d14-20240522):
     resolution: {integrity: sha512-cg0RvEdD1TIhhkm1IeYMQxrzy0MtUNfa3minv4MjbgcYzJAZ7yD0i0lwoPOTPr+INtiXFezt2o8xMSnyHhEn2Q==}
     engines: {node: '>=18'}
     peerDependencies:
-      '@types/react': 18.2.74
+      '@types/react': 18.3.3
       react: 19.0.0-rc-f994737d14-20240522
       react-dom: 19.0.0-rc-f994737d14-20240522
     peerDependenciesMeta:
@@ -6926,8 +6926,8 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.5
       '@testing-library/dom': 10.1.0
-      '@types/react': 18.2.74
-      '@types/react-dom': 18.2.23
+      '@types/react': 18.3.3
+      '@types/react-dom': 18.3.0
       react: 19.0.0-rc-f994737d14-20240522
       react-dom: 19.0.0-rc-f994737d14-20240522(react@19.0.0-rc-f994737d14-20240522)
     dev: true
@@ -7388,20 +7388,20 @@ packages:
     resolution: {integrity: sha512-ewFXqrQHlFsgc09MK5jP5iR7vumV/BYayNC6PgJO2LPe8vrnNFyjQjSppfEngITi0qvfKtzFvgKymGheFM9UOA==}
     dev: true
 
-  /@types/react-dom@18.2.23:
-    resolution: {integrity: sha512-ZQ71wgGOTmDYpnav2knkjr3qXdAFu0vsk8Ci5w3pGAIdj7/kKAyn+VsQDhXsmzzzepAiI9leWMmubXz690AI/A==}
+  /@types/react-dom@18.3.0:
+    resolution: {integrity: sha512-EhwApuTmMBmXuFOikhQLIBUn6uFg81SwLMOAUgodJF14SOBOCMdU04gDoYi0WOJJHD144TL32z4yDqCW3dnkQg==}
     dependencies:
-      '@types/react': 18.2.74
+      '@types/react': 18.3.3
     dev: true
 
   /@types/react-is@18.2.4:
     resolution: {integrity: sha512-wBc7HgmbCcrvw0fZjxbgz/xrrlZKzEqmABBMeSvpTvdm25u6KI6xdIi9pRE2G0C1Lw5ETFdcn4UbYZ4/rpqUYw==}
     dependencies:
-      '@types/react': 18.2.74
+      '@types/react': 18.3.3
     dev: true
 
-  /@types/react@18.2.74:
-    resolution: {integrity: sha512-9AEqNZZyBx8OdZpxzQlaFEVCSFUM2YXJH46yPOiOpm078k6ZLOCcuAzGum/zK8YBwY+dbahVNbHrbgrAwIRlqw==}
+  /@types/react@18.3.3:
+    resolution: {integrity: sha512-hti/R0pS0q1/xx+TsI73XIqk26eBsISZ2R0wUijXIngRK9R/e7Xw/cXVxQK7R5JjW+SV4zGcn5hXjudkN/pLIw==}
     dependencies:
       '@types/prop-types': 15.7.8
       csstype: 3.1.2
