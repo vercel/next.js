@@ -84,6 +84,7 @@ export const dynamicParams = true // true | false,
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
+> - Even though this defaults to true, your pages won't be cached unless your layout or page also makes use of `generateStaticParams`, even if it only returns an empty array.
 > - When `dynamicParams = true`, the segment uses [Streaming Server Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense).
 > - If the `dynamic = 'error'` and `dynamic = 'force-static'` are used, it'll change the default of `dynamicParams` to `false`.
 
