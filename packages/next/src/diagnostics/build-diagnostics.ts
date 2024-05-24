@@ -6,8 +6,13 @@ const DIAGNOSTICS_DIR = 'diagnostics'
 const DIAGNOSTICS_FILE = 'build-diagnostics.json'
 
 interface BuildDiagnostics {
+  // The exact version of Next.js that was used to build the app.
   version?: string
+  // The current stage of the build process. This should be updated as the
+  // build progresses so it's what stage the build was in when an error
+  // happened.
   buildStage?: string
+  // Additional debug information about the configuration for the build.
   buildOptions?: Record<string, string>
 }
 
@@ -21,7 +26,11 @@ async function fileExists(path: string): Promise<boolean> {
 }
 
 /**
- *
+ * Saves build diagnostics information to a file. This method can be called
+ * multiple times during a build to save additional information that can help
+ * debug a build such as what stage the build was in when a failure happened.
+ * Each time this method is called, the new information will be merged with any
+ * existing build diagnostics that previously existed.
  */
 export async function updateBuildDiagnostics(
   diagnostics: BuildDiagnostics
