@@ -98,7 +98,7 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
-function hasComponentProps(child: any): child is React.ReactElement {
+function hasComponentProps(child: any): child is React.ReactElement<any> {
   return !!child && !!child.props
 }
 
@@ -110,7 +110,7 @@ function AmpStyles({
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
-  const curStyles: React.ReactElement[] = Array.isArray(styles)
+  const curStyles: React.ReactElement<any>[] = Array.isArray(styles)
     ? (styles as React.ReactElement[])
     : []
   if (
@@ -119,7 +119,7 @@ function AmpStyles({
     // @ts-ignore Property 'props' does not exist on type ReactElement
     Array.isArray(styles.props.children)
   ) {
-    const hasStyles = (el: React.ReactElement) =>
+    const hasStyles = (el: React.ReactElement<any>) =>
       el?.props?.dangerouslySetInnerHTML?.__html
     // @ts-ignore Property 'props' does not exist on type ReactElement
     styles.props.children.forEach((child: React.ReactElement) => {
