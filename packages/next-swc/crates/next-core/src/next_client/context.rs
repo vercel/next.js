@@ -27,7 +27,7 @@ use turbopack_binding::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
-                TypescriptTransformOptions,
+                TypeofWindow, TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -270,6 +270,7 @@ pub async fn get_client_module_options_context(
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let module_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
@@ -280,6 +281,7 @@ pub async fn get_client_module_options_context(
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: None,
         enable_webpack_loaders: foreign_enable_webpack_loaders,
         enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
