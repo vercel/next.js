@@ -2334,6 +2334,7 @@ export async function next_compile(task, opts) {
       'lib_esm',
       'client',
       'client_esm',
+      'diagnostics',
       'telemetry',
       'trace',
       'shared',
@@ -2576,6 +2577,13 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
+export async function diagnostics(task, opts) {
+  await task
+    .source('src/diagnostics/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/diagnostics')
+}
+
 export async function build(task, opts) {
   await task.serial(
     ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
@@ -2638,6 +2646,7 @@ export default async function (task) {
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
+  await task.watch('src/diagnostics', 'diagnostics', opts)
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)

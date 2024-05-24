@@ -164,6 +164,7 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
+import { updateBuildDiagnostics } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
@@ -839,6 +840,11 @@ export default async function build(
         appUrl: null,
         envInfo,
         expFeatureInfo,
+      })
+
+      updateBuildDiagnostics({
+        version: process.env.__NEXT_VERSION as string,
+        buildStage: 'start',
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
@@ -1638,9 +1644,20 @@ export default async function build(
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
+      updateBuildDiagnostics({
+        buildStage: 'compile',
+        buildOptions: {
+          useBuildWorker: String(useBuildWorker),
+        },
+      })
+
       if (!isGenerateMode) {
         if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
           let durationInSeconds = 0
+
+          updateBuildDiagnostics({
+            buildStage: 'compile-server',
+          })
 
           const serverBuildPromise = webpackBuild(useBuildWorker, [
             'server',
@@ -1679,6 +1696,9 @@ export default async function build(
           })
           if (!runServerAndEdgeInParallel) {
             await serverBuildPromise
+            updateBuildDiagnostics({
+              buildStage: 'webpack-compile-edge-server',
+            })
           }
 
           const edgeBuildPromise = webpackBuild(useBuildWorker, [
@@ -1689,8 +1709,15 @@ export default async function build(
           })
           if (runServerAndEdgeInParallel) {
             await serverBuildPromise
+            updateBuildDiagnostics({
+              buildStage: 'webpack-compile-edge-server',
+            })
           }
           await edgeBuildPromise
+
+          updateBuildDiagnostics({
+            buildStage: 'webpack-compile-client',
+          })
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
@@ -1724,6 +1751,9 @@ export default async function build(
 
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
+        updateBuildDiagnostics({
+          buildStage: 'type-checking',
+        })
         await startTypeChecking(typeCheckingOptions)
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
@@ -2524,6 +2554,10 @@ export default async function build(
         UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       )
       const hasStaticApp404 = hasApp404 && isApp404Static
+
+      updateBuildDiagnostics({
+        buildStage: 'static-generation',
+      })
 
       // we need to trigger automatic exporting when we have
       // - static 404/500
