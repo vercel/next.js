@@ -583,7 +583,10 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
+        ServerContextType::Middleware => {
+            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+        }
+        ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -727,6 +730,7 @@ async fn rsc_aliases(
             "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom-experimental" => format!("next/dist/compiled/react-dom-experimental/react-dom.react-server"),
+            "next/navigation" => format!("next/dist/api/navigation.react-server"),
         })
     }
 
