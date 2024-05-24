@@ -1,0 +1,26 @@
+name: next_swc Benchmark
+on:
+  workflow_dispatch: {}
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pages: [0, 1, 12]
+    steps:
+      - uses: actions/checkout
+      - name: Install heaptrack
+        run: apt install heaptrack
+      - name: Build binary
+        run: cargo build --profile release-with-debug --manifest-path $GITHUB_WORKSPACE/packages/next-swc/crates/next-build-test/Cargo.toml
+      - name: Run benchmark
+        run: bash bench.sh 29de71d77fd3db93c33cc3886c64a32ad889278f ${{ matrix.pages }}
+      - name: Print results
+        run: tail -n 7 result.log
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: |
+            result.log
+            heaptrack.*
