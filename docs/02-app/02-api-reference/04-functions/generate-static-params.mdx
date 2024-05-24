@@ -26,6 +26,7 @@ export default function Page({ params }) {
 > **Good to know**
 >
 > - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
+> - You must include `generateStaticParams` even if you only want pages to be cached *after* build time.
 > - During `next dev`, `generateStaticParams` will be called when you navigate to a route.
 > - During `next build`, `generateStaticParams` runs before the corresponding Layouts or Pages are generated.
 > - During revalidation (ISR), `generateStaticParams` will not be called again.
