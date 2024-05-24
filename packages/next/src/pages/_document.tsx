@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
@@ -105,7 +105,7 @@ function hasComponentProps(child: any): child is React.ReactElement {
 function AmpStyles({
   styles,
 }: {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | Iterable<React.ReactNode>
 }) {
   if (!styles) return null
 
