@@ -376,7 +376,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'srcDir',
-          message: `Would you like your code placed in a ${styledSrcDir}?`,
+          message: `Would you like your code inside a ${styledSrcDir}?`,
           initial: getPrefOrDefault('srcDir'),
           active: 'Yes',
           inactive: 'No',
