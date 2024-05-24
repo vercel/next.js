@@ -538,6 +538,12 @@ For [dynamic segments](/docs/app/building-your-application/routing/dynamic-route
 
 You can disable caching at request time by using `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
 
+#### Incremental Static Regeneration
+Even if you don't have any static routes to render at build time, you still need `generateStaticParams` to return an empty array if you want dynamically generated pages to be cached.
+```jsx
+export const generateStaticParams = async () => [];
+```
+
 See the [`generateStaticParams` API reference](/docs/app/api-reference/functions/generate-static-params).
 
 ### React `cache` function
