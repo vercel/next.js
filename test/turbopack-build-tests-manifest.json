@@ -255,6 +255,24 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+      "passed": [
+        "app dir client cache semantics (default semantics) prefetch={false} should not prefetch the page at all",
+        "app dir client cache semantics (default semantics) prefetch={false} should not re-use the page segment cache",
+        "app dir client cache semantics (default semantics) prefetch={true} should prefetch again after 5 mins if the link is visible again",
+        "app dir client cache semantics (default semantics) prefetch={true} should prefetch the full page",
+        "app dir client cache semantics (default semantics) prefetch={true} should re-use the cache for the full page, only for 5 mins",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should not re-use the page segment cache",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should prefetch partially a dynamic page",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins",
+        "app dir client cache semantics (default semantics) prefetch={undefined} - default should respect a loading boundary that returns `null`",
+        "app dir client cache semantics (default semantics) should renew the initial seeded data after expiration time"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts": {
       "passed": [
         "app dir client cache semantics (experimental staleTimes) dynamic: 0 prefetch={false} should trigger a loading state before fetching the page, followed by fresh data on every subsequent navigation",
@@ -517,6 +535,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
+      "passed": [
+        "app dir - prefetching (custom staleTime) should not fetch again when a static page was prefetched when navigating to it twice",
+        "app dir - prefetching (custom staleTime) should not re-fetch cached data when navigating back to a route group"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/app-prefetch/prefetching.test.ts": {
       "passed": [
         "app dir - prefetching NEXT_RSC_UNION_QUERY query name is _rsc",
@@ -524,11 +552,9 @@
         "app dir - prefetching dynamic rendering /force-dynamic should update search params following a link click",
         "app dir - prefetching dynamic rendering /revalidate-0 should not re-render layout when navigating between sub-pages",
         "app dir - prefetching dynamic rendering /revalidate-0 should update search params following a link click",
-        "app dir - prefetching dynamic rendering should not re-fetch cached data when navigating back to a route group",
         "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
         "app dir - prefetching should navigate when prefetch is false",
         "app dir - prefetching should not fetch again when a static page was prefetched",
-        "app dir - prefetching should not fetch again when a static page was prefetched when navigating to it twice",
         "app dir - prefetching should not have prefetch error for static path",
         "app dir - prefetching should not need to prefetch the layout if the prefetch is initiated at the same segment",
         "app dir - prefetching should not prefetch for a bot user agent",
@@ -799,6 +825,7 @@
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+        "app-dir static/dynamic handling should use auto no cache when no fetch config",
         "app-dir static/dynamic handling should warn for too many cache tags",
         "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
         "app-dir static/dynamic handling should work with forced dynamic path",
@@ -898,6 +925,7 @@
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
         "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+        "app-dir static/dynamic handling should use auto no cache when no fetch config",
         "app-dir static/dynamic handling should warn for too many cache tags",
         "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
         "app-dir static/dynamic handling should work with forced dynamic path",
@@ -949,6 +977,7 @@
         "app dir - basic <Link /> should push to external url",
         "app dir - basic <Link /> should replace to external url",
         "app dir - basic <Link /> should soft push",
+        "app dir - basic <Link /> should soft replace",
         "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
         "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
         "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
@@ -1045,7 +1074,6 @@
         "app dir - basic should serve polyfills for browsers that do not support modules"
       ],
       "pending": [
-        "app dir - basic <Link /> should soft replace",
         "app dir - basic known bugs should support React fetch instrumentation client component",
         "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",
         "app dir - basic should handle css imports in next/dynamic correctly",
@@ -1301,6 +1329,16 @@
     "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
       "passed": [
         "css-client-side-nav-parallel-routes should apply styles after navigation"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
+      "passed": [
+        "css-modules-scoping should not prefix grid areas",
+        "css-modules-scoping should prefix animation"
       ],
       "failed": [],
       "pending": [],
@@ -2054,6 +2092,13 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
+      "passed": ["navigation-redirect-import should work using fetch"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/navigation/navigation.test.ts": {
       "passed": [
         "app dir - navigation SEO should contain default meta tags in error page",
@@ -2068,6 +2113,7 @@
         "app dir - navigation hash should scroll to the specified hash",
         "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
         "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+        "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
         "app dir - navigation navigating to a page with async metadata should render the final state of the page with correct metadata",
         "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
         "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
@@ -2110,6 +2156,50 @@
         "app dir - navigation query string useParams identity between renders should be stable in pages"
       ],
       "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-after-app/index.test.ts": {
+      "passed": [
+        "unstable_after() in edge runtime does not allow modifying cookies in a callback",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "unstable_after() in edge runtime only runs callbacks after the response is fully sent",
+        "unstable_after() in edge runtime runs callbacks from nested unstable_after calls",
+        "unstable_after() in edge runtime runs in dynamic pages",
+        "unstable_after() in edge runtime runs in dynamic route handlers",
+        "unstable_after() in edge runtime runs in generateMetadata()",
+        "unstable_after() in edge runtime runs in middleware",
+        "unstable_after() in edge runtime runs in server actions",
+        "unstable_after() in edge runtime uses waitUntil from request context if available",
+        "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "unstable_after() in nodejs runtime only runs callbacks after the response is fully sent",
+        "unstable_after() in nodejs runtime runs callbacks from nested unstable_after calls",
+        "unstable_after() in nodejs runtime runs in dynamic pages",
+        "unstable_after() in nodejs runtime runs in dynamic route handlers",
+        "unstable_after() in nodejs runtime runs in generateMetadata()",
+        "unstable_after() in nodejs runtime runs in middleware",
+        "unstable_after() in nodejs runtime runs in server actions",
+        "unstable_after() in nodejs runtime uses waitUntil from request context if available"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-after-pages/index.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
+        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
+        "unstable_after() - pages runs in middleware"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -2253,6 +2343,19 @@
       "passed": [
         "app dir - not-found - group route with default runtime should use the not-found page under group routes",
         "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/options-request/options-request.test.ts": {
+      "passed": [
+        "options-request should 404 for an OPTIONS request to a non-existent route",
+        "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
+        "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
+        "options-request should return a 400 status code when invoking /app-page with an OPTIONS request",
+        "options-request should return a 400 status code when invoking /pages-page with an OPTIONS request"
       ],
       "failed": [],
       "pending": [],
@@ -2840,6 +2943,15 @@
         "ppr with suspense for /suspense/edge should eventually render the dynamic part",
         "ppr with suspense for /suspense/node should eventually render the dynamic part",
         "ppr without suspense for /no-suspense should immediately render the dynamic part"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/prefetch-searchparam/prefetch-searchparam.test.ts": {
+      "passed": [
+        "prefetch-searchparam should set prefetch cache properly on different search params"
       ],
       "failed": [],
       "pending": [],
@@ -3548,6 +3660,18 @@
         "underscore-ignore-app-paths should serve app path with %5F",
         "underscore-ignore-app-paths should serve pages path with underscore"
       ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts": {
+      "passed": [
+        "unstable-rethrow should correctly mark the dynamic page as dynamic",
+        "unstable-rethrow should correctly trigger the not found page as not found",
+        "unstable-rethrow should handle an internal error that gets propagated to the `cause` field",
+        "unstable-rethrow should not log any errors at build time"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -4817,7 +4941,6 @@
     "test/e2e/module-layer/module-layer.test.ts": {
       "passed": [
         "module layer with server-only in server targets should log the build info properly",
-        "module layer with server-only in server targets should render installed react version for middleware",
         "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
         "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
         "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
@@ -5228,7 +5351,6 @@
         "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
         "Prerender should not throw error for on-demand revalidate for SSR path",
         "Prerender should of formatted build output correctly",
-        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should on-demand revalidate for revalidate: false",
         "Prerender should on-demand revalidate that returns notFound: true",
         "Prerender should only show warning once per page when large amount of page data is returned",
@@ -5254,6 +5376,7 @@
         "Prerender should navigate between pages successfully",
         "Prerender should not error when rewriting to fallback dynamic SSG page",
         "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
+        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should output traces",
         "Prerender should parse query values on mount correctly",
         "Prerender should render correctly for SSG pages that starts with api-docs",
@@ -5740,12 +5863,12 @@
     },
     "test/integration/absolute-assetprefix/test/index.test.js": {
       "passed": [
-        "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getServerSideProps",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths prerendered"
       ],
       "failed": [
         "absolute assetPrefix with path prefix production mode should fetch from cache correctly",
+        "absolute assetPrefix with path prefix production mode should not fetch static data from a CDN",
         "absolute assetPrefix with path prefix production mode should work with getStaticPaths fallback"
       ],
       "pending": [],
@@ -6744,53 +6867,49 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/bun.test.ts": {
-      "passed": [
-        "should use bun for --use-bun flag with example",
-        "should use bun when user-agent is bun",
-        "should use bun when user-agent is bun with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager bun should use bun for --use-bun flag"
+        "create-next-app with package manager bun should use bun for --use-bun flag",
+        "create-next-app with package manager bun should use bun for --use-bun flag with example",
+        "create-next-app with package manager bun should use bun when user-agent is bun",
+        "create-next-app with package manager bun should use bun when user-agent is bun with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/npm.test.ts": {
-      "passed": [
-        "should use npm for --use-npm flag with example",
-        "should use npm when user-agent is npm",
-        "should use npm when user-agent is npm with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager npm should use npm for --use-npm flag"
+        "create-next-app with package manager npm should use npm for --use-npm flag",
+        "create-next-app with package manager npm should use npm for --use-npm flag with example",
+        "create-next-app with package manager npm should use npm when user-agent is npm",
+        "create-next-app with package manager npm should use npm when user-agent is npm with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/pnpm.test.ts": {
-      "passed": [
-        "should use pnpm for --use-pnpm flag with example",
-        "should use pnpm when user-agent is pnpm",
-        "should use pnpm when user-agent is pnpm with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag"
+        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
+        "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
+        "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
+        "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
       ],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/package-manager/yarn.test.ts": {
-      "passed": [
-        "should use yarn for --use-yarn flag with example",
-        "should use yarn when user-agent is yarn",
-        "should use yarn when user-agent is yarn with example"
-      ],
+      "passed": [],
       "failed": [],
       "pending": [
-        "create-next-app with package manager yarn should use yarn for --use-yarn flag"
+        "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+        "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
+        "create-next-app with package manager yarn should use yarn when user-agent is yarn",
+        "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6816,7 +6935,8 @@
         "create-next-app --app (App Router) should create TypeScript project with --ts flag",
         "create-next-app --app (App Router) should create an empty TailwindCSS project with --empty flag",
         "create-next-app --app (App Router) should create an empty project with --empty flag",
-        "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
+        "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
+        "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
       ],
       "flakey": [],
       "runtimeError": false
@@ -6830,7 +6950,8 @@
         "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
         "create-next-app --no-app (Pages Router) should create an empty TailwindCSS project with --empty flag",
         "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
-        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
+        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
+        "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbo flag"
       ],
       "flakey": [],
       "runtimeError": false
@@ -12176,14 +12297,15 @@
     },
     "test/integration/next-image-legacy/custom-resolver/test/index.test.ts": {
       "passed": [
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests Should use a custom resolver for image URL",
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests should add a srcset based on the custom resolver",
-        "Custom Resolver Tests production mode Client-side Custom Loader Tests should support the unoptimized attribute",
         "Custom Resolver Tests production mode SSR Custom Loader Tests Should use a custom resolver for image URL",
         "Custom Resolver Tests production mode SSR Custom Loader Tests should add a srcset based on the custom resolver",
         "Custom Resolver Tests production mode SSR Custom Loader Tests should support the unoptimized attribute"
       ],
-      "failed": [],
+      "failed": [
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests Should use a custom resolver for image URL",
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests should add a srcset based on the custom resolver",
+        "Custom Resolver Tests production mode Client-side Custom Loader Tests should support the unoptimized attribute"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13721,6 +13843,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/integration/root-catchall-cache/test/index.test.js": {
+      "passed": [
+        "Root Catch-all Cache production mode should cache / correctly"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/integration/root-optional-revalidate/test/index.test.js": {
       "passed": [
         "Root Optional Catch-all Revalidate production mode should render / correctly",
@@ -14684,13 +14815,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/production/app-dir/metadata-static/metadata-static.test.ts": {
-      "passed": [],
-      "pending": [],
-      "failed": [
-        "app dir - metadata should have statically optimized metadata routes by default"
-      ]
-    },
     "test/production/allow-development-build/allow-development-build.test.ts": {
       "passed": [
         "allow-development-build with NODE_ENV not set to development should fail the build with a message about not setting NODE_ENV",
@@ -14829,6 +14953,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/metadata-static/metadata-static.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata should have statically optimized metadata routes by default"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/parallel-routes-static/index.test.ts": {
       "passed": [
         "app-dir parallel-routes-static should static generate parallel routes"
@@ -14927,6 +15060,7 @@
     },
     "test/production/ci-missing-typescript-deps/index.test.ts": {
       "passed": [
+        "ci-missing-typescript-deps should not throw an error if beta version of @types/react and @types/react-dom is installed",
         "ci-missing-typescript-deps should show missing TypeScript dependencies error in CI"
       ],
       "failed": [],
@@ -14950,7 +15084,7 @@
         "custom server can navigate to /b",
         "custom server can navigate to /c",
         "custom server should log any error messages when server is started without \"quiet\" setting",
-        "custom server with app dir should render app with react beta",
+        "custom server with app dir should render app with react rc",
         "custom server with app dir should render pages with installed react",
         "custom server with quiet setting should not log any error messages when server is started with \"quiet\" setting"
       ],
