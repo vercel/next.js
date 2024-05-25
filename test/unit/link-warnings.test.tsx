@@ -3,7 +3,6 @@
  */
 import { act, render } from '@testing-library/react'
 import Link from 'next/link'
-import React from 'react'
 
 describe('<Link/>', () => {
   let spy
