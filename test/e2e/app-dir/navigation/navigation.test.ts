@@ -909,4 +909,15 @@ describe('app dir - navigation', () => {
       })
     })
   })
+
+  describe('middleware redirect', () => {
+    it('should change browser location when router.refresh() gets a redirect response', async () => {
+      const browser = await next.browser('/redirect-on-refresh/auth')
+      await retry(async () =>
+        expect(await browser.url()).toBe(
+          next.url + '/redirect-on-refresh/dashboard'
+        )
+      )
+    })
+  })
 })

@@ -9,8 +9,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackBuiltinReactLayer,
-  isWebpackBundledLayer,
+  isWebpackAppLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
@@ -544,7 +543,7 @@ export default async function getBaseWebpackConfig(
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: true,
+      serverComponents: false,
       bundleLayer: WEBPACK_LAYERS.middleware,
     }),
     babelLoader,
@@ -593,12 +592,13 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const apiRoutesLayerLoaders = useSWCLoader
-    ? getSwcLoader({
-        serverComponents: false,
-        bundleLayer: WEBPACK_LAYERS.api,
-      })
-    : defaultLoaders.babel
+  const apiRoutesLayerLoaders =
+    hasAppDir && useSWCLoader
+      ? getSwcLoader({
+          serverComponents: false,
+          bundleLayer: WEBPACK_LAYERS.api,
+        })
+      : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -1304,7 +1304,7 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                issuerLayer: isWebpackBundledLayer,
+                issuerLayer: isWebpackAppLayer,
                 resolve: {
                   alias: createNextApiEsmAliases(),
                 },
@@ -1326,7 +1326,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackBuiltinReactLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1388,7 +1388,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackBuiltinReactLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1469,17 +1469,11 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
-              resolve: {
-                conditionNames: reactServerCondition,
-              },
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
-              resolve: {
-                conditionNames: reactServerCondition,
-              },
             },
             ...(hasAppDir
               ? [

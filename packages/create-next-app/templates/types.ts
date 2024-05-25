@@ -29,4 +29,5 @@ export interface InstallTemplateArgs {
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
+  turbo: boolean;
 }

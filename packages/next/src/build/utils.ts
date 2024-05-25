@@ -1438,6 +1438,21 @@ export async function buildAppStaticPaths({
           const newParams: Params[] = []
 
           if (curGenerate.generateStaticParams) {
+            const curStore =
+              ComponentMod.staticGenerationAsyncStorage.getStore()
+
+            if (curStore) {
+              if (typeof curGenerate?.config?.fetchCache !== 'undefined') {
+                curStore.fetchCache = curGenerate.config.fetchCache
+              }
+              if (typeof curGenerate?.config?.revalidate !== 'undefined') {
+                curStore.revalidate = curGenerate.config.revalidate
+              }
+              if (curGenerate?.config?.dynamic === 'force-dynamic') {
+                curStore.forceDynamic = true
+              }
+            }
+
             for (const params of paramsItems) {
               const result = await curGenerate.generateStaticParams({
                 params,
@@ -2241,15 +2256,6 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-// Use next/dist/compiled/react packages instead of installed react
-export function isWebpackBuiltinReactLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(
-    layer && WEBPACK_LAYERS.GROUP.builtinReact.includes(layer as any)
-  )
-}
-
 export function isWebpackServerOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -2272,8 +2278,8 @@ export function isWebpackDefaultLayer(
   return layer === null || layer === undefined
 }
 
-export function isWebpackBundledLayer(
+export function isWebpackAppLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
 }
