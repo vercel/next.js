@@ -46,6 +46,13 @@ pub enum DecoratorsKind {
     Ecma,
 }
 
+/// The types when replacing `typeof window` with a constant.
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub enum TypeofWindow {
+    Object,
+    Undefined,
+}
+
 /// Configuration options for the decorators transform.
 /// This is not part of Typescript transform: while there are typescript
 /// specific transforms (legay decorators), there is an ecma decorator transform
@@ -105,6 +112,7 @@ pub struct JsxTransformOptions {
 #[derive(Default, Clone)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
+    pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<Vc<JsxTransformOptions>>,
     pub enable_postcss_transform: Option<Vc<PostCssTransformOptions>>,
     pub enable_webpack_loaders: Option<Vc<WebpackLoadersOptions>>,

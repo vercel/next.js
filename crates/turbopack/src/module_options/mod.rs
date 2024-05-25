@@ -81,6 +81,7 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             use_swc_css,
+            ref enable_typeof_window_inlining,
             ..
         } = *module_options_context.await?;
         if !rules.is_empty() {
@@ -128,6 +129,15 @@ impl ModuleOptions {
 
         if let Some(env) = preset_env_versions {
             transforms.push(EcmascriptInputTransform::PresetEnv(env));
+        }
+
+        if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
+            transforms.push(EcmascriptInputTransform::GlobalTypeofs {
+                window_value: match enable_typeof_window_inlining {
+                    TypeofWindow::Object => "object".to_string(),
+                    TypeofWindow::Undefined => "undefined".to_string(),
+                },
+            });
         }
 
         let ts_transform = if let Some(options) = enable_typescript_transform {
