@@ -29,7 +29,6 @@ declare var $RefreshInterceptModuleExecution$:
 type RefreshContext = {
   register: RefreshRuntimeGlobals["$RefreshReg$"];
   signature: RefreshRuntimeGlobals["$RefreshSig$"];
-  registerExports: typeof registerExportsAndSetupBoundaryForReactRefresh;
 };
 
 type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
@@ -404,8 +403,16 @@ function runModuleExecutionHooks(
     executeModule({
       register: globalThis.$RefreshReg$,
       signature: globalThis.$RefreshSig$,
-      registerExports: registerExportsAndSetupBoundaryForReactRefresh,
     });
+
+    if ("$RefreshHelpers$" in globalThis) {
+      // This pattern can also be used to register the exports of
+      // a module with the React Refresh runtime.
+      registerExportsAndSetupBoundaryForReactRefresh(
+        module,
+        globalThis.$RefreshHelpers$
+      );
+    }
   } catch (e) {
     throw e;
   } finally {
