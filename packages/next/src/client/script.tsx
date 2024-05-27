@@ -1,7 +1,7 @@
 'use client'
 
 import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
+import React, { useEffect, useContext, useRef, type JSX } from 'react'
 import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'

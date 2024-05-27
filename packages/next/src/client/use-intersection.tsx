@@ -10,7 +10,7 @@ type UseIntersectionObserverInit = Pick<
 >
 
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit & {
-    rootRef?: React.RefObject<HTMLElement> | null
+    rootRef?: React.RefObject<HTMLElement | null> | null
   }
 type ObserveCallback = (isVisible: boolean) => void
 type Identifier = {
