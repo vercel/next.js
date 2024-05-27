@@ -16,7 +16,7 @@ Any Next.js app inside the monorepo can be debugged with these configurations. F
 
 1. Open the [`.vscode/launch.json`](../../.vscode/launch.json) file.
 2. Find the configuration "Launch app development".
-3. Edit the `runtimeArgs` array's last item to be `"examples/hello-world"`.
+3. Edit the `webRoot` option to be `"examples/hello-world"`.
 4. Save the file.
 5. Now you can start the debugger and it will run against the `examples/hello-world` app!
 

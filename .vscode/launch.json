@@ -9,15 +9,14 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
+      "webRoot": "test/e2e/app-dir/app",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "dev",
-        "test/e2e/app-dir/app"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${webRoot}"],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "env": {
@@ -30,15 +29,12 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
+      "webRoot": "test/e2e/app-dir/app",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "build",
-        "test/e2e/app-dir/app"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "build", "${webRoot}"],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "env": {
@@ -51,15 +47,14 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
+      "webRoot": "examples/hello-world",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "dev",
-        "examples/hello-world"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${webRoot}"],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "env": {
@@ -72,14 +67,13 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
+      "webRoot": "examples/hello-world",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "build",
-        "examples/hello-world"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "build", "${webRoot}"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "skipFiles": ["<node_internals>/**"],
@@ -92,15 +86,14 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
+      "webRoot": "examples/hello-world",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "packages/next/dist/bin/next",
-        "start",
-        "examples/hello-world"
-      ],
+      "runtimeArgs": ["packages/next/dist/bin/next", "start", "${webRoot}"],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "env": {
@@ -117,7 +110,9 @@
       "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
       "env": {
