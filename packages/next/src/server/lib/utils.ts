@@ -266,7 +266,9 @@ export function getNodeDebugType() {
 
   const parsed = parseNodeArgs(args)
 
-  if (parsed.inspect) return 'inspect'
+  // The --inspect-publish-uid node option (along with a bootloader.js --require
+  // option) is set by VS Code launch configurations.
+  if (parsed.inspect || parsed['inspect-publish-uid']) return 'inspect'
   if (parsed['inspect-brk'] || parsed['inspect_brk']) return 'inspect-brk'
 }
 
