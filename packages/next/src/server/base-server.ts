@@ -1942,7 +1942,7 @@ export default abstract class Server<
     }
 
     // Toggle whether or not this is a Data request
-    const isPagesDataRequest =
+    const isNextDataRequest =
       !!(
         query.__nextDataReq ||
         (req.headers['x-nextjs-data'] &&
@@ -2052,7 +2052,7 @@ export default abstract class Server<
       isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isPagesDataRequest && !isRSCRequest) {
+    if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
     }
 
@@ -2111,7 +2111,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (!isPagesDataRequest && isAppPath && opts.dev) {
+    if (!isNextDataRequest && isAppPath && opts.dev) {
       opts.supportsDynamicResponse = true
     }
 
@@ -2199,7 +2199,7 @@ export default abstract class Server<
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
-    if (isPagesDataRequest) {
+    if (isNextDataRequest) {
       resolvedUrlPathname = this.stripNextDataPath(resolvedUrlPathname)
       urlPathname = this.stripNextDataPath(urlPathname)
     }
@@ -2287,7 +2287,7 @@ export default abstract class Server<
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
         // a data request, in which case we only produce static HTML.
-        (!isPagesDataRequest && opts.dev === true) ||
+        (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
         (!isSSG && !hasStaticPaths) ||
@@ -2330,7 +2330,7 @@ export default abstract class Server<
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
-        isPagesDataRequest: isPagesDataRequest,
+        isNextDataRequest: isNextDataRequest,
         resolvedUrl,
         locale,
         locales,
@@ -2709,7 +2709,7 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        if (!isPagesDataRequest) {
+        if (!isNextDataRequest) {
           // Production already emitted the fallback as static HTML.
           if (isProduction) {
             const html = await this.getFallback(
@@ -2843,11 +2843,11 @@ export default abstract class Server<
       revalidate = 0
     } else if (
       typeof cacheEntry.revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isPagesDataRequest))
+      (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
     ) {
       // If this is a preview mode request, we shouldn't cache it. We also don't
       // cache 404 pages.
-      if (isPreviewMode || (is404Page && !isPagesDataRequest)) {
+      if (isPreviewMode || (is404Page && !isNextDataRequest)) {
         revalidate = 0
       }
 
@@ -2901,7 +2901,7 @@ export default abstract class Server<
           })
         )
       }
-      if (isPagesDataRequest) {
+      if (isNextDataRequest) {
         res.statusCode = 404
         res.body('{"notFound":true}').send()
         return null
@@ -2924,7 +2924,7 @@ export default abstract class Server<
         )
       }
 
-      if (isPagesDataRequest) {
+      if (isNextDataRequest) {
         return {
           type: 'json',
           body: RenderResult.fromStatic(
@@ -3100,7 +3100,7 @@ export default abstract class Server<
         // to the client on the same request.
         revalidate: 0,
       }
-    } else if (isPagesDataRequest) {
+    } else if (isNextDataRequest) {
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),

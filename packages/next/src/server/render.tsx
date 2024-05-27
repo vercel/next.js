@@ -246,7 +246,7 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  isPagesDataRequest?: boolean
+  isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
   basePath: string
@@ -449,7 +449,7 @@ export async function renderToHTMLImpl(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    isPagesDataRequest,
+    isNextDataRequest,
     params,
     previewProps,
     basePath,
@@ -1170,7 +1170,7 @@ export async function renderToHTMLImpl(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isPagesDataRequest && !isSSG) || metadata.isRedirect) {
+  if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
     return new RenderResult(JSON.stringify(props), {
       metadata,
     })
