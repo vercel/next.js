@@ -2330,7 +2330,7 @@ export default abstract class Server<
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
-        isNextDataRequest: isNextDataRequest,
+        isNextDataRequest,
         resolvedUrl,
         locale,
         locales,
