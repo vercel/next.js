@@ -125,9 +125,9 @@ export async function adapter(
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq = params.request.headers['x-nextjs-data']
+  const isPagesDataRequest = params.request.headers['x-nextjs-data']
 
-  if (isDataReq && requestUrl.pathname === '/index') {
+  if (isPagesDataRequest && requestUrl.pathname === '/index') {
     requestUrl.pathname = '/'
   }
 
@@ -169,7 +169,7 @@ export async function adapter(
    * need to know about this property neither use it. We add it for testing
    * purposes.
    */
-  if (isDataReq) {
+  if (isPagesDataRequest) {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
@@ -323,7 +323,7 @@ export async function adapter(
     )
 
     if (
-      isDataReq &&
+      isPagesDataRequest &&
       // if the rewrite is external and external rewrite
       // resolving config is enabled don't add this header
       // so the upstream app can set it instead
@@ -367,7 +367,7 @@ export async function adapter(
      * it may end up with CORS error. Instead we map to an internal header so
      * the client knows the destination.
      */
-    if (isDataReq) {
+    if (isPagesDataRequest) {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',

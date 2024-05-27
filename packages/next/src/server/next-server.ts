@@ -1856,7 +1856,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isDataReq = !!query.__nextDataReq
+    const isPagesDataRequest = !!query.__nextDataReq
     const initialUrl = new URL(
       getRequestMeta(params.req, 'initURL') || '/',
       'http://n'
@@ -1867,7 +1867,7 @@ export default class NextNodeServer extends BaseServer<
       ...params.params,
     }).toString()
 
-    if (isDataReq) {
+    if (isPagesDataRequest) {
       params.req.headers['x-nextjs-data'] = '1'
     }
     initialUrl.search = queryString
