@@ -1942,7 +1942,7 @@ export default abstract class Server<
     }
 
     // Toggle whether or not this is a Data request
-    let isPagesDataRequest =
+    const isPagesDataRequest =
       !!(
         query.__nextDataReq ||
         (req.headers['x-nextjs-data'] &&
@@ -2111,12 +2111,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (
-      !isPagesDataRequest &&
-      isAppPath &&
-      opts.dev &&
-      opts.supportsDynamicHTML === false
-    ) {
+    if (!isPagesDataRequest && isAppPath && opts.dev) {
       opts.supportsDynamicHTML = true
     }
 
@@ -2140,27 +2135,20 @@ export default abstract class Server<
       }
     }
 
-    if (isAppPath) {
-      if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
-        // If this is an RSC request but we aren't in minimal mode, then we mark
-        // that this is a data request so that we can generate the flight data
-        // only.
-        if (!this.minimalMode) {
-          isPagesDataRequest = true
-        }
-
-        // If this is a dynamic RSC request, ensure that we don't purge the
-        // flight headers to ensure that we will only produce the RSC response.
-        // We only need to do this in non-edge environments (as edge doesn't
-        // support static generation).
-        if (
-          !isDynamicRSCRequest &&
-          (!isEdgeRuntime(opts.runtime) ||
-            (this.serverOptions as any).webServerConfig)
-        ) {
-          stripFlightHeaders(req.headers)
-        }
-      }
+    // If this is a request for an app path that should be statically generated
+    // and we aren't in the edge runtime, strip the flight headers so it will
+    // generate the static response.
+    if (
+      isAppPath &&
+      !opts.dev &&
+      !isPreviewMode &&
+      isSSG &&
+      isRSCRequest &&
+      !isDynamicRSCRequest &&
+      (!isEdgeRuntime(opts.runtime) ||
+        (this.serverOptions as any).webServerConfig)
+    ) {
+      stripFlightHeaders(req.headers)
     }
 
     let isOnDemandRevalidate = false
@@ -3026,11 +3014,7 @@ export default abstract class Server<
       // return the generated payload
       if (isRSCRequest && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
-        if (isDynamicRSCRequest) {
-          if (cachedData.pageData) {
-            throw new Error('Invariant: Expected pageData to be undefined')
-          }
-
+        if (typeof cachedData.pageData !== 'string') {
           if (cachedData.postponed) {
             throw new Error('Invariant: Expected postponed to be undefined')
           }
@@ -3043,14 +3027,8 @@ export default abstract class Server<
             // distinguishing between `force-static` and pages that have no
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
-            revalidate: 0,
+            revalidate: isDynamicRSCRequest ? 0 : cacheEntry.revalidate,
           }
-        }
-
-        if (typeof cachedData.pageData !== 'string') {
-          throw new Error(
-            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
-          )
         }
 
         // As this isn't a prefetch request, we should serve the static flight
