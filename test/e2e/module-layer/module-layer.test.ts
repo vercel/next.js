@@ -22,10 +22,11 @@ describe('module layer', () => {
       '/app/route',
       '/app/route-edge',
       // pages/api
-      '/api/hello',
-      '/api/hello-edge',
+      '/api/default',
+      '/api/default-edge',
+      '/api/server-only',
+      '/api/server-only-edge',
       '/api/mixed',
-      '/api/react-edge',
     ]
 
     for (const route of routes) {
@@ -35,9 +36,33 @@ describe('module layer', () => {
       })
     }
 
-    it('should render installed react version for middleware', async () => {
-      const text = await next.fetch('/react-version').then((res) => res.text())
-      expect(text).toContain('19.0.0-rc')
+    it('should render installed react-server condition for middleware', async () => {
+      const json = await next.fetch('/react-version').then((res) => res.json())
+      expect(json.React).toContain('version') // basic react-server export
+      expect(json.React).not.toContain('useEffect') // no client api export
+    })
+
+    // This is for backward compatibility, don't change react usage in existing pages/api
+    it('should contain client react exports for pages api', async () => {
+      async function verifyReactExports(route, isEdge) {
+        const json = await next.fetch(route).then((res) => res.json())
+        // contain all react-server and default condition exports
+        expect(json.React).toContain('version')
+        expect(json.React).toContain('useEffect')
+
+        // contain react-dom-server default condition exports
+        expect(json.ReactDomServer).toContain('version')
+        expect(json.ReactDomServer).toContain('renderToString')
+        expect(json.ReactDomServer).toContain('renderToStaticMarkup')
+        expect(json.ReactDomServer).toContain(
+          isEdge ? 'renderToReadableStream' : 'renderToPipeableStream'
+        )
+      }
+
+      await verifyReactExports('/api/default', false)
+      await verifyReactExports('/api/default-edge', true)
+      await verifyReactExports('/api/server-only', false)
+      await verifyReactExports('/api/server-only-edge', true)
     })
 
     if (isNextStart) {
@@ -50,7 +75,8 @@ describe('module layer', () => {
         )
         expect(functionsManifest.functions).toContainKeys([
           '/app/route-edge',
-          '/api/hello-edge',
+          '/api/default-edge',
+          '/api/server-only-edge',
           '/app/client-edge',
           '/app/server-edge',
         ])
@@ -62,9 +88,10 @@ describe('module layer', () => {
         )
         expect(middlewareManifest.middleware).toBeTruthy()
         expect(pagesManifest).toContainKeys([
-          '/api/hello-edge',
+          '/api/default-edge',
           '/pages-ssr',
-          '/api/hello',
+          '/api/default',
+          '/api/server-only',
         ])
       })
     }
