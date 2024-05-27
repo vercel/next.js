@@ -527,7 +527,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
-      supportsDynamicHTML: true,
+      supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
       strictNextHead: this.nextConfig.experimental.strictNextHead ?? true,
@@ -1597,7 +1597,7 @@ export default abstract class Server<
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: !isBotRequest,
+        supportsDynamicResponse: !isBotRequest,
         isBot: !!isBotRequest,
       },
     }
@@ -1643,7 +1643,7 @@ export default abstract class Server<
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: false,
+        supportsDynamicResponse: false,
       },
     }
     const payload = await fn(ctx)
@@ -2093,7 +2093,7 @@ export default abstract class Server<
     // the query object. This ensures it won't be found by the `in` operator.
     if ('amp' in query && !query.amp) delete query.amp
 
-    if (opts.supportsDynamicHTML === true) {
+    if (opts.supportsDynamicResponse === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
@@ -2105,14 +2105,14 @@ export default abstract class Server<
       // TODO-APP: should the first render for a dynamic app path
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
-      opts.supportsDynamicHTML =
+      opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
       opts.isBot = isBotRequest
     }
 
     // In development, we always want to generate dynamic HTML.
     if (!isPagesDataRequest && isAppPath && opts.dev) {
-      opts.supportsDynamicHTML = true
+      opts.supportsDynamicResponse = true
     }
 
     const defaultLocale = isSSG
@@ -2208,7 +2208,7 @@ export default abstract class Server<
     if (
       !isPreviewMode &&
       isSSG &&
-      !opts.supportsDynamicHTML &&
+      !opts.supportsDynamicResponse &&
       !isServerAction &&
       !minimalPostponed &&
       !isDynamicRSCRequest
@@ -2284,7 +2284,7 @@ export default abstract class Server<
 
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      let supportsDynamicHTML: boolean =
+      let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
         // a data request, in which case we only produce static HTML.
         (!isPagesDataRequest && opts.dev === true) ||
@@ -2351,7 +2351,7 @@ export default abstract class Server<
           ...opts.experimental,
           isRoutePPREnabled,
         },
-        supportsDynamicHTML,
+        supportsDynamicResponse,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
@@ -2361,9 +2361,9 @@ export default abstract class Server<
       }
 
       if (isDebugPPRSkeleton) {
-        supportsDynamicHTML = false
+        supportsDynamicResponse = false
         renderOpts.nextExport = true
-        renderOpts.supportsDynamicHTML = false
+        renderOpts.supportsDynamicResponse = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
         renderOpts.isDebugPPRSkeleton = true
@@ -2395,7 +2395,7 @@ export default abstract class Server<
                 after: renderOpts.experimental.after,
               },
               originalPathname: components.ComponentMod.originalPathname,
-              supportsDynamicHTML,
+              supportsDynamicResponse,
               incrementalCache,
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),

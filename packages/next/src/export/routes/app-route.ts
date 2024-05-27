@@ -75,7 +75,7 @@ export async function exportAppRoute(
       experimental: experimental,
       originalPathname: page,
       nextExport: true,
-      supportsDynamicHTML: false,
+      supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: undefined,
       onClose: undefined,
