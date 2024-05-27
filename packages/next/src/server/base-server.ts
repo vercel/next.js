@@ -649,10 +649,6 @@ export default abstract class Server<
       return false
     }
 
-    // If we're here, this is a data request, as it didn't return and it matched
-    // either a RSC or a prefetch RSC request.
-    parsedUrl.query.__nextDataReq = '1'
-
     if (req.url) {
       const parsed = parseUrl(req.url)
       parsed.pathname = parsedUrl.pathname
@@ -2301,8 +2297,8 @@ export default abstract class Server<
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicHTML: boolean =
-        // If this isn't a data request and we're not in development, then we
-        // support dynamic HTML.
+        // If we're in development, we always support dynamic HTML, unless it's
+        // a data request, in which case we only produce static HTML.
         (!isDataReq && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
