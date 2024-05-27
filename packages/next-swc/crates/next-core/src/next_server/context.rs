@@ -27,7 +27,8 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
+                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypeofWindow,
+                TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -461,6 +462,7 @@ pub async fn get_server_module_options_context(
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
     let module_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
         execution_context: Some(execution_context),
         use_swc_css,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
@@ -509,6 +511,7 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -563,6 +566,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
