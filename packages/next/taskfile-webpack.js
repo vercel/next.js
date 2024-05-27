@@ -26,18 +26,18 @@ module.exports = function (task) {
           })
         }
 
+        if (stats.hasWarnings()) {
+          this.emit('plugin_warning', {
+            plugin: 'taskfile-webpack',
+            warning: `webpack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
+          })
+        }
+
         if (process.env.ANALYZE_STATS) {
           require('fs').writeFileSync(
             require('path').join(__dirname, options.name + '-stats.json'),
             JSON.stringify(stats.toJson())
           )
-        }
-
-        if (process.env.PRINT_WEBPACK_WARNINGS) {
-          this.emit('plugin_warning', {
-            plugin: 'taskfile-webpack',
-            warning: `webpack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
-          })
         }
 
         resolve()
