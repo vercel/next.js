@@ -525,8 +525,8 @@ importers:
         specifier: 6.0.0-rc.3
         version: 6.0.0-rc.3(react-dom@19.0.0-rc-f994737d14-20240522)(react@19.0.0-rc-f994737d14-20240522)
       styled-jsx:
-        specifier: 5.1.3
-        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522)
+        specifier: 5.1.6
+        version: 5.1.6(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522)
       styled-jsx-plugin-postcss:
         specifier: 3.0.2
         version: 3.0.2
@@ -845,8 +845,8 @@ importers:
         specifier: ^1.3.0
         version: 1.54.0
       styled-jsx:
-        specifier: 5.1.3
-        version: 5.1.3(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522)
+        specifier: 5.1.6
+        version: 5.1.6(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522)
     optionalDependencies:
       sharp:
         specifier: ^0.33.4
@@ -23549,8 +23549,8 @@ packages:
       react: 19.0.0-rc-f994737d14-20240522
     dev: false
 
-  /styled-jsx@5.1.3(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522):
-    resolution: {integrity: sha512-qLRShOWTE/Mf6Bvl72kFeKBl8N2Eq9WIFfoAuvbtP/6tqlnj1SCjv117n2MIjOPpa1jTorYqLJgsHKy5Y3ziww==}
+  /styled-jsx@5.1.6(@babel/core@7.22.5)(react@19.0.0-rc-f994737d14-20240522):
+    resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
