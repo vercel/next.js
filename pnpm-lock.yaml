@@ -1059,9 +1059,6 @@ importers:
       msw:
         specifier: 1.3.0
         version: 1.3.0(typescript@5.3.3)
-      p-queue:
-        specifier: 6.6.2
-        version: 6.6.2
       path-to-regexp:
         specifier: 6.1.0
         version: 6.1.0
@@ -1389,6 +1386,9 @@ importers:
       p-limit:
         specifier: 3.1.0
         version: 3.1.0
+      p-queue:
+        specifier: 6.6.2
+        version: 6.6.2
       path-browserify:
         specifier: 1.0.1
         version: 1.0.1
@@ -18959,7 +18959,6 @@ packages:
   /p-finally@1.0.0:
     resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
     engines: {node: '>=4'}
-    dev: true
 
   /p-finally@2.0.1:
     resolution: {integrity: sha512-vpm09aKwq6H9phqRQzecoDpD8TmVyGw70qmWlyq5onxY7tqyTTFVvxMykxQSQKILBSFlbXpypIw2T1Ml7+DDtw==}
@@ -19037,7 +19036,6 @@ packages:
     dependencies:
       eventemitter3: 4.0.7
       p-timeout: 3.2.0
-    dev: true
 
   /p-queue@7.3.0:
     resolution: {integrity: sha512-5fP+yVQ0qp0rEfZoDTlP2c3RYBgxvRsw30qO+VtPPc95lyvSG+x6USSh1TuLB4n96IO6I8/oXQGsTgtna4q2nQ==}
@@ -19064,7 +19062,6 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       p-finally: 1.0.0
-    dev: true
 
   /p-timeout@5.1.0:
     resolution: {integrity: sha512-auFDyzzzGZZZdHz3BtET9VEz0SE/uMEAx7uWfGPucfzEwwe/xH0iVeZibQmANYE/hp9T2+UUZT5m+BKyrDp3Ew==}
@@ -22644,6 +22641,7 @@ packages:
 
   /simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
+    requiresBuild: true
     dependencies:
       is-arrayish: 0.3.2
 

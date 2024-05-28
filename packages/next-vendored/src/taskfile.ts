@@ -83,6 +83,7 @@ const nccTasks: Record<
   ncc_node_html_parser: 'node-html-parser', // TODO:ESM
   ncc_napirs_triples: '@napi-rs/triples',
   ncc_p_limit: 'p-limit',
+  ncc_p_queue: 'p-queue',
   ncc_raw_body: 'raw-body',
   ncc_image_size: 'image-size',
   ncc_hapi_accept: '@hapi/accept',

@@ -16,6 +16,10 @@ declare module '@next/vendored/p-limit' {
   import m from 'p-limit'
   export = m
 }
+declare module '@next/vendored/p-queue' {
+  import m from 'p-queue'
+  export = m
+}
 declare module '@next/vendored/raw-body' {
   import m from 'raw-body'
   export = m

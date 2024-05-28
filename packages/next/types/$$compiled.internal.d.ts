@@ -56,11 +56,6 @@ declare module 'next/dist/compiled/cssnano-simple' {
   export = cssnanoSimple
 }
 
-declare module 'next/dist/compiled/p-queue' {
-  import m from 'p-queue'
-  export = m
-}
-
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
