@@ -363,11 +363,9 @@ export async function exportAppImpl(
 
   let serverActionsManifest
   if (enabledDirectories.app) {
-    serverActionsManifest = require(join(
-      distDir,
-      SERVER_DIRECTORY,
-      SERVER_REFERENCE_MANIFEST + '.json'
-    ))
+    serverActionsManifest = require(
+      join(distDir, SERVER_DIRECTORY, SERVER_REFERENCE_MANIFEST + '.json')
+    )
     if (nextConfig.output === 'export') {
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
@@ -399,7 +397,7 @@ export async function exportAppImpl(
     domainLocales: i18n?.domains,
     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     // Exported pages do not currently support dynamic HTML.
-    supportsDynamicHTML: false,
+    supportsDynamicResponse: false,
     crossOrigin: nextConfig.crossOrigin,
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
@@ -408,11 +406,9 @@ export async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
-    nextFontManifest: require(join(
-      distDir,
-      'server',
-      `${NEXT_FONT_MANIFEST}.json`
-    )),
+    nextFontManifest: require(
+      join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
+    ),
     images: nextConfig.images,
     ...(enabledDirectories.app
       ? {
@@ -518,11 +514,9 @@ export async function exportAppImpl(
 
   if (!options.buildExport) {
     try {
-      const middlewareManifest = require(join(
-        distDir,
-        SERVER_DIRECTORY,
-        MIDDLEWARE_MANIFEST
-      )) as MiddlewareManifest
+      const middlewareManifest = require(
+        join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
+      ) as MiddlewareManifest
 
       hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
     } catch {}
