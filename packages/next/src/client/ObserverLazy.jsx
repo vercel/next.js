@@ -6,7 +6,7 @@ import Proptypes from 'prop-types';
  * @param {ReactNode} children The react child elements
  * @return {ReactNode}
  */
-function ObserverLazy({ children }) {
+function ObserverLazy({ children, height, rootMargin }) {
   const [childVisible, setChildVisible] = useState(false); // Show empty or real elements
   const emptyDiv = useRef(null); // Get the empty element
 
@@ -19,7 +19,7 @@ function ObserverLazy({ children }) {
             observer.disconnect(); // Close observer
           }
         },
-        { rootMargin: '500px 0px' }
+        { rootMargin: rootMargin || '500px 0px' }
       );
       observer.observe(emptyDiv.current); // Observing empty elements
     } catch (err) {
@@ -29,11 +29,13 @@ function ObserverLazy({ children }) {
     }
   }, []);
 
-  return childVisible ? children : <div ref={emptyDiv} style={{ height: '30vh' }} />;
+  return childVisible ? children : <div ref={emptyDiv} style={{ height: height || '30vh' }} />;
 }
 
 ObserverLazy.propTypes = {
   children: Proptypes.element,
+  height: Proptypes.string,
+  rootMargin: Proptypes.string,
 };
 
 export default ObserverLazy;
