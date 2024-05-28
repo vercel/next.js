@@ -84,37 +84,6 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
-export function streamFromBuffer(
-  chunk: Uint8Array
-): ReadableStream<Uint8Array> {
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(chunk)
-      controller.close()
-    },
-  })
-}
-
-export async function streamToBuffer(
-  stream: ReadableStream<Uint8Array>
-): Promise<Uint8Array> {
-  let chunks = []
-  let byteLength = 0
-  // @ts-expect-error
-  for await (const chunk of stream) {
-    chunks.push(chunk)
-    byteLength += chunk.length
-  }
-
-  const buffer: Uint8Array = new Uint8Array(byteLength)
-  for (let i = 0, byteOffset = 0; i < chunks.length; i++) {
-    buffer.set(chunks[i], byteOffset)
-    byteOffset += chunks[i].byteLength
-  }
-
-  return buffer
-}
-
 export async function streamToString(
   stream: ReadableStream<Uint8Array>
 ): Promise<string> {
