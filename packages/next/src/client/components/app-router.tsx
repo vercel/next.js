@@ -293,6 +293,7 @@ function Head({
 function Router({
   buildId,
   initialHead,
+  initialLayerAssets,
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
@@ -310,7 +311,7 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
-        initialLayerAssets: null,
+        initialLayerAssets,
         couldBeIntercepted,
       }),
     [
@@ -319,6 +320,7 @@ function Router({
       initialCanonicalUrl,
       initialTree,
       initialHead,
+      initialLayerAssets,
       couldBeIntercepted,
     ]
   )
@@ -657,10 +659,27 @@ function Router({
     head = null
   }
 
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    cache.prefetchLayerAssets !== null
+      ? cache.prefetchLayerAssets
+      : cache.layerAssets
+
+  const layerAssets = useDeferredValue(
+    cache.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
+
   let content = (
     <RedirectBoundary>
       {head}
-      {/* {cache.layerAssets} */}
+      {layerAssets}
       {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>

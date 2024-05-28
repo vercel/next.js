@@ -2415,6 +2415,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
+      "passed": [],
+      "failed": [
+        "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/parallel-routes-layouts/parallel-routes-layouts.test.ts": {
       "passed": [
         "parallel-routes-layouts should properly render layouts for multiple slots"
