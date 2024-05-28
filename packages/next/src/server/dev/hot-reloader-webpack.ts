@@ -192,15 +192,6 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-const networkErrors = new Set([
-  'EADDRINFO',
-  'ENOTFOUND',
-  'ETIMEDOUT',
-  'ECONNREFUSED',
-  'EAI_AGAIN',
-  'UND_ERR_CONNECT_TIMEOUT',
-])
-
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -212,15 +203,21 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
     installed = require('next/package.json').version
 
     const registry = getRegistry()
-    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    let res
 
-    if (!res.ok) return { installed, staleness: 'unknown' }
+    try {
+      res = await fetch(`${registry}-/package/next/dist-tags`)
+    } catch {
+      // ignore fetch errors
+    }
+
+    if (!res || !res.ok) return { installed, staleness: 'unknown' }
 
     const { latest, canary } = await res.json()
 
     return parseVersionInfo({ installed, latest, canary })
   } catch (e: any) {
-    if (!networkErrors.has(e?.code)) console.error(e)
+    console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
