@@ -643,7 +643,7 @@ async function renderToHTMLOrFlightImpl(
     ComponentMod,
     dev,
     nextFontManifest,
-    supportsDynamicHTML,
+    supportsDynamicResponse,
     serverActions,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -781,7 +781,7 @@ async function renderToHTMLOrFlightImpl(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  const generateStaticHTML = supportsDynamicResponse !== true
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
