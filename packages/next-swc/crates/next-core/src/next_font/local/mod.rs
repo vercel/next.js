@@ -149,11 +149,11 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             {}{}
                         }},
                     }};
-    
+
                     if (cssModule.variable != null) {{
                         fontData.variable = cssModule.variable;
                     }}
-    
+
                     export default fontData;
                 "#,
                     // Pass along whichever options we received to the css handler
@@ -277,7 +277,7 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-async fn font_options_from_query_map(query: Vc<RcStr>) -> Result<Vc<NextFontLocalOptions>> {
+async fn font_options_from_query_map(query: Vc<String>) -> Result<Vc<NextFontLocalOptions>> {
     let query_map = qstring::QString::from(&**query.await?);
 
     if query_map.len() != 1 {

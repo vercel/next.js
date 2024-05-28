@@ -21,7 +21,7 @@ pub(crate) struct NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl NextExactMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextExactMatcher { path }))
     }
 }
@@ -53,7 +53,7 @@ pub(crate) struct NextParamsMatcher {
 #[turbo_tasks::value_impl]
 impl NextParamsMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextParamsMatcher {
             matcher: build_path_regex(path.await?.as_str())?,
         }))
@@ -86,7 +86,7 @@ impl NextPrefixSuffixParamsMatcher {
     /// Converts a filename within the server root into a regular expression
     /// with named capture groups for every dynamic segment.
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<RcStr>, prefix: RcStr, suffix: RcStr) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<String>, prefix: RcStr, suffix: RcStr) -> Result<Vc<Self>> {
         Ok(Self::cell(NextPrefixSuffixParamsMatcher {
             matcher: PrefixSuffixMatcher::new(
                 prefix.to_string(),
