@@ -43,6 +43,11 @@ describe('module layer', () => {
       expect(json.textValue).toBe('text-value')
     })
 
+    it('should call instrumentation hook without errors', async () => {
+      const output = next.cliOutput
+      expect(output).toContain('instrumentation:register')
+    })
+
     // This is for backward compatibility, don't change react usage in existing pages/api
     it('should contain client react exports for pages api', async () => {
       async function verifyReactExports(route, isEdge) {
