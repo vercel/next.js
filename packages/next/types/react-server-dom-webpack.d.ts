@@ -1,4 +1,61 @@
-import type { Thenable } from 'react'
+// https://github.com/facebook/react/blob/46339720d75337ae1d1e113fd56ac99e7fd1a0b3/packages/shared/ReactTypes.js#L181
+export type ReactComponentInfo = {
+  name?: string
+  env?: string
+  owner?: null | ReactComponentInfo
+  stack?: null | string
+}
+
+// https://github.com/facebook/react/blob/46339720d75337ae1d1e113fd56ac99e7fd1a0b3/packages/shared/ReactTypes.js#L188
+export type ReactAsyncInfo = {
+  started?: number
+  completed?: number
+  stack?: string
+}
+
+// https://github.com/facebook/react/blob/46339720d75337ae1d1e113fd56ac99e7fd1a0b3/packages/shared/ReactTypes.js#L194
+export type ReactDebugInfo = Array<ReactComponentInfo | ReactAsyncInfo>
+
+export interface Wakeable {
+  then(onFulfill: () => unknown, onReject: () => unknown): void | Wakeable
+}
+
+// The subset of a Promise that React APIs rely on. This resolves a value.
+// This doesn't require a return value neither from the handler nor the
+// then function.
+interface ThenableImpl<T> {
+  then(
+    onFulfill: (value: T) => unknown,
+    onReject: (error: unknown) => unknown
+  ): void | Wakeable
+}
+interface UntrackedThenable<T> extends ThenableImpl<T> {
+  status?: void
+  _debugInfo?: null | ReactDebugInfo
+}
+
+export interface PendingThenable<T> extends ThenableImpl<T> {
+  status: 'pending'
+  _debugInfo?: null | ReactDebugInfo
+}
+
+export interface FulfilledThenable<T> extends ThenableImpl<T> {
+  status: 'fulfilled'
+  value: T
+  _debugInfo?: null | ReactDebugInfo
+}
+
+export interface RejectedThenable<T> extends ThenableImpl<T> {
+  status: 'rejected'
+  reason: unknown
+  _debugInfo?: null | ReactDebugInfo
+}
+
+export type Thenable<T> =
+  | UntrackedThenable<T>
+  | PendingThenable<T>
+  | FulfilledThenable<T>
+  | RejectedThenable<T>
 
 // https://github.com/facebook/react/blob/26f24960935cc395dd9892b3ac48249c9dbcc195/packages/react-server/src/ReactFlightServerTemporaryReferences.js#L18
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
