@@ -165,14 +165,30 @@ async fn apply_module_type(
             } else {
                 let options = options.await?;
                 match options.tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments) => Vc::upcast(
-                        if let Some(part) = part {
-                            builder.build_part(part)
-                        } else {
-                            builder.build_part(ModulePart::exports())
-                        }
-                        .await?,
-                    ),
+                    Some(TreeShakingMode::ModuleFragments) => {
+                        let side_effect_free_packages =
+                            module_asset_context.side_effect_free_packages();
+
+                        let module = builder.clone().build();
+
+                        Vc::upcast(
+                            if let Some(part) = part {
+                                if let ModulePart::Evaluation = *part.await? {
+                                    if *module
+                                        .is_marked_as_side_effect_free(side_effect_free_packages)
+                                        .await?
+                                    {
+                                        return Ok(ProcessResult::Ignore.cell());
+                                    }
+                                }
+
+                                builder.build_part(part)
+                            } else {
+                                builder.build_part(ModulePart::facade())
+                            }
+                            .await?,
+                        )
+                    }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         let side_effect_free_packages =
                             module_asset_context.side_effect_free_packages();
@@ -407,23 +423,6 @@ impl ModuleAssetContext {
         reference_type: Value<ReferenceType>,
     ) -> Vc<ProcessResult> {
         process_default(self, source, reference_type, Vec::new())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
-        let pkgs = &*self
-            .await?
-            .module_options_context
-            .await?
-            .side_effect_free_packages;
-
-        let mut globs = Vec::with_capacity(pkgs.len());
-
-        for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg)));
-        }
-
-        Ok(Glob::alternatives(globs))
     }
 }
 
@@ -739,6 +738,23 @@ impl AssetContext for ModuleAssetContext {
                 ))
             },
         )
+    }
+
+    #[turbo_tasks::function]
+    async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
+        let pkgs = &*self
+            .await?
+            .module_options_context
+            .await?
+            .side_effect_free_packages;
+
+        let mut globs = Vec::with_capacity(pkgs.len());
+
+        for pkg in pkgs {
+            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg)));
+        }
+
+        Ok(Glob::alternatives(globs))
     }
 }
 

@@ -103,6 +103,17 @@ impl ModuleResolveResult {
         }
     }
 
+    pub fn ignored() -> ModuleResolveResult {
+        Self::ignored_with_key(RequestKey::default())
+    }
+
+    pub fn ignored_with_key(request_key: RequestKey) -> ModuleResolveResult {
+        ModuleResolveResult {
+            primary: indexmap! { request_key => ModuleResolveResultItem::Ignore },
+            affecting_sources: Vec::new(),
+        }
+    }
+
     pub fn module(module: Vc<Box<dyn Module>>) -> ModuleResolveResult {
         Self::module_with_key(RequestKey::default(), module)
     }

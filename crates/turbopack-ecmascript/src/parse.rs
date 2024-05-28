@@ -46,7 +46,7 @@ use crate::{
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(debug_ignore, trace_ignore)]
         program: Program,
         #[turbo_tasks(debug_ignore, trace_ignore)]
         comments: Arc<ImmutableComments>,
@@ -278,7 +278,7 @@ async fn parse_content(
     let mut result = WrapFuture::new(
         async {
             let file_name = FileName::Custom(ident.to_string());
-            let fm = source_map.new_source_file(file_name.clone(), string);
+            let fm = source_map.new_source_file(file_name.clone(), string.clone());
 
             let comments = SwcComments::default();
 
@@ -405,6 +405,7 @@ async fn parse_content(
                 } else {
                     None
                 };
+                let messages = Some(messages.unwrap_or_else(|| vec![string.to_string()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
 
@@ -412,7 +413,13 @@ async fn parse_content(
                 &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
             );
 
-            let eval_context = EvalContext::new(&parsed_program, unresolved_mark, Some(source));
+            let eval_context = EvalContext::new(
+                &parsed_program,
+                unresolved_mark,
+                top_level_mark,
+                false,
+                Some(source),
+            );
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
                 program: parsed_program,

@@ -1,15 +1,17 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleModuleReference},
     resolve::ModulePart,
 };
 
-use super::{chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, SplitResult};
+use super::{
+    chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, Key, SplitResult,
+};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::analyse_ecmascript_module,
@@ -44,6 +46,18 @@ impl EcmascriptModulePartAsset {
         }
         .cell()
     }
+
+    #[turbo_tasks::function]
+    pub async fn is_async_module(self: Vc<Self>) -> Result<Vc<bool>> {
+        let this = self.await?;
+        let result = this.full_module.failsafe_analyze();
+
+        if let Some(async_module) = *result.await?.async_module.await? {
+            Ok(async_module.is_self_async(self.references()))
+        } else {
+            Ok(Vc::cell(false))
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -51,28 +65,90 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let inner = self.full_module.ident();
+        let result = split_module(self.full_module);
 
-        Ok(inner.with_part(self.part))
+        match &*result.await? {
+            SplitResult::Ok { .. } => Ok(inner.with_part(self.part)),
+            SplitResult::Failed { .. } => Ok(inner),
+        }
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(self.full_module).await?;
 
-        let deps = match &*split_data {
-            SplitResult::Ok { deps, .. } => deps,
-            _ => {
-                bail!("failed to split module")
-            }
+        let analyze = analyze(self.full_module, self.part).await?;
+
+        let (deps, entrypoints) = match &*split_data {
+            SplitResult::Ok {
+                deps, entrypoints, ..
+            } => (deps, entrypoints),
+            SplitResult::Failed { .. } => return Ok(analyze.references),
         };
 
-        let part_id = get_part_id(&split_data, self.part)
-            .await
-            .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+        // Facade depends on evaluation and re-exports
+        if matches!(&*self.part.await?, ModulePart::Facade) {
+            let mut references = vec![];
 
-        let deps = match deps.get(&part_id) {
-            Some(v) => v,
-            None => bail!("part {:?} is not found in the module", part_id),
+            let reference = Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new(
+                    self.full_module,
+                    ModulePart::evaluation(),
+                    self.import_externals,
+                )),
+                Vc::cell("ecmascript module evaluation".to_string()),
+            ));
+
+            references.push(reference);
+
+            let reference = Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new(
+                    self.full_module,
+                    ModulePart::exports(),
+                    self.import_externals,
+                )),
+                Vc::cell("ecmascript reexports".to_string()),
+            ));
+
+            references.push(reference);
+
+            references.extend(analyze.references.await?.iter().cloned());
+
+            return Ok(Vc::cell(references));
+        }
+
+        // ModulePart::Exports contains all reexports and a reexport of the Locals
+        if matches!(&*self.part.await?, ModulePart::Exports) {
+            let mut references = vec![];
+
+            for key in entrypoints.keys() {
+                if let Key::Export(e) = key {
+                    let reference = Vc::upcast(SingleModuleReference::new(
+                        Vc::upcast(EcmascriptModulePartAsset::new(
+                            self.full_module,
+                            ModulePart::export(e.clone()),
+                            self.import_externals,
+                        )),
+                        Vc::cell(format!("ecmascript export '{e}'")),
+                    ));
+
+                    references.push(reference);
+                }
+            }
+
+            references.extend(analyze.references.await?.iter().cloned());
+
+            return Ok(Vc::cell(references));
+        }
+        let deps = {
+            let part_id = get_part_id(&split_data, self.part)
+                .await
+                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+
+            match deps.get(&part_id) {
+                Some(v) => &**v,
+                None => &[],
+            }
         };
 
         let mut assets = deps
@@ -89,8 +165,6 @@ impl Module for EcmascriptModulePartAsset {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        let analyze = analyze(self.full_module, self.part).await?;
-
         assets.extend(analyze.references.await?.iter().cloned());
 
         Ok(Vc::cell(assets))
@@ -101,9 +175,7 @@ impl Module for EcmascriptModulePartAsset {
 impl Asset for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        // This is not reachable because EcmascriptModulePartAsset implements
-        // ChunkableModule and ChunkableModule::as_chunk is called instead.
-        todo!("EcmascriptModulePartAsset::content is not implemented")
+        todo!()
     }
 }
 
@@ -149,3 +221,6 @@ async fn analyze(
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     Ok(analyse_ecmascript_module(module, Some(part)))
 }
+
+#[turbo_tasks::value_impl]
+impl EvaluatableAsset for EcmascriptModulePartAsset {}

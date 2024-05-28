@@ -13,7 +13,8 @@ use swc_core::{
 use turbo_tasks::Vc;
 use turbopack_core::{issue::IssueSource, source::Source};
 
-use super::{JsValue, ModuleValue};
+use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use crate::tree_shake::{find_turbopack_part_id_in_asserts, PartId};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Default, Debug, Clone, Hash, PartialOrd, Ord)]
@@ -129,16 +130,22 @@ pub(crate) struct ImportMap {
 
     /// True, when the module has exports
     has_exports: bool,
+
+    /// True if the module is an ESM module due to top-level await.
+    has_top_level_await: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
     Symbol(JsWord),
+    /// User requested the whole module
     Namespace,
+    Exports,
+    Part(u32),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct ImportMapReference {
     pub module_path: JsWord,
     pub imported_symbol: ImportedSymbol,
@@ -148,7 +155,10 @@ pub(crate) struct ImportMapReference {
 
 impl ImportMap {
     pub fn is_esm(&self) -> bool {
-        self.has_exports || !self.imports.is_empty() || !self.namespace_imports.is_empty()
+        self.has_exports
+            || self.has_top_level_await
+            || !self.imports.is_empty()
+            || !self.namespace_imports.is_empty()
     }
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
@@ -192,11 +202,16 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(m: &Program, source: Option<Vc<Box<dyn Source>>>) -> Self {
+    pub(super) fn analyze(
+        m: &Program,
+        skip_namespace: bool,
+        source: Option<Vc<Box<dyn Source>>>,
+    ) -> Self {
         let mut data = ImportMap::default();
 
         m.visit_with(&mut Analyzer {
             data: &mut data,
+            skip_namespace,
             source,
         });
 
@@ -206,6 +221,7 @@ impl ImportMap {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
+    skip_namespace: bool,
     source: Option<Vc<Box<dyn Source>>>,
 }
 
@@ -216,7 +232,11 @@ impl<'a> Analyzer<'a> {
         module_path: JsWord,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
-    ) -> usize {
+    ) -> Option<usize> {
+        if self.skip_namespace && matches!(imported_symbol, ImportedSymbol::Namespace) {
+            return None;
+        }
+
         let issue_source = self
             .source
             .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
@@ -228,11 +248,11 @@ impl<'a> Analyzer<'a> {
             annotations,
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
-            i
+            Some(i)
         } else {
             let i = self.data.references.len();
             self.data.references.insert(r);
-            i
+            Some(i)
         }
     }
 }
@@ -256,13 +276,17 @@ impl Visit for Analyzer<'_> {
         );
 
         for s in &import.specifiers {
-            let symbol = get_import_symbol_from_import(s);
+            let symbol = get_import_symbol_from_import(s, import.with.as_deref());
             let i = self.ensure_reference(
                 import.span,
                 import.src.value.clone(),
                 symbol,
                 annotations.clone(),
             );
+            let i = match i {
+                Some(v) => v,
+                None => continue,
+            };
 
             let (local, orig_sym) = match s {
                 ImportSpecifier::Named(ImportNamedSpecifier {
@@ -293,13 +317,17 @@ impl Visit for Analyzer<'_> {
             ImportedSymbol::ModuleEvaluation,
             annotations.clone(),
         );
+        let symbol = parse_with(export.with.as_deref());
+
         let i = self.ensure_reference(
             export.span,
             export.src.value.clone(),
-            ImportedSymbol::Namespace,
+            symbol.unwrap_or(ImportedSymbol::Namespace),
             annotations,
         );
-        self.data.reexports.push((i, Reexport::Star));
+        if let Some(i) = i {
+            self.data.reexports.push((i, Reexport::Star));
+        }
     }
 
     fn visit_named_export(&mut self, export: &NamedExport) {
@@ -319,10 +347,14 @@ impl Visit for Analyzer<'_> {
         );
 
         for spec in export.specifiers.iter() {
-            let symbol = get_import_symbol_from_export(spec);
+            let symbol = get_import_symbol_from_export(spec, export.with.as_deref());
 
             let i =
                 self.ensure_reference(export.span, src.value.clone(), symbol, annotations.clone());
+            let i = match i {
+                Some(v) => v,
+                None => continue,
+            };
 
             match spec {
                 ExportSpecifier::Namespace(n) => {
@@ -367,6 +399,12 @@ impl Visit for Analyzer<'_> {
     fn visit_stmt(&mut self, _: &Stmt) {
         // don't visit children
     }
+
+    fn visit_program(&mut self, m: &Program) {
+        self.data.has_top_level_await = has_top_level_await(m).is_some();
+
+        m.visit_children_with(self);
+    }
 }
 
 pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
@@ -376,7 +414,23 @@ pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
     }
 }
 
-fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol {
+fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
+    find_turbopack_part_id_in_asserts(with?).map(|v| match v {
+        PartId::Internal(index) => ImportedSymbol::Part(index),
+        PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
+        PartId::Export(e) => ImportedSymbol::Symbol(e.into()),
+        PartId::Exports => ImportedSymbol::Exports,
+    })
+}
+
+fn get_import_symbol_from_import(
+    specifier: &ImportSpecifier,
+    with: Option<&ObjectLit>,
+) -> ImportedSymbol {
+    if let Some(part) = parse_with(with) {
+        return part;
+    }
+
     match specifier {
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
@@ -389,7 +443,14 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
     }
 }
 
-fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
+fn get_import_symbol_from_export(
+    specifier: &ExportSpecifier,
+    with: Option<&ObjectLit>,
+) -> ImportedSymbol {
+    if let Some(part) = parse_with(with) {
+        return part;
+    }
+
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
             ImportedSymbol::Symbol(orig_name(orig))

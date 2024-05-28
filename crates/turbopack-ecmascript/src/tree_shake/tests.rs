@@ -10,16 +10,15 @@ use indexmap::IndexSet;
 use rustc_hash::FxHasher;
 use serde::Deserialize;
 use swc_core::{
-    common::{util::take::Take, SourceMap},
+    common::{util::take::Take, Mark, SourceMap, SyntaxContext},
     ecma::{
         ast::{EsVersion, Id, Module},
         atoms::JsWord,
         codegen::text_writer::JsWriter,
         parser::parse_file_as_module,
+        visit::VisitMutWith,
     },
-    testing::{
-        fixture, NormalizedOutput, {self},
-    },
+    testing::{self, fixture, NormalizedOutput},
 };
 
 use super::{
@@ -53,7 +52,7 @@ fn run(input: PathBuf) {
     testing::run_test(false, |cm, _handler| {
         let fm = cm.load_file(&input).unwrap();
 
-        let module = parse_file_as_module(
+        let mut module = parse_file_as_module(
             &fm,
             Default::default(),
             EsVersion::latest(),
@@ -62,8 +61,19 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
+        let unresolved_mark = Mark::new();
+        let top_level_mark = Mark::new();
+        let unresolved_ctxt = SyntaxContext::empty().apply_mark(unresolved_mark);
+        let top_level_ctxt = SyntaxContext::empty().apply_mark(top_level_mark);
+
+        module.visit_mut_with(&mut swc_core::ecma::transforms::base::resolver(
+            unresolved_mark,
+            top_level_mark,
+            false,
+        ));
+
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(&module);
+        let (item_ids, mut items) = g.init(&module, unresolved_ctxt, top_level_ctxt);
 
         let mut s = String::new();
 
@@ -133,7 +143,7 @@ fn run(input: PathBuf) {
             vars: Default::default(),
         };
 
-        let eventual_ids = analyzer.hoist_vars_and_bindings(&module);
+        let eventual_ids = analyzer.hoist_vars_and_bindings();
 
         writeln!(s, "# Phase 1").unwrap();
         writeln!(s, "```mermaid\n{}```", render_graph(&item_ids, analyzer.g)).unwrap();
@@ -180,7 +190,9 @@ fn run(input: PathBuf) {
                     modules,
                     entrypoints,
                     ..
-                } = g.split_module(&uri_of_module, analyzer.items);
+                } = g.split_module(analyzer.items);
+
+                writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
 
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();
@@ -199,7 +211,7 @@ fn run(input: PathBuf) {
                 for e in &entries {
                     let key = match e {
                         ItemIdGroupKind::ModuleEvaluation => Key::ModuleEvaluation,
-                        ItemIdGroupKind::Export(e) => Key::Export(e.0.to_string()),
+                        ItemIdGroupKind::Export(_, name) => Key::Export(name.to_string()),
                     };
 
                     let index = entrypoints[&key];
@@ -230,7 +242,7 @@ fn run(input: PathBuf) {
                 &exports.join(","),
                 exports
                     .into_iter()
-                    .map(|e| ItemIdGroupKind::Export((e.into(), Default::default())))
+                    .map(|e| ItemIdGroupKind::Export(((*e).into(), Default::default()), e.into()))
                     .collect(),
                 true,
             );
@@ -324,7 +336,7 @@ where
             mermaid,
             "    N{}[\"{}\"];",
             i,
-            render(item).replace('"', "\\\"").replace([';', '\n'], "")
+            render(item).replace([';', '\n'], "").replace('"', "&quot;")
         )
         .unwrap();
     }
@@ -349,7 +361,7 @@ where
 fn render_item_id(id: &ItemId) -> Option<String> {
     match id {
         ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => Some("ModuleEvaluation".into()),
-        ItemId::Group(ItemIdGroupKind::Export(id)) => Some(format!("export {}", id.0)),
+        ItemId::Group(ItemIdGroupKind::Export(_, name)) => Some(format!("export {name}")),
         _ => None,
     }
 }

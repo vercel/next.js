@@ -193,6 +193,7 @@ struct MemoizedSuccessfulAnalysis {
     source_map: Option<ReadRef<SourceMap>>,
 }
 
+#[derive(Clone)]
 pub struct EcmascriptModuleAssetBuilder {
     source: Vc<Box<dyn Source>>,
     asset_context: Vc<Box<dyn AssetContext>>,

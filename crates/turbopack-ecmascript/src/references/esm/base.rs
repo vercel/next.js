@@ -11,6 +11,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption, ModuleId,
     },
+    context::AssetContext,
     issue::{IssueSeverity, IssueSource},
     module::Module,
     reference::ModuleReference,
@@ -29,6 +30,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
+    tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
 };
 
 #[turbo_tasks::value]
@@ -149,6 +151,37 @@ impl ModuleReference for EsmAssetReference {
         } else {
             EcmaScriptModulesReferenceSubType::Import
         };
+
+        // Skip side effect free self-references here.
+        if let Request::Module { module, .. } = &*self.request.await? {
+            if module == TURBOPACK_PART_IMPORT_SOURCE {
+                if let Some(part) = self.export_name {
+                    let full_module: Vc<crate::EcmascriptModuleAsset> =
+                        Vc::try_resolve_downcast_type(self.origin)
+                            .await?
+                            .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
+
+                    let side_effect_free_packages =
+                        full_module.asset_context().side_effect_free_packages();
+
+                    if let ModulePart::Evaluation = *part.await? {
+                        if *full_module
+                            .is_marked_as_side_effect_free(side_effect_free_packages)
+                            .await?
+                        {
+                            return Ok(ModuleResolveResult::ignored().cell());
+                        }
+                    }
+
+                    let module =
+                        EcmascriptModulePartAsset::new(full_module, part, self.import_externals);
+
+                    return Ok(ModuleResolveResult::module(Vc::upcast(module)).cell());
+                }
+
+                bail!("export_name is required for part import")
+            }
+        }
 
         Ok(esm_resolve(
             self.get_origin().resolve().await?,

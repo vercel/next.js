@@ -143,6 +143,7 @@ macro_rules! method {
 impl VisitMutAstPath for ApplyVisitors<'_, '_> {
     // TODO: we need a macro to apply that for all methods
     method!(visit_mut_prop, Prop);
+    method!(visit_mut_simple_assign_target, SimpleAssignTarget);
     method!(visit_mut_expr, Expr);
     method!(visit_mut_member_expr, MemberExpr);
     method!(visit_mut_pat, Pat);

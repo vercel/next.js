@@ -101,4 +101,9 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(self.module)
     }
+
+    #[turbo_tasks::function]
+    fn is_self_async(&self) -> Vc<bool> {
+        self.module.is_async_module()
+    }
 }
