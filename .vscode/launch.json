@@ -3,19 +3,36 @@
   // Hover to view descriptions of existing attributes.
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "appDirname",
+      "type": "promptString",
+      "description": "Enter an app dirname from examples or test/e2e",
+      "default": "examples/hello-world"
+    },
+    {
+      "id": "nextCommand",
+      "type": "pickString",
+      "description": "Select the next command",
+      "options": ["dev", "build", "start"]
+    }
+  ],
   "configurations": [
     {
-      "name": "Launch app development",
+      "name": "Launch app",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "webRoot": "examples/hello-world",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${webRoot}"],
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "${input:nextCommand}",
+        "${input:appDirname}"
+      ],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
-        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
-        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${input:appDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${input:appDirname}/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
       },
@@ -25,50 +42,16 @@
       }
     },
     {
-      "name": "Launch app build",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "webRoot": "examples/hello-world",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "build", "${webRoot}"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "skipFiles": ["<node_internals>/**"],
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
-      "name": "Launch app production",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "webRoot": "examples/hello-world",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "start", "${webRoot}"],
-      "skipFiles": ["<node_internals>/**"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${webRoot}/$1/$2",
-        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${webRoot}/.next/server/$1",
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
-      },
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
-      "name": "Launch current directory in development",
+      "name": "Launch current directory",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "${input:nextCommand}",
+        "${fileDirname}"
+      ],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
