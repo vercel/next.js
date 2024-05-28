@@ -28,10 +28,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
-            <div data-nextjs-dialog-left-right>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
-            </div>
             <h1 id="nextjs__container_errors_label">{'Build Error'}</h1>
+            <VersionStalenessInfo versionInfo={versionInfo} />
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
