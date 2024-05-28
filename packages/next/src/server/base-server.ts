@@ -527,7 +527,7 @@ export default abstract class Server<
     }
 
     this.renderOpts = {
-      supportsDynamicHTML: true,
+      supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.deploymentId,
       strictNextHead: this.nextConfig.experimental.strictNextHead ?? true,
@@ -648,10 +648,6 @@ export default abstract class Server<
       // Otherwise just return without doing anything.
       return false
     }
-
-    // If we're here, this is a data request, as it didn't return and it matched
-    // either a RSC or a prefetch RSC request.
-    parsedUrl.query.__nextDataReq = '1'
 
     if (req.url) {
       const parsed = parseUrl(req.url)
@@ -1601,7 +1597,7 @@ export default abstract class Server<
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: !isBotRequest,
+        supportsDynamicResponse: !isBotRequest,
         isBot: !!isBotRequest,
       },
     }
@@ -1647,7 +1643,7 @@ export default abstract class Server<
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
-        supportsDynamicHTML: false,
+        supportsDynamicResponse: false,
       },
     }
     const payload = await fn(ctx)
@@ -1946,7 +1942,7 @@ export default abstract class Server<
     }
 
     // Toggle whether or not this is a Data request
-    let isDataReq =
+    const isNextDataRequest =
       !!(
         query.__nextDataReq ||
         (req.headers['x-nextjs-data'] &&
@@ -2056,7 +2052,7 @@ export default abstract class Server<
       isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
 
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page && !isDataReq && !isRSCRequest) {
+    if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
     }
 
@@ -2097,7 +2093,7 @@ export default abstract class Server<
     // the query object. This ensures it won't be found by the `in` operator.
     if ('amp' in query && !query.amp) delete query.amp
 
-    if (opts.supportsDynamicHTML === true) {
+    if (opts.supportsDynamicResponse === true) {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
@@ -2109,19 +2105,14 @@ export default abstract class Server<
       // TODO-APP: should the first render for a dynamic app path
       // be static so we can collect revalidate and populate the
       // cache if there are no dynamic data requirements
-      opts.supportsDynamicHTML =
+      opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
       opts.isBot = isBotRequest
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (
-      !isDataReq &&
-      isAppPath &&
-      opts.dev &&
-      opts.supportsDynamicHTML === false
-    ) {
-      opts.supportsDynamicHTML = true
+    if (!isNextDataRequest && isAppPath && opts.dev) {
+      opts.supportsDynamicResponse = true
     }
 
     const defaultLocale = isSSG
@@ -2144,27 +2135,20 @@ export default abstract class Server<
       }
     }
 
-    if (isAppPath) {
-      if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
-        // If this is an RSC request but we aren't in minimal mode, then we mark
-        // that this is a data request so that we can generate the flight data
-        // only.
-        if (!this.minimalMode) {
-          isDataReq = true
-        }
-
-        // If this is a dynamic RSC request, ensure that we don't purge the
-        // flight headers to ensure that we will only produce the RSC response.
-        // We only need to do this in non-edge environments (as edge doesn't
-        // support static generation).
-        if (
-          !isDynamicRSCRequest &&
-          (!isEdgeRuntime(opts.runtime) ||
-            (this.serverOptions as any).webServerConfig)
-        ) {
-          stripFlightHeaders(req.headers)
-        }
-      }
+    // If this is a request for an app path that should be statically generated
+    // and we aren't in the edge runtime, strip the flight headers so it will
+    // generate the static response.
+    if (
+      isAppPath &&
+      !opts.dev &&
+      !isPreviewMode &&
+      isSSG &&
+      isRSCRequest &&
+      !isDynamicRSCRequest &&
+      (!isEdgeRuntime(opts.runtime) ||
+        (this.serverOptions as any).webServerConfig)
+    ) {
+      stripFlightHeaders(req.headers)
     }
 
     let isOnDemandRevalidate = false
@@ -2215,7 +2199,7 @@ export default abstract class Server<
 
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
-    if (isDataReq) {
+    if (isNextDataRequest) {
       resolvedUrlPathname = this.stripNextDataPath(resolvedUrlPathname)
       urlPathname = this.stripNextDataPath(urlPathname)
     }
@@ -2224,7 +2208,7 @@ export default abstract class Server<
     if (
       !isPreviewMode &&
       isSSG &&
-      !opts.supportsDynamicHTML &&
+      !opts.supportsDynamicResponse &&
       !isServerAction &&
       !minimalPostponed &&
       !isDynamicRSCRequest
@@ -2300,10 +2284,10 @@ export default abstract class Server<
 
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
-      let supportsDynamicHTML: boolean =
-        // If this isn't a data request and we're not in development, then we
-        // support dynamic HTML.
-        (!isDataReq && opts.dev === true) ||
+      let supportsDynamicResponse: boolean =
+        // If we're in development, we always support dynamic HTML, unless it's
+        // a data request, in which case we only produce static HTML.
+        (!isNextDataRequest && opts.dev === true) ||
         // If this is not SSG or does not have static paths, then it supports
         // dynamic HTML.
         (!isSSG && !hasStaticPaths) ||
@@ -2346,7 +2330,7 @@ export default abstract class Server<
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
-        isDataReq,
+        isNextDataRequest,
         resolvedUrl,
         locale,
         locales,
@@ -2367,7 +2351,7 @@ export default abstract class Server<
           ...opts.experimental,
           isRoutePPREnabled,
         },
-        supportsDynamicHTML,
+        supportsDynamicResponse,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
@@ -2377,9 +2361,9 @@ export default abstract class Server<
       }
 
       if (isDebugPPRSkeleton) {
-        supportsDynamicHTML = false
+        supportsDynamicResponse = false
         renderOpts.nextExport = true
-        renderOpts.supportsDynamicHTML = false
+        renderOpts.supportsDynamicResponse = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
         renderOpts.isDebugPPRSkeleton = true
@@ -2411,7 +2395,7 @@ export default abstract class Server<
                 after: renderOpts.experimental.after,
               },
               originalPathname: components.ComponentMod.originalPathname,
-              supportsDynamicHTML,
+              supportsDynamicResponse,
               incrementalCache,
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),
@@ -2725,7 +2709,7 @@ export default abstract class Server<
           throw new NoFallbackError()
         }
 
-        if (!isDataReq) {
+        if (!isNextDataRequest) {
           // Production already emitted the fallback as static HTML.
           if (isProduction) {
             const html = await this.getFallback(
@@ -2859,11 +2843,11 @@ export default abstract class Server<
       revalidate = 0
     } else if (
       typeof cacheEntry.revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isDataReq))
+      (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
     ) {
       // If this is a preview mode request, we shouldn't cache it. We also don't
       // cache 404 pages.
-      if (isPreviewMode || (is404Page && !isDataReq)) {
+      if (isPreviewMode || (is404Page && !isNextDataRequest)) {
         revalidate = 0
       }
 
@@ -2917,7 +2901,7 @@ export default abstract class Server<
           })
         )
       }
-      if (isDataReq) {
+      if (isNextDataRequest) {
         res.statusCode = 404
         res.body('{"notFound":true}').send()
         return null
@@ -2940,7 +2924,7 @@ export default abstract class Server<
         )
       }
 
-      if (isDataReq) {
+      if (isNextDataRequest) {
         return {
           type: 'json',
           body: RenderResult.fromStatic(
@@ -3015,7 +2999,7 @@ export default abstract class Server<
       // If the request is a data request, then we shouldn't set the status code
       // from the response because it should always be 200. This should be gated
       // behind the experimental PPR flag.
-      if (cachedData.status && (!isDataReq || !isRoutePPREnabled)) {
+      if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
         res.statusCode = cachedData.status
       }
 
@@ -3028,13 +3012,9 @@ export default abstract class Server<
       // as preview mode is a dynamic request (bypasses cache) and doesn't
       // generate both HTML and payloads in the same request so continue to just
       // return the generated payload
-      if (isDataReq && !isPreviewMode) {
+      if (isRSCRequest && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
-        if (isDynamicRSCRequest) {
-          if (cachedData.pageData) {
-            throw new Error('Invariant: Expected pageData to be undefined')
-          }
-
+        if (typeof cachedData.pageData !== 'string') {
           if (cachedData.postponed) {
             throw new Error('Invariant: Expected postponed to be undefined')
           }
@@ -3047,14 +3027,8 @@ export default abstract class Server<
             // distinguishing between `force-static` and pages that have no
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
-            revalidate: 0,
+            revalidate: isDynamicRSCRequest ? 0 : cacheEntry.revalidate,
           }
-        }
-
-        if (typeof cachedData.pageData !== 'string') {
-          throw new Error(
-            `Invariant: expected pageData to be a string, got ${typeof cachedData.pageData}`
-          )
         }
 
         // As this isn't a prefetch request, we should serve the static flight
@@ -3126,7 +3100,7 @@ export default abstract class Server<
         // to the client on the same request.
         revalidate: 0,
       }
-    } else if (isDataReq) {
+    } else if (isNextDataRequest) {
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),

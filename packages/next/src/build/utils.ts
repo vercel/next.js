@@ -1389,7 +1389,7 @@ export async function buildAppStaticPaths({
       renderOpts: {
         originalPathname: page,
         incrementalCache,
-        supportsDynamicHTML: true,
+        supportsDynamicResponse: true,
         isRevalidate: false,
         experimental: {
           after: false,
