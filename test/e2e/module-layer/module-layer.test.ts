@@ -37,9 +37,10 @@ describe('module layer', () => {
     }
 
     it('should render installed react-server condition for middleware', async () => {
-      const json = await next.fetch('/react-version').then((res) => res.json())
+      const json = await next.fetch('/middleware').then((res) => res.json())
       expect(json.React).toContain('version') // basic react-server export
       expect(json.React).not.toContain('useEffect') // no client api export
+      expect(json.textValue).toBe('text-value')
     })
 
     // This is for backward compatibility, don't change react usage in existing pages/api

@@ -1,6 +1,7 @@
 import 'server-only'
 import * as React from 'react'
 import { NextResponse } from 'next/server'
+import { textValue } from './lib/mixed-lib/shared-module'
 // import './lib/mixed-lib'
 
 export function middleware(request) {
@@ -10,9 +11,10 @@ export function middleware(request) {
     throw new Error('React.useState should not be defined in server layer')
   }
 
-  if (request.nextUrl.pathname === '/react-version') {
+  if (request.nextUrl.pathname === '/middleware') {
     return Response.json({
       React: Object.keys(ReactObject),
+      textValue,
     })
   }
 
