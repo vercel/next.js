@@ -52,7 +52,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env: { ...env, HOSTNAME: '::' },
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
