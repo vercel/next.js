@@ -41,7 +41,7 @@ export type StaticGenerationContext = {
     // mirrored.
     RenderOptsPartial,
     | 'originalPathname'
-    | 'supportsDynamicHTML'
+    | 'supportsDynamicResponse'
     | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
@@ -77,7 +77,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
      * coalescing, and ISR continue working as intended.
      */
     const isStaticGeneration =
-      !renderOpts.supportsDynamicHTML &&
+      !renderOpts.supportsDynamicResponse &&
       !renderOpts.isDraftMode &&
       !renderOpts.isServerAction
 

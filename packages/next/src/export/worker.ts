@@ -269,7 +269,7 @@ async function exportPageImpl(
       disableOptimizedLoading,
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
-      supportsDynamicHTML: false,
+      supportsDynamicResponse: false,
       originalPathname: page,
       experimental: {
         ...input.renderOpts.experimental,
