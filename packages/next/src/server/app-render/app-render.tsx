@@ -18,7 +18,7 @@ import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -398,7 +398,7 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   // Generate the flight data and as soon as it can, convert it into a string.
   const promise = generateFlight(ctx)
     .then(async (result) => ({
-      flightData: await result.toUnchunkedBuffer(true),
+      flightData: await result.toUnchunkedString(true),
     }))
     // Otherwise if it errored, return the error.
     .catch((err) => ({ err }))
@@ -763,6 +763,10 @@ async function renderToHTMLOrFlightImpl(
   })
 
   ComponentMod.patchFetch()
+
+  if (renderOpts.experimental.after) {
+    ComponentMod.patchCacheScopeSupportIntoReact()
+  }
 
   /**
    * Rules of Static & Dynamic HTML:
