@@ -270,16 +270,6 @@ function assignDefaults(
     )
   }
 
-  if (
-    result.experimental?.ppr &&
-    !process.env.__NEXT_VERSION!.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE
-  ) {
-    throw new Error(
-      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
-    )
-  }
-
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
@@ -510,6 +500,13 @@ function assignDefaults(
     result,
     'removeConsole',
     'compiler.removeConsole',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'swrDelta',
+    'swrDelta',
     configFileName,
     silent
   )
@@ -816,6 +813,26 @@ function assignDefaults(
       '@mui/icons-material',
       'recharts',
       'react-use',
+      'effect',
+      '@effect/schema',
+      '@effect/platform',
+      '@effect/platform-node',
+      '@effect/platform-browser',
+      '@effect/platform-bun',
+      '@effect/sql',
+      '@effect/sql-mssql',
+      '@effect/sql-mysql2',
+      '@effect/sql-pg',
+      '@effect/sql-squlite-node',
+      '@effect/sql-squlite-bun',
+      '@effect/sql-squlite-wasm',
+      '@effect/sql-squlite-react-native',
+      '@effect/sql-squlite-wasm',
+      '@effect/rpc',
+      '@effect/rpc-http',
+      '@effect/typeclass',
+      '@effect/experimental',
+      '@effect/opentelemetry',
       '@material-ui/core',
       '@material-ui/icons',
       '@tabler/icons-react',

@@ -27,13 +27,8 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::{
-        google::{
-            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
-        },
-        local::{
-            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
-        },
+    next_font::google::{
+        NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -595,7 +590,10 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
+        ServerContextType::Middleware => {
+            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+        }
+        ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -739,6 +737,7 @@ async fn rsc_aliases(
             "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom-experimental" => format!("next/dist/compiled/react-dom-experimental/react-dom.react-server"),
+            "next/navigation" => format!("next/dist/api/navigation.react-server"),
         })
     }
 
@@ -804,6 +803,11 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
+    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
+    // have ImportMapping replacers here.
+    //
+    // TODO: Add BeforeResolve plugins for `@next/font/google`
+
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/google/target.css"),
@@ -831,28 +835,6 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("@next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

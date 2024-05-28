@@ -93,7 +93,7 @@ export function getRender({
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
-        supportsDynamicHTML: true,
+        supportsDynamicResponse: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
         serverActions,
@@ -158,12 +158,19 @@ export function getRender({
     event?: NextFetchEvent
   ) {
     const extendedReq = new WebNextRequest(request)
-    const extendedRes = new WebNextResponse()
+    const extendedRes = new WebNextResponse(
+      undefined,
+      // tracking onClose adds overhead, so only do it if `experimental.after` is on.
+      !!process.env.__NEXT_AFTER
+    )
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
 
     if (event?.waitUntil) {
+      // TODO(after):
+      // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
+      // when consumers switch to `unstable_after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

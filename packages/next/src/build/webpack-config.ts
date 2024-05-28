@@ -105,8 +105,8 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-if (parseInt(React.version) < 18) {
-  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
+if (parseInt(React.version) < 19) {
+  throw new Error('Next.js requires react >= 19.0.0 to be installed.')
 }
 
 export const babelIncludeRegexes: RegExp[] = [
@@ -410,6 +410,28 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
+  const shouldIncludeExternalDirs = config.experimental.externalDir
+  const codeCondition = {
+    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
+    ...(shouldIncludeExternalDirs
+      ? // Allowing importing TS/TSX files from outside of the root dir.
+        {}
+      : { include: [dir, ...babelIncludeRegexes] }),
+    exclude: (excludePath: string) => {
+      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
+        return false
+      }
+
+      const shouldBeBundled = isResourceInPackages(
+        excludePath,
+        finalTranspilePackages
+      )
+      if (shouldBeBundled) return false
+
+      return excludePath.includes('node_modules')
+    },
+  }
+
   const babelLoader = getBabelLoader(
     useSWCLoader,
     babelConfigFile,
@@ -420,12 +442,19 @@ export default async function getBaseWebpackConfig(
     (appDir || pagesDir)!,
     dev,
     isClient,
-    config.experimental?.reactCompiler
+    config.experimental?.reactCompiler,
+    codeCondition.exclude
   )
 
   const reactCompilerLoader = babelLoader
     ? undefined
-    : getReactCompilerLoader(config.experimental?.reactCompiler, dir, dev)
+    : getReactCompilerLoader(
+        config.experimental?.reactCompiler,
+        dir,
+        dev,
+        isNodeOrEdgeCompilation,
+        codeCondition.exclude
+      )
 
   let swcTraceProfilingInitialized = false
   const getSwcLoader = (extraOptions: Partial<SWCLoaderOptions>) => {
@@ -819,30 +848,7 @@ export default async function getBaseWebpackConfig(
     dir,
   })
 
-  const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.transpilePackages
-
   const pageExtensionsRegex = new RegExp(`\\.(${pageExtensions.join('|')})$`)
-  const codeCondition = {
-    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
-    ...(shouldIncludeExternalDirs
-      ? // Allowing importing TS/TSX files from outside of the root dir.
-        {}
-      : { include: [dir, ...babelIncludeRegexes] }),
-    exclude: (excludePath: string) => {
-      if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
-        return false
-      }
-
-      const shouldBeBundled = isResourceInPackages(
-        excludePath,
-        finalTranspilePackages
-      )
-      if (shouldBeBundled) return false
-
-      return excludePath.includes('node_modules')
-    },
-  }
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
@@ -1512,7 +1518,11 @@ export default async function getBaseWebpackConfig(
               : []),
             {
               ...codeCondition,
-              use: [...reactRefreshLoaders, defaultLoaders.babel],
+              use: [
+                ...reactRefreshLoaders,
+                defaultLoaders.babel,
+                reactCompilerLoader,
+              ].filter(Boolean),
             },
           ],
         },

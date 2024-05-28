@@ -12,10 +12,7 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
-
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
+'use strict';
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
@@ -23,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var React = require("next/dist/compiled/react-experimental");
+var React = require("next/dist/compiled/react-experimental");
 var Scheduler = require("next/dist/compiled/scheduler-experimental");
 var ReactDOM = require('react-dom');
 
@@ -5541,6 +5538,9 @@ var possibleStandardNames = {
   pointsatx: 'pointsAtX',
   pointsaty: 'pointsAtY',
   pointsatz: 'pointsAtZ',
+  popover: 'popover',
+  popovertarget: 'popoverTarget',
+  popovertargetaction: 'popoverTargetAction',
   prefix: 'prefix',
   preservealpha: 'preserveAlpha',
   preserveaspectratio: 'preserveAspectRatio',
@@ -7081,6 +7081,13 @@ var WheelEventInterface = assign({}, MouseEventInterface, {
 
 var SyntheticWheelEvent = createSyntheticEvent(WheelEventInterface);
 
+var ToggleEventInterface = assign({}, EventInterface, {
+  newState: 0,
+  oldState: 0
+});
+
+var SyntheticToggleEvent = createSyntheticEvent(ToggleEventInterface);
+
 var END_KEYCODES = [9, 13, 27, 32]; // Tab, Return, Esc, Space
 
 var START_KEYCODE = 229;
@@ -8591,7 +8598,7 @@ var topLevelEventsToReactNames = new Map(); // NOTE: Capitalization is important
 //
 // prettier-ignore
 
-var simpleEventPluginEvents = ['abort', 'auxClick', 'cancel', 'canPlay', 'canPlayThrough', 'click', 'close', 'contextMenu', 'copy', 'cut', 'drag', 'dragEnd', 'dragEnter', 'dragExit', 'dragLeave', 'dragOver', 'dragStart', 'drop', 'durationChange', 'emptied', 'encrypted', 'ended', 'error', 'gotPointerCapture', 'input', 'invalid', 'keyDown', 'keyPress', 'keyUp', 'load', 'loadedData', 'loadedMetadata', 'loadStart', 'lostPointerCapture', 'mouseDown', 'mouseMove', 'mouseOut', 'mouseOver', 'mouseUp', 'paste', 'pause', 'play', 'playing', 'pointerCancel', 'pointerDown', 'pointerMove', 'pointerOut', 'pointerOver', 'pointerUp', 'progress', 'rateChange', 'reset', 'resize', 'seeked', 'seeking', 'stalled', 'submit', 'suspend', 'timeUpdate', 'touchCancel', 'touchEnd', 'touchStart', 'volumeChange', 'scroll', 'scrollEnd', 'toggle', 'touchMove', 'waiting', 'wheel'];
+var simpleEventPluginEvents = ['abort', 'auxClick', 'beforeToggle', 'cancel', 'canPlay', 'canPlayThrough', 'click', 'close', 'contextMenu', 'copy', 'cut', 'drag', 'dragEnd', 'dragEnter', 'dragExit', 'dragLeave', 'dragOver', 'dragStart', 'drop', 'durationChange', 'emptied', 'encrypted', 'ended', 'error', 'gotPointerCapture', 'input', 'invalid', 'keyDown', 'keyPress', 'keyUp', 'load', 'loadedData', 'loadedMetadata', 'loadStart', 'lostPointerCapture', 'mouseDown', 'mouseMove', 'mouseOut', 'mouseOver', 'mouseUp', 'paste', 'pause', 'play', 'playing', 'pointerCancel', 'pointerDown', 'pointerMove', 'pointerOut', 'pointerOver', 'pointerUp', 'progress', 'rateChange', 'reset', 'resize', 'seeked', 'seeking', 'stalled', 'submit', 'suspend', 'timeUpdate', 'touchCancel', 'touchEnd', 'touchStart', 'volumeChange', 'scroll', 'scrollEnd', 'toggle', 'touchMove', 'waiting', 'wheel'];
 
 function registerSimpleEvent(domEventName, reactName) {
   topLevelEventsToReactNames.set(domEventName, reactName);
@@ -8740,6 +8747,12 @@ function extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, n
     case 'pointerup':
       SyntheticEventCtor = SyntheticPointerEvent;
       break;
+
+    case 'toggle':
+    case 'beforetoggle':
+      // MDN claims <details> should not receive ToggleEvent contradicting the spec: https://html.spec.whatwg.org/multipage/indices.html#event-toggle
+      SyntheticEventCtor = SyntheticToggleEvent;
+      break;
   }
 
   var inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0;
@@ -8766,3380 +8779,6 @@ function extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, n
         listeners: _listeners
       });
     }
-  }
-}
-
-/**
- * This plugin invokes action functions on forms, inputs and buttons if
- * the form doesn't prevent default.
- */
-
-function extractEvents$1(dispatchQueue, domEventName, maybeTargetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
-  if (domEventName !== 'submit') {
-    return;
-  }
-
-  if (!maybeTargetInst || maybeTargetInst.stateNode !== nativeEventTarget) {
-    // If we're inside a parent root that itself is a parent of this root, then
-    // its deepest target won't be the actual form that's being submitted.
-    return;
-  }
-
-  var formInst = maybeTargetInst;
-  var form = nativeEventTarget;
-  var action = getFiberCurrentPropsFromNode(form).action;
-  var submitter = nativeEvent.submitter;
-  var submitterAction;
-
-  if (submitter) {
-    var submitterProps = getFiberCurrentPropsFromNode(submitter);
-    submitterAction = submitterProps ? submitterProps.formAction : submitter.getAttribute('formAction');
-
-    if (submitterAction != null) {
-      // The submitter overrides the form action.
-      action = submitterAction; // If the action is a function, we don't want to pass its name
-      // value to the FormData since it's controlled by the server.
-
-      submitter = null;
-    }
-  }
-
-  if (typeof action !== 'function') {
-    return;
-  }
-
-  var event = new SyntheticEvent('action', 'action', null, nativeEvent, nativeEventTarget);
-
-  function submitForm() {
-    if (nativeEvent.defaultPrevented) {
-      // We let earlier events to prevent the action from submitting.
-      return;
-    } // Prevent native navigation.
-
-
-    event.preventDefault();
-    var formData;
-
-    if (submitter) {
-      // The submitter's value should be included in the FormData.
-      // It should be in the document order in the form.
-      // Since the FormData constructor invokes the formdata event it also
-      // needs to be available before that happens so after construction it's too
-      // late. We use a temporary fake node for the duration of this event.
-      // TODO: FormData takes a second argument that it's the submitter but this
-      // is fairly new so not all browsers support it yet. Switch to that technique
-      // when available.
-      var temp = submitter.ownerDocument.createElement('input');
-      temp.name = submitter.name;
-      temp.value = submitter.value;
-      submitter.parentNode.insertBefore(temp, submitter);
-      formData = new FormData(form);
-      temp.parentNode.removeChild(temp);
-    } else {
-      formData = new FormData(form);
-    }
-
-    var pendingState = {
-      pending: true,
-      data: formData,
-      method: form.method,
-      action: action
-    };
-
-    {
-      Object.freeze(pendingState);
-    }
-
-    startHostTransition(formInst, pendingState, action, formData);
-  }
-
-  dispatchQueue.push({
-    event: event,
-    listeners: [{
-      instance: null,
-      listener: submitForm,
-      currentTarget: form
-    }]
-  });
-}
-function dispatchReplayedFormAction(formInst, form, action, formData) {
-  var pendingState = {
-    pending: true,
-    data: formData,
-    method: form.method,
-    action: action
-  };
-
-  {
-    Object.freeze(pendingState);
-  }
-
-  startHostTransition(formInst, pendingState, action, formData);
-}
-
-var reportGlobalError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
-// emulating an uncaught JavaScript error.
-reportError : function (error) {
-  if (typeof window === 'object' && typeof window.ErrorEvent === 'function') {
-    // Browser Polyfill
-    var message = typeof error === 'object' && error !== null && typeof error.message === 'string' ? // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error.message) : // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error);
-    var event = new window.ErrorEvent('error', {
-      bubbles: true,
-      cancelable: true,
-      message: message,
-      error: error
-    });
-    var shouldLog = window.dispatchEvent(event);
-
-    if (!shouldLog) {
-      return;
-    }
-  } else if (typeof process === 'object' && // $FlowFixMe[method-unbinding]
-  typeof process.emit === 'function') {
-    // Node Polyfill
-    process.emit('uncaughtException', error);
-    return;
-  } // eslint-disable-next-line react-internal/no-production-logging
-
-
-  console['error'](error);
-};
-
-registerSimpleEvents();
-registerEvents$1();
-registerEvents$2();
-registerEvents();
-registerEvents$3();
-
-function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
-  // TODO: we should remove the concept of a "SimpleEventPlugin".
-  // This is the basic functionality of the event system. All
-  // the other plugins are essentially polyfills. So the plugin
-  // should probably be inlined somewhere and have its logic
-  // be core the to event system. This would potentially allow
-  // us to ship builds of React without the polyfilled plugins below.
-  extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags);
-  var shouldProcessPolyfillPlugins = (eventSystemFlags & SHOULD_NOT_PROCESS_POLYFILL_EVENT_PLUGINS) === 0; // We don't process these events unless we are in the
-  // event's native "bubble" phase, which means that we're
-  // not in the capture phase. That's because we emulate
-  // the capture phase here still. This is a trade-off,
-  // because in an ideal world we would not emulate and use
-  // the phases properly, like we do with the SimpleEvent
-  // plugin. However, the plugins below either expect
-  // emulation (EnterLeave) or use state localized to that
-  // plugin (BeforeInput, Change, Select). The state in
-  // these modules complicates things, as you'll essentially
-  // get the case where the capture phase event might change
-  // state, only for the following bubble event to come in
-  // later and not trigger anything as the state now
-  // invalidates the heuristics of the event plugin. We
-  // could alter all these plugins to work in such ways, but
-  // that might cause other unknown side-effects that we
-  // can't foresee right now.
-
-  if (shouldProcessPolyfillPlugins) {
-    extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    extractEvents$5(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    extractEvents$3(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-    extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
-  }
-} // List of events that need to be individually attached to media elements.
-
-
-var mediaEventTypes = ['abort', 'canplay', 'canplaythrough', 'durationchange', 'emptied', 'encrypted', 'ended', 'error', 'loadeddata', 'loadedmetadata', 'loadstart', 'pause', 'play', 'playing', 'progress', 'ratechange', 'resize', 'seeked', 'seeking', 'stalled', 'suspend', 'timeupdate', 'volumechange', 'waiting']; // We should not delegate these events to the container, but rather
-// set them on the actual target element itself. This is primarily
-// because these events do not consistently bubble in the DOM.
-
-var nonDelegatedEvents = new Set(['cancel', 'close', 'invalid', 'load', 'scroll', 'scrollend', 'toggle'].concat(mediaEventTypes));
-
-function executeDispatch(event, listener, currentTarget) {
-  event.currentTarget = currentTarget;
-
-  try {
-    listener(event);
-  } catch (error) {
-    reportGlobalError(error);
-  }
-
-  event.currentTarget = null;
-}
-
-function processDispatchQueueItemsInOrder(event, dispatchListeners, inCapturePhase) {
-  var previousInstance;
-
-  if (inCapturePhase) {
-    for (var i = dispatchListeners.length - 1; i >= 0; i--) {
-      var _dispatchListeners$i = dispatchListeners[i],
-          instance = _dispatchListeners$i.instance,
-          currentTarget = _dispatchListeners$i.currentTarget,
-          listener = _dispatchListeners$i.listener;
-
-      if (instance !== previousInstance && event.isPropagationStopped()) {
-        return;
-      }
-
-      executeDispatch(event, listener, currentTarget);
-      previousInstance = instance;
-    }
-  } else {
-    for (var _i = 0; _i < dispatchListeners.length; _i++) {
-      var _dispatchListeners$_i = dispatchListeners[_i],
-          _instance = _dispatchListeners$_i.instance,
-          _currentTarget = _dispatchListeners$_i.currentTarget,
-          _listener = _dispatchListeners$_i.listener;
-
-      if (_instance !== previousInstance && event.isPropagationStopped()) {
-        return;
-      }
-
-      executeDispatch(event, _listener, _currentTarget);
-      previousInstance = _instance;
-    }
-  }
-}
-
-function processDispatchQueue(dispatchQueue, eventSystemFlags) {
-  var inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0;
-
-  for (var i = 0; i < dispatchQueue.length; i++) {
-    var _dispatchQueue$i = dispatchQueue[i],
-        event = _dispatchQueue$i.event,
-        listeners = _dispatchQueue$i.listeners;
-    processDispatchQueueItemsInOrder(event, listeners, inCapturePhase); //  event system doesn't use pooling.
-  }
-}
-
-function dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
-  var nativeEventTarget = getEventTarget(nativeEvent);
-  var dispatchQueue = [];
-  extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags);
-  processDispatchQueue(dispatchQueue, eventSystemFlags);
-}
-
-function listenToNonDelegatedEvent(domEventName, targetElement) {
-  {
-    if (!nonDelegatedEvents.has(domEventName)) {
-      error('Did not expect a listenToNonDelegatedEvent() call for "%s". ' + 'This is a bug in React. Please file an issue.', domEventName);
-    }
-  }
-
-  var isCapturePhaseListener = false;
-  var listenerSet = getEventListenerSet(targetElement);
-  var listenerSetKey = getListenerSetKey(domEventName, isCapturePhaseListener);
-
-  if (!listenerSet.has(listenerSetKey)) {
-    addTrappedEventListener(targetElement, domEventName, IS_NON_DELEGATED, isCapturePhaseListener);
-    listenerSet.add(listenerSetKey);
-  }
-}
-function listenToNativeEvent(domEventName, isCapturePhaseListener, target) {
-  {
-    if (nonDelegatedEvents.has(domEventName) && !isCapturePhaseListener) {
-      error('Did not expect a listenToNativeEvent() call for "%s" in the bubble phase. ' + 'This is a bug in React. Please file an issue.', domEventName);
-    }
-  }
-
-  var eventSystemFlags = 0;
-
-  if (isCapturePhaseListener) {
-    eventSystemFlags |= IS_CAPTURE_PHASE;
-  }
-
-  addTrappedEventListener(target, domEventName, eventSystemFlags, isCapturePhaseListener);
-} // This is only used by createEventHandle when the
-var listeningMarker = '_reactListening' + Math.random().toString(36).slice(2);
-function listenToAllSupportedEvents(rootContainerElement) {
-  if (!rootContainerElement[listeningMarker]) {
-    rootContainerElement[listeningMarker] = true;
-    allNativeEvents.forEach(function (domEventName) {
-      // We handle selectionchange separately because it
-      // doesn't bubble and needs to be on the document.
-      if (domEventName !== 'selectionchange') {
-        if (!nonDelegatedEvents.has(domEventName)) {
-          listenToNativeEvent(domEventName, false, rootContainerElement);
-        }
-
-        listenToNativeEvent(domEventName, true, rootContainerElement);
-      }
-    });
-    var ownerDocument = rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
-
-    if (ownerDocument !== null) {
-      // The selectionchange event also needs deduplication
-      // but it is attached to the document.
-      if (!ownerDocument[listeningMarker]) {
-        ownerDocument[listeningMarker] = true;
-        listenToNativeEvent('selectionchange', false, ownerDocument);
-      }
-    }
-  }
-}
-
-function addTrappedEventListener(targetContainer, domEventName, eventSystemFlags, isCapturePhaseListener, isDeferredListenerForLegacyFBSupport) {
-  var listener = createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags); // If passive option is not supported, then the event will be
-  // active and not passive.
-
-  var isPassiveListener = undefined;
-
-  if (passiveBrowserEventsSupported) {
-    // Browsers introduced an intervention, making these events
-    // passive by default on document. React doesn't bind them
-    // to document anymore, but changing this now would undo
-    // the performance wins from the change. So we emulate
-    // the existing behavior manually on the roots now.
-    // https://github.com/facebook/react/issues/19651
-    if (domEventName === 'touchstart' || domEventName === 'touchmove' || domEventName === 'wheel') {
-      isPassiveListener = true;
-    }
-  }
-
-  targetContainer = targetContainer;
-
-
-  if (isCapturePhaseListener) {
-    if (isPassiveListener !== undefined) {
-      addEventCaptureListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
-    } else {
-      addEventCaptureListener(targetContainer, domEventName, listener);
-    }
-  } else {
-    if (isPassiveListener !== undefined) {
-      addEventBubbleListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
-    } else {
-      addEventBubbleListener(targetContainer, domEventName, listener);
-    }
-  }
-}
-
-function isMatchingRootContainer(grandContainer, targetContainer) {
-  return grandContainer === targetContainer || grandContainer.nodeType === COMMENT_NODE && grandContainer.parentNode === targetContainer;
-}
-
-function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
-  var ancestorInst = targetInst;
-
-  if ((eventSystemFlags & IS_EVENT_HANDLE_NON_MANAGED_NODE) === 0 && (eventSystemFlags & IS_NON_DELEGATED) === 0) {
-    var targetContainerNode = targetContainer; // If we are using the legacy FB support flag, we
-
-    if (targetInst !== null) {
-      // The below logic attempts to work out if we need to change
-      // the target fiber to a different ancestor. We had similar logic
-      // in the legacy event system, except the big difference between
-      // systems is that the modern event system now has an event listener
-      // attached to each React Root and React Portal Root. Together,
-      // the DOM nodes representing these roots are the "rootContainer".
-      // To figure out which ancestor instance we should use, we traverse
-      // up the fiber tree from the target instance and attempt to find
-      // root boundaries that match that of our current "rootContainer".
-      // If we find that "rootContainer", we find the parent fiber
-      // sub-tree for that root and make that our ancestor instance.
-      var node = targetInst;
-
-      mainLoop: while (true) {
-        if (node === null) {
-          return;
-        }
-
-        var nodeTag = node.tag;
-
-        if (nodeTag === HostRoot || nodeTag === HostPortal) {
-          var container = node.stateNode.containerInfo;
-
-          if (isMatchingRootContainer(container, targetContainerNode)) {
-            break;
-          }
-
-          if (nodeTag === HostPortal) {
-            // The target is a portal, but it's not the rootContainer we're looking for.
-            // Normally portals handle their own events all the way down to the root.
-            // So we should be able to stop now. However, we don't know if this portal
-            // was part of *our* root.
-            var grandNode = node.return;
-
-            while (grandNode !== null) {
-              var grandTag = grandNode.tag;
-
-              if (grandTag === HostRoot || grandTag === HostPortal) {
-                var grandContainer = grandNode.stateNode.containerInfo;
-
-                if (isMatchingRootContainer(grandContainer, targetContainerNode)) {
-                  // This is the rootContainer we're looking for and we found it as
-                  // a parent of the Portal. That means we can ignore it because the
-                  // Portal will bubble through to us.
-                  return;
-                }
-              }
-
-              grandNode = grandNode.return;
-            }
-          } // Now we need to find it's corresponding host fiber in the other
-          // tree. To do this we can use getClosestInstanceFromNode, but we
-          // need to validate that the fiber is a host instance, otherwise
-          // we need to traverse up through the DOM till we find the correct
-          // node that is from the other tree.
-
-
-          while (container !== null) {
-            var parentNode = getClosestInstanceFromNode(container);
-
-            if (parentNode === null) {
-              return;
-            }
-
-            var parentTag = parentNode.tag;
-
-            if (parentTag === HostComponent || parentTag === HostText || parentTag === HostHoistable || parentTag === HostSingleton) {
-              node = ancestorInst = parentNode;
-              continue mainLoop;
-            }
-
-            container = container.parentNode;
-          }
-        }
-
-        node = node.return;
-      }
-    }
-  }
-
-  batchedUpdates$2(function () {
-    return dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, ancestorInst);
-  });
-}
-
-function createDispatchListener(instance, listener, currentTarget) {
-  return {
-    instance: instance,
-    listener: listener,
-    currentTarget: currentTarget
-  };
-}
-
-function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType, inCapturePhase, accumulateTargetOnly, nativeEvent) {
-  var captureName = reactName !== null ? reactName + 'Capture' : null;
-  var reactEventName = inCapturePhase ? captureName : reactName;
-  var listeners = [];
-  var instance = targetFiber;
-  var lastHostComponent = null; // Accumulate all instances and listeners via the target -> root path.
-
-  while (instance !== null) {
-    var _instance2 = instance,
-        stateNode = _instance2.stateNode,
-        tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
-
-    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
-      lastHostComponent = stateNode; // createEventHandle listeners
-
-
-      if (reactEventName !== null) {
-        var listener = getListener(instance, reactEventName);
-
-        if (listener != null) {
-          listeners.push(createDispatchListener(instance, listener, lastHostComponent));
-        }
-      }
-    } // If we are only accumulating events for the target, then we don't
-    // continue to propagate through the React fiber tree to find other
-    // listeners.
-
-
-    if (accumulateTargetOnly) {
-      break;
-    } // If we are processing the onBeforeBlur event, then we need to take
-
-    instance = instance.return;
-  }
-
-  return listeners;
-} // We should only use this function for:
-// - BeforeInputEventPlugin
-// - ChangeEventPlugin
-// - SelectEventPlugin
-// This is because we only process these plugins
-// in the bubble phase, so we need to accumulate two
-// phase event listeners (via emulation).
-
-function accumulateTwoPhaseListeners(targetFiber, reactName) {
-  var captureName = reactName + 'Capture';
-  var listeners = [];
-  var instance = targetFiber; // Accumulate all instances and listeners via the target -> root path.
-
-  while (instance !== null) {
-    var _instance3 = instance,
-        stateNode = _instance3.stateNode,
-        tag = _instance3.tag; // Handle listeners that are on HostComponents (i.e. <div>)
-
-    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
-      var currentTarget = stateNode;
-      var captureListener = getListener(instance, captureName);
-
-      if (captureListener != null) {
-        listeners.unshift(createDispatchListener(instance, captureListener, currentTarget));
-      }
-
-      var bubbleListener = getListener(instance, reactName);
-
-      if (bubbleListener != null) {
-        listeners.push(createDispatchListener(instance, bubbleListener, currentTarget));
-      }
-    }
-
-    instance = instance.return;
-  }
-
-  return listeners;
-}
-
-function getParent(inst) {
-  if (inst === null) {
-    return null;
-  }
-
-  do {
-    // $FlowFixMe[incompatible-use] found when upgrading Flow
-    inst = inst.return; // TODO: If this is a HostRoot we might want to bail out.
-    // That is depending on if we want nested subtrees (layers) to bubble
-    // events to their parent. We could also go through parentNode on the
-    // host node but that wouldn't work for React Native and doesn't let us
-    // do the portal feature.
-  } while (inst && inst.tag !== HostComponent && inst.tag !== HostSingleton);
-
-  if (inst) {
-    return inst;
-  }
-
-  return null;
-}
-/**
- * Return the lowest common ancestor of A and B, or null if they are in
- * different trees.
- */
-
-
-function getLowestCommonAncestor(instA, instB) {
-  var nodeA = instA;
-  var nodeB = instB;
-  var depthA = 0;
-
-  for (var tempA = nodeA; tempA; tempA = getParent(tempA)) {
-    depthA++;
-  }
-
-  var depthB = 0;
-
-  for (var tempB = nodeB; tempB; tempB = getParent(tempB)) {
-    depthB++;
-  } // If A is deeper, crawl up.
-
-
-  while (depthA - depthB > 0) {
-    nodeA = getParent(nodeA);
-    depthA--;
-  } // If B is deeper, crawl up.
-
-
-  while (depthB - depthA > 0) {
-    nodeB = getParent(nodeB);
-    depthB--;
-  } // Walk in lockstep until we find a match.
-
-
-  var depth = depthA;
-
-  while (depth--) {
-    if (nodeA === nodeB || nodeB !== null && nodeA === nodeB.alternate) {
-      return nodeA;
-    }
-
-    nodeA = getParent(nodeA);
-    nodeB = getParent(nodeB);
-  }
-
-  return null;
-}
-
-function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, common, inCapturePhase) {
-  var registrationName = event._reactName;
-  var listeners = [];
-  var instance = target;
-
-  while (instance !== null) {
-    if (instance === common) {
-      break;
-    }
-
-    var _instance4 = instance,
-        alternate = _instance4.alternate,
-        stateNode = _instance4.stateNode,
-        tag = _instance4.tag;
-
-    if (alternate !== null && alternate === common) {
-      break;
-    }
-
-    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
-      var currentTarget = stateNode;
-
-      if (inCapturePhase) {
-        var captureListener = getListener(instance, registrationName);
-
-        if (captureListener != null) {
-          listeners.unshift(createDispatchListener(instance, captureListener, currentTarget));
-        }
-      } else if (!inCapturePhase) {
-        var bubbleListener = getListener(instance, registrationName);
-
-        if (bubbleListener != null) {
-          listeners.push(createDispatchListener(instance, bubbleListener, currentTarget));
-        }
-      }
-    }
-
-    instance = instance.return;
-  }
-
-  if (listeners.length !== 0) {
-    dispatchQueue.push({
-      event: event,
-      listeners: listeners
-    });
-  }
-} // We should only use this function for:
-// - EnterLeaveEventPlugin
-// This is because we only process this plugin
-// in the bubble phase, so we need to accumulate two
-// phase event listeners.
-
-
-function accumulateEnterLeaveTwoPhaseListeners(dispatchQueue, leaveEvent, enterEvent, from, to) {
-  var common = from && to ? getLowestCommonAncestor(from, to) : null;
-
-  if (from !== null) {
-    accumulateEnterLeaveListenersForEvent(dispatchQueue, leaveEvent, from, common, false);
-  }
-
-  if (to !== null && enterEvent !== null) {
-    accumulateEnterLeaveListenersForEvent(dispatchQueue, enterEvent, to, common, true);
-  }
-}
-function getListenerSetKey(domEventName, capture) {
-  return domEventName + "__" + (capture ? 'capture' : 'bubble');
-}
-
-var didWarnControlledToUncontrolled = false;
-var didWarnUncontrolledToControlled = false;
-var didWarnFormActionType = false;
-var didWarnFormActionName = false;
-var didWarnFormActionTarget = false;
-var didWarnFormActionMethod = false;
-var didWarnForNewBooleanPropsWithEmptyValue;
-var canDiffStyleForHydrationWarning;
-
-{
-  didWarnForNewBooleanPropsWithEmptyValue = {}; // IE 11 parses & normalizes the style attribute as opposed to other
-  // browsers. It adds spaces and sorts the properties in some
-  // non-alphabetical order. Handling that would require sorting CSS
-  // properties in the client & server versions or applying
-  // `expectedStyle` to a temporary DOM node to read its `style` attribute
-  // normalized. Since it only affects IE, we're skipping style warnings
-  // in that browser completely in favor of doing all that work.
-  // See https://github.com/facebook/react/issues/11807
-
-  canDiffStyleForHydrationWarning = disableIEWorkarounds ;
-}
-
-function validatePropertiesInDevelopment(type, props) {
-  {
-    validateProperties$2(type, props);
-    validateProperties$1(type, props);
-    validateProperties(type, props, {
-      registrationNameDependencies: registrationNameDependencies,
-      possibleRegistrationNames: possibleRegistrationNames
-    });
-
-    if (props.contentEditable && !props.suppressContentEditableWarning && props.children != null) {
-      error('A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.');
-    }
-  }
-}
-
-function validateFormActionInDevelopment(tag, key, value, props) {
-  {
-    if (value == null) {
-      return;
-    }
-
-    if (tag === 'form') {
-      if (key === 'formAction') {
-        error('You can only pass the formAction prop to <input> or <button>. Use the action prop on <form>.');
-      } else if (typeof value === 'function') {
-        if ((props.encType != null || props.method != null) && !didWarnFormActionMethod) {
-          didWarnFormActionMethod = true;
-
-          error('Cannot specify a encType or method for a form that specifies a ' + 'function as the action. React provides those automatically. ' + 'They will get overridden.');
-        }
-
-        if (props.target != null && !didWarnFormActionTarget) {
-          didWarnFormActionTarget = true;
-
-          error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
-        }
-      }
-    } else if (tag === 'input' || tag === 'button') {
-      if (key === 'action') {
-        error('You can only pass the action prop to <form>. Use the formAction prop on <input> or <button>.');
-      } else if (tag === 'input' && props.type !== 'submit' && props.type !== 'image' && !didWarnFormActionType) {
-        didWarnFormActionType = true;
-
-        error('An input can only specify a formAction along with type="submit" or type="image".');
-      } else if (tag === 'button' && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
-        didWarnFormActionType = true;
-
-        error('A button can only specify a formAction along with type="submit" or no type.');
-      } else if (typeof value === 'function') {
-        // Function form actions cannot control the form properties
-        if (props.name != null && !didWarnFormActionName) {
-          didWarnFormActionName = true;
-
-          error('Cannot specify a "name" prop for a button that specifies a function as a formAction. ' + 'React needs it to encode which action should be invoked. It will get overridden.');
-        }
-
-        if ((props.formEncType != null || props.formMethod != null) && !didWarnFormActionMethod) {
-          didWarnFormActionMethod = true;
-
-          error('Cannot specify a formEncType or formMethod for a button that specifies a ' + 'function as a formAction. React provides those automatically. They will get overridden.');
-        }
-
-        if (props.formTarget != null && !didWarnFormActionTarget) {
-          didWarnFormActionTarget = true;
-
-          error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
-        }
-      }
-    } else {
-      if (key === 'action') {
-        error('You can only pass the action prop to <form>.');
-      } else {
-        error('You can only pass the formAction prop to <input> or <button>.');
-      }
-    }
-  }
-}
-
-function warnForPropDifference(propName, serverValue, clientValue, serverDifferences) {
-  {
-    if (serverValue === clientValue) {
-      return;
-    }
-
-    var normalizedClientValue = normalizeMarkupForTextOrAttribute(clientValue);
-    var normalizedServerValue = normalizeMarkupForTextOrAttribute(serverValue);
-
-    if (normalizedServerValue === normalizedClientValue) {
-      return;
-    }
-
-    serverDifferences[propName] = serverValue;
-  }
-}
-
-function warnForExtraAttributes(domElement, attributeNames, serverDifferences) {
-  {
-    attributeNames.forEach(function (attributeName) {
-      serverDifferences[getPropNameFromAttributeName(attributeName)] = attributeName === 'style' ? getStylesObjectFromElement(domElement) : domElement.getAttribute(attributeName);
-    });
-  }
-}
-
-function warnForInvalidEventListener(registrationName, listener) {
-  {
-    if (listener === false) {
-      error('Expected `%s` listener to be a function, instead got `false`.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', registrationName, registrationName, registrationName);
-    } else {
-      error('Expected `%s` listener to be a function, instead got a value of `%s` type.', registrationName, typeof listener);
-    }
-  }
-} // Parse the HTML and read it back to normalize the HTML string so that it
-// can be used for comparison.
-
-
-function normalizeHTML(parent, html) {
-  {
-    // We could have created a separate document here to avoid
-    // re-initializing custom elements if they exist. But this breaks
-    // how <noscript> is being handled. So we use the same document.
-    // See the discussion in https://github.com/facebook/react/pull/11157.
-    var testElement = parent.namespaceURI === MATH_NAMESPACE || parent.namespaceURI === SVG_NAMESPACE ? parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName) : parent.ownerDocument.createElement(parent.tagName);
-    testElement.innerHTML = html;
-    return testElement.innerHTML;
-  }
-} // HTML parsing normalizes CR and CRLF to LF.
-// It also can turn \u0000 into \uFFFD inside attributes.
-// https://www.w3.org/TR/html5/single-page.html#preprocessing-the-input-stream
-// If we have a mismatch, it might be caused by that.
-// We will still patch up in this case but not fire the warning.
-
-
-var NORMALIZE_NEWLINES_REGEX = /\r\n?/g;
-var NORMALIZE_NULL_AND_REPLACEMENT_REGEX = /\u0000|\uFFFD/g;
-
-function normalizeMarkupForTextOrAttribute(markup) {
-  {
-    checkHtmlStringCoercion(markup);
-  }
-
-  var markupString = typeof markup === 'string' ? markup : '' + markup;
-  return markupString.replace(NORMALIZE_NEWLINES_REGEX, '\n').replace(NORMALIZE_NULL_AND_REPLACEMENT_REGEX, '');
-}
-
-function checkForUnmatchedText(serverText, clientText) {
-  var normalizedClientText = normalizeMarkupForTextOrAttribute(clientText);
-  var normalizedServerText = normalizeMarkupForTextOrAttribute(serverText);
-
-  if (normalizedServerText === normalizedClientText) {
-    return true;
-  }
-
-  return false;
-}
-
-function noop$3() {}
-
-function trapClickOnNonInteractiveElement(node) {
-  // Mobile Safari does not fire properly bubble click events on
-  // non-interactive elements, which means delegated click listeners do not
-  // fire. The workaround for this bug involves attaching an empty click
-  // listener on the target node.
-  // https://www.quirksmode.org/blog/archives/2010/09/click_event_del.html
-  // Just set it using the onclick property so that we don't have to manage any
-  // bookkeeping for it. Not sure if we need to clear it when the listener is
-  // removed.
-  // TODO: Only do this for the relevant Safaris maybe?
-  node.onclick = noop$3;
-}
-var xlinkNamespace = 'http://www.w3.org/1999/xlink';
-var xmlNamespace = 'http://www.w3.org/XML/1998/namespace';
-
-function setProp(domElement, tag, key, value, props, prevValue) {
-  switch (key) {
-    case 'children':
-      {
-        if (typeof value === 'string') {
-          {
-            validateTextNesting(value, tag);
-          } // Avoid setting initial textContent when the text is empty. In IE11 setting
-          // textContent on a <textarea> will cause the placeholder to not
-          // show within the <textarea> until it has been focused and blurred again.
-          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
-
-
-          var canSetTextContent = tag !== 'body' && (tag !== 'textarea' || value !== '');
-
-          if (canSetTextContent) {
-            setTextContent(domElement, value);
-          }
-        } else if (typeof value === 'number' || typeof value === 'bigint') {
-          {
-            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
-            validateTextNesting('' + value, tag);
-          }
-
-          var _canSetTextContent = tag !== 'body';
-
-          if (_canSetTextContent) {
-            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
-            setTextContent(domElement, '' + value);
-          }
-        }
-
-        break;
-      }
-    // These are very common props and therefore are in the beginning of the switch.
-    // TODO: aria-label is a very common prop but allows booleans so is not like the others
-    // but should ideally go in this list too.
-
-    case 'className':
-      setValueForKnownAttribute(domElement, 'class', value);
-      break;
-
-    case 'tabIndex':
-      // This has to be case sensitive in SVG.
-      setValueForKnownAttribute(domElement, 'tabindex', value);
-      break;
-
-    case 'dir':
-    case 'role':
-    case 'viewBox':
-    case 'width':
-    case 'height':
-      {
-        setValueForKnownAttribute(domElement, key, value);
-        break;
-      }
-
-    case 'style':
-      {
-        setValueForStyles(domElement, value, prevValue);
-        break;
-      }
-    // These attributes accept URLs. These must not allow javascript: URLS.
-
-    case 'src':
-    case 'href':
-      {
-        {
-          if (value === '' && // <a href=""> is fine for "reload" links.
-          !(tag === 'a' && key === 'href')) {
-            {
-              if (key === 'src') {
-                error('An empty string ("") was passed to the %s attribute. ' + 'This may cause the browser to download the whole page again over the network. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', key, key);
-              } else {
-                error('An empty string ("") was passed to the %s attribute. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', key, key);
-              }
-            }
-
-            domElement.removeAttribute(key);
-            break;
-          }
-        }
-
-        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
-          domElement.removeAttribute(key);
-          break;
-        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
-        // ('' + value) makes it output the correct toString()-value.
-
-
-        {
-          checkAttributeStringCoercion(value, key);
-        }
-
-        var sanitizedValue = sanitizeURL('' + value);
-        domElement.setAttribute(key, sanitizedValue);
-        break;
-      }
-
-    case 'action':
-    case 'formAction':
-      {
-        // TODO: Consider moving these special cases to the form, input and button tags.
-        {
-          validateFormActionInDevelopment(tag, key, value, props);
-        }
-
-        if (typeof value === 'function') {
-          // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
-          // because we'll preventDefault, but it can happen if a form is manually submitted or
-          // if someone calls stopPropagation before React gets the event.
-          // If CSP is used to block javascript: URLs that's fine too. It just won't show this
-          // error message but the URL will be logged.
-          domElement.setAttribute(key, // eslint-disable-next-line no-script-url
-          "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
-          break;
-        } else if (typeof prevValue === 'function') {
-          // When we're switching off a Server Action that was originally hydrated.
-          // The server control these fields during SSR that are now trailing.
-          // The regular diffing doesn't apply since we compare against the previous props.
-          // Instead, we need to force them to be set to whatever they should be now.
-          // This would be a lot cleaner if we did this whole fork in the per-tag approach.
-          if (key === 'formAction') {
-            if (tag !== 'input') {
-              // Setting the name here isn't completely safe for inputs if this is switching
-              // to become a radio button. In that case we let the tag based override take
-              // control.
-              setProp(domElement, tag, 'name', props.name, props, null);
-            }
-
-            setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
-            setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
-            setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
-          } else {
-            setProp(domElement, tag, 'encType', props.encType, props, null);
-            setProp(domElement, tag, 'method', props.method, props, null);
-            setProp(domElement, tag, 'target', props.target, props, null);
-          }
-        }
-
-        if (value == null || typeof value === 'symbol' || typeof value === 'boolean') {
-          domElement.removeAttribute(key);
-          break;
-        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
-        // ('' + value) makes it output the correct toString()-value.
-
-
-        {
-          checkAttributeStringCoercion(value, key);
-        }
-
-        var _sanitizedValue = sanitizeURL('' + value);
-
-        domElement.setAttribute(key, _sanitizedValue);
-        break;
-      }
-
-    case 'onClick':
-      {
-        // TODO: This cast may not be sound for SVG, MathML or custom elements.
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          trapClickOnNonInteractiveElement(domElement);
-        }
-
-        break;
-      }
-
-    case 'onScroll':
-      {
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          listenToNonDelegatedEvent('scroll', domElement);
-        }
-
-        break;
-      }
-
-    case 'onScrollEnd':
-      {
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          listenToNonDelegatedEvent('scrollend', domElement);
-        }
-
-        break;
-      }
-
-    case 'dangerouslySetInnerHTML':
-      {
-        if (value != null) {
-          if (typeof value !== 'object' || !('__html' in value)) {
-            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
-          }
-
-          var nextHtml = value.__html;
-
-          if (nextHtml != null) {
-            if (props.children != null) {
-              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
-            }
-
-            {
-              domElement.innerHTML = nextHtml;
-            }
-          }
-        }
-
-        break;
-      }
-    // Note: `option.selected` is not updated if `select.multiple` is
-    // disabled with `removeAttribute`. We have special logic for handling this.
-
-    case 'multiple':
-      {
-        domElement.multiple = value && typeof value !== 'function' && typeof value !== 'symbol';
-        break;
-      }
-
-    case 'muted':
-      {
-        domElement.muted = value && typeof value !== 'function' && typeof value !== 'symbol';
-        break;
-      }
-
-    case 'suppressContentEditableWarning':
-    case 'suppressHydrationWarning':
-    case 'defaultValue': // Reserved
-
-    case 'defaultChecked':
-    case 'innerHTML':
-    case 'ref':
-      {
-        // TODO: `ref` is pretty common, should we move it up?
-        // Noop
-        break;
-      }
-
-    case 'autoFocus':
-      {
-        // We polyfill it separately on the client during commit.
-        // We could have excluded it in the property list instead of
-        // adding a special case here, but then it wouldn't be emitted
-        // on server rendering (but we *do* want to emit it in SSR).
-        break;
-      }
-
-    case 'xlinkHref':
-      {
-        if (value == null || typeof value === 'function' || typeof value === 'boolean' || typeof value === 'symbol') {
-          domElement.removeAttribute('xlink:href');
-          break;
-        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
-        // ('' + value) makes it output the correct toString()-value.
-
-
-        {
-          checkAttributeStringCoercion(value, key);
-        }
-
-        var _sanitizedValue2 = sanitizeURL('' + value);
-
-        domElement.setAttributeNS(xlinkNamespace, 'xlink:href', _sanitizedValue2);
-        break;
-      }
-
-    case 'contentEditable':
-    case 'spellCheck':
-    case 'draggable':
-    case 'value':
-    case 'autoReverse':
-    case 'externalResourcesRequired':
-    case 'focusable':
-    case 'preserveAlpha':
-      {
-        // Booleanish String
-        // These are "enumerated" attributes that accept "true" and "false".
-        // In React, we let users pass `true` and `false` even though technically
-        // these aren't boolean attributes (they are coerced to strings).
-        // The SVG attributes are case-sensitive. Since the HTML attributes are
-        // insensitive they also work even though we canonically use lower case.
-        if (value != null && typeof value !== 'function' && typeof value !== 'symbol') {
-          {
-            checkAttributeStringCoercion(value, key);
-          }
-
-          domElement.setAttribute(key, '' + value);
-        } else {
-          domElement.removeAttribute(key);
-        }
-
-        break;
-      }
-    // Boolean
-
-    case 'inert':
-      {
-        {
-          if (value === '' && !didWarnForNewBooleanPropsWithEmptyValue[key]) {
-            didWarnForNewBooleanPropsWithEmptyValue[key] = true;
-
-            error('Received an empty string for a boolean attribute `%s`. ' + 'This will treat the attribute as if it were false. ' + 'Either pass `false` to silence this warning, or ' + 'pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true.', key);
-          }
-        }
-      }
-    // Fallthrough for boolean props that don't have a warning for empty strings.
-
-    case 'allowFullScreen':
-    case 'async':
-    case 'autoPlay':
-    case 'controls':
-    case 'default':
-    case 'defer':
-    case 'disabled':
-    case 'disablePictureInPicture':
-    case 'disableRemotePlayback':
-    case 'formNoValidate':
-    case 'hidden':
-    case 'loop':
-    case 'noModule':
-    case 'noValidate':
-    case 'open':
-    case 'playsInline':
-    case 'readOnly':
-    case 'required':
-    case 'reversed':
-    case 'scoped':
-    case 'seamless':
-    case 'itemScope':
-      {
-        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
-          domElement.setAttribute(key, '');
-        } else {
-          domElement.removeAttribute(key);
-        }
-
-        break;
-      }
-    // Overloaded Boolean
-
-    case 'capture':
-    case 'download':
-      {
-        // An attribute that can be used as a flag as well as with a value.
-        // When true, it should be present (set either to an empty string or its name).
-        // When false, it should be omitted.
-        // For any other value, should be present with that value.
-        if (value === true) {
-          domElement.setAttribute(key, '');
-        } else if (value !== false && value != null && typeof value !== 'function' && typeof value !== 'symbol') {
-          {
-            checkAttributeStringCoercion(value, key);
-          }
-
-          domElement.setAttribute(key, value);
-        } else {
-          domElement.removeAttribute(key);
-        }
-
-        break;
-      }
-
-    case 'cols':
-    case 'rows':
-    case 'size':
-    case 'span':
-      {
-        // These are HTML attributes that must be positive numbers.
-        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
-          {
-            checkAttributeStringCoercion(value, key);
-          }
-
-          domElement.setAttribute(key, value);
-        } else {
-          domElement.removeAttribute(key);
-        }
-
-        break;
-      }
-
-    case 'rowSpan':
-    case 'start':
-      {
-        // These are HTML attributes that must be numbers.
-        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
-          {
-            checkAttributeStringCoercion(value, key);
-          }
-
-          domElement.setAttribute(key, value);
-        } else {
-          domElement.removeAttribute(key);
-        }
-
-        break;
-      }
-
-    case 'xlinkActuate':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:actuate', value);
-      break;
-
-    case 'xlinkArcrole':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:arcrole', value);
-      break;
-
-    case 'xlinkRole':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:role', value);
-      break;
-
-    case 'xlinkShow':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:show', value);
-      break;
-
-    case 'xlinkTitle':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:title', value);
-      break;
-
-    case 'xlinkType':
-      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:type', value);
-      break;
-
-    case 'xmlBase':
-      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:base', value);
-      break;
-
-    case 'xmlLang':
-      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:lang', value);
-      break;
-
-    case 'xmlSpace':
-      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:space', value);
-      break;
-    // Properties that should not be allowed on custom elements.
-
-    case 'is':
-      {
-        {
-          if (prevValue != null) {
-            error('Cannot update the "is" prop after it has been initialized.');
-          }
-        } // TODO: We shouldn't actually set this attribute, because we've already
-        // passed it to createElement. We don't also need the attribute.
-        // However, our tests currently query for it so it's plausible someone
-        // else does too so it's break.
-
-
-        setValueForAttribute(domElement, 'is', value);
-        break;
-      }
-
-    case 'innerText':
-    case 'textContent':
-      break;
-    // Fall through
-
-    default:
-      {
-        if (key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
-          if (registrationNameDependencies.hasOwnProperty(key) && value != null && typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-        } else {
-          var attributeName = getAttributeAlias(key);
-          setValueForAttribute(domElement, attributeName, value);
-        }
-      }
-  }
-}
-
-function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
-  switch (key) {
-    case 'style':
-      {
-        setValueForStyles(domElement, value, prevValue);
-        break;
-      }
-
-    case 'dangerouslySetInnerHTML':
-      {
-        if (value != null) {
-          if (typeof value !== 'object' || !('__html' in value)) {
-            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
-          }
-
-          var nextHtml = value.__html;
-
-          if (nextHtml != null) {
-            if (props.children != null) {
-              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
-            }
-
-            {
-              domElement.innerHTML = nextHtml;
-            }
-          }
-        }
-
-        break;
-      }
-
-    case 'children':
-      {
-        if (typeof value === 'string') {
-          setTextContent(domElement, value);
-        } else if (typeof value === 'number' || typeof value === 'bigint') {
-          // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
-          setTextContent(domElement, '' + value);
-        }
-
-        break;
-      }
-
-    case 'onScroll':
-      {
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          listenToNonDelegatedEvent('scroll', domElement);
-        }
-
-        break;
-      }
-
-    case 'onScrollEnd':
-      {
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          listenToNonDelegatedEvent('scrollend', domElement);
-        }
-
-        break;
-      }
-
-    case 'onClick':
-      {
-        // TODO: This cast may not be sound for SVG, MathML or custom elements.
-        if (value != null) {
-          if (typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-
-          trapClickOnNonInteractiveElement(domElement);
-        }
-
-        break;
-      }
-
-    case 'suppressContentEditableWarning':
-    case 'suppressHydrationWarning':
-    case 'innerHTML':
-    case 'ref':
-      {
-        // Noop
-        break;
-      }
-
-    case 'innerText': // Properties
-
-    case 'textContent':
-      break;
-    // Fall through
-
-    default:
-      {
-        if (registrationNameDependencies.hasOwnProperty(key)) {
-          if (value != null && typeof value !== 'function') {
-            warnForInvalidEventListener(key, value);
-          }
-        } else {
-          setValueForPropertyOnCustomComponent(domElement, key, value);
-        }
-      }
-  }
-}
-
-function setInitialProperties(domElement, tag, props) {
-  {
-    validatePropertiesInDevelopment(tag, props);
-  } // TODO: Make sure that we check isMounted before firing any of these events.
-
-
-  switch (tag) {
-    case 'div':
-    case 'span':
-    case 'svg':
-    case 'path':
-    case 'a':
-    case 'g':
-    case 'p':
-    case 'li':
-      {
-        // Fast track the most common tag types
-        break;
-      }
-
-    case 'input':
-      {
-        {
-          checkControlledValueProps('input', props);
-        } // We listen to this event in case to ensure emulated bubble
-        // listeners still fire for the invalid event.
-
-
-        listenToNonDelegatedEvent('invalid', domElement);
-        var name = null;
-        var type = null;
-        var value = null;
-        var defaultValue = null;
-        var checked = null;
-        var defaultChecked = null;
-
-        for (var propKey in props) {
-          if (!props.hasOwnProperty(propKey)) {
-            continue;
-          }
-
-          var propValue = props[propKey];
-
-          if (propValue == null) {
-            continue;
-          }
-
-          switch (propKey) {
-            case 'name':
-              {
-                name = propValue;
-                break;
-              }
-
-            case 'type':
-              {
-                type = propValue;
-                break;
-              }
-
-            case 'checked':
-              {
-                checked = propValue;
-                break;
-              }
-
-            case 'defaultChecked':
-              {
-                defaultChecked = propValue;
-                break;
-              }
-
-            case 'value':
-              {
-                value = propValue;
-                break;
-              }
-
-            case 'defaultValue':
-              {
-                defaultValue = propValue;
-                break;
-              }
-
-            case 'children':
-            case 'dangerouslySetInnerHTML':
-              {
-                if (propValue != null) {
-                  throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-                }
-
-                break;
-              }
-
-            default:
-              {
-                setProp(domElement, tag, propKey, propValue, props, null);
-              }
-          }
-        } // TODO: Make sure we check if this is still unmounted or do any clean
-        // up necessary since we never stop tracking anymore.
-
-
-        validateInputProps(domElement, props);
-        initInput(domElement, value, defaultValue, checked, defaultChecked, type, name, false);
-        track(domElement);
-        return;
-      }
-
-    case 'select':
-      {
-        {
-          checkControlledValueProps('select', props);
-        } // We listen to this event in case to ensure emulated bubble
-        // listeners still fire for the invalid event.
-
-
-        listenToNonDelegatedEvent('invalid', domElement);
-        var _value = null;
-        var _defaultValue = null;
-        var multiple = null;
-
-        for (var _propKey in props) {
-          if (!props.hasOwnProperty(_propKey)) {
-            continue;
-          }
-
-          var _propValue = props[_propKey];
-
-          if (_propValue == null) {
-            continue;
-          }
-
-          switch (_propKey) {
-            case 'value':
-              {
-                _value = _propValue; // This is handled by initSelect below.
-
-                break;
-              }
-
-            case 'defaultValue':
-              {
-                _defaultValue = _propValue; // This is handled by initSelect below.
-
-                break;
-              }
-
-            case 'multiple':
-              {
-                multiple = _propValue; // TODO: We don't actually have to fall through here because we set it
-                // in initSelect anyway. We can remove the special case in setProp.
-              }
-            // Fallthrough
-
-            default:
-              {
-                setProp(domElement, tag, _propKey, _propValue, props, null);
-              }
-          }
-        }
-
-        validateSelectProps(domElement, props);
-        initSelect(domElement, _value, _defaultValue, multiple);
-        return;
-      }
-
-    case 'textarea':
-      {
-        {
-          checkControlledValueProps('textarea', props);
-        } // We listen to this event in case to ensure emulated bubble
-        // listeners still fire for the invalid event.
-
-
-        listenToNonDelegatedEvent('invalid', domElement);
-        var _value2 = null;
-        var _defaultValue2 = null;
-        var children = null;
-
-        for (var _propKey2 in props) {
-          if (!props.hasOwnProperty(_propKey2)) {
-            continue;
-          }
-
-          var _propValue2 = props[_propKey2];
-
-          if (_propValue2 == null) {
-            continue;
-          }
-
-          switch (_propKey2) {
-            case 'value':
-              {
-                _value2 = _propValue2; // This is handled by initTextarea below.
-
-                break;
-              }
-
-            case 'defaultValue':
-              {
-                _defaultValue2 = _propValue2;
-                break;
-              }
-
-            case 'children':
-              {
-                children = _propValue2; // Handled by initTextarea above.
-
-                break;
-              }
-
-            case 'dangerouslySetInnerHTML':
-              {
-                if (_propValue2 != null) {
-                  // TODO: Do we really need a special error message for this. It's also pretty blunt.
-                  throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
-                }
-
-                break;
-              }
-
-            default:
-              {
-                setProp(domElement, tag, _propKey2, _propValue2, props, null);
-              }
-          }
-        } // TODO: Make sure we check if this is still unmounted or do any clean
-        // up necessary since we never stop tracking anymore.
-
-
-        validateTextareaProps(domElement, props);
-        initTextarea(domElement, _value2, _defaultValue2, children);
-        track(domElement);
-        return;
-      }
-
-    case 'option':
-      {
-        validateOptionProps(domElement, props);
-
-        for (var _propKey3 in props) {
-          if (!props.hasOwnProperty(_propKey3)) {
-            continue;
-          }
-
-          var _propValue3 = props[_propKey3];
-
-          if (_propValue3 == null) {
-            continue;
-          }
-
-          switch (_propKey3) {
-            case 'selected':
-              {
-                // TODO: Remove support for selected on option.
-                domElement.selected = _propValue3 && typeof _propValue3 !== 'function' && typeof _propValue3 !== 'symbol';
-                break;
-              }
-
-            default:
-              {
-                setProp(domElement, tag, _propKey3, _propValue3, props, null);
-              }
-          }
-        }
-
-        return;
-      }
-
-    case 'dialog':
-      {
-        listenToNonDelegatedEvent('cancel', domElement);
-        listenToNonDelegatedEvent('close', domElement);
-        break;
-      }
-
-    case 'iframe':
-    case 'object':
-      {
-        // We listen to this event in case to ensure emulated bubble
-        // listeners still fire for the load event.
-        listenToNonDelegatedEvent('load', domElement);
-        break;
-      }
-
-    case 'video':
-    case 'audio':
-      {
-        // We listen to these events in case to ensure emulated bubble
-        // listeners still fire for all the media events.
-        for (var i = 0; i < mediaEventTypes.length; i++) {
-          listenToNonDelegatedEvent(mediaEventTypes[i], domElement);
-        }
-
-        break;
-      }
-
-    case 'image':
-      {
-        // We listen to these events in case to ensure emulated bubble
-        // listeners still fire for error and load events.
-        listenToNonDelegatedEvent('error', domElement);
-        listenToNonDelegatedEvent('load', domElement);
-        break;
-      }
-
-    case 'details':
-      {
-        // We listen to this event in case to ensure emulated bubble
-        // listeners still fire for the toggle event.
-        listenToNonDelegatedEvent('toggle', domElement);
-        break;
-      }
-
-    case 'embed':
-    case 'source':
-    case 'img':
-    case 'link':
-      {
-        // These are void elements that also need delegated events.
-        listenToNonDelegatedEvent('error', domElement);
-        listenToNonDelegatedEvent('load', domElement); // We fallthrough to the return of the void elements
-      }
-
-    case 'area':
-    case 'base':
-    case 'br':
-    case 'col':
-    case 'hr':
-    case 'keygen':
-    case 'meta':
-    case 'param':
-    case 'track':
-    case 'wbr':
-    case 'menuitem':
-      {
-        // Void elements
-        for (var _propKey4 in props) {
-          if (!props.hasOwnProperty(_propKey4)) {
-            continue;
-          }
-
-          var _propValue4 = props[_propKey4];
-
-          if (_propValue4 == null) {
-            continue;
-          }
-
-          switch (_propKey4) {
-            case 'children':
-            case 'dangerouslySetInnerHTML':
-              {
-                // TODO: Can we make this a DEV warning to avoid this deny list?
-                throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-              }
-            // defaultChecked and defaultValue are ignored by setProp
-
-            default:
-              {
-                setProp(domElement, tag, _propKey4, _propValue4, props, null);
-              }
-          }
-        }
-
-        return;
-      }
-
-    default:
-      {
-        if (isCustomElement(tag)) {
-          for (var _propKey5 in props) {
-            if (!props.hasOwnProperty(_propKey5)) {
-              continue;
-            }
-
-            var _propValue5 = props[_propKey5];
-
-            if (_propValue5 === undefined) {
-              continue;
-            }
-
-            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props, undefined);
-          }
-
-          return;
-        }
-      }
-  }
-
-  for (var _propKey6 in props) {
-    if (!props.hasOwnProperty(_propKey6)) {
-      continue;
-    }
-
-    var _propValue6 = props[_propKey6];
-
-    if (_propValue6 == null) {
-      continue;
-    }
-
-    setProp(domElement, tag, _propKey6, _propValue6, props, null);
-  }
-}
-function updateProperties(domElement, tag, lastProps, nextProps) {
-  {
-    validatePropertiesInDevelopment(tag, nextProps);
-  }
-
-  switch (tag) {
-    case 'div':
-    case 'span':
-    case 'svg':
-    case 'path':
-    case 'a':
-    case 'g':
-    case 'p':
-    case 'li':
-      {
-        // Fast track the most common tag types
-        break;
-      }
-
-    case 'input':
-      {
-        var name = null;
-        var type = null;
-        var value = null;
-        var defaultValue = null;
-        var lastDefaultValue = null;
-        var checked = null;
-        var defaultChecked = null;
-
-        for (var propKey in lastProps) {
-          var lastProp = lastProps[propKey];
-
-          if (lastProps.hasOwnProperty(propKey) && lastProp != null) {
-            switch (propKey) {
-              case 'checked':
-                {
-                  break;
-                }
-
-              case 'value':
-                {
-                  // This is handled by updateWrapper below.
-                  break;
-                }
-
-              case 'defaultValue':
-                {
-                  lastDefaultValue = lastProp;
-                }
-              // defaultChecked and defaultValue are ignored by setProp
-              // Fallthrough
-
-              default:
-                {
-                  if (!nextProps.hasOwnProperty(propKey)) setProp(domElement, tag, propKey, null, nextProps, lastProp);
-                }
-            }
-          }
-        }
-
-        for (var _propKey7 in nextProps) {
-          var nextProp = nextProps[_propKey7];
-          var _lastProp = lastProps[_propKey7];
-
-          if (nextProps.hasOwnProperty(_propKey7) && (nextProp != null || _lastProp != null)) {
-            switch (_propKey7) {
-              case 'type':
-                {
-                  type = nextProp;
-                  break;
-                }
-
-              case 'name':
-                {
-                  name = nextProp;
-                  break;
-                }
-
-              case 'checked':
-                {
-                  checked = nextProp;
-                  break;
-                }
-
-              case 'defaultChecked':
-                {
-                  defaultChecked = nextProp;
-                  break;
-                }
-
-              case 'value':
-                {
-                  value = nextProp;
-                  break;
-                }
-
-              case 'defaultValue':
-                {
-                  defaultValue = nextProp;
-                  break;
-                }
-
-              case 'children':
-              case 'dangerouslySetInnerHTML':
-                {
-                  if (nextProp != null) {
-                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-                  }
-
-                  break;
-                }
-
-              default:
-                {
-                  if (nextProp !== _lastProp) setProp(domElement, tag, _propKey7, nextProp, nextProps, _lastProp);
-                }
-            }
-          }
-        }
-
-        {
-          var wasControlled = lastProps.type === 'checkbox' || lastProps.type === 'radio' ? lastProps.checked != null : lastProps.value != null;
-          var isControlled = nextProps.type === 'checkbox' || nextProps.type === 'radio' ? nextProps.checked != null : nextProps.value != null;
-
-          if (!wasControlled && isControlled && !didWarnUncontrolledToControlled) {
-            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
-
-            didWarnUncontrolledToControlled = true;
-          }
-
-          if (wasControlled && !isControlled && !didWarnControlledToUncontrolled) {
-            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
-
-            didWarnControlledToUncontrolled = true;
-          }
-        } // Update the wrapper around inputs *after* updating props. This has to
-        // happen after updating the rest of props. Otherwise HTML5 input validations
-        // raise warnings and prevent the new value from being assigned.
-
-
-        updateInput(domElement, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name);
-        return;
-      }
-
-    case 'select':
-      {
-        var _value3 = null;
-        var _defaultValue3 = null;
-        var multiple = null;
-        var wasMultiple = null;
-
-        for (var _propKey8 in lastProps) {
-          var _lastProp2 = lastProps[_propKey8];
-
-          if (lastProps.hasOwnProperty(_propKey8) && _lastProp2 != null) {
-            switch (_propKey8) {
-              case 'value':
-                {
-                  // This is handled by updateWrapper below.
-                  break;
-                }
-              // defaultValue are ignored by setProp
-
-              case 'multiple':
-                {
-                  wasMultiple = _lastProp2; // TODO: Move special case in here from setProp.
-                }
-              // Fallthrough
-
-              default:
-                {
-                  if (!nextProps.hasOwnProperty(_propKey8)) setProp(domElement, tag, _propKey8, null, nextProps, _lastProp2);
-                }
-            }
-          }
-        }
-
-        for (var _propKey9 in nextProps) {
-          var _nextProp = nextProps[_propKey9];
-          var _lastProp3 = lastProps[_propKey9];
-
-          if (nextProps.hasOwnProperty(_propKey9) && (_nextProp != null || _lastProp3 != null)) {
-            switch (_propKey9) {
-              case 'value':
-                {
-                  _value3 = _nextProp; // This is handled by updateSelect below.
-
-                  break;
-                }
-
-              case 'defaultValue':
-                {
-                  _defaultValue3 = _nextProp;
-                  break;
-                }
-
-              case 'multiple':
-                {
-                  multiple = _nextProp; // TODO: Just move the special case in here from setProp.
-                }
-              // Fallthrough
-
-              default:
-                {
-                  if (_nextProp !== _lastProp3) setProp(domElement, tag, _propKey9, _nextProp, nextProps, _lastProp3);
-                }
-            }
-          }
-        } // <select> value update needs to occur after <option> children
-        // reconciliation
-
-
-        updateSelect(domElement, _value3, _defaultValue3, multiple, wasMultiple);
-        return;
-      }
-
-    case 'textarea':
-      {
-        var _value4 = null;
-        var _defaultValue4 = null;
-
-        for (var _propKey10 in lastProps) {
-          var _lastProp4 = lastProps[_propKey10];
-
-          if (lastProps.hasOwnProperty(_propKey10) && _lastProp4 != null && !nextProps.hasOwnProperty(_propKey10)) {
-            switch (_propKey10) {
-              case 'value':
-                {
-                  // This is handled by updateTextarea below.
-                  break;
-                }
-
-              case 'children':
-                {
-                  // TODO: This doesn't actually do anything if it updates.
-                  break;
-                }
-              // defaultValue is ignored by setProp
-
-              default:
-                {
-                  setProp(domElement, tag, _propKey10, null, nextProps, _lastProp4);
-                }
-            }
-          }
-        }
-
-        for (var _propKey11 in nextProps) {
-          var _nextProp2 = nextProps[_propKey11];
-          var _lastProp5 = lastProps[_propKey11];
-
-          if (nextProps.hasOwnProperty(_propKey11) && (_nextProp2 != null || _lastProp5 != null)) {
-            switch (_propKey11) {
-              case 'value':
-                {
-                  _value4 = _nextProp2; // This is handled by updateTextarea below.
-
-                  break;
-                }
-
-              case 'defaultValue':
-                {
-                  _defaultValue4 = _nextProp2;
-                  break;
-                }
-
-              case 'children':
-                {
-                  // TODO: This doesn't actually do anything if it updates.
-                  break;
-                }
-
-              case 'dangerouslySetInnerHTML':
-                {
-                  if (_nextProp2 != null) {
-                    // TODO: Do we really need a special error message for this. It's also pretty blunt.
-                    throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
-                  }
-
-                  break;
-                }
-
-              default:
-                {
-                  if (_nextProp2 !== _lastProp5) setProp(domElement, tag, _propKey11, _nextProp2, nextProps, _lastProp5);
-                }
-            }
-          }
-        }
-
-        updateTextarea(domElement, _value4, _defaultValue4);
-        return;
-      }
-
-    case 'option':
-      {
-        for (var _propKey12 in lastProps) {
-          var _lastProp6 = lastProps[_propKey12];
-
-          if (lastProps.hasOwnProperty(_propKey12) && _lastProp6 != null && !nextProps.hasOwnProperty(_propKey12)) {
-            switch (_propKey12) {
-              case 'selected':
-                {
-                  // TODO: Remove support for selected on option.
-                  domElement.selected = false;
-                  break;
-                }
-
-              default:
-                {
-                  setProp(domElement, tag, _propKey12, null, nextProps, _lastProp6);
-                }
-            }
-          }
-        }
-
-        for (var _propKey13 in nextProps) {
-          var _nextProp3 = nextProps[_propKey13];
-          var _lastProp7 = lastProps[_propKey13];
-
-          if (nextProps.hasOwnProperty(_propKey13) && _nextProp3 !== _lastProp7 && (_nextProp3 != null || _lastProp7 != null)) {
-            switch (_propKey13) {
-              case 'selected':
-                {
-                  // TODO: Remove support for selected on option.
-                  domElement.selected = _nextProp3 && typeof _nextProp3 !== 'function' && typeof _nextProp3 !== 'symbol';
-                  break;
-                }
-
-              default:
-                {
-                  setProp(domElement, tag, _propKey13, _nextProp3, nextProps, _lastProp7);
-                }
-            }
-          }
-        }
-
-        return;
-      }
-
-    case 'img':
-    case 'link':
-    case 'area':
-    case 'base':
-    case 'br':
-    case 'col':
-    case 'embed':
-    case 'hr':
-    case 'keygen':
-    case 'meta':
-    case 'param':
-    case 'source':
-    case 'track':
-    case 'wbr':
-    case 'menuitem':
-      {
-        // Void elements
-        for (var _propKey14 in lastProps) {
-          var _lastProp8 = lastProps[_propKey14];
-
-          if (lastProps.hasOwnProperty(_propKey14) && _lastProp8 != null && !nextProps.hasOwnProperty(_propKey14)) {
-            setProp(domElement, tag, _propKey14, null, nextProps, _lastProp8);
-          }
-        }
-
-        for (var _propKey15 in nextProps) {
-          var _nextProp4 = nextProps[_propKey15];
-          var _lastProp9 = lastProps[_propKey15];
-
-          if (nextProps.hasOwnProperty(_propKey15) && _nextProp4 !== _lastProp9 && (_nextProp4 != null || _lastProp9 != null)) {
-            switch (_propKey15) {
-              case 'children':
-              case 'dangerouslySetInnerHTML':
-                {
-                  if (_nextProp4 != null) {
-                    // TODO: Can we make this a DEV warning to avoid this deny list?
-                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
-                  }
-
-                  break;
-                }
-              // defaultChecked and defaultValue are ignored by setProp
-
-              default:
-                {
-                  setProp(domElement, tag, _propKey15, _nextProp4, nextProps, _lastProp9);
-                }
-            }
-          }
-        }
-
-        return;
-      }
-
-    default:
-      {
-        if (isCustomElement(tag)) {
-          for (var _propKey16 in lastProps) {
-            var _lastProp10 = lastProps[_propKey16];
-
-            if (lastProps.hasOwnProperty(_propKey16) && _lastProp10 !== undefined && !nextProps.hasOwnProperty(_propKey16)) {
-              setPropOnCustomElement(domElement, tag, _propKey16, undefined, nextProps, _lastProp10);
-            }
-          }
-
-          for (var _propKey17 in nextProps) {
-            var _nextProp5 = nextProps[_propKey17];
-            var _lastProp11 = lastProps[_propKey17];
-
-            if (nextProps.hasOwnProperty(_propKey17) && _nextProp5 !== _lastProp11 && (_nextProp5 !== undefined || _lastProp11 !== undefined)) {
-              setPropOnCustomElement(domElement, tag, _propKey17, _nextProp5, nextProps, _lastProp11);
-            }
-          }
-
-          return;
-        }
-      }
-  }
-
-  for (var _propKey18 in lastProps) {
-    var _lastProp12 = lastProps[_propKey18];
-
-    if (lastProps.hasOwnProperty(_propKey18) && _lastProp12 != null && !nextProps.hasOwnProperty(_propKey18)) {
-      setProp(domElement, tag, _propKey18, null, nextProps, _lastProp12);
-    }
-  }
-
-  for (var _propKey19 in nextProps) {
-    var _nextProp6 = nextProps[_propKey19];
-    var _lastProp13 = lastProps[_propKey19];
-
-    if (nextProps.hasOwnProperty(_propKey19) && _nextProp6 !== _lastProp13 && (_nextProp6 != null || _lastProp13 != null)) {
-      setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
-    }
-  }
-}
-
-function getPossibleStandardName(propName) {
-  {
-    var lowerCasedName = propName.toLowerCase();
-
-    if (!possibleStandardNames.hasOwnProperty(lowerCasedName)) {
-      return null;
-    }
-
-    return possibleStandardNames[lowerCasedName] || null;
-  }
-}
-
-function getPropNameFromAttributeName(attrName) {
-  switch (attrName) {
-    case 'class':
-      return 'className';
-
-    case 'for':
-      return 'htmlFor';
-    // TODO: The rest of the aliases.
-
-    default:
-      return attrName;
-  }
-}
-
-function getPropsFromElement(domElement) {
-  var serverDifferences = {};
-  var attributes = domElement.attributes;
-
-  for (var i = 0; i < attributes.length; i++) {
-    var attr = attributes[i];
-    serverDifferences[getPropNameFromAttributeName(attr.name)] = attr.name.toLowerCase() === 'style' ? getStylesObjectFromElement(domElement) : attr.value;
-  }
-
-  return serverDifferences;
-}
-
-function getStylesObjectFromElement(domElement) {
-  var serverValueInObjectForm = {};
-  var style = domElement.style;
-
-  for (var i = 0; i < style.length; i++) {
-    var styleName = style[i]; // TODO: We should use the original prop value here if it is equivalent.
-    // TODO: We could use the original client capitalization if the equivalent
-    // other capitalization exists in the DOM.
-
-    serverValueInObjectForm[styleName] = style.getPropertyValue(styleName);
-  }
-
-  return serverValueInObjectForm;
-}
-
-function diffHydratedStyles(domElement, value, serverDifferences) {
-  if (value != null && typeof value !== 'object') {
-    {
-      error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
-    }
-
-    return;
-  }
-
-  if (canDiffStyleForHydrationWarning) {
-    // First we compare the string form and see if it's equivalent.
-    // This lets us bail out on anything that used to pass in this form.
-    // It also lets us compare anything that's not parsed by this browser.
-    var clientValue = createDangerousStringForStyles(value);
-    var serverValue = domElement.getAttribute('style');
-
-    if (serverValue === clientValue) {
-      return;
-    }
-
-    var normalizedClientValue = normalizeMarkupForTextOrAttribute(clientValue);
-    var normalizedServerValue = normalizeMarkupForTextOrAttribute(serverValue);
-
-    if (normalizedServerValue === normalizedClientValue) {
-      return;
-    } // Otherwise, we create the object from the DOM for the diff view.
-
-
-    serverDifferences.style = getStylesObjectFromElement(domElement);
-  }
-}
-
-function hydrateAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-      case 'boolean':
-        return;
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-        case 'boolean':
-          break;
-
-        default:
-          {
-            {
-              checkAttributeStringCoercion(value, propKey);
-            }
-
-            if (serverValue === '' + value) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydrateBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        return;
-    }
-
-    if (!value) {
-      return;
-    }
-  } else {
-    switch (typeof value) {
-      case 'function':
-      case 'symbol':
-        break;
-
-      default:
-        {
-          if (value) {
-            // If this was a boolean, it doesn't matter what the value is
-            // the fact that we have it is the same as the expected.
-            // As long as it's positive.
-            return;
-          }
-        }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydrateOverloadedBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-        return;
-
-      default:
-        if (value === false) {
-          return;
-        }
-
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-          break;
-
-        case 'boolean':
-          if (value === true && serverValue === '') {
-            return;
-          }
-
-          break;
-
-        default:
-          {
-            {
-              checkAttributeStringCoercion(value, propKey);
-            }
-
-            if (serverValue === '' + value) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydrateBooleanishAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-        return;
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-          break;
-
-        default:
-          {
-            {
-              checkAttributeStringCoercion(value, attributeName);
-            }
-
-            if (serverValue === '' + value) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydrateNumericAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-      case 'boolean':
-        return;
-
-      default:
-        if (isNaN(value)) {
-          return;
-        }
-
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-        case 'boolean':
-          break;
-
-        default:
-          {
-            if (isNaN(value)) {
-              // We had an attribute but shouldn't have had one, so read it
-              // for the error message.
-              break;
-            }
-
-            {
-              checkAttributeStringCoercion(value, propKey);
-            }
-
-            if (serverValue === '' + value) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydratePositiveNumericAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-      case 'boolean':
-        return;
-
-      default:
-        if (isNaN(value) || value < 1) {
-          return;
-        }
-
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-        case 'boolean':
-          break;
-
-        default:
-          {
-            if (isNaN(value) || value < 1) {
-              // We had an attribute but shouldn't have had one, so read it
-              // for the error message.
-              break;
-            }
-
-            {
-              checkAttributeStringCoercion(value, propKey);
-            }
-
-            if (serverValue === '' + value) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function hydrateSanitizedAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
-  extraAttributes.delete(attributeName);
-  var serverValue = domElement.getAttribute(attributeName);
-
-  if (serverValue === null) {
-    switch (typeof value) {
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-      case 'boolean':
-        return;
-    }
-  } else {
-    if (value == null) ; else {
-      switch (typeof value) {
-        case 'function':
-        case 'symbol':
-        case 'boolean':
-          break;
-
-        default:
-          {
-            {
-              checkAttributeStringCoercion(value, propKey);
-            }
-
-            var sanitizedValue = sanitizeURL('' + value);
-
-            if (serverValue === sanitizedValue) {
-              return;
-            }
-          }
-      }
-    }
-  }
-
-  warnForPropDifference(propKey, serverValue, value, serverDifferences);
-}
-
-function diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes, serverDifferences) {
-  for (var propKey in props) {
-    if (!props.hasOwnProperty(propKey)) {
-      continue;
-    }
-
-    var value = props[propKey];
-
-    if (value == null) {
-      continue;
-    }
-
-    if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof value !== 'function') {
-        warnForInvalidEventListener(propKey, value);
-      }
-
-      continue;
-    }
-
-    if (props.suppressHydrationWarning === true) {
-      // Don't bother comparing. We're ignoring all these warnings.
-      continue;
-    } // Validate that the properties correspond to their expected values.
-
-
-    switch (propKey) {
-      case 'children':
-        {
-          if (typeof value === 'string' || typeof value === 'number') {
-            warnForPropDifference('children', domElement.textContent, value, serverDifferences);
-          }
-
-          continue;
-        }
-      // Checked above already
-
-      case 'suppressContentEditableWarning':
-      case 'suppressHydrationWarning':
-      case 'defaultValue':
-      case 'defaultChecked':
-      case 'innerHTML':
-      case 'ref':
-        // Noop
-        continue;
-
-      case 'dangerouslySetInnerHTML':
-        var serverHTML = domElement.innerHTML;
-        var nextHtml = value ? value.__html : undefined;
-
-        if (nextHtml != null) {
-          var expectedHTML = normalizeHTML(domElement, nextHtml);
-          warnForPropDifference(propKey, serverHTML, expectedHTML, serverDifferences);
-        }
-
-        continue;
-
-      case 'style':
-        extraAttributes.delete(propKey);
-        diffHydratedStyles(domElement, value, serverDifferences);
-        continue;
-
-      case 'offsetParent':
-      case 'offsetTop':
-      case 'offsetLeft':
-      case 'offsetWidth':
-      case 'offsetHeight':
-      case 'isContentEditable':
-      case 'outerText':
-      case 'outerHTML':
-        extraAttributes.delete(propKey.toLowerCase());
-
-        {
-          error('Assignment to read-only property will result in a no-op: `%s`', propKey);
-        }
-
-        continue;
-      // Fall through
-
-      case 'className':
-        // className is a special cased property on the server to render as an attribute.
-        extraAttributes.delete('class');
-        var serverValue = getValueForAttributeOnCustomComponent(domElement, 'class', value);
-        warnForPropDifference('className', serverValue, value, serverDifferences);
-        continue;
-
-      default:
-        {
-          // This is a DEV-only path
-          var hostContextDev = hostContext;
-          var hostContextProd = hostContextDev.context;
-
-          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
-            extraAttributes.delete(propKey.toLowerCase());
-          } else {
-            extraAttributes.delete(propKey);
-          }
-
-          var valueOnCustomComponent = getValueForAttributeOnCustomComponent(domElement, propKey, value);
-          warnForPropDifference(propKey, valueOnCustomComponent, value, serverDifferences);
-        }
-    }
-  }
-} // This is the exact URL string we expect that Fizz renders if we provide a function action.
-// We use this for hydration warnings. It needs to be in sync with Fizz. Maybe makes sense
-// as a shared module for that reason.
-
-
-var EXPECTED_FORM_ACTION_URL = // eslint-disable-next-line no-script-url
-"javascript:throw new Error('React form unexpectedly submitted.')";
-
-function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes, serverDifferences) {
-  for (var propKey in props) {
-    if (!props.hasOwnProperty(propKey)) {
-      continue;
-    }
-
-    var value = props[propKey];
-
-    if (value == null) {
-      continue;
-    }
-
-    if (registrationNameDependencies.hasOwnProperty(propKey)) {
-      if (typeof value !== 'function') {
-        warnForInvalidEventListener(propKey, value);
-      }
-
-      continue;
-    }
-
-    if (props.suppressHydrationWarning === true) {
-      // Don't bother comparing. We're ignoring all these warnings.
-      continue;
-    } // Validate that the properties correspond to their expected values.
-
-
-    switch (propKey) {
-      case 'children':
-        {
-          if (typeof value === 'string' || typeof value === 'number') {
-            warnForPropDifference('children', domElement.textContent, value, serverDifferences);
-          }
-
-          continue;
-        }
-      // Checked above already
-
-      case 'suppressContentEditableWarning':
-      case 'suppressHydrationWarning':
-      case 'value': // Controlled attributes are not validated
-
-      case 'checked': // TODO: Only ignore them on controlled tags.
-
-      case 'selected':
-      case 'defaultValue':
-      case 'defaultChecked':
-      case 'innerHTML':
-      case 'ref':
-        // Noop
-        continue;
-
-      case 'dangerouslySetInnerHTML':
-        var serverHTML = domElement.innerHTML;
-        var nextHtml = value ? value.__html : undefined;
-
-        if (nextHtml != null) {
-          var expectedHTML = normalizeHTML(domElement, nextHtml);
-
-          if (serverHTML !== expectedHTML) {
-            serverDifferences[propKey] = {
-              __html: serverHTML
-            };
-          }
-        }
-
-        continue;
-
-      case 'className':
-        hydrateAttribute(domElement, propKey, 'class', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'tabIndex':
-        hydrateAttribute(domElement, propKey, 'tabindex', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'style':
-        extraAttributes.delete(propKey);
-        diffHydratedStyles(domElement, value, serverDifferences);
-        continue;
-
-      case 'multiple':
-        {
-          extraAttributes.delete(propKey);
-          var serverValue = domElement.multiple;
-          warnForPropDifference(propKey, serverValue, value, serverDifferences);
-          continue;
-        }
-
-      case 'muted':
-        {
-          extraAttributes.delete(propKey);
-          var _serverValue = domElement.muted;
-          warnForPropDifference(propKey, _serverValue, value, serverDifferences);
-          continue;
-        }
-
-      case 'autoFocus':
-        {
-          extraAttributes.delete('autofocus');
-          var _serverValue2 = domElement.autofocus;
-          warnForPropDifference(propKey, _serverValue2, value, serverDifferences);
-          continue;
-        }
-
-      case 'src':
-      case 'href':
-        {
-          if (value === '' && // <a href=""> is fine for "reload" links.
-          !(tag === 'a' && propKey === 'href')) {
-            {
-              if (propKey === 'src') {
-                error('An empty string ("") was passed to the %s attribute. ' + 'This may cause the browser to download the whole page again over the network. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', propKey, propKey);
-              } else {
-                error('An empty string ("") was passed to the %s attribute. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', propKey, propKey);
-              }
-            }
-
-            hydrateSanitizedAttribute(domElement, propKey, propKey, null, extraAttributes, serverDifferences);
-            continue;
-          }
-        }
-
-        hydrateSanitizedAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'action':
-      case 'formAction':
-        {
-          var _serverValue3 = domElement.getAttribute(propKey);
-
-          if (typeof value === 'function') {
-            extraAttributes.delete(propKey.toLowerCase()); // The server can set these extra properties to implement actions.
-            // So we remove them from the extra attributes warnings.
-
-            if (propKey === 'formAction') {
-              extraAttributes.delete('name');
-              extraAttributes.delete('formenctype');
-              extraAttributes.delete('formmethod');
-              extraAttributes.delete('formtarget');
-            } else {
-              extraAttributes.delete('enctype');
-              extraAttributes.delete('method');
-              extraAttributes.delete('target');
-            } // Ideally we should be able to warn if the server value was not a function
-            // however since the function can return any of these attributes any way it
-            // wants as a custom progressive enhancement, there's nothing to compare to.
-            // We can check if the function has the $FORM_ACTION property on the client
-            // and if it's not, warn, but that's an unnecessary constraint that they
-            // have to have the extra extension that doesn't do anything on the client.
-
-
-            continue;
-          } else if (_serverValue3 === EXPECTED_FORM_ACTION_URL) {
-            extraAttributes.delete(propKey.toLowerCase());
-            warnForPropDifference(propKey, 'function', value, serverDifferences);
-            continue;
-          }
-
-          hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'xlinkHref':
-        hydrateSanitizedAttribute(domElement, propKey, 'xlink:href', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'contentEditable':
-        {
-          // Lower-case Booleanish String
-          hydrateBooleanishAttribute(domElement, propKey, 'contenteditable', value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'spellCheck':
-        {
-          // Lower-case Booleanish String
-          hydrateBooleanishAttribute(domElement, propKey, 'spellcheck', value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'draggable':
-      case 'autoReverse':
-      case 'externalResourcesRequired':
-      case 'focusable':
-      case 'preserveAlpha':
-        {
-          // Case-sensitive Booleanish String
-          hydrateBooleanishAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'allowFullScreen':
-      case 'async':
-      case 'autoPlay':
-      case 'controls':
-      case 'default':
-      case 'defer':
-      case 'disabled':
-      case 'disablePictureInPicture':
-      case 'disableRemotePlayback':
-      case 'formNoValidate':
-      case 'hidden':
-      case 'loop':
-      case 'noModule':
-      case 'noValidate':
-      case 'open':
-      case 'playsInline':
-      case 'readOnly':
-      case 'required':
-      case 'reversed':
-      case 'scoped':
-      case 'seamless':
-      case 'itemScope':
-        {
-          // Some of these need to be lower case to remove them from the extraAttributes list.
-          hydrateBooleanAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'capture':
-      case 'download':
-        {
-          hydrateOverloadedBooleanAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'cols':
-      case 'rows':
-      case 'size':
-      case 'span':
-        {
-          hydratePositiveNumericAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'rowSpan':
-        {
-          hydrateNumericAttribute(domElement, propKey, 'rowspan', value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'start':
-        {
-          hydrateNumericAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-          continue;
-        }
-
-      case 'xHeight':
-        hydrateAttribute(domElement, propKey, 'x-height', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkActuate':
-        hydrateAttribute(domElement, propKey, 'xlink:actuate', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkArcrole':
-        hydrateAttribute(domElement, propKey, 'xlink:arcrole', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkRole':
-        hydrateAttribute(domElement, propKey, 'xlink:role', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkShow':
-        hydrateAttribute(domElement, propKey, 'xlink:show', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkTitle':
-        hydrateAttribute(domElement, propKey, 'xlink:title', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xlinkType':
-        hydrateAttribute(domElement, propKey, 'xlink:type', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xmlBase':
-        hydrateAttribute(domElement, propKey, 'xml:base', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xmlLang':
-        hydrateAttribute(domElement, propKey, 'xml:lang', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'xmlSpace':
-        hydrateAttribute(domElement, propKey, 'xml:space', value, extraAttributes, serverDifferences);
-        continue;
-
-      case 'inert':
-        {
-          if (value === '' && !didWarnForNewBooleanPropsWithEmptyValue[propKey]) {
-            didWarnForNewBooleanPropsWithEmptyValue[propKey] = true;
-
-            error('Received an empty string for a boolean attribute `%s`. ' + 'This will treat the attribute as if it were false. ' + 'Either pass `false` to silence this warning, or ' + 'pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true.', propKey);
-          }
-        }
-
-        hydrateBooleanAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
-        continue;
-
-      default:
-        {
-          if ( // shouldIgnoreAttribute
-          // We have already filtered out null/undefined and reserved words.
-          propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
-            continue;
-          }
-
-          var attributeName = getAttributeAlias(propKey);
-          var isMismatchDueToBadCasing = false; // This is a DEV-only path
-
-          var hostContextDev = hostContext;
-          var hostContextProd = hostContextDev.context;
-
-          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
-            extraAttributes.delete(attributeName.toLowerCase());
-          } else {
-            var standardName = getPossibleStandardName(propKey);
-
-            if (standardName !== null && standardName !== propKey) {
-              // If an SVG prop is supplied with bad casing, it will
-              // be successfully parsed from HTML, but will produce a mismatch
-              // (and would be incorrectly rendered on the client).
-              // However, we already warn about bad casing elsewhere.
-              // So we'll skip the misleading extra mismatch warning in this case.
-              isMismatchDueToBadCasing = true;
-              extraAttributes.delete(standardName);
-            }
-
-            extraAttributes.delete(attributeName);
-          }
-
-          var _serverValue4 = getValueForAttribute(domElement, attributeName, value);
-
-          if (!isMismatchDueToBadCasing) {
-            warnForPropDifference(propKey, _serverValue4, value, serverDifferences);
-          }
-        }
-    }
-  }
-}
-
-function hydrateProperties(domElement, tag, props, hostContext) {
-  {
-    validatePropertiesInDevelopment(tag, props);
-  } // TODO: Make sure that we check isMounted before firing any of these events.
-
-
-  switch (tag) {
-    case 'dialog':
-      listenToNonDelegatedEvent('cancel', domElement);
-      listenToNonDelegatedEvent('close', domElement);
-      break;
-
-    case 'iframe':
-    case 'object':
-    case 'embed':
-      // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the load event.
-      listenToNonDelegatedEvent('load', domElement);
-      break;
-
-    case 'video':
-    case 'audio':
-      // We listen to these events in case to ensure emulated bubble
-      // listeners still fire for all the media events.
-      for (var i = 0; i < mediaEventTypes.length; i++) {
-        listenToNonDelegatedEvent(mediaEventTypes[i], domElement);
-      }
-
-      break;
-
-    case 'source':
-      // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the error event.
-      listenToNonDelegatedEvent('error', domElement);
-      break;
-
-    case 'img':
-    case 'image':
-    case 'link':
-      // We listen to these events in case to ensure emulated bubble
-      // listeners still fire for error and load events.
-      listenToNonDelegatedEvent('error', domElement);
-      listenToNonDelegatedEvent('load', domElement);
-      break;
-
-    case 'details':
-      // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the toggle event.
-      listenToNonDelegatedEvent('toggle', domElement);
-      break;
-
-    case 'input':
-      {
-        checkControlledValueProps('input', props);
-      } // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the invalid event.
-
-
-      listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
-      // up necessary since we never stop tracking anymore.
-
-      validateInputProps(domElement, props); // For input and textarea we current always set the value property at
-      // post mount to force it to diverge from attributes. However, for
-      // option and select we don't quite do the same thing and select
-      // is not resilient to the DOM state changing so we don't do that here.
-      // TODO: Consider not doing this for input and textarea.
-
-      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name, true);
-      track(domElement);
-      break;
-
-    case 'option':
-      validateOptionProps(domElement, props);
-      break;
-
-    case 'select':
-      {
-        checkControlledValueProps('select', props);
-      } // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the invalid event.
-
-
-      listenToNonDelegatedEvent('invalid', domElement);
-      validateSelectProps(domElement, props);
-      break;
-
-    case 'textarea':
-      {
-        checkControlledValueProps('textarea', props);
-      } // We listen to this event in case to ensure emulated bubble
-      // listeners still fire for the invalid event.
-
-
-      listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
-      // up necessary since we never stop tracking anymore.
-
-      validateTextareaProps(domElement, props);
-      initTextarea(domElement, props.value, props.defaultValue, props.children);
-      track(domElement);
-      break;
-  }
-
-  var children = props.children; // For text content children we compare against textContent. This
-  // might match additional HTML that is hidden when we read it using
-  // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
-  // satisfies our requirement. Our requirement is not to produce perfect
-  // HTML and attributes. Ideally we should preserve structure but it's
-  // ok not to if the visible content is still enough to indicate what
-  // even listeners these nodes might be wired up to.
-  // TODO: Warn if there is more than a single textNode as a child.
-  // TODO: Should we use domElement.firstChild.nodeValue to compare?
-
-  if (typeof children === 'string' || typeof children === 'number' || typeof children === 'bigint') {
-    if ( // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
-    domElement.textContent !== '' + children && props.suppressHydrationWarning !== true && !checkForUnmatchedText(domElement.textContent, children)) {
-      return false;
-    }
-  }
-
-  if (props.onScroll != null) {
-    listenToNonDelegatedEvent('scroll', domElement);
-  }
-
-  if (props.onScrollEnd != null) {
-    listenToNonDelegatedEvent('scrollend', domElement);
-  }
-
-  if (props.onClick != null) {
-    // TODO: This cast may not be sound for SVG, MathML or custom elements.
-    trapClickOnNonInteractiveElement(domElement);
-  }
-
-  return true;
-}
-function diffHydratedProperties(domElement, tag, props, hostContext) {
-  var serverDifferences = {};
-
-  {
-    var extraAttributes = new Set();
-    var attributes = domElement.attributes;
-
-    for (var i = 0; i < attributes.length; i++) {
-      var name = attributes[i].name.toLowerCase();
-
-      switch (name) {
-        // Controlled attributes are not validated
-        // TODO: Only ignore them on controlled tags.
-        case 'value':
-          break;
-
-        case 'checked':
-          break;
-
-        case 'selected':
-          break;
-
-        default:
-          // Intentionally use the original name.
-          // See discussion in https://github.com/facebook/react/pull/10676.
-          extraAttributes.add(attributes[i].name);
-      }
-    }
-
-    if (isCustomElement(tag)) {
-      diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes, serverDifferences);
-    } else {
-      diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes, serverDifferences);
-    }
-
-    if (extraAttributes.size > 0 && props.suppressHydrationWarning !== true) {
-      warnForExtraAttributes(domElement, extraAttributes, serverDifferences);
-    }
-  }
-
-  if (Object.keys(serverDifferences).length === 0) {
-    return null;
-  }
-
-  return serverDifferences;
-}
-function hydrateText(textNode, text, parentProps) {
-  var isDifferent = textNode.nodeValue !== text;
-
-  if (isDifferent && (parentProps === null || parentProps.suppressHydrationWarning !== true) && !checkForUnmatchedText(textNode.nodeValue, text)) {
-    return false;
-  }
-
-  return true;
-}
-function diffHydratedText(textNode, text) {
-  if (textNode.nodeValue === text) {
-    return null;
-  }
-
-  var normalizedClientText = normalizeMarkupForTextOrAttribute(text);
-  var normalizedServerText = normalizeMarkupForTextOrAttribute(textNode.nodeValue);
-
-  if (normalizedServerText === normalizedClientText) {
-    return null;
-  }
-
-  return textNode.nodeValue;
-}
-function restoreControlledState(domElement, tag, props) {
-  switch (tag) {
-    case 'input':
-      restoreControlledInputState(domElement, props);
-      return;
-
-    case 'textarea':
-      restoreControlledTextareaState(domElement, props);
-      return;
-
-    case 'select':
-      restoreControlledSelectState(domElement, props);
-      return;
-  }
-}
-
-function validateLinkPropsForStyleResource(props) {
-  {
-    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
-    var href = props.href,
-        onLoad = props.onLoad,
-        onError = props.onError,
-        disabled = props.disabled;
-    var includedProps = [];
-    if (onLoad) includedProps.push('`onLoad`');
-    if (onError) includedProps.push('`onError`');
-    if (disabled != null) includedProps.push('`disabled`');
-    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
-    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
-    var withArticlePhrase = includedProps.length === 1 ? 'an ' + includedPropsPhrase : 'the ' + includedPropsPhrase;
-
-    if (includedProps.length) {
-      error('React encountered a <link rel="stylesheet" href="%s" ... /> with a `precedence` prop that' + ' also included %s. The presence of loading and error handlers indicates an intent to manage' + ' the stylesheet loading state from your from your Component code and React will not hoist or' + ' deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet' + ' using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.', href, withArticlePhrase, includedPropsPhrase);
-
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function propNamesListJoin(list, combinator) {
-  switch (list.length) {
-    case 0:
-      return '';
-
-    case 1:
-      return list[0];
-
-    case 2:
-      return list[0] + ' ' + combinator + ' ' + list[1];
-
-    default:
-      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
   }
 }
 
@@ -14384,7 +11023,7 @@ function isThenableResolved(thenable) {
   return status === 'fulfilled' || status === 'rejected';
 }
 
-function noop$2() {}
+function noop$4() {}
 
 function trackUsedThenable(thenableState, thenable, index) {
   if (ReactSharedInternals.actQueue !== null) {
@@ -14427,7 +11066,7 @@ function trackUsedThenable(thenableState, thenable, index) {
       // intentionally ignore.
 
 
-      thenable.then(noop$2, noop$2);
+      thenable.then(noop$4, noop$4);
       thenable = previous;
     }
   } // We use an expando to track the status and result of a thenable so that we
@@ -14460,7 +11099,7 @@ function trackUsedThenable(thenableState, thenable, index) {
           // some custom userspace implementation. We treat it as "pending".
           // Attach a dummy listener, to ensure that any lazy initialization can
           // happen. Flight lazily parses JSON when the value is actually awaited.
-          thenable.then(noop$2, noop$2);
+          thenable.then(noop$4, noop$4);
         } else {
           // This is an uncached thenable that we haven't seen before.
           // Detect infinite ping loops caused by uncached promises.
@@ -16232,360 +12871,6 @@ function pushCacheProvider(workInProgress, cache) {
 function popCacheProvider(workInProgress, cache) {
 
   popProvider(CacheContext, workInProgress);
-}
-
-// there's only a single root, but we do support multi root apps, hence this
-// extra complexity. But this module is optimized for the single root case.
-
-var firstScheduledRoot = null;
-var lastScheduledRoot = null; // Used to prevent redundant mircotasks from being scheduled.
-
-var didScheduleMicrotask = false; // `act` "microtasks" are scheduled on the `act` queue instead of an actual
-// microtask, so we have to dedupe those separately. This wouldn't be an issue
-// if we required all `act` calls to be awaited, which we might in the future.
-
-var didScheduleMicrotask_act = false; // Used to quickly bail out of flushSync if there's no sync work to do.
-
-var mightHavePendingSyncWork = false;
-var isFlushingWork = false;
-var currentEventTransitionLane = NoLane;
-function ensureRootIsScheduled(root) {
-  // This function is called whenever a root receives an update. It does two
-  // things 1) it ensures the root is in the root schedule, and 2) it ensures
-  // there's a pending microtask to process the root schedule.
-  //
-  // Most of the actual scheduling logic does not happen until
-  // `scheduleTaskForRootDuringMicrotask` runs.
-  // Add the root to the schedule
-  if (root === lastScheduledRoot || root.next !== null) ; else {
-    if (lastScheduledRoot === null) {
-      firstScheduledRoot = lastScheduledRoot = root;
-    } else {
-      lastScheduledRoot.next = root;
-      lastScheduledRoot = root;
-    }
-  } // Any time a root received an update, we set this to true until the next time
-  // we process the schedule. If it's false, then we can quickly exit flushSync
-  // without consulting the schedule.
-
-
-  mightHavePendingSyncWork = true; // At the end of the current event, go through each of the roots and ensure
-  // there's a task scheduled for each one at the correct priority.
-
-  if (ReactSharedInternals.actQueue !== null) {
-    // We're inside an `act` scope.
-    if (!didScheduleMicrotask_act) {
-      didScheduleMicrotask_act = true;
-      scheduleImmediateTask(processRootScheduleInMicrotask);
-    }
-  } else {
-    if (!didScheduleMicrotask) {
-      didScheduleMicrotask = true;
-      scheduleImmediateTask(processRootScheduleInMicrotask);
-    }
-  }
-}
-function flushSyncWorkOnAllRoots() {
-  // This is allowed to be called synchronously, but the caller should check
-  // the execution context first.
-  flushSyncWorkAcrossRoots_impl(false);
-}
-
-function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
-  if (isFlushingWork) {
-    // Prevent reentrancy.
-    // TODO: Is this overly defensive? The callers must check the execution
-    // context first regardless.
-    return;
-  }
-
-  if (!mightHavePendingSyncWork) {
-    // Fast path. There's no sync work to do.
-    return;
-  } // There may or may not be synchronous work scheduled. Let's check.
-
-
-  var didPerformSomeWork;
-  isFlushingWork = true;
-
-  do {
-    didPerformSomeWork = false;
-    var root = firstScheduledRoot;
-
-    while (root !== null) {
-      if (onlyLegacy && (disableLegacyMode )) ; else {
-        var workInProgressRoot = getWorkInProgressRoot();
-        var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
-        var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
-
-        if (includesSyncLane(nextLanes)) {
-          // This root has pending sync work. Flush it now.
-          didPerformSomeWork = true;
-          performSyncWorkOnRoot(root, nextLanes);
-        }
-      }
-
-      root = root.next;
-    }
-  } while (didPerformSomeWork);
-
-  isFlushingWork = false;
-}
-
-function processRootScheduleInMicrotask() {
-  // This function is always called inside a microtask. It should never be
-  // called synchronously.
-  didScheduleMicrotask = false;
-
-  {
-    didScheduleMicrotask_act = false;
-  } // We'll recompute this as we iterate through all the roots and schedule them.
-
-
-  mightHavePendingSyncWork = false;
-  var currentTime = now$1();
-  var prev = null;
-  var root = firstScheduledRoot;
-
-  while (root !== null) {
-    var next = root.next;
-
-    if (currentEventTransitionLane !== NoLane && shouldAttemptEagerTransition()) {
-      // A transition was scheduled during an event, but we're going to try to
-      // render it synchronously anyway. We do this during a popstate event to
-      // preserve the scroll position of the previous page.
-      upgradePendingLaneToSync(root, currentEventTransitionLane);
-    }
-
-    var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
-
-    if (nextLanes === NoLane) {
-      // This root has no more pending work. Remove it from the schedule. To
-      // guard against subtle reentrancy bugs, this microtask is the only place
-      // we do this — you can add roots to the schedule whenever, but you can
-      // only remove them here.
-      // Null this out so we know it's been removed from the schedule.
-      root.next = null;
-
-      if (prev === null) {
-        // This is the new head of the list
-        firstScheduledRoot = next;
-      } else {
-        prev.next = next;
-      }
-
-      if (next === null) {
-        // This is the new tail of the list
-        lastScheduledRoot = prev;
-      }
-    } else {
-      // This root still has work. Keep it in the list.
-      prev = root;
-
-      if (includesSyncLane(nextLanes)) {
-        mightHavePendingSyncWork = true;
-      }
-    }
-
-    root = next;
-  }
-
-  currentEventTransitionLane = NoLane; // At the end of the microtask, flush any pending synchronous work. This has
-  // to come at the end, because it does actual rendering work that might throw.
-
-  flushSyncWorkOnAllRoots();
-}
-
-function scheduleTaskForRootDuringMicrotask(root, currentTime) {
-  // This function is always called inside a microtask, or at the very end of a
-  // rendering task right before we yield to the main thread. It should never be
-  // called synchronously.
-  //
-  // TODO: Unless enableDeferRootSchedulingToMicrotask is off. We need to land
-  // that ASAP to unblock additional features we have planned.
-  //
-  // This function also never performs React work synchronously; it should
-  // only schedule work to be performed later, in a separate task or microtask.
-  // Check if any lanes are being starved by other work. If so, mark them as
-  // expired so we know to work on those next.
-  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
-
-  var workInProgressRoot = getWorkInProgressRoot();
-  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
-  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
-  var existingCallbackNode = root.callbackNode;
-
-  if ( // Check if there's nothing to work on
-  nextLanes === NoLanes || // If this root is currently suspended and waiting for data to resolve, don't
-  // schedule a task to render it. We'll either wait for a ping, or wait to
-  // receive an update.
-  //
-  // Suspended render phase
-  root === workInProgressRoot && isWorkLoopSuspendedOnData() || // Suspended commit phase
-  root.cancelPendingCommit !== null) {
-    // Fast path: There's nothing to work on.
-    if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode);
-    }
-
-    root.callbackNode = null;
-    root.callbackPriority = NoLane;
-    return NoLane;
-  } // Schedule a new callback in the host environment.
-
-
-  if (includesSyncLane(nextLanes)) {
-    // Synchronous work is always flushed at the end of the microtask, so we
-    // don't need to schedule an additional task.
-    if (existingCallbackNode !== null) {
-      cancelCallback(existingCallbackNode);
-    }
-
-    root.callbackPriority = SyncLane;
-    root.callbackNode = null;
-    return SyncLane;
-  } else {
-    // We use the highest priority lane to represent the priority of the callback.
-    var existingCallbackPriority = root.callbackPriority;
-    var newCallbackPriority = getHighestPriorityLane(nextLanes);
-
-    if (newCallbackPriority === existingCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
-    // Scheduler task, rather than an `act` task, cancel it and re-schedule
-    // on the `act` queue.
-    !(ReactSharedInternals.actQueue !== null && existingCallbackNode !== fakeActCallbackNode$1)) {
-      // The priority hasn't changed. We can reuse the existing task.
-      return newCallbackPriority;
-    } else {
-      // Cancel the existing callback. We'll schedule a new one below.
-      cancelCallback(existingCallbackNode);
-    }
-
-    var schedulerPriorityLevel;
-
-    switch (lanesToEventPriority(nextLanes)) {
-      case DiscreteEventPriority:
-        schedulerPriorityLevel = ImmediatePriority;
-        break;
-
-      case ContinuousEventPriority:
-        schedulerPriorityLevel = UserBlockingPriority;
-        break;
-
-      case DefaultEventPriority:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-
-      case IdleEventPriority:
-        schedulerPriorityLevel = IdlePriority;
-        break;
-
-      default:
-        schedulerPriorityLevel = NormalPriority$1;
-        break;
-    }
-
-    var newCallbackNode = scheduleCallback$1(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
-    root.callbackPriority = newCallbackPriority;
-    root.callbackNode = newCallbackNode;
-    return newCallbackPriority;
-  }
-}
-
-function getContinuationForRoot(root, originalCallbackNode) {
-  // This is called at the end of `performConcurrentWorkOnRoot` to determine
-  // if we need to schedule a continuation task.
-  //
-  // Usually `scheduleTaskForRootDuringMicrotask` only runs inside a microtask;
-  // however, since most of the logic for determining if we need a continuation
-  // versus a new task is the same, we cheat a bit and call it here. This is
-  // only safe to do because we know we're at the end of the browser task.
-  // So although it's not an actual microtask, it might as well be.
-  scheduleTaskForRootDuringMicrotask(root, now$1());
-
-  if (root.callbackNode === originalCallbackNode) {
-    // The task node scheduled for this root is the same one that's
-    // currently executed. Need to return a continuation.
-    return performConcurrentWorkOnRoot.bind(null, root);
-  }
-
-  return null;
-}
-var fakeActCallbackNode$1 = {};
-
-function scheduleCallback$1(priorityLevel, callback) {
-  if (ReactSharedInternals.actQueue !== null) {
-    // Special case: We're inside an `act` scope (a testing utility).
-    // Instead of scheduling work in the host environment, add it to a
-    // fake internal queue that's managed by the `act` implementation.
-    ReactSharedInternals.actQueue.push(callback);
-    return fakeActCallbackNode$1;
-  } else {
-    return scheduleCallback$3(priorityLevel, callback);
-  }
-}
-
-function cancelCallback(callbackNode) {
-  if (callbackNode === fakeActCallbackNode$1) ; else if (callbackNode !== null) {
-    cancelCallback$1(callbackNode);
-  }
-}
-
-function scheduleImmediateTask(cb) {
-  if (ReactSharedInternals.actQueue !== null) {
-    // Special case: Inside an `act` scope, we push microtasks to the fake `act`
-    // callback queue. This is because we currently support calling `act`
-    // without awaiting the result. The plan is to deprecate that, and require
-    // that you always await the result so that the microtasks have a chance to
-    // run. But it hasn't happened yet.
-    ReactSharedInternals.actQueue.push(function () {
-      cb();
-      return null;
-    });
-  } // TODO: Can we land supportsMicrotasks? Which environments don't support it?
-  // Alternatively, can we move this check to the host config?
-
-
-  {
-    scheduleMicrotask(function () {
-      // In Safari, appending an iframe forces microtasks to run.
-      // https://github.com/facebook/react/issues/22459
-      // We don't support running callbacks in the middle of render
-      // or commit so we need to check against that.
-      var executionContext = getExecutionContext();
-
-      if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
-        // Note that this would still prematurely flush the callbacks
-        // if this happens outside render or commit phase (e.g. in an event).
-        // Intentionally using a macrotask instead of a microtask here. This is
-        // wrong semantically but it prevents an infinite loop. The bug is
-        // Safari's, not ours, so we just do our best to not crash even though
-        // the behavior isn't completely correct.
-        scheduleCallback$3(ImmediatePriority, cb);
-        return;
-      }
-
-      cb();
-    });
-  }
-}
-
-function requestTransitionLane( // This argument isn't used, it's only here to encourage the caller to
-// check that it's inside a transition before calling this function.
-// TODO: Make this non-nullable. Requires a tweak to useOptimistic.
-transition) {
-  // The algorithm for assigning an update to a lane should be stable for all
-  // updates at the same priority within the same event. To do this, the
-  // inputs to the algorithm must be the same.
-  //
-  // The trick we use is to cache the first of each of these inputs within an
-  // event. Then reset the cached values once we can be sure the event is
-  // over. Our heuristic for that is whenever we enter a concurrent work loop.
-  if (currentEventTransitionLane === NoLane) {
-    // All transitions within the same event are assigned the same lane.
-    currentEventTransitionLane = claimNextTransitionLane();
-  }
-
-  return currentEventTransitionLane;
 }
 
 // transition updates that occur while the async action is still in progress
@@ -18965,7 +15250,9 @@ function startTransition(fiber, queue, pendingState, finishedState, callback, op
   }
 }
 
-function startHostTransition(formFiber, pendingState, callback, formData) {
+var noop$3 = function () {};
+
+function startHostTransition(formFiber, pendingState, action, formData) {
 
   if (formFiber.tag !== HostComponent) {
     throw new Error('Expected the form instance to be a HostComponent. This ' + 'is a bug in React.');
@@ -18973,12 +15260,15 @@ function startHostTransition(formFiber, pendingState, callback, formData) {
 
   var stateHook = ensureFormComponentIsStateful(formFiber);
   var queue = stateHook.queue;
-  startTransition(formFiber, queue, pendingState, NotPendingTransition, // TODO: We can avoid this extra wrapper, somehow. Figure out layering
-  // once more of this function is implemented.
-  function () {
+  startTransition(formFiber, queue, pendingState, NotPendingTransition, // TODO: `startTransition` both sets the pending state and dispatches
+  // the action, if one is provided. Consider refactoring these two
+  // concerns to avoid the extra lambda.
+  action === null ? // No action was provided, but we still call `startTransition` to
+  // set the pending form status.
+  noop$3 : function () {
     // Automatically reset the form when the action completes.
     requestFormReset$2(formFiber);
-    return callback(formData);
+    return action(formData);
   });
 }
 
@@ -20786,6 +17076,36 @@ function transferActualDuration(fiber) {
     child = child.sibling;
   }
 }
+
+var reportGlobalError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : function (error) {
+  if (typeof window === 'object' && typeof window.ErrorEvent === 'function') {
+    // Browser Polyfill
+    var message = typeof error === 'object' && error !== null && typeof error.message === 'string' ? // eslint-disable-next-line react-internal/safe-string-coercion
+    String(error.message) : // eslint-disable-next-line react-internal/safe-string-coercion
+    String(error);
+    var event = new window.ErrorEvent('error', {
+      bubbles: true,
+      cancelable: true,
+      message: message,
+      error: error
+    });
+    var shouldLog = window.dispatchEvent(event);
+
+    if (!shouldLog) {
+      return;
+    }
+  } else if (typeof process === 'object' && // $FlowFixMe[method-unbinding]
+  typeof process.emit === 'function') {
+    // Node Polyfill
+    process.emit('uncaughtException', error);
+    return;
+  } // eslint-disable-next-line react-internal/no-production-logging
+
+
+  console['error'](error);
+};
 
 var componentName = null;
 var errorBoundaryName = null;
@@ -29413,17 +25733,13 @@ function preloadResourceAndSuspendIfNeeded(workInProgress, resource, type, props
   }
 
   workInProgress.flags |= MaySuspendCommit;
-  var rootRenderLanes = getWorkInProgressRootRenderLanes();
+  var isReady = preloadResource(resource);
 
-  if (!includesOnlyNonUrgentLanes(rootRenderLanes)) ; else {
-    var isReady = preloadResource(resource);
-
-    if (!isReady) {
-      if (shouldRemainOnPreviousScreen()) {
-        workInProgress.flags |= ShouldSuspendCommit;
-      } else {
-        suspendCommit();
-      }
+  if (!isReady) {
+    if (shouldRemainOnPreviousScreen()) {
+      workInProgress.flags |= ShouldSuspendCommit;
+    } else {
+      suspendCommit();
     }
   }
 }
@@ -31303,7 +27619,7 @@ function finishConcurrentRender(root, exitStatus, finishedWork, lanes) {
 function commitRootWhenReady(root, finishedWork, recoverableErrors, transitions, didIncludeRenderPhaseUpdate, lanes, spawnedLane) {
   // TODO: Combine retry throttling with Suspensey commits. Right now they run
   // one after the other.
-  if (includesOnlyNonUrgentLanes(lanes)) {
+  if (finishedWork.subtreeFlags & ShouldSuspendCommit) {
     // Before committing, ask the renderer whether the host tree is ready.
     // If it's not, we'll wait until it notifies us.
     startSuspendingCommit(); // This will walk the completed fiber tree and attach listeners to all
@@ -32141,9 +28457,16 @@ function renderRootConcurrent(root, lanes) {
 
           case SuspendedOnInstanceAndReadyToContinue:
             {
+              var resource = null;
+
               switch (workInProgress.tag) {
-                case HostComponent:
                 case HostHoistable:
+                  {
+                    resource = workInProgress.memoizedState;
+                  }
+                // intentional fallthrough
+
+                case HostComponent:
                 case HostSingleton:
                   {
                     // Before unwinding the stack, check one more time if the
@@ -32154,7 +28477,7 @@ function renderRootConcurrent(root, lanes) {
                     var hostFiber = workInProgress;
                     var type = hostFiber.type;
                     var props = hostFiber.pendingProps;
-                    var isReady = preloadInstance(type, props);
+                    var isReady = resource ? preloadResource(resource) : preloadInstance(type, props);
 
                     if (isReady) {
                       // The data resolved. Resume the work loop as if nothing
@@ -32713,7 +29036,7 @@ function commitRootImpl(root, recoverableErrors, transitions, didIncludeRenderPh
       // with setTimeout
 
       pendingPassiveTransitions = transitions;
-      scheduleCallback(NormalPriority$1, function () {
+      scheduleCallback$1(NormalPriority$1, function () {
         flushPassiveEffects(); // This render triggered passive effects: release the root cache pool
         // *after* passive effects fire to avoid freeing a cache pool that may
         // be referenced by a node in the tree (HostRoot, Cache boundary etc)
@@ -32992,7 +29315,7 @@ function enqueuePendingPassiveProfilerEffect(fiber) {
 
     if (!rootDoesHavePassiveEffects) {
       rootDoesHavePassiveEffects = true;
-      scheduleCallback(NormalPriority$1, function () {
+      scheduleCallback$1(NormalPriority$1, function () {
         flushPassiveEffects();
         return null;
       });
@@ -33357,6 +29680,7 @@ function recursivelyTraverseAndDoubleInvokeEffectsInDEV(root, parentFiber, isInS
 
 function doubleInvokeEffectsOnFiber(root, fiber) {
   var shouldDoubleInvokePassiveEffects = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+  setIsStrictModeForDevtools(true);
   disappearLayoutEffects(fiber);
 
   if (shouldDoubleInvokePassiveEffects) {
@@ -33368,6 +29692,8 @@ function doubleInvokeEffectsOnFiber(root, fiber) {
   if (shouldDoubleInvokePassiveEffects) {
     reconnectPassiveEffects(root, fiber, NoLanes, null, false);
   }
+
+  setIsStrictModeForDevtools(false);
 }
 
 function doubleInvokeEffectsInDEVIfNecessary(root, fiber, parentIsInStrictMode) {
@@ -33527,9 +29853,9 @@ function restorePendingUpdaters(root, lanes) {
     }
   }
 }
-var fakeActCallbackNode = {}; // $FlowFixMe[missing-local-annot]
+var fakeActCallbackNode$1 = {}; // $FlowFixMe[missing-local-annot]
 
-function scheduleCallback(priorityLevel, callback) {
+function scheduleCallback$1(priorityLevel, callback) {
   {
     // If we're currently inside an `act` scope, bypass Scheduler and push to
     // the `act` queue instead.
@@ -33537,7 +29863,7 @@ function scheduleCallback(priorityLevel, callback) {
 
     if (actQueue !== null) {
       actQueue.push(callback);
-      return fakeActCallbackNode;
+      return fakeActCallbackNode$1;
     } else {
       return scheduleCallback$3(priorityLevel, callback);
     }
@@ -33587,6 +29913,3770 @@ function warnIfSuspenseResolutionNotWrappedWithActDEV(root) {
 function setIsRunningInsertionEffect(isRunning) {
   {
     isRunningInsertionEffect = isRunning;
+  }
+}
+
+// there's only a single root, but we do support multi root apps, hence this
+// extra complexity. But this module is optimized for the single root case.
+
+var firstScheduledRoot = null;
+var lastScheduledRoot = null; // Used to prevent redundant mircotasks from being scheduled.
+
+var didScheduleMicrotask = false; // `act` "microtasks" are scheduled on the `act` queue instead of an actual
+// microtask, so we have to dedupe those separately. This wouldn't be an issue
+// if we required all `act` calls to be awaited, which we might in the future.
+
+var didScheduleMicrotask_act = false; // Used to quickly bail out of flushSync if there's no sync work to do.
+
+var mightHavePendingSyncWork = false;
+var isFlushingWork = false;
+var currentEventTransitionLane = NoLane;
+function ensureRootIsScheduled(root) {
+  // This function is called whenever a root receives an update. It does two
+  // things 1) it ensures the root is in the root schedule, and 2) it ensures
+  // there's a pending microtask to process the root schedule.
+  //
+  // Most of the actual scheduling logic does not happen until
+  // `scheduleTaskForRootDuringMicrotask` runs.
+  // Add the root to the schedule
+  if (root === lastScheduledRoot || root.next !== null) ; else {
+    if (lastScheduledRoot === null) {
+      firstScheduledRoot = lastScheduledRoot = root;
+    } else {
+      lastScheduledRoot.next = root;
+      lastScheduledRoot = root;
+    }
+  } // Any time a root received an update, we set this to true until the next time
+  // we process the schedule. If it's false, then we can quickly exit flushSync
+  // without consulting the schedule.
+
+
+  mightHavePendingSyncWork = true; // At the end of the current event, go through each of the roots and ensure
+  // there's a task scheduled for each one at the correct priority.
+
+  if (ReactSharedInternals.actQueue !== null) {
+    // We're inside an `act` scope.
+    if (!didScheduleMicrotask_act) {
+      didScheduleMicrotask_act = true;
+      scheduleImmediateTask(processRootScheduleInMicrotask);
+    }
+  } else {
+    if (!didScheduleMicrotask) {
+      didScheduleMicrotask = true;
+      scheduleImmediateTask(processRootScheduleInMicrotask);
+    }
+  }
+}
+function flushSyncWorkOnAllRoots() {
+  // This is allowed to be called synchronously, but the caller should check
+  // the execution context first.
+  flushSyncWorkAcrossRoots_impl(false);
+}
+
+function flushSyncWorkAcrossRoots_impl(onlyLegacy) {
+  if (isFlushingWork) {
+    // Prevent reentrancy.
+    // TODO: Is this overly defensive? The callers must check the execution
+    // context first regardless.
+    return;
+  }
+
+  if (!mightHavePendingSyncWork) {
+    // Fast path. There's no sync work to do.
+    return;
+  } // There may or may not be synchronous work scheduled. Let's check.
+
+
+  var didPerformSomeWork;
+  isFlushingWork = true;
+
+  do {
+    didPerformSomeWork = false;
+    var root = firstScheduledRoot;
+
+    while (root !== null) {
+      if (onlyLegacy && (disableLegacyMode )) ; else {
+        var workInProgressRoot = getWorkInProgressRoot();
+        var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
+        var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
+
+        if (includesSyncLane(nextLanes)) {
+          // This root has pending sync work. Flush it now.
+          didPerformSomeWork = true;
+          performSyncWorkOnRoot(root, nextLanes);
+        }
+      }
+
+      root = root.next;
+    }
+  } while (didPerformSomeWork);
+
+  isFlushingWork = false;
+}
+
+function processRootScheduleInMicrotask() {
+  // This function is always called inside a microtask. It should never be
+  // called synchronously.
+  didScheduleMicrotask = false;
+
+  {
+    didScheduleMicrotask_act = false;
+  } // We'll recompute this as we iterate through all the roots and schedule them.
+
+
+  mightHavePendingSyncWork = false;
+  var currentTime = now$1();
+  var prev = null;
+  var root = firstScheduledRoot;
+
+  while (root !== null) {
+    var next = root.next;
+
+    if (currentEventTransitionLane !== NoLane && shouldAttemptEagerTransition()) {
+      // A transition was scheduled during an event, but we're going to try to
+      // render it synchronously anyway. We do this during a popstate event to
+      // preserve the scroll position of the previous page.
+      upgradePendingLaneToSync(root, currentEventTransitionLane);
+    }
+
+    var nextLanes = scheduleTaskForRootDuringMicrotask(root, currentTime);
+
+    if (nextLanes === NoLane) {
+      // This root has no more pending work. Remove it from the schedule. To
+      // guard against subtle reentrancy bugs, this microtask is the only place
+      // we do this — you can add roots to the schedule whenever, but you can
+      // only remove them here.
+      // Null this out so we know it's been removed from the schedule.
+      root.next = null;
+
+      if (prev === null) {
+        // This is the new head of the list
+        firstScheduledRoot = next;
+      } else {
+        prev.next = next;
+      }
+
+      if (next === null) {
+        // This is the new tail of the list
+        lastScheduledRoot = prev;
+      }
+    } else {
+      // This root still has work. Keep it in the list.
+      prev = root;
+
+      if (includesSyncLane(nextLanes)) {
+        mightHavePendingSyncWork = true;
+      }
+    }
+
+    root = next;
+  }
+
+  currentEventTransitionLane = NoLane; // At the end of the microtask, flush any pending synchronous work. This has
+  // to come at the end, because it does actual rendering work that might throw.
+
+  flushSyncWorkOnAllRoots();
+}
+
+function scheduleTaskForRootDuringMicrotask(root, currentTime) {
+  // This function is always called inside a microtask, or at the very end of a
+  // rendering task right before we yield to the main thread. It should never be
+  // called synchronously.
+  //
+  // TODO: Unless enableDeferRootSchedulingToMicrotask is off. We need to land
+  // that ASAP to unblock additional features we have planned.
+  //
+  // This function also never performs React work synchronously; it should
+  // only schedule work to be performed later, in a separate task or microtask.
+  // Check if any lanes are being starved by other work. If so, mark them as
+  // expired so we know to work on those next.
+  markStarvedLanesAsExpired(root, currentTime); // Determine the next lanes to work on, and their priority.
+
+  var workInProgressRoot = getWorkInProgressRoot();
+  var workInProgressRootRenderLanes = getWorkInProgressRootRenderLanes();
+  var nextLanes = getNextLanes(root, root === workInProgressRoot ? workInProgressRootRenderLanes : NoLanes);
+  var existingCallbackNode = root.callbackNode;
+
+  if ( // Check if there's nothing to work on
+  nextLanes === NoLanes || // If this root is currently suspended and waiting for data to resolve, don't
+  // schedule a task to render it. We'll either wait for a ping, or wait to
+  // receive an update.
+  //
+  // Suspended render phase
+  root === workInProgressRoot && isWorkLoopSuspendedOnData() || // Suspended commit phase
+  root.cancelPendingCommit !== null) {
+    // Fast path: There's nothing to work on.
+    if (existingCallbackNode !== null) {
+      cancelCallback(existingCallbackNode);
+    }
+
+    root.callbackNode = null;
+    root.callbackPriority = NoLane;
+    return NoLane;
+  } // Schedule a new callback in the host environment.
+
+
+  if (includesSyncLane(nextLanes)) {
+    // Synchronous work is always flushed at the end of the microtask, so we
+    // don't need to schedule an additional task.
+    if (existingCallbackNode !== null) {
+      cancelCallback(existingCallbackNode);
+    }
+
+    root.callbackPriority = SyncLane;
+    root.callbackNode = null;
+    return SyncLane;
+  } else {
+    // We use the highest priority lane to represent the priority of the callback.
+    var existingCallbackPriority = root.callbackPriority;
+    var newCallbackPriority = getHighestPriorityLane(nextLanes);
+
+    if (newCallbackPriority === existingCallbackPriority && // Special case related to `act`. If the currently scheduled task is a
+    // Scheduler task, rather than an `act` task, cancel it and re-schedule
+    // on the `act` queue.
+    !(ReactSharedInternals.actQueue !== null && existingCallbackNode !== fakeActCallbackNode)) {
+      // The priority hasn't changed. We can reuse the existing task.
+      return newCallbackPriority;
+    } else {
+      // Cancel the existing callback. We'll schedule a new one below.
+      cancelCallback(existingCallbackNode);
+    }
+
+    var schedulerPriorityLevel;
+
+    switch (lanesToEventPriority(nextLanes)) {
+      case DiscreteEventPriority:
+        schedulerPriorityLevel = ImmediatePriority;
+        break;
+
+      case ContinuousEventPriority:
+        schedulerPriorityLevel = UserBlockingPriority;
+        break;
+
+      case DefaultEventPriority:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+
+      case IdleEventPriority:
+        schedulerPriorityLevel = IdlePriority;
+        break;
+
+      default:
+        schedulerPriorityLevel = NormalPriority$1;
+        break;
+    }
+
+    var newCallbackNode = scheduleCallback(schedulerPriorityLevel, performConcurrentWorkOnRoot.bind(null, root));
+    root.callbackPriority = newCallbackPriority;
+    root.callbackNode = newCallbackNode;
+    return newCallbackPriority;
+  }
+}
+
+function getContinuationForRoot(root, originalCallbackNode) {
+  // This is called at the end of `performConcurrentWorkOnRoot` to determine
+  // if we need to schedule a continuation task.
+  //
+  // Usually `scheduleTaskForRootDuringMicrotask` only runs inside a microtask;
+  // however, since most of the logic for determining if we need a continuation
+  // versus a new task is the same, we cheat a bit and call it here. This is
+  // only safe to do because we know we're at the end of the browser task.
+  // So although it's not an actual microtask, it might as well be.
+  scheduleTaskForRootDuringMicrotask(root, now$1());
+
+  if (root.callbackNode === originalCallbackNode) {
+    // The task node scheduled for this root is the same one that's
+    // currently executed. Need to return a continuation.
+    return performConcurrentWorkOnRoot.bind(null, root);
+  }
+
+  return null;
+}
+var fakeActCallbackNode = {};
+
+function scheduleCallback(priorityLevel, callback) {
+  if (ReactSharedInternals.actQueue !== null) {
+    // Special case: We're inside an `act` scope (a testing utility).
+    // Instead of scheduling work in the host environment, add it to a
+    // fake internal queue that's managed by the `act` implementation.
+    ReactSharedInternals.actQueue.push(callback);
+    return fakeActCallbackNode;
+  } else {
+    return scheduleCallback$3(priorityLevel, callback);
+  }
+}
+
+function cancelCallback(callbackNode) {
+  if (callbackNode === fakeActCallbackNode) ; else if (callbackNode !== null) {
+    cancelCallback$1(callbackNode);
+  }
+}
+
+function scheduleImmediateTask(cb) {
+  if (ReactSharedInternals.actQueue !== null) {
+    // Special case: Inside an `act` scope, we push microtasks to the fake `act`
+    // callback queue. This is because we currently support calling `act`
+    // without awaiting the result. The plan is to deprecate that, and require
+    // that you always await the result so that the microtasks have a chance to
+    // run. But it hasn't happened yet.
+    ReactSharedInternals.actQueue.push(function () {
+      cb();
+      return null;
+    });
+  } // TODO: Can we land supportsMicrotasks? Which environments don't support it?
+  // Alternatively, can we move this check to the host config?
+
+
+  {
+    scheduleMicrotask(function () {
+      // In Safari, appending an iframe forces microtasks to run.
+      // https://github.com/facebook/react/issues/22459
+      // We don't support running callbacks in the middle of render
+      // or commit so we need to check against that.
+      var executionContext = getExecutionContext();
+
+      if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
+        // Note that this would still prematurely flush the callbacks
+        // if this happens outside render or commit phase (e.g. in an event).
+        // Intentionally using a macrotask instead of a microtask here. This is
+        // wrong semantically but it prevents an infinite loop. The bug is
+        // Safari's, not ours, so we just do our best to not crash even though
+        // the behavior isn't completely correct.
+        scheduleCallback$3(ImmediatePriority, cb);
+        return;
+      }
+
+      cb();
+    });
+  }
+}
+
+function requestTransitionLane( // This argument isn't used, it's only here to encourage the caller to
+// check that it's inside a transition before calling this function.
+// TODO: Make this non-nullable. Requires a tweak to useOptimistic.
+transition) {
+  // The algorithm for assigning an update to a lane should be stable for all
+  // updates at the same priority within the same event. To do this, the
+  // inputs to the algorithm must be the same.
+  //
+  // The trick we use is to cache the first of each of these inputs within an
+  // event. Then reset the cached values once we can be sure the event is
+  // over. Our heuristic for that is whenever we enter a concurrent work loop.
+  if (currentEventTransitionLane === NoLane) {
+    // All transitions within the same event are assigned the same lane.
+    currentEventTransitionLane = claimNextTransitionLane();
+  }
+
+  return currentEventTransitionLane;
+}
+function didCurrentEventScheduleTransition() {
+  return currentEventTransitionLane !== NoLane;
+}
+
+function coerceFormActionProp(actionProp) {
+  // This should match the logic in ReactDOMComponent
+  if (actionProp == null || typeof actionProp === 'symbol' || typeof actionProp === 'boolean') {
+    return null;
+  } else if (typeof actionProp === 'function') {
+    return actionProp;
+  } else {
+    {
+      checkAttributeStringCoercion(actionProp, 'action');
+    }
+
+    return sanitizeURL('' + actionProp);
+  }
+}
+
+function createFormDataWithSubmitter(form, submitter) {
+  // The submitter's value should be included in the FormData.
+  // It should be in the document order in the form.
+  // Since the FormData constructor invokes the formdata event it also
+  // needs to be available before that happens so after construction it's too
+  // late. We use a temporary fake node for the duration of this event.
+  // TODO: FormData takes a second argument that it's the submitter but this
+  // is fairly new so not all browsers support it yet. Switch to that technique
+  // when available.
+  var temp = submitter.ownerDocument.createElement('input');
+  temp.name = submitter.name;
+  temp.value = submitter.value;
+
+  if (form.id) {
+    temp.setAttribute('form', form.id);
+  }
+
+  submitter.parentNode.insertBefore(temp, submitter);
+  var formData = new FormData(form);
+  temp.parentNode.removeChild(temp);
+  return formData;
+}
+/**
+ * This plugin invokes action functions on forms, inputs and buttons if
+ * the form doesn't prevent default.
+ */
+
+
+function extractEvents$1(dispatchQueue, domEventName, maybeTargetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
+  if (domEventName !== 'submit') {
+    return;
+  }
+
+  if (!maybeTargetInst || maybeTargetInst.stateNode !== nativeEventTarget) {
+    // If we're inside a parent root that itself is a parent of this root, then
+    // its deepest target won't be the actual form that's being submitted.
+    return;
+  }
+
+  var formInst = maybeTargetInst;
+  var form = nativeEventTarget;
+  var action = coerceFormActionProp(getFiberCurrentPropsFromNode(form).action);
+  var submitter = nativeEvent.submitter;
+  var submitterAction;
+
+  if (submitter) {
+    var submitterProps = getFiberCurrentPropsFromNode(submitter);
+    submitterAction = submitterProps ? coerceFormActionProp(submitterProps.formAction) : // The built-in Flow type is ?string, wider than the spec
+    submitter.getAttribute('formAction');
+
+    if (submitterAction !== null) {
+      // The submitter overrides the form action.
+      action = submitterAction; // If the action is a function, we don't want to pass its name
+      // value to the FormData since it's controlled by the server.
+
+      submitter = null;
+    }
+  }
+
+  var event = new SyntheticEvent('action', 'action', null, nativeEvent, nativeEventTarget);
+
+  function submitForm() {
+    if (nativeEvent.defaultPrevented) {
+      // An earlier event prevented form submission. If a transition update was
+      // also scheduled, we should trigger a pending form status — even if
+      // no action function was provided.
+      if (didCurrentEventScheduleTransition()) {
+        // We're going to set the pending form status, but because the submission
+        // was prevented, we should not fire the action function.
+        var formData = submitter ? createFormDataWithSubmitter(form, submitter) : new FormData(form);
+        var pendingState = {
+          pending: true,
+          data: formData,
+          method: form.method,
+          action: action
+        };
+
+        {
+          Object.freeze(pendingState);
+        }
+
+        startHostTransition(formInst, pendingState, // Pass `null` as the action
+        // TODO: Consider splitting up startHostTransition into two separate
+        // functions, one that sets the form status and one that invokes
+        // the action.
+        null, formData);
+      }
+    } else if (typeof action === 'function') {
+      // A form action was provided. Prevent native navigation.
+      event.preventDefault(); // Dispatch the action and set a pending form status.
+
+      var _formData = submitter ? createFormDataWithSubmitter(form, submitter) : new FormData(form);
+
+      var _pendingState = {
+        pending: true,
+        data: _formData,
+        method: form.method,
+        action: action
+      };
+
+      {
+        Object.freeze(_pendingState);
+      }
+
+      startHostTransition(formInst, _pendingState, action, _formData);
+    } else ;
+  }
+
+  dispatchQueue.push({
+    event: event,
+    listeners: [{
+      instance: null,
+      listener: submitForm,
+      currentTarget: form
+    }]
+  });
+}
+function dispatchReplayedFormAction(formInst, form, action, formData) {
+  var pendingState = {
+    pending: true,
+    data: formData,
+    method: form.method,
+    action: action
+  };
+
+  {
+    Object.freeze(pendingState);
+  }
+
+  startHostTransition(formInst, pendingState, action, formData);
+}
+
+registerSimpleEvents();
+registerEvents$1();
+registerEvents$2();
+registerEvents();
+registerEvents$3();
+
+function extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags, targetContainer) {
+  // TODO: we should remove the concept of a "SimpleEventPlugin".
+  // This is the basic functionality of the event system. All
+  // the other plugins are essentially polyfills. So the plugin
+  // should probably be inlined somewhere and have its logic
+  // be core the to event system. This would potentially allow
+  // us to ship builds of React without the polyfilled plugins below.
+  extractEvents$2(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags);
+  var shouldProcessPolyfillPlugins = (eventSystemFlags & SHOULD_NOT_PROCESS_POLYFILL_EVENT_PLUGINS) === 0; // We don't process these events unless we are in the
+  // event's native "bubble" phase, which means that we're
+  // not in the capture phase. That's because we emulate
+  // the capture phase here still. This is a trade-off,
+  // because in an ideal world we would not emulate and use
+  // the phases properly, like we do with the SimpleEvent
+  // plugin. However, the plugins below either expect
+  // emulation (EnterLeave) or use state localized to that
+  // plugin (BeforeInput, Change, Select). The state in
+  // these modules complicates things, as you'll essentially
+  // get the case where the capture phase event might change
+  // state, only for the following bubble event to come in
+  // later and not trigger anything as the state now
+  // invalidates the heuristics of the event plugin. We
+  // could alter all these plugins to work in such ways, but
+  // that might cause other unknown side-effects that we
+  // can't foresee right now.
+
+  if (shouldProcessPolyfillPlugins) {
+    extractEvents$4(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+    extractEvents$5(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+    extractEvents$3(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+    extractEvents$6(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+    extractEvents$1(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget);
+  }
+} // List of events that need to be individually attached to media elements.
+
+
+var mediaEventTypes = ['abort', 'canplay', 'canplaythrough', 'durationchange', 'emptied', 'encrypted', 'ended', 'error', 'loadeddata', 'loadedmetadata', 'loadstart', 'pause', 'play', 'playing', 'progress', 'ratechange', 'resize', 'seeked', 'seeking', 'stalled', 'suspend', 'timeupdate', 'volumechange', 'waiting']; // We should not delegate these events to the container, but rather
+// set them on the actual target element itself. This is primarily
+// because these events do not consistently bubble in the DOM.
+
+var nonDelegatedEvents = new Set(['beforetoggle', 'cancel', 'close', 'invalid', 'load', 'scroll', 'scrollend', 'toggle'].concat(mediaEventTypes));
+
+function executeDispatch(event, listener, currentTarget) {
+  event.currentTarget = currentTarget;
+
+  try {
+    listener(event);
+  } catch (error) {
+    reportGlobalError(error);
+  }
+
+  event.currentTarget = null;
+}
+
+function processDispatchQueueItemsInOrder(event, dispatchListeners, inCapturePhase) {
+  var previousInstance;
+
+  if (inCapturePhase) {
+    for (var i = dispatchListeners.length - 1; i >= 0; i--) {
+      var _dispatchListeners$i = dispatchListeners[i],
+          instance = _dispatchListeners$i.instance,
+          currentTarget = _dispatchListeners$i.currentTarget,
+          listener = _dispatchListeners$i.listener;
+
+      if (instance !== previousInstance && event.isPropagationStopped()) {
+        return;
+      }
+
+      executeDispatch(event, listener, currentTarget);
+      previousInstance = instance;
+    }
+  } else {
+    for (var _i = 0; _i < dispatchListeners.length; _i++) {
+      var _dispatchListeners$_i = dispatchListeners[_i],
+          _instance = _dispatchListeners$_i.instance,
+          _currentTarget = _dispatchListeners$_i.currentTarget,
+          _listener = _dispatchListeners$_i.listener;
+
+      if (_instance !== previousInstance && event.isPropagationStopped()) {
+        return;
+      }
+
+      executeDispatch(event, _listener, _currentTarget);
+      previousInstance = _instance;
+    }
+  }
+}
+
+function processDispatchQueue(dispatchQueue, eventSystemFlags) {
+  var inCapturePhase = (eventSystemFlags & IS_CAPTURE_PHASE) !== 0;
+
+  for (var i = 0; i < dispatchQueue.length; i++) {
+    var _dispatchQueue$i = dispatchQueue[i],
+        event = _dispatchQueue$i.event,
+        listeners = _dispatchQueue$i.listeners;
+    processDispatchQueueItemsInOrder(event, listeners, inCapturePhase); //  event system doesn't use pooling.
+  }
+}
+
+function dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
+  var nativeEventTarget = getEventTarget(nativeEvent);
+  var dispatchQueue = [];
+  extractEvents(dispatchQueue, domEventName, targetInst, nativeEvent, nativeEventTarget, eventSystemFlags);
+  processDispatchQueue(dispatchQueue, eventSystemFlags);
+}
+
+function listenToNonDelegatedEvent(domEventName, targetElement) {
+  {
+    if (!nonDelegatedEvents.has(domEventName)) {
+      error('Did not expect a listenToNonDelegatedEvent() call for "%s". ' + 'This is a bug in React. Please file an issue.', domEventName);
+    }
+  }
+
+  var isCapturePhaseListener = false;
+  var listenerSet = getEventListenerSet(targetElement);
+  var listenerSetKey = getListenerSetKey(domEventName, isCapturePhaseListener);
+
+  if (!listenerSet.has(listenerSetKey)) {
+    addTrappedEventListener(targetElement, domEventName, IS_NON_DELEGATED, isCapturePhaseListener);
+    listenerSet.add(listenerSetKey);
+  }
+}
+function listenToNativeEvent(domEventName, isCapturePhaseListener, target) {
+  {
+    if (nonDelegatedEvents.has(domEventName) && !isCapturePhaseListener) {
+      error('Did not expect a listenToNativeEvent() call for "%s" in the bubble phase. ' + 'This is a bug in React. Please file an issue.', domEventName);
+    }
+  }
+
+  var eventSystemFlags = 0;
+
+  if (isCapturePhaseListener) {
+    eventSystemFlags |= IS_CAPTURE_PHASE;
+  }
+
+  addTrappedEventListener(target, domEventName, eventSystemFlags, isCapturePhaseListener);
+} // This is only used by createEventHandle when the
+var listeningMarker = '_reactListening' + Math.random().toString(36).slice(2);
+function listenToAllSupportedEvents(rootContainerElement) {
+  if (!rootContainerElement[listeningMarker]) {
+    rootContainerElement[listeningMarker] = true;
+    allNativeEvents.forEach(function (domEventName) {
+      // We handle selectionchange separately because it
+      // doesn't bubble and needs to be on the document.
+      if (domEventName !== 'selectionchange') {
+        if (!nonDelegatedEvents.has(domEventName)) {
+          listenToNativeEvent(domEventName, false, rootContainerElement);
+        }
+
+        listenToNativeEvent(domEventName, true, rootContainerElement);
+      }
+    });
+    var ownerDocument = rootContainerElement.nodeType === DOCUMENT_NODE ? rootContainerElement : rootContainerElement.ownerDocument;
+
+    if (ownerDocument !== null) {
+      // The selectionchange event also needs deduplication
+      // but it is attached to the document.
+      if (!ownerDocument[listeningMarker]) {
+        ownerDocument[listeningMarker] = true;
+        listenToNativeEvent('selectionchange', false, ownerDocument);
+      }
+    }
+  }
+}
+
+function addTrappedEventListener(targetContainer, domEventName, eventSystemFlags, isCapturePhaseListener, isDeferredListenerForLegacyFBSupport) {
+  var listener = createEventListenerWrapperWithPriority(targetContainer, domEventName, eventSystemFlags); // If passive option is not supported, then the event will be
+  // active and not passive.
+
+  var isPassiveListener = undefined;
+
+  if (passiveBrowserEventsSupported) {
+    // Browsers introduced an intervention, making these events
+    // passive by default on document. React doesn't bind them
+    // to document anymore, but changing this now would undo
+    // the performance wins from the change. So we emulate
+    // the existing behavior manually on the roots now.
+    // https://github.com/facebook/react/issues/19651
+    if (domEventName === 'touchstart' || domEventName === 'touchmove' || domEventName === 'wheel') {
+      isPassiveListener = true;
+    }
+  }
+
+  targetContainer = targetContainer;
+
+
+  if (isCapturePhaseListener) {
+    if (isPassiveListener !== undefined) {
+      addEventCaptureListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
+    } else {
+      addEventCaptureListener(targetContainer, domEventName, listener);
+    }
+  } else {
+    if (isPassiveListener !== undefined) {
+      addEventBubbleListenerWithPassiveFlag(targetContainer, domEventName, listener, isPassiveListener);
+    } else {
+      addEventBubbleListener(targetContainer, domEventName, listener);
+    }
+  }
+}
+
+function isMatchingRootContainer(grandContainer, targetContainer) {
+  return grandContainer === targetContainer || grandContainer.nodeType === COMMENT_NODE && grandContainer.parentNode === targetContainer;
+}
+
+function dispatchEventForPluginEventSystem(domEventName, eventSystemFlags, nativeEvent, targetInst, targetContainer) {
+  var ancestorInst = targetInst;
+
+  if ((eventSystemFlags & IS_EVENT_HANDLE_NON_MANAGED_NODE) === 0 && (eventSystemFlags & IS_NON_DELEGATED) === 0) {
+    var targetContainerNode = targetContainer; // If we are using the legacy FB support flag, we
+
+    if (targetInst !== null) {
+      // The below logic attempts to work out if we need to change
+      // the target fiber to a different ancestor. We had similar logic
+      // in the legacy event system, except the big difference between
+      // systems is that the modern event system now has an event listener
+      // attached to each React Root and React Portal Root. Together,
+      // the DOM nodes representing these roots are the "rootContainer".
+      // To figure out which ancestor instance we should use, we traverse
+      // up the fiber tree from the target instance and attempt to find
+      // root boundaries that match that of our current "rootContainer".
+      // If we find that "rootContainer", we find the parent fiber
+      // sub-tree for that root and make that our ancestor instance.
+      var node = targetInst;
+
+      mainLoop: while (true) {
+        if (node === null) {
+          return;
+        }
+
+        var nodeTag = node.tag;
+
+        if (nodeTag === HostRoot || nodeTag === HostPortal) {
+          var container = node.stateNode.containerInfo;
+
+          if (isMatchingRootContainer(container, targetContainerNode)) {
+            break;
+          }
+
+          if (nodeTag === HostPortal) {
+            // The target is a portal, but it's not the rootContainer we're looking for.
+            // Normally portals handle their own events all the way down to the root.
+            // So we should be able to stop now. However, we don't know if this portal
+            // was part of *our* root.
+            var grandNode = node.return;
+
+            while (grandNode !== null) {
+              var grandTag = grandNode.tag;
+
+              if (grandTag === HostRoot || grandTag === HostPortal) {
+                var grandContainer = grandNode.stateNode.containerInfo;
+
+                if (isMatchingRootContainer(grandContainer, targetContainerNode)) {
+                  // This is the rootContainer we're looking for and we found it as
+                  // a parent of the Portal. That means we can ignore it because the
+                  // Portal will bubble through to us.
+                  return;
+                }
+              }
+
+              grandNode = grandNode.return;
+            }
+          } // Now we need to find it's corresponding host fiber in the other
+          // tree. To do this we can use getClosestInstanceFromNode, but we
+          // need to validate that the fiber is a host instance, otherwise
+          // we need to traverse up through the DOM till we find the correct
+          // node that is from the other tree.
+
+
+          while (container !== null) {
+            var parentNode = getClosestInstanceFromNode(container);
+
+            if (parentNode === null) {
+              return;
+            }
+
+            var parentTag = parentNode.tag;
+
+            if (parentTag === HostComponent || parentTag === HostText || parentTag === HostHoistable || parentTag === HostSingleton) {
+              node = ancestorInst = parentNode;
+              continue mainLoop;
+            }
+
+            container = container.parentNode;
+          }
+        }
+
+        node = node.return;
+      }
+    }
+  }
+
+  batchedUpdates$2(function () {
+    return dispatchEventsForPlugins(domEventName, eventSystemFlags, nativeEvent, ancestorInst);
+  });
+}
+
+function createDispatchListener(instance, listener, currentTarget) {
+  return {
+    instance: instance,
+    listener: listener,
+    currentTarget: currentTarget
+  };
+}
+
+function accumulateSinglePhaseListeners(targetFiber, reactName, nativeEventType, inCapturePhase, accumulateTargetOnly, nativeEvent) {
+  var captureName = reactName !== null ? reactName + 'Capture' : null;
+  var reactEventName = inCapturePhase ? captureName : reactName;
+  var listeners = [];
+  var instance = targetFiber;
+  var lastHostComponent = null; // Accumulate all instances and listeners via the target -> root path.
+
+  while (instance !== null) {
+    var _instance2 = instance,
+        stateNode = _instance2.stateNode,
+        tag = _instance2.tag; // Handle listeners that are on HostComponents (i.e. <div>)
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
+      lastHostComponent = stateNode; // createEventHandle listeners
+
+
+      if (reactEventName !== null) {
+        var listener = getListener(instance, reactEventName);
+
+        if (listener != null) {
+          listeners.push(createDispatchListener(instance, listener, lastHostComponent));
+        }
+      }
+    } // If we are only accumulating events for the target, then we don't
+    // continue to propagate through the React fiber tree to find other
+    // listeners.
+
+
+    if (accumulateTargetOnly) {
+      break;
+    } // If we are processing the onBeforeBlur event, then we need to take
+
+    instance = instance.return;
+  }
+
+  return listeners;
+} // We should only use this function for:
+// - BeforeInputEventPlugin
+// - ChangeEventPlugin
+// - SelectEventPlugin
+// This is because we only process these plugins
+// in the bubble phase, so we need to accumulate two
+// phase event listeners (via emulation).
+
+function accumulateTwoPhaseListeners(targetFiber, reactName) {
+  var captureName = reactName + 'Capture';
+  var listeners = [];
+  var instance = targetFiber; // Accumulate all instances and listeners via the target -> root path.
+
+  while (instance !== null) {
+    var _instance3 = instance,
+        stateNode = _instance3.stateNode,
+        tag = _instance3.tag; // Handle listeners that are on HostComponents (i.e. <div>)
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
+      var currentTarget = stateNode;
+      var captureListener = getListener(instance, captureName);
+
+      if (captureListener != null) {
+        listeners.unshift(createDispatchListener(instance, captureListener, currentTarget));
+      }
+
+      var bubbleListener = getListener(instance, reactName);
+
+      if (bubbleListener != null) {
+        listeners.push(createDispatchListener(instance, bubbleListener, currentTarget));
+      }
+    }
+
+    instance = instance.return;
+  }
+
+  return listeners;
+}
+
+function getParent(inst) {
+  if (inst === null) {
+    return null;
+  }
+
+  do {
+    // $FlowFixMe[incompatible-use] found when upgrading Flow
+    inst = inst.return; // TODO: If this is a HostRoot we might want to bail out.
+    // That is depending on if we want nested subtrees (layers) to bubble
+    // events to their parent. We could also go through parentNode on the
+    // host node but that wouldn't work for React Native and doesn't let us
+    // do the portal feature.
+  } while (inst && inst.tag !== HostComponent && inst.tag !== HostSingleton);
+
+  if (inst) {
+    return inst;
+  }
+
+  return null;
+}
+/**
+ * Return the lowest common ancestor of A and B, or null if they are in
+ * different trees.
+ */
+
+
+function getLowestCommonAncestor(instA, instB) {
+  var nodeA = instA;
+  var nodeB = instB;
+  var depthA = 0;
+
+  for (var tempA = nodeA; tempA; tempA = getParent(tempA)) {
+    depthA++;
+  }
+
+  var depthB = 0;
+
+  for (var tempB = nodeB; tempB; tempB = getParent(tempB)) {
+    depthB++;
+  } // If A is deeper, crawl up.
+
+
+  while (depthA - depthB > 0) {
+    nodeA = getParent(nodeA);
+    depthA--;
+  } // If B is deeper, crawl up.
+
+
+  while (depthB - depthA > 0) {
+    nodeB = getParent(nodeB);
+    depthB--;
+  } // Walk in lockstep until we find a match.
+
+
+  var depth = depthA;
+
+  while (depth--) {
+    if (nodeA === nodeB || nodeB !== null && nodeA === nodeB.alternate) {
+      return nodeA;
+    }
+
+    nodeA = getParent(nodeA);
+    nodeB = getParent(nodeB);
+  }
+
+  return null;
+}
+
+function accumulateEnterLeaveListenersForEvent(dispatchQueue, event, target, common, inCapturePhase) {
+  var registrationName = event._reactName;
+  var listeners = [];
+  var instance = target;
+
+  while (instance !== null) {
+    if (instance === common) {
+      break;
+    }
+
+    var _instance4 = instance,
+        alternate = _instance4.alternate,
+        stateNode = _instance4.stateNode,
+        tag = _instance4.tag;
+
+    if (alternate !== null && alternate === common) {
+      break;
+    }
+
+    if ((tag === HostComponent || tag === HostHoistable || tag === HostSingleton) && stateNode !== null) {
+      var currentTarget = stateNode;
+
+      if (inCapturePhase) {
+        var captureListener = getListener(instance, registrationName);
+
+        if (captureListener != null) {
+          listeners.unshift(createDispatchListener(instance, captureListener, currentTarget));
+        }
+      } else if (!inCapturePhase) {
+        var bubbleListener = getListener(instance, registrationName);
+
+        if (bubbleListener != null) {
+          listeners.push(createDispatchListener(instance, bubbleListener, currentTarget));
+        }
+      }
+    }
+
+    instance = instance.return;
+  }
+
+  if (listeners.length !== 0) {
+    dispatchQueue.push({
+      event: event,
+      listeners: listeners
+    });
+  }
+} // We should only use this function for:
+// - EnterLeaveEventPlugin
+// This is because we only process this plugin
+// in the bubble phase, so we need to accumulate two
+// phase event listeners.
+
+
+function accumulateEnterLeaveTwoPhaseListeners(dispatchQueue, leaveEvent, enterEvent, from, to) {
+  var common = from && to ? getLowestCommonAncestor(from, to) : null;
+
+  if (from !== null) {
+    accumulateEnterLeaveListenersForEvent(dispatchQueue, leaveEvent, from, common, false);
+  }
+
+  if (to !== null && enterEvent !== null) {
+    accumulateEnterLeaveListenersForEvent(dispatchQueue, enterEvent, to, common, true);
+  }
+}
+function getListenerSetKey(domEventName, capture) {
+  return domEventName + "__" + (capture ? 'capture' : 'bubble');
+}
+
+var didWarnControlledToUncontrolled = false;
+var didWarnUncontrolledToControlled = false;
+var didWarnFormActionType = false;
+var didWarnFormActionName = false;
+var didWarnFormActionTarget = false;
+var didWarnFormActionMethod = false;
+var didWarnForNewBooleanPropsWithEmptyValue;
+var didWarnPopoverTargetObject = false;
+var canDiffStyleForHydrationWarning;
+
+{
+  didWarnForNewBooleanPropsWithEmptyValue = {}; // IE 11 parses & normalizes the style attribute as opposed to other
+  // browsers. It adds spaces and sorts the properties in some
+  // non-alphabetical order. Handling that would require sorting CSS
+  // properties in the client & server versions or applying
+  // `expectedStyle` to a temporary DOM node to read its `style` attribute
+  // normalized. Since it only affects IE, we're skipping style warnings
+  // in that browser completely in favor of doing all that work.
+  // See https://github.com/facebook/react/issues/11807
+
+  canDiffStyleForHydrationWarning = disableIEWorkarounds ;
+}
+
+function validatePropertiesInDevelopment(type, props) {
+  {
+    validateProperties$2(type, props);
+    validateProperties$1(type, props);
+    validateProperties(type, props, {
+      registrationNameDependencies: registrationNameDependencies,
+      possibleRegistrationNames: possibleRegistrationNames
+    });
+
+    if (props.contentEditable && !props.suppressContentEditableWarning && props.children != null) {
+      error('A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.');
+    }
+  }
+}
+
+function validateFormActionInDevelopment(tag, key, value, props) {
+  {
+    if (value == null) {
+      return;
+    }
+
+    if (tag === 'form') {
+      if (key === 'formAction') {
+        error('You can only pass the formAction prop to <input> or <button>. Use the action prop on <form>.');
+      } else if (typeof value === 'function') {
+        if ((props.encType != null || props.method != null) && !didWarnFormActionMethod) {
+          didWarnFormActionMethod = true;
+
+          error('Cannot specify a encType or method for a form that specifies a ' + 'function as the action. React provides those automatically. ' + 'They will get overridden.');
+        }
+
+        if (props.target != null && !didWarnFormActionTarget) {
+          didWarnFormActionTarget = true;
+
+          error('Cannot specify a target for a form that specifies a function as the action. ' + 'The function will always be executed in the same window.');
+        }
+      }
+    } else if (tag === 'input' || tag === 'button') {
+      if (key === 'action') {
+        error('You can only pass the action prop to <form>. Use the formAction prop on <input> or <button>.');
+      } else if (tag === 'input' && props.type !== 'submit' && props.type !== 'image' && !didWarnFormActionType) {
+        didWarnFormActionType = true;
+
+        error('An input can only specify a formAction along with type="submit" or type="image".');
+      } else if (tag === 'button' && props.type != null && props.type !== 'submit' && !didWarnFormActionType) {
+        didWarnFormActionType = true;
+
+        error('A button can only specify a formAction along with type="submit" or no type.');
+      } else if (typeof value === 'function') {
+        // Function form actions cannot control the form properties
+        if (props.name != null && !didWarnFormActionName) {
+          didWarnFormActionName = true;
+
+          error('Cannot specify a "name" prop for a button that specifies a function as a formAction. ' + 'React needs it to encode which action should be invoked. It will get overridden.');
+        }
+
+        if ((props.formEncType != null || props.formMethod != null) && !didWarnFormActionMethod) {
+          didWarnFormActionMethod = true;
+
+          error('Cannot specify a formEncType or formMethod for a button that specifies a ' + 'function as a formAction. React provides those automatically. They will get overridden.');
+        }
+
+        if (props.formTarget != null && !didWarnFormActionTarget) {
+          didWarnFormActionTarget = true;
+
+          error('Cannot specify a formTarget for a button that specifies a function as a formAction. ' + 'The function will always be executed in the same window.');
+        }
+      }
+    } else {
+      if (key === 'action') {
+        error('You can only pass the action prop to <form>.');
+      } else {
+        error('You can only pass the formAction prop to <input> or <button>.');
+      }
+    }
+  }
+}
+
+function warnForPropDifference(propName, serverValue, clientValue, serverDifferences) {
+  {
+    if (serverValue === clientValue) {
+      return;
+    }
+
+    var normalizedClientValue = normalizeMarkupForTextOrAttribute(clientValue);
+    var normalizedServerValue = normalizeMarkupForTextOrAttribute(serverValue);
+
+    if (normalizedServerValue === normalizedClientValue) {
+      return;
+    }
+
+    serverDifferences[propName] = serverValue;
+  }
+}
+
+function warnForExtraAttributes(domElement, attributeNames, serverDifferences) {
+  {
+    attributeNames.forEach(function (attributeName) {
+      serverDifferences[getPropNameFromAttributeName(attributeName)] = attributeName === 'style' ? getStylesObjectFromElement(domElement) : domElement.getAttribute(attributeName);
+    });
+  }
+}
+
+function warnForInvalidEventListener(registrationName, listener) {
+  {
+    if (listener === false) {
+      error('Expected `%s` listener to be a function, instead got `false`.\n\n' + 'If you used to conditionally omit it with %s={condition && value}, ' + 'pass %s={condition ? value : undefined} instead.', registrationName, registrationName, registrationName);
+    } else {
+      error('Expected `%s` listener to be a function, instead got a value of `%s` type.', registrationName, typeof listener);
+    }
+  }
+} // Parse the HTML and read it back to normalize the HTML string so that it
+// can be used for comparison.
+
+
+function normalizeHTML(parent, html) {
+  {
+    // We could have created a separate document here to avoid
+    // re-initializing custom elements if they exist. But this breaks
+    // how <noscript> is being handled. So we use the same document.
+    // See the discussion in https://github.com/facebook/react/pull/11157.
+    var testElement = parent.namespaceURI === MATH_NAMESPACE || parent.namespaceURI === SVG_NAMESPACE ? parent.ownerDocument.createElementNS(parent.namespaceURI, parent.tagName) : parent.ownerDocument.createElement(parent.tagName);
+    testElement.innerHTML = html;
+    return testElement.innerHTML;
+  }
+} // HTML parsing normalizes CR and CRLF to LF.
+// It also can turn \u0000 into \uFFFD inside attributes.
+// https://www.w3.org/TR/html5/single-page.html#preprocessing-the-input-stream
+// If we have a mismatch, it might be caused by that.
+// We will still patch up in this case but not fire the warning.
+
+
+var NORMALIZE_NEWLINES_REGEX = /\r\n?/g;
+var NORMALIZE_NULL_AND_REPLACEMENT_REGEX = /\u0000|\uFFFD/g;
+
+function normalizeMarkupForTextOrAttribute(markup) {
+  {
+    checkHtmlStringCoercion(markup);
+  }
+
+  var markupString = typeof markup === 'string' ? markup : '' + markup;
+  return markupString.replace(NORMALIZE_NEWLINES_REGEX, '\n').replace(NORMALIZE_NULL_AND_REPLACEMENT_REGEX, '');
+}
+
+function checkForUnmatchedText(serverText, clientText) {
+  var normalizedClientText = normalizeMarkupForTextOrAttribute(clientText);
+  var normalizedServerText = normalizeMarkupForTextOrAttribute(serverText);
+
+  if (normalizedServerText === normalizedClientText) {
+    return true;
+  }
+
+  return false;
+}
+
+function noop$2() {}
+
+function trapClickOnNonInteractiveElement(node) {
+  // Mobile Safari does not fire properly bubble click events on
+  // non-interactive elements, which means delegated click listeners do not
+  // fire. The workaround for this bug involves attaching an empty click
+  // listener on the target node.
+  // https://www.quirksmode.org/blog/archives/2010/09/click_event_del.html
+  // Just set it using the onclick property so that we don't have to manage any
+  // bookkeeping for it. Not sure if we need to clear it when the listener is
+  // removed.
+  // TODO: Only do this for the relevant Safaris maybe?
+  node.onclick = noop$2;
+}
+var xlinkNamespace = 'http://www.w3.org/1999/xlink';
+var xmlNamespace = 'http://www.w3.org/XML/1998/namespace';
+
+function setProp(domElement, tag, key, value, props, prevValue) {
+  switch (key) {
+    case 'children':
+      {
+        if (typeof value === 'string') {
+          {
+            validateTextNesting(value, tag);
+          } // Avoid setting initial textContent when the text is empty. In IE11 setting
+          // textContent on a <textarea> will cause the placeholder to not
+          // show within the <textarea> until it has been focused and blurred again.
+          // https://github.com/facebook/react/issues/6731#issuecomment-254874553
+
+
+          var canSetTextContent = tag !== 'body' && (tag !== 'textarea' || value !== '');
+
+          if (canSetTextContent) {
+            setTextContent(domElement, value);
+          }
+        } else if (typeof value === 'number' || typeof value === 'bigint') {
+          {
+            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+            validateTextNesting('' + value, tag);
+          }
+
+          var _canSetTextContent = tag !== 'body';
+
+          if (_canSetTextContent) {
+            // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+            setTextContent(domElement, '' + value);
+          }
+        }
+
+        break;
+      }
+    // These are very common props and therefore are in the beginning of the switch.
+    // TODO: aria-label is a very common prop but allows booleans so is not like the others
+    // but should ideally go in this list too.
+
+    case 'className':
+      setValueForKnownAttribute(domElement, 'class', value);
+      break;
+
+    case 'tabIndex':
+      // This has to be case sensitive in SVG.
+      setValueForKnownAttribute(domElement, 'tabindex', value);
+      break;
+
+    case 'dir':
+    case 'role':
+    case 'viewBox':
+    case 'width':
+    case 'height':
+      {
+        setValueForKnownAttribute(domElement, key, value);
+        break;
+      }
+
+    case 'style':
+      {
+        setValueForStyles(domElement, value, prevValue);
+        break;
+      }
+    // These attributes accept URLs. These must not allow javascript: URLS.
+
+    case 'src':
+    case 'href':
+      {
+        {
+          if (value === '' && // <a href=""> is fine for "reload" links.
+          !(tag === 'a' && key === 'href')) {
+            {
+              if (key === 'src') {
+                error('An empty string ("") was passed to the %s attribute. ' + 'This may cause the browser to download the whole page again over the network. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', key, key);
+              } else {
+                error('An empty string ("") was passed to the %s attribute. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', key, key);
+              }
+            }
+
+            domElement.removeAttribute(key);
+            break;
+          }
+        }
+
+        if (value == null || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var sanitizedValue = sanitizeURL('' + value);
+        domElement.setAttribute(key, sanitizedValue);
+        break;
+      }
+
+    case 'action':
+    case 'formAction':
+      {
+        // TODO: Consider moving these special cases to the form, input and button tags.
+        {
+          validateFormActionInDevelopment(tag, key, value, props);
+        }
+
+        if (typeof value === 'function') {
+          // Set a javascript URL that doesn't do anything. We don't expect this to be invoked
+          // because we'll preventDefault, but it can happen if a form is manually submitted or
+          // if someone calls stopPropagation before React gets the event.
+          // If CSP is used to block javascript: URLs that's fine too. It just won't show this
+          // error message but the URL will be logged.
+          domElement.setAttribute(key, // eslint-disable-next-line no-script-url
+          "javascript:throw new Error('" + 'A React form was unexpectedly submitted. If you called form.submit() manually, ' + "consider using form.requestSubmit() instead. If you\\'re trying to use " + 'event.stopPropagation() in a submit event handler, consider also calling ' + 'event.preventDefault().' + "')");
+          break;
+        } else if (typeof prevValue === 'function') {
+          // When we're switching off a Server Action that was originally hydrated.
+          // The server control these fields during SSR that are now trailing.
+          // The regular diffing doesn't apply since we compare against the previous props.
+          // Instead, we need to force them to be set to whatever they should be now.
+          // This would be a lot cleaner if we did this whole fork in the per-tag approach.
+          if (key === 'formAction') {
+            if (tag !== 'input') {
+              // Setting the name here isn't completely safe for inputs if this is switching
+              // to become a radio button. In that case we let the tag based override take
+              // control.
+              setProp(domElement, tag, 'name', props.name, props, null);
+            }
+
+            setProp(domElement, tag, 'formEncType', props.formEncType, props, null);
+            setProp(domElement, tag, 'formMethod', props.formMethod, props, null);
+            setProp(domElement, tag, 'formTarget', props.formTarget, props, null);
+          } else {
+            setProp(domElement, tag, 'encType', props.encType, props, null);
+            setProp(domElement, tag, 'method', props.method, props, null);
+            setProp(domElement, tag, 'target', props.target, props, null);
+          }
+        }
+
+        if (value == null || typeof value === 'symbol' || typeof value === 'boolean') {
+          domElement.removeAttribute(key);
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var _sanitizedValue = sanitizeURL('' + value);
+
+        domElement.setAttribute(key, _sanitizedValue);
+        break;
+      }
+
+    case 'onClick':
+      {
+        // TODO: This cast may not be sound for SVG, MathML or custom elements.
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          trapClickOnNonInteractiveElement(domElement);
+        }
+
+        break;
+      }
+
+    case 'onScroll':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'onScrollEnd':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scrollend', domElement);
+        }
+
+        break;
+      }
+
+    case 'dangerouslySetInnerHTML':
+      {
+        if (value != null) {
+          if (typeof value !== 'object' || !('__html' in value)) {
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
+          }
+
+          var nextHtml = value.__html;
+
+          if (nextHtml != null) {
+            if (props.children != null) {
+              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+            }
+
+            {
+              domElement.innerHTML = nextHtml;
+            }
+          }
+        }
+
+        break;
+      }
+    // Note: `option.selected` is not updated if `select.multiple` is
+    // disabled with `removeAttribute`. We have special logic for handling this.
+
+    case 'multiple':
+      {
+        domElement.multiple = value && typeof value !== 'function' && typeof value !== 'symbol';
+        break;
+      }
+
+    case 'muted':
+      {
+        domElement.muted = value && typeof value !== 'function' && typeof value !== 'symbol';
+        break;
+      }
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+    case 'defaultValue': // Reserved
+
+    case 'defaultChecked':
+    case 'innerHTML':
+    case 'ref':
+      {
+        // TODO: `ref` is pretty common, should we move it up?
+        // Noop
+        break;
+      }
+
+    case 'autoFocus':
+      {
+        // We polyfill it separately on the client during commit.
+        // We could have excluded it in the property list instead of
+        // adding a special case here, but then it wouldn't be emitted
+        // on server rendering (but we *do* want to emit it in SSR).
+        break;
+      }
+
+    case 'xlinkHref':
+      {
+        if (value == null || typeof value === 'function' || typeof value === 'boolean' || typeof value === 'symbol') {
+          domElement.removeAttribute('xlink:href');
+          break;
+        } // `setAttribute` with objects becomes only `[object]` in IE8/9,
+        // ('' + value) makes it output the correct toString()-value.
+
+
+        {
+          checkAttributeStringCoercion(value, key);
+        }
+
+        var _sanitizedValue2 = sanitizeURL('' + value);
+
+        domElement.setAttributeNS(xlinkNamespace, 'xlink:href', _sanitizedValue2);
+        break;
+      }
+
+    case 'contentEditable':
+    case 'spellCheck':
+    case 'draggable':
+    case 'value':
+    case 'autoReverse':
+    case 'externalResourcesRequired':
+    case 'focusable':
+    case 'preserveAlpha':
+      {
+        // Booleanish String
+        // These are "enumerated" attributes that accept "true" and "false".
+        // In React, we let users pass `true` and `false` even though technically
+        // these aren't boolean attributes (they are coerced to strings).
+        // The SVG attributes are case-sensitive. Since the HTML attributes are
+        // insensitive they also work even though we canonically use lower case.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, '' + value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Boolean
+
+    case 'inert':
+      {
+        {
+          if (value === '' && !didWarnForNewBooleanPropsWithEmptyValue[key]) {
+            didWarnForNewBooleanPropsWithEmptyValue[key] = true;
+
+            error('Received an empty string for a boolean attribute `%s`. ' + 'This will treat the attribute as if it were false. ' + 'Either pass `false` to silence this warning, or ' + 'pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true.', key);
+          }
+        }
+      }
+    // Fallthrough for boolean props that don't have a warning for empty strings.
+
+    case 'allowFullScreen':
+    case 'async':
+    case 'autoPlay':
+    case 'controls':
+    case 'default':
+    case 'defer':
+    case 'disabled':
+    case 'disablePictureInPicture':
+    case 'disableRemotePlayback':
+    case 'formNoValidate':
+    case 'hidden':
+    case 'loop':
+    case 'noModule':
+    case 'noValidate':
+    case 'open':
+    case 'playsInline':
+    case 'readOnly':
+    case 'required':
+    case 'reversed':
+    case 'scoped':
+    case 'seamless':
+    case 'itemScope':
+      {
+        if (value && typeof value !== 'function' && typeof value !== 'symbol') {
+          domElement.setAttribute(key, '');
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+    // Overloaded Boolean
+
+    case 'capture':
+    case 'download':
+      {
+        // An attribute that can be used as a flag as well as with a value.
+        // When true, it should be present (set either to an empty string or its name).
+        // When false, it should be omitted.
+        // For any other value, should be present with that value.
+        if (value === true) {
+          domElement.setAttribute(key, '');
+        } else if (value !== false && value != null && typeof value !== 'function' && typeof value !== 'symbol') {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'cols':
+    case 'rows':
+    case 'size':
+    case 'span':
+      {
+        // These are HTML attributes that must be positive numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value) && value >= 1) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'rowSpan':
+    case 'start':
+      {
+        // These are HTML attributes that must be numbers.
+        if (value != null && typeof value !== 'function' && typeof value !== 'symbol' && !isNaN(value)) {
+          {
+            checkAttributeStringCoercion(value, key);
+          }
+
+          domElement.setAttribute(key, value);
+        } else {
+          domElement.removeAttribute(key);
+        }
+
+        break;
+      }
+
+    case 'popover':
+      listenToNonDelegatedEvent('beforetoggle', domElement);
+      listenToNonDelegatedEvent('toggle', domElement);
+      setValueForAttribute(domElement, 'popover', value);
+      break;
+
+    case 'xlinkActuate':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:actuate', value);
+      break;
+
+    case 'xlinkArcrole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:arcrole', value);
+      break;
+
+    case 'xlinkRole':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:role', value);
+      break;
+
+    case 'xlinkShow':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:show', value);
+      break;
+
+    case 'xlinkTitle':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:title', value);
+      break;
+
+    case 'xlinkType':
+      setValueForNamespacedAttribute(domElement, xlinkNamespace, 'xlink:type', value);
+      break;
+
+    case 'xmlBase':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:base', value);
+      break;
+
+    case 'xmlLang':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:lang', value);
+      break;
+
+    case 'xmlSpace':
+      setValueForNamespacedAttribute(domElement, xmlNamespace, 'xml:space', value);
+      break;
+    // Properties that should not be allowed on custom elements.
+
+    case 'is':
+      {
+        {
+          if (prevValue != null) {
+            error('Cannot update the "is" prop after it has been initialized.');
+          }
+        } // TODO: We shouldn't actually set this attribute, because we've already
+        // passed it to createElement. We don't also need the attribute.
+        // However, our tests currently query for it so it's plausible someone
+        // else does too so it's break.
+
+
+        setValueForAttribute(domElement, 'is', value);
+        break;
+      }
+
+    case 'innerText':
+    case 'textContent':
+      break;
+
+    case 'popoverTarget':
+      {
+        if (!didWarnPopoverTargetObject && value != null && typeof value === 'object') {
+          didWarnPopoverTargetObject = true;
+
+          error('The `popoverTarget` prop expects the ID of an Element as a string. Received %s instead.', value);
+        }
+      }
+
+    // Fall through
+
+    default:
+      {
+        if (key.length > 2 && (key[0] === 'o' || key[0] === 'O') && (key[1] === 'n' || key[1] === 'N')) {
+          if (registrationNameDependencies.hasOwnProperty(key) && value != null && typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+        } else {
+          var attributeName = getAttributeAlias(key);
+          setValueForAttribute(domElement, attributeName, value);
+        }
+      }
+  }
+}
+
+function setPropOnCustomElement(domElement, tag, key, value, props, prevValue) {
+  switch (key) {
+    case 'style':
+      {
+        setValueForStyles(domElement, value, prevValue);
+        break;
+      }
+
+    case 'dangerouslySetInnerHTML':
+      {
+        if (value != null) {
+          if (typeof value !== 'object' || !('__html' in value)) {
+            throw new Error('`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://react.dev/link/dangerously-set-inner-html ' + 'for more information.');
+          }
+
+          var nextHtml = value.__html;
+
+          if (nextHtml != null) {
+            if (props.children != null) {
+              throw new Error('Can only set one of `children` or `props.dangerouslySetInnerHTML`.');
+            }
+
+            {
+              domElement.innerHTML = nextHtml;
+            }
+          }
+        }
+
+        break;
+      }
+
+    case 'children':
+      {
+        if (typeof value === 'string') {
+          setTextContent(domElement, value);
+        } else if (typeof value === 'number' || typeof value === 'bigint') {
+          // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+          setTextContent(domElement, '' + value);
+        }
+
+        break;
+      }
+
+    case 'onScroll':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scroll', domElement);
+        }
+
+        break;
+      }
+
+    case 'onScrollEnd':
+      {
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          listenToNonDelegatedEvent('scrollend', domElement);
+        }
+
+        break;
+      }
+
+    case 'onClick':
+      {
+        // TODO: This cast may not be sound for SVG, MathML or custom elements.
+        if (value != null) {
+          if (typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+
+          trapClickOnNonInteractiveElement(domElement);
+        }
+
+        break;
+      }
+
+    case 'suppressContentEditableWarning':
+    case 'suppressHydrationWarning':
+    case 'innerHTML':
+    case 'ref':
+      {
+        // Noop
+        break;
+      }
+
+    case 'innerText': // Properties
+
+    case 'textContent':
+      break;
+    // Fall through
+
+    default:
+      {
+        if (registrationNameDependencies.hasOwnProperty(key)) {
+          if (value != null && typeof value !== 'function') {
+            warnForInvalidEventListener(key, value);
+          }
+        } else {
+          setValueForPropertyOnCustomComponent(domElement, key, value);
+        }
+      }
+  }
+}
+
+function setInitialProperties(domElement, tag, props) {
+  {
+    validatePropertiesInDevelopment(tag, props);
+  } // TODO: Make sure that we check isMounted before firing any of these events.
+
+
+  switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
+    case 'input':
+      {
+        {
+          checkControlledValueProps('input', props);
+        } // We listen to this event in case to ensure emulated bubble
+        // listeners still fire for the invalid event.
+
+
+        listenToNonDelegatedEvent('invalid', domElement);
+        var name = null;
+        var type = null;
+        var value = null;
+        var defaultValue = null;
+        var checked = null;
+        var defaultChecked = null;
+
+        for (var propKey in props) {
+          if (!props.hasOwnProperty(propKey)) {
+            continue;
+          }
+
+          var propValue = props[propKey];
+
+          if (propValue == null) {
+            continue;
+          }
+
+          switch (propKey) {
+            case 'name':
+              {
+                name = propValue;
+                break;
+              }
+
+            case 'type':
+              {
+                type = propValue;
+                break;
+              }
+
+            case 'checked':
+              {
+                checked = propValue;
+                break;
+              }
+
+            case 'defaultChecked':
+              {
+                defaultChecked = propValue;
+                break;
+              }
+
+            case 'value':
+              {
+                value = propValue;
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                defaultValue = propValue;
+                break;
+              }
+
+            case 'children':
+            case 'dangerouslySetInnerHTML':
+              {
+                if (propValue != null) {
+                  throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+                }
+
+                break;
+              }
+
+            default:
+              {
+                setProp(domElement, tag, propKey, propValue, props, null);
+              }
+          }
+        } // TODO: Make sure we check if this is still unmounted or do any clean
+        // up necessary since we never stop tracking anymore.
+
+
+        validateInputProps(domElement, props);
+        initInput(domElement, value, defaultValue, checked, defaultChecked, type, name, false);
+        track(domElement);
+        return;
+      }
+
+    case 'select':
+      {
+        {
+          checkControlledValueProps('select', props);
+        } // We listen to this event in case to ensure emulated bubble
+        // listeners still fire for the invalid event.
+
+
+        listenToNonDelegatedEvent('invalid', domElement);
+        var _value = null;
+        var _defaultValue = null;
+        var multiple = null;
+
+        for (var _propKey in props) {
+          if (!props.hasOwnProperty(_propKey)) {
+            continue;
+          }
+
+          var _propValue = props[_propKey];
+
+          if (_propValue == null) {
+            continue;
+          }
+
+          switch (_propKey) {
+            case 'value':
+              {
+                _value = _propValue; // This is handled by initSelect below.
+
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                _defaultValue = _propValue; // This is handled by initSelect below.
+
+                break;
+              }
+
+            case 'multiple':
+              {
+                multiple = _propValue; // TODO: We don't actually have to fall through here because we set it
+                // in initSelect anyway. We can remove the special case in setProp.
+              }
+            // Fallthrough
+
+            default:
+              {
+                setProp(domElement, tag, _propKey, _propValue, props, null);
+              }
+          }
+        }
+
+        validateSelectProps(domElement, props);
+        initSelect(domElement, _value, _defaultValue, multiple);
+        return;
+      }
+
+    case 'textarea':
+      {
+        {
+          checkControlledValueProps('textarea', props);
+        } // We listen to this event in case to ensure emulated bubble
+        // listeners still fire for the invalid event.
+
+
+        listenToNonDelegatedEvent('invalid', domElement);
+        var _value2 = null;
+        var _defaultValue2 = null;
+        var children = null;
+
+        for (var _propKey2 in props) {
+          if (!props.hasOwnProperty(_propKey2)) {
+            continue;
+          }
+
+          var _propValue2 = props[_propKey2];
+
+          if (_propValue2 == null) {
+            continue;
+          }
+
+          switch (_propKey2) {
+            case 'value':
+              {
+                _value2 = _propValue2; // This is handled by initTextarea below.
+
+                break;
+              }
+
+            case 'defaultValue':
+              {
+                _defaultValue2 = _propValue2;
+                break;
+              }
+
+            case 'children':
+              {
+                children = _propValue2; // Handled by initTextarea above.
+
+                break;
+              }
+
+            case 'dangerouslySetInnerHTML':
+              {
+                if (_propValue2 != null) {
+                  // TODO: Do we really need a special error message for this. It's also pretty blunt.
+                  throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+                }
+
+                break;
+              }
+
+            default:
+              {
+                setProp(domElement, tag, _propKey2, _propValue2, props, null);
+              }
+          }
+        } // TODO: Make sure we check if this is still unmounted or do any clean
+        // up necessary since we never stop tracking anymore.
+
+
+        validateTextareaProps(domElement, props);
+        initTextarea(domElement, _value2, _defaultValue2, children);
+        track(domElement);
+        return;
+      }
+
+    case 'option':
+      {
+        validateOptionProps(domElement, props);
+
+        for (var _propKey3 in props) {
+          if (!props.hasOwnProperty(_propKey3)) {
+            continue;
+          }
+
+          var _propValue3 = props[_propKey3];
+
+          if (_propValue3 == null) {
+            continue;
+          }
+
+          switch (_propKey3) {
+            case 'selected':
+              {
+                // TODO: Remove support for selected on option.
+                domElement.selected = _propValue3 && typeof _propValue3 !== 'function' && typeof _propValue3 !== 'symbol';
+                break;
+              }
+
+            default:
+              {
+                setProp(domElement, tag, _propKey3, _propValue3, props, null);
+              }
+          }
+        }
+
+        return;
+      }
+
+    case 'dialog':
+      {
+        listenToNonDelegatedEvent('cancel', domElement);
+        listenToNonDelegatedEvent('close', domElement);
+        break;
+      }
+
+    case 'iframe':
+    case 'object':
+      {
+        // We listen to this event in case to ensure emulated bubble
+        // listeners still fire for the load event.
+        listenToNonDelegatedEvent('load', domElement);
+        break;
+      }
+
+    case 'video':
+    case 'audio':
+      {
+        // We listen to these events in case to ensure emulated bubble
+        // listeners still fire for all the media events.
+        for (var i = 0; i < mediaEventTypes.length; i++) {
+          listenToNonDelegatedEvent(mediaEventTypes[i], domElement);
+        }
+
+        break;
+      }
+
+    case 'image':
+      {
+        // We listen to these events in case to ensure emulated bubble
+        // listeners still fire for error and load events.
+        listenToNonDelegatedEvent('error', domElement);
+        listenToNonDelegatedEvent('load', domElement);
+        break;
+      }
+
+    case 'details':
+      {
+        // We listen to this event in case to ensure emulated bubble
+        // listeners still fire for the toggle event.
+        listenToNonDelegatedEvent('toggle', domElement);
+        break;
+      }
+
+    case 'embed':
+    case 'source':
+    case 'img':
+    case 'link':
+      {
+        // These are void elements that also need delegated events.
+        listenToNonDelegatedEvent('error', domElement);
+        listenToNonDelegatedEvent('load', domElement); // We fallthrough to the return of the void elements
+      }
+
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'hr':
+    case 'keygen':
+    case 'meta':
+    case 'param':
+    case 'track':
+    case 'wbr':
+    case 'menuitem':
+      {
+        // Void elements
+        for (var _propKey4 in props) {
+          if (!props.hasOwnProperty(_propKey4)) {
+            continue;
+          }
+
+          var _propValue4 = props[_propKey4];
+
+          if (_propValue4 == null) {
+            continue;
+          }
+
+          switch (_propKey4) {
+            case 'children':
+            case 'dangerouslySetInnerHTML':
+              {
+                // TODO: Can we make this a DEV warning to avoid this deny list?
+                throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+              }
+            // defaultChecked and defaultValue are ignored by setProp
+
+            default:
+              {
+                setProp(domElement, tag, _propKey4, _propValue4, props, null);
+              }
+          }
+        }
+
+        return;
+      }
+
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _propKey5 in props) {
+            if (!props.hasOwnProperty(_propKey5)) {
+              continue;
+            }
+
+            var _propValue5 = props[_propKey5];
+
+            if (_propValue5 === undefined) {
+              continue;
+            }
+
+            setPropOnCustomElement(domElement, tag, _propKey5, _propValue5, props, undefined);
+          }
+
+          return;
+        }
+      }
+  }
+
+  for (var _propKey6 in props) {
+    if (!props.hasOwnProperty(_propKey6)) {
+      continue;
+    }
+
+    var _propValue6 = props[_propKey6];
+
+    if (_propValue6 == null) {
+      continue;
+    }
+
+    setProp(domElement, tag, _propKey6, _propValue6, props, null);
+  }
+}
+function updateProperties(domElement, tag, lastProps, nextProps) {
+  {
+    validatePropertiesInDevelopment(tag, nextProps);
+  }
+
+  switch (tag) {
+    case 'div':
+    case 'span':
+    case 'svg':
+    case 'path':
+    case 'a':
+    case 'g':
+    case 'p':
+    case 'li':
+      {
+        // Fast track the most common tag types
+        break;
+      }
+
+    case 'input':
+      {
+        var name = null;
+        var type = null;
+        var value = null;
+        var defaultValue = null;
+        var lastDefaultValue = null;
+        var checked = null;
+        var defaultChecked = null;
+
+        for (var propKey in lastProps) {
+          var lastProp = lastProps[propKey];
+
+          if (lastProps.hasOwnProperty(propKey) && lastProp != null) {
+            switch (propKey) {
+              case 'checked':
+                {
+                  break;
+                }
+
+              case 'value':
+                {
+                  // This is handled by updateWrapper below.
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  lastDefaultValue = lastProp;
+                }
+              // defaultChecked and defaultValue are ignored by setProp
+              // Fallthrough
+
+              default:
+                {
+                  if (!nextProps.hasOwnProperty(propKey)) setProp(domElement, tag, propKey, null, nextProps, lastProp);
+                }
+            }
+          }
+        }
+
+        for (var _propKey7 in nextProps) {
+          var nextProp = nextProps[_propKey7];
+          var _lastProp = lastProps[_propKey7];
+
+          if (nextProps.hasOwnProperty(_propKey7) && (nextProp != null || _lastProp != null)) {
+            switch (_propKey7) {
+              case 'type':
+                {
+                  type = nextProp;
+                  break;
+                }
+
+              case 'name':
+                {
+                  name = nextProp;
+                  break;
+                }
+
+              case 'checked':
+                {
+                  checked = nextProp;
+                  break;
+                }
+
+              case 'defaultChecked':
+                {
+                  defaultChecked = nextProp;
+                  break;
+                }
+
+              case 'value':
+                {
+                  value = nextProp;
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  defaultValue = nextProp;
+                  break;
+                }
+
+              case 'children':
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (nextProp != null) {
+                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+                  }
+
+                  break;
+                }
+
+              default:
+                {
+                  if (nextProp !== _lastProp) setProp(domElement, tag, _propKey7, nextProp, nextProps, _lastProp);
+                }
+            }
+          }
+        }
+
+        {
+          var wasControlled = lastProps.type === 'checkbox' || lastProps.type === 'radio' ? lastProps.checked != null : lastProps.value != null;
+          var isControlled = nextProps.type === 'checkbox' || nextProps.type === 'radio' ? nextProps.checked != null : nextProps.value != null;
+
+          if (!wasControlled && isControlled && !didWarnUncontrolledToControlled) {
+            error('A component is changing an uncontrolled input to be controlled. ' + 'This is likely caused by the value changing from undefined to ' + 'a defined value, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
+
+            didWarnUncontrolledToControlled = true;
+          }
+
+          if (wasControlled && !isControlled && !didWarnControlledToUncontrolled) {
+            error('A component is changing a controlled input to be uncontrolled. ' + 'This is likely caused by the value changing from a defined to ' + 'undefined, which should not happen. ' + 'Decide between using a controlled or uncontrolled input ' + 'element for the lifetime of the component. More info: https://react.dev/link/controlled-components');
+
+            didWarnControlledToUncontrolled = true;
+          }
+        } // Update the wrapper around inputs *after* updating props. This has to
+        // happen after updating the rest of props. Otherwise HTML5 input validations
+        // raise warnings and prevent the new value from being assigned.
+
+
+        updateInput(domElement, value, defaultValue, lastDefaultValue, checked, defaultChecked, type, name);
+        return;
+      }
+
+    case 'select':
+      {
+        var _value3 = null;
+        var _defaultValue3 = null;
+        var multiple = null;
+        var wasMultiple = null;
+
+        for (var _propKey8 in lastProps) {
+          var _lastProp2 = lastProps[_propKey8];
+
+          if (lastProps.hasOwnProperty(_propKey8) && _lastProp2 != null) {
+            switch (_propKey8) {
+              case 'value':
+                {
+                  // This is handled by updateWrapper below.
+                  break;
+                }
+              // defaultValue are ignored by setProp
+
+              case 'multiple':
+                {
+                  wasMultiple = _lastProp2; // TODO: Move special case in here from setProp.
+                }
+              // Fallthrough
+
+              default:
+                {
+                  if (!nextProps.hasOwnProperty(_propKey8)) setProp(domElement, tag, _propKey8, null, nextProps, _lastProp2);
+                }
+            }
+          }
+        }
+
+        for (var _propKey9 in nextProps) {
+          var _nextProp = nextProps[_propKey9];
+          var _lastProp3 = lastProps[_propKey9];
+
+          if (nextProps.hasOwnProperty(_propKey9) && (_nextProp != null || _lastProp3 != null)) {
+            switch (_propKey9) {
+              case 'value':
+                {
+                  _value3 = _nextProp; // This is handled by updateSelect below.
+
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  _defaultValue3 = _nextProp;
+                  break;
+                }
+
+              case 'multiple':
+                {
+                  multiple = _nextProp; // TODO: Just move the special case in here from setProp.
+                }
+              // Fallthrough
+
+              default:
+                {
+                  if (_nextProp !== _lastProp3) setProp(domElement, tag, _propKey9, _nextProp, nextProps, _lastProp3);
+                }
+            }
+          }
+        } // <select> value update needs to occur after <option> children
+        // reconciliation
+
+
+        updateSelect(domElement, _value3, _defaultValue3, multiple, wasMultiple);
+        return;
+      }
+
+    case 'textarea':
+      {
+        var _value4 = null;
+        var _defaultValue4 = null;
+
+        for (var _propKey10 in lastProps) {
+          var _lastProp4 = lastProps[_propKey10];
+
+          if (lastProps.hasOwnProperty(_propKey10) && _lastProp4 != null && !nextProps.hasOwnProperty(_propKey10)) {
+            switch (_propKey10) {
+              case 'value':
+                {
+                  // This is handled by updateTextarea below.
+                  break;
+                }
+
+              case 'children':
+                {
+                  // TODO: This doesn't actually do anything if it updates.
+                  break;
+                }
+              // defaultValue is ignored by setProp
+
+              default:
+                {
+                  setProp(domElement, tag, _propKey10, null, nextProps, _lastProp4);
+                }
+            }
+          }
+        }
+
+        for (var _propKey11 in nextProps) {
+          var _nextProp2 = nextProps[_propKey11];
+          var _lastProp5 = lastProps[_propKey11];
+
+          if (nextProps.hasOwnProperty(_propKey11) && (_nextProp2 != null || _lastProp5 != null)) {
+            switch (_propKey11) {
+              case 'value':
+                {
+                  _value4 = _nextProp2; // This is handled by updateTextarea below.
+
+                  break;
+                }
+
+              case 'defaultValue':
+                {
+                  _defaultValue4 = _nextProp2;
+                  break;
+                }
+
+              case 'children':
+                {
+                  // TODO: This doesn't actually do anything if it updates.
+                  break;
+                }
+
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (_nextProp2 != null) {
+                    // TODO: Do we really need a special error message for this. It's also pretty blunt.
+                    throw new Error('`dangerouslySetInnerHTML` does not make sense on <textarea>.');
+                  }
+
+                  break;
+                }
+
+              default:
+                {
+                  if (_nextProp2 !== _lastProp5) setProp(domElement, tag, _propKey11, _nextProp2, nextProps, _lastProp5);
+                }
+            }
+          }
+        }
+
+        updateTextarea(domElement, _value4, _defaultValue4);
+        return;
+      }
+
+    case 'option':
+      {
+        for (var _propKey12 in lastProps) {
+          var _lastProp6 = lastProps[_propKey12];
+
+          if (lastProps.hasOwnProperty(_propKey12) && _lastProp6 != null && !nextProps.hasOwnProperty(_propKey12)) {
+            switch (_propKey12) {
+              case 'selected':
+                {
+                  // TODO: Remove support for selected on option.
+                  domElement.selected = false;
+                  break;
+                }
+
+              default:
+                {
+                  setProp(domElement, tag, _propKey12, null, nextProps, _lastProp6);
+                }
+            }
+          }
+        }
+
+        for (var _propKey13 in nextProps) {
+          var _nextProp3 = nextProps[_propKey13];
+          var _lastProp7 = lastProps[_propKey13];
+
+          if (nextProps.hasOwnProperty(_propKey13) && _nextProp3 !== _lastProp7 && (_nextProp3 != null || _lastProp7 != null)) {
+            switch (_propKey13) {
+              case 'selected':
+                {
+                  // TODO: Remove support for selected on option.
+                  domElement.selected = _nextProp3 && typeof _nextProp3 !== 'function' && typeof _nextProp3 !== 'symbol';
+                  break;
+                }
+
+              default:
+                {
+                  setProp(domElement, tag, _propKey13, _nextProp3, nextProps, _lastProp7);
+                }
+            }
+          }
+        }
+
+        return;
+      }
+
+    case 'img':
+    case 'link':
+    case 'area':
+    case 'base':
+    case 'br':
+    case 'col':
+    case 'embed':
+    case 'hr':
+    case 'keygen':
+    case 'meta':
+    case 'param':
+    case 'source':
+    case 'track':
+    case 'wbr':
+    case 'menuitem':
+      {
+        // Void elements
+        for (var _propKey14 in lastProps) {
+          var _lastProp8 = lastProps[_propKey14];
+
+          if (lastProps.hasOwnProperty(_propKey14) && _lastProp8 != null && !nextProps.hasOwnProperty(_propKey14)) {
+            setProp(domElement, tag, _propKey14, null, nextProps, _lastProp8);
+          }
+        }
+
+        for (var _propKey15 in nextProps) {
+          var _nextProp4 = nextProps[_propKey15];
+          var _lastProp9 = lastProps[_propKey15];
+
+          if (nextProps.hasOwnProperty(_propKey15) && _nextProp4 !== _lastProp9 && (_nextProp4 != null || _lastProp9 != null)) {
+            switch (_propKey15) {
+              case 'children':
+              case 'dangerouslySetInnerHTML':
+                {
+                  if (_nextProp4 != null) {
+                    // TODO: Can we make this a DEV warning to avoid this deny list?
+                    throw new Error(tag + " is a void element tag and must neither have `children` nor " + 'use `dangerouslySetInnerHTML`.');
+                  }
+
+                  break;
+                }
+              // defaultChecked and defaultValue are ignored by setProp
+
+              default:
+                {
+                  setProp(domElement, tag, _propKey15, _nextProp4, nextProps, _lastProp9);
+                }
+            }
+          }
+        }
+
+        return;
+      }
+
+    default:
+      {
+        if (isCustomElement(tag)) {
+          for (var _propKey16 in lastProps) {
+            var _lastProp10 = lastProps[_propKey16];
+
+            if (lastProps.hasOwnProperty(_propKey16) && _lastProp10 !== undefined && !nextProps.hasOwnProperty(_propKey16)) {
+              setPropOnCustomElement(domElement, tag, _propKey16, undefined, nextProps, _lastProp10);
+            }
+          }
+
+          for (var _propKey17 in nextProps) {
+            var _nextProp5 = nextProps[_propKey17];
+            var _lastProp11 = lastProps[_propKey17];
+
+            if (nextProps.hasOwnProperty(_propKey17) && _nextProp5 !== _lastProp11 && (_nextProp5 !== undefined || _lastProp11 !== undefined)) {
+              setPropOnCustomElement(domElement, tag, _propKey17, _nextProp5, nextProps, _lastProp11);
+            }
+          }
+
+          return;
+        }
+      }
+  }
+
+  for (var _propKey18 in lastProps) {
+    var _lastProp12 = lastProps[_propKey18];
+
+    if (lastProps.hasOwnProperty(_propKey18) && _lastProp12 != null && !nextProps.hasOwnProperty(_propKey18)) {
+      setProp(domElement, tag, _propKey18, null, nextProps, _lastProp12);
+    }
+  }
+
+  for (var _propKey19 in nextProps) {
+    var _nextProp6 = nextProps[_propKey19];
+    var _lastProp13 = lastProps[_propKey19];
+
+    if (nextProps.hasOwnProperty(_propKey19) && _nextProp6 !== _lastProp13 && (_nextProp6 != null || _lastProp13 != null)) {
+      setProp(domElement, tag, _propKey19, _nextProp6, nextProps, _lastProp13);
+    }
+  }
+}
+
+function getPossibleStandardName(propName) {
+  {
+    var lowerCasedName = propName.toLowerCase();
+
+    if (!possibleStandardNames.hasOwnProperty(lowerCasedName)) {
+      return null;
+    }
+
+    return possibleStandardNames[lowerCasedName] || null;
+  }
+}
+
+function getPropNameFromAttributeName(attrName) {
+  switch (attrName) {
+    case 'class':
+      return 'className';
+
+    case 'for':
+      return 'htmlFor';
+    // TODO: The rest of the aliases.
+
+    default:
+      return attrName;
+  }
+}
+
+function getPropsFromElement(domElement) {
+  var serverDifferences = {};
+  var attributes = domElement.attributes;
+
+  for (var i = 0; i < attributes.length; i++) {
+    var attr = attributes[i];
+    serverDifferences[getPropNameFromAttributeName(attr.name)] = attr.name.toLowerCase() === 'style' ? getStylesObjectFromElement(domElement) : attr.value;
+  }
+
+  return serverDifferences;
+}
+
+function getStylesObjectFromElement(domElement) {
+  var serverValueInObjectForm = {};
+  var style = domElement.style;
+
+  for (var i = 0; i < style.length; i++) {
+    var styleName = style[i]; // TODO: We should use the original prop value here if it is equivalent.
+    // TODO: We could use the original client capitalization if the equivalent
+    // other capitalization exists in the DOM.
+
+    serverValueInObjectForm[styleName] = style.getPropertyValue(styleName);
+  }
+
+  return serverValueInObjectForm;
+}
+
+function diffHydratedStyles(domElement, value, serverDifferences) {
+  if (value != null && typeof value !== 'object') {
+    {
+      error('The `style` prop expects a mapping from style properties to values, ' + "not a string. For example, style={{marginRight: spacing + 'em'}} when " + 'using JSX.');
+    }
+
+    return;
+  }
+
+  if (canDiffStyleForHydrationWarning) {
+    // First we compare the string form and see if it's equivalent.
+    // This lets us bail out on anything that used to pass in this form.
+    // It also lets us compare anything that's not parsed by this browser.
+    var clientValue = createDangerousStringForStyles(value);
+    var serverValue = domElement.getAttribute('style');
+
+    if (serverValue === clientValue) {
+      return;
+    }
+
+    var normalizedClientValue = normalizeMarkupForTextOrAttribute(clientValue);
+    var normalizedServerValue = normalizeMarkupForTextOrAttribute(serverValue);
+
+    if (normalizedServerValue === normalizedClientValue) {
+      return;
+    } // Otherwise, we create the object from the DOM for the diff view.
+
+
+    serverDifferences.style = getStylesObjectFromElement(domElement);
+  }
+}
+
+function hydrateAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydrateBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        return;
+    }
+
+    if (!value) {
+      return;
+    }
+  } else {
+    switch (typeof value) {
+      case 'function':
+      case 'symbol':
+        break;
+
+      default:
+        {
+          if (value) {
+            // If this was a boolean, it doesn't matter what the value is
+            // the fact that we have it is the same as the expected.
+            // As long as it's positive.
+            return;
+          }
+        }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydrateOverloadedBooleanAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+
+      default:
+        if (value === false) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        case 'boolean':
+          if (value === true && serverValue === '') {
+            return;
+          }
+
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydrateBooleanishAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, attributeName);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydrateNumericAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value)) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value)) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydratePositiveNumericAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+
+      default:
+        if (isNaN(value) || value < 1) {
+          return;
+        }
+
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            if (isNaN(value) || value < 1) {
+              // We had an attribute but shouldn't have had one, so read it
+              // for the error message.
+              break;
+            }
+
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            if (serverValue === '' + value) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function hydrateSanitizedAttribute(domElement, propKey, attributeName, value, extraAttributes, serverDifferences) {
+  extraAttributes.delete(attributeName);
+  var serverValue = domElement.getAttribute(attributeName);
+
+  if (serverValue === null) {
+    switch (typeof value) {
+      case 'undefined':
+      case 'function':
+      case 'symbol':
+      case 'boolean':
+        return;
+    }
+  } else {
+    if (value == null) ; else {
+      switch (typeof value) {
+        case 'function':
+        case 'symbol':
+        case 'boolean':
+          break;
+
+        default:
+          {
+            {
+              checkAttributeStringCoercion(value, propKey);
+            }
+
+            var sanitizedValue = sanitizeURL('' + value);
+
+            if (serverValue === sanitizedValue) {
+              return;
+            }
+          }
+      }
+    }
+  }
+
+  warnForPropDifference(propKey, serverValue, value, serverDifferences);
+}
+
+function diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes, serverDifferences) {
+  for (var propKey in props) {
+    if (!props.hasOwnProperty(propKey)) {
+      continue;
+    }
+
+    var value = props[propKey];
+
+    if (value == null) {
+      continue;
+    }
+
+    if (registrationNameDependencies.hasOwnProperty(propKey)) {
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
+      }
+
+      continue;
+    }
+
+    if (props.suppressHydrationWarning === true) {
+      // Don't bother comparing. We're ignoring all these warnings.
+      continue;
+    } // Validate that the properties correspond to their expected values.
+
+
+    switch (propKey) {
+      case 'children':
+        {
+          if (typeof value === 'string' || typeof value === 'number') {
+            warnForPropDifference('children', domElement.textContent, value, serverDifferences);
+          }
+
+          continue;
+        }
+      // Checked above already
+
+      case 'suppressContentEditableWarning':
+      case 'suppressHydrationWarning':
+      case 'defaultValue':
+      case 'defaultChecked':
+      case 'innerHTML':
+      case 'ref':
+        // Noop
+        continue;
+
+      case 'dangerouslySetInnerHTML':
+        var serverHTML = domElement.innerHTML;
+        var nextHtml = value ? value.__html : undefined;
+
+        if (nextHtml != null) {
+          var expectedHTML = normalizeHTML(domElement, nextHtml);
+          warnForPropDifference(propKey, serverHTML, expectedHTML, serverDifferences);
+        }
+
+        continue;
+
+      case 'style':
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value, serverDifferences);
+        continue;
+
+      case 'offsetParent':
+      case 'offsetTop':
+      case 'offsetLeft':
+      case 'offsetWidth':
+      case 'offsetHeight':
+      case 'isContentEditable':
+      case 'outerText':
+      case 'outerHTML':
+        extraAttributes.delete(propKey.toLowerCase());
+
+        {
+          error('Assignment to read-only property will result in a no-op: `%s`', propKey);
+        }
+
+        continue;
+      // Fall through
+
+      case 'className':
+        // className is a special cased property on the server to render as an attribute.
+        extraAttributes.delete('class');
+        var serverValue = getValueForAttributeOnCustomComponent(domElement, 'class', value);
+        warnForPropDifference('className', serverValue, value, serverDifferences);
+        continue;
+
+      default:
+        {
+          // This is a DEV-only path
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
+
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
+            extraAttributes.delete(propKey.toLowerCase());
+          } else {
+            extraAttributes.delete(propKey);
+          }
+
+          var valueOnCustomComponent = getValueForAttributeOnCustomComponent(domElement, propKey, value);
+          warnForPropDifference(propKey, valueOnCustomComponent, value, serverDifferences);
+        }
+    }
+  }
+} // This is the exact URL string we expect that Fizz renders if we provide a function action.
+// We use this for hydration warnings. It needs to be in sync with Fizz. Maybe makes sense
+// as a shared module for that reason.
+
+
+var EXPECTED_FORM_ACTION_URL = // eslint-disable-next-line no-script-url
+"javascript:throw new Error('React form unexpectedly submitted.')";
+
+function diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes, serverDifferences) {
+  for (var propKey in props) {
+    if (!props.hasOwnProperty(propKey)) {
+      continue;
+    }
+
+    var value = props[propKey];
+
+    if (value == null) {
+      continue;
+    }
+
+    if (registrationNameDependencies.hasOwnProperty(propKey)) {
+      if (typeof value !== 'function') {
+        warnForInvalidEventListener(propKey, value);
+      }
+
+      continue;
+    }
+
+    if (props.suppressHydrationWarning === true) {
+      // Don't bother comparing. We're ignoring all these warnings.
+      continue;
+    } // Validate that the properties correspond to their expected values.
+
+
+    switch (propKey) {
+      case 'children':
+        {
+          if (typeof value === 'string' || typeof value === 'number') {
+            warnForPropDifference('children', domElement.textContent, value, serverDifferences);
+          }
+
+          continue;
+        }
+      // Checked above already
+
+      case 'suppressContentEditableWarning':
+      case 'suppressHydrationWarning':
+      case 'value': // Controlled attributes are not validated
+
+      case 'checked': // TODO: Only ignore them on controlled tags.
+
+      case 'selected':
+      case 'defaultValue':
+      case 'defaultChecked':
+      case 'innerHTML':
+      case 'ref':
+        // Noop
+        continue;
+
+      case 'dangerouslySetInnerHTML':
+        var serverHTML = domElement.innerHTML;
+        var nextHtml = value ? value.__html : undefined;
+
+        if (nextHtml != null) {
+          var expectedHTML = normalizeHTML(domElement, nextHtml);
+
+          if (serverHTML !== expectedHTML) {
+            serverDifferences[propKey] = {
+              __html: serverHTML
+            };
+          }
+        }
+
+        continue;
+
+      case 'className':
+        hydrateAttribute(domElement, propKey, 'class', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'tabIndex':
+        hydrateAttribute(domElement, propKey, 'tabindex', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'style':
+        extraAttributes.delete(propKey);
+        diffHydratedStyles(domElement, value, serverDifferences);
+        continue;
+
+      case 'multiple':
+        {
+          extraAttributes.delete(propKey);
+          var serverValue = domElement.multiple;
+          warnForPropDifference(propKey, serverValue, value, serverDifferences);
+          continue;
+        }
+
+      case 'muted':
+        {
+          extraAttributes.delete(propKey);
+          var _serverValue = domElement.muted;
+          warnForPropDifference(propKey, _serverValue, value, serverDifferences);
+          continue;
+        }
+
+      case 'autoFocus':
+        {
+          extraAttributes.delete('autofocus');
+          var _serverValue2 = domElement.autofocus;
+          warnForPropDifference(propKey, _serverValue2, value, serverDifferences);
+          continue;
+        }
+
+      case 'src':
+      case 'href':
+        {
+          if (value === '' && // <a href=""> is fine for "reload" links.
+          !(tag === 'a' && propKey === 'href')) {
+            {
+              if (propKey === 'src') {
+                error('An empty string ("") was passed to the %s attribute. ' + 'This may cause the browser to download the whole page again over the network. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', propKey, propKey);
+              } else {
+                error('An empty string ("") was passed to the %s attribute. ' + 'To fix this, either do not render the element at all ' + 'or pass null to %s instead of an empty string.', propKey, propKey);
+              }
+            }
+
+            hydrateSanitizedAttribute(domElement, propKey, propKey, null, extraAttributes, serverDifferences);
+            continue;
+          }
+        }
+
+        hydrateSanitizedAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'action':
+      case 'formAction':
+        {
+          var _serverValue3 = domElement.getAttribute(propKey);
+
+          if (typeof value === 'function') {
+            extraAttributes.delete(propKey.toLowerCase()); // The server can set these extra properties to implement actions.
+            // So we remove them from the extra attributes warnings.
+
+            if (propKey === 'formAction') {
+              extraAttributes.delete('name');
+              extraAttributes.delete('formenctype');
+              extraAttributes.delete('formmethod');
+              extraAttributes.delete('formtarget');
+            } else {
+              extraAttributes.delete('enctype');
+              extraAttributes.delete('method');
+              extraAttributes.delete('target');
+            } // Ideally we should be able to warn if the server value was not a function
+            // however since the function can return any of these attributes any way it
+            // wants as a custom progressive enhancement, there's nothing to compare to.
+            // We can check if the function has the $FORM_ACTION property on the client
+            // and if it's not, warn, but that's an unnecessary constraint that they
+            // have to have the extra extension that doesn't do anything on the client.
+
+
+            continue;
+          } else if (_serverValue3 === EXPECTED_FORM_ACTION_URL) {
+            extraAttributes.delete(propKey.toLowerCase());
+            warnForPropDifference(propKey, 'function', value, serverDifferences);
+            continue;
+          }
+
+          hydrateSanitizedAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'xlinkHref':
+        hydrateSanitizedAttribute(domElement, propKey, 'xlink:href', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'contentEditable':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'contenteditable', value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'spellCheck':
+        {
+          // Lower-case Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, 'spellcheck', value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'draggable':
+      case 'autoReverse':
+      case 'externalResourcesRequired':
+      case 'focusable':
+      case 'preserveAlpha':
+        {
+          // Case-sensitive Booleanish String
+          hydrateBooleanishAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'allowFullScreen':
+      case 'async':
+      case 'autoPlay':
+      case 'controls':
+      case 'default':
+      case 'defer':
+      case 'disabled':
+      case 'disablePictureInPicture':
+      case 'disableRemotePlayback':
+      case 'formNoValidate':
+      case 'hidden':
+      case 'loop':
+      case 'noModule':
+      case 'noValidate':
+      case 'open':
+      case 'playsInline':
+      case 'readOnly':
+      case 'required':
+      case 'reversed':
+      case 'scoped':
+      case 'seamless':
+      case 'itemScope':
+        {
+          // Some of these need to be lower case to remove them from the extraAttributes list.
+          hydrateBooleanAttribute(domElement, propKey, propKey.toLowerCase(), value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'capture':
+      case 'download':
+        {
+          hydrateOverloadedBooleanAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'cols':
+      case 'rows':
+      case 'size':
+      case 'span':
+        {
+          hydratePositiveNumericAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'rowSpan':
+        {
+          hydrateNumericAttribute(domElement, propKey, 'rowspan', value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'start':
+        {
+          hydrateNumericAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+          continue;
+        }
+
+      case 'xHeight':
+        hydrateAttribute(domElement, propKey, 'x-height', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkActuate':
+        hydrateAttribute(domElement, propKey, 'xlink:actuate', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkArcrole':
+        hydrateAttribute(domElement, propKey, 'xlink:arcrole', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkRole':
+        hydrateAttribute(domElement, propKey, 'xlink:role', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkShow':
+        hydrateAttribute(domElement, propKey, 'xlink:show', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkTitle':
+        hydrateAttribute(domElement, propKey, 'xlink:title', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xlinkType':
+        hydrateAttribute(domElement, propKey, 'xlink:type', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xmlBase':
+        hydrateAttribute(domElement, propKey, 'xml:base', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xmlLang':
+        hydrateAttribute(domElement, propKey, 'xml:lang', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'xmlSpace':
+        hydrateAttribute(domElement, propKey, 'xml:space', value, extraAttributes, serverDifferences);
+        continue;
+
+      case 'inert':
+        {
+          if (value === '' && !didWarnForNewBooleanPropsWithEmptyValue[propKey]) {
+            didWarnForNewBooleanPropsWithEmptyValue[propKey] = true;
+
+            error('Received an empty string for a boolean attribute `%s`. ' + 'This will treat the attribute as if it were false. ' + 'Either pass `false` to silence this warning, or ' + 'pass `true` if you used an empty string in earlier versions of React to indicate this attribute is true.', propKey);
+          }
+        }
+
+        hydrateBooleanAttribute(domElement, propKey, propKey, value, extraAttributes, serverDifferences);
+        continue;
+
+      default:
+        {
+          if ( // shouldIgnoreAttribute
+          // We have already filtered out null/undefined and reserved words.
+          propKey.length > 2 && (propKey[0] === 'o' || propKey[0] === 'O') && (propKey[1] === 'n' || propKey[1] === 'N')) {
+            continue;
+          }
+
+          var attributeName = getAttributeAlias(propKey);
+          var isMismatchDueToBadCasing = false; // This is a DEV-only path
+
+          var hostContextDev = hostContext;
+          var hostContextProd = hostContextDev.context;
+
+          if (hostContextProd === HostContextNamespaceNone && tag !== 'svg' && tag !== 'math') {
+            extraAttributes.delete(attributeName.toLowerCase());
+          } else {
+            var standardName = getPossibleStandardName(propKey);
+
+            if (standardName !== null && standardName !== propKey) {
+              // If an SVG prop is supplied with bad casing, it will
+              // be successfully parsed from HTML, but will produce a mismatch
+              // (and would be incorrectly rendered on the client).
+              // However, we already warn about bad casing elsewhere.
+              // So we'll skip the misleading extra mismatch warning in this case.
+              isMismatchDueToBadCasing = true;
+              extraAttributes.delete(standardName);
+            }
+
+            extraAttributes.delete(attributeName);
+          }
+
+          var _serverValue4 = getValueForAttribute(domElement, attributeName, value);
+
+          if (!isMismatchDueToBadCasing) {
+            warnForPropDifference(propKey, _serverValue4, value, serverDifferences);
+          }
+        }
+    }
+  }
+}
+
+function hydrateProperties(domElement, tag, props, hostContext) {
+  {
+    validatePropertiesInDevelopment(tag, props);
+  } // TODO: Make sure that we check isMounted before firing any of these events.
+
+
+  switch (tag) {
+    case 'dialog':
+      listenToNonDelegatedEvent('cancel', domElement);
+      listenToNonDelegatedEvent('close', domElement);
+      break;
+
+    case 'iframe':
+    case 'object':
+    case 'embed':
+      // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the load event.
+      listenToNonDelegatedEvent('load', domElement);
+      break;
+
+    case 'video':
+    case 'audio':
+      // We listen to these events in case to ensure emulated bubble
+      // listeners still fire for all the media events.
+      for (var i = 0; i < mediaEventTypes.length; i++) {
+        listenToNonDelegatedEvent(mediaEventTypes[i], domElement);
+      }
+
+      break;
+
+    case 'source':
+      // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the error event.
+      listenToNonDelegatedEvent('error', domElement);
+      break;
+
+    case 'img':
+    case 'image':
+    case 'link':
+      // We listen to these events in case to ensure emulated bubble
+      // listeners still fire for error and load events.
+      listenToNonDelegatedEvent('error', domElement);
+      listenToNonDelegatedEvent('load', domElement);
+      break;
+
+    case 'details':
+      // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the toggle event.
+      listenToNonDelegatedEvent('toggle', domElement);
+      break;
+
+    case 'input':
+      {
+        checkControlledValueProps('input', props);
+      } // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the invalid event.
+
+
+      listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
+      // up necessary since we never stop tracking anymore.
+
+      validateInputProps(domElement, props); // For input and textarea we current always set the value property at
+      // post mount to force it to diverge from attributes. However, for
+      // option and select we don't quite do the same thing and select
+      // is not resilient to the DOM state changing so we don't do that here.
+      // TODO: Consider not doing this for input and textarea.
+
+      initInput(domElement, props.value, props.defaultValue, props.checked, props.defaultChecked, props.type, props.name, true);
+      track(domElement);
+      break;
+
+    case 'option':
+      validateOptionProps(domElement, props);
+      break;
+
+    case 'select':
+      {
+        checkControlledValueProps('select', props);
+      } // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the invalid event.
+
+
+      listenToNonDelegatedEvent('invalid', domElement);
+      validateSelectProps(domElement, props);
+      break;
+
+    case 'textarea':
+      {
+        checkControlledValueProps('textarea', props);
+      } // We listen to this event in case to ensure emulated bubble
+      // listeners still fire for the invalid event.
+
+
+      listenToNonDelegatedEvent('invalid', domElement); // TODO: Make sure we check if this is still unmounted or do any clean
+      // up necessary since we never stop tracking anymore.
+
+      validateTextareaProps(domElement, props);
+      initTextarea(domElement, props.value, props.defaultValue, props.children);
+      track(domElement);
+      break;
+  }
+
+  var children = props.children; // For text content children we compare against textContent. This
+  // might match additional HTML that is hidden when we read it using
+  // textContent. E.g. "foo" will match "f<span>oo</span>" but that still
+  // satisfies our requirement. Our requirement is not to produce perfect
+  // HTML and attributes. Ideally we should preserve structure but it's
+  // ok not to if the visible content is still enough to indicate what
+  // even listeners these nodes might be wired up to.
+  // TODO: Warn if there is more than a single textNode as a child.
+  // TODO: Should we use domElement.firstChild.nodeValue to compare?
+
+  if (typeof children === 'string' || typeof children === 'number' || typeof children === 'bigint') {
+    if ( // $FlowFixMe[unsafe-addition] Flow doesn't want us to use `+` operator with string and bigint
+    domElement.textContent !== '' + children && props.suppressHydrationWarning !== true && !checkForUnmatchedText(domElement.textContent, children)) {
+      return false;
+    }
+  }
+
+  if (props.popover != null) {
+    // We listen to this event in case to ensure emulated bubble
+    // listeners still fire for the toggle event.
+    listenToNonDelegatedEvent('beforetoggle', domElement);
+    listenToNonDelegatedEvent('toggle', domElement);
+  }
+
+  if (props.onScroll != null) {
+    listenToNonDelegatedEvent('scroll', domElement);
+  }
+
+  if (props.onScrollEnd != null) {
+    listenToNonDelegatedEvent('scrollend', domElement);
+  }
+
+  if (props.onClick != null) {
+    // TODO: This cast may not be sound for SVG, MathML or custom elements.
+    trapClickOnNonInteractiveElement(domElement);
+  }
+
+  return true;
+}
+function diffHydratedProperties(domElement, tag, props, hostContext) {
+  var serverDifferences = {};
+
+  {
+    var extraAttributes = new Set();
+    var attributes = domElement.attributes;
+
+    for (var i = 0; i < attributes.length; i++) {
+      var name = attributes[i].name.toLowerCase();
+
+      switch (name) {
+        // Controlled attributes are not validated
+        // TODO: Only ignore them on controlled tags.
+        case 'value':
+          break;
+
+        case 'checked':
+          break;
+
+        case 'selected':
+          break;
+
+        default:
+          // Intentionally use the original name.
+          // See discussion in https://github.com/facebook/react/pull/10676.
+          extraAttributes.add(attributes[i].name);
+      }
+    }
+
+    if (isCustomElement(tag)) {
+      diffHydratedCustomComponent(domElement, tag, props, hostContext, extraAttributes, serverDifferences);
+    } else {
+      diffHydratedGenericElement(domElement, tag, props, hostContext, extraAttributes, serverDifferences);
+    }
+
+    if (extraAttributes.size > 0 && props.suppressHydrationWarning !== true) {
+      warnForExtraAttributes(domElement, extraAttributes, serverDifferences);
+    }
+  }
+
+  if (Object.keys(serverDifferences).length === 0) {
+    return null;
+  }
+
+  return serverDifferences;
+}
+function hydrateText(textNode, text, parentProps) {
+  var isDifferent = textNode.nodeValue !== text;
+
+  if (isDifferent && (parentProps === null || parentProps.suppressHydrationWarning !== true) && !checkForUnmatchedText(textNode.nodeValue, text)) {
+    return false;
+  }
+
+  return true;
+}
+function diffHydratedText(textNode, text) {
+  if (textNode.nodeValue === text) {
+    return null;
+  }
+
+  var normalizedClientText = normalizeMarkupForTextOrAttribute(text);
+  var normalizedServerText = normalizeMarkupForTextOrAttribute(textNode.nodeValue);
+
+  if (normalizedServerText === normalizedClientText) {
+    return null;
+  }
+
+  return textNode.nodeValue;
+}
+function restoreControlledState(domElement, tag, props) {
+  switch (tag) {
+    case 'input':
+      restoreControlledInputState(domElement, props);
+      return;
+
+    case 'textarea':
+      restoreControlledTextareaState(domElement, props);
+      return;
+
+    case 'select':
+      restoreControlledSelectState(domElement, props);
+      return;
+  }
+}
+
+function validateLinkPropsForStyleResource(props) {
+  {
+    // This should only be called when we know we are opting into Resource semantics (i.e. precedence is not null)
+    var href = props.href,
+        onLoad = props.onLoad,
+        onError = props.onError,
+        disabled = props.disabled;
+    var includedProps = [];
+    if (onLoad) includedProps.push('`onLoad`');
+    if (onError) includedProps.push('`onError`');
+    if (disabled != null) includedProps.push('`disabled`');
+    var includedPropsPhrase = propNamesListJoin(includedProps, 'and');
+    includedPropsPhrase += includedProps.length === 1 ? ' prop' : ' props';
+    var withArticlePhrase = includedProps.length === 1 ? 'an ' + includedPropsPhrase : 'the ' + includedPropsPhrase;
+
+    if (includedProps.length) {
+      error('React encountered a <link rel="stylesheet" href="%s" ... /> with a `precedence` prop that' + ' also included %s. The presence of loading and error handlers indicates an intent to manage' + ' the stylesheet loading state from your from your Component code and React will not hoist or' + ' deduplicate this stylesheet. If your intent was to have React hoist and deduplciate this stylesheet' + ' using the `precedence` prop remove the %s, otherwise remove the `precedence` prop.', href, withArticlePhrase, includedPropsPhrase);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function propNamesListJoin(list, combinator) {
+  switch (list.length) {
+    case 0:
+      return '';
+
+    case 1:
+      return list[0];
+
+    case 2:
+      return list[0] + ' ' + combinator + ' ' + list[1];
+
+    default:
+      return list.slice(0, -1).join(', ') + ', ' + combinator + ' ' + list[list.length - 1];
   }
 }
 
@@ -35844,14 +35934,13 @@ function mayResourceSuspendCommit(resource) {
   return resource.type === 'stylesheet' && (resource.state.loading & Inserted) === NotLoaded;
 }
 function preloadInstance(type, props) {
-  // Return true to indicate it's already loaded
   return true;
 }
 function preloadResource(resource) {
   if (resource.type === 'stylesheet' && (resource.state.loading & Settled) === NotLoaded) {
-    // we have not finished loading the underlying stylesheet yet.
+    // Return false to indicate this resource should suspend
     return false;
-  } // Return true to indicate it's already loaded
+  } // Return true to indicate this resource should not suspend
 
 
   return true;
@@ -36215,7 +36304,7 @@ identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transition
   return root;
 }
 
-var ReactVersion = '19.0.0-experimental-4508873393-20240430';
+var ReactVersion = '19.0.0-experimental-f994737d14-20240522';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {
@@ -36930,6 +37019,7 @@ function findInstanceBlockingTarget(targetNode) {
 function getEventPriority(domEventName) {
   switch (domEventName) {
     // Used by SimpleEventPlugin:
+    case 'beforetoggle':
     case 'cancel':
     case 'click':
     case 'close':
@@ -36961,6 +37051,7 @@ function getEventPriority(domEventName) {
     case 'resize':
     case 'seeked':
     case 'submit':
+    case 'toggle':
     case 'touchcancel':
     case 'touchend':
     case 'touchstart':
@@ -36998,7 +37089,6 @@ function getEventPriority(domEventName) {
     case 'pointerout':
     case 'pointerover':
     case 'scroll':
-    case 'toggle':
     case 'touchmove':
     case 'wheel': // Not used by React but could be by user code: (fall through)
 
@@ -38121,7 +38211,6 @@ exports.unstable_batchedUpdates = batchedUpdates;
 exports.useFormState = useFormState;
 exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
@@ -38129,6 +38218,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }

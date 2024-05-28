@@ -805,6 +805,30 @@ function describeUnknownElementTypeFrameInDEV(type) {
 }
 
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
+var createTask = // eslint-disable-next-line react-internal/no-production-logging
+console.createTask ? // eslint-disable-next-line react-internal/no-production-logging
+console.createTask : function () {
+  return null;
+};
+
+function getTaskName(type) {
+  if (type === REACT_FRAGMENT_TYPE) {
+    return '<>';
+  }
+
+  if (typeof type === 'object' && type !== null && type.$$typeof === REACT_LAZY_TYPE) {
+    // We don't want to eagerly initialize the initializer in DEV mode so we can't
+    // call it to extract the type so we don't know the type of this component.
+    return '<...>';
+  }
+
+  try {
+    var name = getComponentNameFromType(type);
+    return name ? '<' + name + '>' : '<...>';
+  } catch (x) {
+    return '<...>';
+  }
+}
 
 function getOwner() {
   {
@@ -910,7 +934,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props) {
+function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
   var ref;
 
   {
@@ -993,6 +1017,21 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
       writable: true,
       value: null
     });
+
+    {
+      Object.defineProperty(element, '_debugStack', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: debugStack
+      });
+      Object.defineProperty(element, '_debugTask', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: debugTask
+      });
+    }
 
     if (Object.freeze) {
       Object.freeze(element.props);
@@ -1136,7 +1175,7 @@ function createElement(type, config, children) {
     }
   }
 
-  var element = ReactElement(type, key, ref, undefined, undefined, getOwner(), props);
+  var element = ReactElement(type, key, ref, undefined, undefined, getOwner(), props, Error('react-stack-top-frame') , createTask(getTaskName(type)) );
 
   if (type === REACT_FRAGMENT_TYPE) {
     validateFragmentProps(element);
@@ -1147,7 +1186,7 @@ function createElement(type, config, children) {
 function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
   // exists to avoid the `ref` access warning.
-  null , undefined, undefined, oldElement._owner, oldElement.props);
+  null , undefined, undefined, oldElement._owner, oldElement.props, oldElement._debugStack , oldElement._debugTask );
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
@@ -1218,7 +1257,7 @@ function cloneElement(element, config, children) {
     props.children = childArray;
   }
 
-  var clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+  var clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props, element._debugStack , element._debugTask );
 
   for (var _i2 = 2; _i2 < arguments.length; _i2++) {
     validateChildKeys(arguments[_i2], clonedElement.type);
@@ -2195,7 +2234,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '19.0.0-experimental-4508873393-20240430';
+var ReactVersion = '19.0.0-experimental-f994737d14-20240522';
 
 var getPrototypeOf = Object.getPrototypeOf;
 

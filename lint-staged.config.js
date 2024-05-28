@@ -30,7 +30,12 @@ module.exports = {
 
     return [
       `prettier --with-node-modules --ignore-path .prettierignore --write ${escapedFileNames}`,
-      `eslint --no-ignore --max-warnings=0 --fix ${escape(eslintFileNames.filter((filename) => filename !== null)).join(' ')}`,
+      `eslint --no-ignore --max-warnings=0 --fix ${eslintFileNames
+        .filter((filename) => filename !== null)
+        .map((filename) => {
+          return `"${filename}"`
+        })
+        .join(' ')}`,
       `git add ${escapedFileNames}`,
     ]
   },
