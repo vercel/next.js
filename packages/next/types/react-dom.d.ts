@@ -60,6 +60,8 @@ declare module 'react-dom/types' {
 }
 
 declare module 'react-dom/server.edge' {
+  import type { JSX } from 'react'
+
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzServerEdge.js#L67
   export type ReactDOMServerReadableStream = ReadableStream<Uint8Array> & {
     allReady: Promise<void>
@@ -112,6 +114,7 @@ declare module 'react-dom/server.edge' {
 
 declare module 'react-dom/static.edge' {
   import type { PostponedState } from 'react-dom/types'
+  import type { JSX } from 'react'
 
   // https://github.com/facebook/react/blob/d779eba4b375134f373b7dfb9ea98d01c84bc48e/packages/react-dom/src/server/ReactDOMFizzStaticEdge.js#L39
   export type Options = {
@@ -147,6 +150,7 @@ declare module 'react-dom/static.edge' {
 }
 
 declare module 'react-dom/server.node' {
+  import type { JSX } from 'react'
   import type { Writable } from 'node:stream'
   import type { PostponedState } from 'react-dom/types'
 
@@ -208,6 +212,7 @@ declare module 'react-dom/server.node' {
 }
 
 declare module 'react-dom/static.node' {
+  import type { JSX } from 'react'
   import type { Readable } from 'node:stream'
   import type { PostponedState } from 'react-dom/types'
 

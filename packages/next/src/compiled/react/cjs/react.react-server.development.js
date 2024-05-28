@@ -891,7 +891,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props) {
+function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
   var ref;
 
   {
@@ -2158,7 +2158,7 @@ function warnAboutTransitionSubscriptions(prevTransition, currentTransition) {
 
 function noop() {}
 
-var ReactVersion = '19.0.0-beta-4508873393-20240430';
+var ReactVersion = '19.0.0-rc-f994737d14-20240522';
 
 var Children = {
   map: mapChildren,

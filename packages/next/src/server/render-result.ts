@@ -2,7 +2,11 @@ import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { Revalidate } from './lib/revalidate'
 import type { FetchMetrics } from './base-http'
 
-import { chainStreams, streamFromString, streamToString } from './stream-utils'
+import {
+  chainStreams,
+  streamFromString,
+  streamToString,
+} from './stream-utils'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
 import type { Readable, Writable } from 'stream'
 

@@ -4,7 +4,7 @@ nav_title: cacheHandler
 description: Configure the Next.js cache used for storing and revalidating data to use any external service like Redis, Memcached, or others.
 ---
 
-In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating) for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `cacheHandler` field in `next.config.js`.
+In Next.js, the [default cache handler](/docs/app/building-your-application/data-fetching/caching-and-revalidating) for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler by using the `cacheHandler` field in `next.config.js`.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -43,7 +43,7 @@ Returns `Promise<void>`.
 | --------- | -------- | ---------------------------- |
 | `tag`     | `string` | The cache tag to revalidate. |
 
-Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
+Returns `Promise<void>`. Learn more about [revalidating data](/docs/app/building-your-application/data-fetching/caching-and-revalidating) or the [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) function.
 
 **Good to know:**
 

@@ -11,6 +11,7 @@ import {
   StaticResumeRenderer,
 } from './renderers'
 import type { PostponedState } from 'react-dom/types'
+import type { JSX } from 'react'
 
 export class VoidRenderer implements Renderer {
   public async render(_children: JSX.Element): Promise<RenderResult> {

@@ -5,6 +5,7 @@ import type {
 import type { Options as PrerenderOptions } from 'react-dom/static.edge'
 import type { RenderResult, Renderer } from './renderers'
 import type { PostponedState } from 'react-dom/types'
+import type { JSX } from 'react'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToReadableStream = require('react-dom/server.edge')
