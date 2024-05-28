@@ -119,6 +119,8 @@ function validateResolvedImageUrl(
 ): void {
   // Only warn on the image url that needs to be resolved with metadataBase
   if (
+    // Validate in production
+    process.env.NODE_ENV === 'production' &&
     typeof inputUrl === 'string' &&
     !isFullStringUrl(inputUrl) &&
     isMetadataBaseMissing

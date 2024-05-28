@@ -32,7 +32,11 @@ describe('app dir - metadata missing metadataBase', () => {
     const logStartPosition = next.cliOutput.length
     await next.fetch('/og-image-convention')
     const output = getCliOutput(logStartPosition)
-    expect(output).toInclude(METADATA_BASE_WARN_STRING)
+
+    if (!isNextDev) {
+      expect(output).toInclude(METADATA_BASE_WARN_STRING)
+    }
+
     expect(output).toMatch(/using "http:\/\/localhost:\d+/)
     expect(output).toInclude(
       '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
