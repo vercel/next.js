@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "14.3.0-canary.68",
+  "version": "14.3.0-canary.85",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -93,21 +93,21 @@
     ]
   },
   "dependencies": {
-    "@next/env": "14.3.0-canary.68",
+    "@next/env": "14.3.0-canary.85",
     "@next/vendored": "workspace:*",
     "@swc/helpers": "0.5.11",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
-    "styled-jsx": "5.1.3"
+    "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.41.2",
     "babel-plugin-react-compiler": "*",
-    "react": "19.0.0-beta-04b058868c-20240508",
-    "react-dom": "19.0.0-beta-04b058868c-20240508",
+    "react": "19.0.0-rc-f994737d14-20240522",
+    "react-dom": "19.0.0-rc-f994737d14-20240522",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
@@ -125,7 +125,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.33.3"
+    "sharp": "^0.33.4"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -156,10 +156,10 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
-    "@next/polyfill-module": "14.3.0-canary.68",
-    "@next/polyfill-nomodule": "14.3.0-canary.68",
-    "@next/react-refresh-utils": "14.3.0-canary.68",
-    "@next/swc": "14.3.0-canary.68",
+    "@next/polyfill-module": "14.3.0-canary.85",
+    "@next/polyfill-nomodule": "14.3.0-canary.85",
+    "@next/react-refresh-utils": "14.3.0-canary.85",
+    "@next/swc": "14.3.0-canary.85",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
     "@swc/core": "1.5.7",
@@ -182,7 +182,7 @@
     "@types/uuid": "8.3.1",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@vercel/ncc": "0.34.0",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240516.1",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240526.2",
     "arg": "4.1.0",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -194,6 +194,7 @@
     "jsonwebtoken": "9.0.0",
     "mini-css-extract-plugin": "2.4.4",
     "msw": "1.3.0",
+    "p-queue": "6.6.2",
     "path-to-regexp": "6.1.0",
     "react-is": "19.0.0-canary-94eed63c49-20240425",
     "react-refresh": "0.12.0",

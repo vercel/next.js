@@ -36,6 +36,7 @@ export async function createApp({
   importAlias,
   skipInstall,
   empty,
+  turbo,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -49,6 +50,7 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  turbo: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -229,6 +231,7 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
+      turbo,
     })
   }
 

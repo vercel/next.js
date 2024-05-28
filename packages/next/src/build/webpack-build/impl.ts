@@ -1,4 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
 import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
@@ -185,6 +186,11 @@ export async function webpackBuildImpl(
   debug(`starting compiler`, compilerName)
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
+    if (config.experimental.webpackMemoryOptimizations) {
+      stringBufferUtils.disableDualStringBufferCaching()
+      stringBufferUtils.enableStringInterning()
+    }
+
     // Run the server compilers first and then the client
     // compiler to track the boundary of server/client components.
     let clientResult: SingleCompilerResult | null = null
@@ -254,6 +260,9 @@ export async function webpackBuildImpl(
       }
     }
 
+    if (config.experimental.webpackMemoryOptimizations) {
+      stringBufferUtils.disableStringInterning()
+    }
     inputFileSystem?.purge?.()
 
     result = {

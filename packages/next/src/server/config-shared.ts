@@ -225,7 +225,7 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   /**
-   * period (in seconds) where the server allow to serve stale cache
+   * @deprecated use config.swrDelta instead
    */
   swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
@@ -373,6 +373,15 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
+   * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
+   * but may increase compile times slightly.
+   * Valid values are:
+   * - `false`: Disable Webpack memory optimizations (default).
+   * - `true`: Enables Webpack memory optimizations.
+   */
+  webpackMemoryOptimizations?: boolean
+
+  /**
    *
    */
   instrumentationHook?: boolean
@@ -383,6 +392,7 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
+   * Enables experimental Partial Prerendering feature of Next.js.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
@@ -469,6 +479,11 @@ export interface ExperimentalConfig {
    * compiler will be enabled.
    */
   reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -825,6 +840,11 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -891,12 +911,13 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  swrDelta: undefined,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
     flyingShuttle: false,
-    prerenderEarlyExit: false,
+    prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -908,7 +929,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
@@ -955,14 +975,16 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     webpackBuildWorker: undefined,
+    webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
-      dynamic: 30,
+      dynamic: 0,
       static: 300,
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
+    after: false,
   },
   bundlePagesRouterDependencies: false,
 }

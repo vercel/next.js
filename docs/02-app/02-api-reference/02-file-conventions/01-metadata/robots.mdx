@@ -19,6 +19,8 @@ Sitemap: https://acme.com/sitemap.xml
 
 Add a `robots.js` or `robots.ts` file that returns a [`Robots` object](#robots-object).
 
+> **Good to know**: `robots.js` is a special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+
 ```ts filename="app/robots.ts" switcher
 import type { MetadataRoute } from 'next'
 

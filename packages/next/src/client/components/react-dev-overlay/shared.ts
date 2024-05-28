@@ -94,7 +94,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
 }
 
 export function useErrorOverlayReducer() {
-  return useReducer<React.Reducer<OverlayState, BusEvent>>((_state, action) => {
+  return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_BUILD_OK: {
         return { ..._state, buildError: null }
