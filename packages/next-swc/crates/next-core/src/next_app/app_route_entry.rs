@@ -142,7 +142,7 @@ async fn wrap_edge_route(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    pathname: String,
+    pathname: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
 

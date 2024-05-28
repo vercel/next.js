@@ -110,7 +110,7 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(
-    browserslist_query: String,
+    browserslist_query: RcStr,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
@@ -326,7 +326,7 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {

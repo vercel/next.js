@@ -670,7 +670,7 @@ struct HmrUpdateWithIssues {
 #[turbo_tasks::function]
 async fn hmr_update(
     project: Vc<Project>,
-    identifier: String,
+    identifier: RcStr,
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);

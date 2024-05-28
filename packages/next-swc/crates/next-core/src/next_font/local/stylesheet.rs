@@ -35,7 +35,7 @@ pub(super) async fn build_stylesheet(
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     options: Vc<NextFontLocalOptions>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<String>> {

@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 
 #[turbo_tasks::function]
-pub async fn instrumentation_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
+pub async fn instrumentation_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<String>>> {
     let extensions = page_extensions.await?;
     let files = ["instrumentation.", "src/instrumentation."]
         .into_iter()

@@ -25,7 +25,7 @@ pub async fn get_postcss_package_mapping(
 
 #[turbo_tasks::function]
 pub async fn get_external_next_compiled_package_mapping(
-    package_name: Vc<String>,
+    package_name: Vc<RcStr>,
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
         Some(format!("next/dist/compiled/{}", &*package_name.await?)),

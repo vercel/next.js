@@ -83,7 +83,7 @@ impl NextFontGoogleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
+    async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let qstr = qstring::QString::from(query.as_str());
 
@@ -108,11 +108,11 @@ impl NextFontGoogleReplacer {
                                 {}{}
                             }},
                         }};
-
+    
                         if (cssModule.variable != null) {{
                             fontData.variable = cssModule.variable;
                         }}
-
+    
                         export default fontData;
                     "#,
                     // Pass along whichever options we received to the css handler
@@ -142,7 +142,7 @@ impl NextFontGoogleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
@@ -195,7 +195,7 @@ impl NextFontGoogleCssModuleReplacer {
     }
 
     #[turbo_tasks::function]
-    async fn import_map_result(&self, query: String) -> Result<Vc<ImportMapResult>> {
+    async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query).await?;
         let query_vc = Vc::cell(query);
         let font_data = load_font_data(self.project_path);
@@ -270,7 +270,7 @@ impl NextFontGoogleCssModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
@@ -322,7 +322,7 @@ impl NextFontGoogleFontFileReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: String) -> Vc<ImportMapping> {
+    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
         ImportMapping::Ignore.into()
     }
 
@@ -397,9 +397,9 @@ async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>
 /// font family names.
 #[turbo_tasks::function]
 async fn update_google_stylesheet(
-    stylesheet: Vc<String>,
+    stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<String>> {
     let options = &*options.await?;
@@ -559,7 +559,7 @@ async fn get_font_css_properties(
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: Vc<String>,
+    query: Vc<RcStr>,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
     let query_map = qstring::QString::from(&**query.await?);

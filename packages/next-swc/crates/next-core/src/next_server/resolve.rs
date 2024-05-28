@@ -436,7 +436,7 @@ pub struct PackagesGlobs {
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
-async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionPackagesGlobs>> {
+async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlobs>> {
     let packages = packages.await?;
     if packages.is_empty() {
         return Ok(Vc::cell(None));

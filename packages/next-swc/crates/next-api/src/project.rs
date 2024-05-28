@@ -340,7 +340,7 @@ impl ProjectContainer {
     pub async fn get_source_map(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
         let this = self.await?;
         Ok(this
@@ -979,7 +979,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn hmr_content(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(self
             .await?
@@ -988,7 +988,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
         Ok(content.version())
@@ -999,7 +999,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         let version = self.hmr_version(identifier);
@@ -1019,7 +1019,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();

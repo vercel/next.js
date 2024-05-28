@@ -124,7 +124,7 @@ impl VersionedContentMap {
     pub async fn get_source_map(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
         if let Some(generate_source_map) =
             Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.get_asset(path)).await?

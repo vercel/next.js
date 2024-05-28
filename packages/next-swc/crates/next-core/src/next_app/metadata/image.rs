@@ -46,7 +46,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 pub async fn dynamic_image_metadata_source(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
-    ty: String,
+    ty: RcStr,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;

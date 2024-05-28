@@ -27,7 +27,7 @@ use turbopack_binding::{
 use crate::register;
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
+async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(
         PROJECT_FILESYSTEM_NAME.to_string(),
         project_dir.to_string(),
@@ -330,9 +330,9 @@ async fn prepare_entrypoints_for_js(
 
 #[turbo_tasks::function]
 async fn get_value(
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
+    root_dir: RcStr,
+    project_dir: RcStr,
+    page_extensions: Vec<RcStr>,
     watching: bool,
 ) -> Result<Vc<OptionEntrypointsForJs>> {
     let page_extensions = Vc::cell(page_extensions);

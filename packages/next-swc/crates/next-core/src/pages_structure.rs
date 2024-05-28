@@ -146,7 +146,7 @@ impl PagesDirectoryStructure {
 pub async fn find_pages_structure(
     project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let pages_root = project_root.join("pages".to_string());
     let pages_root = Vc::<FileSystemPathOption>::cell(
@@ -181,7 +181,7 @@ async fn get_pages_structure_for_root_directory(
     project_root: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPathOption>,
     next_router_path: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
 
@@ -339,7 +339,7 @@ async fn get_pages_structure_for_directory(
     project_path: Vc<FileSystemPath>,
     next_router_path: Vc<FileSystemPath>,
     position: u32,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = {
         let path = project_path.to_string().await?;

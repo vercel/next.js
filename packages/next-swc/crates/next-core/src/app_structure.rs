@@ -284,7 +284,7 @@ pub async fn find_app_dir_if_enabled(project_path: Vc<FileSystemPath>) -> Result
 #[turbo_tasks::function]
 async fn get_directory_tree(
     dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
     let span = {
         let dir = dir.to_string().await?;
@@ -684,7 +684,7 @@ fn add_app_metadata_route(
 #[turbo_tasks::function]
 pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir,
@@ -795,7 +795,7 @@ async fn check_duplicate(
 async fn directory_tree_to_loader_tree(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
-    directory_name: String,
+    directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     // the page this loader tree is constructed for
@@ -1033,7 +1033,7 @@ async fn directory_tree_to_loader_tree(
 async fn directory_tree_to_entrypoints_internal(
     app_dir: Vc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
-    directory_name: String,
+    directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
@@ -1294,7 +1294,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
     app_dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")

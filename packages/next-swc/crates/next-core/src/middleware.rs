@@ -9,7 +9,7 @@ use turbopack_binding::turbopack::core::{
 use crate::util::load_next_js_template;
 
 #[turbo_tasks::function]
-pub async fn middleware_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
+pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<String>>> {
     let extensions = page_extensions.await?;
     let files = ["middleware.", "src/middleware."]
         .into_iter()

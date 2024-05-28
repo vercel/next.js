@@ -26,7 +26,7 @@ impl ClientReferenceManifest {
     pub async fn build_output(
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
-        entry_name: String,
+        entry_name: RcStr,
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,

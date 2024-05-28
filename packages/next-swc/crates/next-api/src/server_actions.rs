@@ -76,7 +76,7 @@ pub(crate) async fn create_server_actions_manifest(
 #[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: String,
+    page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
