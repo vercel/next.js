@@ -13,6 +13,12 @@ export function CopyButton({
       aria-label={label}
       role="button"
       onClick={() => {
+        if (!navigator.clipboard) {
+          window.console.error(
+            'Next.js dev overlay: Clipboard API not available'
+          )
+          return
+        }
         navigator.clipboard.writeText(content)
       }}
     >
