@@ -39,3 +39,10 @@ ObserverLazy.propTypes = {
 };
 
 export default ObserverLazy;
+
+// example:
+// import ObserverLazy from 'next/ObserverLazy';
+
+// export default function Component({ children }) {
+//   return <ObserverLazy>{children}</ObserverLazy>;
+// }
