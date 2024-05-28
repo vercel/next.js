@@ -26,22 +26,19 @@ describe('app dir - metadata missing metadataBase', () => {
       const output = getCliOutput(logStartPosition)
       expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     })
-  }
+  } else {
+    it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
+      const logStartPosition = next.cliOutput.length
+      await next.fetch('/og-image-convention')
+      const output = getCliOutput(logStartPosition)
 
-  it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
-    const logStartPosition = next.cliOutput.length
-    await next.fetch('/og-image-convention')
-    const output = getCliOutput(logStartPosition)
-
-    if (!isNextDev) {
       expect(output).toInclude(METADATA_BASE_WARN_STRING)
-    }
-
-    expect(output).toMatch(/using "http:\/\/localhost:\d+/)
-    expect(output).toInclude(
-      '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
-    )
-  })
+      expect(output).toMatch(/using "http:\/\/localhost:\d+/)
+      expect(output).toInclude(
+        '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
+      )
+    })
+  }
 
   it('should warn for unsupported metadata properties', async () => {
     const logStartPosition = next.cliOutput.length
