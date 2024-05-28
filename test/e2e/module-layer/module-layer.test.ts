@@ -4,6 +4,10 @@ import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 describe('module layer', () => {
   const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.0.0-rc-915b914b3a-20240515',
+      'react-dom': '19.0.0-rc-915b914b3a-20240515',
+    },
   })
 
   function runTests() {
@@ -18,8 +22,10 @@ describe('module layer', () => {
       '/app/route',
       '/app/route-edge',
       // pages/api
-      '/api/hello',
-      '/api/hello-edge',
+      '/api/default',
+      '/api/default-edge',
+      '/api/server-only',
+      '/api/server-only-edge',
       '/api/mixed',
     ]
 
@@ -29,6 +35,35 @@ describe('module layer', () => {
         expect([route, status]).toEqual([route, 200])
       })
     }
+
+    it('should render installed react-server condition for middleware', async () => {
+      const json = await next.fetch('/react-version').then((res) => res.json())
+      expect(json.React).toContain('version') // basic react-server export
+      expect(json.React).not.toContain('useEffect') // no client api export
+    })
+
+    // This is for backward compatibility, don't change react usage in existing pages/api
+    it('should contain client react exports for pages api', async () => {
+      async function verifyReactExports(route, isEdge) {
+        const json = await next.fetch(route).then((res) => res.json())
+        // contain all react-server and default condition exports
+        expect(json.React).toContain('version')
+        expect(json.React).toContain('useEffect')
+
+        // contain react-dom-server default condition exports
+        expect(json.ReactDomServer).toContain('version')
+        expect(json.ReactDomServer).toContain('renderToString')
+        expect(json.ReactDomServer).toContain('renderToStaticMarkup')
+        expect(json.ReactDomServer).toContain(
+          isEdge ? 'renderToReadableStream' : 'renderToPipeableStream'
+        )
+      }
+
+      await verifyReactExports('/api/default', false)
+      await verifyReactExports('/api/default-edge', true)
+      await verifyReactExports('/api/server-only', false)
+      await verifyReactExports('/api/server-only-edge', true)
+    })
 
     if (isNextStart) {
       it('should log the build info properly', async () => {
@@ -40,7 +75,8 @@ describe('module layer', () => {
         )
         expect(functionsManifest.functions).toContainKeys([
           '/app/route-edge',
-          '/api/hello-edge',
+          '/api/default-edge',
+          '/api/server-only-edge',
           '/app/client-edge',
           '/app/server-edge',
         ])
@@ -52,9 +88,10 @@ describe('module layer', () => {
         )
         expect(middlewareManifest.middleware).toBeTruthy()
         expect(pagesManifest).toContainKeys([
-          '/api/hello-edge',
+          '/api/default-edge',
           '/pages-ssr',
-          '/api/hello',
+          '/api/default',
+          '/api/server-only',
         ])
       })
     }
@@ -81,22 +118,15 @@ describe('module layer', () => {
             .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
 
-        const existingCliOutputLength = next.cliOutput.length
         await retry(async () => {
           expect(await hasRedbox(browser)).toBe(true)
           const source = await getRedboxSource(browser)
           expect(source).toContain(
-            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+            isTurbopack
+              ? `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+              : `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
           )
         })
-
-        if (!isTurbopack) {
-          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
-          expect(newCliOutput).toContain('./middleware.js')
-          expect(newCliOutput).toContain(
-            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
-          )
-        }
       })
     })
   }
