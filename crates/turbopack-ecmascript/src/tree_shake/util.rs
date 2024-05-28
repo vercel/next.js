@@ -2,12 +2,15 @@ use std::hash::BuildHasherDefault;
 
 use indexmap::IndexSet;
 use rustc_hash::FxHasher;
-use swc_core::ecma::{
-    ast::{
-        AssignTarget, BlockStmtOrExpr, Constructor, Expr, Function, Id, Ident, MemberProp, Pat,
-        PropName,
+use swc_core::{
+    common::SyntaxContext,
+    ecma::{
+        ast::{
+            AssignTarget, BlockStmtOrExpr, Constructor, ExportNamedSpecifier, ExportSpecifier,
+            Expr, Function, Id, Ident, MemberProp, NamedExport, Pat, PropName,
+        },
+        visit::{noop_visit_type, visit_obj_and_computed, Visit, VisitWith},
     },
-    visit::{noop_visit_type, visit_obj_and_computed, Visit, VisitWith},
 };
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -20,6 +23,7 @@ enum Mode {
 /// A visitor which collects variables which are read or written.
 #[derive(Default)]
 pub(crate) struct IdentUsageCollector {
+    only: [SyntaxContext; 2],
     vars: Vars,
     ignore_nested: bool,
     mode: Mode,
@@ -57,6 +61,16 @@ impl Visit for IdentUsageCollector {
         n.visit_children_with(self);
     }
 
+    fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
+        n.orig.visit_with(self);
+    }
+
+    fn visit_export_specifier(&mut self, n: &ExportSpecifier) {
+        self.with_mode(Mode::Read, |this| {
+            n.visit_children_with(this);
+        })
+    }
+
     fn visit_expr(&mut self, e: &Expr) {
         self.with_mode(Mode::Read, |this| {
             e.visit_children_with(this);
@@ -72,6 +86,12 @@ impl Visit for IdentUsageCollector {
     }
 
     fn visit_ident(&mut self, n: &Ident) {
+        // We allow SyntaxContext::empty() because Some built-in files do not go into
+        // resolver()
+        if !self.only.contains(&n.span.ctxt) && n.span.ctxt != SyntaxContext::empty() {
+            return;
+        }
+
         match self.mode {
             Mode::Read => {
                 self.vars.read.insert(n.to_id());
@@ -86,6 +106,14 @@ impl Visit for IdentUsageCollector {
         if let MemberProp::Computed(..) = n {
             n.visit_children_with(self);
         }
+    }
+
+    fn visit_named_export(&mut self, n: &NamedExport) {
+        if n.src.is_some() {
+            return;
+        }
+
+        n.visit_children_with(self);
     }
 
     fn visit_pat(&mut self, p: &Pat) {
@@ -109,6 +137,7 @@ impl Visit for IdentUsageCollector {
 /// evaluation time.
 #[derive(Default)]
 pub(crate) struct CapturedIdCollector {
+    only: [SyntaxContext; 2],
     vars: Vars,
     is_nested: bool,
     mode: Mode,
@@ -149,6 +178,12 @@ impl Visit for CapturedIdCollector {
         })
     }
 
+    fn visit_export_specifier(&mut self, n: &ExportSpecifier) {
+        self.with_mode(Mode::Read, |this| {
+            n.visit_children_with(this);
+        })
+    }
+
     fn visit_expr(&mut self, e: &Expr) {
         self.with_mode(Mode::Read, |this| {
             e.visit_children_with(this);
@@ -163,6 +198,12 @@ impl Visit for CapturedIdCollector {
 
     fn visit_ident(&mut self, n: &Ident) {
         if !self.is_nested {
+            return;
+        }
+
+        // We allow SyntaxContext::empty() because Some built-in files do not go into
+        // resolver()
+        if !self.only.contains(&n.span.ctxt) && n.span.ctxt != SyntaxContext::empty() {
             return;
         }
 
@@ -203,11 +244,15 @@ pub(crate) struct Vars {
 }
 
 /// Returns `(read, write)`
-pub(crate) fn ids_captured_by<N>(n: &N) -> Vars
+///
+/// Note: This functions accept `SyntaxContext` to filter out variables which
+/// are not interesting. We only need to analyze top-level variables.
+pub(crate) fn ids_captured_by<N>(n: &N, only: [SyntaxContext; 2]) -> Vars
 where
     N: VisitWith<CapturedIdCollector>,
 {
     let mut v = CapturedIdCollector {
+        only,
         is_nested: false,
         ..Default::default()
     };
@@ -216,11 +261,15 @@ where
 }
 
 /// Returns `(read, write)`
-pub(crate) fn ids_used_by<N>(n: &N) -> Vars
+///
+/// Note: This functions accept `SyntaxContext` to filter out variables which
+/// are not interesting. We only need to analyze top-level variables.
+pub(crate) fn ids_used_by<N>(n: &N, only: [SyntaxContext; 2]) -> Vars
 where
     N: VisitWith<IdentUsageCollector>,
 {
     let mut v = IdentUsageCollector {
+        only,
         ignore_nested: false,
         ..Default::default()
     };
@@ -229,11 +278,15 @@ where
 }
 
 /// Returns `(read, write)`
-pub(crate) fn ids_used_by_ignoring_nested<N>(n: &N) -> Vars
+///
+/// Note: This functions accept `SyntaxContext` to filter out variables which
+/// are not interesting. We only need to analyze top-level variables.
+pub(crate) fn ids_used_by_ignoring_nested<N>(n: &N, only: [SyntaxContext; 2]) -> Vars
 where
     N: VisitWith<IdentUsageCollector>,
 {
     let mut v = IdentUsageCollector {
+        only,
         ignore_nested: true,
         ..Default::default()
     };

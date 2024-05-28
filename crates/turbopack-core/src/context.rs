@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{Value, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
@@ -76,4 +76,6 @@ pub trait AssetContext {
 
     /// Gets a new AssetContext with the transition applied.
     fn with_transition(self: Vc<Self>, transition: String) -> Vc<Box<dyn AssetContext>>;
+
+    fn side_effect_free_packages(self: Vc<Self>) -> Vc<Glob>;
 }

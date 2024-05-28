@@ -440,7 +440,10 @@ impl NodeJsPoolProcess {
         let ready_signal = process.recv().await?;
 
         if !ready_signal.is_empty() {
-            bail!("Node.js process didn't send the expected ready signal");
+            bail!(
+                "Node.js process didn't send the expected ready signal\nOutput:\n{}",
+                String::from_utf8_lossy(&ready_signal)
+            );
         }
 
         drop(guard);

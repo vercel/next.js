@@ -1,24 +1,34 @@
+use std::borrow::Cow;
+
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
-use swc_core::ecma::ast::{Id, Module, Program};
-use turbo_tasks::Vc;
-use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    resolve::{origin::ResolveOrigin, ModulePart},
-    source::Source,
+use swc_core::{
+    common::{util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    ecma::ast::{
+        ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl, ModuleExportName,
+        ModuleItem, NamedExport, Program,
+    },
 };
+use turbo_tasks::{ValueToString, Vc};
+use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
+pub(crate) use self::graph::{
+    create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts, PartId,
+};
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
 use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAsset};
 
 pub mod asset;
 pub mod chunk_item;
+mod cjs_finder;
 mod graph;
 pub mod merge;
 #[cfg(test)]
 mod tests;
 mod util;
+
+pub(crate) const TURBOPACK_PART_IMPORT_SOURCE: &str = "__TURBOPACK_PART__";
 
 pub struct Analyzer<'a> {
     g: &'a mut DepGraph,
@@ -30,7 +40,7 @@ pub struct Analyzer<'a> {
     vars: FxHashMap<Id, VarState>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct VarState {
     /// The module items that might trigger side effects on that variable.
     /// We also store if this is a `const` write, so no further change will
@@ -40,10 +50,22 @@ struct VarState {
     last_reads: Vec<ItemId>,
 }
 
+fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
+    let v = map.get(id);
+    match v {
+        Some(v) => Cow::Borrowed(v),
+        None => Cow::Owned(Default::default()),
+    }
+}
+
 impl Analyzer<'_> {
-    pub(super) fn analyze(module: &Module) -> (DepGraph, FxHashMap<ItemId, ItemData>) {
+    pub(super) fn analyze(
+        module: &Module,
+        unresolved_ctxt: SyntaxContext,
+        top_level_ctxt: SyntaxContext,
+    ) -> (DepGraph, FxHashMap<ItemId, ItemData>) {
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(module);
+        let (item_ids, mut items) = g.init(module, unresolved_ctxt, top_level_ctxt);
 
         let mut analyzer = Analyzer {
             g: &mut g,
@@ -53,7 +75,7 @@ impl Analyzer<'_> {
             vars: Default::default(),
         };
 
-        let eventual_ids = analyzer.hoist_vars_and_bindings(module);
+        let eventual_ids = analyzer.hoist_vars_and_bindings();
 
         analyzer.evaluate_immediate(module, &eventual_ids);
 
@@ -68,7 +90,7 @@ impl Analyzer<'_> {
     ///
     ///
     /// Returns all (EVENTUAL_READ/WRITE_VARS) in the module.
-    fn hoist_vars_and_bindings(&mut self, _module: &Module) -> IndexSet<Id> {
+    fn hoist_vars_and_bindings(&mut self) -> IndexSet<Id> {
         let mut eventual_ids = IndexSet::default();
 
         for item_id in self.item_ids.iter() {
@@ -114,9 +136,9 @@ impl Analyzer<'_> {
                     // var.
 
                     // (the writes need to be executed before this read)
-                    if let Some(state) = self.vars.get(id) {
-                        self.g.add_strong_deps(item_id, state.last_writes.iter());
-                    }
+                    let state = get_var(&self.vars, id);
+
+                    self.g.add_strong_deps(item_id, state.last_writes.iter());
                 }
 
                 // For each var in WRITE_VARS:
@@ -127,9 +149,8 @@ impl Analyzer<'_> {
                     // (the reads need to be executed before this write, when
                     // it’s needed)
 
-                    if let Some(state) = self.vars.get(id) {
-                        self.g.add_weak_deps(item_id, state.last_reads.iter());
-                    }
+                    let state = get_var(&self.vars, id);
+                    self.g.add_weak_deps(item_id, state.last_reads.iter());
                 }
 
                 if item.side_effects {
@@ -141,10 +162,10 @@ impl Analyzer<'_> {
                     // Create weak dependencies to all LAST_WRITES and
                     // LAST_READS.
                     for id in eventual_ids.iter() {
-                        if let Some(state) = self.vars.get(id) {
-                            self.g.add_weak_deps(item_id, state.last_writes.iter());
-                            self.g.add_weak_deps(item_id, state.last_reads.iter());
-                        }
+                        let state = get_var(&self.vars, id);
+
+                        self.g.add_weak_deps(item_id, state.last_writes.iter());
+                        self.g.add_weak_deps(item_id, state.last_reads.iter());
                     }
                 }
 
@@ -195,9 +216,8 @@ impl Analyzer<'_> {
                     // Create a strong dependency to all module items listed in
                     // LAST_WRITES for that var.
 
-                    if let Some(state) = self.vars.get(id) {
-                        self.g.add_strong_deps(item_id, state.last_writes.iter());
-                    }
+                    let state = get_var(&self.vars, id);
+                    self.g.add_strong_deps(item_id, state.last_writes.iter());
                 }
 
                 // For each var in EVENTUAL_WRITE_VARS:
@@ -205,9 +225,9 @@ impl Analyzer<'_> {
                     // Create a weak dependency to all module items listed in
                     // LAST_READS for that var.
 
-                    if let Some(state) = self.vars.get(id) {
-                        self.g.add_weak_deps(item_id, state.last_reads.iter());
-                    }
+                    let state = get_var(&self.vars, id);
+
+                    self.g.add_weak_deps(item_id, state.last_reads.iter());
                 }
 
                 // (no state update happens, since this is only triggered by
@@ -227,12 +247,12 @@ impl Analyzer<'_> {
                         self.g
                             .add_strong_deps(item_id, self.last_side_effects.iter());
                     }
-                    ItemIdGroupKind::Export(id) => {
+                    ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
 
-                        if let Some(state) = self.vars.get(id) {
-                            self.g.add_strong_deps(item_id, state.last_writes.iter());
-                        }
+                        let state = get_var(&self.vars, local);
+
+                        self.g.add_strong_deps(item_id, state.last_writes.iter());
                     }
                 }
             }
@@ -272,7 +292,18 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     let part_id = match entrypoints.get(&key) {
         Some(id) => *id,
         None => {
-            bail!("could not find part id for module part {:?}", key)
+            // We need to handle `*` reexports specially.
+            if let ModulePart::Export(..) = &*part {
+                if let Some(&part_id) = entrypoints.get(&Key::ModuleEvaluation) {
+                    return Ok(part_id);
+                }
+            }
+
+            bail!(
+                "could not find part id for module part {:?} in {:?}",
+                key,
+                entrypoints
+            )
         }
     };
 
@@ -282,18 +313,21 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
+        asset_ident: Vc<AssetIdent>,
+
         /// `u32` is a index to `modules`.
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(trace_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         modules: Vec<Vc<ParseResult>>,
 
-        #[turbo_tasks(debug_ignore, trace_ignore)]
+        #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<u32>>,
     },
-    Unparseable,
-    NotFound,
+    Failed {
+        parse_result: Vc<ParseResult>,
+    },
 }
 
 impl PartialEq for SplitResult {
@@ -306,29 +340,47 @@ impl PartialEq for SplitResult {
 }
 
 #[turbo_tasks::function]
-pub(super) fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Vc<SplitResult> {
-    split(asset.origin_path(), asset.source(), asset.parse())
+pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
+    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
 }
 
 #[turbo_tasks::function]
 pub(super) async fn split(
-    path: Vc<FileSystemPath>,
+    ident: Vc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
-    let filename = path.await?.file_name().to_string();
     let parse_result = parsed.await?;
 
     match &*parse_result {
         ParseResult::Ok {
-            program: Program::Module(module),
+            program,
             comments,
             eval_context,
             source_map,
             globals,
             ..
         } => {
-            let (mut dep_graph, items) = Analyzer::analyze(module);
+            // If the script file is a common js file, we cannot split the module
+            if cjs_finder::contains_cjs(program) {
+                return Ok(SplitResult::Failed {
+                    parse_result: parsed,
+                }
+                .cell());
+            }
+
+            let module = match program {
+                Program::Module(module) => module,
+                Program::Script(..) => unreachable!("CJS is already handled"),
+            };
+
+            let (mut dep_graph, items) = GLOBALS.set(globals, || {
+                Analyzer::analyze(
+                    module,
+                    SyntaxContext::empty().apply_mark(eval_context.unresolved_mark),
+                    SyntaxContext::empty().apply_mark(eval_context.top_level_mark),
+                )
+            });
 
             dep_graph.handle_weak(Mode::Production);
 
@@ -336,14 +388,35 @@ pub(super) async fn split(
                 entrypoints,
                 part_deps,
                 modules,
-            } = dep_graph.split_module(&format!("./{filename}").into(), &items);
+            } = dep_graph.split_module(&items);
+
+            assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
+            assert_eq!(
+                entrypoints.get(&Key::ModuleEvaluation),
+                Some(&0),
+                "ModuleEvaluation is not the first module"
+            );
+
+            for &v in entrypoints.values() {
+                assert!(
+                    v < modules.len() as u32,
+                    "Invalid entrypoint '{}' while there are only '{}' modules",
+                    v,
+                    modules.len()
+                );
+            }
 
             let modules = modules
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context =
-                        EvalContext::new(&program, eval_context.unresolved_mark, Some(source));
+                    let eval_context = EvalContext::new(
+                        &program,
+                        eval_context.unresolved_mark,
+                        eval_context.top_level_mark,
+                        false,
+                        Some(source),
+                    );
 
                     ParseResult::cell(ParseResult::Ok {
                         program,
@@ -356,14 +429,18 @@ pub(super) async fn split(
                 .collect();
 
             Ok(SplitResult::Ok {
+                asset_ident: ident,
                 entrypoints,
                 deps: part_deps,
                 modules,
             }
             .cell())
         }
-        ParseResult::NotFound => Ok(SplitResult::NotFound.cell()),
-        _ => Ok(SplitResult::Unparseable.cell()),
+
+        _ => Ok(SplitResult::Failed {
+            parse_result: parsed,
+        }
+        .cell()),
     }
 }
 
@@ -375,12 +452,186 @@ pub(super) async fn part_of_module(
     let split_data = split_data.await?;
 
     match &*split_data {
-        SplitResult::Ok { modules, .. } => {
+        SplitResult::Ok {
+            asset_ident,
+            modules,
+            entrypoints,
+            deps,
+            ..
+        } => {
+            debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
+
+            if matches!(&*part.await?, ModulePart::Facade) {
+                if let ParseResult::Ok {
+                    comments,
+                    eval_context,
+                    globals,
+                    source_map,
+                    ..
+                } = &*modules[0].await?
+                {
+                    let mut module = Module::dummy();
+
+                    let mut export_names = entrypoints
+                        .keys()
+                        .filter_map(|key| {
+                            if let Key::Export(v) = key {
+                                Some(v.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    export_names.sort();
+
+                    module
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: DUMMY_SP,
+                            specifiers: vec![],
+                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                            type_only: false,
+                            with: Some(Box::new(create_turbopack_part_id_assert(
+                                PartId::ModuleEvaluation,
+                            ))),
+                            phase: Default::default(),
+                        })));
+
+                    let specifiers = export_names
+                        .into_iter()
+                        .map(|export_name| {
+                            swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
+                                span: DUMMY_SP,
+                                orig: ModuleExportName::Ident(Ident::new(
+                                    export_name.into(),
+                                    DUMMY_SP,
+                                )),
+                                exported: None,
+                                is_type_only: false,
+                            })
+                        })
+                        .collect::<Vec<_>>();
+
+                    module
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                            NamedExport {
+                                span: DUMMY_SP,
+                                specifiers,
+                                src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
+                                type_only: false,
+                                with: Some(Box::new(create_turbopack_part_id_assert(
+                                    PartId::Exports,
+                                ))),
+                            },
+                        )));
+
+                    let program = Program::Module(module);
+                    let eval_context = EvalContext::new(
+                        &program,
+                        eval_context.unresolved_mark,
+                        eval_context.top_level_mark,
+                        true,
+                        None,
+                    );
+                    return Ok(ParseResult::Ok {
+                        program,
+                        comments: comments.clone(),
+                        eval_context,
+                        globals: globals.clone(),
+                        source_map: source_map.clone(),
+                    }
+                    .cell());
+                } else {
+                    unreachable!()
+                }
+            }
+
+            if matches!(&*part.await?, ModulePart::Exports) {
+                if let ParseResult::Ok {
+                    comments,
+                    eval_context,
+                    globals,
+                    source_map,
+                    ..
+                } = &*modules[0].await?
+                {
+                    let mut export_names = entrypoints
+                        .keys()
+                        .filter_map(|key| {
+                            if let Key::Export(v) = key {
+                                Some(v.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    export_names.sort();
+
+                    let mut module = Module::dummy();
+
+                    for export_name in export_names {
+                        // We can't use quote! as `with` is not standard yet
+                        let chunk_prop =
+                            create_turbopack_part_id_assert(PartId::Export(export_name.clone()));
+
+                        let specifier =
+                            swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
+                                span: DUMMY_SP,
+                                orig: ModuleExportName::Ident(Ident::new(
+                                    export_name.into(),
+                                    DUMMY_SP,
+                                )),
+                                exported: None,
+                                is_type_only: false,
+                            });
+                        module
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                                NamedExport {
+                                    span: DUMMY_SP,
+                                    specifiers: vec![specifier],
+                                    src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
+                                    type_only: false,
+                                    with: Some(Box::new(chunk_prop)),
+                                },
+                            )));
+                    }
+
+                    let program = Program::Module(module);
+                    let eval_context = EvalContext::new(
+                        &program,
+                        eval_context.unresolved_mark,
+                        eval_context.top_level_mark,
+                        true,
+                        None,
+                    );
+                    return Ok(ParseResult::Ok {
+                        program,
+                        comments: comments.clone(),
+                        eval_context,
+                        globals: globals.clone(),
+                        source_map: source_map.clone(),
+                    }
+                    .cell());
+                } else {
+                    unreachable!()
+                }
+            }
+
             let part_id = get_part_id(&split_data, part).await?;
+
+            if part_id as usize >= modules.len() {
+                bail!(
+                    "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
+                     {entrypoints:?}: part_deps = {deps:?}",
+                    asset_ident.to_string().await?,
+                    modules.len(),
+                );
+            }
 
             Ok(modules[part_id as usize])
         }
-        SplitResult::Unparseable => Ok(ParseResult::Unparseable { messages: None }.cell()),
-        SplitResult::NotFound => Ok(ParseResult::NotFound.cell()),
+        SplitResult::Failed { parse_result } => Ok(*parse_result),
     }
 }

@@ -41,15 +41,18 @@ impl EcmascriptModuleFacadeModule {
 
     #[turbo_tasks::function]
     pub async fn async_module(self: Vc<Self>) -> Result<Vc<AsyncModule>> {
-        let import_externals =
+        let (import_externals, has_top_level_await) =
             if let Some(async_module) = *self.await?.module.get_async_module().await? {
-                async_module.await?.import_externals
+                (
+                    async_module.await?.import_externals,
+                    async_module.await?.has_top_level_await,
+                )
             } else {
-                false
+                (false, false)
             };
         Ok(AsyncModule {
             placeable: Vc::upcast(self),
-            has_top_level_await: false,
+            has_top_level_await,
             import_externals,
         }
         .cell())
@@ -159,7 +162,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 for (name, export) in &esm_exports.exports {
                     let name = name.clone();
                     match export {
-                        EsmExport::LocalBinding(_) => {
+                        EsmExport::LocalBinding(_, mutable) => {
                             exports.insert(
                                 name.clone(),
                                 EsmExport::ImportedBinding(
@@ -168,16 +171,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                         ModulePart::locals(),
                                     )),
                                     name,
+                                    *mutable,
                                 ),
                             );
                         }
                         EsmExport::ImportedNamespace(reference) => {
                             exports.insert(name, EsmExport::ImportedNamespace(*reference));
                         }
-                        EsmExport::ImportedBinding(reference, imported_name) => {
+                        EsmExport::ImportedBinding(reference, imported_name, mutable) => {
                             exports.insert(
                                 name,
-                                EsmExport::ImportedBinding(*reference, imported_name.clone()),
+                                EsmExport::ImportedBinding(
+                                    *reference,
+                                    imported_name.clone(),
+                                    *mutable,
+                                ),
                             );
                         }
                         EsmExport::Error => {
@@ -206,6 +214,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                 ModulePart::exports(),
                             )),
                             "default".to_string(),
+                            false,
                         ),
                     );
                 }
@@ -224,6 +233,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     EsmExport::ImportedBinding(
                         Vc::upcast(EcmascriptModulePartReference::new(self.module)),
                         original_export.clone_value(),
+                        false,
                     ),
                 );
             }

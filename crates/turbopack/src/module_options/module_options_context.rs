@@ -109,7 +109,7 @@ pub struct JsxTransformOptions {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Default, Clone)]
+#[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
     pub enable_typeof_window_inlining: Option<TypeofWindow>,

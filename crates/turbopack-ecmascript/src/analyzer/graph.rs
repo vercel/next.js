@@ -261,6 +261,7 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
 
 pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
+    pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
 }
 
@@ -268,11 +269,14 @@ impl EvalContext {
     pub fn new(
         module: &Program,
         unresolved_mark: Mark,
+        top_level_mark: Mark,
+        skip_namespace: bool,
         source: Option<Vc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
-            imports: ImportMap::analyze(module, source),
+            top_level_mark,
+            imports: ImportMap::analyze(module, skip_namespace, source),
         }
     }
 
@@ -1460,6 +1464,8 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let value = self.current_value.take();
         if let SimpleAssignTarget::Ident(i) = n {
+            n.visit_children_with_path(self, ast_path);
+
             self.add_value(
                 i.to_id(),
                 value.unwrap_or_else(|| {
@@ -1572,13 +1578,20 @@ impl VisitAstPath for Analyzer<'_> {
         ident: &'ast Ident,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if !matches!(
+        if !(matches!(
             ast_path.last(),
             Some(AstParentNodeRef::Expr(_, ExprField::Ident))
                 | Some(AstParentNodeRef::Prop(_, PropField::Shorthand))
-        ) {
+        ) || matches!(
+            ast_path.get(ast_path.len() - 2),
+            Some(AstParentNodeRef::SimpleAssignTarget(
+                _,
+                SimpleAssignTargetField::Ident,
+            ))
+        )) {
             return;
         }
+
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {

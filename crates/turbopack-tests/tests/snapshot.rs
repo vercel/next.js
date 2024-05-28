@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset},
+    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
     module_options::{
         JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
         ModuleRuleEffect,
@@ -90,6 +90,8 @@ struct SnapshotOptions {
     environment: SnapshotEnvironment,
     #[serde(default)]
     use_swc_css: bool,
+    #[serde(default)]
+    tree_shaking_mode: Option<TreeShakingMode>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -116,6 +118,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             use_swc_css: Default::default(),
+            tree_shaking_mode: Default::default(),
         }
     }
 }
@@ -275,6 +278,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                 .cell(),
             )],
             custom_rules: vec![custom_rules],
+            tree_shaking_mode: options.tree_shaking_mode,
             ..Default::default()
         }
         .into(),

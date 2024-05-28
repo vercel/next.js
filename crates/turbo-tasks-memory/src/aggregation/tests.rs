@@ -116,6 +116,7 @@ fn check_invariants<'a>(
                             false
                         }
                     });
+                    #[allow(clippy::never_loop)]
                     for missing_upper in missing_uppers {
                         let upper_value = {
                             let upper = ctx.node(missing_upper);
