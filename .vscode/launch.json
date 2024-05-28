@@ -14,7 +14,8 @@
       "id": "nextCommand",
       "type": "pickString",
       "description": "Select the next command",
-      "options": ["dev", "build", "start"]
+      "options": ["dev", "build", "start"],
+      "default": "dev"
     }
   ],
   "configurations": [
