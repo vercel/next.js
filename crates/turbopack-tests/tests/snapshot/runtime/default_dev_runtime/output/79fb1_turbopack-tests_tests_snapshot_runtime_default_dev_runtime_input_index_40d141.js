@@ -1009,6 +1009,9 @@ function getAffectedModuleEffects(moduleId) {
     while(nextItem = queue.shift()){
         const { moduleId, dependencyChain } = nextItem;
         if (moduleId != null) {
+            if (outdatedModules.has(moduleId)) {
+                continue;
+            }
             outdatedModules.add(moduleId);
         }
         // We've arrived at the runtime of the chunk, which means that nothing

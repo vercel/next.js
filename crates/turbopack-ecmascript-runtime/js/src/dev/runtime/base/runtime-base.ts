@@ -986,6 +986,11 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
     const { moduleId, dependencyChain } = nextItem;
 
     if (moduleId != null) {
+      if (outdatedModules.has(moduleId)) {
+        // Avoid infinite loops caused by cycles between modules in the dependency chain.
+        continue;
+      }
+
       outdatedModules.add(moduleId);
     }
 
