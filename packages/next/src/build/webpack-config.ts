@@ -9,7 +9,8 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackAppLayer,
+  isWebpackBuiltinReactLayer,
+  isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
@@ -409,8 +410,7 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.transpilePackages
+  const shouldIncludeExternalDirs = config.experimental.externalDir
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -543,7 +543,7 @@ export default async function getBaseWebpackConfig(
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: false,
+      serverComponents: true,
       bundleLayer: WEBPACK_LAYERS.middleware,
     }),
     babelLoader,
@@ -592,13 +592,12 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const apiRoutesLayerLoaders =
-    hasAppDir && useSWCLoader
-      ? getSwcLoader({
-          serverComponents: false,
-          bundleLayer: WEBPACK_LAYERS.api,
-        })
-      : defaultLoaders.babel
+  const apiRoutesLayerLoaders = useSWCLoader
+    ? getSwcLoader({
+        serverComponents: false,
+        bundleLayer: WEBPACK_LAYERS.api,
+      })
+    : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -1304,7 +1303,7 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                issuerLayer: isWebpackAppLayer,
+                issuerLayer: isWebpackBundledLayer,
                 resolve: {
                   alias: createNextApiEsmAliases(),
                 },
@@ -1326,7 +1325,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerOnlyLayer,
+                issuerLayer: isWebpackBuiltinReactLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1388,7 +1387,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackServerOnlyLayer,
+                    issuerLayer: isWebpackBuiltinReactLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1469,11 +1468,17 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
+              resolve: {
+                conditionNames: reactServerCondition,
+              },
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
+              resolve: {
+                conditionNames: reactServerCondition,
+              },
             },
             ...(hasAppDir
               ? [
