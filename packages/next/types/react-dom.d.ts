@@ -150,6 +150,7 @@ declare module 'react-dom/static.edge' {
 }
 
 declare module 'react-dom/server.node' {
+  import type { JSX } from 'react'
   import type { Writable } from 'node:stream'
   import type { PostponedState } from 'react-dom/types'
 
@@ -211,6 +212,7 @@ declare module 'react-dom/server.node' {
 }
 
 declare module 'react-dom/static.node' {
+  import type { JSX } from 'react'
   import type { Readable } from 'node:stream'
   import type { PostponedState } from 'react-dom/types'
 

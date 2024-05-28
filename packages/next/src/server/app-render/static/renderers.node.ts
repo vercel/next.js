@@ -7,6 +7,7 @@ import type { RenderResult, Renderer } from './renderers'
 import { PassThrough } from 'node:stream'
 import type { PostponedState } from 'react-dom/types'
 import { DetachedPromise } from '../../../lib/detached-promise'
+import type { JSX } from 'react'
 
 export class ServerRenderer implements Renderer {
   private readonly renderToPipeableStream = require('react-dom/server.node')

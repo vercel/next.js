@@ -41,6 +41,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React from 'react'
+import type { JSX } from 'react'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
