@@ -97,20 +97,26 @@ export default function transformSource(
         return
       }
 
+      // `proxy` is the module proxy that we treat the module as a client boundary.
+      // For ESM, we access the property of the module proxy directly for each export.
+      // This is bit hacky that treating using a CJS like module proxy for ESM's exports,
+      // but this will avoid creating nested proxies for each export. It will be improved in the future.
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
+
+const proxy = createProxy(String.raw\`${this.resourcePath}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
+          esmSource += `\nexports[''] = proxy[''];`
         } else if (ref === 'default') {
           esmSource += `\
 export default createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {
           esmSource += `
-const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
+const e${cnt} = proxy["${ref}"];
 export { e${cnt++} as ${ref} };`
         }
       }
