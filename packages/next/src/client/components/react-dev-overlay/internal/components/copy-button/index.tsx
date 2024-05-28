@@ -2,10 +2,9 @@ export function CopyButton({
   label,
   content,
   ...props
-}: {
+}: React.HTMLProps<HTMLSpanElement> & {
   label?: string
   content: string
-  [key: string]: any
 }) {
   return (
     <span
