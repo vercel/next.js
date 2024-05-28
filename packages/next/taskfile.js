@@ -1105,6 +1105,7 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
+        'ncc_rsc_poison_packages',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_babel_bundle',
         'ncc_jsonwebtoken',
@@ -1115,7 +1116,6 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources3',
         'ncc_opentelemetry_api',
         'ncc_mini_css_extract_plugin',
-        'ncc_rsc_poison_packages',
       ],
       opts
     )
