@@ -52,7 +52,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env,
+        env: { ...env, HOSTNAME: '::' },
         cwd: opts && opts.cwd,
       }
     )
@@ -434,12 +434,11 @@ export function launchApp(
       dir,
       '-p',
       port as string,
+      '--hostname',
+      '::',
     ].filter(Boolean),
     undefined,
-    {
-      ...options,
-      turbo: useTurbo,
-    }
+    { ...options, turbo: useTurbo }
   )
 }
 
@@ -484,10 +483,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
-  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    { ...opts, nextStart: true }
+  )
 }
 
 export function buildTS(
