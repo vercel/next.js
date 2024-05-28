@@ -84,6 +84,7 @@
     "@next/polyfill-nomodule": "workspace:*",
     "@next/swc": "workspace:*",
     "@next/third-parties": "workspace:*",
+    "@next/vendored": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
     "@replayio/jest": "27.2.35",

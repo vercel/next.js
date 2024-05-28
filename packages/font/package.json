@@ -19,6 +19,9 @@
     "typescript": "tsec --noEmit -p tsconfig.json",
     "ncc-fontkit": "ncc build ./fontkit.js --minify -o dist/fontkit"
   },
+  "dependencies": {
+    "@next/vendored": "workspace:*"
+  },
   "devDependencies": {
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",

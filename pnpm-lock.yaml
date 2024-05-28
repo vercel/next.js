@@ -96,6 +96,9 @@ importers:
       '@next/third-parties':
         specifier: workspace:*
         version: link:packages/third-parties
+      '@next/vendored':
+        specifier: workspace:*
+        version: link:packages/next-vendored
       '@opentelemetry/api':
         specifier: 1.4.1
         version: 1.4.1
@@ -793,6 +796,9 @@ importers:
 
   packages/font:
     dependencies:
+      '@next/vendored':
+        specifier: workspace:*
+        version: link:../next-vendored
       next:
         specifier: 14.3.0-canary.15
         version: 14.3.0-canary.15(@babel/core@7.22.5)(@opentelemetry/api@1.4.1)(@playwright/test@1.19.2)(react-dom@19.0.0-beta-04b058868c-20240508)(react@19.0.0-beta-04b058868c-20240508)(sass@1.54.0)
@@ -820,7 +826,7 @@ importers:
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-c23de8d-20240515
+        version: 0.0.0-experimental-592953e-20240517
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -4414,7 +4420,7 @@ packages:
       '@jest/types': 29.6.3
       '@types/node': 20.12.3
       ansi-escapes: 4.3.2
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.8.0
       exit: 0.1.2
       graceful-fs: 4.2.11
@@ -4752,7 +4758,7 @@ packages:
       '@types/istanbul-reports': 3.0.1
       '@types/node': 20.12.3
       '@types/yargs': 17.0.10
-      chalk: 4.0.0
+      chalk: 4.1.2
     dev: true
 
   /@jridgewell/gen-mapping@0.3.1:
@@ -8849,6 +8855,18 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
+  /babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517:
+    resolution: {integrity: sha512-OjG1SVaeQZaJrqkMFJatg8W/MTow8Ak5rx2SI0ETQBO1XvOk/XZGMbltNCPdFJLKghBYoBjC+Y3Ap/Xr7B01mA==}
+    dependencies:
+      '@babel/generator': 7.2.0
+      '@babel/types': 7.22.5
+      chalk: 4.1.2
+      invariant: 2.2.4
+      pretty-format: 24.9.0
+      zod: 3.23.8
+      zod-validation-error: 2.1.0(zod@3.23.8)
+    dev: false
+
   /babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
     dependencies:
@@ -8859,6 +8877,7 @@ packages:
       pretty-format: 24.9.0
       zod: 3.23.8
       zod-validation-error: 2.1.0(zod@3.23.8)
+    dev: true
 
   /babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -14090,7 +14109,7 @@ packages:
       '@sidvind/better-ajv-errors': 0.6.10(ajv@6.12.6)
       acorn-walk: 8.2.0
       ajv: 6.12.6
-      chalk: 4.0.0
+      chalk: 4.1.2
       deepmerge: 4.2.2
       eslint: 7.24.0
       espree: 7.3.1
@@ -15341,7 +15360,7 @@ packages:
       '@jest/test-result': 27.5.1
       '@jest/types': 27.5.1
       '@types/node': 20.12.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       co: 4.6.0
       dedent: 0.7.0
       expect: 27.5.1
@@ -15402,7 +15421,7 @@ packages:
       '@jest/core': 29.7.0
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       create-jest: 29.7.0(@types/node@20.12.3)
       exit: 0.1.2
       import-local: 3.0.2
@@ -15470,7 +15489,7 @@ packages:
     resolution: {integrity: sha512-LMIgiIrhigmPrs03JHpxUh2yISK3vLFPkAodPeo0+BuF7wA2FoQbkEg1u8gBYBThncu7e1oEDUfIXVuTqLRUjw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
-      chalk: 4.0.0
+      chalk: 4.1.2
       diff-sequences: 29.6.3
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
