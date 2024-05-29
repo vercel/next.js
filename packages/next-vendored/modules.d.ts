@@ -274,8 +274,7 @@ declare module '@next/vendored/zod' {
   export = m
 }
 declare module '@next/vendored/superstruct' {
-  import m from 'superstruct'
-  export = m
+  export * from 'superstruct'
 }
 declare module '@next/vendored/ua-parser-js' {
   import m from 'ua-parser-js'
