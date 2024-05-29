@@ -21,6 +21,12 @@ let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
+const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
+  ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  : // In development mode, compilation can take longer due to lower CPU
+    // availability in GitHub Actions.
+    60 * 1000
+
 // loose global to register teardown functions before quitting the browser instance.
 // This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
 // which can create corrupted state by terminating the context.
@@ -208,10 +214,8 @@ export class Playwright extends BrowserInterface {
     await this.initContextTracing(url, context)
     page = await context.newPage()
 
-    // in development compilation can take longer due to
-    // lower CPU availability in GH actions
-    page.setDefaultTimeout(60 * 1000)
-    page.setDefaultNavigationTimeout(60 * 1000)
+    page.setDefaultTimeout(defaultTimeout)
+    page.setDefaultNavigationTimeout(defaultTimeout)
 
     pageLogs = []
     websocketFrames = []

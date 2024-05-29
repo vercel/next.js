@@ -753,7 +753,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -815,14 +815,14 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-592953e-20240517
+        version: 0.0.0-experimental-487cb0e-20240529
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -916,8 +916,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5
       '@capsizecss/metrics':
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 3.2.0
+        version: 3.2.0
       '@edge-runtime/cookies':
         specifier: 4.1.1
         version: 4.1.1
@@ -943,16 +943,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1576,7 +1576,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.3.0-canary.86
+        specifier: 15.0.0-canary.0
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -3420,8 +3420,8 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@capsizecss/metrics@3.0.0:
-    resolution: {integrity: sha512-GTOIvDhuZKBDLeLPaA4mgwuKVwm2eaKR6Oaa76reaSkWTa5GCSe6W+DWPKEUJqjJyxsvkOYpC8reQ8njk90t5w==}
+  /@capsizecss/metrics@3.2.0:
+    resolution: {integrity: sha512-EVWRXJaakH6NTq+7cZawgFiqA+UyESMszN/c1oDHbC/b0SAzQJ/QLS0xpaa3Y+YMfXOkEEjkuChYIV5pSkgmcg==}
     dev: true
 
   /@csstools/postcss-color-function@1.1.0(postcss@8.4.31):
@@ -8835,8 +8835,8 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517:
-    resolution: {integrity: sha512-OjG1SVaeQZaJrqkMFJatg8W/MTow8Ak5rx2SI0ETQBO1XvOk/XZGMbltNCPdFJLKghBYoBjC+Y3Ap/Xr7B01mA==}
+  /babel-plugin-react-compiler@0.0.0-experimental-487cb0e-20240529:
+    resolution: {integrity: sha512-77FYmA+oiCQnq5fK0jvoR0b78oKkgXrECc8n9U+gyWh+8P0zFJSX0wyI16Z456m/lrcANE56VWbr6+VxzoMBJg==}
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
