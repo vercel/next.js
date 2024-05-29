@@ -87,13 +87,7 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::Middleware {
-            client_transition, ..
-        }
-        | ServerContextType::Instrumentation {
-            client_transition, ..
-        }
-        | ServerContextType::AppRSC {
+        ServerContextType::AppRSC {
             client_transition, ..
         } => {
             rules.push(get_server_actions_transform_rule(
@@ -109,6 +103,7 @@ pub async fn get_next_server_transforms_rules(
             true
         }
         ServerContextType::AppRoute { .. } => false,
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
     if !foreign_code {
