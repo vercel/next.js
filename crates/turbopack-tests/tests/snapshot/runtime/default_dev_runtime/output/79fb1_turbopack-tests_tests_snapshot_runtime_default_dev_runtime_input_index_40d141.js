@@ -586,13 +586,9 @@ function instantiateModule(id, source) {
     try {
         executeModule({
             register: globalThis.$RefreshReg$,
-            signature: globalThis.$RefreshSig$
+            signature: globalThis.$RefreshSig$,
+            registerExports: registerExportsAndSetupBoundaryForReactRefresh
         });
-        if ("$RefreshHelpers$" in globalThis) {
-            // This pattern can also be used to register the exports of
-            // a module with the React Refresh runtime.
-            registerExportsAndSetupBoundaryForReactRefresh(module, globalThis.$RefreshHelpers$);
-        }
     } catch (e) {
         throw e;
     } finally{
