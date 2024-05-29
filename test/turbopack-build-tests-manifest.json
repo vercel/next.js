@@ -2979,8 +2979,7 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
         "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
         "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
@@ -3018,6 +3017,7 @@
         "app dir - rsc basics should track client components in dynamic imports",
         "app dir - rsc basics should use canary react for app"
       ],
+      "failed": [],
       "pending": [
         "app dir - rsc basics should not use bundled react for pages with app",
         "app dir - rsc basics should support partial hydration with inlined server data in browser"
