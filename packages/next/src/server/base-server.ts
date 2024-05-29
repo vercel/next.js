@@ -79,14 +79,7 @@ import {
   removeRequestMeta,
   setRequestMeta,
 } from './request-meta'
-import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
-import {
-  getNextPathnameInfo,
-  type NextPathnameInfo,
-} from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
   NEXT_RSC_UNION_QUERY,
@@ -126,17 +119,12 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
-import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './future/normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
   isPagesRouteModule,
 } from './future/route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
-import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 import { toRoute } from './lib/to-route'
@@ -151,6 +139,8 @@ import {
 import type { RequestAdapter } from './request-adapter/request-adapter'
 import { MatchedPathRequestAdapter } from './request-adapter/matched-path-request-adapter'
 import { InvokePathRequestAdapter } from './request-adapter/invoke-path-request-adapter'
+import { BaseRequestAdapter } from './request-adapter/base-request-adapter'
+import { StandaloneRequestAdapter } from './request-adapter/standalone-request-adapter'
 import { RequestError } from './request-adapter/request-error'
 
 export type FindComponentsResult = {
@@ -424,15 +414,7 @@ export default abstract class Server<
    * The request adapter is used to adapt the incoming request based on the
    * environment Next.js is running inside.
    */
-  private readonly requestAdapter: RequestAdapter<ServerRequest> | undefined
-
-  protected readonly normalizers: {
-    readonly action: ActionPathnameNormalizer | undefined
-    readonly postponed: PostponedPathnameNormalizer | undefined
-    readonly rsc: RSCPathnameNormalizer | undefined
-    readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
-    readonly data: NextDataPathnameNormalizer | undefined
-  }
+  private readonly requestAdapter: RequestAdapter<ServerRequest>
 
   public constructor(options: ServerOptions) {
     const {
@@ -502,31 +484,6 @@ export default abstract class Server<
     const isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
-
-    this.normalizers = {
-      // We should normalize the pathname from the RSC prefix only in minimal
-      // mode as otherwise that route is not exposed external to the server as
-      // we instead only rely on the headers.
-      postponed:
-        isAppPPREnabled && this.minimalMode
-          ? new PostponedPathnameNormalizer()
-          : undefined,
-      rsc:
-        this.enabledDirectories.app && this.minimalMode
-          ? new RSCPathnameNormalizer()
-          : undefined,
-      prefetchRSC:
-        isAppPPREnabled && this.minimalMode
-          ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      data: this.enabledDirectories.pages
-        ? new NextDataPathnameNormalizer(this.buildId)
-        : undefined,
-      action:
-        this.enabledDirectories.app && this.minimalMode
-          ? new ActionPathnameNormalizer()
-          : undefined,
-    }
 
     this.nextFontManifest = this.getNextFontManifest()
 
@@ -606,7 +563,27 @@ export default abstract class Server<
     this.responseCache = this.getResponseCache({ dev })
 
     // Setup the request adapter.
-    if (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
+    if (
+      this.minimalMode &&
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      this.nextConfig.output === 'standalone'
+    ) {
+      this.requestAdapter = new StandaloneRequestAdapter(
+        new MatchedPathRequestAdapter(
+          this.buildId,
+          this.enabledDirectories,
+          this.i18nProvider,
+          this.matchers,
+          this.nextConfig,
+          this.getRoutesManifest.bind(this)
+        ),
+        new InvokePathRequestAdapter(
+          this.enabledDirectories,
+          this.i18nProvider,
+          this.nextConfig
+        )
+      )
+    } else if (this.minimalMode && process.env.NEXT_RUNTIME !== 'edge') {
       this.requestAdapter = new MatchedPathRequestAdapter(
         this.buildId,
         this.enabledDirectories,
@@ -621,38 +598,17 @@ export default abstract class Server<
         this.i18nProvider,
         this.nextConfig
       )
+    } else {
+      this.requestAdapter = new BaseRequestAdapter(
+        this.enabledDirectories,
+        this.i18nProvider,
+        this.nextConfig
+      )
     }
   }
 
   protected reloadMatchers() {
     return this.matchers.reload()
-  }
-
-  private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
-    req,
-    _res,
-    parsedUrl
-  ) => {
-    if (!parsedUrl.pathname) return false
-
-    if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-      addRequestMeta(req, 'isRSCRequest', true)
-
-      if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
-        addRequestMeta(req, 'isPrefetchRSCRequest', true)
-      }
-    } else {
-      // Otherwise just return without doing anything.
-      return false
-    }
-
-    if (req.url) {
-      const parsed = parseUrl(req.url)
-      parsed.pathname = parsedUrl.pathname
-      req.url = formatUrl(parsed)
-    }
-
-    return false
   }
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
@@ -957,40 +913,8 @@ export default abstract class Server<
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
 
-      let finished: boolean
-      let pathnameInfo: NextPathnameInfo | undefined
-
-      const useMatchedPathHeader =
-        this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
-
-      if (useMatchedPathHeader && this.requestAdapter) {
-        await this.requestAdapter.adapt(req, parsedUrl)
-
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-        if (finished) return
-      } else {
-        finished = await this.handleRSCRequest(req, res, parsedUrl)
-        if (finished) return
-
-        const domainLocale = this.i18nProvider?.detectDomainLocale(
-          getHostname(parsedUrl, req.headers)
-        )
-
-        const defaultLocale =
-          domainLocale?.defaultLocale || this.nextConfig.i18n?.defaultLocale
-        parsedUrl.query.__nextDefaultLocale = defaultLocale
-
-        const url = parseUrlUtil(req.url.replace(/^\/+/, '/'))
-        pathnameInfo = getNextPathnameInfo(url.pathname, {
-          nextConfig: this.nextConfig,
-          i18nProvider: this.i18nProvider,
-        })
-        url.pathname = pathnameInfo.pathname
-
-        if (pathnameInfo.basePath) {
-          req.url = removePathPrefix(req.url!, this.nextConfig.basePath)
-        }
-      }
+      // Adapt the request using the adapter if it's setup.
+      await this.requestAdapter.adapt(req, parsedUrl)
 
       // set incremental cache to request meta so it can
       // be passed down for edge functions and the fetch disk
@@ -1020,27 +944,14 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const useInvokePath =
-        !useMatchedPathHeader &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        req.headers['x-invoke-path']
+      let finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
+      if (finished) return
 
-      if (useInvokePath && this.requestAdapter) {
-        await this.requestAdapter.adapt(req, parsedUrl)
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-        if (finished) return
-
-        await this.handleCatchallRenderRequest(req, res, parsedUrl)
-        return
-      }
-
+      // Handle middleware requests.
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
-        if (finished) return
-
         finished = await this.handleCatchallMiddlewareRequest(
           req,
           res,
@@ -1058,17 +969,6 @@ export default abstract class Server<
         }
         ;(err as any).bubble = true
         throw err
-      }
-
-      // This wasn't a request via the matched path or the invoke path, so
-      // prepare for a legacy run by removing the base path.
-
-      // ensure we strip the basePath when not using an invoke header
-      if (!useMatchedPathHeader && pathnameInfo?.basePath) {
-        parsedUrl.pathname = removePathPrefix(
-          parsedUrl.pathname,
-          pathnameInfo.basePath
-        )
       }
 
       res.statusCode = 200
