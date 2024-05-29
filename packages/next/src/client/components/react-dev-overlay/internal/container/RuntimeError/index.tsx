@@ -133,6 +133,13 @@ export const styles = css`
   [data-nextjs-data-runtime-error-copy-stack] > svg {
     vertical-align: middle;
   }
+  [data-nextjs-data-runtime-error-copy-stack][aria-disabled],
+  [data-nextjs-data-runtime-error-copy-stack][aria-disabled]:hover {
+    cursor: pointer;
+    color: var(--color-ansi-red);
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
   [data-nextjs-data-runtime-error-copy-stack-success] {
     color: var(--color-ansi-green);
   }
@@ -165,7 +172,6 @@ export const styles = css`
     height: var(--size-font-small);
     margin-left: var(--size-gap);
     flex-shrink: 0;
-
     display: none;
   }
 

@@ -10,25 +10,27 @@ export function CopyButton({
   successLabel: string
   content: string
 }) {
-  const [copied, setCopied] = useState(false)
-  const title = copied ? successLabel : label
+  // copied: 0 = not copied, 1 = copied, 2 = error
+  const [copied, setCopied] = useState(0)
+  const isDisabled = copied === 2
+  const title = isDisabled ? '' : copied ? successLabel : label
   return (
     <span
       {...props}
       title={title}
       aria-label={title}
+      aria-disabled={isDisabled}
       role="button"
       onClick={() => {
+        if (isDisabled) return
         if (!navigator.clipboard) {
-          window.console.error(
-            'Next.js dev overlay: Clipboard API not available'
-          )
+          setCopied(2)
           return
         }
         navigator.clipboard.writeText(content).then(() => {
           if (copied) return
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2000)
+          setCopied(1)
+          setTimeout(() => setCopied(0), 2000)
         })
       }}
     >
