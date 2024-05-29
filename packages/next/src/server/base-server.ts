@@ -17,7 +17,6 @@ import type {
   ResponseCacheEntry,
   ResponseGenerator,
 } from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
   DecodeError,
@@ -755,10 +754,11 @@ export default abstract class Server<
     ServerResponse
   > = () => false
 
-  protected handleCatchallRenderRequest: RouteHandler<
-    ServerRequest,
-    ServerResponse
-  > = () => false
+  protected abstract handleCatchallRenderRequest(
+    req: ServerRequest,
+    res: ServerResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<void>
 
   protected handleCatchallMiddlewareRequest: RouteHandler<
     ServerRequest,
@@ -1072,7 +1072,8 @@ export default abstract class Server<
       }
 
       res.statusCode = 200
-      return await this.run(req, res, parsedUrl)
+      await this.handleCatchallRenderRequest(req, res, parsedUrl)
+      return
     } catch (err: any) {
       if (err instanceof RequestError) {
         res.statusCode = err.statusCode
@@ -1183,24 +1184,6 @@ export default abstract class Server<
       appPathRoutes[normalizedPath].push(entry)
     })
     return appPathRoutes
-  }
-
-  protected async run(
-    req: ServerRequest,
-    res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<void> {
-    return getTracer().trace(BaseServerSpan.run, async () =>
-      this.runImpl(req, res, parsedUrl)
-    )
-  }
-
-  private async runImpl(
-    req: ServerRequest,
-    res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
-  ): Promise<void> {
-    await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
 
   private async pipe(

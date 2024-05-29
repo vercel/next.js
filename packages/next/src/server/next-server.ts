@@ -923,11 +923,11 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  protected handleCatchallRenderRequest: NodeRouteHandler = async (
-    req,
-    res,
-    parsedUrl
-  ) => {
+  protected async handleCatchallRenderRequest(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<void> {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('Invariant: pathname is undefined')
@@ -949,8 +949,7 @@ export default class NextNodeServer extends BaseServer<
       // If we don't have a match, try to render it anyways.
       if (!match) {
         await this.render(req, res, pathname, query, parsedUrl, true)
-
-        return true
+        return
       }
 
       // Add the match to the request so we don't have to re-run the matcher
@@ -965,7 +964,7 @@ export default class NextNodeServer extends BaseServer<
 
         if (this.nextConfig.output === 'export') {
           await this.render404(req, res, parsedUrl)
-          return true
+          return
         }
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
@@ -981,7 +980,7 @@ export default class NextNodeServer extends BaseServer<
         })
 
         // If we handled the request, we can return early.
-        if (handled) return true
+        if (handled) return
       }
 
       // If the route was detected as being a Pages API route, then handle
@@ -990,18 +989,17 @@ export default class NextNodeServer extends BaseServer<
       if (isPagesAPIRouteMatch(match)) {
         if (this.nextConfig.output === 'export') {
           await this.render404(req, res, parsedUrl)
-          return true
+          return
         }
 
         delete query._nextBubbleNoFallback
 
         const handled = await this.handleApiRequest(req, res, query, match)
-        if (handled) return true
+        if (handled) return
       }
 
       await this.render(req, res, pathname, query, parsedUrl, true)
-
-      return true
+      return
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
         throw err
@@ -1018,7 +1016,7 @@ export default class NextNodeServer extends BaseServer<
         }
         res.statusCode = 500
         await this.renderError(err, req, res, pathname, query)
-        return true
+        return
       } catch {}
 
       throw err

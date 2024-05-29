@@ -471,10 +471,10 @@ export default class DevServer extends Server {
     return result
   }
 
-  async run(
+  protected async handleCatchallRenderRequest(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.ready?.promise
 
@@ -503,7 +503,8 @@ export default class DevServer extends Server {
       parsedUrl.pathname = originalPathname
     }
     try {
-      return await super.run(req, res, parsedUrl)
+      await super.handleCatchallRenderRequest(req, res, parsedUrl)
+      return
     } catch (error) {
       const err = getProperError(error)
       formatServerError(err)

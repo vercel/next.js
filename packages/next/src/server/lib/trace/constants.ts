@@ -10,7 +10,6 @@
 
 enum BaseServerSpan {
   handleRequest = 'BaseServer.handleRequest',
-  run = 'BaseServer.run',
   pipe = 'BaseServer.pipe',
   getStaticHTML = 'BaseServer.getStaticHTML',
   render = 'BaseServer.render',

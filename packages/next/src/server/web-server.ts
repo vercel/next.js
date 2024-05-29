@@ -9,7 +9,6 @@ import type {
   MiddlewareRoutingItem,
   NormalizedRouteManifest,
   Options,
-  RouteHandler,
 } from './base-server'
 import type { Revalidate, SwrDelta } from './lib/revalidate'
 
@@ -53,8 +52,6 @@ interface WebServerOptions extends Options {
     interceptionRouteRewrites?: Rewrite[]
   }
 }
-
-type WebRouteHandler = RouteHandler<WebNextRequest, WebNextResponse>
 
 export default class NextWebServer extends BaseServer<
   WebServerOptions,
@@ -158,11 +155,11 @@ export default class NextWebServer extends BaseServer<
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected handleCatchallRenderRequest: WebRouteHandler = async (
-    req,
-    res,
-    parsedUrl
-  ) => {
+  protected async handleCatchallRenderRequest(
+    req: WebNextRequest,
+    res: WebNextResponse,
+    parsedUrl: NextUrlWithParsedQuery
+  ): Promise<void> {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('pathname is undefined')
@@ -224,12 +221,12 @@ export default class NextWebServer extends BaseServer<
 
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
-
-      return true
+      return
     } catch (err) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
-        return false
+        return
       }
+
       throw err
     }
   }
