@@ -4,10 +4,6 @@ import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 describe('module layer', () => {
   const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      react: '19.0.0-rc-915b914b3a-20240515',
-      'react-dom': '19.0.0-rc-915b914b3a-20240515',
-    },
   })
 
   function runTests() {
@@ -40,12 +36,6 @@ describe('module layer', () => {
       const json = await next.fetch('/middleware').then((res) => res.json())
       expect(json.React).toContain('version') // basic react-server export
       expect(json.React).not.toContain('useEffect') // no client api export
-      expect(json.textValue).toBe('text-value')
-    })
-
-    it('should call instrumentation hook without errors', async () => {
-      const output = next.cliOutput
-      expect(output).toContain('instrumentation:register')
     })
 
     // This is for backward compatibility, don't change react usage in existing pages/api

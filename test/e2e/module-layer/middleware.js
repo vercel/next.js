@@ -1,7 +1,6 @@
 import 'server-only'
 import * as React from 'react'
 import { NextResponse } from 'next/server'
-import { textValue } from './lib/mixed-lib/shared-module'
 // import './lib/mixed-lib'
 
 export function middleware(request) {
@@ -14,7 +13,6 @@ export function middleware(request) {
   if (request.nextUrl.pathname === '/middleware') {
     return Response.json({
       React: Object.keys(ReactObject),
-      textValue,
     })
   }
 
