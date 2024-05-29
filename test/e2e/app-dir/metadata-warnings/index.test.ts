@@ -4,7 +4,7 @@ const METADATA_BASE_WARN_STRING =
   'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
 
 describe('app dir - metadata missing metadataBase', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -56,11 +56,16 @@ describe('app dir - metadata missing metadataBase', () => {
       )
     })
   } else {
-    it('should not show warning in default output', async () => {
+    it('should not show warning in vercel deployment output in default output mode', async () => {
       const logStartPosition = next.cliOutput.length
       await next.fetch('/og-image-convention')
       const output = getCliOutput(logStartPosition)
-      expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
+
+      if (isNextDeploy) {
+        expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
+      } else {
+        expect(output).toInclude(METADATA_BASE_WARN_STRING)
+      }
     })
   }
 
