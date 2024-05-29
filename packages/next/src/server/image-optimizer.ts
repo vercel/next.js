@@ -442,7 +442,6 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   const sharp = getSharp()
   const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
@@ -554,7 +553,6 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
-    output: NextConfigComplete['output']
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -626,7 +624,6 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
-      nextConfigOutput: nextConfig.output,
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {

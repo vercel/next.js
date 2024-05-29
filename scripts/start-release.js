@@ -1,3 +1,4 @@
+// @ts-check
 const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
@@ -8,9 +9,14 @@ async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
   const semverType = args[args.indexOf('--semver-type') + 1]
-  const isCanary = releaseType !== 'stable'
+  const isCanary = releaseType === 'canary'
+  const isReleaseCandidate = releaseType === 'release-candidate'
 
-  if (releaseType !== 'stable' && releaseType !== 'canary') {
+  if (
+    releaseType !== 'stable' &&
+    releaseType !== 'canary' &&
+    releaseType !== 'release-candidate'
+  ) {
     console.log(`Invalid release type ${releaseType}, must be stable or canary`)
     return
   }
@@ -53,20 +59,27 @@ async function main() {
   })
 
   console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
+  const preleaseType =
+    semverType === 'major'
+      ? 'premajor'
+      : semverType === 'minor'
+        ? 'preminor'
+        : 'prerelease'
+
   const child = execa(
     isCanary
-      ? `pnpm lerna version ${
-          semverType === 'minor' ? 'preminor' : 'prerelease'
-        } --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
-      : `pnpm lerna version ${semverType} --force-publish -y`,
+      ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
+      : isReleaseCandidate
+        ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
+        : `pnpm lerna version ${semverType} --force-publish -y`,
     {
       stdio: 'pipe',
       shell: true,
     }
   )
 
-  child.stdout.pipe(process.stdout)
-  child.stderr.pipe(process.stderr)
+  child.stdout?.pipe(process.stdout)
+  child.stderr?.pipe(process.stderr)
   await child
   console.log('Release process is finished')
 }

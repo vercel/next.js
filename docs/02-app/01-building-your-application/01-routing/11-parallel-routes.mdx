@@ -217,7 +217,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 ### Modals
 
-Parallel Routes can be used together with [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) to create modals. This allows you to solve common challenges when building modals, such as:
+Parallel Routes can be used together with [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) to create modals that support deep linking. This allows you to solve common challenges when building modals, such as:
 
 - Making the modal content **shareable through a URL**.
 - **Preserving context** when the page is refreshed, instead of closing the modal.
@@ -403,7 +403,7 @@ export function Modal({ children }) {
 }
 ```
 
-When using the `Link` component to navigate away from a page that shouldn't render the `@auth` slot anymore, we use a catch-all route that returns `null`.
+When using the `Link` component to navigate away from a page that shouldn't render the `@auth` slot anymore, we need to make sure the parallel route matches to a component that returns `null`. For example, when navigating back to the root page, we create a `@auth/page.tsx` component:
 
 ```tsx filename="app/ui/modal.tsx" switcher
 import Link from 'next/link'
@@ -430,6 +430,20 @@ export function Modal({ children }) {
   )
 }
 ```
+
+```tsx filename="app/@auth/page.tsx" switcher
+export default function Page() {
+  return null
+}
+```
+
+```jsx filename="app/@auth/page.js" switcher
+export default function Page() {
+  return null
+}
+```
+
+Or if navigating to any other page (such as `/foo`, `/foo/bar`, etc), you can use a catch-all slot:
 
 ```tsx filename="app/@auth/[...catchAll]/page.tsx" switcher
 export default function CatchAll() {

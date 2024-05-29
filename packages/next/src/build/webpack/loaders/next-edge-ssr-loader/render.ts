@@ -93,7 +93,7 @@ export function getRender({
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
-        supportsDynamicHTML: true,
+        supportsDynamicResponse: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
         serverActions,
