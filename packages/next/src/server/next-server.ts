@@ -59,7 +59,7 @@ import type {
   NextEnabledDirectories,
   BaseRequestHandler,
 } from './base-server'
-import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -1130,7 +1130,10 @@ export default class NextNodeServer extends BaseServer<
 
           if (!routeMatch || isMiddlewareRequest) return
 
-          const isRSC = isRSCRequestCheck(normalizedReq)
+          // NOTE: this is only attached after handle has started, this runs
+          // after the response has been sent, so it should have it set.
+          const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
