@@ -6,10 +6,12 @@ describe('rsc layers transform', () => {
   })
 
   it('should render installed react-server condition for middleware', async () => {
-    const json = await next
-      .fetch('/middleware-transform')
-      .then((res) => res.json())
-    expect(json.textValue).toBe('text-value')
+    const json = await next.fetch('/middleware').then((res) => res.json())
+
+    expect(json).toEqual({
+      textValue: 'text-value',
+      clientReference: 'Symbol(react.client.reference)',
+    })
   })
 
   it('should call instrumentation hook without errors', async () => {
