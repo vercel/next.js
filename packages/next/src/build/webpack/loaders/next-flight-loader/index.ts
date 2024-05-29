@@ -104,20 +104,17 @@ export default function transformSource(
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
 
-const proxy = createProxy(String.raw\`${this.resourcePath}\`)
+const proxy = createProxy(String.raw\`${resourceKey}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = proxy[''];`
+          esmSource += `exports[''] = proxy['']\n`
         } else if (ref === 'default') {
-          esmSource += `\
-export default createProxy(String.raw\`${resourceKey}#default\`);
-`
+          esmSource += `export default createProxy(String.raw\`${resourceKey}#default\`)\n`
         } else {
-          esmSource += `
-const e${cnt} = proxy["${ref}"];
-export { e${cnt++} as ${ref} };`
+          esmSource += `const e${cnt} = proxy["${ref}"];\n`
+          esmSource += `export { e${cnt++} as ${ref} };\n`
         }
       }
 
