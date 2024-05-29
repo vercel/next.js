@@ -347,6 +347,8 @@ export default async function getBaseWebpackConfig(
   // If the current compilation is aimed at server-side code instead of client-side code.
   const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
 
+  const ensureDeterministicModuleIds = isNodeOrEdgeCompilation && !dev
+
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
@@ -933,6 +935,9 @@ export default async function getBaseWebpackConfig(
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
+      // If ensureDeterministicModuleIds is true, we're using a custom
+      // DeterministicModuleIdsPlugin instead of the default one, see plugins.
+      moduleIds: ensureDeterministicModuleIds ? false : undefined,
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1935,7 +1940,7 @@ export default async function getBaseWebpackConfig(
             ].filter<[Feature, boolean]>(Boolean as any)
           )
         ),
-      !dev &&
+      ensureDeterministicModuleIds &&
         new webpack.ids.DeterministicModuleIdsPlugin({
           // The default maxLength of 3 (even up to 5) may yield conflicts in
           // assigned module IDs. In this case, Webpack would fall back to
