@@ -15,7 +15,7 @@
       { "type": "user", "pattern": "kyliau" },
       { "type": "user", "pattern": "spanicker" }
     ],
-    "ci-approved": [
+    "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
       { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "vercel-release-bot" }
