@@ -375,6 +375,7 @@ async function generateFlight(
 
 type RenderToStreamResult = {
   stream: RenderResultResponse
+  inlinedDataStream?: ReadableStream<Uint8Array>
   err?: unknown
 }
 
@@ -1156,32 +1157,34 @@ async function renderToHTMLOrFlightImpl(
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
 
+              const [inlinedDataStream, inlinedDataStreamClone] =
+                createInlinedDataReadableStream(
+                  dataStream,
+                  nonce,
+                  formState
+                ).tee()
+
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
-                    nonce,
-                    formState
-                  ),
+                  inlinedDataStream: inlinedDataStreamClone,
                   getServerInsertedHTML,
                 }),
+                inlinedDataStream,
               }
             }
           }
         } else if (renderOpts.postponed) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const inlinedDataStream = createInlinedDataReadableStream(
-            dataStream,
-            nonce,
-            formState
-          )
+          const [inlinedDataStream, inlinedDataStreamClone] =
+            createInlinedDataReadableStream(dataStream, nonce, formState).tee()
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
               stream: await continueDynamicHTMLResume(stream, {
-                inlinedDataStream,
+                inlinedDataStream: inlinedDataStreamClone,
                 getServerInsertedHTML,
               }),
+              inlinedDataStream,
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
@@ -1189,24 +1192,24 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicDataResume(stream, {
                 inlinedDataStream,
               }),
+              inlinedDataStream,
             }
           }
         } else {
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
+          const [inlinedDataStream, inlinedDataStreamClone] =
+            createInlinedDataReadableStream(dataStream, nonce, formState).tee()
           return {
             stream: await continueFizzStream(stream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
-              ),
+              inlinedDataStream: inlinedDataStreamClone,
               isStaticGeneration: isStaticGeneration || generateStaticHTML,
               getServerInsertedHTML,
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            inlinedDataStream,
           }
         }
       } catch (err) {
@@ -1313,19 +1316,22 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
+          const [inlinedDataStream, inlinedDataStreamClone] =
+            createInlinedDataReadableStream(
+              // This is intentionally using the readable datastream from the
+              // main render rather than the flight data from the error page
+              // render
+              dataStream,
+              nonce,
+              formState
+            ).tee()
+
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
             stream: await continueFizzStream(fizzStream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                // This is intentionally using the readable datastream from the
-                // main render rather than the flight data from the error page
-                // render
-                dataStream,
-                nonce,
-                formState
-              ),
+              inlinedDataStream: inlinedDataStreamClone,
               isStaticGeneration,
               getServerInsertedHTML: makeGetServerInsertedHTML({
                 polyfills,
@@ -1337,6 +1343,7 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            inlinedDataStream,
           }
         } catch (finalErr: any) {
           if (
@@ -1480,7 +1487,12 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  return new RenderResult(response.stream, options)
+  return [
+    new RenderResult(response.stream, options),
+    response.inlinedDataStream
+      ? new RenderResult(response.inlinedDataStream, options)
+      : null,
+  ] as const
 }
 
 export type AppPageRender = (
@@ -1489,7 +1501,14 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-) => Promise<RenderResult<AppPageRenderResultMetadata>>
+) => Promise<
+  | [
+      RenderResult<AppPageRenderResultMetadata>,
+      RenderResult<AppPageRenderResultMetadata>,
+    ]
+  | null
+>
+// | Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
