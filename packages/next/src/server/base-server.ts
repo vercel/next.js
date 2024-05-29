@@ -117,7 +117,6 @@ import {
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
 import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
@@ -149,6 +148,8 @@ import {
 } from './after/builtin-request-context'
 import type { RequestAdapter } from './request-adapter/request-adapter'
 import { MatchedPathRequestAdapter } from './request-adapter/matched-path-request-adapter'
+import { InvokePathRequestAdapter } from './request-adapter/invoke-path-request-adapter'
+import { RequestError } from './request-adapter/request-error'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -612,6 +613,12 @@ export default abstract class Server<
         this.nextConfig,
         this.getRoutesManifest.bind(this)
       )
+    } else if (!customServer && process.env.NEXT_RUNTIME !== 'edge') {
+      this.requestAdapter = new InvokePathRequestAdapter(
+        this.enabledDirectories,
+        this.i18nProvider,
+        this.nextConfig
+      )
     }
   }
 
@@ -1031,80 +1038,13 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // when x-invoke-path is specified we can short short circuit resolving
-      // we only honor this header if we are inside of a render worker to
-      // prevent external users coercing the routing path
-      const invokePath = req.headers['x-invoke-path'] as string
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
-        invokePath
+        req.headers['x-invoke-path']
 
-      if (useInvokePath) {
-        if (req.headers['x-invoke-status']) {
-          const invokeQuery = req.headers['x-invoke-query']
-
-          if (typeof invokeQuery === 'string') {
-            Object.assign(
-              parsedUrl.query,
-              JSON.parse(decodeURIComponent(invokeQuery))
-            )
-          }
-
-          res.statusCode = Number(req.headers['x-invoke-status'])
-          let err: Error | null = null
-
-          if (typeof req.headers['x-invoke-error'] === 'string') {
-            const invokeError = JSON.parse(
-              req.headers['x-invoke-error'] || '{}'
-            )
-            err = new Error(invokeError.message)
-          }
-
-          return this.renderError(err, req, res, '/_error', parsedUrl.query)
-        }
-
-        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
-        const invokePathnameInfo = getNextPathnameInfo(
-          parsedMatchedPath.pathname,
-          {
-            nextConfig: this.nextConfig,
-            parseData: false,
-          }
-        )
-
-        if (invokePathnameInfo.locale) {
-          parsedUrl.query.__nextLocale = invokePathnameInfo.locale
-        }
-
-        if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
-          parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
-        }
-        const normalizeResult = normalizeLocalePath(
-          removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
-          this.nextConfig.i18n?.locales || []
-        )
-
-        if (normalizeResult.detectedLocale) {
-          parsedUrl.query.__nextLocale = normalizeResult.detectedLocale
-        }
-        parsedUrl.pathname = normalizeResult.pathname
-
-        for (const key of Object.keys(parsedUrl.query)) {
-          if (!key.startsWith('__next') && !key.startsWith('_next')) {
-            delete parsedUrl.query[key]
-          }
-        }
-        const invokeQuery = req.headers['x-invoke-query']
-
-        if (typeof invokeQuery === 'string') {
-          Object.assign(
-            parsedUrl.query,
-            JSON.parse(decodeURIComponent(invokeQuery))
-          )
-        }
-
+      if (useInvokePath && this.requestAdapter) {
+        await this.requestAdapter.adapt(req, parsedUrl)
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
 
@@ -1152,6 +1092,11 @@ export default abstract class Server<
       res.statusCode = 200
       return await this.run(req, res, parsedUrl)
     } catch (err: any) {
+      if (err instanceof RequestError) {
+        res.statusCode = err.statusCode
+        return this.renderError(err.cause, req, res, '/_error', err.query)
+      }
+
       if (err instanceof NoFallbackError) {
         throw err
       }
