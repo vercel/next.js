@@ -134,6 +134,7 @@ type AppRouterProps = Omit<
 > & {
   buildId: string
   initialHead: ReactNode
+  initialLayerAssets: ReactNode
   assetPrefix: string
   missingSlots: Set<string>
 }
@@ -183,6 +184,8 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     head: null,
+    layerAssets: null,
+    prefetchLayerAssets: null,
     prefetchHead: null,
     parallelRoutes: new Map(),
     lazyDataResolved: false,
@@ -307,6 +310,7 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
+        initialLayerAssets: null,
         couldBeIntercepted,
       }),
     [
@@ -656,6 +660,7 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
+      {/* {cache.layerAssets} */}
       {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
