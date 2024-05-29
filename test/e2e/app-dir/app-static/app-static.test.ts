@@ -174,7 +174,7 @@ describe('app-dir static/dynamic handling', () => {
       it('should honor force-static with fetch cache: no-store correctly', async () => {
         const res = await next.fetch('/force-static-fetch-no-store')
         expect(res.status).toBe(200)
-        expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        expect(res.headers.get('x-nextjs-cache')?.toLowerCase()).toBe('hit')
       })
     }
   }
