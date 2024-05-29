@@ -84,6 +84,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
               <CopyButton
                 data-nextjs-data-runtime-error-copy-stack
                 label="Copy error stack"
+                successLabel="Copied"
                 content={error.error.stack}
               />
             )}
@@ -128,21 +129,15 @@ export const styles = css`
   [data-nextjs-data-runtime-error-copy-stack] {
     position: relative;
     margin-left: var(--size-gap);
-    transition:
-      transform 0.2s ease,
-      box-shadow 0.2s ease;
   }
   [data-nextjs-data-runtime-error-copy-stack] > svg {
     vertical-align: middle;
   }
-  [data-nextjs-data-runtime-error-copy-stack]:hover {
-    opacity: 0.8;
-    cursor: pointer;
+  [data-nextjs-data-runtime-error-copy-stack-success] {
+    color: var(--color-ansi-green);
   }
-
-  /* Add button move effects when clicking */
-  [data-nextjs-data-runtime-error-copy-stack]:active {
-    top: 1px;
+  [data-nextjs-data-runtime-error-copy-stack]:hover {
+    cursor: pointer;
   }
 
   [data-nextjs-call-stack-frame] > h3,
