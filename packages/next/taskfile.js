@@ -1053,7 +1053,6 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
-        'ncc_rsc_poison_packages',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
         'ncc_babel_bundle',
         'ncc_jsonwebtoken',
