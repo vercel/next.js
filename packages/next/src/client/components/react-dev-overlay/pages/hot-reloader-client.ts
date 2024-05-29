@@ -316,7 +316,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
-      window.location.reload()
+      // Server component changes don't apply to `pages`.
       return
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
