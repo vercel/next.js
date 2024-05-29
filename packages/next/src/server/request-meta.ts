@@ -189,6 +189,11 @@ type NextQueryMetadata = {
 
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
+
+  /**
+   * When set to `1`, the request is for the `/_next/data` route using the pages
+   * router.
+   */
   __nextDataReq?: '1'
   __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string

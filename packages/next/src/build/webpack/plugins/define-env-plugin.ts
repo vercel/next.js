@@ -178,7 +178,7 @@ export function getDefineEnv({
       config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
-        ? 30 // 30 seconds
+        ? 0
         : config.experimental.staleTimes?.dynamic
     ),
     'process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME': JSON.stringify(

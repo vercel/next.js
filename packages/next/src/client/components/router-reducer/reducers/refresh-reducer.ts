@@ -126,7 +126,6 @@ export function refreshReducer(
 
         mutable.cache = cache
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
 
         currentTree = newTree
       }

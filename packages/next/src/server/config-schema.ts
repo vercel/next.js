@@ -290,7 +290,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
-        swrDelta: z.number().optional(),
         flyingShuttle: z.boolean().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
@@ -365,6 +364,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
+        webpackMemoryOptimizations: z.boolean().optional(),
         turbo: z
           .object({
             loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
@@ -588,6 +588,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
+    swrDelta: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),

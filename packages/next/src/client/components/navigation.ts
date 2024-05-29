@@ -269,4 +269,5 @@ export {
   permanentRedirect,
   RedirectType,
   ReadonlyURLSearchParams,
+  unstable_rethrow,
 } from './navigation.react-server'
