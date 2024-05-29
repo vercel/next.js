@@ -13,6 +13,21 @@ describe('app dir - metadata missing metadataBase', () => {
     return
   }
 
+  if (process.env.TEST_STANDALONE === '1') {
+    beforeAll(async () => {
+      await next.stop()
+      await next.patchFile(
+        'next.config.js',
+        `
+        module.exports = {
+          output: 'standalone',
+        }
+      `
+      )
+      await next.start()
+    })
+  }
+
   // If it's start mode, we get the whole logs since they're from build process.
   // If it's development mode, we get the logs after request
   function getCliOutput(logStartPosition: number) {
@@ -26,7 +41,9 @@ describe('app dir - metadata missing metadataBase', () => {
       const output = getCliOutput(logStartPosition)
       expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     })
-  } else {
+  }
+
+  if (process.env.TEST_STANDALONE === '1') {
     it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
       const logStartPosition = next.cliOutput.length
       await next.fetch('/og-image-convention')
@@ -37,6 +54,13 @@ describe('app dir - metadata missing metadataBase', () => {
       expect(output).toInclude(
         '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
       )
+    })
+  } else {
+    it('should not show warning in default output', async () => {
+      const logStartPosition = next.cliOutput.length
+      await next.fetch('/og-image-convention')
+      const output = getCliOutput(logStartPosition)
+      expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     })
   }
 
