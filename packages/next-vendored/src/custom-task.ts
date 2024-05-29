@@ -6,7 +6,10 @@ import ncc, { type NccOptions } from '@vercel/ncc'
 type NccTaskOptions = {
   packageName: string
   packageJsonName?: string
-  bundleName?: string
+  /**
+   * If true, only NCC the module and don't add other files like a package.json.
+   */
+  moduleOnly?: boolean
 } & NccOptions
 
 export class Task extends CoreTask {
@@ -36,26 +39,26 @@ export class Task extends CoreTask {
         ...options,
       })
 
-      for (const [name, asset] of Object.entries(output.assets)) {
-        // We'll add a package.json later
-        if (name === 'package.json') continue
+      if (!options.moduleOnly) {
+        for (const [name, asset] of Object.entries(output.assets)) {
+          // We'll add a package.json later
+          if (name === 'package.json') continue
 
-        files.push({
-          path: join(dirname(file.path), name),
-          data: Buffer.from(asset.source, 'utf8'),
-        })
+          files.push({
+            path: join(dirname(file.path), name),
+            data: Buffer.from(asset.source, 'utf8'),
+          })
+        }
+
+        if (packageName) {
+          await addMissingFiles(
+            file.path,
+            packageName,
+            files,
+            options.packageJsonName
+          )
+        }
       }
-
-      if (packageName) {
-        await addMissingFiles(
-          file.path,
-          packageName,
-          files,
-          options.packageJsonName,
-          options.bundleName
-        )
-      }
-
       file.data = Buffer.from(output.code, 'utf8')
     })
     return this
@@ -66,8 +69,7 @@ async function addMissingFiles(
   indexPath: string,
   packageName: string,
   files: TFile[],
-  packageJsonName?: string,
-  bundleName?: string
+  packageJsonName?: string
 ) {
   const dirPath = dirname(indexPath)
   const packageJsonPath = await findInPackage(dirPath, 'package.json')

@@ -968,58 +968,6 @@ export async function ncc_webpack_sources3(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['mini-css-extract-plugin'] =
-  'next/dist/compiled/mini-css-extract-plugin'
-
-export async function ncc_mini_css_extract_plugin(task, opts) {
-  await task
-    .source(
-      relative(
-        __dirname,
-        resolve(require.resolve('mini-css-extract-plugin'), '../index.js')
-      )
-    )
-    .ncc({
-      externals: {
-        ...externals,
-        './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
-        'webpack-sources': externals['webpack-sources1'],
-      },
-    })
-    .target('src/compiled/mini-css-extract-plugin')
-  await task
-    .source(
-      relative(
-        __dirname,
-        resolve(
-          require.resolve('mini-css-extract-plugin'),
-          '../hmr/hotModuleReplacement.js'
-        )
-      )
-    )
-    .ncc({
-      externals: {
-        ...externals,
-        './hmr': './hmr',
-        'schema-utils': '@next/vendored/schema-utils3',
-      },
-    })
-    .target('src/compiled/mini-css-extract-plugin/hmr')
-  await task
-    .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
-    .ncc({
-      packageName: 'mini-css-extract-plugin',
-      externals: {
-        ...externals,
-        './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
-      },
-    })
-    .target('src/compiled/mini-css-extract-plugin')
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
   const bundleExternals = {
     ...externals,
@@ -1115,7 +1063,6 @@ export async function ncc(task, opts) {
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_opentelemetry_api',
-        'ncc_mini_css_extract_plugin',
       ],
       opts
     )

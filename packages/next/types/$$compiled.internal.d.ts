@@ -147,8 +147,6 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
   export = m
 }
 
-declare module 'mini-css-extract-plugin'
-
 declare module 'next/dist/compiled/webpack-sources3' {
   interface StringBufferUtils {
     disableDualStringBufferCaching: () => boolean

@@ -8,6 +8,7 @@ declare module '@next/vendored/loader-utils2'
 declare module '@next/vendored/loader-utils3'
 declare module '@next/vendored/@napi-rs/triples'
 declare module '@next/vendored/async-retry'
+declare module '@next/vendored/mini-css-extract-plugin'
 
 declare module '@next/vendored/node-html-parser' {
   export * from 'node-html-parser'

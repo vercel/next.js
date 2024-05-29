@@ -831,7 +831,7 @@ importers:
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-592953e-20240517
+        version: 0.0.0-experimental-487cb0e-20240529
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -1365,6 +1365,9 @@ importers:
       lru-cache:
         specifier: 5.1.1
         version: 5.1.1
+      mini-css-extract-plugin:
+        specifier: 2.4.4
+        version: 2.4.4(webpack@5.90.0)
       nanoid:
         specifier: 3.1.32
         version: 3.1.32
@@ -8848,8 +8851,8 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /babel-plugin-react-compiler@0.0.0-experimental-592953e-20240517:
-    resolution: {integrity: sha512-OjG1SVaeQZaJrqkMFJatg8W/MTow8Ak5rx2SI0ETQBO1XvOk/XZGMbltNCPdFJLKghBYoBjC+Y3Ap/Xr7B01mA==}
+  /babel-plugin-react-compiler@0.0.0-experimental-487cb0e-20240529:
+    resolution: {integrity: sha512-77FYmA+oiCQnq5fK0jvoR0b78oKkgXrECc8n9U+gyWh+8P0zFJSX0wyI16Z456m/lrcANE56VWbr6+VxzoMBJg==}
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -17866,7 +17869,6 @@ packages:
     dependencies:
       schema-utils: 3.2.0
       webpack: 5.90.0(@swc/core@1.5.7)
-    dev: true
 
   /minimalistic-assert@1.0.1:
     resolution: {integrity: sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A==}

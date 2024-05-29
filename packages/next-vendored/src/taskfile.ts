@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import fs from 'node:fs/promises'
 import { Task } from './custom-task.js'
 import type { Tasks, QueueFn } from '@next/task'
@@ -7,7 +7,7 @@ import { resolveCommonjs } from './resolve.cjs'
 
 export { Task }
 
-const resolve = (modulePath: string) =>
+const resolveModule = (modulePath: string) =>
   fileURLToPath(import.meta.resolve(modulePath))
 
 // Modules that import other compiled modules need to do so from `@next/vendored`
@@ -324,7 +324,7 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
   tasks[taskName] = async (task) => {
     await task.clear(mod)
     task
-      .source(esm ? resolve(modPath) : resolveCommonjs(modPath))
+      .source(esm ? resolveModule(modPath) : resolveCommonjs(modPath))
       .ncc(
         Object.assign(
           { packageName: mod, externals: combinedExternals },
@@ -337,10 +337,54 @@ for (let [taskName, modOptions] of Object.entries(nccTasks)) {
   }
 }
 
+externals['mini-css-extract-plugin'] =
+  `${next_vendored}/mini-css-extract-plugin`
+
+export async function ncc_mini_css_extract_plugin(task: Task) {
+  const mod = 'mini-css-extract-plugin'
+
+  await task.clear(mod)
+  await task
+    .source(resolve(resolveCommonjs(mod)))
+    .ncc({
+      packageName: mod,
+      externals: {
+        ...externals,
+        './index': './index.js',
+      },
+    })
+    .target(mod)
+  await task
+    .source(resolve(resolveCommonjs(mod), '../index.js'))
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      moduleOnly: true,
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': externals['schema-utils3']!,
+        'webpack-sources': externals['webpack-sources1']!,
+      },
+    })
+    .target(mod)
+  await task
+    .source(resolve(resolveCommonjs(mod), '../hmr/hotModuleReplacement.js'))
+    .ncc({
+      packageName: mod,
+      moduleOnly: true,
+      externals: {
+        ...externals,
+        './hmr': './hmr',
+        'schema-utils': externals['schema-utils3']!,
+      },
+    })
+    .target(mod + '/hmr')
+}
+
 export async function copy_constants_browserify(task: Task) {
   await task.clear('constants-browserify')
   await task
-    .source(resolve('constants-browserify'))
+    .source(resolveModule('constants-browserify'))
     .target('constants-browserify')
   await writeJson('constants-browserify/package.json', {
     name: 'constants-browserify',
@@ -351,7 +395,7 @@ export async function copy_constants_browserify(task: Task) {
 export async function copy_regenerator_runtime(task: Task) {
   await task.clear('regenerator-runtime')
   await task
-    .source(join(dirname(resolve('regenerator-runtime')), '**/*'))
+    .source(join(dirname(resolveModule('regenerator-runtime')), '**/*'))
     .target('regenerator-runtime')
 }
 
@@ -368,8 +412,8 @@ export async function generate_externals(task: Task) {
 }
 
 export async function ncc(task: Task) {
-  await task.parallel(Object.keys(nccTasks))
-  await task.serial(['copy_regenerator_runtime', 'copy_constants_browserify'])
+  await task.parallel([...Object.keys(nccTasks), 'ncc_mini_css_extract_plugin'])
+  await task.parallel(['copy_regenerator_runtime', 'copy_constants_browserify'])
 }
 
 function writeJson(file: string, obj: any) {
