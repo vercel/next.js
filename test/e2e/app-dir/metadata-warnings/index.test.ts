@@ -44,6 +44,7 @@ describe('app dir - metadata missing metadataBase', () => {
   }
 
   if (process.env.TEST_STANDALONE === '1') {
+    // Standalone mode should always show the warning
     it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
       const logStartPosition = next.cliOutput.length
       await next.fetch('/og-image-convention')
@@ -56,12 +57,13 @@ describe('app dir - metadata missing metadataBase', () => {
       )
     })
   } else {
-    it('should not show warning in vercel deployment output in default output mode', async () => {
+    // Default output mode
+    it('should show warning in vercel deployment output in default build output mode', async () => {
       const logStartPosition = next.cliOutput.length
       await next.fetch('/og-image-convention')
       const output = getCliOutput(logStartPosition)
 
-      if (isNextDeploy) {
+      if (isNextDeploy || isNextDev) {
         expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
       } else {
         expect(output).toInclude(METADATA_BASE_WARN_STRING)
