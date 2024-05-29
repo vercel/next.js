@@ -1,5 +1,11 @@
 import { useState } from 'react'
 
+enum CopyState {
+  Initial = 0,
+  Copied = 1,
+  Error = 2,
+}
+
 export function CopyButton({
   label,
   successLabel,
@@ -10,9 +16,8 @@ export function CopyButton({
   successLabel: string
   content: string
 }) {
-  // copied: 0 = not copied, 1 = copied, 2 = error
-  const [copied, setCopied] = useState(0)
-  const isDisabled = copied === 2
+  const [copied, setCopied] = useState(CopyState.Initial)
+  const isDisabled = copied === CopyState.Error
   const title = isDisabled ? '' : copied ? successLabel : label
   return (
     <span
@@ -24,13 +29,13 @@ export function CopyButton({
       onClick={() => {
         if (isDisabled) return
         if (!navigator.clipboard) {
-          setCopied(2)
+          setCopied(CopyState.Error)
           return
         }
         navigator.clipboard.writeText(content).then(() => {
           if (copied) return
-          setCopied(1)
-          setTimeout(() => setCopied(0), 2000)
+          setCopied(CopyState.Copied)
+          setTimeout(() => setCopied(CopyState.Initial), 2000)
         })
       }}
     >
