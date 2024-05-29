@@ -938,6 +938,18 @@ export const metadata = {
 <meta name="category" content="technology" />
 ```
 
+### `classification`
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  classification: 'My Classification',
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="classification" content="My Classification" />
+```
+
 ### `other`
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.
