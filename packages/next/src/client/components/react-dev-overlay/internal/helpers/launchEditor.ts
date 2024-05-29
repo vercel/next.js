@@ -32,6 +32,7 @@ function isTerminalEditor(editor: string) {
   switch (editor) {
     case 'vi':
     case 'vim':
+    case 'nvim':
     case 'emacs':
     case 'nano': {
       return true
@@ -160,6 +161,7 @@ function getArgumentsForLineNumber(
       return ['-n' + lineNumber, '-c' + colNumber, fileName]
     }
     case 'vim':
+    case 'nvim':
     case 'mvim':
     case 'joe':
     case 'gvim': {
