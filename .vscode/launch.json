@@ -66,6 +66,139 @@
       }
     },
     {
+      "name": "Launch test/e2e/app-dir/app development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "dev",
+        "test/e2e/app-dir/app"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Launch test/e2e/app-dir/app build",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "build",
+        "test/e2e/app-dir/app"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Launch examples/hello-world development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "dev",
+        "examples/hello-world"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Launch examples/hello-world build",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "build",
+        "examples/hello-world"
+      ],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
+      "name": "Launch examples/hello-world production",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "start",
+        "examples/hello-world"
+      ],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Launch current directory in development",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
       "name": "Launch app build trace jaeger",
       "type": "node",
       "request": "launch",
