@@ -395,7 +395,7 @@ export default abstract class Server<
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult>
+  ): Promise<[RenderResult, RenderResult | null]>
 
   protected abstract getPrefetchRsc(pathname: string): Promise<string | null>
 
@@ -2513,12 +2513,14 @@ export default abstract class Server<
             renderOpts.nextFontManifest = this.nextFontManifest
 
             // Call the built-in render method on the module.
-            result = await module.render(req, res, {
-              page: is404Page ? '/404' : pathname,
-              params: opts.params,
-              query,
-              renderOpts,
-            })
+            result = (
+              await module.render(req, res, {
+                page: is404Page ? '/404' : pathname,
+                params: opts.params,
+                query,
+                renderOpts,
+              })
+            )[0]
           }
         } else {
           throw new Error('Invariant: Unknown route module type')
@@ -2526,7 +2528,7 @@ export default abstract class Server<
       } else {
         // If we didn't match a page, we should fallback to using the legacy
         // render method.
-        result = await this.renderHTML(req, res, pathname, query, renderOpts)
+        ;[result] = await this.renderHTML(req, res, pathname, query, renderOpts)
       }
 
       const { metadata } = result

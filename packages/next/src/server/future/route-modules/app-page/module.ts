@@ -55,7 +55,7 @@ export class AppPageRouteModule extends RouteModule<
     req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<[RenderResult, RenderResult | null]> {
     return renderToHTMLOrFlight(
       req,
       res,
