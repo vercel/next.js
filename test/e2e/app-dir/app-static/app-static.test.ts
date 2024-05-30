@@ -3309,6 +3309,27 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).toEqual(data2)
       expect(data).toEqual('typeof cachedData: undefined')
     })
+
+    it.each(['no-store', 'no-cache'])(
+      'should not error when calling a fetch %s',
+      async (cache) => {
+        const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
+
+        try {
+          const first = await browser.waitForElementByCss('#data').text()
+          expect(first).not.toBe('')
+
+          // Ensure the data is the same after 3 refreshes.
+          for (let i = 0; i < 3; i++) {
+            await browser.refresh()
+            const refreshed = await browser.waitForElementByCss('#data').text()
+            expect(refreshed).toEqual(first)
+          }
+        } finally {
+          await browser.close()
+        }
+      }
+    )
   })
 
   it('should keep querystring on static page', async () => {
