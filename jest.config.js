@@ -20,6 +20,7 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+  prettierPath: require.resolve('prettier-2'),
 }
 
 if (process.env.RECORD_REPLAY) {
