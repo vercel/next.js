@@ -174,7 +174,7 @@ describe('app-dir static/dynamic handling', () => {
       it('should honor force-static with fetch cache: no-store correctly', async () => {
         const res = await next.fetch('/force-static-fetch-no-store')
         expect(res.status).toBe(200)
-        expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        expect(res.headers.get('x-nextjs-cache')?.toLowerCase()).toBe('hit')
       })
     }
   }
@@ -864,6 +864,14 @@ describe('app-dir static/dynamic handling', () => {
           "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
           "unstable-cache/dynamic/page.js",
           "unstable-cache/dynamic/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-cache.html",
+          "unstable-cache/fetch/no-cache.rsc",
+          "unstable-cache/fetch/no-cache/page.js",
+          "unstable-cache/fetch/no-cache/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-store.html",
+          "unstable-cache/fetch/no-store.rsc",
+          "unstable-cache/fetch/no-store/page.js",
+          "unstable-cache/fetch/no-store/page_client-reference-manifest.js",
           "variable-config-revalidate/revalidate-3.html",
           "variable-config-revalidate/revalidate-3.rsc",
           "variable-config-revalidate/revalidate-3/page.js",
@@ -1611,6 +1619,38 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialRevalidateSeconds": 50,
             "srcRoute": "/strip-header-traceparent",
+          },
+          "/unstable-cache/fetch/no-cache": {
+            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-cache",
+          },
+          "/unstable-cache/fetch/no-store": {
+            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-store",
           },
           "/variable-config-revalidate/revalidate-3": {
             "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
@@ -3309,6 +3349,27 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).toEqual(data2)
       expect(data).toEqual('typeof cachedData: undefined')
     })
+
+    it.each(['no-store', 'no-cache'])(
+      'should not error when calling a fetch %s',
+      async (cache) => {
+        const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
+
+        try {
+          const first = await browser.waitForElementByCss('#data').text()
+          expect(first).not.toBe('')
+
+          // Ensure the data is the same after 3 refreshes.
+          for (let i = 0; i < 3; i++) {
+            await browser.refresh()
+            const refreshed = await browser.waitForElementByCss('#data').text()
+            expect(refreshed).toEqual(first)
+          }
+        } finally {
+          await browser.close()
+        }
+      }
+    )
   })
 
   it('should keep querystring on static page', async () => {
