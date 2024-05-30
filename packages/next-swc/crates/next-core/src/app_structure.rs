@@ -213,7 +213,7 @@ impl GlobalMetadata {
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
-    pub subdirectories: BTreeMap<String, Vc<DirectoryTree>>,
+    pub subdirectories: BTreeMap<RcStr, Vc<DirectoryTree>>,
     pub components: Vc<Components>,
 }
 
@@ -392,7 +392,7 @@ async fn get_directory_tree_internal(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories.insert(basename.to_string(), result);
+                    subdirectories.insert(basename.clone(), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
@@ -432,7 +432,7 @@ impl LoaderTree {
     /// Returns true if there's a page match in this loader tree.
     #[turbo_tasks::function]
     pub async fn has_page(&self) -> Result<Vc<bool>> {
-        if self.segment == "__PAGE__" {
+        if &*self.segment == "__PAGE__" {
             return Ok(Vc::cell(true));
         }
 
@@ -449,7 +449,7 @@ impl LoaderTree {
     /// route.
     #[turbo_tasks::function]
     pub async fn has_only_catchall(&self) -> Result<Vc<bool>> {
-        if self.segment == "__PAGE__" && !self.page.is_catchall() {
+        if &*self.segment == "__PAGE__" && !self.page.is_catchall() {
             return Ok(Vc::cell(false));
         }
 
@@ -843,7 +843,7 @@ async fn directory_tree_to_loader_tree(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = "children".to_string();
+        tree.segment = "children".into();
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
@@ -862,10 +862,10 @@ async fn directory_tree_to_loader_tree(
         };
 
         tree.parallel_routes.insert(
-            "children".to_string(),
+            "children".into(),
             LoaderTree {
                 page: app_page.clone(),
-                segment: "__PAGE__".to_string(),
+                segment: "__PAGE__".into(),
                 parallel_routes: IndexMap::new(),
                 components: Components {
                     page: Some(page),
@@ -879,7 +879,7 @@ async fn directory_tree_to_loader_tree(
         );
 
         if current_level_is_parallel_route {
-            tree.segment = "page$".to_string();
+            tree.segment = "page$".into();
         }
     }
 
@@ -915,7 +915,7 @@ async fn directory_tree_to_loader_tree(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
-                tree.parallel_routes.insert(key.to_string(), subtree);
+                tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
 
@@ -933,7 +933,7 @@ async fn directory_tree_to_loader_tree(
                     // there's probably already a more specific page in the
                     // slot.
                 } else if *current_tree.has_only_catchall().await? {
-                    tree.parallel_routes.insert("children".to_string(), subtree);
+                    tree.parallel_routes.insert("children".into(), subtree);
                 } else {
                     // TODO: Investigate if this is still needed. Emitting the
                     // error causes the test "should
@@ -955,7 +955,7 @@ async fn directory_tree_to_loader_tree(
                     // .emit();
                 }
             } else {
-                tree.parallel_routes.insert("children".to_string(), subtree);
+                tree.parallel_routes.insert("children".into(), subtree);
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
