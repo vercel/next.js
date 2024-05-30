@@ -68,6 +68,7 @@ export class NextStartInstance extends NextInstance {
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
     }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }

@@ -129,7 +129,7 @@ export interface RenderOptsPartial {
   basePath: string
   trailingSlash: boolean
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean

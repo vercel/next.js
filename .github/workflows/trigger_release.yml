@@ -56,8 +56,6 @@ jobs:
 
       - name: Check token
         run: gh auth status
-        # For testing purposes. Once we have a succesful run where this step passes, we should error here.
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
