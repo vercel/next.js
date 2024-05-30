@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -50,7 +50,7 @@ fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
 
 fn match_metadata_file<'a>(
     filename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
     metadata: &HashMap<&str, &[&str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
@@ -115,7 +115,7 @@ pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String>
 
 pub fn match_local_metadata_file<'a>(
     basename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
 ) -> Option<MetadataFileMatch<'a>> {
     match_metadata_file(basename, page_extensions, STATIC_LOCAL_METADATA.deref())
 }

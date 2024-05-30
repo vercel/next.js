@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{FileContent, FileSystem, FileSystemPath},
     turbopack::core::{file_source::FileSource, source::Source},
