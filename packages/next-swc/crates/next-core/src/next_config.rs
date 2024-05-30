@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
@@ -59,28 +59,28 @@ struct CustomRoutes {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
-    pub config_file: Option<String>,
-    pub config_file_name: String,
+    pub config_file: Option<RcStr>,
+    pub config_file_name: RcStr,
 
     /// In-memory cache size in bytes.
     ///
     /// If `cache_max_memory_size: 0` disables in-memory caching.
     pub cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
-    pub cache_handler: Option<String>,
+    pub cache_handler: Option<RcStr>,
 
     pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
-    pub page_extensions: Vec<String>,
+    pub page_extensions: Vec<RcStr>,
     pub react_strict_mode: Option<bool>,
-    pub transpile_packages: Option<Vec<String>>,
+    pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
-    pub dist_dir: Option<String>,
+    pub dist_dir: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
-    pub asset_prefix: Option<String>,
-    pub base_path: Option<String>,
+    pub asset_prefix: Option<RcStr>,
+    pub base_path: Option<RcStr>,
     pub skip_middleware_url_normalize: Option<bool>,
     pub skip_trailing_slash_redirect: Option<bool>,
     pub i18n: Option<I18NConfig>,
@@ -822,12 +822,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn page_extensions(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn page_extensions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(self.await?.page_extensions.clone()))
     }
 
     #[turbo_tasks::function]
-    pub async fn transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?.transpile_packages.clone().unwrap_or_default(),
         ))
