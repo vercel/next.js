@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
@@ -66,12 +66,12 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
