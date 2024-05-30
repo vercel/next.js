@@ -138,6 +138,9 @@ export const styles = css`
   [data-nextjs-data-runtime-error-copy-stack] > svg {
     vertical-align: middle;
   }
+  .nextjs-data-runtime-error-copy-stack {
+    color: inherit;
+  }
   .nextjs-data-runtime-error-copy-stack--initial:hover {
     cursor: pointer;
   }
