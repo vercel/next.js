@@ -864,6 +864,14 @@ describe('app-dir static/dynamic handling', () => {
           "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
           "unstable-cache/dynamic/page.js",
           "unstable-cache/dynamic/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-cache.html",
+          "unstable-cache/fetch/no-cache.rsc",
+          "unstable-cache/fetch/no-cache/page.js",
+          "unstable-cache/fetch/no-cache/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-store.html",
+          "unstable-cache/fetch/no-store.rsc",
+          "unstable-cache/fetch/no-store/page.js",
+          "unstable-cache/fetch/no-store/page_client-reference-manifest.js",
           "variable-config-revalidate/revalidate-3.html",
           "variable-config-revalidate/revalidate-3.rsc",
           "variable-config-revalidate/revalidate-3/page.js",
@@ -1611,6 +1619,38 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialRevalidateSeconds": 50,
             "srcRoute": "/strip-header-traceparent",
+          },
+          "/unstable-cache/fetch/no-cache": {
+            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-cache",
+          },
+          "/unstable-cache/fetch/no-store": {
+            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-store",
           },
           "/variable-config-revalidate/revalidate-3": {
             "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
