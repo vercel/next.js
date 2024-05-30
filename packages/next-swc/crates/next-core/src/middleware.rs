@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::core::{
     context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -9,7 +9,7 @@ use turbopack_binding::turbopack::core::{
 use crate::util::load_next_js_template;
 
 #[turbo_tasks::function]
-pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<String>>> {
+pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
     let files = ["middleware.", "src/middleware."]
         .into_iter()
@@ -17,6 +17,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
             extensions
                 .iter()
                 .map(move |ext| String::from(f) + ext.as_str())
+                .map(RcStr::from)
         })
         .collect();
     Ok(Vc::cell(files))
