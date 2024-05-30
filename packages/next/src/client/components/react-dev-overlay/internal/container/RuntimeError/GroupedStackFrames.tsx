@@ -27,12 +27,9 @@ function FrameworkGroup({
 
 export function GroupedStackFrames({
   groupedStackFrames,
-  show,
 }: {
   groupedStackFrames: StackFramesGroup[]
-  show: boolean
 }) {
-  if (!show) return
   return (
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
