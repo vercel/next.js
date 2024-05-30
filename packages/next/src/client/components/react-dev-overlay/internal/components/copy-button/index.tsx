@@ -1,9 +1,10 @@
 import { useState } from 'react'
 
 enum CopyState {
-  Initial = 0,
-  Copied = 1,
-  Error = 2,
+  Initial = 'initial',
+  Success = 'success',
+  Pending = 'pending',
+  Error = 'error',
 }
 
 export function CopyButton({
@@ -11,36 +12,43 @@ export function CopyButton({
   successLabel,
   content,
   ...props
-}: React.HTMLProps<HTMLSpanElement> & {
+}: React.HTMLProps<HTMLButtonElement> & {
   label: string
   successLabel: string
   content: string
 }) {
-  const [copied, setCopied] = useState(CopyState.Initial)
-  const isDisabled = copied === CopyState.Error
-  const title = isDisabled ? '' : copied ? successLabel : label
+  const [copyState, setCopyState] = useState(CopyState.Initial)
+  const isDisabled = copyState === CopyState.Error
+  const title = isDisabled
+    ? ''
+    : copyState === CopyState.Success
+      ? successLabel
+      : label
   return (
-    <span
+    <button
       {...props}
+      type="button"
       title={title}
       aria-label={title}
-      aria-disabled={isDisabled}
-      role="button"
+      disabled={isDisabled}
+      data-nextjs-data-runtime-error-copy-stack
+      className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState}`}
       onClick={() => {
-        if (isDisabled) return
+        if (isDisabled || copyState === CopyState.Pending) return
         if (!navigator.clipboard) {
-          setCopied(CopyState.Error)
+          setCopyState(CopyState.Error)
+          setTimeout(() => setCopyState(CopyState.Initial), 2000)
           return
         }
+        setCopyState(CopyState.Pending)
         navigator.clipboard.writeText(content).then(() => {
-          if (copied) return
-          setCopied(CopyState.Copied)
-          setTimeout(() => setCopied(CopyState.Initial), 2000)
+          setCopyState(CopyState.Success)
+          setTimeout(() => setCopyState(CopyState.Initial), 2000)
         })
       }}
     >
-      {copied ? <CopySuccessIcon /> : <CopyIcon />}
-    </span>
+      {copyState === CopyState.Success ? <CopySuccessIcon /> : <CopyIcon />}
+    </button>
   )
 }
 
@@ -71,7 +79,6 @@ function CopySuccessIcon() {
       width="16"
       stroke="currentColor"
       fill="currentColor"
-      data-nextjs-data-runtime-error-copy-stack-success
     >
       <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
     </svg>
