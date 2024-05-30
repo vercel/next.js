@@ -4,7 +4,7 @@
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_binding::{
     turbo::tasks_hash::hash_xxh3_hash64,

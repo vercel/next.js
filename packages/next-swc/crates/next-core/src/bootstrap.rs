@@ -80,7 +80,7 @@ pub async fn bootstrap(
     let config_asset = context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().join("bootstrap-config.ts".to_string()),
+                asset.ident().path().join("bootstrap-config.ts".into()),
                 AssetContent::file(
                     File::from(
                         config

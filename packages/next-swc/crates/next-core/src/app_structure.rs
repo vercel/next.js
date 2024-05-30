@@ -704,7 +704,7 @@ fn directory_tree_to_entrypoints(
     directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
-        "".to_string(),
+        "".into(),
         directory_tree,
         AppPage::new(),
         root_layouts,
@@ -1162,14 +1162,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 parallel_routes: indexmap! {
                     "children".into() => LoaderTree {
                         page: app_page.clone(),
-                        segment: "/_not-found".to_string(),
+                        segment: "/_not-found".into(),
                         parallel_routes: indexmap! {
-                            "children".to_string() => LoaderTree {
+                            "children".into() => LoaderTree {
                                 page: app_page.clone(),
-                                segment: "__PAGE__".to_string(),
+                                segment: "__PAGE__".into(),
                                 parallel_routes: IndexMap::new(),
                                 components: Components {
-                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()))),
+                                    page: components.not_found.or_else(|| Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()))),
                                     ..Default::default()
                                 }.cell(),
                                 global_metadata
@@ -1210,7 +1210,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let map = directory_tree_to_entrypoints_internal(
                 app_dir,
                 global_metadata,
-                subdir_name.to_string(),
+                subdir_name.clone(),
                 subdirectory,
                 child_app_page.clone(),
                 root_layouts,

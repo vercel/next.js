@@ -127,7 +127,7 @@ pub struct GlobalMetadataFileMatch<'a> {
 
 pub fn match_global_metadata_file<'a>(
     basename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
 ) -> Option<GlobalMetadataFileMatch<'a>> {
     match_metadata_file(basename, page_extensions, STATIC_GLOBAL_METADATA.deref()).map(|m| {
         GlobalMetadataFileMatch {
