@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
@@ -72,7 +72,7 @@ pub async fn get_app_page_entry(
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
     let original_name = page.to_string();
-    let pathname = AppPath::from(page.clone()).to_string();
+    let pathname: RcStr = AppPath::from(page.clone()).to_string();
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(

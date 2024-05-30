@@ -241,10 +241,10 @@ impl LoaderTreeBuilder {
             MetadataWithAltItem::Dynamic { path, .. } => {
                 let i = self.unique_number();
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
-                let inner_module_id = format!("METADATA_{i}");
+                let inner_module_id: RcStr = format!("METADATA_{i}").into();
 
                 self.imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
                 let source = dynamic_image_metadata_source(
                     Vc::upcast(self.context),
@@ -282,7 +282,7 @@ impl LoaderTreeBuilder {
         let i = self.unique_number();
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
-        let inner_module_id = format!("METADATA_{i}");
+        let inner_module_id: RcStr = format!("METADATA_{i}").into();
         let helper_import: RcStr = "import { fillMetadataSegment } from \
                                     \"next/dist/lib/metadata/get-metadata-route\""
             .into();
@@ -292,7 +292,7 @@ impl LoaderTreeBuilder {
         }
 
         self.imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";"));
+            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
         self.inner_assets.insert(
             inner_module_id,
             Vc::upcast(StructuredImageModuleType::create_module(
@@ -334,9 +334,9 @@ impl LoaderTreeBuilder {
 
         if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
-            let inner_module_id = format!("METADATA_ALT_{i}");
+            let inner_module_id: RcStr = format!("METADATA_ALT_{i}").into();
             self.imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
             let module = self
                 .context
                 .process(
