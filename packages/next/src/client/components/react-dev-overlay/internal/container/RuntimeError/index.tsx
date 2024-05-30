@@ -138,6 +138,9 @@ export const styles = css`
     vertical-align: middle;
   }
   .nextjs-data-runtime-error-copy-stack {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-stack--initial:hover {
     cursor: pointer;
   }
   .nextjs-data-runtime-error-copy-stack:disabled {
