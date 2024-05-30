@@ -4,6 +4,7 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
+import { CopyButton } from '../../components/copy-button'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -67,7 +68,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -78,10 +78,20 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h2>Call Stack</h2>
+          <h2>
+            Call Stack
+            {error.error.stack && (
+              <CopyButton
+                data-nextjs-data-runtime-error-copy-stack
+                label="Copy error stack"
+                successLabel="Copied"
+                content={error.error.stack}
+              />
+            )}
+          </h2>
+
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
           />
         </React.Fragment>
       ) : undefined}
@@ -116,6 +126,27 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
+  [data-nextjs-data-runtime-error-copy-stack] {
+    position: relative;
+    margin-left: var(--size-gap);
+  }
+  [data-nextjs-data-runtime-error-copy-stack] > svg {
+    vertical-align: middle;
+  }
+  [data-nextjs-data-runtime-error-copy-stack][aria-disabled],
+  [data-nextjs-data-runtime-error-copy-stack][aria-disabled]:hover {
+    cursor: pointer;
+    color: var(--color-ansi-red);
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  [data-nextjs-data-runtime-error-copy-stack-success] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-data-runtime-error-copy-stack]:hover {
+    cursor: pointer;
+  }
+
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
@@ -141,7 +172,6 @@ export const styles = css`
     height: var(--size-font-small);
     margin-left: var(--size-gap);
     flex-shrink: 0;
-
     display: none;
   }
 

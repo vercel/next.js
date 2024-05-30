@@ -386,7 +386,6 @@ export class AppRouteRouteModule extends RouteModule<
                   async () => {
                     // Patch the global fetch.
                     patchFetch({
-                      serverHooks: this.serverHooks,
                       staticGenerationAsyncStorage:
                         this.staticGenerationAsyncStorage,
                     })
