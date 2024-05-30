@@ -368,7 +368,7 @@ export async function ncc_mini_css_extract_plugin(task: Task) {
   await task
     .source(resolve(resolveCommonjs(mod), '../loader.js'))
     .ncc(nccOptions)
-    .target(mod + '/loader')
+    .target(mod)
   await task
     .source(resolve(resolveCommonjs(mod), '../hmr/hotModuleReplacement.js'))
     .ncc(nccOptions)
