@@ -100,6 +100,7 @@ const COMMON_EDITORS_LINUX = {
   'rubymine.sh': 'rubymine',
   sublime_text: 'sublime_text',
   vim: 'vim',
+  nvim: 'nvim',
   'webstorm.sh': 'webstorm',
   'goland.sh': 'goland',
   'rider.sh': 'rider',
