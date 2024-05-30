@@ -82,7 +82,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             Call Stack
             {error.error.stack && (
               <CopyButton
-                label="Copy error stack"
+                actionLabel="Copy error stack"
                 successLabel="Copied"
                 content={error.error.stack}
               />
@@ -132,29 +132,23 @@ export const styles = css`
     padding: 0;
     border: none;
     background: none;
-    outline: none;
-    cursor: default;
   }
   [data-nextjs-data-runtime-error-copy-stack] > svg {
     vertical-align: middle;
   }
-  .nextjs-data-runtime-error-copy-stack--initial:hover {
+  .nextjs-data-runtime-error-copy-stack {
     cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-stack:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
   .nextjs-data-runtime-error-copy-stack--error,
   .nextjs-data-runtime-error-copy-stack--error:hover {
-    cursor: pointer;
     color: var(--color-ansi-red);
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-  .nextjs-data-runtime-error-copy-stack--pending {
-    opacity: 0.3;
-    cursor: not-allowed;
   }
   .nextjs-data-runtime-error-copy-stack--success {
     color: var(--color-ansi-green);
-    cursor: default;
   }
 
   [data-nextjs-call-stack-frame] > h3,
