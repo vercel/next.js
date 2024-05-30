@@ -2,7 +2,6 @@ import type {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
 } from '../../client/components/static-generation-async-storage.external'
-import type * as ServerHooks from '../../client/components/hooks-server-context'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
@@ -13,7 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
-import { trackDynamicFetch } from '../app-render/dynamic-rendering'
+import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -209,16 +208,12 @@ function trackFetchMetric(
 }
 
 interface PatchableModule {
-  serverHooks: typeof ServerHooks
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
 function createPatchedFetcher(
   originFetch: Fetcher,
-  {
-    serverHooks: { DynamicServerError },
-    staticGenerationAsyncStorage,
-  }: PatchableModule
+  { staticGenerationAsyncStorage }: PatchableModule
 ): PatchedFetcher {
   // Create the patched fetch function. We don't set the type here, as it's
   // verified as the return value of this function.
@@ -482,7 +477,14 @@ function createPatchedFetcher(
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
           if (finalRevalidate === 0) {
-            trackDynamicFetch(staticGenerationStore, 'revalidate: 0')
+            markCurrentScopeAsDynamic(
+              staticGenerationStore,
+              `revalidate: 0 fetch ${input}${
+                staticGenerationStore.urlPathname
+                  ? ` ${staticGenerationStore.urlPathname}`
+                  : ''
+              }`
+            )
           }
 
           staticGenerationStore.revalidate = finalRevalidate
@@ -700,28 +702,16 @@ function createPatchedFetcher(
           // Delete `cache` property as Cloudflare Workers will throw an error
           if (isEdgeRuntime) delete init.cache
 
-          if (!staticGenerationStore.forceStatic && cache === 'no-store') {
-            const dynamicUsageReason = `no-store fetch ${input}${
-              staticGenerationStore.urlPathname
-                ? ` ${staticGenerationStore.urlPathname}`
-                : ''
-            }`
-
+          if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
-            trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
-
-            // If partial prerendering is not enabled, then we should throw an
-            // error to indicate that this fetch is dynamic.
-            if (!staticGenerationStore.prerenderState) {
-              // PPR is not enabled, or React postpone is not available, we
-              // should set the revalidate to 0.
-              staticGenerationStore.revalidate = 0
-
-              const err = new DynamicServerError(dynamicUsageReason)
-              staticGenerationStore.dynamicUsageErr = err
-              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-              throw err
-            }
+            markCurrentScopeAsDynamic(
+              staticGenerationStore,
+              `no-store fetch ${input}${
+                staticGenerationStore.urlPathname
+                  ? ` ${staticGenerationStore.urlPathname}`
+                  : ''
+              }`
+            )
           }
 
           const hasNextConfig = 'next' in init
@@ -732,29 +722,16 @@ function createPatchedFetcher(
               (typeof staticGenerationStore.revalidate === 'number' &&
                 next.revalidate < staticGenerationStore.revalidate))
           ) {
-            if (
-              !staticGenerationStore.forceDynamic &&
-              !staticGenerationStore.forceStatic &&
-              next.revalidate === 0
-            ) {
-              const dynamicUsageReason = `revalidate: 0 fetch ${input}${
-                staticGenerationStore.urlPathname
-                  ? ` ${staticGenerationStore.urlPathname}`
-                  : ''
-              }`
-
+            if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
-              trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
-
-              // If partial prerendering is not enabled, then we should throw an
-              // error to indicate that this fetch is dynamic.
-              if (!staticGenerationStore.prerenderState) {
-                const err = new DynamicServerError(dynamicUsageReason)
-                staticGenerationStore.dynamicUsageErr = err
-                staticGenerationStore.dynamicUsageDescription =
-                  dynamicUsageReason
-                throw err
-              }
+              markCurrentScopeAsDynamic(
+                staticGenerationStore,
+                `revalidate: 0 fetch ${input}${
+                  staticGenerationStore.urlPathname
+                    ? ` ${staticGenerationStore.urlPathname}`
+                    : ''
+                }`
+              )
             }
 
             if (!staticGenerationStore.forceStatic || next.revalidate !== 0) {
