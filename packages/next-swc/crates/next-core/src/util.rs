@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
     swc::core::{
@@ -536,9 +536,9 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 pub async fn load_next_js_template(
     path: &str,
     project_path: Vc<FileSystemPath>,
-    replacements: IndexMap<&'static str, String>,
-    injections: IndexMap<&'static str, String>,
-    imports: IndexMap<&'static str, Option<String>>,
+    replacements: IndexMap<&'static str, RcStr>,
+    injections: IndexMap<&'static str, RcStr>,
+    imports: IndexMap<&'static str, Option<RcStr>>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
