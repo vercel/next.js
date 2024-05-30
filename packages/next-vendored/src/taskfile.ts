@@ -342,42 +342,36 @@ externals['mini-css-extract-plugin'] =
 
 export async function ncc_mini_css_extract_plugin(task: Task) {
   const mod = 'mini-css-extract-plugin'
+  const modExternals = {
+    ...externals,
+    './index': './index.js',
+    './loader': './loader.js',
+    './hmr': './hmr',
+    'schema-utils': externals['schema-utils3']!,
+    'webpack-sources': externals['webpack-sources1']!,
+  }
+  const nccOptions = {
+    packageName: mod,
+    moduleOnly: true,
+    externals: modExternals,
+  }
 
   await task.clear(mod)
   await task
     .source(resolve(resolveCommonjs(mod)))
-    .ncc({
-      packageName: mod,
-      externals: {
-        ...externals,
-        './index': './index.js',
-      },
-    })
+    .ncc({ ...nccOptions, moduleOnly: false })
     .target(mod)
   await task
     .source(resolve(resolveCommonjs(mod), '../index.js'))
-    .ncc({
-      packageName: 'mini-css-extract-plugin',
-      moduleOnly: true,
-      externals: {
-        ...externals,
-        './index': './index.js',
-        'schema-utils': externals['schema-utils3']!,
-        'webpack-sources': externals['webpack-sources1']!,
-      },
-    })
+    .ncc(nccOptions)
     .target(mod)
   await task
+    .source(resolve(resolveCommonjs(mod), '../loader.js'))
+    .ncc(nccOptions)
+    .target(mod + '/loader')
+  await task
     .source(resolve(resolveCommonjs(mod), '../hmr/hotModuleReplacement.js'))
-    .ncc({
-      packageName: mod,
-      moduleOnly: true,
-      externals: {
-        ...externals,
-        './hmr': './hmr',
-        'schema-utils': externals['schema-utils3']!,
-      },
-    })
+    .ncc(nccOptions)
     .target(mod + '/hmr')
 }
 
