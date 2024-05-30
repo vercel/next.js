@@ -126,12 +126,13 @@ export const styles = css`
   }
 
   [data-nextjs-data-runtime-error-copy-stack],
-  [data-nextjs-data-runtime-error-copy-stack]:focus {
+  [data-nextjs-data-runtime-error-copy-stack]:focus:not(:focus-visible) {
     position: relative;
     margin-left: var(--size-gap);
     padding: 0;
     border: none;
     background: none;
+    outline: none;
   }
   [data-nextjs-data-runtime-error-copy-stack] > svg {
     vertical-align: middle;
