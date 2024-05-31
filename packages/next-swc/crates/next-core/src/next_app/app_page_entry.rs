@@ -188,7 +188,7 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry
+        INNER.into() => entry
     };
 
     let wrapped = context

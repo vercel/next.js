@@ -1350,10 +1350,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text("An issue occurred while preparing your Next.js app".to_string())
-                .cell(),
-        )
+        Ok(StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell())
     }
 
     #[turbo_tasks::function]
