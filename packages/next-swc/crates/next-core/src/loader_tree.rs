@@ -241,7 +241,7 @@ impl LoaderTreeBuilder {
             MetadataWithAltItem::Dynamic { path, .. } => {
                 let i = self.unique_number();
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
-                let inner_module_id: RcStr = format!("METADATA_{i}").into();
+                let inner_module_id = format!("METADATA_{i}");
 
                 self.imports
                     .push(format!("import {identifier} from \"{inner_module_id}\";").into());
@@ -282,7 +282,7 @@ impl LoaderTreeBuilder {
         let i = self.unique_number();
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
-        let inner_module_id: RcStr = format!("METADATA_{i}").into();
+        let inner_module_id = format!("METADATA_{i}");
         let helper_import: RcStr = "import { fillMetadataSegment } from \
                                     \"next/dist/lib/metadata/get-metadata-route\""
             .into();
@@ -334,7 +334,7 @@ impl LoaderTreeBuilder {
 
         if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
-            let inner_module_id: RcStr = format!("METADATA_ALT_{i}").into();
+            let inner_module_id = format!("METADATA_ALT_{i}");
             self.imports
                 .push(format!("import {identifier} from \"{inner_module_id}\";").into());
             let module = self
