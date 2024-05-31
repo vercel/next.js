@@ -1,12 +1,12 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
 
 pub(crate) struct DefaultFallbackFont {
-    pub name: String,
-    pub capsize_key: String,
+    pub name: RcStr,
+    pub capsize_key: RcStr,
     pub az_avg_width: f64,
     pub units_per_em: u32,
 }
@@ -48,7 +48,7 @@ pub(crate) enum FontFallback {
     /// return this and omit fallback information instead.
     Error,
     /// A list of manually provided font names to use a fallback, as-is.
-    Manual(Vec<String>),
+    Manual(Vec<RcStr>),
 }
 
 #[turbo_tasks::value_impl]
