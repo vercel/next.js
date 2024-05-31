@@ -665,7 +665,6 @@ async function writeFullyStaticExport(
       nextConfig: config,
       enabledDirectories,
       silent: true,
-      threads: config.experimental.cpus,
       outdir: path.join(dir, configOutDir),
       // The worker already explicitly binds `this` to each of the
       // exposed methods.
@@ -2678,7 +2677,6 @@ export default async function build(
             silent: false,
             buildExport: true,
             debugOutput,
-            threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',

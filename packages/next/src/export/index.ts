@@ -1,7 +1,6 @@
 import type {
   ExportAppResult,
   ExportAppOptions,
-  ExportWorker,
   WorkerRenderOptsPartial,
 } from './types'
 import type { PrerenderManifest } from '../build'
@@ -13,7 +12,6 @@ import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
-import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
@@ -36,7 +34,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type { ExportPathMap } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -61,65 +59,6 @@ import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
-}
-
-type ExportWorkers = {
-  pages: ExportWorker
-  app?: ExportWorker
-  end: () => Promise<void>
-}
-
-function setupWorkers(
-  options: ExportAppOptions,
-  nextConfig: NextConfigComplete
-): ExportWorkers {
-  if (options.exportPageWorker) {
-    return {
-      pages: options.exportPageWorker,
-      app: options.exportAppPageWorker,
-      end: options.endWorker || (() => Promise.resolve()),
-    }
-  }
-
-  const threads = options.threads || nextConfig.experimental.cpus
-  if (!options.silent && !options.buildExport) {
-    Log.info(`Launching ${threads} workers`)
-  }
-
-  const timeout = nextConfig?.staticPageGenerationTimeout || 0
-
-  let infoPrinted = false
-
-  const worker = new Worker(require.resolve('./worker'), {
-    timeout: timeout * 1000,
-    onRestart: (_method, [{ path }], attempts) => {
-      if (attempts >= 3) {
-        throw new ExportError(
-          `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-        )
-      }
-      Log.warn(
-        `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
-      )
-      if (!infoPrinted) {
-        Log.warn(
-          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-        )
-        infoPrinted = true
-      }
-    },
-    maxRetries: 0,
-    numWorkers: threads,
-    enableWorkerThreads: nextConfig.experimental.workerThreads,
-    exposedMethods: ['default'],
-  }) as Worker & typeof import('./worker')
-
-  return {
-    pages: worker.default,
-    end: async () => {
-      await worker.end()
-    },
-  }
 }
 
 export async function exportAppImpl(
@@ -573,12 +512,13 @@ export async function exportAppImpl(
     )
   }
 
-  const workers = setupWorkers(options, nextConfig)
-
   const results = await Promise.all(
     filteredPaths.map(async (path) => {
       const pathMap = exportPathMap[path]
-      const exportPage = workers[pathMap._isAppDir ? 'app' : 'pages']
+      const exportPage = pathMap._isAppDir
+        ? options.exportAppPageWorker
+        : options.exportPageWorker
+
       if (!exportPage) {
         throw new Error(
           'Invariant: Undefined export worker for app dir, this is a bug in Next.js.'
@@ -706,8 +646,6 @@ export async function exportAppImpl(
     }
   }
 
-  const endWorkerPromise = workers.end()
-
   // Export mode provide static outputs that are not compatible with PPR mode.
   if (!options.buildExport && nextConfig.experimental.ppr) {
     // TODO: add message
@@ -820,7 +758,7 @@ export async function exportAppImpl(
     await telemetry.flush()
   }
 
-  await endWorkerPromise
+  await options.endWorker()
 
   return collector
 }
