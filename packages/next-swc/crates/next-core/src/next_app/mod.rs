@@ -14,7 +14,7 @@ use std::{
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
@@ -40,17 +40,17 @@ pub use crate::next_app::{
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
-    Static(String),
+    Static(RcStr),
     /// e.g. `/[id]`
-    Dynamic(String),
+    Dynamic(RcStr),
     /// e.g. `/[...slug]`
-    CatchAll(String),
+    CatchAll(RcStr),
     /// e.g. `/[[...slug]]`
-    OptionalCatchAll(String),
+    OptionalCatchAll(RcStr),
     /// e.g. `/(shop)`
-    Group(String),
+    Group(RcStr),
     /// e.g. `/@auth`
-    Parallel(String),
+    Parallel(RcStr),
     /// The final page type appended. (e.g. `/dashboard/page`,
     /// `/api/hello/route`)
     PageType(PageType),

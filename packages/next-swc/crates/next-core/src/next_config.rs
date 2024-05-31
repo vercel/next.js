@@ -98,7 +98,7 @@ pub struct NextConfig {
     /// build.
     ///
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
-    pub server_external_packages: Option<Vec<String>>,
+    pub server_external_packages: Option<Vec<RcStr>>,
 
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
@@ -760,7 +760,7 @@ impl RemoveConsoleConfig {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolveExtensions(Option<Vec<String>>);
+pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
@@ -781,7 +781,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?
                 .server_external_packages
@@ -1090,7 +1090,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?
                 .experimental
