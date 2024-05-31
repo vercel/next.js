@@ -126,7 +126,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
 
                             return Ok(ResolveResultOption::some(
                                 ResolveResult::primary_with_key(
-                                    RequestKey::new(font_path.into()),
+                                    RequestKey::new(font_path.clone()),
                                     ResolveResultItem::Error(Vc::cell(format!(
                                         "Font file not found: Can't resolve {}'",
                                         font_path
