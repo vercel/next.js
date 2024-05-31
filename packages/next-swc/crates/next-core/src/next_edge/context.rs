@@ -67,9 +67,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "buffer".to_string(),
+            request: "buffer".into(),
             lookup_path: Some(project_path),
-            export: Some("Buffer".to_string()),
+            export: Some("Buffer".into()),
         },
     )
     .cell())
@@ -141,16 +141,17 @@ pub async fn get_edge_resolve_options_context(
     after_resolve_plugins.extend_from_slice(&base_plugins);
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
-    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().into()];
     custom_conditions.extend(
         NextRuntime::Edge
             .conditions()
             .iter()
-            .map(ToString::to_string),
+            .map(ToString::to_string)
+            .map(RcStr::from),
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".to_string());
+        custom_conditions.push("react-server".into());
     };
 
     let resolve_options_context = ResolveOptionsContext {
@@ -189,15 +190,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+    let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks/ssr".to_string()),
-            client_root.join("static/media".to_string()),
+            output_root.join("chunks/ssr".into()),
+            client_root.join("static/media".into()),
             environment,
             next_mode.runtime_type(),
         )
@@ -214,15 +215,15 @@ pub async fn get_edge_chunking_context(
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+    let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             output_root,
-            output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            output_root.join("chunks".into()),
+            output_root.join("assets".into()),
             environment,
             next_mode.runtime_type(),
         )

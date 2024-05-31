@@ -76,7 +76,7 @@ fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });
