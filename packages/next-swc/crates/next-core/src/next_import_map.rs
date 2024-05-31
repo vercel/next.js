@@ -330,11 +330,8 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
                 "styled-jsx/style",
-                ImportMapping::External(
-                    Some("styled-jsx/style.js".to_string()),
-                    ExternalType::CommonJs,
-                )
-                .cell(),
+                ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
+                    .cell(),
             );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all

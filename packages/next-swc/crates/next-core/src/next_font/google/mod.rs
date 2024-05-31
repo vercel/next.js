@@ -296,7 +296,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        Ok(self.import_map_result(query_vc.await?.to_string()))
+        Ok(self.import_map_result(query_vc.await?.to_string().into()))
     }
 }
 
@@ -366,7 +366,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path = next_js_file_path("internal/font/google".to_string())
-            .join(format!("/{}.{}", name, ext));
+            .join(format!("/{}.{}", name, ext).into());
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
@@ -491,10 +491,7 @@ async fn get_stylesheet_url_from_options(
         use turbopack_binding::turbo::tasks_env::{CommandLineProcessEnv, ProcessEnv};
 
         let env = CommandLineProcessEnv::new();
-        if let Some(url) = &*env
-            .read("TURBOPACK_TEST_ONLY_MOCK_SERVER".to_string())
-            .await?
-        {
+        if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER".into()).await? {
             css_url = Some(format!("{}/css2", url));
         }
     }
@@ -645,7 +642,7 @@ async fn get_mock_stylesheet(
             .context("Must be valid path")?
             .to_str()
             .context("Must exist")?
-            .to_string(),
+            .into(),
         vec![],
     ));
 
@@ -654,9 +651,8 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context =
-        node_evaluate_asset_context(execution_context, None, None, "next_font".to_string());
-    let loader_path = mock_fs.root().join("loader.js".to_string());
+    let context = node_evaluate_asset_context(execution_context, None, None, "next_font".into());
+    let loader_path = mock_fs.root().join("loader.js".into());
     let mocked_response_asset = context
         .process(
             Vc::upcast(VirtualSource::new(
