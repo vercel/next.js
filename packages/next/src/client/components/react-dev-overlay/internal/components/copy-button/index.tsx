@@ -65,8 +65,13 @@ export function CopyButton({
         clearTimeout(timeoutId)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dispatch is stable I believe
-  }, [isPending, copyState.state])
+  }, [
+    isPending,
+    copyState.state,
+    // TODO: `dispatch` from `useActionState` is not reactive.
+    // Remove from dependencies once https://github.com/facebook/react/pull/29665 is released.
+    dispatch,
+  ])
   const isDisabled = isPending
   const label = copyState.state === 'success' ? successLabel : actionLabel
   const title = label
