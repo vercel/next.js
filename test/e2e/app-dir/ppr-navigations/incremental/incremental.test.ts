@@ -15,23 +15,31 @@ async function getDotNextFiles(next: NextInstance): Promise<Array<string>> {
 }
 
 describe('ppr-navigations incremental', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  // Skip this test in dev mode and deploy since it's not relevant.
-  if (isNextDev) return it.skip('skipped in dev mode', () => {})
-  if (skipped) return it.skip('skipped', () => {})
 
   it('can navigate between all the links and back without writing to disk', async () => {
     const before = await getDotNextFiles(next)
     const browser = await next.browser('/')
 
+    // Add a variable to the window so we can tell if it MPA navigated. If this
+    // value is still true at the end of the test, then we know that the page
+    // didn't MPA navigate.
+    const random = Math.random().toString(36).substring(7)
+    await browser.eval(`window.random = ${JSON.stringify(random)}`)
+
     try {
       for (const { href } of links) {
         // Find the link element for the href and click it.
         await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // Wait for the network to be idle. This seems odd, but this is to help
+        // catch the condition where a rouge 404 triggers a MPA navigation.
+        await browser.waitForIdleNetwork()
+
+        // Check if the page navigated.
+        expect(await browser.eval(`window.random`)).toBe(random)
 
         // Wait for that page to load.
         if (href === '/') {
