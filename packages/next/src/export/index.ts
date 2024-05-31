@@ -512,6 +512,7 @@ export async function exportAppImpl(
     )
   }
 
+  const failedExportAttemptsByPage: Map<string, number> = new Map()
   const results = await Promise.all(
     filteredPaths.map(async (path) => {
       const pathMap = exportPathMap[path]
@@ -558,10 +559,15 @@ export async function exportAppImpl(
         })
       })
 
-      if (nextConfig.experimental.prerenderEarlyExit) {
-        if (result && 'error' in result) {
-          throw new Error(
-            `Export encountered an error on ${path}, exiting due to prerenderEarlyExit: true being set`
+      if (result && 'error' in result) {
+        const { page } = exportPathMap[path]
+        const pageKey = page !== path ? `${page}: ${path}` : path
+        const currentCount = failedExportAttemptsByPage.get(pageKey) ?? 0
+        failedExportAttemptsByPage.set(pageKey, currentCount + 1)
+
+        if (nextConfig.experimental.prerenderEarlyExit) {
+          throw new ExportError(
+            `Export encountered an error on ${path}, exiting the build.`
           )
         }
       }
@@ -572,8 +578,6 @@ export async function exportAppImpl(
     })
   )
 
-  const errorPaths: string[] = []
-  let renderError = false
   let hadValidationError = false
 
   const collector: ExportAppResult = {
@@ -584,7 +588,7 @@ export async function exportAppImpl(
   }
 
   for (const { result, path } of results) {
-    if (!result) continue
+    if (!result || 'error' in result) continue
 
     const { page } = exportPathMap[path]
 
@@ -595,13 +599,6 @@ export async function exportAppImpl(
           result.turborepoAccessTraceResult
         )
       )
-    }
-
-    // Capture any render errors.
-    if ('error' in result) {
-      renderError = true
-      errorPaths.push(page !== path ? `${page}: ${path}` : path)
-      continue
     }
 
     // Capture any amp validations.
@@ -736,9 +733,10 @@ export async function exportAppImpl(
     )
   }
 
-  if (renderError) {
+  if (failedExportAttemptsByPage.size > 0) {
+    const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${errorPaths
+      `Export encountered errors on following paths:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )
