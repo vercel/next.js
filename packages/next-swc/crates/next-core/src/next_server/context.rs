@@ -141,7 +141,7 @@ pub async fn get_server_resolve_options_context(
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".to_string(),
+        "dist/lib/server-external-packages.json".into(),
     )
     .await?;
 
@@ -183,7 +183,7 @@ pub async fn get_server_resolve_options_context(
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".to_string());
+        custom_conditions.push("react-server".into());
     };
 
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
@@ -416,7 +416,7 @@ pub async fn get_server_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".to_string()))
+            .chain(once("foreign".into()))
             .collect(),
     )
     .await?;
@@ -820,8 +820,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".to_string()),
-        client_root.join("static/media".to_string()),
+        node_root.join("server/chunks/ssr".into()),
+        client_root.join("static/media".into()),
         environment,
         next_mode.runtime_type(),
     )
@@ -845,8 +845,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".to_string()),
-        node_root.join("server/assets".to_string()),
+        node_root.join("server/chunks".into()),
+        node_root.join("server/assets".into()),
         environment,
         next_mode.runtime_type(),
     )

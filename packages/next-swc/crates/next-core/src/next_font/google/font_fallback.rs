@@ -83,7 +83,7 @@ pub(super) async fn get_font_fallback(
                         ))
                         .cell(),
                         description: StyledString::Text(
-                            "Skipping generating a fallback font.".to_owned(),
+                            "Skipping generating a fallback font.".into(),
                         )
                         .cell(),
                         severity: IssueSeverity::Warning.cell(),
@@ -100,7 +100,7 @@ pub(super) async fn get_font_fallback(
 static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
 
 // From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
-fn format_fallback_font_name(font_family: &str) -> String {
+fn format_fallback_font_name(font_family: &str) -> RcStr {
     let mut fallback_name = FALLBACK_FONT_NAME
         .replace(font_family, |caps: &regex::Captures| {
             caps.iter()
@@ -118,7 +118,7 @@ fn format_fallback_font_name(font_family: &str) -> String {
         })
         .to_string();
     fallback_name.retain(|c| !c.is_whitespace());
-    fallback_name
+    fallback_name.into()
 }
 
 fn lookup_fallback(
@@ -208,7 +208,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Inter", font_metrics, true)?,
             Fallback {
-                font_family: "Arial".to_owned(),
+                font_family: "Arial".into(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.901_989_700_374_532,
                     descent: -0.224_836_142_322_097_4,
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Roboto Slab", font_metrics, true)?,
             Fallback {
-                font_family: "Times New Roman".to_owned(),
+                font_family: "Times New Roman".into(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.885_645_438_273_993_8,
                     descent: -0.229_046_234_036_377_7,
