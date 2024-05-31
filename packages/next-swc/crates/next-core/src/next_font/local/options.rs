@@ -201,19 +201,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.ttf".to_owned(),
+                    path: "./Roboto-Regular.ttf".into(),
                     weight: None,
                     style: None,
-                    ext: "ttf".to_owned(),
+                    ext: "ttf".into(),
                 }),
                 default_style: None,
                 default_weight: None,
-                display: "swap".to_owned(),
+                display: "swap".into(),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".to_owned()
+                variable_name: "myFont".into()
             },
         );
 
@@ -250,25 +250,25 @@ mod tests {
                 fonts: FontDescriptors::Many(vec![
                     FontDescriptor {
                         path: "./Roboto-Regular.ttf".into(),
-                        weight: Some(FontWeight::Fixed("400".to_owned())),
-                        style: Some("normal".to_owned()),
-                        ext: "ttf".to_owned(),
+                        weight: Some(FontWeight::Fixed("400".into())),
+                        style: Some("normal".into()),
+                        ext: "ttf".into(),
                     },
                     FontDescriptor {
                         path: "./Roboto-Italic.ttf".into(),
-                        weight: Some(FontWeight::Fixed("400".to_owned())),
+                        weight: Some(FontWeight::Fixed("400".into())),
                         style: None,
-                        ext: "ttf".to_owned(),
+                        ext: "ttf".into(),
                     }
                 ]),
-                default_weight: Some(FontWeight::Fixed("300".to_owned())),
+                default_weight: Some(FontWeight::Fixed("300".into())),
                 default_style: Some("italic".into()),
                 display: "swap".into(),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".to_owned()
+                variable_name: "myFont".into()
             },
         );
 
@@ -329,19 +329,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.woff".to_owned(),
-                    weight: Some(FontWeight::Fixed("500".to_owned())),
-                    style: Some("italic".to_owned()),
-                    ext: "woff".to_owned(),
+                    path: "./Roboto-Regular.woff".into(),
+                    weight: Some(FontWeight::Fixed("500".into())),
+                    style: Some("italic".into()),
+                    ext: "woff".into(),
                 }),
-                default_style: Some("italic".to_owned()),
-                default_weight: Some(FontWeight::Fixed("500".to_owned())),
-                display: "optional".to_owned(),
+                default_style: Some("italic".into()),
+                default_weight: Some(FontWeight::Fixed("500".into())),
+                display: "optional".into(),
                 preload: false,
-                fallback: Some(vec!["Fallback".to_owned()]),
+                fallback: Some(vec!["Fallback".into()]),
                 adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
-                variable: Some("myvar".to_owned()),
-                variable_name: "myFont".to_owned()
+                variable: Some("myvar".into()),
+                variable_name: "myFont".into()
             },
         );
 
