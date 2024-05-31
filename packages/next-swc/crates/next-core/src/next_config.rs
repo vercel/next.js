@@ -802,12 +802,12 @@ impl NextConfig {
             .iter()
             .map(|(k, v)| {
                 (
-                    k.clone(),
+                    k.as_str().into(),
                     if let JsonValue::String(s) = v {
                         // A string value is kept, calling `to_string` would wrap in to quotes.
-                        s.clone()
+                        s.as_str().into()
                     } else {
-                        v.to_string()
+                        v.to_string().into()
                     },
                 )
             })
@@ -874,7 +874,7 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<String>,
+                active_conditions: &HashSet<RcStr>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
