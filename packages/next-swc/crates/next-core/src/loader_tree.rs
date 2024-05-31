@@ -36,7 +36,7 @@ pub struct LoaderTreeBuilder {
     inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
     counter: usize,
     imports: Vec<RcStr>,
-    loader_tree_code: RcStr,
+    loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
