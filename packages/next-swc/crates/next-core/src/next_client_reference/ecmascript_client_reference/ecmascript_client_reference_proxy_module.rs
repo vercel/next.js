@@ -131,7 +131,7 @@ impl EcmascriptClientReferenceProxyModule {
                 code,
                 r#"
                     const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
-    
+
                     __turbopack_export_namespace__(createClientModuleProxy({server_module_path}));
                 "#,
                 server_module_path = StringifyJs(server_module_path)
@@ -143,7 +143,7 @@ impl EcmascriptClientReferenceProxyModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_module_ident.path().join("proxy.js".to_string()),
+            self.server_module_ident.path().join("proxy.js".into()),
             proxy_module_content,
         );
 
