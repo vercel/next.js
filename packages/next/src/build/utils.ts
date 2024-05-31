@@ -2256,15 +2256,6 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-// Use next/dist/compiled/react packages instead of installed react
-export function isWebpackBuiltinReactLayer(
-  layer: WebpackLayerName | null | undefined
-): boolean {
-  return Boolean(
-    layer && WEBPACK_LAYERS.GROUP.builtinReact.includes(layer as any)
-  )
-}
-
 export function isWebpackServerOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -2287,8 +2278,8 @@ export function isWebpackDefaultLayer(
   return layer === null || layer === undefined
 }
 
-export function isWebpackBundledLayer(
+export function isWebpackAppLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
 }
