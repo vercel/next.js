@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import { usePathname } from './navigation'
 import { isNextRouterError } from './is-next-router-error'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'

@@ -182,6 +182,18 @@ export interface NextJsWebpackConfig {
   ): any
 }
 
+/**
+ * Set of options for the react compiler next.js
+ * currently supports.
+ *
+ * This can be changed without breaking changes while supporting
+ * react compiler in the experimental phase.
+ */
+export interface ReactCompilerOptions {
+  compilationMode?: 'infer' | 'annotation' | 'all'
+  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+}
+
 export interface ExperimentalConfig {
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
@@ -213,7 +225,7 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   /**
-   * period (in seconds) where the server allow to serve stale cache
+   * @deprecated use config.swrDelta instead
    */
   swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
@@ -361,11 +373,26 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
+   * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
+   * but may increase compile times slightly.
+   * Valid values are:
+   * - `false`: Disable Webpack memory optimizations (default).
+   * - `true`: Enables Webpack memory optimizations.
+   */
+  webpackMemoryOptimizations?: boolean
+
+  /**
    *
    */
   instrumentationHook?: boolean
 
   /**
+   * The array of the meta tags to the client injected by tracing propagation data.
+   */
+  clientTraceMetadata?: string[]
+
+  /**
+   * Enables experimental Partial Prerendering feature of Next.js.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
@@ -419,17 +446,6 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
-   * if they are not wrapped in a suspense boundary.
-   *
-   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
-   *
-   * @note This flag will be removed in Next.js 15.
-   * @default true
-   */
-  missingSuspenseWithCSRBailout?: boolean
-
-  /**
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
@@ -457,6 +473,17 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
+  /**
+   * Enable experimental React compiler optimization.
+   * Configuration accepts partial config object to the compiler, if provided
+   * compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
 }
 
 export type ExportPathMap = {
@@ -813,6 +840,11 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
@@ -879,13 +911,13 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
+  swrDelta: undefined,
   staticPageGenerationTimeout: 60,
-  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
     flyingShuttle: false,
-    prerenderEarlyExit: false,
+    prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -897,7 +929,6 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
-    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
@@ -931,6 +962,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
+    clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
@@ -943,14 +975,16 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: true,
+    webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
-      dynamic: 30,
+      dynamic: 0,
       static: 300,
     },
     allowDevelopmentBuild: undefined,
+    reactCompiler: undefined,
+    after: false,
   },
   bundlePagesRouterDependencies: false,
 }

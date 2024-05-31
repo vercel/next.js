@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
+    mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
@@ -34,7 +35,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EvaluatableAssets,
+            },
             context::AssetContext,
             file_source::FileSource,
             issue::IssueSeverity,
@@ -48,9 +52,7 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            resolve::esm_resolve,
-            EcmascriptModuleAsset,
+            chunk::EcmascriptChunkPlaceable, resolve::esm_resolve, EcmascriptModuleAsset,
         },
         nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
         turbopack::{
@@ -644,7 +646,11 @@ impl PageEndpoint {
                         .join("_".to_string()),
                 )),
                 Request::parse(Value::new(Pattern::Constant(
-                    "next/dist/client/next-dev-turbopack.js".to_string(),
+                    match *this.pages_project.project().next_mode().await? {
+                        NextMode::Development => "next/dist/client/next-dev-turbopack.js",
+                        NextMode::Build => "next/dist/client/next-turbopack.js",
+                    }
+                    .to_string(),
                 ))),
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
                 IssueSeverity::Error.cell(),
@@ -652,7 +658,7 @@ impl PageEndpoint {
             )
             .first_module()
             .await?
-            .context("expected next/dist/client/next-dev-turbopack.js to resolve to a module")?;
+            .context("expected Next.js client runtime to resolve to a module")?;
 
             let Some(client_main_module) =
                 Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
@@ -705,7 +711,7 @@ impl PageEndpoint {
         module_context: Vc<ModuleAssetContext>,
         edge_module_context: Vc<ModuleAssetContext>,
         chunking_context: Vc<NodeJsChunkingContext>,
-        edge_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+        edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
     ) -> Result<Vc<SsrChunk>> {

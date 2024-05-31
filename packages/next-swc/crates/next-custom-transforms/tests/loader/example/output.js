@@ -1,6 +1,6 @@
 import { _ as _class_call_check } from "@swc/helpers/_/_class_call_check";
 import { _ as _sliced_to_array } from "@swc/helpers/_/_sliced_to_array";
-import other from "other";
+import other from 'other';
 var _other = _sliced_to_array(other, 1), foo = _other[0];
 var Foo = function Foo() {
     "use strict";

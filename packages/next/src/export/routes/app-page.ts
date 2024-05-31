@@ -169,12 +169,9 @@ export async function exportAppPage(
       throw err
     }
 
-    // If enabled, we should fail rendering if a client side rendering bailout
+    // We should fail rendering if a client side rendering bailout
     // occurred at the page level.
-    if (
-      renderOpts.experimental.missingSuspenseWithCSRBailout &&
-      isBailoutToCSRError(err)
-    ) {
+    if (isBailoutToCSRError(err)) {
       throw err
     }
 

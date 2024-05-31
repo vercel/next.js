@@ -27,13 +27,8 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
-    next_font::{
-        google::{
-            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
-        },
-        local::{
-            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
-        },
+    next_font::google::{
+        NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -588,7 +583,9 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
+        ServerContextType::Middleware | ServerContextType::Instrumentation => {
+            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+        }
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -664,6 +661,7 @@ async fn rsc_aliases(
         "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
         "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
         "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+        "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
         "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
         "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
         "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
@@ -687,6 +685,7 @@ async fn rsc_aliases(
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
                     "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
                     "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
                     "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
@@ -697,6 +696,7 @@ async fn rsc_aliases(
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
                     "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
                     "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
                     "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
@@ -719,14 +719,17 @@ async fn rsc_aliases(
             "next/dist/compiled/react" => format!("next/dist/compiled/react{react_channel}/react.react-server"),
             "next/dist/compiled/react-experimental" =>  format!("next/dist/compiled/react-experimental/react.react-server"),
             "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
+            "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
             "next/dist/compiled/react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime.react-server"),
             "next/dist/compiled/react-experimental/jsx-runtime" => format!("next/dist/compiled/react-experimental/jsx-runtime.react-server"),
+            "next/dist/compiled/react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
             "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
             "next/dist/compiled/react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime.react-server"),
             "next/dist/compiled/react-experimental/jsx-dev-runtime" => format!("next/dist/compiled/react-experimental/jsx-dev-runtime.react-server"),
             "react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom" => format!("next/dist/compiled/react-dom{react_channel}/react-dom.react-server"),
             "next/dist/compiled/react-dom-experimental" => format!("next/dist/compiled/react-dom-experimental/react-dom.react-server"),
+            "next/navigation" => format!("next/dist/api/navigation.react-server"),
         })
     }
 
@@ -792,6 +795,11 @@ async fn insert_next_shared_aliases(
         package_root,
     );
 
+    // NOTE: `@next/font/local` has moved to a BeforeResolve Plugin, so it does not
+    // have ImportMapping replacers here.
+    //
+    // TODO: Add BeforeResolve plugins for `@next/font/google`
+
     import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/google/target.css"),
@@ -819,28 +827,6 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        // Request path from js via next-font swc transform
-        AliasPattern::exact("@next/font/local/target.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/cssmodule.module.css"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalCssModuleReplacer::new())).into(),
-    );
-
-    import_map.insert_alias(
-        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
-        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

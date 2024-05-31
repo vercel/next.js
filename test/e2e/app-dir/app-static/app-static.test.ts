@@ -39,6 +39,33 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  it('should use auto no cache when no fetch config', async () => {
+    const res = await next.fetch('/no-config-fetch')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const data = $('#data').text()
+
+    expect(data).toBeTruthy()
+
+    const res2 = await next.fetch('/no-config-fetch')
+    const html2 = await res2.text()
+    const data2 = cheerio.load(html2)('#data').text()
+
+    if (isNextDev) {
+      expect(data).not.toBe(data2)
+    } else {
+      const pageCache = (
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+      ).toLowerCase()
+
+      expect(pageCache).toBeTruthy()
+      expect(pageCache).not.toBe('MISS')
+      expect(data).toBe(data2)
+    }
+  })
+
   it('should still cache even though the `traceparent` header was different', async () => {
     const res = await next.fetch('/strip-header-traceparent')
     expect(res.status).toBe(200)
@@ -147,7 +174,7 @@ describe('app-dir static/dynamic handling', () => {
       it('should honor force-static with fetch cache: no-store correctly', async () => {
         const res = await next.fetch('/force-static-fetch-no-store')
         expect(res.status).toBe(200)
-        expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        expect(res.headers.get('x-nextjs-cache')?.toLowerCase()).toBe('hit')
       })
     }
   }
@@ -642,6 +669,8 @@ describe('app-dir static/dynamic handling', () => {
         [
           "(new)/custom/page.js",
           "(new)/custom/page_client-reference-manifest.js",
+          "(new)/no-config-fetch/page.js",
+          "(new)/no-config-fetch/page_client-reference-manifest.js",
           "_not-found.html",
           "_not-found.rsc",
           "_not-found/page.js",
@@ -744,6 +773,8 @@ describe('app-dir static/dynamic handling', () => {
           "isr-error-handling.rsc",
           "isr-error-handling/page.js",
           "isr-error-handling/page_client-reference-manifest.js",
+          "no-config-fetch.html",
+          "no-config-fetch.rsc",
           "no-store/dynamic/page.js",
           "no-store/dynamic/page_client-reference-manifest.js",
           "no-store/static.html",
@@ -833,6 +864,14 @@ describe('app-dir static/dynamic handling', () => {
           "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
           "unstable-cache/dynamic/page.js",
           "unstable-cache/dynamic/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-cache.html",
+          "unstable-cache/fetch/no-cache.rsc",
+          "unstable-cache/fetch/no-cache/page.js",
+          "unstable-cache/fetch/no-cache/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-store.html",
+          "unstable-cache/fetch/no-store.rsc",
+          "unstable-cache/fetch/no-store/page.js",
+          "unstable-cache/fetch/no-store/page_client-reference-manifest.js",
           "variable-config-revalidate/revalidate-3.html",
           "variable-config-revalidate/revalidate-3.rsc",
           "variable-config-revalidate/revalidate-3/page.js",
@@ -1233,6 +1272,22 @@ describe('app-dir static/dynamic handling', () => {
             "initialRevalidateSeconds": 3,
             "srcRoute": "/isr-error-handling",
           },
+          "/no-config-fetch": {
+            "dataRoute": "/no-config-fetch.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/no-config-fetch",
+          },
           "/no-store/static": {
             "dataRoute": "/no-store/static.rsc",
             "experimentalBypassFor": [
@@ -1564,6 +1619,38 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialRevalidateSeconds": 50,
             "srcRoute": "/strip-header-traceparent",
+          },
+          "/unstable-cache/fetch/no-cache": {
+            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-cache",
+          },
+          "/unstable-cache/fetch/no-store": {
+            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-store",
           },
           "/variable-config-revalidate/revalidate-3": {
             "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
@@ -2465,8 +2552,12 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
   })
@@ -2610,8 +2701,12 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
   })
@@ -3254,6 +3349,27 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).toEqual(data2)
       expect(data).toEqual('typeof cachedData: undefined')
     })
+
+    it.each(['no-store', 'no-cache'])(
+      'should not error when calling a fetch %s',
+      async (cache) => {
+        const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
+
+        try {
+          const first = await browser.waitForElementByCss('#data').text()
+          expect(first).not.toBe('')
+
+          // Ensure the data is the same after 3 refreshes.
+          for (let i = 0; i < 3; i++) {
+            await browser.refresh()
+            const refreshed = await browser.waitForElementByCss('#data').text()
+            expect(refreshed).toEqual(first)
+          }
+        } finally {
+          await browser.close()
+        }
+      }
+    )
   })
 
   it('should keep querystring on static page', async () => {

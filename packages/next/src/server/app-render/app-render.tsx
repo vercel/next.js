@@ -18,7 +18,7 @@ import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -76,7 +76,10 @@ import { appendMutableCookies } from '../web/spec-extension/adapters/request-coo
 import { createServerInsertedHTML } from './server-inserted-html'
 import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
-import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
+import {
+  getTracedMetadata,
+  makeGetServerInsertedHTML,
+} from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
@@ -640,7 +643,7 @@ async function renderToHTMLOrFlightImpl(
     ComponentMod,
     dev,
     nextFontManifest,
-    supportsDynamicHTML,
+    supportsDynamicResponse,
     serverActions,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -761,6 +764,10 @@ async function renderToHTMLOrFlightImpl(
 
   ComponentMod.patchFetch()
 
+  if (renderOpts.experimental.after) {
+    ComponentMod.patchCacheScopeSupportIntoReact()
+  }
+
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -774,7 +781,7 @@ async function renderToHTMLOrFlightImpl(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  const generateStaticHTML = supportsDynamicResponse !== true
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
@@ -912,6 +919,11 @@ async function renderToHTMLOrFlightImpl(
       tree,
       formState,
     }: RenderToStreamOptions): Promise<RenderToStreamResult> => {
+      const tracingMetadata = getTracedMetadata(
+        getTracer().getTracePropagationData(),
+        renderOpts.experimental.clientTraceMetadata
+      )
+
       const polyfills: JSX.IntrinsicElements['script'][] =
         buildManifest.polyfillFiles
           .filter(
@@ -995,6 +1007,7 @@ async function renderToHTMLOrFlightImpl(
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
         basePath: renderOpts.basePath,
+        tracingMetadata: tracingMetadata,
       })
 
       const renderer = createStaticRenderer({
@@ -1222,17 +1235,11 @@ async function renderToHTMLOrFlightImpl(
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
           const stack = getStackWithoutErrorMessage(err)
-          if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
-            error(
-              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
-            )
-
-            throw err
-          }
-
-          warn(
-            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering\n${stack}`
+          error(
+            `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
           )
+
+          throw err
         }
 
         if (isNotFoundError(err)) {
@@ -1325,6 +1332,7 @@ async function renderToHTMLOrFlightImpl(
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
                 basePath: renderOpts.basePath,
+                tracingMetadata: tracingMetadata,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

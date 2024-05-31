@@ -398,7 +398,7 @@ export async function exportAppImpl(
     domainLocales: i18n?.domains,
     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     // Exported pages do not currently support dynamic HTML.
-    supportsDynamicHTML: false,
+    supportsDynamicResponse: false,
     crossOrigin: nextConfig.crossOrigin,
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
@@ -420,9 +420,9 @@ export async function exportAppImpl(
     deploymentId: nextConfig.deploymentId,
     experimental: {
       isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
-      missingSuspenseWithCSRBailout:
-        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
-      swrDelta: nextConfig.experimental.swrDelta,
+      clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
+      swrDelta: nextConfig.swrDelta,
+      after: nextConfig.experimental.after ?? false,
     },
   }
 
