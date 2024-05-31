@@ -85,7 +85,7 @@ pub(super) fn options_from_request(
     let font_family = request.import.replace('_', " ");
     let font_data = data.get(&font_family).context("Unknown font")?;
 
-    let requested_weights: IndexSet<String> = argument
+    let requested_weights: IndexSet<RcStr> = argument
         .weight
         .map(|w| match w {
             OneOrManyStrings::One(one) => indexset! {one},
@@ -102,7 +102,7 @@ pub(super) fn options_from_request(
         .unwrap_or_default();
 
     let weights = if requested_weights.is_empty() {
-        if !font_data.weights.contains(&"variable".to_owned()) {
+        if !font_data.weights.contains(&"variable".into()) {
             return Err(anyhow!(
                 "Missing weight for {}. Available weights: {}",
                 font_family,
@@ -145,7 +145,7 @@ pub(super) fn options_from_request(
         if font_data.styles.len() == 1 {
             styles.push(font_data.styles[0].clone());
         } else {
-            styles.push("normal".to_owned());
+            styles.push("normal".into());
         }
     }
 
@@ -160,7 +160,7 @@ pub(super) fn options_from_request(
         }
     }
 
-    let display = argument.display.unwrap_or_else(|| "swap".to_owned());
+    let display = argument.display.unwrap_or_else(|| "swap".into());
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_ref()) {
         return Err(anyhow!(
@@ -260,10 +260,10 @@ mod tests {
         assert_eq!(
             options_from_request(&request, &data)?,
             NextFontGoogleOptions {
-                font_family: "ABeeZee".to_owned(),
+                font_family: "ABeeZee".into(),
                 weights: FontWeights::Variable,
-                styles: vec!["normal".to_owned()],
-                display: "swap".to_owned(),
+                styles: vec!["normal".into()],
+                display: "swap".into(),
                 preload: true,
                 selected_variable_axes: None,
                 fallback: None,
@@ -416,7 +416,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["italic".to_owned()]);
+        assert_eq!(options.styles, vec!["italic".into()]);
 
         Ok(())
     }
@@ -448,7 +448,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["normal".to_owned()]);
+        assert_eq!(options.styles, vec!["normal".into()]);
 
         Ok(())
     }
