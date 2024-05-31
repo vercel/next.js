@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
@@ -27,7 +27,7 @@ use crate::{
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
-    category: String,
+    category: RcStr,
     ascent: i32,
     descent: i32,
     line_gap: u32,
@@ -36,11 +36,11 @@ pub(super) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 struct Fallback {
-    pub font_family: String,
+    pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
 }
 

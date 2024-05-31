@@ -16,12 +16,13 @@ pub(super) async fn build_font_family_string(
     let mut font_families = vec![format!(
         "'{}'",
         *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?
-    )];
+    )
+    .into()];
 
     for font_fallback in &*font_fallbacks.await? {
         match &*font_fallback.await? {
             FontFallback::Automatic(fallback) => {
-                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
+                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
             }
             FontFallback::Manual(fallbacks) => {
                 font_families.extend_from_slice(fallbacks);
