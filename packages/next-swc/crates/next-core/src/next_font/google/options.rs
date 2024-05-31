@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
 
 use super::request::{NextFontRequest, OneOrManyStrings};
@@ -14,18 +14,18 @@ pub(super) type FontData = IndexMap<String, FontDataEntry>;
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
-    pub font_family: String,
+    pub font_family: RcStr,
     pub weights: FontWeights,
-    pub styles: Vec<String>,
-    pub display: String,
+    pub styles: Vec<RcStr>,
+    pub display: RcStr,
     pub preload: bool,
-    pub selected_variable_axes: Option<Vec<String>>,
-    pub fallback: Option<Vec<String>>,
+    pub selected_variable_axes: Option<Vec<RcStr>>,
+    pub fallback: Option<Vec<RcStr>>,
     pub adjust_font_fallback: bool,
     /// An optional name for a css custom property (css variable) that applies
     /// the font family when used.
-    pub variable: Option<String>,
-    pub subsets: Option<Vec<String>>,
+    pub variable: Option<RcStr>,
+    pub subsets: Option<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]

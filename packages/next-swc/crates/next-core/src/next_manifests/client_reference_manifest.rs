@@ -180,7 +180,7 @@ impl ClientReferenceManifest {
 
             let server_component_name = server_component
                 .server_path()
-                .with_extension("".to_string())
+                .with_extension("".into())
                 .to_string()
                 .await?;
 

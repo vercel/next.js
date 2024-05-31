@@ -520,7 +520,7 @@ async fn get_font_css_properties(
     let scoped_font_family =
         &*get_scoped_font_family(FontFamilyType::WebFont.cell(), options_vc.font_family()).await?;
 
-    let mut font_families = vec![format!("'{}'", scoped_font_family.clone())];
+    let mut font_families = vec![format!("'{}'", scoped_font_family.clone()).into()];
     let font_fallback = &*font_fallback.await?;
     match font_fallback {
         FontFallback::Manual(fonts) => {
