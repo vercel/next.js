@@ -57,14 +57,14 @@ pub async fn get_app_route_entry(
         nodejs_context
     };
 
-    let original_name = page.to_string();
+    let original_name: RcStr = page.to_string();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     let path = source.ident().path();
 
     const INNER: &str = "INNER_APP_ROUTE";
 
-    let output_type = next_config
+    let output_type: RcStr = next_config
         .await?
         .output
         .as_ref()
@@ -72,21 +72,22 @@ pub async fn get_app_route_entry(
             OutputType::Standalone => "\"standalone\"".to_string(),
             OutputType::Export => "\"export\"".to_string(),
         })
-        .unwrap_or_else(|| "\"\"".to_string());
+        .map(RcStr::from)
+        .unwrap_or_else(|| "\"\"".into());
 
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().clone(),
+            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
             // TODO(alexkirsz) Is this necessary?
-            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string(),
+            "VAR_DEFINITION_BUNDLE_PATH" => "".into(),
             "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
-            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value().into(),
+            "VAR_USERLAND" => INNER.into(),
         },
         indexmap! {
             "nextConfigOutput" => output_type

@@ -186,7 +186,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".to_string());

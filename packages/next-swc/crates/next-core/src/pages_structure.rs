@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
