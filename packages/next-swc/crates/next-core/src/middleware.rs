@@ -45,7 +45,7 @@ pub async fn get_middleware_module(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => userland_module
+        INNER.into() => userland_module
     };
 
     let module = context

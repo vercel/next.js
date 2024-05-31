@@ -104,7 +104,7 @@ pub async fn get_app_route_entry(
         .module();
 
     let inner_assets = indexmap! {
-        INNER.to_string() => userland_module
+        INNER.into() => userland_module
     };
 
     let mut rsc_entry = context
