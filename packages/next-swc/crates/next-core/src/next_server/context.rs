@@ -305,17 +305,17 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });

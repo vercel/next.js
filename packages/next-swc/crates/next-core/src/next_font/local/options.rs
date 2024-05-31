@@ -17,21 +17,21 @@ use super::request::{
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
-    pub default_style: Option<String>,
+    pub default_style: Option<RcStr>,
     /// The desired css `font-display` property
-    pub display: String,
+    pub display: RcStr,
     pub preload: bool,
     /// A list of manually-provided fallback fonts to be included in the
     /// font-family string as-is.
-    pub fallback: Option<Vec<String>>,
+    pub fallback: Option<Vec<RcStr>>,
     /// The user's desired fallback font
     pub adjust_font_fallback: AdjustFontFallback,
     /// An optional name for a css custom property (css variable) that applies
     /// the font family when used.
-    pub variable: Option<String>,
+    pub variable: Option<RcStr>,
     /// The name of the variable assigned to the results of calling the
     /// `localFont` function. This is used as the font family's base name.
-    pub variable_name: String,
+    pub variable_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -249,21 +249,21 @@ mod tests {
             NextFontLocalOptions {
                 fonts: FontDescriptors::Many(vec![
                     FontDescriptor {
-                        path: "./Roboto-Regular.ttf"..into()(),
+                        path: "./Roboto-Regular.ttf".into(),
                         weight: Some(FontWeight::Fixed("400".to_owned())),
                         style: Some("normal".to_owned()),
                         ext: "ttf".to_owned(),
                     },
                     FontDescriptor {
-                        path: "./Roboto-Italic.ttf".to_owned(),
+                        path: "./Roboto-Italic.ttf".into(),
                         weight: Some(FontWeight::Fixed("400".to_owned())),
                         style: None,
                         ext: "ttf".to_owned(),
                     }
                 ]),
                 default_weight: Some(FontWeight::Fixed("300".to_owned())),
-                default_style: Some("italic".to_owned()),
-                display: "swap".to_owned(),
+                default_style: Some("italic".into()),
+                display: "swap".into(),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
