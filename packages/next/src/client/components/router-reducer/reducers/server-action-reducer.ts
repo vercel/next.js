@@ -170,11 +170,13 @@ export function serverActionReducer(
   mutable.inFlightServerAction = fetchServerAction(state, nextUrl, action)
 
   return mutable.inFlightServerAction.then(
-    async ({
-      actionResult,
-      actionFlightData: flightData,
-      redirectLocation,
-    }) => {
+    async (arg) => {
+      console.log('arg', arg)
+      const {
+        actionResult,
+        actionFlightData: flightData,
+        redirectLocation,
+      } = arg
       // Make sure the redirection is a push instead of a replace.
       // Issue: https://github.com/vercel/next.js/issues/53911
       if (redirectLocation) {

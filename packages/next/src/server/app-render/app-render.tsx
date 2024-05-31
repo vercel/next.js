@@ -964,7 +964,7 @@ async function renderToHTMLOrFlightImpl(
       )
 
       // We are going to consume this render both for SSR and for inlining the flight data
-      let [renderStream, dataStream] = serverStream.tee()
+      const [renderStream, renderDataStream] = serverStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -1075,8 +1075,7 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const [original, flightSpy] = dataStream.tee()
-            dataStream = original
+            const [dataStream, flightSpy] = renderDataStream.tee()
 
             await flightRenderComplete(flightSpy)
 
@@ -1157,16 +1156,14 @@ async function renderToHTMLOrFlightImpl(
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
 
-              const [inlinedDataStream, inlinedDataStreamClone] =
-                createInlinedDataReadableStream(
-                  dataStream,
-                  nonce,
-                  formState
-                ).tee()
-
+              const [originDataStream, inlinedDataStream] = dataStream.tee()
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: inlinedDataStreamClone,
+                  inlinedDataStream: createInlinedDataReadableStream(
+                    originDataStream,
+                    nonce,
+                    formState
+                  ),
                   getServerInsertedHTML,
                 }),
                 inlinedDataStream,
@@ -1175,13 +1172,17 @@ async function renderToHTMLOrFlightImpl(
           }
         } else if (renderOpts.postponed) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const [inlinedDataStream, inlinedDataStreamClone] =
-            createInlinedDataReadableStream(dataStream, nonce, formState).tee()
+          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
+          const inlinedDataReadableStream = createInlinedDataReadableStream(
+            originDataStream,
+            nonce,
+            formState
+          )
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
               stream: await continueDynamicHTMLResume(stream, {
-                inlinedDataStream: inlinedDataStreamClone,
+                inlinedDataStream: inlinedDataReadableStream,
                 getServerInsertedHTML,
               }),
               inlinedDataStream,
@@ -1190,20 +1191,23 @@ async function renderToHTMLOrFlightImpl(
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
               stream: await continueDynamicDataResume(stream, {
-                inlinedDataStream: inlinedDataStreamClone,
+                inlinedDataStream: inlinedDataStream,
               }),
-              inlinedDataStream,
+              inlinedDataStream: inlinedDataReadableStream,
             }
           }
         } else {
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
-          const [inlinedDataStream, inlinedDataStreamClone] =
-            createInlinedDataReadableStream(dataStream, nonce, formState).tee()
+          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
           return {
             stream: await continueFizzStream(stream, {
-              inlinedDataStream: inlinedDataStreamClone,
+              inlinedDataStream: createInlinedDataReadableStream(
+                originDataStream,
+                nonce,
+                formState
+              ),
               isStaticGeneration: isStaticGeneration || generateStaticHTML,
               getServerInsertedHTML,
               serverInsertedHTMLToHead: true,
@@ -1316,22 +1320,20 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          const [inlinedDataStream, inlinedDataStreamClone] =
-            createInlinedDataReadableStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              dataStream,
-              nonce,
-              formState
-            ).tee()
-
+          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
             stream: await continueFizzStream(fizzStream, {
-              inlinedDataStream: inlinedDataStreamClone,
+              inlinedDataStream: createInlinedDataReadableStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                originDataStream,
+                nonce,
+                formState
+              ),
               isStaticGeneration,
               getServerInsertedHTML: makeGetServerInsertedHTML({
                 polyfills,
@@ -1434,7 +1436,7 @@ async function renderToHTMLOrFlightImpl(
   // If this is static generation, we should read this in now rather than
   // sending it back to be sent to the client.
   response.stream = await result.toUnchunkedString(true)
-  if (inlinedDataResult && response.inlinedDataStream) {
+  if (inlinedDataResult) {
     response.inlinedDataStream = await inlinedDataResult.toUnchunkedString(true)
   }
 
