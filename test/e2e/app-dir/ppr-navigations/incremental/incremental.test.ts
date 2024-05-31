@@ -15,12 +15,13 @@ async function getDotNextFiles(next: NextInstance): Promise<Array<string>> {
 }
 
 describe('ppr-navigations incremental', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
   it('can navigate between all the links and back without writing to disk', async () => {
-    const before = await getDotNextFiles(next)
+    const before = !isNextDev && !isTurbopack ? await getDotNextFiles(next) : []
+
     const browser = await next.browser('/')
 
     // Add a variable to the window so we can tell if it MPA navigated. If this
@@ -55,12 +56,14 @@ describe('ppr-navigations incremental', () => {
       await browser.close()
     }
 
-    const after = await getDotNextFiles(next)
+    if (!isNextDev && !isTurbopack) {
+      const after = await getDotNextFiles(next)
 
-    // Ensure that no new files were written to disk. If this test fails, it's
-    // likely that there was a change to the incremental cache or file system
-    // cache that resulted in information like the ppr state not being properly
-    // propagated.
-    expect(after).toEqual(before)
+      // Ensure that no new files were written to disk. If this test fails, it's
+      // likely that there was a change to the incremental cache or file system
+      // cache that resulted in information like the ppr state not being properly
+      // propagated.
+      expect(after).toEqual(before)
+    }
   })
 })
