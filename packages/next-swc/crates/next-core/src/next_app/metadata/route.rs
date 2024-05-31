@@ -145,7 +145,7 @@ async fn static_route_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -197,7 +197,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -297,7 +297,7 @@ async fn dynamic_site_map_route_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 

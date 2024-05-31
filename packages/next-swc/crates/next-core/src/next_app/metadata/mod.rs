@@ -183,7 +183,7 @@ fn file_stem(path: &str) -> &str {
 /// /favicon, /manifest, use to match dynamic API routes like app/robots.ts.
 pub fn is_metadata_route_file(
     app_dir_relative_path: &str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
     with_extension: bool,
 ) -> bool {
     let (dir, filename) = split_directory(app_dir_relative_path);
