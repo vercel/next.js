@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
 
 use super::request::{
@@ -54,9 +54,9 @@ impl NextFontLocalOptions {
 )]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
-    pub style: Option<String>,
-    pub path: String,
-    pub ext: String,
+    pub style: Option<RcStr>,
+    pub path: RcStr,
+    pub ext: RcStr,
 }
 
 impl FontDescriptor {
