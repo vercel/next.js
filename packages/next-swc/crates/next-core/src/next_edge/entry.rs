@@ -32,7 +32,7 @@ pub async fn wrap_edge_entry(
 
     // TODO(alexkirsz) Figure out how to name this virtual asset.
     let virtual_source = VirtualSource::new(
-        project_root.join("edge-wrapper.js".to_string()),
+        project_root.join("edge-wrapper.js".into()),
         AssetContent::file(file.into()),
     );
 

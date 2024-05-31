@@ -95,8 +95,8 @@ impl NextFontGoogleReplacer {
         let fallback = get_font_fallback(self.project_path, options);
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
-            next_js_file_path("internal/font/google".to_string())
-                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?)),
+            next_js_file_path("internal/font/google".into())
+                .join(format!("{}.js", get_request_id(options.font_family(), request_hash).await?).into()),
             AssetContent::file(FileContent::Content(
                 formatdoc!(
                     r#"
@@ -168,7 +168,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 
         let this = &*self.await?;
         if can_use_next_font(this.project_path, *query).await? {
-            Ok(self.import_map_result(query.await?.to_string()))
+            Ok(self.import_map_result(query.await?.as_str().into()))
         } else {
             Ok(ImportMapResult::NoEntry.into())
         }
@@ -203,18 +203,19 @@ impl NextFontGoogleCssModuleReplacer {
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data);
         let scoped_font_family =
             get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
-        let css_virtual_path = next_js_file_path("internal/font/google".to_string()).join(format!(
-            "/{}.module.css",
-            get_request_id(options.font_family(), request_hash).await?
-        ));
+        let css_virtual_path = next_js_file_path("internal/font/google".into()).join(
+            format!(
+                "/{}.module.css",
+                get_request_id(options.font_family(), request_hash).await?
+            )
+            .into(),
+        );
 
         // When running Next.js integration tests, use the mock data available in
         // process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES instead of making real
         // requests to Google Fonts.
         let env = Vc::upcast::<Box<dyn ProcessEnv>>(CommandLineProcessEnv::new());
-        let mocked_responses_path = &*env
-            .read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".to_string())
-            .await?;
+        let mocked_responses_path = &*env.read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".into()).await?;
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
