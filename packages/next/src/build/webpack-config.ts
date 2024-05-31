@@ -9,8 +9,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackBuiltinReactLayer,
-  isWebpackBundledLayer,
+  isWebpackAppLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
   isWebpackServerOnlyLayer,
@@ -82,7 +81,6 @@ import {
   createRSCAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
-  createRSCRendererAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
@@ -411,7 +409,8 @@ export default async function getBaseWebpackConfig(
     loggedIgnoredCompilerOptions = true
   }
 
-  const shouldIncludeExternalDirs = config.experimental.externalDir
+  const shouldIncludeExternalDirs =
+    config.experimental.externalDir || !!config.transpilePackages
   const codeCondition = {
     test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
@@ -530,7 +529,6 @@ export default async function getBaseWebpackConfig(
     : []
 
   const instrumentLayerLoaders = [
-    'next-flight-loader',
     // When using Babel, we will have to add the SWC loader
     // as an additional pass to handle RSC correctly.
     // This will cause some performance overhead but
@@ -540,13 +538,12 @@ export default async function getBaseWebpackConfig(
   ].filter(Boolean)
 
   const middlewareLayerLoaders = [
-    'next-flight-loader',
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
     // This will cause some performance overhead but
     // acceptable as Babel will not be recommended.
     getSwcLoader({
-      serverComponents: true,
+      serverComponents: false,
       bundleLayer: WEBPACK_LAYERS.middleware,
     }),
     babelLoader,
@@ -595,12 +592,13 @@ export default async function getBaseWebpackConfig(
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const apiRoutesLayerLoaders = useSWCLoader
-    ? getSwcLoader({
-        serverComponents: false,
-        bundleLayer: WEBPACK_LAYERS.api,
-      })
-    : defaultLoaders.babel
+  const apiRoutesLayerLoaders =
+    hasAppDir && useSWCLoader
+      ? getSwcLoader({
+          serverComponents: false,
+          bundleLayer: WEBPACK_LAYERS.api,
+        })
+      : defaultLoaders.babel
 
   const pageExtensions = config.pageExtensions
 
@@ -1306,7 +1304,7 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                issuerLayer: isWebpackBundledLayer,
+                issuerLayer: isWebpackAppLayer,
                 resolve: {
                   alias: createNextApiEsmAliases(),
                 },
@@ -1328,7 +1326,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackBuiltinReactLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1390,7 +1388,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackBuiltinReactLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1471,21 +1469,11 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
-              resolve: {
-                conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
-              },
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
-              resolve: {
-                conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
-              },
             },
             ...(hasAppDir
               ? [

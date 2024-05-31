@@ -812,14 +812,11 @@ export function finalizeEntrypoint({
       }
     }
     case COMPILER_NAMES.edgeServer: {
-      const layer = isApi
-        ? WEBPACK_LAYERS.api
-        : isMiddlewareFilename(name) || isInstrumentation
-          ? WEBPACK_LAYERS.middleware
-          : undefined
-
       return {
-        layer,
+        layer:
+          isMiddlewareFilename(name) || isApi || isInstrumentation
+            ? WEBPACK_LAYERS.middleware
+            : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,
         asyncChunks: false,
