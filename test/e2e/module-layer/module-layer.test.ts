@@ -4,6 +4,10 @@ import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 describe('module layer', () => {
   const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.0.0-rc-915b914b3a-20240515',
+      'react-dom': '19.0.0-rc-915b914b3a-20240515',
+    },
   })
 
   function runTests() {
@@ -33,7 +37,7 @@ describe('module layer', () => {
     }
 
     it('should render installed react-server condition for middleware', async () => {
-      const json = await next.fetch('/middleware').then((res) => res.json())
+      const json = await next.fetch('/react-version').then((res) => res.json())
       expect(json.React).toContain('version') // basic react-server export
       expect(json.React).not.toContain('useEffect') // no client api export
     })
