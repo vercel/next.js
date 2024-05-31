@@ -67,21 +67,16 @@ export function useFlightStream<T>(
  */
 export async function flightRenderComplete(
   flightStream: ReadableStream<Uint8Array>
-): Promise<string> {
-  let decoder = new TextDecoder('utf-8')
-  let content: string = ''
-  const decoderOptions = { stream: true }
+): Promise<void> {
   const flightReader = flightStream.getReader()
 
   while (true) {
-    const { done, value } = await flightReader.read()
-    content += decoder.decode(value, decoderOptions)
+    const { done } = await flightReader.read()
 
     if (done) {
-      break
+      return
     }
   }
-  return content
 }
 
 /**

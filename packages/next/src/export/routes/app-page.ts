@@ -50,7 +50,7 @@ export async function exportAppPage(
   }
 
   try {
-    const [result, inlinedDataResult] = await lazyRenderAppPage(
+    const [result] = await lazyRenderAppPage(
       new NodeNextRequest(req),
       new NodeNextResponse(res),
       pathname,
@@ -59,10 +59,8 @@ export async function exportAppPage(
     )
 
     const html = result.toUnchunkedString()
-    const flightData = inlinedDataResult?.toUnchunkedString()
-
     const { metadata } = result
-    const { revalidate = false, postponed, fetchTags } = metadata
+    const { flightData, revalidate = false, postponed, fetchTags } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.isRoutePPREnabled) {

@@ -375,7 +375,7 @@ async function generateFlight(
 
 type RenderToStreamResult = {
   stream: RenderResultResponse
-  inlinedDataStream?: RenderResultResponse // ReadableStream<Uint8Array>
+  inlinedDataStream: RenderResultResponse
   err?: unknown
 }
 
@@ -965,6 +965,7 @@ async function renderToHTMLOrFlightImpl(
 
       // We are going to consume this render both for SSR and for inlining the flight data
       const [renderStream, renderDataStream] = serverStream.tee()
+      const [originDataStream, inlinedDataStream] = renderDataStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -1071,11 +1072,12 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicPrerender(stream, {
                 getServerInsertedHTML,
               }),
+              inlinedDataStream,
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const [dataStream, flightSpy] = renderDataStream.tee()
+            const [, flightSpy] = renderDataStream.tee()
 
             await flightRenderComplete(flightSpy)
 
@@ -1100,6 +1102,7 @@ async function renderToHTMLOrFlightImpl(
                 stream: await continueDynamicPrerender(stream, {
                   getServerInsertedHTML,
                 }),
+                inlinedDataStream,
               }
             } else {
               // This is the Static case
@@ -1156,7 +1159,6 @@ async function renderToHTMLOrFlightImpl(
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
 
-              const [originDataStream, inlinedDataStream] = dataStream.tee()
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
                   inlinedDataStream: createInlinedDataReadableStream(
@@ -1172,7 +1174,6 @@ async function renderToHTMLOrFlightImpl(
           }
         } else if (renderOpts.postponed) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
           const inlinedDataReadableStream = createInlinedDataReadableStream(
             originDataStream,
             nonce,
@@ -1191,16 +1192,15 @@ async function renderToHTMLOrFlightImpl(
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
               stream: await continueDynamicDataResume(stream, {
-                inlinedDataStream: inlinedDataStream,
+                inlinedDataStream: inlinedDataReadableStream,
               }),
-              inlinedDataStream: inlinedDataReadableStream,
+              inlinedDataStream,
             }
           }
         } else {
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
-          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
           return {
             stream: await continueFizzStream(stream, {
               inlinedDataStream: createInlinedDataReadableStream(
@@ -1320,7 +1320,6 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          const [originDataStream, inlinedDataStream] = renderDataStream.tee()
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
@@ -1436,9 +1435,6 @@ async function renderToHTMLOrFlightImpl(
   // If this is static generation, we should read this in now rather than
   // sending it back to be sent to the client.
   response.stream = await result.toUnchunkedString(true)
-  if (inlinedDataResult) {
-    response.inlinedDataStream = await inlinedDataResult.toUnchunkedString(true)
-  }
 
   const buildFailingError =
     digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
@@ -1471,6 +1467,12 @@ async function renderToHTMLOrFlightImpl(
   }
 
   // Wait for and collect the flight payload data if we don't have it
+  if (inlinedDataResult) {
+    const flightData = await inlinedDataResult.toUnchunkedString(true)
+    if (flightData) {
+      metadata.flightData = flightData
+    }
+  }
   // already
   // const flightData = await flightDataResolver!()
   // if (flightData) {
