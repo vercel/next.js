@@ -424,7 +424,7 @@ pub struct ExperimentalTurboConfig {
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
-    pub rename_as: Option<String>,
+    pub rename_as: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -438,14 +438,14 @@ pub enum RuleConfigItemOrShortcut {
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
-    Conditional(IndexMap<String, RuleConfigItem>),
+    Conditional(IndexMap<RcStr, RuleConfigItem>),
     Boolean(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum LoaderItem {
-    LoaderName(String),
+    LoaderName(RcStr),
     LoaderOptions(WebpackLoaderItem),
 }
 
@@ -473,7 +473,7 @@ pub struct ReactCompilerOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compilation_mode: Option<ReactCompilerMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub panic_threshold: Option<String>,
+    pub panic_threshold: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -489,26 +489,26 @@ pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub allowed_revalidate_header_keys: Option<Vec<RcStr>>,
     pub client_router_filter: Option<bool>,
     /// decimal for percent for possible false positives e.g. 0.01 for 10%
     /// potential false matches lower percent increases size of the filter
     pub client_router_filter_allowed_rate: Option<f64>,
     pub client_router_filter_redirects: Option<bool>,
-    pub fetch_cache_key_prefix: Option<String>,
+    pub fetch_cache_key_prefix: Option<RcStr>,
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
     pub strict_next_head: Option<bool>,
-    pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
     pub use_deployment_id_server_actions: Option<bool>,
-    pub deployment_id: Option<String>,
+    pub deployment_id: Option<RcStr>,
     pub manual_client_base_path: Option<bool>,
     pub optimistic_client_cache: Option<bool>,
     pub middleware_prefetch: Option<MiddlewarePrefetchType>,
@@ -516,7 +516,7 @@ pub struct ExperimentalConfig {
     /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
-    pub web_vitals_attribution: Option<Vec<String>>,
+    pub web_vitals_attribution: Option<Vec<RcStr>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,

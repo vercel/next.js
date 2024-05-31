@@ -67,32 +67,32 @@ impl PageSegment {
         }
 
         if let Some(s) = segment.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
-            return Ok(PageSegment::Group(s.to_string()));
+            return Ok(PageSegment::Group(s.into()));
         }
 
         if let Some(s) = segment.strip_prefix('@') {
-            return Ok(PageSegment::Parallel(s.to_string()));
+            return Ok(PageSegment::Parallel(s.into()));
         }
 
         if let Some(s) = segment
             .strip_prefix("[[...")
             .and_then(|s| s.strip_suffix("]]"))
         {
-            return Ok(PageSegment::OptionalCatchAll(s.to_string()));
+            return Ok(PageSegment::OptionalCatchAll(s.into()));
         }
 
         if let Some(s) = segment
             .strip_prefix("[...")
             .and_then(|s| s.strip_suffix(']'))
         {
-            return Ok(PageSegment::CatchAll(s.to_string()));
+            return Ok(PageSegment::CatchAll(s.into()));
         }
 
         if let Some(s) = segment.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            return Ok(PageSegment::Dynamic(s.to_string()));
+            return Ok(PageSegment::Dynamic(s.into()));
         }
 
-        Ok(PageSegment::Static(segment.to_string()))
+        Ok(PageSegment::Static(segment.into()))
     }
 }
 
