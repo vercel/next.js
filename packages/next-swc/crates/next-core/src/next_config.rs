@@ -413,9 +413,9 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalTurboConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<IndexMap<String, RuleConfigItemOrShortcut>>,
-    pub resolve_alias: Option<IndexMap<String, JsonValue>>,
-    pub resolve_extensions: Option<Vec<String>>,
+    pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
+    pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
 }
 
@@ -554,10 +554,10 @@ pub struct ExperimentalConfig {
     optimize_server_react: Option<bool>,
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
-    optimize_package_imports: Option<Vec<String>>,
-    output_file_tracing_ignores: Option<Vec<String>>,
+    optimize_package_imports: Option<Vec<RcStr>>,
+    output_file_tracing_ignores: Option<Vec<RcStr>>,
     output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<String>,
+    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
