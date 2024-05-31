@@ -1,3 +1,4 @@
+import { Awaiter } from '../../lib/awaiter'
 import { PageSignatureError } from '../error'
 import type { NextRequest } from './request'
 
@@ -13,9 +14,9 @@ class FetchEvent {
   [passThroughSymbol] = false;
 
   [awaiterSymbol] = new Awaiter();
-  [waitUntilCacheSymbol]: Promise<void> | undefined = undefined
+  [waitUntilCacheSymbol]: Promise<void> | undefined = undefined;
 
-  get [waitUntilSymbol](): Promise<void> {
+  [waitUntilSymbol] = () => {
     if (!this[waitUntilCacheSymbol]) {
       this[waitUntilCacheSymbol] = this[awaiterSymbol].awaiting()
     }
@@ -68,42 +69,5 @@ export class NextFetchEvent extends FetchEvent {
     throw new PageSignatureError({
       page: this.sourcePage,
     })
-  }
-}
-
-/**
- * The Awaiter class is used to manage and await multiple promises.
- */
-export class Awaiter {
-  private promises: Set<Promise<unknown>> = new Set()
-  private onError: ((error: Error) => void) | undefined
-
-  constructor({ onError }: { onError?: (error: Error) => void } = {}) {
-    this.onError = onError ?? console.error
-  }
-
-  public waitUntil = (promise: Promise<unknown>) => {
-    this.promises.add(promise)
-  }
-
-  public async awaiting(): Promise<void> {
-    let hasMorePromises: boolean
-    do {
-      hasMorePromises = await this.waitForBatch()
-    } while (hasMorePromises)
-  }
-
-  private async waitForBatch() {
-    if (!this.promises.size) {
-      return false
-    }
-
-    const promises = Array.from(this.promises)
-    this.promises.clear()
-    await Promise.all(
-      promises.map((promise) => Promise.resolve(promise).catch(this.onError))
-    )
-
-    return this.promises.size > 0
   }
 }
