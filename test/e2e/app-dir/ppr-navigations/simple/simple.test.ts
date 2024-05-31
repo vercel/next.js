@@ -10,7 +10,7 @@ describe('ppr-navigations simple', () => {
     const browser = await next.browser('/')
 
     try {
-      for (const { href } of links) {
+      for (const { href } of [...links].reverse()) {
         // Find the link element for the href and click it.
         await browser.elementByCss(`a[href="${href}"]`).click()
 
