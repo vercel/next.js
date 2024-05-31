@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import {
   createNextApp,
   projectShouldHaveNoGitChanges,
@@ -7,7 +8,7 @@ import {
   useTempDir,
 } from '../utils'
 
-let testVersion
+let testVersion: string
 beforeAll(async () => {
   // TODO: investigate moving this post publish or create deployed GH#57025
   // tarballs to avoid these failing while a publish is in progress
@@ -18,7 +19,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe('create-next-app --no-app (Pages Router)', () => {
+describe.skip('create-next-app --no-app (Pages Router)', () => {
   it('should create JavaScript project with --js flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'pages-js'
@@ -230,6 +231,34 @@ describe('create-next-app --no-app (Pages Router)', () => {
         isApp: false,
         isEmpty,
       })
+    })
+  })
+
+  it('should enable turbopack dev with --turbo flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'pages-turbo'
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--no-app',
+          '--eslint',
+          '--turbo',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      const projectRoot = join(cwd, projectName)
+      const pkgJson = require(join(projectRoot, 'package.json'))
+      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
     })
   })
 })

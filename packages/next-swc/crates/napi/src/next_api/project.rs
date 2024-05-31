@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -18,14 +18,14 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use rand::Rng;
+use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{
-    prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
-};
-use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use turbo_tasks::{Completion, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks_fs::{FileContent, FileSystem},
+        tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
         tasks_memory::MemoryBackend,
     },
     turbopack::{
@@ -55,6 +55,10 @@ use super::{
     },
 };
 use crate::register;
+
+/// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
+/// threshold high.
+const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -290,11 +294,21 @@ pub async fn project_new(
             .context("Unable to create .next directory")
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
-        let trace_writer = std::fs::File::create(trace_file).unwrap();
+        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         let guard = ExitGuard::new(guard).unwrap();
+
+        let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
+        if trace_server.is_some() {
+            thread::spawn(move || {
+                turbopack_binding::turbopack::trace_server::start_turbopack_trace_server(
+                    trace_file,
+                );
+            });
+            println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
+        }
 
         subscriber.init();
 
@@ -318,6 +332,12 @@ pub async fn project_new(
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    turbo_tasks.spawn_once_task(async move {
+        benchmark_file_io(container.project().node_root())
+            .await
+            .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+    });
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
@@ -326,6 +346,63 @@ pub async fn project_new(
         },
         100,
     ))
+}
+
+/// A very simple and low-overhead, but potentially noisy benchmark to detect
+/// very slow disk IO. Warns the user (via `println!`) if the benchmark takes
+/// more than `SLOW_FILESYSTEM_THRESHOLD`.
+///
+/// This idea is copied from Bun:
+/// - https://x.com/jarredsumner/status/1637549427677364224
+/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+#[tracing::instrument]
+async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
+    let temp_path = directory.join(format!(
+        "tmp_file_io_benchmark_{:x}",
+        rand::random::<u128>()
+    ));
+
+    // try to get the real file path on disk so that we can use it with tokio
+    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
+        .await?
+        .context(anyhow!(
+            "expected node_root to be a DiskFileSystem, cannot benchmark"
+        ))?
+        .await?;
+    let temp_path = fs.to_sys_path(temp_path).await?;
+
+    let mut random_buffer = [0u8; 512];
+    rand::thread_rng().fill(&mut random_buffer[..]);
+
+    // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
+    // additional noise/overhead of tasks caching, invalidation, file locks,
+    // etc.
+    let start = Instant::now();
+    async move {
+        for _ in 0..3 {
+            // create a new empty file
+            let mut file = tokio::fs::File::create(&temp_path).await?;
+            file.write_all(&random_buffer).await?;
+            file.sync_all().await?;
+            drop(file);
+
+            // remove the file
+            tokio::fs::remove_file(&temp_path).await?;
+        }
+        anyhow::Ok(())
+    }
+    .instrument(tracing::info_span!("benchmark file IO (measurement)"))
+    .await?;
+
+    if Instant::now().duration_since(start) > SLOW_FILESYSTEM_THRESHOLD {
+        println!(
+            "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
+             folder. If you have an antivirus enabled, consider excluding your project directory.",
+            fs.to_sys_path(directory).await?.to_string_lossy(),
+        );
+    }
+
+    Ok(Completion::new())
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]

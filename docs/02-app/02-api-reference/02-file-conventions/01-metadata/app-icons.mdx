@@ -169,6 +169,7 @@ export default function Icon() {
 > - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
+> - App icons are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 ### Props
 
@@ -195,7 +196,6 @@ export default function Icon({ params }) {
 | `app/shop/icon.js`              | `/shop`     | `undefined`               |
 | `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
-| `app/shop/[...slug]/icon.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ### Returns
 
