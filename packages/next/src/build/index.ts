@@ -187,7 +187,10 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
+import {
+  checkIsAppPPREnabled,
+  checkIsRoutePPREnabled,
+} from '../server/lib/experimental/ppr'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1755,6 +1758,8 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
+      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
@@ -2785,9 +2790,11 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-                // We write the `.prefetch.rsc` when the app has PPR enabled, so
-                // always add the prefetch data route to the manifest.
-                if (!isRouteHandler && experimentalPPR) {
+                // While we may only write the `.rsc` when the route does not
+                // have PPR enabled, we still want to generate the route when
+                // deployed so it doesn't 404. If the app has PPR enabled, we
+                // should add this key.
+                if (!isRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -2859,9 +2866,11 @@ export default async function build(
 
               let prefetchDataRoute: string | undefined
 
-              // We write the `.prefetch.rsc` when the app has PPR enabled, so
-              // always add the prefetch data route to the manifest.
-              if (!isRouteHandler && experimentalPPR) {
+              // While we may only write the `.rsc` when the route does not
+              // have PPR enabled, we still want to generate the route when
+              // deployed so it doesn't 404. If the app has PPR enabled, we
+              // should add this key.
+              if (!isRouteHandler && isAppPPREnabled) {
                 prefetchDataRoute = path.posix.join(
                   `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                 )
