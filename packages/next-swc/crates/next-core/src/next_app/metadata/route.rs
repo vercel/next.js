@@ -218,8 +218,7 @@ async fn dynamic_site_map_route_source(
 
     let mut static_generation_code = "";
 
-    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
-    {
+    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".into())) {
         static_generation_code = indoc! {
             r#"
                 export async function generateStaticParams() {

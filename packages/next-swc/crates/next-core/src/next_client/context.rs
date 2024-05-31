@@ -326,7 +326,7 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
@@ -335,7 +335,7 @@ pub async fn get_client_chunking_context(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".to_string()),
+        client_root.join("static/chunks".into()),
         get_client_assets_path(client_root),
         environment,
         next_mode.runtime_type(),
@@ -353,7 +353,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemPath> {
-    client_root.join("static/media".to_string())
+    client_root.join("static/media".into())
 }
 
 #[turbo_tasks::function]
