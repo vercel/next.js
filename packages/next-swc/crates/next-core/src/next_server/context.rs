@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{
@@ -139,7 +139,7 @@ pub async fn get_server_resolve_options_context(
     );
 
     // Always load these predefined packages as external.
-    let mut external_packages: Vec<String> = load_next_js_templateon(
+    let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
         "dist/lib/server-external-packages.json".to_string(),
     )
