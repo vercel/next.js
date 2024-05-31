@@ -355,7 +355,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 

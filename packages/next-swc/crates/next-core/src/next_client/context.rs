@@ -95,14 +95,14 @@ async fn next_client_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "node:buffer".to_string(),
+            request: "node:buffer".into(),
             lookup_path: None,
-            export: Some("Buffer".to_string()),
+            export: Some("Buffer".into()),
         },
         process = FreeVarReference::EcmaScriptModule {
-            request: "node:process".to_string(),
+            request: "node:process".into(),
             lookup_path: None,
-            export: Some("default".to_string()),
+            export: Some("default".into()),
         }
     )
     .cell())
