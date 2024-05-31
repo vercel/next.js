@@ -71,15 +71,15 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    let original_name = page.to_string();
-    let pathname: RcStr = AppPath::from(page.clone()).to_string();
+    let original_name: RcStr = page.to_string().into();
+    let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "app-page.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PAGE" => page.into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
             // TODO(alexkirsz) Support custom global error.
