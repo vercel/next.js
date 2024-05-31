@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use turbo_tasks::RcStr;
 use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
 
 /// The top-most structure encoded into the query param in requests to
@@ -39,9 +40,9 @@ pub(super) enum SrcRequest {
 
 #[derive(Clone, Debug, Deserialize)]
 pub(super) struct SrcDescriptor {
-    pub path: String,
-    pub weight: Option<String>,
-    pub style: Option<String>,
+    pub path: RcStr,
+    pub weight: Option<RcStr>,
+    pub style: Option<RcStr>,
 }
 
 /// The user's desired fallback font

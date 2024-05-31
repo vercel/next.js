@@ -66,10 +66,10 @@ impl FontDescriptor {
             .rsplit('.')
             .next()
             .context("Extension required")?
-            .to_owned();
+            .into();
 
         Ok(Self {
-            path: src_descriptor.path.to_owned(),
+            path: src_descriptor.path.clone(),
             weight: src_descriptor
                 .weight
                 .as_ref()

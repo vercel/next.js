@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_binding::{
     turbo::tasks_hash::hash_xxh3_hash64,
@@ -75,7 +75,7 @@ pub async fn get_request_id(font_family: Vc<String>, request_hash: u32) -> Resul
 
 #[derive(Debug, Deserialize)]
 struct HasPath {
-    path: String,
+    path: RcStr,
 }
 
 pub(crate) async fn can_use_next_font(
