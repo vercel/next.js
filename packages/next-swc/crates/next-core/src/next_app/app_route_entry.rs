@@ -57,7 +57,7 @@ pub async fn get_app_route_entry(
         nodejs_context
     };
 
-    let original_name: RcStr = page.to_string();
+    let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     let path = source.ident().path();
@@ -151,7 +151,7 @@ async fn wrap_edge_route(
         "edge-app-route.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_USERLAND" => INNER.into(),
         },
         indexmap! {},
         indexmap! {},

@@ -9,7 +9,7 @@ use crate::next_font::{
 
 #[turbo_tasks::function]
 pub(super) async fn build_stylesheet(
-    base_stylesheet: Vc<Option<RcStr>>,
+    base_stylesheet: Vc<Option<String>>,
     font_css_properties: Vc<FontCssProperties>,
     font_fallback: Vc<FontFallback>,
 ) -> Result<Vc<String>> {

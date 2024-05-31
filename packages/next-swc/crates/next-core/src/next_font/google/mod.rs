@@ -5,7 +5,7 @@ use futures::FutureExt;
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{Completion, Value},

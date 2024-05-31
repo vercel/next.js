@@ -172,7 +172,7 @@ async fn wrap_edge_page(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => page.into(),
+            "VAR_PAGE" => page.to_string().into(),
         },
         indexmap! {
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
@@ -202,6 +202,6 @@ async fn wrap_edge_page(
         context,
         project_root,
         wrapped,
-        AppPath::from(page).to_string(),
+        AppPath::from(page).to_string().into(),
     ))
 }
