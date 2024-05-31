@@ -34,7 +34,7 @@ export function TestPage({ pathname, noDynamic = false }) {
       </ul>
       <code data-value={pathname}>{pathname}</code>
       <Suspense fallback={<div>Loading...</div>}>
-        <Dynamic />
+        <Dynamic noDynamic={noDynamic} />
       </Suspense>
     </div>
   )
