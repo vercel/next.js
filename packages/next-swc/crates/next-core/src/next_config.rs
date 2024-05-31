@@ -900,7 +900,7 @@ impl NextConfig {
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
                     rules.insert(
-                        ext.to_string(),
+                        ext.into(),
                         LoaderRuleItem {
                             loaders: transform_loaders(loaders),
                             rename_as: None,
@@ -912,7 +912,7 @@ impl NextConfig {
                         find_rule(rule, &active_conditions)
                     {
                         rules.insert(
-                            ext.to_string(),
+                            ext.into(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
                                 rename_as: rename_as.clone(),
