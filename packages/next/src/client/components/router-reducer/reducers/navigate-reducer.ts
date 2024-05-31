@@ -156,6 +156,16 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
+
+      // Track if the navigation was only an update to the hash fragment
+      mutable.onlyHashChange =
+        !!hash &&
+        state.canonicalUrl.split('#', 1)[0] ===
+          updatedCanonicalUrl.split('#', 1)[0]
+
       let currentTree = state.tree
       const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
@@ -201,12 +211,15 @@ function navigateReducer_noPPR(
 
           if (
             prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+            !mutable.onlyHashChange &&
             !isFirstRead
           ) {
             // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
             // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
             // while copying over the `loading` for the segment that contains the page data.
             // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+
+            // We skip this branch if only the hash fragment has changed, as we don't want to trigger a lazy fetch in that case
             applied = triggerLazyFetchForLeafSegments(
               cache,
               currentCache,
@@ -263,9 +276,7 @@ function navigateReducer_noPPR(
       }
 
       mutable.patchedTree = currentTree
-      mutable.canonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
+      mutable.canonicalUrl = updatedCanonicalUrl
       mutable.pendingPush = pendingPush
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash
@@ -329,6 +340,16 @@ function navigateReducer_PPR(
       if (document.getElementById('__next-page-redirect')) {
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
+
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
+
+      // Track if the navigation was only an update to the hash fragment
+      mutable.onlyHashChange =
+        !!hash &&
+        state.canonicalUrl.split('#', 1)[0] ===
+          updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
       const currentCache = state.cache
@@ -452,12 +473,15 @@ function navigateReducer_PPR(
 
             if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+              !mutable.onlyHashChange &&
               !isFirstRead
             ) {
               // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
               // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
               // while copying over the `loading` for the segment that contains the page data.
               // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+
+              // We skip this branch if only the hash fragment has changed, as we don't want to trigger a lazy fetch in that case
               applied = triggerLazyFetchForLeafSegments(
                 cache,
                 currentCache,
@@ -515,9 +539,7 @@ function navigateReducer_PPR(
       }
 
       mutable.patchedTree = currentTree
-      mutable.canonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
+      mutable.canonicalUrl = updatedCanonicalUrl
       mutable.pendingPush = pendingPush
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash
