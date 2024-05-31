@@ -59,7 +59,7 @@ chromiumoxide = { version = "0.5.0", features = [
 tungstenite = "0.18.0"
 
 # flate2_zlib requires zlib, use flate2_rust
-allsorts = { version = "0.14.0", default_features = false, features = [
+allsorts = { version = "0.14.0", default-features = false, features = [
   "outline",
   "flate2_rust",
 ] }
@@ -141,4 +141,4 @@ dhat = { version = "0.3.2" }
 
 # Sync with the entries in turbo's Cargo.toml
 [patch.crates-io]
-pathfinder_simd = { git = "https://github.com/servo/pathfinder", rev = "30419d" }
+pathfinder_simd = { git = "https://github.com/vercel/pathfinder", branch = "rm-stdarch_arm_crc32"}

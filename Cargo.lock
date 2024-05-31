@@ -3487,7 +3487,7 @@ dependencies = [
 [[package]]
 name = "pathfinder_simd"
 version = "0.5.3"
-source = "git+https://github.com/servo/pathfinder?rev=30419d#30419d07660dc11a21e42ef4a7fa329600cff152"
+source = "git+https://github.com/vercel/pathfinder?branch=rm-stdarch_arm_crc32#ddc0696d4c8b7d0f7af8de1a271c62aec016d45f"
 dependencies = [
  "rustc_version 0.4.0",
 ]
