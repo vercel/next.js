@@ -51,15 +51,15 @@ pub(super) enum FontWeights {
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, TraceRawVcs)]
 pub(super) struct FontDataEntry {
-    pub weights: Vec<String>,
-    pub styles: Vec<String>,
+    pub weights: Vec<RcStr>,
+    pub styles: Vec<RcStr>,
     pub axes: Option<Vec<Axis>>,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Axis {
-    pub tag: String,
+    pub tag: RcStr,
     pub min: f64,
     pub max: f64,
 }
