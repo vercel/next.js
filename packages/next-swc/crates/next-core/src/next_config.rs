@@ -223,30 +223,30 @@ pub enum OutputType {
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
     Header {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Cookie {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Query {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Host {
-        value: String,
+        value: RcStr,
     },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderValue {
-    pub key: String,
-    pub value: String,
+    pub key: RcStr,
+    pub value: RcStr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -900,7 +900,7 @@ impl NextConfig {
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
                     rules.insert(
-                        ext.into(),
+                        ext.clone(),
                         LoaderRuleItem {
                             loaders: transform_loaders(loaders),
                             rename_as: None,
@@ -912,7 +912,7 @@ impl NextConfig {
                         find_rule(rule, &active_conditions)
                     {
                         rules.insert(
-                            ext.into(),
+                            ext.clone(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
                                 rename_as: rename_as.clone(),
