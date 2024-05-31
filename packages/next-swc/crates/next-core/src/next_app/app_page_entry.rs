@@ -79,17 +79,17 @@ pub async fn get_app_page_entry(
         "app-page.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.into(),
+            "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
             // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".to_string(),
+            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
         },
         indexmap! {
             "tree" => loader_tree_code,
-            "pages" => StringifyJs(&pages).to_string(),
-            "__next_app_require__" => "__turbopack_require__".to_string(),
-            "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
+            "pages" => StringifyJs(&pages).to_string().into(),
+            "__next_app_require__" => "__turbopack_require__".into(),
+            "__next_app_load_chunk__" => " __turbopack_load__".into(),
         },
         indexmap! {},
     )
