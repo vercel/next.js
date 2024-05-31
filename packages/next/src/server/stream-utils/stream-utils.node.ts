@@ -37,9 +37,7 @@ export async function renderToInitialFizzStream({
     const { pipe } = ReactDOMServer.renderToPipeableStream(element, {
       ...streamOptions,
       onShellReady() {
-        const passThrough = new PassThrough()
-        pipe(passThrough)
-        resolve(passThrough)
+        resolve(pipe(new PassThrough()))
       },
       onShellError(error) {
         reject(error)

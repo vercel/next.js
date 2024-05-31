@@ -983,24 +983,6 @@ async function renderToHTMLOrFlightImpl(
         }
       )
 
-      // let resultStream: ReadableStream<Uint8Array>
-      // if (
-      //   process.env.NEXT_RUNTIME === 'nodejs' &&
-      //   !(serverStream instanceof ReadableStream)
-      // ) {
-      //   const { PassThrough, Readable } =
-      //     require('node:stream') as typeof import('node:stream')
-      //   resultStream = Readable.toWeb(
-      //     serverStream.pipe(new PassThrough())
-      //   ) as ReadableStream<Uint8Array>
-      // } else if (!(serverStream instanceof ReadableStream)) {
-      //   throw new Error(
-      //     'Invariant. Stream is not a ReadableStream in non-Node.js runtime'
-      //   )
-      // } else {
-      //   resultStream = serverStream
-      // }
-
       let renderStream, dataStream
 
       if (
@@ -1194,7 +1176,14 @@ async function renderToHTMLOrFlightImpl(
 
                 // We don't actually want to render anything so we just pass a stream
                 // that never resolves. The resume call is going to abort immediately anyway
-                const foreverStream = new ReadableStream<Uint8Array>()
+                let foreverStream
+
+                if (process.env.NEXT_RUNTIME === 'nodejs') {
+                  const { Readable } = require('node:stream')
+                  foreverStream = new Readable()
+                } else {
+                  foreverStream = new ReadableStream<Uint8Array>()
+                }
 
                 const resumeChildren = (
                   <HeadManagerContext.Provider
@@ -1385,16 +1374,14 @@ async function renderToHTMLOrFlightImpl(
           }
         )
 
-        let resultStream2: ReadableStream<Uint8Array>
+        let resultStream2: Readable | ReadableStream<Uint8Array>
         if (
           process.env.NEXT_RUNTIME === 'nodejs' &&
           !(errorServerStream instanceof ReadableStream)
         ) {
-          const { PassThrough, Readable } =
+          const { PassThrough } =
             require('node:stream') as typeof import('node:stream')
-          resultStream2 = Readable.toWeb(
-            errorServerStream.pipe(new PassThrough())
-          ) as ReadableStream<Uint8Array>
+          resultStream2 = errorServerStream.pipe(new PassThrough())
         } else if (!(errorServerStream instanceof ReadableStream)) {
           throw new Error('Invariant. Stream is not ReadableStream')
         } else {

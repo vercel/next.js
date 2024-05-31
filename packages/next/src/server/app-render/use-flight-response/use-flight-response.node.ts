@@ -31,13 +31,16 @@ export function useFlightStream<T>(
       require('react-server-dom-webpack/client.node').createFromNodeStream
   }
 
-  const newResponse = createFromStream(flightStream, {
-    ssrManifest: {
+  const newResponse = createFromStream(
+    flightStream,
+    {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: clientReferenceManifest.ssrModuleMapping,
     },
-    nonce,
-  })
+    {
+      nonce,
+    }
+  )
 
   flightResponses.set(flightStream, newResponse)
 
