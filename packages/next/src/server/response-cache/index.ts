@@ -6,7 +6,7 @@ import type {
   ResponseCacheBase,
   IncrementalCacheKindHint,
 } from './types'
-import { RouteKind } from '../future/route-kind'
+import { RouteKind } from '../route-kind'
 
 import { Batcher } from '../../lib/batcher'
 import { scheduleOnNextTick } from '../../lib/scheduler'

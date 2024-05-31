@@ -1,7 +1,7 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { Revalidate } from '../lib/revalidate'
-import type { RouteKind } from '../../server/future/route-kind'
+import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
   get(
