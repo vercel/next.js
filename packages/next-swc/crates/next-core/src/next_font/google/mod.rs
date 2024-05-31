@@ -450,7 +450,7 @@ struct FontFile {
 }
 
 // https://github.com/vercel/next.js/blob/b95e45a5112e9f65e939eac9445ef550db072ea7/packages/font/src/google/find-font-files-in-css.ts
-fn find_font_files_in_css(css: &str, subsets_to_preload: &[String]) -> Vec<FontFile> {
+fn find_font_files_in_css(css: &str, subsets_to_preload: &[RcStr]) -> Vec<FontFile> {
     let mut font_files: Vec<FontFile> = Vec::new();
     let mut current_subset = "";
 
@@ -527,7 +527,7 @@ async fn get_font_css_properties(
             font_families.extend_from_slice(fonts);
         }
         FontFallback::Automatic(fallback) => {
-            font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
+            font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
         }
         FontFallback::Error => {}
     }

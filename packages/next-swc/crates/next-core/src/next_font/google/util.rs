@@ -2,14 +2,15 @@ use std::cmp::Ordering;
 
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{indexset, IndexSet};
+use turbo_tasks::RcStr;
 
 use super::options::{FontData, FontWeights};
 
 #[derive(Debug, PartialEq)]
 pub(super) struct FontAxes {
-    pub(super) wght: IndexSet<String>,
+    pub(super) wght: IndexSet<RcStr>,
     pub(super) ital: IndexSet<FontStyle>,
-    pub(super) variable_axes: Option<Vec<(String, String)>>,
+    pub(super) variable_axes: Option<Vec<(RcStr, RcStr)>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -23,8 +24,8 @@ pub(super) fn get_font_axes(
     font_data: &FontData,
     font_family: &str,
     weights: &FontWeights,
-    styles: &[String],
-    selected_variable_axes: &Option<Vec<String>>,
+    styles: &[RcStr],
+    selected_variable_axes: &Option<Vec<RcStr>>,
 ) -> Result<FontAxes> {
     let all_axes = &font_data
         .get(font_family)
