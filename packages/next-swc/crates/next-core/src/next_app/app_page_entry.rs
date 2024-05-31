@@ -171,15 +171,15 @@ async fn wrap_edge_page(
         "edge-ssr-app.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => page.to_string(),
+            "VAR_USERLAND" => INNER.into(),
+            "VAR_PAGE" => page.into(),
         },
         indexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
-            "nextConfig" => serde_json::to_string(next_config)?,
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
-            "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActions" => serde_json::to_string(&server_actions)?
+            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
+            "dev" => serde_json::Value::Bool(dev).to_string().into(),
+            "serverActions" => serde_json::to_string(&server_actions)?.into(),
         },
         indexmap! {
             "incrementalCacheHandler" => None,

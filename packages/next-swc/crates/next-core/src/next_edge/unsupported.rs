@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::File;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,

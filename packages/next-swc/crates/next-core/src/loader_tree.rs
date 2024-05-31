@@ -429,7 +429,7 @@ impl LoaderTreeBuilder {
         self.walk_tree(loader_tree, true).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
-            loader_tree_code: self.loader_tree_code,
+            loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.inner_assets,
             pages: self.pages,
         })
