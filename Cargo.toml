@@ -141,4 +141,5 @@ dhat = { version = "0.3.2" }
 
 # Sync with the entries in turbo's Cargo.toml
 [patch.crates-io]
+# TODO: Use upstream when https://github.com/servo/pathfinder/pull/566 lands
 pathfinder_simd = { git = "https://github.com/vercel/pathfinder", branch = "rm-stdarch_arm_crc32"}
