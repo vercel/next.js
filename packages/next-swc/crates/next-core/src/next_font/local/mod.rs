@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::{
@@ -48,7 +48,7 @@ pub mod util;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct NextFontLocalFontFileOptions {
-    pub path: String,
+    pub path: RcStr,
     pub preload: bool,
     pub has_size_adjust: bool,
 }

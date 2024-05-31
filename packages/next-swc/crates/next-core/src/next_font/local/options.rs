@@ -96,8 +96,8 @@ pub(super) enum FontDescriptors {
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Hash, TraceRawVcs,
 )]
 pub(super) enum FontWeight {
-    Variable(String, String),
-    Fixed(String),
+    Variable(RcStr, RcStr),
+    Fixed(RcStr),
 }
 
 pub struct ParseFontWeightErr;
@@ -106,9 +106,9 @@ impl FromStr for FontWeight {
 
     fn from_str(weight_str: &str) -> std::result::Result<Self, Self::Err> {
         if let Some((start, end)) = weight_str.split_once(' ') {
-            Ok(FontWeight::Variable(start.to_owned(), end.to_owned()))
+            Ok(FontWeight::Variable(start.into(), end.into()))
         } else {
-            Ok(FontWeight::Fixed(weight_str.to_owned()))
+            Ok(FontWeight::Fixed(weight_str.into()))
         }
     }
 }
@@ -249,7 +249,7 @@ mod tests {
             NextFontLocalOptions {
                 fonts: FontDescriptors::Many(vec![
                     FontDescriptor {
-                        path: "./Roboto-Regular.ttf".to_owned(),
+                        path: "./Roboto-Regular.ttf"..into()(),
                         weight: Some(FontWeight::Fixed("400".to_owned())),
                         style: Some("normal".to_owned()),
                         ext: "ttf".to_owned(),
