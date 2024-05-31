@@ -527,11 +527,14 @@ fn conflict_issue(
 
     DirectoryTreeIssue {
         app_dir,
-        message: StyledString::Text(format!(
-            "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
-            item_names,
-            e.key(),
-        ))
+        message: StyledString::Text(
+            format!(
+                "Conflicting {} at {}: {a} at {value_a} and {b} at {value_b}",
+                item_names,
+                e.key(),
+            )
+            .into(),
+        )
         .cell(),
         severity: IssueSeverity::Error.cell(),
     }
@@ -733,7 +736,7 @@ impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<StyledString> {
         StyledString::Text(
-            "You cannot have two parallel pages that resolve to the same path.".to_string(),
+            "You cannot have two parallel pages that resolve to the same path.".into(),
         )
         .cell()
     }

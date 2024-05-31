@@ -1132,9 +1132,9 @@ impl JsConfig {
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
     path: Vc<FileSystemPath>,
-    old_name: String,
-    new_name: String,
-    description: String,
+    old_name: RcStr,
+    new_name: RcStr,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -1158,7 +1158,7 @@ impl Issue for OutdatedConfigIssue {
     fn title(&self) -> Vc<StyledString> {
         StyledString::Line(vec![
             StyledString::Code(self.old_name.clone()),
-            StyledString::Text(" has been replaced by ".to_string()),
+            StyledString::Text(" has been replaced by ".into()),
             StyledString::Code(self.new_name.clone()),
         ])
         .cell()
@@ -1166,8 +1166,6 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.to_string()).cell(),
-        ))
+        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
     }
 }
