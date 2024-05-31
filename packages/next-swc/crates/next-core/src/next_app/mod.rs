@@ -308,13 +308,13 @@ impl PartialOrd for AppPage {
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
-    Static(String),
+    Static(RcStr),
     /// e.g. `/[id]`
-    Dynamic(String),
+    Dynamic(RcStr),
     /// e.g. `/[...slug]`
-    CatchAll(String),
+    CatchAll(RcStr),
     /// e.g. `/[[...slug]]`
-    OptionalCatchAll(String),
+    OptionalCatchAll(RcStr),
 }
 
 impl Display for PathSegment {

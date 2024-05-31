@@ -379,7 +379,7 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries
-                .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+                .push(RuntimeEntry::Request(request, project_root.join("_".into())).cell())
         };
     }
 
@@ -387,9 +387,9 @@ pub async fn get_client_runtime_entries(
         runtime_entries.push(
             RuntimeEntry::Request(
                 Request::parse(Value::new(Pattern::Constant(
-                    "next/dist/client/app-next-turbopack.js".to_string(),
+                    "next/dist/client/app-next-turbopack.js".into(),
                 ))),
-                project_root.join("_".to_string()),
+                project_root.join("_".into()),
             )
             .cell(),
         );
