@@ -161,11 +161,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   experimental: {
     /**
-     * When true, some routes support partial prerendering (PPR).
-     */
-    isAppPPREnabled: boolean
-
-    /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */

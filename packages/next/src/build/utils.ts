@@ -1379,7 +1379,6 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
-    isAppPPREnabled: false,
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(

@@ -187,10 +187,7 @@ import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
-import {
-  checkIsAppPPREnabled,
-  checkIsRoutePPREnabled,
-} from '../server/lib/experimental/ppr'
+import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1758,8 +1755,6 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
-      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
@@ -1816,7 +1811,6 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          isAppPPREnabled,
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
