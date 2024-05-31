@@ -240,7 +240,7 @@ export default class FileSystemCache implements CacheHandler {
               }
               await this.set(key, data.value, {
                 tags,
-                isRoutePPREnabled: ctx.isRoutePPREnabled,
+                isRoutePPREnabled,
               })
             }
           }
