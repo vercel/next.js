@@ -1934,6 +1934,11 @@ export default class NextNodeServer extends BaseServer<
       }
     })
 
+    const waitUntil = this.getWaitUntil()
+    if (waitUntil) {
+      waitUntil(result.waitUntil)
+    }
+
     const { originalResponse } = params.res
     if (result.response.body) {
       await pipeToNodeResponse(result.response.body, originalResponse)

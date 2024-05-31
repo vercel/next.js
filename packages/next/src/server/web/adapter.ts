@@ -22,7 +22,6 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
-import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { lifecycleAsyncStorage } from '../../client/components/lifecycle-async-storage-instance'
 
 export class NextRequestHint extends NextRequest {
@@ -283,12 +282,18 @@ export async function adapter(
       )
     }
 
-    if (isAfterEnabled && !getBuiltinRequestContext()) {
-      // FIXME(after): unify on this method of passing waitUntil around,
-      // there's too much variation around this right now
+    if (isAfterEnabled) {
+      // NOTE:
+      // Currently, `adapter` is expected to return promises passed to `waitUntil`
+      // as part of its result (i.e. a FetchEventResult).
+      // Because of this, we override any outer contexts that might provide a real `waitUntil`,
+      // and provide the `waitUntil` from the NextFetchEvent instead so that we can collect those promises.
+      // This is not ideal, but until we change this calling convention, it's the least surprising thing to do.
       //
-      // (here, we need to do this with an ALS because if the handler is a NextWebServer,
-      // there's currently no other way to pass `waitUntil` into it)
+      // Notably, the only case that currently cares about this ALS is Edge SSR
+      // (i.e. a handler created via `build/webpack/loaders/next-edge-ssr-loader/render.ts`)
+      // Other types of handlers will grab the waitUntil from the passed FetchEvent,
+      // but NextWebServer currently has no interface that'd allow for that.
       return lifecycleAsyncStorage.run(
         { waitUntil: event.waitUntil.bind(event) },
         () => params.handler(request, event)

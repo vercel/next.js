@@ -1670,18 +1670,18 @@ export default abstract class Server<
     )
   }
 
-  private getWaitUntil(): WaitUntil | undefined {
+  protected getWaitUntil(): WaitUntil | undefined {
+    const lifecycleStore = lifecycleAsyncStorage.getStore()
+    if (lifecycleStore) {
+      return lifecycleStore.waitUntil
+    }
+
     const builtinRequestContext = getBuiltinRequestContext()
     if (builtinRequestContext) {
       // the platform provided a request context.
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `unstable_after` will error.
       return builtinRequestContext.waitUntil
-    }
-
-    const lifecycleStore = lifecycleAsyncStorage.getStore()
-    if (lifecycleStore) {
-      return lifecycleStore.waitUntil
     }
 
     if (process.env.__NEXT_TEST_MODE) {
