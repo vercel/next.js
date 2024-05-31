@@ -434,6 +434,7 @@ export class IncrementalCache implements IncrementalCacheType {
       fetchIdx?: number
       tags?: string[]
       softTags?: string[]
+      isRoutePPREnabled?: boolean
     } = {}
   ): Promise<IncrementalCacheEntry | null> {
     if (
@@ -556,6 +557,7 @@ export class IncrementalCache implements IncrementalCacheType {
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
+      isRoutePPREnabled?: boolean
     }
   ) {
     if (
