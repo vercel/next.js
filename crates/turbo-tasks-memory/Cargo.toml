@@ -47,6 +47,7 @@ turbo-tasks-build = { workspace = true }
 
 [features]
 track_unfinished = []
+track_wait_dependencies = []
 unsafe_once_map = []
 log_running_tasks = []
 log_scheduled_tasks = []

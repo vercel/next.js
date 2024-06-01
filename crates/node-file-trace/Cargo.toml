@@ -13,6 +13,8 @@ bench = false
 [features]
 default = ["cli", "custom_allocator"]
 cli = ["dep:clap", "turbo-tasks-malloc"]
+persistent_cache = []
+serializable = []
 tokio_console = [
   "dep:console-subscriber",
   "tokio/tracing",

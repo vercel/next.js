@@ -361,8 +361,8 @@ enum JsValueMetaKind {
 /// - Replace all built-in functions with their values when they are
 ///   compile-time constant.
 /// - For optimization, any nested operations are replaced with
-///   [JsValue::Unknown]. So only one layer of operation remains.
-/// Any remaining operation or placeholder can be treated as unknown.
+///   [JsValue::Unknown]. So only one layer of operation remains. Any remaining
+///   operation or placeholder can be treated as unknown.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
     // LEAF VALUES
