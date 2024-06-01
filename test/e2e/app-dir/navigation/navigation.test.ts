@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -80,9 +80,11 @@ createNextDescribe(
             // App Router doesn't re-render on initial load (the params are baked
             // server side). In development, effects will render twice.
 
-            // experimental react is having issues with this use effect
-            // @acdlite will take a look
-            // TODO: remove this PPR cond after react fixes the issue in experimental build.
+            // BACKPORT NOTE: the backport branch is still on older react, so this isn't true yet
+            //
+            // newer StrictMode does not double invoke effects during hydration
+            // https://github.com/facebook/react/pull/28951
+            // waitForNEffects: 1,
             waitForNEffects:
               isNextDev && !process.env.__NEXT_EXPERIMENTAL_PPR ? 2 : 1,
           },
@@ -148,7 +150,17 @@ createNextDescribe(
 
     describe('hash', () => {
       it('should scroll to the specified hash', async () => {
-        const browser = await next.browser('/hash')
+        let hasRscRequest = false
+        const browser = await next.browser('/hash', {
+          beforePageLoad(page) {
+            page.on('request', async (req) => {
+              const headers = await req.allHeaders()
+              if (headers['rsc']) {
+                hasRscRequest = true
+              }
+            })
+          },
+        })
 
         const checkLink = async (
           val: number | string,
@@ -163,13 +175,31 @@ createNextDescribe(
           )
         }
 
-        await checkLink(6, 114)
-        await checkLink(50, 730)
-        await checkLink(160, 2270)
-        await checkLink(300, 4230)
-        await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
+        if (isNextStart) {
+          await browser.waitForIdleNetwork()
+          // there should be an RSC call for the prefetch
+          expect(hasRscRequest).toBe(true)
+        }
+
+        // Wait for all network requests to finish, and then initialize the flag
+        // used to determine if any RSC requests are made
+        hasRscRequest = false
+
+        await checkLink(6, 128)
+        await checkLink(50, 744)
+        await checkLink(160, 2284)
+        await checkLink(300, 4244)
+        await checkLink(500, 7044) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
+
+        // there should have been no RSC calls to fetch data
+        expect(hasRscRequest).toBe(false)
+
+        // There should be an RSC request if the query param is changed
+        await checkLink('query-param', 2284)
+        await browser.waitForIdleNetwork()
+        expect(hasRscRequest).toBe(true)
       })
 
       it('should not scroll to hash when scroll={false} is set', async () => {
@@ -200,11 +230,11 @@ createNextDescribe(
           )
         }
 
-        await checkLink(6, 94)
-        await checkLink(50, 710)
-        await checkLink(160, 2250)
-        await checkLink(300, 4210)
-        await checkLink(500, 7010) // this one is hash only (`href="#hash-500"`)
+        await checkLink(6, 108)
+        await checkLink(50, 724)
+        await checkLink(160, 2264)
+        await checkLink(300, 4224)
+        await checkLink(500, 7024) // this one is hash only (`href="#hash-500"`)
         await checkLink('top', 0)
         await checkLink('non-existent', 0)
       })
