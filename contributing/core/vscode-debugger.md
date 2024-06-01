@@ -8,6 +8,7 @@ The common configurations are:
 
 - **Launch app**: Run `next dev`, `next build`, or `next start` in a directory of your choice, with an attached debugger.
 - **Launch current directory**: Run `next dev`, `next build`, or `next start` in the directory of the currently active file, with an attached debugger.
+- **Run e2e test**: Run an e2e test using the currently active file, with an attached debugger.
 
 ### Run a specific app
 
