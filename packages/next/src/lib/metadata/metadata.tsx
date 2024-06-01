@@ -1,5 +1,8 @@
 import type { ParsedUrlQuery } from 'querystring'
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
+import type {
+  AppRenderContext,
+  GetDynamicParamFromSegment,
+} from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
 import React from 'react'
@@ -29,6 +32,18 @@ import {
   createDefaultViewport,
 } from './default-metadata'
 import { isNotFoundError } from '../../client/components/not-found'
+import type { MetadataContext } from './types/resolvers'
+
+export function createMetadataContext(
+  urlPathname: string,
+  renderOpts: AppRenderContext['renderOpts']
+): MetadataContext {
+  return {
+    pathname: urlPathname.split('?')[0],
+    trailingSlash: renderOpts.trailingSlash,
+    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
+  }
+}
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -38,18 +53,16 @@ import { isNotFoundError } from '../../client/components/not-found'
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  pathname,
-  trailingSlash,
   query,
+  metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
   createDynamicallyTrackedSearchParams,
 }: {
   tree: LoaderTree
-  pathname: string
-  trailingSlash: boolean
   query: ParsedUrlQuery
+  metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
@@ -57,12 +70,6 @@ export function createMetadataComponents({
     searchParams: ParsedUrlQuery
   ) => ParsedUrlQuery
 }): [React.ComponentType, React.ComponentType] {
-  const metadataContext = {
-    // Make sure the pathname without query string
-    pathname: pathname.split('?')[0],
-    trailingSlash,
-  }
-
   let resolve: (value: Error | undefined) => void | undefined
   // Only use promise.resolve here to avoid unhandled rejections
   const metadataErrorResolving = new Promise<Error | undefined>((res) => {

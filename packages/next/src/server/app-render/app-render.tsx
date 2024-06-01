@@ -41,7 +41,10 @@ import {
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
-import { createMetadataComponents } from '../../lib/metadata/metadata'
+import {
+  createMetadataComponents,
+  createMetadataContext,
+} from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -300,9 +303,8 @@ async function generateFlight(
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
-      pathname: urlPathname,
-      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
+      metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
@@ -438,9 +440,8 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
+    metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
@@ -519,8 +520,7 @@ async function ReactServerError({
 
   const [MetadataTree] = createMetadataComponents({
     tree,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
+    metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
     errorType,
     query,
     getDynamicParamFromSegment,
