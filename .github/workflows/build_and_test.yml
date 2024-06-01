@@ -75,6 +75,53 @@ jobs:
       stepName: 'build-next'
     secrets: inherit
 
+  build-next-artifacts:
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+    steps:
+      # TODO: extract relevant stuff from build_reusable into a composite action
+      # Call that composite action instead since all we want is adding additional steps.
+      # Ask jj if he considered composite actions instead of reusable workflows.
+      - run: corepack enable
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+      - run: cargo clean
+      # normalize versions before build-native for better cache hits
+      - run: node scripts/normalize-version-bump.js
+        name: normalize versions
+      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      # undo normalize version changes for install/build
+      - run: git checkout .
+      - run: pnpm install
+      - run: ANALYZE=1 pnpm build
+      - run: pnpm playwright install-deps
+      - run: pnpm playwright install chromium
+      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+      - name: Prepare version
+        # --workspace-concurrency so we don't hit some unknown race condition 
+        # npm ERR! path /Users/sebbie/repos/next.js/packages/next-mdx/package.json
+        # npm ERR! JSON.parse Unexpected end of JSON input while parsing empty string
+        # TODO: keep part of current version string
+        # TODO: data
+        # TODO: short sha
+        # TODO update dependencies e.g. `next@0.0.0-...` should depend on `@next/env@0.0.0-...`
+        # However, pnpm version --no-git-tag-version 0.0.0-abc  in packages/next-bundle-analyzer crashes with npm ERR! Cannot read properties of null (reading 'matches')
+        run: pnpm --filter "./packages/**" -r --workspace-concurrency=1 exec npm version --no-git-tag-version --workspaces-update false "0.0.0-${{ github.sha }}"
+      - name: Create tarballs
+        run: pnpm --filter "./packages/**" -r exec npm pack
+      - name: Upload tarballs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Next.js package tarballs
+          path: packages/*/*.tgz
+
   lint:
     name: lint
     needs: ['build-native', 'build-next']
