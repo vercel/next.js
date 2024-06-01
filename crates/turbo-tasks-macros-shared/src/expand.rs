@@ -11,11 +11,11 @@ use syn::{
 /// Requires several Fn helpers which perform expand different structures:
 ///
 /// - [expand_named] handles the expansion of a struct or enum variant with
-/// named fields (e.g. `struct Foo { bar: u32 }`, `Foo::Bar { baz: u32 }`).
+///   named fields (e.g. `struct Foo { bar: u32 }`, `Foo::Bar { baz: u32 }`).
 /// - [expand_unnamed] handles the expansion of a struct or enum variant with
-/// unnamed fields (e.g. `struct Foo(u32)`, `Foo::Bar(u32)`).
-/// - [expand_unit] handles the expansion of a unit struct or enum (e.g.
-/// `struct Foo;`, `Foo::Bar`).
+///   unnamed fields (e.g. `struct Foo(u32)`, `Foo::Bar(u32)`).
+/// - [expand_unit] handles the expansion of a unit struct or enum (e.g. `struct
+///   Foo;`, `Foo::Bar`).
 ///
 /// These helpers should themselves call [generate_destructuring] to generate
 /// the destructure necessary to access the fields of the value.

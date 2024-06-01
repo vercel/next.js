@@ -153,6 +153,7 @@ __turbopack_node_dynamic_embed_contents = [
 ]
 __turbopack_static = ["__turbopack", "turbopack-static"]
 __turbopack_swc_utils = ["__turbopack", "turbopack-swc-utils"]
+__turbopack_tests = []
 __turbopack_test_utils = ["__turbopack", "turbopack-test-utils"]
 
 __features = []
@@ -163,6 +164,7 @@ __feature_node_file_trace_custom_allocator = [
   "node-file-trace/custom_allocator",
 ]
 __feature_auto_hash_map = ["__features", "auto-hash-map"]
+__feature_swc_ast_explorer = []
 __feature_tracing_signpost = ["__features", "tracing-signpost"]
 
 __swc_custom_transform = []
