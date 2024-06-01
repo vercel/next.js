@@ -768,7 +768,7 @@ pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
-    pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: NextConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
@@ -1113,7 +1113,7 @@ pub struct JsConfig {
 #[turbo_tasks::value_impl]
 impl JsConfig {
     #[turbo_tasks::function]
-    pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: JsConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;

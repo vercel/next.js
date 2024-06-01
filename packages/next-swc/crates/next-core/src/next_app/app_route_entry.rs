@@ -159,7 +159,7 @@ async fn wrap_edge_route(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.into() => entry
+        INNER.to_string() => entry
     };
 
     let wrapped = context
