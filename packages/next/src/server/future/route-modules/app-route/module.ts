@@ -353,16 +353,6 @@ export class AppRouteRouteModule extends RouteModule<
                     )
                 }
 
-                // Generally if we are in a dynamic render we don't have to modify much however for
-                // force-static specifically we ensure the dynamic and static behavior is consistent
-                // by proxying the request in the same way in both cases
-                if (this.dynamic === 'force-static') {
-                  // The dynamic property is set to force-static, so we should
-                  // force the page to be static.
-                  staticGenerationStore.forceStatic = true
-                  request = new Proxy(rawRequest, forceStaticRequestHandlers)
-                }
-
                 // If the static generation store does not have a revalidate value
                 // set, then we should set it the revalidate value from the userland
                 // module or default to false.
