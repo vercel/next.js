@@ -1,4 +1,4 @@
-import { isMetadataRoute, isStaticMetadataRoute } from './is-metadata-route'
+import { isMetadataRoute } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -11,8 +11,8 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
  * Give it a unique hash suffix to avoid conflicts
  *
  * e.g.
- * /app/open-graph.tsx -> /open-graph/route
- * /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
+ * /app/opengraph-image.tsx -> /opengraph-image
+ * /app/(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
  */
 function getMetadataRouteSuffix(page: string) {
   let suffix = ''
@@ -46,6 +46,10 @@ export function fillMetadataSegment(
   return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
 }
 
+function isDynamicMetadataRoute(page: string) {
+  return page.endsWith('[]')
+}
+
 /**
  * Map metadata page key to the corresponding route
  *
@@ -57,6 +61,7 @@ export function fillMetadataSegment(
  */
 export function normalizeMetadataRoute(page: string) {
   if (!isMetadataRoute(page)) {
+    
     return page
   }
   let route = page
@@ -65,10 +70,12 @@ export function normalizeMetadataRoute(page: string) {
     route += '.txt'
   } else if (page === '/manifest') {
     route += '.webmanifest'
-  }
-  // For sitemap, we don't automatically add the route suffix since it can have sub-routes
-  else if (!page.endsWith('/sitemap')) {
-    // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
+  } else if (page.endsWith('/sitemap')) {
+    route += '.xml'
+  } else {
+    // Remove the file extension, 
+    // e.g. /path/robots.txt -> /route-path
+    // e.g. /path/opengraph-image.tsx -> /path/opengraph-image
     const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
     suffix = getMetadataRouteSuffix(pathnamePrefix)
   }
@@ -76,12 +83,15 @@ export function normalizeMetadataRoute(page: string) {
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
     const { dir, name: baseName, ext } = path.parse(route)
-    const isStaticRoute = isStaticMetadataRoute(page)
+    const isDynamicMultiMetadataRoute = isDynamicMetadataRoute(page)
 
+    // For multi-dynamic metadata routes, generate a sub-route segment.
+    // e.g. /opengraph-image[].js -> /opengraph-image/[__metadata_id__]/route
+    // e.g. /sitemap[].js -> /sitemap/[__metadata_id__]/route
     route = path.posix.join(
       dir,
-      `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
-      isStaticRoute ? '' : '[[...__metadata_id__]]',
+      `${isDynamicMultiMetadataRoute ? baseName.slice(0, -2) : baseName}${suffix ? `-${suffix}` : ''}${ext}`,
+      isDynamicMultiMetadataRoute ? '[__metadata_id__]' : '',
       'route'
     )
   }

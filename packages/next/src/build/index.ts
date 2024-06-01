@@ -977,9 +977,11 @@ export default async function build(
               pagesDir: pagesDir,
             })
           )
+        console.log('mappedAppPages', mappedAppPages)
 
         // If the metadata route doesn't contain generating dynamic exports,
         // we can replace the dynamic catch-all route and use the static route instead.
+        /*
         for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
           if (pageKey.includes('[[...__metadata_id__]]')) {
             const pageFilePath = getPageFilePath({
@@ -1010,6 +1012,7 @@ export default async function build(
             }
           }
         }
+        */
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }

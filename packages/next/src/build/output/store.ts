@@ -24,13 +24,16 @@ export type OutputState =
         }
     ))
 
-const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
+const internalSegments = [
+  // '[[...__metadata_id__]]', 
+  '[__metadata_id__]'
+]
 export function formatTrigger(trigger: string) {
-  for (const segment of internalSegments) {
-    if (trigger.includes(segment)) {
-      trigger = trigger.replace(segment, '')
-    }
+  if (trigger.includes(internalSegments[0])) {
+    trigger = trigger.replace(internalSegments[0], '')
   }
+  // for (const segment of internalSegments) {
+  // }
   if (trigger.length > 1 && trigger.endsWith('/')) {
     trigger = trigger.slice(0, -1)
   }

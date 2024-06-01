@@ -28,8 +28,16 @@ export const STATIC_METADATA_IMAGES = {
 // TODO-METADATA: support more metadata routes with more extensions
 const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 
-const getExtensionRegexString = (extensions: readonly string[]) =>
-  `(?:${extensions.join('|')})`
+// Match the file extension with the dynamic multi-routes extensions
+// e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
+// e.g. ([png], [ts]) -> can match `/opengrapg-image.png/route`, `/opengraph-image.ts[]/route`
+const getExtensionRegexString = (
+  singleRouteExtensions: readonly string[],
+  dynamicMultiRoutesExtensions: readonly string[] | null
+) => 
+  !dynamicMultiRoutesExtensions
+  ? `(?:${singleRouteExtensions.join('|')})`
+  : `(?:${singleRouteExtensions.join('|')})|([]?(?:${dynamicMultiRoutesExtensions.join('|')}))`
 
 // When you only pass the file extension as `[]`, it will only match the static convention files
 // e.g. /robots.txt, /sitemap.xml, /favicon.ico, /manifest.json
@@ -46,7 +54,7 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'))}$`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'), null)}$`
           : ''
       }`
     ),
@@ -54,7 +62,8 @@ export function isMetadataRouteFile(
       `^[\\\\/]manifest${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat('webmanifest', 'json')
+              pageExtensions.concat('webmanifest', 'json'),
+              null
             )}$`
           : ''
       }`
@@ -63,7 +72,7 @@ export function isMetadataRouteFile(
     new RegExp(
       `[\\\\/]sitemap${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}$`
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'), pageExtensions)}$`
           : ''
       }`
     ),
@@ -71,7 +80,8 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.icon.extensions)
+              STATIC_METADATA_IMAGES.icon.extensions,
+              pageExtensions
             )}$`
           : ''
       }`
@@ -80,7 +90,8 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.apple.extensions)
+              STATIC_METADATA_IMAGES.apple.extensions,
+              pageExtensions
             )}$`
           : ''
       }`
@@ -89,7 +100,8 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.openGraph.extensions)
+              STATIC_METADATA_IMAGES.openGraph.extensions,
+              pageExtensions
             )}$`
           : ''
       }`
@@ -98,7 +110,8 @@ export function isMetadataRouteFile(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
-              pageExtensions.concat(STATIC_METADATA_IMAGES.twitter.extensions)
+              STATIC_METADATA_IMAGES.twitter.extensions,
+              pageExtensions
             )}$`
           : ''
       }`
@@ -115,6 +128,7 @@ export function isStaticMetadataRouteFile(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
+// @deprecated
 export function isStaticMetadataRoute(page: string) {
   return (
     page === '/robots' ||
