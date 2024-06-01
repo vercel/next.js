@@ -1,11 +1,16 @@
 import { unstable_after as after } from 'next/server'
 import { cliLog } from '../../utils/log'
 import { sleep } from '../../utils/sleep'
+import { maybeInstallInvocationShutdownHook } from '../../utils/simulated-invocation'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// (patched in tests)
+// export const runtime = 'REPLACE_ME'
+
 export async function GET() {
+  maybeInstallInvocationShutdownHook()
+
   /** @type {ReadableStream<Uint8Array>} */
   const result = new ReadableStream({
     async start(controller) {
@@ -22,6 +27,7 @@ export async function GET() {
         await sleep(500)
         controller.enqueue(encoder.encode(chunk + '\r\n'))
       }
+
       after(async () => {
         await sleep(1000)
         cliLog({

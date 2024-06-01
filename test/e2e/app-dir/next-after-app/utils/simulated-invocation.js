@@ -2,6 +2,9 @@ import { requestAsyncStorage } from 'next/dist/client/components/request-async-s
 import { Awaiter } from 'next/dist/server/lib/awaiter'
 import { cliLog } from './log'
 
+// replaced in tests
+const shouldInstallShutdownHook = false
+
 /*
 This module is meant to help simulate a serverless invocation, which will shut down when
 - the response is finished
@@ -121,6 +124,13 @@ export function injectRequestContext() {
     },
   }
   globalThis[INVOCATION_CONTEXT] = invocationContext
+}
+
+export function maybeInstallInvocationShutdownHook() {
+  if (!shouldInstallShutdownHook) {
+    return
+  }
+  installInvocationShutdownHook()
 }
 
 /** Schedule a shutdown when the response is done and all `waitUntil` promises settled */

@@ -172,7 +172,7 @@ export function getRender({
     if (event?.waitUntil) {
       if (isAfterEnabled) {
         // make sure that NextRequestHint's awaiter stays open long enough
-        // for later `waitUntil`s called during streaming to get picked up.
+        // for late `waitUntil`s called during streaming to get picked up.
         event.waitUntil(
           new Promise<void>((resolve) => extendedRes.onClose(resolve))
         )

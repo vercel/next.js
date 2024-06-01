@@ -22,7 +22,11 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     },
   })
 
-  const filesToPatchRuntime = ['app/layout.js', 'app/route/route.js']
+  const filesToPatchRuntime = [
+    'app/layout.js',
+    'app/route/route.js',
+    'app/route-streaming/route.js',
+  ]
   const replaceRuntime = (contents: string, file: string) => {
     const placeholder = `// export const runtime = 'REPLACE_ME'`
 
@@ -327,56 +331,85 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   if (!isNextDev) {
-    it('keeps the invocation alive if after() is called late during streaming', async () => {
-      const { cleanup } = await patchSandbox(
-        next,
-        new Map<string, string | ((contents: string) => string)>([
-          ...runtimePatches,
-          [
-            'app/layout.js',
-            (contents) => {
-              contents = replaceRuntime(contents, 'app/layout.js')
+    describe('keeps the invocation alive if after() is called late during streaming', () => {
+      const setup = async () => {
+        const { cleanup } = await patchSandbox(
+          next,
+          new Map<string, string | ((contents: string) => string)>([
+            ...runtimePatches,
+            [
+              'app/layout.js',
+              (contents) => {
+                contents = replaceRuntime(contents, 'app/layout.js')
 
-              contents = contents.replace(
-                `// export const dynamic = 'REPLACE_ME'`,
-                `export const dynamic = 'force-dynamic'`
-              )
+                contents = contents.replace(
+                  `// export const dynamic = 'REPLACE_ME'`,
+                  `export const dynamic = 'force-dynamic'`
+                )
 
-              contents = contents.replace(
-                `const shouldInstallShutdownHook = false`,
-                `const shouldInstallShutdownHook = true`
-              )
-              return contents
-            },
-          ],
-          [
-            // this needs to be injected as early as possible, before the server tries to read the context
-            // (which may be even before we load the page component in dev mode)
-            'instrumentation.js',
-            outdent`
-              import { injectRequestContext } from './utils/simulated-invocation'
-              export function register() {
-                injectRequestContext();
-              }
-            `,
-          ],
-        ])
-      )
+                return contents
+              },
+            ],
+            [
+              'utils/simulated-invocation.js',
+              (contents) => {
+                return contents.replace(
+                  `const shouldInstallShutdownHook = false`,
+                  `const shouldInstallShutdownHook = true`
+                )
+              },
+            ],
+            [
+              // this needs to be injected as early as possible, before the server tries to read the context
+              // (which may be even before we load the page component in dev mode)
+              'instrumentation.js',
+              outdent`
+                import { injectRequestContext } from './utils/simulated-invocation'
+                export function register() {
+                  injectRequestContext();
+                }
+              `,
+            ],
+          ])
+        )
 
-      try {
-        const response = await next.fetch('/delay-deep')
-        expect(response.status).toBe(200)
-        await response.text()
-        await retry(() => {
-          expect(getLogs()).toContainEqual('simulated-invocation :: end')
-        }, 10_000)
-
-        expect(getLogs()).toContainEqual({
-          source: '[page] /delay-deep (Inner2) - after',
-        })
-      } finally {
-        await cleanup()
+        return cleanup
       }
+      it('during render', async () => {
+        const cleanup = await setup()
+        try {
+          const response = await next.fetch('/delay-deep')
+          expect(response.status).toBe(200)
+          await response.text()
+          await retry(() => {
+            expect(getLogs()).toContainEqual('simulated-invocation :: end')
+          }, 10_000)
+
+          expect(getLogs()).toContainEqual({
+            source: '[page] /delay-deep (Inner2) - after',
+          })
+        } finally {
+          await cleanup()
+        }
+      })
+
+      it('in a route handler that streams a response', async () => {
+        const cleanup = await setup()
+        try {
+          const response = await next.fetch('/route-streaming')
+          expect(response.status).toBe(200)
+          await response.text()
+          await retry(() => {
+            expect(getLogs()).toContainEqual('simulated-invocation :: end')
+          }, 10_000)
+
+          expect(getLogs()).toContainEqual({
+            source: '[route handler] /route-streaming - after',
+          })
+        } finally {
+          await cleanup()
+        }
+      })
     })
   }
 

@@ -1,14 +1,11 @@
-import { installInvocationShutdownHook } from '../utils/simulated-invocation'
+import { maybeInstallInvocationShutdownHook } from '../utils/simulated-invocation'
 
 // (patched in tests)
 // export const runtime = 'REPLACE_ME'
 // export const dynamic = 'REPLACE_ME'
-const shouldInstallShutdownHook = false
 
 export default function AppLayout({ children }) {
-  if (shouldInstallShutdownHook) {
-    installInvocationShutdownHook()
-  }
+  maybeInstallInvocationShutdownHook()
   return (
     <html>
       <head>
