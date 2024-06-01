@@ -448,10 +448,9 @@ function InnerLayoutRouter({
       // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
       // the patch to the tree.
       childNode.lazyDataResolved = true
-
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      use(unresolvedThenable) as never
     }
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    use(unresolvedThenable) as never
   }
 
   // If we get to this point, then we know we have something we can render.
