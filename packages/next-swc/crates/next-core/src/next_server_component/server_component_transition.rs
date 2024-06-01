@@ -29,7 +29,7 @@ impl NextServerComponentTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextServerComponentTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<String> {
         layer
     }
 

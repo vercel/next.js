@@ -40,7 +40,7 @@ impl NextEcmascriptClientReferenceTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<String> {
         layer
     }
 

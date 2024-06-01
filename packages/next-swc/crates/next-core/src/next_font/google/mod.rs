@@ -108,11 +108,11 @@ impl NextFontGoogleReplacer {
                                 {}{}
                             }},
                         }};
-
+    
                         if (cssModule.variable != null) {{
                             fontData.variable = cssModule.variable;
                         }}
-
+    
                         export default fontData;
                     "#,
                     // Pass along whichever options we received to the css handler
@@ -398,9 +398,9 @@ async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>
 /// font family names.
 #[turbo_tasks::function]
 async fn update_google_stylesheet(
-    stylesheet: Vc<String>,
+    stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<String>> {
     let options = &*options.await?;
@@ -557,7 +557,7 @@ async fn get_font_css_properties(
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: Vc<String>,
+    query: Vc<RcStr>,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
     let query_map = qstring::QString::from(&**query.await?);

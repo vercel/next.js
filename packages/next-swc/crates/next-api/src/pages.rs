@@ -597,8 +597,8 @@ impl PageEndpoint {
     fn new(
         ty: PageEndpointType,
         pages_project: Vc<PagesProject>,
-        pathname: Vc<String>,
-        original_name: Vc<String>,
+        pathname: Vc<RcStr>,
+        original_name: Vc<RcStr>,
         path: Vc<FileSystemPath>,
         pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {

@@ -52,7 +52,7 @@ pub(crate) enum FontFamilyType {
 #[turbo_tasks::function]
 pub(crate) async fn get_scoped_font_family(
     ty: Vc<FontFamilyType>,
-    font_family_name: Vc<String>,
+    font_family_name: Vc<RcStr>,
 ) -> Result<Vc<String>> {
     let font_family_base = font_family_name.await?.to_string();
     let font_family_name = match &*ty.await? {
@@ -65,7 +65,7 @@ pub(crate) async fn get_scoped_font_family(
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
 #[turbo_tasks::function]
-pub async fn get_request_id(font_family: Vc<String>, request_hash: u32) -> Result<Vc<String>> {
+pub async fn get_request_id(font_family: Vc<RcStr>, request_hash: u32) -> Result<Vc<String>> {
     Ok(Vc::cell(format!(
         "{}_{:x?}",
         font_family.await?.to_lowercase().replace(' ', "_"),
