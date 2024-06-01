@@ -7,6 +7,7 @@ import {
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
   ACTION_RESTORE,
+  ACTION_SERVER_PATCH,
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
@@ -121,11 +122,11 @@ function dispatchAction(
     reject: (reason: any) => void
   } = { resolve: setState, reject: () => {} }
 
-  // most of the action types are async with the exception of restore
+  // most of the action types are async with the exception of restore/server patch
   // it's important that restore is handled quickly since it's fired on the popstate event
   // and we don't want to add any delay on a back/forward nav
   // this only creates a promise for the async actions
-  if (payload.type !== ACTION_RESTORE) {
+  if (payload.type !== ACTION_RESTORE && payload.type !== ACTION_SERVER_PATCH) {
     // Create the promise and assign the resolvers to the object.
     const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
       resolvers = { resolve, reject }
