@@ -701,7 +701,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.should_track_names = false;
             n.visit_mut_children_with(self);
             self.should_track_names = true;
-            return;
         }
     }
 
@@ -1159,7 +1158,7 @@ fn retain_names_from_declared_idents(child_names: &mut Vec<Id>, current_declared
     child_names.retain(|name| {
         if added_names.contains(name) {
             false
-        } else if current_declared_idents.contains(&name) {
+        } else if current_declared_idents.contains(name) {
             added_names.push(name.clone());
             true
         } else {
