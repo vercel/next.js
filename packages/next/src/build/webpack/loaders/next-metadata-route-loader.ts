@@ -23,7 +23,8 @@ const cacheHeader = {
 type MetadataRouteLoaderOptions = {
   page: string
   filePath: string
-  isDynamic: '1' | '0'
+  isDynamicRouteExtension: '1' | '0'
+  isDynamicMultiRoute: '1' | '0'
 }
 
 export function getFilenameAndExtension(resourcePath: string) {
@@ -123,11 +124,12 @@ ${errorOnBadHandler(resourcePath)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
-  const targetId = __metadata_id__?.[0]
+  const targetId = __metadata_id__
   let id = undefined
   const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
 
   if (imageMetadata) {
+    
     id = imageMetadata.find((item) => {
       if (process.env.NODE_ENV !== 'production') {
         if (item?.id == null) {
@@ -207,12 +209,7 @@ ${
 
 export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
-  ${
-    '' /* sitemap will be optimized to [__metadata_id__] from [[..._metadata_id__]] in production */
-  }
-  const targetId = process.env.NODE_ENV !== 'production'
-    ? __metadata_id__?.[0]
-    : __metadata_id__
+  const targetId = __metadata_id__
 
   let id = undefined
   const sitemaps = generateSitemaps ? await generateSitemaps() : null
@@ -254,11 +251,11 @@ ${staticGenerationCode}
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { page, isDynamic, filePath } = this.getOptions()
+    const { page, isDynamicRouteExtension, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
 
     let code = ''
-    if (isDynamic === '1') {
+    if (isDynamicRouteExtension === '1') {
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(filePath)
       } else if (fileBaseName === 'sitemap') {
