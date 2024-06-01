@@ -154,6 +154,44 @@ describe('app-dir static/dynamic handling', () => {
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).not.toBe(initData)
       })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/no-fetch-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/no-fetch-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).not.toEqual(initFetchData)
+      })
+    })
+
+    it('force-dynamic should supercede a "default" cache value', async () => {
+      const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
+      const initData = $('#data').text()
+      await retry(async () => {
+        const $2 = await next.render$(
+          '/force-dynamic-fetch-cache/default-cache'
+        )
+        expect($2('#data').text()).toBeTruthy()
+        expect($2('#data').text()).not.toBe(initData)
+      })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/default-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/default-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).not.toEqual(initFetchData)
+      })
     })
 
     it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
@@ -167,6 +205,42 @@ describe('app-dir static/dynamic handling', () => {
         )
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).toBe(initData)
+      })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/with-fetch-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/with-fetch-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).toEqual(initFetchData)
+      })
+    })
+
+    it('fetch `cache` should supercede dynamic config when force-dynamic is used', async () => {
+      const $ = await next.render$('/force-dynamic-fetch-cache/force-cache')
+      const initData = $('#data').text()
+      await retry(async () => {
+        const $2 = await next.render$('/force-dynamic-fetch-cache/force-cache')
+        expect($2('#data').text()).toBeTruthy()
+        expect($2('#data').text()).toBe(initData)
+      })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/force-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/force-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).toEqual(initFetchData)
       })
     })
 
@@ -725,10 +799,18 @@ describe('app-dir static/dynamic handling', () => {
           "force-cache/page_client-reference-manifest.js",
           "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
           "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/default-cache/page.js",
+          "force-dynamic-fetch-cache/default-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/default-cache/route/route.js",
+          "force-dynamic-fetch-cache/force-cache/page.js",
+          "force-dynamic-fetch-cache/force-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/force-cache/route/route.js",
           "force-dynamic-fetch-cache/no-fetch-cache/page.js",
           "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/no-fetch-cache/route/route.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/with-fetch-cache/route/route.js",
           "force-dynamic-no-prerender/[id]/page.js",
           "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
           "force-dynamic-prerender/[slug]/page.js",
@@ -896,6 +978,8 @@ describe('app-dir static/dynamic handling', () => {
           "variable-revalidate/authorization.rsc",
           "variable-revalidate/authorization/page.js",
           "variable-revalidate/authorization/page_client-reference-manifest.js",
+          "variable-revalidate/authorization/route-cookies/route.js",
+          "variable-revalidate/authorization/route-request/route.js",
           "variable-revalidate/cookie.html",
           "variable-revalidate/cookie.rsc",
           "variable-revalidate/cookie/page.js",
@@ -2104,6 +2188,10 @@ describe('app-dir static/dynamic handling', () => {
         expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
           prev$('#data-revalidate-and-fetch-cache').text()
         )
+
+        expect(cur$('#data-auto-cache').text()).not.toBe(
+          prev$('data-auto-cache').text()
+        )
       } finally {
         prevHtml = curHtml
         prev$ = cur$
@@ -2560,6 +2648,38 @@ describe('app-dir static/dynamic handling', () => {
       }
       return 'success'
     }, 'success')
+  })
+
+  it('should skip fetch cache when an authorization header is present after dynamic usage', async () => {
+    const initialReq = await next.fetch(
+      '/variable-revalidate/authorization/route-cookies'
+    )
+    const initialJson = await initialReq.json()
+
+    await retry(async () => {
+      const req = await next.fetch(
+        '/variable-revalidate/authorization/route-cookies'
+      )
+      const json = await req.json()
+
+      expect(json).not.toEqual(initialJson)
+    })
+  })
+
+  it('should skip fetch cache when accessing request properties', async () => {
+    const initialReq = await next.fetch(
+      '/variable-revalidate/authorization/route-request'
+    )
+    const initialJson = await initialReq.json()
+
+    await retry(async () => {
+      const req = await next.fetch(
+        '/variable-revalidate/authorization/route-request'
+      )
+      const json = await req.json()
+
+      expect(json).not.toEqual(initialJson)
+    })
   })
 
   it('should not cache correctly with POST method request init', async () => {
