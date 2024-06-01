@@ -149,11 +149,11 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             {}{}
                         }},
                     }};
-    
+
                     if (cssModule.variable != null) {{
                         fontData.variable = cssModule.variable;
                     }}
-    
+
                     export default fontData;
                 "#,
                     // Pass along whichever options we received to the css handler
