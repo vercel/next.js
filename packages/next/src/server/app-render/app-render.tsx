@@ -11,7 +11,7 @@ import type {
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
-import type { LoaderTree } from '../lib/app-dir-module'
+import { getLayoutOrPageModule, type LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../future/route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
@@ -116,6 +116,7 @@ import {
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
+import { PageContextAsyncStorageWrapper } from '../async-storage/page-context-async-storage-wrapper'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1491,6 +1492,52 @@ export type AppPageRender = (
   renderOpts: RenderOpts
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
+async function getPage(treeArg: any): Promise<any> {
+  const [, parallelRoutes, { page }] = treeArg
+  const isPage = typeof page !== 'undefined'
+  if (isPage) {
+    const [mod] = await getLayoutOrPageModule(treeArg)
+    return mod
+  }
+  for (const key in parallelRoutes) {
+    const childTree = parallelRoutes[key]
+    const mod = await getPage(childTree)
+    if (mod) return mod
+  }
+}
+
+async function renderToHTMLOrFlightImplWrapper(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  renderOpts: RenderOpts,
+  baseCtx: AppRenderBaseContext,
+  requestEndedState: { ended?: boolean }
+) {
+  const pageModule = await getPage(renderOpts.ComponentMod.tree)
+
+  let data = null
+  if (typeof pageModule.createPageContext === 'function') {
+    data = await pageModule.createPageContext({ params: renderOpts.params })
+  }
+
+  return PageContextAsyncStorageWrapper.wrap(
+    renderOpts.ComponentMod.pageContextAsyncStorage,
+    data,
+    () =>
+      renderToHTMLOrFlightImpl(
+        req,
+        res,
+        pagePath,
+        query,
+        renderOpts,
+        baseCtx,
+        requestEndedState
+      )
+  )
+}
+
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
@@ -1513,7 +1560,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           requestEndedState: { ended: false },
         },
         (staticGenerationStore) =>
-          renderToHTMLOrFlightImpl(
+          renderToHTMLOrFlightImplWrapper(
             req,
             res,
             pagePath,

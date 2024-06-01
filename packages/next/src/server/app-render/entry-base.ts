@@ -11,6 +11,7 @@ import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { pageContextAsyncStorage } from '../../client/components/page-context-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
 import {
@@ -53,6 +54,7 @@ export {
   RenderFromTemplateContext,
   staticGenerationAsyncStorage,
   requestAsyncStorage,
+  pageContextAsyncStorage,
   actionAsyncStorage,
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,

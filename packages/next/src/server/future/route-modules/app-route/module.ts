@@ -44,6 +44,7 @@ import { DynamicServerError } from '../../../../client/components/hooks-server-c
 
 import { requestAsyncStorage } from '../../../../client/components/request-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
+import { pageContextAsyncStorage } from '../../../../client/components/page-context-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../../lib/server-action-request-meta'
@@ -136,6 +137,11 @@ export class AppRouteRouteModule extends RouteModule<
    * A reference to the static generation async storage.
    */
   public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+
+  /**
+   * A reference to the page context async storage.
+   */
+  public readonly pageContextAsyncStorage = pageContextAsyncStorage
 
   /**
    * An interface to call server hooks which interact with the underlying
