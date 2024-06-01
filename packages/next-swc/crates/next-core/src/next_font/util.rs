@@ -60,7 +60,7 @@ pub(crate) async fn get_scoped_font_family(
         FontFamilyType::Fallback => format!("{} Fallback", font_family_base),
     };
 
-    Ok(Vc::cell(format!("{}", font_family_name)))
+    Ok(Vc::cell(font_family_name))
 }
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
