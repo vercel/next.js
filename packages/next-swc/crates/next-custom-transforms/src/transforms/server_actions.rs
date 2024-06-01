@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    convert::{TryFrom, TryInto},
-    mem::take,
-};
+use std::{collections::BTreeMap, mem::take};
 
 use hex::encode as hex_encode;
 use serde::Deserialize;
@@ -50,7 +46,7 @@ pub fn server_actions<C: Comments>(
         in_default_export_decl: false,
         has_action: false,
 
-        action_cnt: 0,
+        reference_index: 0,
         in_module_level: true,
         in_action_fn: false,
         should_track_names: false,
@@ -92,12 +88,12 @@ struct ServerActions<C: Comments> {
     in_default_export_decl: bool,
     has_action: bool,
 
-    action_cnt: u32,
+    reference_index: u32,
     in_module_level: bool,
     in_action_fn: bool,
     should_track_names: bool,
 
-    names: Vec<Name>,
+    names: Vec<Id>,
     declared_idents: Vec<Id>,
 
     // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
@@ -155,11 +151,11 @@ impl<C: Comments> ServerActions<C> {
 
     fn maybe_hoist_and_create_proxy(
         &mut self,
-        ids_from_closure: Vec<Name>,
+        ids_from_closure: Vec<Id>,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
-        let action_name: JsWord = gen_ident(&mut self.action_cnt);
+        let action_name: JsWord = gen_ident(&mut self.reference_index);
         let action_ident = private_ident!(action_name.clone());
         let export_name: JsWord = action_name;
 
@@ -467,7 +463,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
-                    let action_name = gen_ident(&mut self.action_cnt);
+                    let action_name = gen_ident(&mut self.reference_index);
                     let ident = Ident::new(action_name, DUMMY_SP);
                     f.ident.insert(ident)
                 }
@@ -688,7 +684,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         if !self.in_module_level && self.should_track_names {
             if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-                self.names.push(Name::from(&*i));
+                self.names.push(i.to_id());
                 self.should_track_names = false;
                 n.visit_mut_children_with(self);
                 self.should_track_names = true;
@@ -699,17 +695,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
     }
 
-    fn visit_mut_expr(&mut self, n: &mut Expr) {
+    fn visit_mut_ident(&mut self, n: &mut Ident) {
         if !self.in_module_level && self.should_track_names {
-            if let Ok(name) = Name::try_from(&*n) {
-                self.names.push(name);
-                self.should_track_names = false;
-                n.visit_mut_children_with(self);
-                self.should_track_names = true;
-                return;
-            }
+            self.names.push(n.to_id());
+            self.should_track_names = false;
+            n.visit_mut_children_with(self);
+            self.should_track_names = true;
+            return;
         }
+    }
 
+    fn visit_mut_expr(&mut self, n: &mut Expr) {
         self.rewrite_expr_to_proxy_expr = None;
         n.visit_mut_children_with(self);
         if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
@@ -811,7 +807,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // export default function() {}
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -830,7 +826,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 } else {
                                     // export default async () => {}
                                     let new_ident =
-                                        Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -849,7 +845,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Call(call) => {
                                 // export default fn()
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -1156,14 +1152,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     noop_visit_mut_type!();
 }
 
-fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
+fn retain_names_from_declared_idents(child_names: &mut Vec<Id>, current_declared_idents: &[Id]) {
     // Collect all the identifiers defined inside the closure and used
     // in the action function. With deduplication.
     let mut added_names = Vec::new();
     child_names.retain(|name| {
         if added_names.contains(name) {
             false
-        } else if current_declared_idents.contains(&name.0) {
+        } else if current_declared_idents.contains(&name) {
             added_names.push(name.clone());
             true
         } else {
@@ -1584,13 +1580,15 @@ fn collect_decl_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
 }
 
 pub(crate) struct ClosureReplacer<'a> {
-    used_ids: &'a [Name],
+    used_ids: &'a [Id],
 }
 
 impl ClosureReplacer<'_> {
     fn index(&self, e: &Expr) -> Option<usize> {
-        let name = Name::try_from(e).ok()?;
-        self.used_ids.iter().position(|used_id| *used_id == name)
+        match expr_to_id(e) {
+            Some(id) => self.used_ids.iter().position(|used_id| *used_id == id),
+            None => None,
+        }
     }
 }
 
@@ -1611,8 +1609,8 @@ impl VisitMut for ClosureReplacer<'_> {
         n.visit_mut_children_with(self);
 
         if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
-            let name = Name::from(&*i);
-            if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
+            let id = i.to_id();
+            if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == id) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Ident(i.clone()),
                     value: Box::new(Expr::Ident(Ident::new(
@@ -1628,105 +1626,14 @@ impl VisitMut for ClosureReplacer<'_> {
     noop_visit_mut_type!();
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct NamePart {
-    prop: JsWord,
-    is_member: bool,
-    optional: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Name(Id, Vec<NamePart>);
-
-impl From<&'_ Ident> for Name {
-    fn from(value: &Ident) -> Self {
-        Name(value.to_id(), vec![])
-    }
-}
-
-impl TryFrom<&'_ Expr> for Name {
-    type Error = ();
-
-    fn try_from(value: &Expr) -> Result<Self, Self::Error> {
-        match value {
-            Expr::Ident(i) => Ok(Name(i.to_id(), vec![])),
-            Expr::Member(e) => e.try_into(),
-            Expr::OptChain(e) => e.try_into(),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<&'_ MemberExpr> for Name {
-    type Error = ();
-
-    fn try_from(value: &MemberExpr) -> Result<Self, Self::Error> {
-        match &value.prop {
-            MemberProp::Ident(prop) => {
-                let mut obj: Name = value.obj.as_ref().try_into()?;
-                obj.1.push(NamePart {
-                    prop: prop.sym.clone(),
-                    is_member: true,
-                    optional: false,
-                });
-                Ok(obj)
-            }
-            _ => Err(()),
-        }
-    }
-}
-
-impl TryFrom<&'_ OptChainExpr> for Name {
-    type Error = ();
-
-    fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
-        match &*value.base {
-            OptChainBase::Member(m) => match &m.prop {
-                MemberProp::Ident(prop) => {
-                    let mut obj: Name = m.obj.as_ref().try_into()?;
-                    obj.1.push(NamePart {
-                        prop: prop.sym.clone(),
-                        is_member: false,
-                        optional: value.optional,
-                    });
-                    Ok(obj)
-                }
-                _ => Err(()),
-            },
-            OptChainBase::Call(_) => Err(()),
-        }
-    }
-}
-
-impl From<Name> for Box<Expr> {
-    fn from(value: Name) -> Self {
-        let mut expr = Box::new(Expr::Ident(value.0.into()));
-
-        for NamePart {
-            prop,
-            is_member,
-            optional,
-        } in value.1.into_iter()
-        {
-            if is_member {
-                expr = Box::new(Expr::Member(MemberExpr {
-                    span: DUMMY_SP,
-                    obj: expr,
-                    prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
-                }));
-            } else {
-                expr = Box::new(Expr::OptChain(OptChainExpr {
-                    span: DUMMY_SP,
-                    base: Box::new(OptChainBase::Member(MemberExpr {
-                        span: DUMMY_SP,
-                        obj: expr,
-                        prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
-                    })),
-                    optional,
-                }));
-            }
-        }
-
-        expr
+fn expr_to_id(e: &Expr) -> Option<Id> {
+    match e {
+        Expr::Ident(i) => Some(i.to_id()),
+        Expr::Member(m) => expr_to_id(&m.obj),
+        Expr::OptChain(o) => match &*o.base {
+            OptChainBase::Member(m) => expr_to_id(&m.obj),
+            _ => None,
+        },
+        _ => None,
     }
 }

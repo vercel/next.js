@@ -19,13 +19,12 @@ export default function Home() {
         test: 'test'
     };
     const action = registerServerReference("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
-        info.name,
-        info.test
+        info
     ]));
     return null;
 }
 export async function $$ACTION_1($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_CLOSURE_BOUND);
-    console.log($$ACTION_ARG_0);
-    console.log($$ACTION_ARG_1);
+    var [$$ACTION_ARG_0] = await decryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_CLOSURE_BOUND);
+    console.log($$ACTION_ARG_0.name);
+    console.log($$ACTION_ARG_0.test);
 }

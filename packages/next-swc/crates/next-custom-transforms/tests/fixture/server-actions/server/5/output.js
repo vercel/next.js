@@ -8,7 +8,7 @@ export function Item({ id1, id2, id3, id4 }) {
         id1,
         v2,
         id3,
-        id4.x
+        id4
     ]));
     return <Button action={deleteItem}>Delete</Button>;
 }
@@ -20,5 +20,5 @@ export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
     await deleteFromDb({
         id3: $$ACTION_ARG_2
     });
-    await deleteFromDb($$ACTION_ARG_3);
+    await deleteFromDb($$ACTION_ARG_3.x);
 }
