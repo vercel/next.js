@@ -16,6 +16,13 @@
       "description": "Select the next command",
       "options": ["dev", "build", "start"],
       "default": "dev"
+    },
+    {
+      "id": "nextTestMode",
+      "type": "pickString",
+      "description": "Select the next test mode",
+      "options": ["dev", "start"],
+      "default": "dev"
     }
   ],
   "configurations": [
@@ -196,6 +203,28 @@
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
         "NEXT_TELEMETRY_DISABLED": "1"
+      }
+    },
+    {
+      "name": "Run e2e test",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/jest",
+      "runtimeArgs": ["--runInBand", "--verbose", "${file}"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
+        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
+        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
+      "env": {
+        "HEADLESS": "true",
+        "NEXT_E2E_TEST_TIMEOUT": "1000000",
+        "NEXT_SKIP_ISOLATE": "1",
+        "NEXT_TEST_MODE": "${input:nextTestMode}"
       }
     },
     {
