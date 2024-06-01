@@ -197,7 +197,7 @@ impl Issue for NextSegmentConfigParsingIssue {
             StyledString::Text(
                 "The exported configuration object in a source file need to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))
@@ -312,7 +312,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
             source: issue_source(source, span),
         }
         .cell()
