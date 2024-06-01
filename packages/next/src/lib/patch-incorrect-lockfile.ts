@@ -21,6 +21,10 @@ async function fetchPkgInfo(pkg: string) {
   const data = await res.json()
   const versionData = data.versions[nextPkgJson.version]
 
+  if (!versionData) {
+    return null
+  }
+
   return {
     os: versionData.os,
     cpu: versionData.cpu,
@@ -60,7 +64,7 @@ export async function patchIncorrectLockfile(dir: string) {
 
   const patchDependency = (
     pkg: string,
-    pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>
+    pkgData: NonNullable<UnwrapPromise<ReturnType<typeof fetchPkgInfo>>>
   ) => {
     lockfileParsed.dependencies[pkg] = {
       version: nextPkgJson.version,
@@ -72,7 +76,7 @@ export async function patchIncorrectLockfile(dir: string) {
 
   const patchPackage = (
     pkg: string,
-    pkgData: UnwrapPromise<ReturnType<typeof fetchPkgInfo>>
+    pkgData: NonNullable<UnwrapPromise<ReturnType<typeof fetchPkgInfo>>>
   ) => {
     lockfileParsed.packages[pkg] = {
       version: nextPkgJson.version,
@@ -150,6 +154,11 @@ export async function patchIncorrectLockfile(dir: string) {
     for (let i = 0; i < pkgsData.length; i++) {
       const pkg = missingSwcPkgs[i]
       const pkgData = pkgsData[i]
+
+      if (!pkgData) {
+        Log.warn(`Failed to fetch registry info for ${pkg}`)
+        continue
+      }
 
       if (shouldPatchDependencies) {
         patchDependency(pkg, pkgData)
