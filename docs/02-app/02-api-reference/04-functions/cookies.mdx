@@ -121,7 +121,7 @@ async function delete(data) {
 
 ### `cookies().set(name, value, { maxAge: 0 })`
 
-Setting `maxAge` to 0 will immediately expire a cookie.
+Setting `maxAge` to 0 will immediately expire a cookie. maxAge accepts a value in seconds.
 
 ```js filename="app/actions.js"
 'use server'
