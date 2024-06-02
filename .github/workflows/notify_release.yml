@@ -48,24 +48,25 @@ jobs:
       - id: version
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
-      - run: echo ${{ steps.version.outputs.value }}
-      # - uses: actions/github-script@v7
-      #   id: trigger-front-sync
-      #   with:
-      #     result-encoding: string
-      #     retries: 3
-      #     retry-exempt-status-codes: 400,401
-      #     # Default github token cannot dispatch events to the remote repo, it should be
-      #     # a PAT with access to contenst:read&write + metadata:read.
-      #     github-token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
-      #     # Note `event_type` and `client_payload` are contract between vercel/front,
-      #     # if these need to be changed both side should be updated accordingly.
-      #     script: |
-      #       github.request('POST /repos/{owner}/{repo}/dispatches', {
-      #         owner: 'vercel',
-      #         repo: 'front',
-      #         event_type: 'cron-update-next',
-      #         client_payload: {
-      #           version: ${{ steps.version.outputs.version }}
-      #         }
-      #       })
+      - uses: actions/github-script@v7
+        id: trigger-front-sync
+        with:
+          result-encoding: string
+          retries: 3
+          retry-exempt-status-codes: 400,401
+          # Default github token cannot dispatch events to the remote repo, it should be
+          # a PAT with access to contenst:read&write + metadata:read.
+          github-token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          # Note `event_type` and `client_payload` are contract between vercel/front,
+          # if these need to be changed both side should be updated accordingly.
+          script: |
+            github.request('POST /repos/{owner}/{repo}/dispatches', {
+              owner: 'vercel',
+              repo: 'front',
+              event_type: 'cron-update-next',
+              client_payload: {
+                version: ${{ steps.version.outputs.value }}
+              }
+            })
+      - name: workflow_dispatch response
+        run: echo ${{ steps.trigger-front-sync.outputs.response }}
