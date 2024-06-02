@@ -36,13 +36,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
       - id: nextPackageInfo
         name: Get `next` package info
-        run: echo "value=$(pnpm list next --json --filter next)" >> "$GITHUB_OUTPUT"
+        run: |
+          cd packages/next 
+          echo "value=$(cat package.json)" >> "$GITHUB_OUTPUT"
       - id: version
         name: Extract `next` version
-        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs)[0].version }}' >> "$GITHUB_OUTPUT"
+        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
       - run: echo ${{ steps.version.outputs.version }}
       # - uses: actions/github-script@v7
       #   id: trigger-front-sync
