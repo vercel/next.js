@@ -65,7 +65,7 @@ jobs:
               repo: 'front',
               event_type: 'cron-update-next',
               client_payload: {
-                version: ${{ steps.version.outputs.value }}
+                version: '${{ steps.version.outputs.value }}'
               }
             })
       - name: workflow_dispatch response
