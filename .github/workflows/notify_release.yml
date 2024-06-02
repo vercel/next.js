@@ -53,18 +53,19 @@ jobs:
         with:
           result-encoding: string
           retries: 3
-          retry-exempt-status-codes: 400,401
+          retry-exempt-status-codes: 400,401,404
           # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with access to contenst:read&write + metadata:read.
           github-token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           # Note `event_type` and `client_payload` are contract between vercel/front,
           # if these need to be changed both side should be updated accordingly.
           script: |
-            github.request('POST /repos/{owner}/{repo}/dispatches', {
+            github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: 'vercel',
               repo: 'front',
-              event_type: 'cron-update-next',
-              client_payload: {
+              workflow_id: 'cron-update-next',
+              ref: 'main',
+              inputs: {
                 version: '${{ steps.version.outputs.value }}'
               }
             })
