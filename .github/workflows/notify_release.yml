@@ -49,7 +49,7 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@v7
-        name: trigger 'cron-update-next.yml'
+        name: Trigger vercel/front sync
         id: trigger-front-sync
         with:
           result-encoding: string
@@ -61,11 +61,12 @@ jobs:
           # Note `event_type` and `client_payload` are contract between vercel/front,
           # if these need to be changed both side should be updated accordingly.
           script: |
-            github.request('POST /repos/{owner}/{repo}/dispatches', {
+            github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: 'vercel',
               repo: 'front',
-              event_type: 'update-next',
-              client_payload: {
+              workflow_id: 'cron-update-next.yml',
+              ref: 'sebbie/06-01-add_support_for_starting_sync_with_a_specific_next.js_version',
+              inputs: {
                 version: '${{ steps.version.outputs.value }}'
               }
             })
