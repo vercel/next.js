@@ -48,7 +48,7 @@ jobs:
       - id: version
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
-      - run: echo ${{ steps.version.outputs.version }}
+      - run: echo ${{ steps.version.outputs.value }}
       # - uses: actions/github-script@v7
       #   id: trigger-front-sync
       #   with:
