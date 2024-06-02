@@ -30,7 +30,6 @@ use crate::{
 /// Computes the route source for a Next.js metadata file.
 #[turbo_tasks::function]
 pub async fn get_app_metadata_route_source(
-    page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
 ) -> Result<Vc<Box<dyn Source>>> {
@@ -40,12 +39,12 @@ pub async fn get_app_metadata_route_source(
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
             let is_multi_dynamic = stem.to_string().ends_with("[]");
-            let stem = stem.strip_suffix("[]").unwrap_or_default();
+            let stem = stem.strip_suffix("[]").unwrap_or(stem);
 
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(path, page, is_multi_dynamic)
+                dynamic_site_map_route_source(path, is_multi_dynamic)
             } else {
                 dynamic_image_route_source(path, is_multi_dynamic)
             }
@@ -75,7 +74,7 @@ pub fn get_app_metadata_route_entry(
     get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(page.clone(), mode, metadata),
+        get_app_metadata_route_source(mode, metadata),
         page,
         project_root,
         Some(segment_config),
@@ -209,12 +208,11 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
     path: Vc<FileSystemPath>,
-    page: AppPage,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
-    let file_type = stem.strip_suffix("[]").unwrap_or_default();
+    let file_type = stem.strip_suffix("[]").unwrap_or(stem);
     let ext = &*path.extension().await?;
     let content_type = get_content_type(path).await?;
     let mut static_generation_code = "";
@@ -278,7 +276,6 @@ async fn dynamic_site_map_route_source(
         file_type = StringifyJs(&file_type),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
         static_generation_code = static_generation_code,
-        is_multi_dynamic = is_multi_dynamic,
     };
 
     let file = File::from(code);
