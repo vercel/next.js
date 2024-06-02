@@ -15,7 +15,7 @@ jobs:
           result-encoding: string
           retries: 3
           retry-exempt-status-codes: 400,401
-          # Default github token cannot dispath events to the remote repo, it should be
+          # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with access to contenst:read&write + metadata:read.
           github-token: ${{ secrets.TURBOPACK_TEST_TOKEN }}
           # Note `event_type` and `client_payload` are contract between vercel/turbo,
@@ -38,7 +38,7 @@ jobs:
           result-encoding: string
           retries: 3
           retry-exempt-status-codes: 400,401
-          # Default github token cannot dispath events to the remote repo, it should be
+          # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with access to contenst:read&write + metadata:read.
           github-token: ${{ secrets.FRONT_TEST_TOKEN }}
           # Note `event_type` and `client_payload` are contract between vercel/front,
