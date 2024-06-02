@@ -65,7 +65,7 @@ jobs:
               owner: 'vercel',
               repo: 'front',
               workflow_id: '22486376',
-              ref: 'main',
+              ref: 'sebbie/06-01-add_support_for_starting_sync_with_a_specific_next.js_version',
               inputs: {
                 version: '${{ steps.version.outputs.value }}'
               }
