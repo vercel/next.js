@@ -64,7 +64,7 @@ jobs:
             github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: 'vercel',
               repo: 'front',
-              workflow_id: '46394538',
+              workflow_id: '22486376',
               ref: 'main',
               inputs: {
                 version: '${{ steps.version.outputs.value }}'
