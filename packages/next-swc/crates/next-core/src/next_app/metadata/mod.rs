@@ -40,8 +40,8 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
+    let (_whole, stem, number, _is_multi_dynamic) = lazy_regex::regex_captures!(
+        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d)(\\[\\])",
         stem
     )?;
 
@@ -62,6 +62,10 @@ fn match_metadata_file<'a>(
         }
         _ => (stem, None),
     };
+    let stem = stem
+        .ends_with("[]")
+        .then(|| &stem[..stem.len() - 2])
+        .unwrap_or(stem);
 
     let exts = metadata.get(stem)?;
 
@@ -86,6 +90,7 @@ pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String>
     let ext = &*path.extension().await?;
 
     let name = stem.as_deref().unwrap_or_default();
+    let name = name.strip_suffix("[]").unwrap_or(name);
     let mut ext = ext.as_str();
     if ext == "jpg" {
         ext = "jpeg"
@@ -197,6 +202,7 @@ pub fn is_metadata_route_file(
         let stem = match_numbered_metadata(stem)
             .map(|(stem, _)| stem)
             .unwrap_or(stem);
+        let stem = stem.strip_suffix("[]").unwrap_or(stem);
 
         if STATIC_LOCAL_METADATA.contains_key(stem) {
             return true;
@@ -307,7 +313,9 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     } else if route == "/manifest" {
         route += ".webmanifest"
     // Do not append the suffix for the sitemap route
-    } else if !route.ends_with("/sitemap") {
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
+    } else {
         // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
         let pathname_prefix = split_directory(&route).0.unwrap_or_default();
         suffix = get_metadata_route_suffix(pathname_prefix);
@@ -317,19 +325,17 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
-
-        let is_static_route = route.starts_with("/robots")
-            || route.starts_with("/manifest")
-            || is_static_metadata_file;
-
+        let is_multi_dynamic = base_name.ends_with("[]");
+        let normalized_base_name = is_multi_dynamic
+            .then(|| &base_name[..base_name.len() - 2])
+            .unwrap_or(base_name);
         page.0.pop();
 
         page.push(PageSegment::Static(
             format!(
                 "{}{}{}",
-                base_name,
+                normalized_base_name,
                 suffix
                     .map(|suffix| format!("-{suffix}"))
                     .unwrap_or_default(),
@@ -338,8 +344,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
             .into(),
         ))?;
 
-        if !is_static_route {
-            page.push(PageSegment::OptionalCatchAll("__metadata_id__".into()))?;
+        if is_multi_dynamic {
+            page.push(PageSegment::Dynamic("__metadata_id__".into()))?;
         }
 
         page.push(PageSegment::PageType(PageType::Route))?;
@@ -358,11 +364,11 @@ mod test {
         let cases = vec![
             [
                 "/client/(meme)/more-route/twitter-image",
-                "/client/(meme)/more-route/twitter-image-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image-769mad/route",
             ],
             [
                 "/client/(meme)/more-route/twitter-image2",
-                "/client/(meme)/more-route/twitter-image2-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image2-769mad/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
