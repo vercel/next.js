@@ -61,12 +61,11 @@ jobs:
           # Note `event_type` and `client_payload` are contract between vercel/front,
           # if these need to be changed both side should be updated accordingly.
           script: |
-            github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
+            github.request('POST /repos/{owner}/{repo}/dispatches', {
               owner: 'vercel',
               repo: 'front',
-              workflow_id: '22486376',
-              ref: 'sebbie/06-01-add_support_for_starting_sync_with_a_specific_next.js_version',
-              inputs: {
+              event_type: 'update-next',
+              client_payload: {
                 version: '${{ steps.version.outputs.value }}'
               }
             })
