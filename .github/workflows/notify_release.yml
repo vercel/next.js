@@ -40,7 +40,11 @@ jobs:
         name: Get `next` package info
         run: |
           cd packages/next 
-          echo "value=$(cat package.json)" >> "$GITHUB_OUTPUT"
+          {
+            echo 'value<<EOF'
+            cat package.json
+            echo EOF
+          } >> "$GITHUB_ENV"
       - id: version
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
