@@ -28,7 +28,9 @@ async function enumMetadataFiles(
 ): Promise<string[]> {
   const collectedFiles: string[] = []
 
-  const possibleFileNames = [filename].concat(
+  // Collect <filename>.<ext>, <filename>[].<ext>
+  // Collect <filename><num>.<ext>, <filename><num>[].<ext>
+  const possibleFileNames = [filename, filename + '[]'].concat(
     numericSuffix
       ? [
           ...NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index),
@@ -36,6 +38,7 @@ async function enumMetadataFiles(
         ]
       : []
   )
+  console.log('possibleFileNames', possibleFileNames)
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
     if (resolved) {

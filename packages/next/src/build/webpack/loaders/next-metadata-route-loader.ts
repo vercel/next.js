@@ -133,11 +133,11 @@ export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
   const targetId = __metadata_id__
   let id = undefined
-  const imageMetadata = ${isMultiDynamic ? 'await generateImageMetadata({ params })' : 'null'}
-
+  
   ${
     isMultiDynamic
       ? `
+  const imageMetadata = await generateImageMetadata({ params })
   id = imageMetadata.find((item) => {
     if (process.env.NODE_ENV !== 'production') {
       if (item?.id == null) {
@@ -154,6 +154,7 @@ export async function GET(_, ctx) {
   `
       : ''
   }
+
 
   return handler({ params: ctx.params ? params : undefined, id })
 }
@@ -178,16 +179,21 @@ async function getDynamicSitemapRouteCode(
 
   if (isMultiDynamic) {
     staticGenerationCode = `\
-/* dynamic sitemap route */ 
-export async function generateStaticParams() {
-  const sitemaps = generateSitemaps ? await generateSitemaps() : []
-  const params = []
+    /* dynamic sitemap route */
+    export async function generateStaticParams() {
+      const sitemaps = await sitemapModule.generateSitemaps()
+      const params = []
 
-  for (const item of sitemaps) {
-    params.push({ __metadata_id__: item.id.toString() })
-  }
-  return params
-}
+      for (const item of sitemaps) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (item?.id == null) {
+            throw new Error('id property is required for every item returned from generateSitemaps')
+          }
+        }
+        params.push({ __metadata_id__: item.id.toString() + '.xml' })
+      }
+      return params
+    }
     `
   }
 
@@ -198,7 +204,6 @@ import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resol
 
 const sitemapModule = { ...userland }
 const handler = sitemapModule.default
-const generateSitemaps = sitemapModule.generateSitemaps
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
@@ -214,30 +219,10 @@ ${
 }
 
 export async function GET(_, ctx) {
-  const { __metadata_id__, ...params } = ctx.params || {}
-  const targetId = __metadata_id__
+  const { __metadata_id__: id, ...params } = ctx.params || {}
+  const targetId = id ? id.slice(0, -4) : undefined
 
-  let id = undefined
-  const sitemaps = generateSitemaps ? await generateSitemaps() : null
-
-  if (sitemaps) {
-    id = sitemaps.find((item) => {
-      if (process.env.NODE_ENV !== 'production') {
-        if (item?.id == null) {
-          throw new Error('id property is required for every item returned from generateSitemaps')
-        }
-      }
-      let itemID = item.id.toString()
-      return itemID === targetId
-    })?.id
-    if (id == null) {
-      return new NextResponse('Not Found', {
-        status: 404,
-      })
-    }
-  }
-
-  const data = await handler({ id })
+  const data = await handler({ id: targetId })
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
