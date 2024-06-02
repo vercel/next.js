@@ -30,7 +30,11 @@ type MetadataRouteLoaderOptions = {
 export function getFilenameAndExtension(resourcePath: string) {
   const filename = path.basename(resourcePath)
   const [name, ext] = filename.split('.', 2)
-  return { name, ext }
+  return {
+    // Strip the trailing [] for multi-dynamic routes
+    name: name.endsWith('[]') ? name.slice(0, -2) : name,
+    ext,
+  }
 }
 
 function getContentType(resourcePath: string) {
@@ -109,7 +113,10 @@ export async function GET() {
 }
 
 // <metadata-image>/[id]/route.js
-function getDynamicImageRouteCode(resourcePath: string) {
+function getDynamicImageRouteCode(
+  resourcePath: string,
+  isMultiDynamic: boolean
+) {
   return `\
 /* dynamic image route */
 import { NextResponse } from 'next/server'
@@ -126,32 +133,36 @@ export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
   const targetId = __metadata_id__
   let id = undefined
-  const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
+  const imageMetadata = ${isMultiDynamic ? 'await generateImageMetadata({ params })' : 'null'}
 
-  if (imageMetadata) {
-    
-    id = imageMetadata.find((item) => {
-      if (process.env.NODE_ENV !== 'production') {
-        if (item?.id == null) {
-          throw new Error('id property is required for every item returned from generateImageMetadata')
-        }
+  ${
+    isMultiDynamic
+      ? `
+  id = imageMetadata.find((item) => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (item?.id == null) {
+        throw new Error('id property is required for every item returned from generateImageMetadata')
       }
-      return item.id.toString() === targetId
-    })?.id
-    if (id == null) {
-      return new NextResponse('Not Found', {
-        status: 404,
-      })
     }
+    return item.id.toString() === targetId
+  })?.id
+  if (id == null) {
+    return new NextResponse('Not Found', {
+      status: 404,
+    })
   }
+  `
+      : ''
+  }
+
   return handler({ params: ctx.params ? params : undefined, id })
 }
 `
 }
 
-async function getDynamicSiteMapRouteCode(
+async function getDynamicSitemapRouteCode(
   resourcePath: string,
-  page: string,
+  isMultiDynamic: boolean,
   loaderContext: webpack.LoaderContext<any>
 ) {
   let staticGenerationCode = ''
@@ -165,12 +176,7 @@ async function getDynamicSiteMapRouteCode(
     (name) => name !== 'default' && name !== 'generateSitemaps'
   )
 
-  const hasGenerateSiteMaps = exportNames.includes('generateSitemaps')
-  if (
-    process.env.NODE_ENV === 'production' &&
-    hasGenerateSiteMaps &&
-    page.includes('[__metadata_id__]')
-  ) {
+  if (isMultiDynamic) {
     staticGenerationCode = `\
 /* dynamic sitemap route */ 
 export async function generateStaticParams() {
@@ -251,17 +257,19 @@ ${staticGenerationCode}
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { page, isDynamicRouteExtension, filePath } = this.getOptions()
+    const { isDynamicRouteExtension, isDynamicMultiRoute, filePath } =
+      this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
+    const isMultiDynamic = isDynamicMultiRoute === '1'
 
     let code = ''
     if (isDynamicRouteExtension === '1') {
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(filePath)
       } else if (fileBaseName === 'sitemap') {
-        code = await getDynamicSiteMapRouteCode(filePath, page, this)
+        code = await getDynamicSitemapRouteCode(filePath, isMultiDynamic, this)
       } else {
-        code = getDynamicImageRouteCode(filePath)
+        code = getDynamicImageRouteCode(filePath, isMultiDynamic)
       }
     } else {
       code = await getStaticAssetRouteCode(filePath, fileBaseName)

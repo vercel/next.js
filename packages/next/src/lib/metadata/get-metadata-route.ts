@@ -61,7 +61,6 @@ function isDynamicMetadataRoute(page: string) {
  */
 export function normalizeMetadataRoute(page: string) {
   if (!isMetadataRoute(page)) {
-    
     return page
   }
   let route = page
@@ -73,7 +72,7 @@ export function normalizeMetadataRoute(page: string) {
   } else if (page.endsWith('/sitemap')) {
     route += '.xml'
   } else {
-    // Remove the file extension, 
+    // Remove the file extension,
     // e.g. /path/robots.txt -> /route-path
     // e.g. /path/opengraph-image.tsx -> /path/opengraph-image
     const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
@@ -84,13 +83,16 @@ export function normalizeMetadataRoute(page: string) {
   if (!route.endsWith('/route')) {
     const { dir, name: baseName, ext } = path.parse(route)
     const isDynamicMultiMetadataRoute = isDynamicMetadataRoute(page)
+    const normalizedBaseName = isDynamicMultiMetadataRoute
+      ? baseName.slice(0, -2)
+      : baseName
 
     // For multi-dynamic metadata routes, generate a sub-route segment.
     // e.g. /opengraph-image[].js -> /opengraph-image/[__metadata_id__]/route
     // e.g. /sitemap[].js -> /sitemap/[__metadata_id__]/route
     route = path.posix.join(
       dir,
-      `${isDynamicMultiMetadataRoute ? baseName.slice(0, -2) : baseName}${suffix ? `-${suffix}` : ''}${ext}`,
+      `${normalizedBaseName}${suffix ? `-${suffix}` : ''}${ext}`,
       isDynamicMultiMetadataRoute ? '[__metadata_id__]' : '',
       'route'
     )

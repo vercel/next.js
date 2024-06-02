@@ -24,16 +24,12 @@ export type OutputState =
         }
     ))
 
-const internalSegments = [
-  // '[[...__metadata_id__]]', 
-  '[__metadata_id__]'
-]
 export function formatTrigger(trigger: string) {
-  if (trigger.includes(internalSegments[0])) {
-    trigger = trigger.replace(internalSegments[0], '')
+  // Format dynamic sitemap routes as the original file path
+  if (trigger.includes('[__metadata_id__]')) {
+    trigger = trigger.replace('/[__metadata_id__]', '[]')
   }
-  // for (const segment of internalSegments) {
-  // }
+
   if (trigger.length > 1 && trigger.endsWith('/')) {
     trigger = trigger.slice(0, -1)
   }
