@@ -49,6 +49,7 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
       - uses: actions/github-script@v7
+        name: trigger 'cron-update-next.yml'
         id: trigger-front-sync
         with:
           result-encoding: string
@@ -63,7 +64,7 @@ jobs:
             github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: 'vercel',
               repo: 'front',
-              workflow_id: 'cron-update-next',
+              workflow_id: '46394538',
               ref: 'main',
               inputs: {
                 version: '${{ steps.version.outputs.value }}'
