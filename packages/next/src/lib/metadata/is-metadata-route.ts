@@ -57,7 +57,7 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `\\.${getExtensionRegexString(pageExtensions.concat('txt'), null)}$`
+          ? `${getExtensionRegexString(pageExtensions.concat('txt'), null)}$`
           : ''
       }`
     ),

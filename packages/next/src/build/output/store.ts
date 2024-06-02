@@ -25,9 +25,10 @@ export type OutputState =
     ))
 
 export function formatTrigger(trigger: string) {
-  // Format dynamic sitemap routes as the original file path
+  // Format dynamic sitemap routes to simpler file path
+  // e.g., /sitemap.xml[] -> /sitemap.xml
   if (trigger.includes('[__metadata_id__]')) {
-    trigger = trigger.replace('/[__metadata_id__]', '[]')
+    trigger = trigger.replace('/[__metadata_id__]', '/[id]')
   }
 
   if (trigger.length > 1 && trigger.endsWith('/')) {
