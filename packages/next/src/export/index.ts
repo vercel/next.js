@@ -55,7 +55,6 @@ import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -358,7 +357,6 @@ export async function exportAppImpl(
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     experimental: {
-      isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       swrDelta: nextConfig.swrDelta,
       after: nextConfig.experimental.after ?? false,
