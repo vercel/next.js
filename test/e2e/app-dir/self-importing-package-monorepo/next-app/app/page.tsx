@@ -1,5 +1,5 @@
-import '@repo/internal-pkg'
+import value from '@repo/internal-pkg'
 
 export default function Home() {
-  return <div>Hello world</div>
+  return <h1>Hello world {value}</h1>
 }
