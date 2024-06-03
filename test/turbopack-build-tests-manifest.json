@@ -1924,7 +1924,8 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+        "app dir - metadata dynamic routes should statically optimized single image route"
       ],
       "pending": [],
       "flakey": [],
