@@ -69,8 +69,8 @@ async function readPartialManifest<T>(
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-      ? pageName
-      : getAssetPathFromRoute(pageName),
+        ? pageName
+        : getAssetPathFromRoute(pageName),
     name
   )
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T

@@ -1,7 +1,7 @@
 'use client'
 
 import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
+import React, { useEffect, useContext, useRef, type JSX } from 'react'
 import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
@@ -126,8 +126,8 @@ const loadScript = (props: ScriptProps): void => {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
 
     afterLoad()
   } else if (src) {

@@ -45,6 +45,7 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
                         "userAgent".into(),
                         "next/dist/server/web/spec-extension/user-agent".into(),
                     ),
+                    ("unstable_after".into(), "next/dist/server/after".into()),
                 ]),
             },
         )]),

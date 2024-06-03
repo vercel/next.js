@@ -11,8 +11,8 @@ describe('app-dir action size limit invalid config', () => {
     skipDeployment: true,
     skipStart: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-rc-f994737d14-20240522',
+      'react-dom': '19.0.0-rc-f994737d14-20240522',
       'server-only': 'latest',
     },
   })

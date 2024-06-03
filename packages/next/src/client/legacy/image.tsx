@@ -7,8 +7,8 @@ import React, {
   useContext,
   useMemo,
   useState,
+  type JSX,
 } from 'react'
-import Head from '../../shared/lib/head'
 import {
   imageConfigDefault,
   VALID_LOADERS,
@@ -258,7 +258,7 @@ export type ImageProps = Omit<
   quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
+  lazyRoot?: React.RefObject<HTMLElement | null> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string
@@ -978,16 +978,6 @@ export default function Image({
     }
   }
 
-  const linkProps: React.DetailedHTMLProps<
-    React.LinkHTMLAttributes<HTMLLinkElement>,
-    HTMLLinkElement
-  > = {
-    imageSrcSet: imgAttributes.srcSet,
-    imageSizes: imgAttributes.sizes,
-    crossOrigin: rest.crossOrigin,
-    referrerPolicy: rest.referrerPolicy,
-  }
-
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
@@ -1054,27 +1044,6 @@ export default function Image({
         ) : null}
         <ImageElement {...imgElementArgs} />
       </span>
-      {priority ? (
-        // Note how we omit the `href` attribute, as it would only be relevant
-        // for browsers that do not support `imagesrcset`, and in those cases
-        // it would likely cause the incorrect image to be preloaded.
-        //
-        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        <Head>
-          <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
-            rel="preload"
-            as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            {...linkProps}
-          />
-        </Head>
-      ) : null}
     </>
   )
 }

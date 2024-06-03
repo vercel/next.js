@@ -122,27 +122,36 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const project = await bindings.turbo.createProject({
-    projectPath: dir,
-    rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
-    nextConfig: opts.nextConfig,
-    jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-    watch: true,
-    dev: true,
-    env: process.env as Record<string, string>,
-    defineEnv: createDefineEnv({
-      isTurbopack: true,
-      // TODO: Implement
-      clientRouterFilters: undefined,
-      config: nextConfig,
+  const encryptionKey = await generateEncryptionKeyBase64(true)
+  const project = await bindings.turbo.createProject(
+    {
+      projectPath: dir,
+      rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
+      nextConfig: opts.nextConfig,
+      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      watch: true,
       dev: true,
-      distDir,
-      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
-      hasRewrites,
-      // TODO: Implement
-      middlewareMatchers: undefined,
-    }),
-  })
+      env: process.env as Record<string, string>,
+      defineEnv: createDefineEnv({
+        isTurbopack: true,
+        // TODO: Implement
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir,
+        fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
+        hasRewrites,
+        // TODO: Implement
+        middlewareMatchers: undefined,
+      }),
+      buildId,
+      encryptionKey,
+      previewProps: opts.fsChecker.prerenderManifest.preview,
+    },
+    {
+      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+    }
+  )
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentEntrypoints: Entrypoints = {
@@ -165,7 +174,7 @@ export async function createHotReloaderTurbopack(
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
     distDir,
-    encryptionKey: await generateEncryptionKeyBase64(),
+    encryptionKey,
   })
 
   // Dev specific

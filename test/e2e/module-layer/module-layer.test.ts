@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 
 describe('module layer', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -59,43 +60,47 @@ describe('module layer', () => {
     }
   }
 
-  describe('no server-only in server targets', () => {
-    const middlewareFile = 'middleware.js'
-    // const pagesApiFile = 'pages/api/hello.js'
-    let middlewareContent = ''
-    // let pagesApiContent = ''
+  if (isNextDev) {
+    describe('client packages in middleware', () => {
+      const middlewareFile = 'middleware.js'
+      let middlewareContent = ''
 
-    beforeAll(async () => {
-      await next.stop()
+      afterAll(async () => {
+        await next.patchFile(middlewareFile, middlewareContent)
+      })
 
-      middlewareContent = await next.readFile(middlewareFile)
-      // pagesApiContent = await next.readFile(pagesApiFile)
+      it('should error when import server packages in middleware', async () => {
+        const browser = await next.browser('/')
 
-      await next.patchFile(
-        middlewareFile,
-        middlewareContent
-          .replace("import 'server-only'", "// import 'server-only'")
-          .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
-      )
+        middlewareContent = await next.readFile(middlewareFile)
 
-      // await next.patchFile(
-      //   pagesApiFile,
-      //   pagesApiContent
-      //     .replace("import 'server-only'", "// import 'server-only'")
-      //     .replace(
-      //       "// import '../../lib/mixed-lib'",
-      //       "import '../../lib/mixed-lib'"
-      //     )
-      // )
+        await next.patchFile(
+          middlewareFile,
+          middlewareContent
+            .replace("import 'server-only'", "// import 'server-only'")
+            .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
+        )
 
-      await next.start()
+        const existingCliOutputLength = next.cliOutput.length
+        await retry(async () => {
+          expect(await hasRedbox(browser)).toBe(true)
+          const source = await getRedboxSource(browser)
+          expect(source).toContain(
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
+          )
+        })
+
+        if (!isTurbopack) {
+          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
+          expect(newCliOutput).toContain('./middleware.js')
+          expect(newCliOutput).toContain(
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
+          )
+        }
+      })
     })
-    afterAll(async () => {
-      await next.patchFile(middlewareFile, middlewareContent)
-      // await next.patchFile(pagesApiFile, pagesApiContent)
-    })
-    runTests()
-  })
+  }
+
   describe('with server-only in server targets', () => {
     runTests()
   })

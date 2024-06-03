@@ -29,7 +29,11 @@ export abstract class BaseNextRequest<Body = any> {
   public abstract headers: IncomingHttpHeaders
   public abstract fetchMetrics?: FetchMetric[]
 
-  constructor(public method: string, public url: string, public body: Body) {}
+  constructor(
+    public method: string,
+    public url: string,
+    public body: Body
+  ) {}
 
   // Utils implemented using the abstract methods above
 
@@ -78,6 +82,8 @@ export abstract class BaseNextResponse<Destination = any> {
   abstract body(value: string): this
 
   abstract send(): void
+
+  abstract onClose(callback: () => void): void
 
   // Utils implemented using the abstract methods above
 

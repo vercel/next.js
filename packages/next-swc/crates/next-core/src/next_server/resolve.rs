@@ -11,7 +11,7 @@ use turbopack_binding::{
             node::{node_cjs_resolve_options, node_esm_resolve_options},
             package_json,
             parse::Request,
-            plugin::{ResolvePlugin, ResolvePluginCondition},
+            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
             resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
             ResolveResultOption,
         },
@@ -61,14 +61,14 @@ impl ExternalCjsModulesResolvePlugin {
 }
 
 #[turbo_tasks::function]
-fn condition(root: Vc<FileSystemPath>) -> Vc<ResolvePluginCondition> {
-    ResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
+fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
+    AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
 }
 
 #[turbo_tasks::value_impl]
-impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
+impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         condition(self.root)
     }
 
@@ -233,9 +233,8 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                     "The request could not be resolved by Node.js from the importing module. The \
                      way Node.js resolves modules is slightly different from the way Next.js \
                      resolves modules. Next.js was able to resolve it, while Node.js would not be \
-                     able to.\nTry to remove this package from \
-                     serverComponentsExternalPackages.\nOr update the import side to use a \
-                     compatible request that can be resolved by Node.js.",
+                     able to.\nTry to remove this package from serverExternalPackages.\nOr update \
+                     the import side to use a compatible request that can be resolved by Node.js.",
                 );
             };
             break result_from_original_location;
@@ -486,7 +485,7 @@ impl Issue for UnableToExternalize {
             StyledString::Text("Package ".to_string()),
             StyledString::Code(package),
             StyledString::Text(" (".to_string()),
-            StyledString::Code("serverComponentsExternalPackages".to_string()),
+            StyledString::Code("serverExternalPackages".to_string()),
             StyledString::Text(" or default list) can't be external".to_string()),
         ])
         .cell())
@@ -510,7 +509,7 @@ impl Issue for UnableToExternalize {
                     StyledString::Text("The request ".to_string()),
                     StyledString::Code(self.request.to_string()),
                     StyledString::Text(" matches ".to_string()),
-                    StyledString::Code("serverComponentsExternalPackages".to_string()),
+                    StyledString::Code("serverExternalPackages".to_string()),
                     StyledString::Text(
                         " (or the default list), but it can't be external:".to_string(),
                     ),

@@ -44,7 +44,7 @@ use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
-    common::{sync::Lazy, FilePathMapping, SourceMap},
+    common::{FilePathMapping, SourceMap},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -57,6 +57,8 @@ pub mod minify;
 pub mod next_api;
 pub mod parse;
 pub mod transform;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod turbo_trace_server;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 #[cfg(not(target_arch = "wasm32"))]
@@ -82,12 +84,6 @@ static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
-    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-
-    Arc::new(Compiler::new(cm))
-});
-
 #[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
 fn init() {
@@ -101,7 +97,9 @@ fn init() {
 
 #[inline]
 fn get_compiler() -> Arc<Compiler> {
-    COMPILER.clone()
+    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
+
+    Arc::new(Compiler::new(cm))
 }
 
 pub fn complete_output(

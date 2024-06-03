@@ -16,8 +16,8 @@ describe('transpile packages', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './npm')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '19.0.0-rc-f994737d14-20240522',
+        'react-dom': '19.0.0-rc-f994737d14-20240522',
         sass: 'latest',
       },
       packageJson: {

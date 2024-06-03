@@ -192,14 +192,6 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-const networkErrors = [
-  'EADDRINFO',
-  'ENOTFOUND',
-  'ETIMEDOUT',
-  'ECONNREFUSED',
-  'EAI_AGAIN',
-]
-
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -211,15 +203,21 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
     installed = require('next/package.json').version
 
     const registry = getRegistry()
-    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    let res
 
-    if (!res.ok) return { installed, staleness: 'unknown' }
+    try {
+      res = await fetch(`${registry}-/package/next/dist-tags`)
+    } catch {
+      // ignore fetch errors
+    }
+
+    if (!res || !res.ok) return { installed, staleness: 'unknown' }
 
     const { latest, canary } = await res.json()
 
     return parseVersionInfo({ installed, latest, canary })
   } catch (e: any) {
-    if (!networkErrors.includes(e?.code)) console.error(e)
+    console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
@@ -838,8 +836,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             )
               ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
-              ? PAGE_TYPES.APP
-              : PAGE_TYPES.ROOT
+                ? PAGE_TYPES.APP
+                : PAGE_TYPES.ROOT
 
             if (pageType === 'pages') {
               this.hasPagesRouterEntrypoints = true

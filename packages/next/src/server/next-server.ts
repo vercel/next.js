@@ -59,7 +59,7 @@ import type {
   NextEnabledDirectories,
   BaseRequestHandler,
 } from './base-server'
-import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -1130,7 +1130,10 @@ export default class NextNodeServer extends BaseServer<
 
           if (!routeMatch || isMiddlewareRequest) return
 
-          const isRSC = isRSCRequestCheck(normalizedReq)
+          // NOTE: this is only attached after handle has started, this runs
+          // after the response has been sent, so it should have it set.
+          const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
@@ -1435,6 +1438,7 @@ export default class NextNodeServer extends BaseServer<
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
+    env: { [key: string]: string }
     assets?: { filePath: string; name: string }[]
   } | null {
     const manifest = this.getMiddlewareManifest()
@@ -1476,6 +1480,7 @@ export default class NextNodeServer extends BaseServer<
             filePath: join(this.distDir, binding.filePath),
           }
         }),
+      env: pageInfo.env,
     }
   }
 
@@ -1590,6 +1595,7 @@ export default class NextNodeServer extends BaseServer<
           basePath: this.nextConfig.basePath,
           i18n: this.nextConfig.i18n,
           trailingSlash: this.nextConfig.trailingSlash,
+          experimental: this.nextConfig.experimental,
         },
         url: url,
         page,
@@ -1805,13 +1811,9 @@ export default class NextNodeServer extends BaseServer<
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+          ? `https://${req.headers.host || 'localhost'}${req.url}`
+          : req.url
 
-    const isRSC = isRSCRequestCheck(req)
-    if (isRSC) {
-      addRequestMeta(req, 'isRSCRequest', true)
-    }
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
     addRequestMeta(req, 'initProtocol', protocol)
@@ -1857,7 +1859,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isDataReq = !!query.__nextDataReq
+    const isNextDataRequest = !!query.__nextDataReq
     const initialUrl = new URL(
       getRequestMeta(params.req, 'initURL') || '/',
       'http://n'
@@ -1868,7 +1870,7 @@ export default class NextNodeServer extends BaseServer<
       ...params.params,
     }).toString()
 
-    if (isDataReq) {
+    if (isNextDataRequest) {
       params.req.headers['x-nextjs-data'] = '1'
     }
     initialUrl.search = queryString

@@ -38,7 +38,7 @@ const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } =
 const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 
 function patchFetch() {
-  return _patchFetch({ serverHooks, staticGenerationAsyncStorage })
+  return _patchFetch({ staticGenerationAsyncStorage })
 }
 
 export {

@@ -10,6 +10,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
+import type { RequestLifecycleOpts } from '../base-server'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -57,7 +58,7 @@ export type FlightRouterState = [
    *   It uses the "url" property above to determine where to fetch from.
    */
   refresh?: 'refetch' | 'refresh' | null,
-  isRootLayout?: boolean
+  isRootLayout?: boolean,
 ]
 
 /**
@@ -73,7 +74,7 @@ export type FlightSegmentPath =
       segment: Segment,
       parallelRouterKey: string,
       segment: Segment,
-      parallelRouterKey: string
+      parallelRouterKey: string,
     ]
 
 /**
@@ -89,7 +90,7 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   node: React.ReactNode | null,
-  loading: LoadingModuleData
+  loading: LoadingModuleData,
 ]
 
 export type FlightDataPath =
@@ -102,7 +103,7 @@ export type FlightDataPath =
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
       /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
+      /* head */ React.ReactNode | null,
     ]
 
 /**
@@ -128,7 +129,7 @@ export interface RenderOptsPartial {
   basePath: string
   trailingSlash: boolean
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
@@ -169,8 +170,9 @@ export interface RenderOptsPartial {
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    missingSuspenseWithCSRBailout: boolean
     swrDelta: SwrDelta | undefined
+    clientTraceMetadata: string[] | undefined
+    after: boolean
   }
   postponed?: string
   /**
@@ -182,4 +184,5 @@ export interface RenderOptsPartial {
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
-  RenderOptsPartial
+  RenderOptsPartial &
+  RequestLifecycleOpts

@@ -76,17 +76,25 @@ export function markCurrentScopeAsDynamic(
   store: StaticGenerationStore,
   expression: string
 ): void {
+  // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+  // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+  // forbidden inside a cache scope.
+  if (store.isUnstableCacheCallback) return
+
+  // If we're forcing dynamic rendering or we're forcing static rendering, we
+  // don't need to do anything here because the entire page is already dynamic
+  // or it's static and it should not throw or postpone here.
+  if (store.forceDynamic || store.forceStatic) return
+
   const pathname = getPathname(store.urlPathname)
-  if (store.isUnstableCacheCallback) {
-    // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-    // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-    // forbidden inside a cache scope.
-    return
-  } else if (store.dynamicShouldError) {
+
+  if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
-  } else if (
+  }
+
+  if (
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
@@ -94,19 +102,19 @@ export function markCurrentScopeAsDynamic(
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
     postponeWithTracking(store.prerenderState, expression, pathname)
-  } else {
-    store.revalidate = 0
+  }
 
-    if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
-      const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+  store.revalidate = 0
 
-      throw err
-    }
+  if (store.isStaticGeneration) {
+    // We aren't prerendering but we are generating a static page. We need to bail out of static generation
+    const err = new DynamicServerError(
+      `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+    )
+    store.dynamicUsageDescription = expression
+    store.dynamicUsageStack = err.stack
+
+    throw err
   }
 }
 
@@ -146,7 +154,7 @@ export function trackDynamicDataAccessed(
     if (store.isStaticGeneration) {
       // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        `Route ${pathname} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
       )
       store.dynamicUsageDescription = expression
       store.dynamicUsageStack = err.stack
@@ -170,21 +178,6 @@ export function Postpone({
   pathname,
 }: PostponeProps): never {
   postponeWithTracking(prerenderState, reason, pathname)
-}
-
-// @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
-// is too explicit about postponing if we are in a prerender and patch-fetch contains a lot of logic for determining
-// what makes the fetch "dynamic". It also doesn't handle Non PPR cases so it is isn't as consistent with the other
-// dynamic-rendering methods.
-export function trackDynamicFetch(
-  store: StaticGenerationStore,
-  expression: string
-) {
-  // If we aren't in a prerender, or we're in an unstable cache callback, we
-  // don't need to postpone.
-  if (!store.prerenderState || store.isUnstableCacheCallback) return
-
-  postponeWithTracking(store.prerenderState, expression, store.urlPathname)
 }
 
 function postponeWithTracking(

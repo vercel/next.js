@@ -6,8 +6,8 @@ describe('app dir - css with pageextensions', () => {
     skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-rc-f994737d14-20240522',
+      'react-dom': '19.0.0-rc-f994737d14-20240522',
       sass: 'latest',
     },
   })

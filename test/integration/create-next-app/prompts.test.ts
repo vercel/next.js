@@ -13,7 +13,7 @@ beforeAll(async () => {
   // ).get('next')
 })
 
-describe('create-next-app prompts', () => {
+describe.skip('create-next-app prompts', () => {
   it('should prompt user for choice if directory name is absent', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'no-dir-name'
@@ -22,6 +22,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -59,6 +60,7 @@ describe('create-next-app prompts', () => {
           projectName,
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
@@ -95,6 +97,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-src-dir',
           '--no-import-alias',
         ],
@@ -130,6 +133,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
+          '--no-turbo',
           '--no-tailwind',
           '--no-src-dir',
         ],

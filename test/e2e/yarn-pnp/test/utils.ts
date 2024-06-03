@@ -31,15 +31,20 @@ export function runTests(
       const packageJson = await fs.readJson(join(srcDir, 'package.json'))
 
       next = await createNext({
-        files: srcFiles.reduce((prev, file) => {
-          if (file !== 'package.json') {
-            prev[file] = new FileRef(join(srcDir, file))
-          }
-          return prev
-        }, {} as { [key: string]: FileRef }),
+        files: srcFiles.reduce(
+          (prev, file) => {
+            if (file !== 'package.json') {
+              prev[file] = new FileRef(join(srcDir, file))
+            }
+            return prev
+          },
+          {} as { [key: string]: FileRef }
+        ),
         dependencies: {
           ...packageJson.dependencies,
           ...packageJson.devDependencies,
+          react: '19.0.0-rc-f994737d14-20240522',
+          'react-dom': '19.0.0-rc-f994737d14-20240522',
         },
         installCommand: ({ dependencies }) => {
           const pkgs = Object.keys(dependencies).reduce((prev, cur) => {

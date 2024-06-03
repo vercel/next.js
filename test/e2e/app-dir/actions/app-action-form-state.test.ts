@@ -2,12 +2,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('app-dir action useFormState', () => {
+describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '19.0.0-rc-f994737d14-20240522',
+      'react-dom': '19.0.0-rc-f994737d14-20240522',
     },
   })
   it('should support submitting form state with JS', async () => {

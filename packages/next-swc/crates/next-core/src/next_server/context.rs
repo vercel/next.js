@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystem;
@@ -27,7 +27,8 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
+                JsxTransformOptions, ModuleOptionsContext, ModuleRule, TypeofWindow,
+                TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -45,6 +46,7 @@ use crate::{
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
     next_config::NextConfig,
+    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
@@ -105,6 +107,7 @@ impl ServerContextType {
             ServerContextType::AppRSC { .. }
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
+                | ServerContextType::Middleware { .. }
         )
     }
 }
@@ -128,6 +131,13 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
+    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
+    transpile_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
         project_path,
@@ -135,17 +145,27 @@ pub async fn get_server_resolve_options_context(
     )
     .await?;
 
-    let transpile_packages = next_config.transpile_packages().await?;
-    external_packages.retain(|item| !transpile_packages.contains(item));
+    let server_external_packages = &*next_config.server_external_packages().await?;
+
+    let conflicting_packages = transpile_packages
+        .iter()
+        .filter(|package| server_external_packages.contains(package))
+        .collect::<Vec<_>>();
+
+    if !conflicting_packages.is_empty() {
+        bail!(
+            "The packages specified in the 'transpilePackages' conflict with the \
+             'serverExternalPackages': {:?}",
+            conflicting_packages
+        );
+    }
 
     // Add the config's own list of external packages.
-    external_packages.extend(
-        (*next_config.server_component_externals().await?)
-            .iter()
-            .cloned(),
-    );
+    external_packages.extend(server_external_packages.iter().cloned());
 
-    let server_component_externals_plugin = ExternalCjsModulesResolvePlugin::new(
+    external_packages.retain(|item| !transpile_packages.contains(item));
+
+    let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
@@ -166,21 +186,38 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push("react-server".to_string());
     };
 
-    let external_cjs_modules_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path,
-        project_path.root(),
-        ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-        *next_config.import_externals().await?,
-    );
+    let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
+        server_external_packages_plugin
+    } else {
+        ExternalCjsModulesResolvePlugin::new(
+            project_path,
+            project_path.root(),
+            ExternalPredicate::AllExcept(Vc::cell(transpile_packages)).cell(),
+            *next_config.import_externals().await?,
+        )
+    };
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let mut plugins = match ty {
+    let before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        | ServerContextType::AppSSR { .. }
+        | ServerContextType::AppRSC { .. } => {
+            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation => vec![],
+    };
+
+    let mut after_resolve_plugins = match ty {
+        ServerContextType::Pages { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::PagesData { .. } => {
             vec![
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
@@ -196,7 +233,7 @@ pub async fn get_server_resolve_options_context(
                 Vc::upcast(module_feature_report_resolve_plugin),
                 Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
-                Vc::upcast(server_component_externals_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -225,23 +262,20 @@ pub async fn get_server_resolve_options_context(
     // means each resolve plugin must be injected only for the context where the
     // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
     match ty {
-        ServerContextType::Pages { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             //noop
         }
         ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
+        | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
-            plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
             // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        }
-        ServerContextType::Middleware => {
-            //noop
         }
     }
 
@@ -252,7 +286,8 @@ pub async fn get_server_resolve_options_context(
         module: true,
         custom_conditions,
         import_map: Some(next_server_import_map),
-        plugins,
+        before_resolve_plugins,
+        after_resolve_plugins,
         ..Default::default()
     };
 
@@ -427,6 +462,7 @@ pub async fn get_server_module_options_context(
     let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
     let module_options_context = ModuleOptionsContext {
+        enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
         execution_context: Some(execution_context),
         use_swc_css,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
@@ -475,6 +511,7 @@ pub async fn get_server_module_options_context(
             };
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
@@ -529,6 +566,7 @@ pub async fn get_server_module_options_context(
             next_server_rules.extend(source_transform_rules);
 
             let foreign_code_module_options_context = ModuleOptionsContext {
+                enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.

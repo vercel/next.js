@@ -76,13 +76,13 @@ describe('app dir - metadata', () => {
      * @param queryKey - query key, e.g. 'property'
      * @param domAttributeField - dom attribute field, e.g. 'content'
      * @param expected - expected object, e.g. { description: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
+     * @returns {void} - void when the check is done
      *
      * @example
      *
      * const $ = await next.render$('html')
      * const matchHtml = createMultiHtmlMatcher($)
-     * await matchHtml('meta', 'name', 'property', {
+     * matchHtml('meta', 'name', 'property', {
      *   description: 'description',
      *   og: 'og:description'
      * })
@@ -369,8 +369,7 @@ describe('app dir - metadata', () => {
     it('should support robots tags', async () => {
       const $ = await next.render$('/robots')
       const matchMultiDom = createMultiHtmlMatcher($)
-
-      await matchMultiDom('meta', 'name', 'content', {
+      matchMultiDom('meta', 'name', 'content', {
         robots: 'noindex, follow, nocache',
         googlebot:
           'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1',
@@ -380,7 +379,7 @@ describe('app dir - metadata', () => {
     it('should support verification tags', async () => {
       const $ = await next.render$('/verification')
       const matchMultiDom = createMultiHtmlMatcher($)
-      await matchMultiDom('meta', 'name', 'content', {
+      matchMultiDom('meta', 'name', 'content', {
         'google-site-verification': 'google',
         y_key: 'yahoo',
         'yandex-verification': 'yandex',
@@ -508,7 +507,7 @@ describe('app dir - metadata', () => {
       const $ = await next.render$('/opengraph/static')
 
       const match = createMultiHtmlMatcher($)
-      await match('meta', 'property', 'content', {
+      match('meta', 'property', 'content', {
         'og:image:width': '114',
         'og:image:height': '114',
         'og:image:type': 'image/png',
@@ -526,7 +525,7 @@ describe('app dir - metadata', () => {
             ),
       })
 
-      await match('meta', 'name', 'content', {
+      match('meta', 'name', 'content', {
         'twitter:image': isNextDev
           ? expect.stringMatching(
               /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/
@@ -550,12 +549,12 @@ describe('app dir - metadata', () => {
       const $ = await next.render$('/opengraph/static/override')
 
       const match = createMultiHtmlMatcher($)
-      await match('meta', 'property', 'content', {
+      match('meta', 'property', 'content', {
         'og:title': 'no-og-image',
         'og:image': undefined,
       })
 
-      await match('meta', 'name', 'content', {
+      match('meta', 'name', 'content', {
         'twitter:image': undefined,
         'twitter:title': 'no-tw-image',
       })
@@ -574,7 +573,7 @@ describe('app dir - metadata', () => {
       // Should contain default metadata and noindex tag
       const matchHtml = createMultiHtmlMatcher($)
       expect($('meta[charset="utf-8"]').length).toBe(1)
-      await matchHtml('meta', 'name', 'content', {
+      matchHtml('meta', 'name', 'content', {
         viewport: 'width=device-width, initial-scale=1',
         robots: 'noindex',
         // not found metadata
@@ -603,7 +602,7 @@ describe('app dir - metadata', () => {
       // Should contain default metadata and noindex tag
       const matchHtml = createMultiHtmlMatcher($)
       expect($('meta[charset="utf-8"]').length).toBe(1)
-      await matchHtml('meta', 'name', 'content', {
+      matchHtml('meta', 'name', 'content', {
         viewport: 'width=device-width, initial-scale=1',
         robots: 'noindex',
       })
