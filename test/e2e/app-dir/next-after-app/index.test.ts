@@ -8,7 +8,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as Log from './utils/log'
-import { BrowserInterface } from '../../../lib/next-webdriver'
 
 const runtimes = ['nodejs', 'edge']
 
@@ -257,7 +256,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const EXPECTED_ERROR =
       /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
-    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
+    const browser = await next.browser('/123/setting-cookies')
     // after() from render
     expect(next.cliOutput).toMatch(EXPECTED_ERROR)
 
@@ -362,6 +361,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           '/invalid-in-client'
         )
         try {
+          expect(await session.hasRedbox()).toBe(true)
           expect(await session.getRedboxSource(true)).toMatch(
             /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
           )
