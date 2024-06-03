@@ -41,7 +41,7 @@ pub struct MetadataFileMatch<'a> {
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
     let (_whole, stem, number, _is_multi_dynamic) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d+)(\\[\\])$",
+        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d+)(\\[\\])?$",
         stem
     )?;
 
@@ -362,11 +362,11 @@ mod test {
         let cases = vec![
             [
                 "/client/(meme)/more-route/twitter-image",
-                "/client/(meme)/more-route/twitter-image-769mad/route",
+                "/client/(meme)/more-route/twitter-image/route",
             ],
             [
                 "/client/(meme)/more-route/twitter-image2",
-                "/client/(meme)/more-route/twitter-image2-769mad/route",
+                "/client/(meme)/more-route/twitter-image2/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
