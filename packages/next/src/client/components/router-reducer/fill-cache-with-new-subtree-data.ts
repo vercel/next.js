@@ -17,7 +17,7 @@ export function fillCacheWithNewSubTreeData(
   flightDataPath: FlightDataPath,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
-  const isLastEntry = flightDataPath.length <= 5
+  const isLastEntry = flightDataPath.length <= 6
   const [parallelRouteKey, segment] = flightDataPath
 
   const cacheKey = createRouterCacheKey(segment)
@@ -47,6 +47,7 @@ export function fillCacheWithNewSubTreeData(
       childCacheNode === existingChildCacheNode
     ) {
       const seedData: CacheNodeSeedData = flightDataPath[3]
+      const layerAssets = flightDataPath[5]
       const rsc = seedData[2]
       const loading = seedData[3]
       childCacheNode = {
@@ -54,6 +55,8 @@ export function fillCacheWithNewSubTreeData(
         rsc,
         prefetchRsc: null,
         head: null,
+        layerAssets,
+        prefetchLayerAssets: null,
         prefetchHead: null,
         loading,
         // Ensure segments other than the one we got data for are preserved.
@@ -77,6 +80,7 @@ export function fillCacheWithNewSubTreeData(
         flightDataPath[2],
         seedData,
         flightDataPath[4],
+        flightDataPath[5],
         prefetchEntry
       )
 
@@ -97,6 +101,8 @@ export function fillCacheWithNewSubTreeData(
       rsc: childCacheNode.rsc,
       prefetchRsc: childCacheNode.prefetchRsc,
       head: childCacheNode.head,
+      layerAssets: childCacheNode.layerAssets,
+      prefetchLayerAssets: childCacheNode.prefetchLayerAssets,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
       lazyDataResolved: false,

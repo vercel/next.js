@@ -101,7 +101,8 @@ export type FlightDataPath =
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
       /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
+      /* head */ React.ReactNode | null,
+      /* layerAssets (imported styles/scripts) */ React.ReactNode | null
     ]
 
 /**

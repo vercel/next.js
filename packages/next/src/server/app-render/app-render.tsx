@@ -476,6 +476,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
             <MetadataTree key={ctx.requestId} />
           </>
         }
+        initialLayerAssets={null}
         globalErrorComponent={GlobalError}
         // This is used to provide debug information (when in development mode)
         // about which slots were not filled by page components while creating the component tree.
@@ -555,6 +556,7 @@ async function ReactServerError({
       initialCanonicalUrl={urlPathname}
       initialTree={initialTree}
       initialHead={head}
+      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}

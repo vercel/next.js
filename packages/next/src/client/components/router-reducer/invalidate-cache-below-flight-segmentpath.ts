@@ -51,6 +51,7 @@ export function invalidateCacheBelowFlightSegmentPath(
       rsc: childCacheNode.rsc,
       prefetchRsc: childCacheNode.prefetchRsc,
       head: childCacheNode.head,
+      layerAssets: childCacheNode.layerAssets,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
       lazyDataResolved: childCacheNode.lazyDataResolved,

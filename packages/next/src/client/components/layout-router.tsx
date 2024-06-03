@@ -355,6 +355,8 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
@@ -457,6 +459,7 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
+      {/* {childNode.layerAssets} */}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
