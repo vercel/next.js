@@ -66,8 +66,8 @@ struct VisitDynamic;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitDynamicNode {
-    Dynamic(Vc<NextDynamicEntryModule>, ReadRef<String>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
+    Dynamic(Vc<NextDynamicEntryModule>, ReadRef<RcStr>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitDynamicNode> for VisitDynamic {

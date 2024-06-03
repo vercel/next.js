@@ -170,9 +170,9 @@ struct VisitClientReferenceNode {
     Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 enum VisitClientReferenceNodeType {
-    ClientReference(ClientReference, ReadRef<String>),
-    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<String>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
+    ClientReference(ClientReference, ReadRef<RcStr>),
+    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<RcStr>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
