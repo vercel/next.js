@@ -154,7 +154,7 @@ export function trackDynamicDataAccessed(
     if (store.isStaticGeneration) {
       // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        `Route ${pathname} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
       )
       store.dynamicUsageDescription = expression
       store.dynamicUsageStack = err.stack
