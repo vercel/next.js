@@ -14,6 +14,7 @@ import {
 import * as Log from '../../build/output/log'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
+import { createDedupeFetch } from './dedupe-fetch'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -788,7 +789,7 @@ export function patchFetch(options: PatchableModule) {
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
-  const original = globalThis.fetch
+  const original = createDedupeFetch(globalThis.fetch)
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)

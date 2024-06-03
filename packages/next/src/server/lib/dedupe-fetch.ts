@@ -26,9 +26,8 @@ function generateCacheKey(request: Request): string {
   ])
 }
 
-if (typeof fetch === 'function') {
-  const originalFetch = fetch
-  const cachedFetch = function fetch(
+export function createDedupeFetch(originalFetch: typeof fetch) {
+  return function dedupeFetch(
     resource: URL | RequestInfo,
     options?: RequestInit
   ) {
@@ -98,24 +97,5 @@ if (typeof fetch === 'function') {
     // We clone the response so that each time you call this you get a new read
     // of the body so that it can be read multiple times.
     return match.then((response) => response.clone())
-  }
-  // We don't expect to see any extra properties on fetch but if there are any,
-  // copy them over. Useful for extended fetch environments or mocks.
-  Object.assign(cachedFetch, originalFetch)
-  try {
-    // @ts-ignore
-    // eslint-disable-next-line no-native-reassign
-    fetch = cachedFetch
-  } catch (error1) {
-    try {
-      // In case assigning it globally fails, try globalThis instead just in case it exists.
-      globalThis.fetch = cachedFetch
-    } catch (error2) {
-      // Log even in production just to make sure this is seen if only prod is frozen.
-      console.warn(
-        'Next.js was unable to patch the fetch() function in this environment. ' +
-          'Suspensey APIs might not work correctly as a result.'
-      )
-    }
   }
 }
