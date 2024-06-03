@@ -17,6 +17,7 @@ use dashmap::{mapref::entry::Entry, DashMap};
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
 use tracing::trace_span;
+use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
@@ -34,11 +35,16 @@ use crate::{
     task::{Task, TaskDependency, TaskDependencySet, DEPENDENCIES_TO_TRACK},
 };
 
+fn prehash_task_type(task_type: PersistentTaskType) -> PreHashed<PersistentTaskType> {
+    BuildHasherDefault::<FxHasher>::prehash(&Default::default(), task_type)
+}
+
 pub struct MemoryBackend {
     memory_tasks: NoMoveVec<Task, 13>,
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
-    task_cache: DashMap<Arc<PersistentTaskType>, TaskId, BuildHasherDefault<FxHasher>>,
+    task_cache:
+        DashMap<Arc<PreHashed<PersistentTaskType>>, TaskId, BuildHasherDefault<PassThroughHash>>,
     memory_limit: usize,
     gc_queue: Option<GcQueue>,
     idle_gc_active: AtomicBool,
@@ -513,10 +519,11 @@ impl Backend for MemoryBackend {
 
     fn get_or_create_persistent_task(
         &self,
-        mut task_type: PersistentTaskType,
+        task_type: PersistentTaskType,
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
+        let task_type = prehash_task_type(task_type);
         if let Some(task) =
             self.lookup_and_connect_task(parent_task, &self.task_cache, &task_type, turbo_tasks)
         {
@@ -525,8 +532,9 @@ impl Backend for MemoryBackend {
         } else {
             // It's important to avoid overallocating memory as this will go into the task
             // cache and stay there forever. We can to be as small as possible.
+            let (task_type_hash, mut task_type) = PreHashed::into_parts(task_type);
             task_type.shrink_to_fit();
-            let task_type = Arc::new(task_type);
+            let task_type = Arc::new(PreHashed::new(task_type_hash, task_type));
             // slow pass with key lock
             let id = turbo_tasks.get_fresh_task_id();
             let task = Task::new_persistent(

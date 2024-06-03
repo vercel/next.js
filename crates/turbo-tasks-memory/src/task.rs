@@ -18,6 +18,7 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tokio::task_local;
 use tracing::Span;
+use turbo_prehash::PreHashed;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
@@ -76,13 +77,15 @@ enum TaskType {
     Once(Box<OnceTaskFn>),
 
     /// A normal persistent task
-    Persistent { ty: Arc<PersistentTaskType> },
+    Persistent {
+        ty: Arc<PreHashed<PersistentTaskType>>,
+    },
 }
 
 enum TaskTypeForDescription {
     Root,
     Once,
-    Persistent(Arc<PersistentTaskType>),
+    Persistent(Arc<PreHashed<PersistentTaskType>>),
 }
 
 impl TaskTypeForDescription {
@@ -406,7 +409,10 @@ use self::{
 };
 
 impl Task {
-    pub(crate) fn new_persistent(id: TaskId, task_type: Arc<PersistentTaskType>) -> Self {
+    pub(crate) fn new_persistent(
+        id: TaskId,
+        task_type: Arc<PreHashed<PersistentTaskType>>,
+    ) -> Self {
         let ty = TaskType::Persistent { ty: task_type };
         let description = Self::get_event_description_static(id, &ty);
         Self {
@@ -516,7 +522,7 @@ impl Task {
 
     pub(crate) fn get_function_name(&self) -> Option<Cow<'static, str>> {
         if let TaskType::Persistent { ty, .. } = &self.ty {
-            match &**ty {
+            match &***ty {
                 PersistentTaskType::Native(native_fn, _)
                 | PersistentTaskType::ResolveNative(native_fn, _) => {
                     return Some(Cow::Borrowed(&registry::get_function(*native_fn).name));
@@ -539,7 +545,7 @@ impl Task {
         match ty {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
-            TaskTypeForDescription::Persistent(ty) => match &**ty {
+            TaskTypeForDescription::Persistent(ty) => match &***ty {
                 PersistentTaskType::Native(native_fn, _) => {
                     format!("[{}] {}", id, registry::get_function(*native_fn).name)
                 }
@@ -742,7 +748,7 @@ impl Task {
                     tracing::trace_span!("turbo_tasks::once_task"),
                 )
             }
-            TaskType::Persistent { ty, .. } => match &**ty {
+            TaskType::Persistent { ty, .. } => match &***ty {
                 PersistentTaskType::Native(native_fn, inputs) => {
                     let result =
                         if let PrepareTaskType::Native(func, bound_fn) = &state.prepared_type {
