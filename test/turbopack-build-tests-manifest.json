@@ -2122,6 +2122,19 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts": {
+      "passed": [
+        "next-dynamic-css app dir should have correct order of styles between global and css modules",
+        "next-dynamic-css should have correct order of global styles between layout and pages",
+        "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+      ],
+      "failed": [
+        "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/next-font/next-font.test.ts": {
       "passed": [
         "app dir - next/font app dir - next-font computed styles should have correct styles at /",
