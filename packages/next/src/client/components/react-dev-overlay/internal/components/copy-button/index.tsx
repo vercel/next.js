@@ -1,4 +1,4 @@
-import { useActionState, useEffect } from 'react'
+import * as React from 'react'
 
 type CopyState =
   | {
@@ -20,8 +20,11 @@ export function CopyButton({
   successLabel: string
   content: string
 }) {
-  const [copyState, dispatch, isPending] = useActionState(
-    async (state: CopyState, action: 'reset' | 'copy'): Promise<CopyState> => {
+  const [copyState, dispatch, isPending] = React.useActionState(
+    (
+      state: CopyState,
+      action: 'reset' | 'copy'
+    ): CopyState | Promise<CopyState> => {
       if (action === 'reset') {
         return { state: 'initial' }
       }
@@ -34,12 +37,14 @@ export function CopyButton({
             ),
           }
         }
-        try {
-          await navigator.clipboard.writeText(content)
-          return { state: 'success' }
-        } catch (error) {
-          return { state: 'error', error }
-        }
+        return navigator.clipboard.writeText(content).then(
+          () => {
+            return { state: 'success' }
+          },
+          (error) => {
+            return { state: 'error', error }
+          }
+        )
       }
       return state
     },
@@ -49,13 +54,13 @@ export function CopyButton({
   )
 
   const error = copyState.state === 'error' ? copyState.error : null
-  useEffect(() => {
+  React.useEffect(() => {
     if (error !== null) {
       // Additional console.error to get the stack.
       console.error(error)
     }
   }, [error])
-  useEffect(() => {
+  React.useEffect(() => {
     if (copyState.state === 'success') {
       const timeoutId = setTimeout(() => {
         dispatch('reset')
@@ -84,12 +89,14 @@ export function CopyButton({
       type="button"
       title={title}
       aria-label={label}
-      disabled={isDisabled}
+      aria-disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-stack
       className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState.state}`}
       onClick={() => {
         if (!isDisabled) {
-          dispatch('copy')
+          React.startTransition(() => {
+            dispatch('copy')
+          })
         }
       }}
     >
