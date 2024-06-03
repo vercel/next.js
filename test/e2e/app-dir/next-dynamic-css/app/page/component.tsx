@@ -1,3 +1,4 @@
+import './global.css'
 import base from './base.module.css'
 import styles from './component.module.css'
 

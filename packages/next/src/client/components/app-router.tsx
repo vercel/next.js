@@ -685,6 +685,7 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
+      <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
@@ -714,4 +715,46 @@ export default function AppRouter(
       <Router {...rest} />
     </ErrorBoundary>
   )
+}
+
+const runtimeStyles = new Set<string>()
+let runtimeStyleChanged = new Set<() => void>()
+
+globalThis._N_E_STYLE_LOAD = function (href: string) {
+  let len = runtimeStyles.size
+  runtimeStyles.add(href)
+  if (runtimeStyles.size !== len) {
+    runtimeStyleChanged.forEach((cb) => cb())
+  }
+  // TODO figure out how to get a promise here
+  // But maybe it's not necessary as react would block rendering until it's loaded
+  return Promise.resolve()
+}
+
+function RuntimeStyles() {
+  const [, forceUpdate] = React.useState(0)
+  const renderedStylesSize = runtimeStyles.size
+  useEffect(() => {
+    const changed = () => forceUpdate((c) => c + 1)
+    runtimeStyleChanged.add(changed)
+    if (renderedStylesSize !== runtimeStyles.size) {
+      changed()
+    }
+    return () => {
+      runtimeStyleChanged.delete(changed)
+    }
+  }, [renderedStylesSize, forceUpdate])
+
+  return [...runtimeStyles].map((href, i) => (
+    <link
+      key={i}
+      rel="stylesheet"
+      href={href}
+      // @ts-ignore
+      precedence="next"
+      // TODO figure out crossOrigin and nonce
+      // crossOrigin={TODO}
+      // nonce={TODO}
+    />
+  ))
 }

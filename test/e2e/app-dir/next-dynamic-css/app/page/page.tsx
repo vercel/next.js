@@ -7,6 +7,7 @@ export default function Page() {
   cookies()
   return (
     <>
+      <p id="global">Hello Global</p>
       <Inner2 />
     </>
   )
