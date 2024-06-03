@@ -14,7 +14,7 @@ use super::issue::NextFontIssue;
 /// module.
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
-    pub font_family: Vc<String>,
+    pub font_family: Vc<RcStr>,
     pub weight: Vc<Option<String>>,
     pub style: Vc<Option<String>>,
     pub variable: Vc<Option<String>>,
@@ -52,8 +52,8 @@ pub(crate) enum FontFamilyType {
 #[turbo_tasks::function]
 pub(crate) async fn get_scoped_font_family(
     ty: Vc<FontFamilyType>,
-    font_family_name: Vc<String>,
-) -> Result<Vc<String>> {
+    font_family_name: Vc<RcStr>,
+) -> Result<Vc<RcStr>> {
     let font_family_base = font_family_name.await?.to_string();
     let font_family_name = match &*ty.await? {
         FontFamilyType::WebFont => font_family_base,
@@ -65,7 +65,7 @@ pub(crate) async fn get_scoped_font_family(
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
 #[turbo_tasks::function]
-pub async fn get_request_id(font_family: Vc<String>, request_hash: u32) -> Result<Vc<String>> {
+pub async fn get_request_id(font_family: Vc<RcStr>, request_hash: u32) -> Result<Vc<RcStr>> {
     Ok(Vc::cell(format!(
         "{}_{:x?}",
         font_family.await?.to_lowercase().replace(' ', "_"),
@@ -80,7 +80,7 @@ struct HasPath {
 
 pub(crate) async fn can_use_next_font(
     project_path: Vc<FileSystemPath>,
-    query: Vc<String>,
+    query: Vc<RcStr>,
 ) -> Result<bool> {
     let query_map = qstring::QString::from(&**query.await?);
     let request: HasPath = parse_json_with_source_context(

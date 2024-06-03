@@ -104,7 +104,7 @@ pub enum MetadataItem {
 }
 
 #[turbo_tasks::function]
-pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<String>> {
+pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
     Ok(match meta {
         MetadataItem::Static { path } => {
             let path_value = path.await?;

@@ -49,7 +49,7 @@ pub async fn pathname_for_path(
     server_root: Vc<FileSystemPath>,
     server_path: Vc<FileSystemPath>,
     path_ty: PathType,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
         path

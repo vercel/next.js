@@ -283,7 +283,7 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-async fn font_options_from_query_map(query: Vc<String>) -> Result<Vc<NextFontLocalOptions>> {
+async fn font_options_from_query_map(query: Vc<RcStr>) -> Result<Vc<NextFontLocalOptions>> {
     let query_map = qstring::QString::from(&**query.await?);
 
     if query_map.len() != 1 {
@@ -299,7 +299,7 @@ async fn font_options_from_query_map(query: Vc<String>) -> Result<Vc<NextFontLoc
 }
 
 async fn font_file_options_from_query_map(
-    query: Vc<String>,
+    query: Vc<RcStr>,
 ) -> Result<NextFontLocalFontFileOptions> {
     let query_map = qstring::QString::from(&**query.await?);
 
@@ -316,7 +316,7 @@ async fn font_file_options_from_query_map(
 
 #[turbo_tasks::value(shared)]
 struct FontResolvingIssue {
-    font_path: Vc<String>,
+    font_path: Vc<RcStr>,
     origin_path: Vc<FileSystemPath>,
 }
 

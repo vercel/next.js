@@ -12,7 +12,7 @@ pub(super) async fn build_stylesheet(
     base_stylesheet: Vc<Option<String>>,
     font_css_properties: Vc<FontCssProperties>,
     font_fallback: Vc<FontFallback>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let base_stylesheet = &*base_stylesheet.await?;
     let mut stylesheet = base_stylesheet
         .as_ref()

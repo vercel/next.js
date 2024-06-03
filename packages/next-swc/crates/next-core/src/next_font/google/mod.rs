@@ -398,11 +398,11 @@ async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>
 /// font family names.
 #[turbo_tasks::function]
 async fn update_google_stylesheet(
-    stylesheet: Vc<String>,
+    stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     has_size_adjust: Vc<bool>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
 
     // Update font-family definitions to the scoped name
@@ -483,7 +483,7 @@ fn find_font_files_in_css(css: &str, subsets_to_preload: &[RcStr]) -> Vec<FontFi
 async fn get_stylesheet_url_from_options(
     options: Vc<NextFontGoogleOptions>,
     font_data: Vc<FontData>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     #[allow(unused_mut, unused_assignments)] // This is used in test environments
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
@@ -557,7 +557,7 @@ async fn get_font_css_properties(
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: Vc<String>,
+    query: Vc<RcStr>,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
     let query_map = qstring::QString::from(&**query.await?);
@@ -576,7 +576,7 @@ async fn font_options_from_query_map(
 }
 
 async fn font_file_options_from_query_map(
-    query: Vc<String>,
+    query: Vc<RcStr>,
 ) -> Result<NextFontGoogleFontFileOptions> {
     let query_map = qstring::QString::from(&**query.await?);
 
@@ -592,16 +592,16 @@ async fn font_file_options_from_query_map(
 }
 
 async fn fetch_real_stylesheet(
-    stylesheet_url: Vc<String>,
+    stylesheet_url: Vc<RcStr>,
     css_virtual_path: Vc<FileSystemPath>,
-) -> Result<Option<Vc<String>>> {
+) -> Result<Option<Vc<RcStr>>> {
     let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
 
 async fn fetch_from_google_fonts(
-    url: Vc<String>,
+    url: Vc<RcStr>,
     virtual_path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
@@ -630,10 +630,10 @@ async fn fetch_from_google_fonts(
 }
 
 async fn get_mock_stylesheet(
-    stylesheet_url: Vc<String>,
+    stylesheet_url: Vc<RcStr>,
     mocked_responses_path: &str,
     execution_context: Vc<ExecutionContext>,
-) -> Result<Option<Vc<String>>> {
+) -> Result<Option<Vc<RcStr>>> {
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
         "mock".into(),

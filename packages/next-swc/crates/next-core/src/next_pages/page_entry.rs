@@ -33,12 +33,12 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     reference_type: Value<ReferenceType>,
     project_root: Vc<FileSystemPath>,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    next_original_name: Vc<String>,
+    next_original_name: Vc<RcStr>,
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,

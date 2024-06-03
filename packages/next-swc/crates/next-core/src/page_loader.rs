@@ -29,7 +29,7 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 pub async fn create_page_loader_entry_module(
     client_context: Vc<Box<dyn AssetContext>>,
     entry_asset: Vc<Box<dyn Source>>,
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut result = RopeBuilder::default();
     writeln!(
@@ -74,7 +74,7 @@ pub async fn create_page_loader_entry_module(
 #[turbo_tasks::value(shared)]
 pub struct PageLoaderAsset {
     pub server_root: Vc<FileSystemPath>,
-    pub pathname: Vc<String>,
+    pub pathname: Vc<RcStr>,
     pub rebase_prefix_path: Vc<FileSystemPathOption>,
     pub page_chunks: Vc<OutputAssets>,
 }
@@ -84,7 +84,7 @@ impl PageLoaderAsset {
     #[turbo_tasks::function]
     pub fn new(
         server_root: Vc<FileSystemPath>,
-        pathname: Vc<String>,
+        pathname: Vc<RcStr>,
         rebase_prefix_path: Vc<FileSystemPathOption>,
         page_chunks: Vc<OutputAssets>,
     ) -> Vc<Self> {
@@ -127,7 +127,7 @@ impl PageLoaderAsset {
 }
 
 #[turbo_tasks::function]
-fn page_loader_chunk_reference_description() -> Vc<String> {
+fn page_loader_chunk_reference_description() -> Vc<RcStr> {
     Vc::cell("page loader chunk".to_string())
 }
 

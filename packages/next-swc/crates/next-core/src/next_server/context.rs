@@ -89,12 +89,12 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Middleware,
     Instrumentation,

@@ -31,7 +31,7 @@ impl CssClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn css_client_reference_modifier() -> Vc<String> {
+fn css_client_reference_modifier() -> Vc<RcStr> {
     Vc::cell("css client reference".to_string())
 }
 

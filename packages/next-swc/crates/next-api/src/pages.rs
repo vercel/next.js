@@ -106,7 +106,7 @@ impl PagesProject {
         async fn add_page_to_routes(
             routes: &mut IndexMap<String, Route>,
             page: Vc<PagesStructureItem>,
-            make_route: impl Fn(Vc<String>, Vc<String>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
         ) -> Result<()> {
             let PagesStructureItem {
                 next_router_path,
@@ -124,7 +124,7 @@ impl PagesProject {
         async fn add_dir_to_routes(
             routes: &mut IndexMap<String, Route>,
             dir: Vc<PagesDirectoryStructure>,
-            make_route: impl Fn(Vc<String>, Vc<String>, Vc<FileSystemPath>) -> Route,
+            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
         ) -> Result<()> {
             let mut queue = vec![dir];
             while let Some(dir) = queue.pop() {
@@ -570,8 +570,8 @@ impl PagesProject {
 struct PageEndpoint {
     ty: PageEndpointType,
     pages_project: Vc<PagesProject>,
-    pathname: Vc<String>,
-    original_name: Vc<String>,
+    pathname: Vc<RcStr>,
+    original_name: Vc<RcStr>,
     path: Vc<FileSystemPath>,
     pages_structure: Vc<PagesStructure>,
 }
@@ -597,8 +597,8 @@ impl PageEndpoint {
     fn new(
         ty: PageEndpointType,
         pages_project: Vc<PagesProject>,
-        pathname: Vc<String>,
-        original_name: Vc<String>,
+        pathname: Vc<RcStr>,
+        original_name: Vc<RcStr>,
         path: Vc<FileSystemPath>,
         pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {

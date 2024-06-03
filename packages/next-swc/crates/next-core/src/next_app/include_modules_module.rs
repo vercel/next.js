@@ -159,7 +159,7 @@ impl IncludedModuleReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for IncludedModuleReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell("module".to_string())
     }
 }

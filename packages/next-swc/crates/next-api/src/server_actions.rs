@@ -128,7 +128,7 @@ async fn build_manifest(
     page_name: &str,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    loader_id: Vc<String>,
+    loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = page_name;
     let manifest_path = node_root.join(format!(
@@ -163,7 +163,7 @@ async fn build_manifest(
 }
 
 #[turbo_tasks::function]
-fn action_modifier() -> Vc<String> {
+fn action_modifier() -> Vc<RcStr> {
     Vc::cell("action".to_string())
 }
 

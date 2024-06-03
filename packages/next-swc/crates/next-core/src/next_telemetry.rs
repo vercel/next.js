@@ -27,12 +27,12 @@ impl NextFeatureTelemetry {
 #[turbo_tasks::value_impl]
 impl Diagnostic for NextFeatureTelemetry {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
+    fn category(&self) -> Vc<RcStr> {
         Vc::cell("NextFeatureTelemetry_category_tbd".to_string())
     }
 
     #[turbo_tasks::function]
-    fn name(&self) -> Vc<String> {
+    fn name(&self) -> Vc<RcStr> {
         Vc::cell(self.event_name.clone())
     }
 
@@ -67,12 +67,12 @@ impl ModuleFeatureTelemetry {
 #[turbo_tasks::value_impl]
 impl Diagnostic for ModuleFeatureTelemetry {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
+    fn category(&self) -> Vc<RcStr> {
         Vc::cell("ModuleFeatureTelemetry_category_tbd".to_string())
     }
 
     #[turbo_tasks::function]
-    fn name(&self) -> Vc<String> {
+    fn name(&self) -> Vc<RcStr> {
         Vc::cell(self.event_name.clone())
     }
 

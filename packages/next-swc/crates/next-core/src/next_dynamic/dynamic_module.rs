@@ -46,7 +46,7 @@ impl NextDynamicEntryModule {
 }
 
 #[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<String> {
+fn dynamic_modifier() -> Vc<RcStr> {
     Vc::cell("dynamic".to_string())
 }
 

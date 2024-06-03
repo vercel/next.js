@@ -12,7 +12,7 @@ use crate::next_font::{
 pub(super) async fn build_font_family_string(
     options: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let mut font_families = vec![format!(
         "'{}'",
         *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?

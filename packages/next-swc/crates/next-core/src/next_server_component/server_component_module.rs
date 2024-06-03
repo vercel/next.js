@@ -28,7 +28,7 @@ use turbopack_binding::turbopack::{
 use super::server_component_reference::NextServerComponentModuleReference;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
+fn modifier() -> Vc<RcStr> {
     Vc::cell("Next.js server component".to_string())
 }
 

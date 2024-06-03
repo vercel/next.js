@@ -495,7 +495,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(self.await?.dist_dir.to_string()))
     }
 

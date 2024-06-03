@@ -253,12 +253,12 @@ struct ProxyModuleChunkItem {
 }
 
 #[turbo_tasks::function]
-fn client_proxy_modifier() -> Vc<String> {
+fn client_proxy_modifier() -> Vc<RcStr> {
     Vc::cell("client proxy".to_string())
 }
 
 #[turbo_tasks::function]
-fn client_reference_description() -> Vc<String> {
+fn client_reference_description() -> Vc<RcStr> {
     Vc::cell("client references".to_string())
 }
 

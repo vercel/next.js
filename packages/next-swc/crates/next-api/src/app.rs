@@ -167,7 +167,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition_name(self: Vc<Self>) -> Vc<String> {
+    fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
         Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string())
     }
 
