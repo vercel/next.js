@@ -426,6 +426,8 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
+  private readonly isAppPPREnabled: boolean
+
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -491,7 +493,7 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const isAppPPREnabled =
+    this.isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
@@ -500,7 +502,7 @@ export default abstract class Server<
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
       rsc:
@@ -508,7 +510,7 @@ export default abstract class Server<
           ? new RSCPathnameNormalizer()
           : undefined,
       prefetchRSC:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -568,7 +570,6 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        isAppPPREnabled,
         swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
@@ -2009,9 +2010,9 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
+      this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.isAppPPREnabled
+      isAppPageRouteModule(routeModule)
 
     // If this is a request that's rendering an app page that support's PPR,
     // then if we're in development mode (or using the experimental test
@@ -2772,6 +2773,7 @@ export default abstract class Server<
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
+        isRoutePPREnabled,
       }
     )
 
