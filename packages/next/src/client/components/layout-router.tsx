@@ -447,6 +447,23 @@ function InnerLayoutRouter({
     use(unresolvedThenable) as never
   }
 
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    childNode.prefetchLayerAssets !== null
+      ? childNode.prefetchLayerAssets
+      : childNode.layerAssets
+
+  const layerAssets = useDeferredValue(
+    childNode.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
+
   // If we get to this point, then we know we have something we can render.
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
@@ -459,7 +476,7 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
-      {/* {childNode.layerAssets} */}
+      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
