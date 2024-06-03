@@ -362,11 +362,11 @@ mod test {
         let cases = vec![
             [
                 "/client/(meme)/more-route/twitter-image",
-                "/client/(meme)/more-route/twitter-image/route",
+                "/client/(meme)/more-route/twitter-image-769mad/route",
             ],
             [
                 "/client/(meme)/more-route/twitter-image2",
-                "/client/(meme)/more-route/twitter-image2/route",
+                "/client/(meme)/more-route/twitter-image2-769mad/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
