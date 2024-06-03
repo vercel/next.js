@@ -708,8 +708,8 @@ importers:
         specifier: 6.1.5
         version: 6.1.5
       '@types/validate-npm-package-name':
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 4.0.2
+        version: 4.0.2
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
@@ -747,8 +747,8 @@ importers:
         specifier: 1.5.4
         version: 1.5.4
       validate-npm-package-name:
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 5.0.1
+        version: 5.0.1
 
   packages/eslint-config-next:
     dependencies:
@@ -7512,8 +7512,8 @@ packages:
     resolution: {integrity: sha512-Y2mHTRAbqfFkpjldbkHGY8JIzRN6XqYRliG8/24FcHm2D2PwW24fl5xMRTVGdrb7iMrwCaIEbLWerGIkXuFWVg==}
     dev: true
 
-  /@types/validate-npm-package-name@3.0.0:
-    resolution: {integrity: sha512-iFNNIrEaJH1lbPiyX+O/QyxSbKxrTjdNBVZGckt+iEL9So0hdZNBL68sOfHnt2txuUD8UJXvmKv/1DkgkebgUg==}
+  /@types/validate-npm-package-name@4.0.2:
+    resolution: {integrity: sha512-lrpDziQipxCEeK5kWxvljWYhUvOiB2A9izZd9B2AFarYAkqZshb4lPbRs7zKEic6eGtH8V/2qJW+dPp9OtF6bw==}
     dev: true
 
   /@types/webpack-sources@0.1.5:
@@ -25052,7 +25052,7 @@ packages:
       spdx-expression-parse: 3.0.1
 
   /validate-npm-package-name@3.0.0:
-    resolution: {integrity: sha1-X6kS2B630MdK/BQN5zF/DKffQ34=}
+    resolution: {integrity: sha512-M6w37eVCMMouJ9V/sdPGnC5H4uDr73/+xdq0FBLO3TFFX1+7wiUY6Es328NN+y43tmY+doUdN9g9J21vqB7iLw==}
     dependencies:
       builtins: 1.0.3
     dev: true
@@ -25062,6 +25062,11 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     dependencies:
       builtins: 5.0.1
+    dev: true
+
+  /validate-npm-package-name@5.0.1:
+    resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
     dev: true
 
   /vary@1.1.2:
