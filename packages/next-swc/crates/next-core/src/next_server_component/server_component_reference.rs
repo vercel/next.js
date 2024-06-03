@@ -21,7 +21,7 @@ impl NextServerComponentModuleReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    async fn to_string(&self) -> Result<Vc<String>> {
         Ok(Vc::cell(format!(
             "Next.js server component {}",
             self.asset.ident().to_string().await?
