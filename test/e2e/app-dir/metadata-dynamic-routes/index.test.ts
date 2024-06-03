@@ -574,11 +574,10 @@ describe('app dir - metadata dynamic routes', () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       )
-      expect(Object.keys(prerenderManifest.routes)).toContain([
-        '/opengraph-image',
-        '/opengraph-image-1ow20b',
-        '/apple-icon',
-      ])
+      const dynamicRoutes = Object.keys(prerenderManifest.dynamicRoutes)
+      expect(dynamicRoutes).toContain('/opengraph-image')
+      expect(dynamicRoutes).toContain('/opengraph-image-1ow20b')
+      expect(dynamicRoutes).toContain('/apple-icon')
     })
   }
 })
