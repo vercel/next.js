@@ -8,7 +8,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as Log from './utils/log'
-import { BrowserInterface } from '../../../lib/next-webdriver'
 
 const runtimes = ['nodejs', 'edge']
 
@@ -257,7 +256,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const EXPECTED_ERROR =
       /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
-    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
+    const browser = await next.browser('/123/setting-cookies')
     // after() from render
     expect(next.cliOutput).toMatch(EXPECTED_ERROR)
 
