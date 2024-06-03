@@ -476,7 +476,7 @@ async function createTreeCodeFromPath(
           '${DEFAULT_SEGMENT_KEY}',
           {},
           {
-            defaultPage: [${varName}), ${JSON.stringify(defaultPath)}],
+            defaultPage: [${varName}, ${JSON.stringify(defaultPath)}],
           }
         ]`
       }
