@@ -24,7 +24,6 @@ describe('next-dynamic-css', () => {
     it.todo(
       'should have correct order of styles on client component that is sharing styles with next/dynamic (TODO)'
     )
-    return
   } else {
     it('should have correct order of styles on client component that is sharing styles with next/dynamic', async () => {
       const browser = await next.browser('/page')
