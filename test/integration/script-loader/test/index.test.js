@@ -61,7 +61,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
-      const logs = await browser.log('browser')
+      const logs = await browser.log()
       const filteredLogs = logs.filter(
         (log) =>
           !log.message.includes('Failed to load resource') &&
