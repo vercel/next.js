@@ -17,6 +17,8 @@ export interface ResponseCacheBase {
        * provided it will test the filesystem to check.
        */
       routeKind?: RouteKind
+
+      isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
 }
@@ -139,11 +141,16 @@ export interface IncrementalCache {
        * determine the kind from the filesystem.
        */
       kindHint?: IncrementalCacheKindHint
+
+      isRoutePPREnabled?: boolean
     }
   ) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: Revalidate }
+    ctx: {
+      revalidate: Revalidate
+      isRoutePPREnabled?: boolean
+    }
   ) => Promise<void>
 }
