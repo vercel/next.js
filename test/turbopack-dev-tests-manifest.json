@@ -5144,8 +5144,7 @@
     "failed": [],
     "pending": [
       "app dir - rsc basics should not use bundled react for pages with app",
-      "app dir - rsc basics should support partial hydration with inlined server data in browser",
-      "app dir - rsc basics should support webpack loader rules"
+      "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
     "flakey": [],
     "runtimeError": false

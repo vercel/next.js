@@ -7,7 +7,7 @@ describe('resolveImages', () => {
   it(`should resolve images`, () => {
     const images = [image1, { url: image2, alt: 'Image2' }]
 
-    expect(resolveImages(images, null)).toEqual([
+    expect(resolveImages(images, null, false)).toEqual([
       { url: new URL(image1) },
       { url: new URL(image2), alt: 'Image2' },
     ])
@@ -16,7 +16,7 @@ describe('resolveImages', () => {
   it('should not mutate passed images', () => {
     const images = [image1, { url: image2, alt: 'Image2' }]
 
-    resolveImages(images, null)
+    resolveImages(images, null, false)
 
     expect(images).toEqual([image1, { url: image2, alt: 'Image2' }])
   })
