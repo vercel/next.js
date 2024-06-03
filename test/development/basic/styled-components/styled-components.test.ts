@@ -12,7 +12,7 @@ describe('styled-components SWC transform', () => {
   async function matchLogs$(browser) {
     let foundLog = false
 
-    const browserLogs = await browser.log('browser')
+    const browserLogs = await browser.log()
 
     browserLogs.forEach((log) => {
       if (log.message.includes('Warning: Prop `%s` did not match.')) {
