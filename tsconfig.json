@@ -20,12 +20,5 @@
       "test-log": ["./test/lib/test-log"]
     }
   },
-  "include": ["test/**/*.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"],
-  "exclude": [
-    "test/development/acceptance-app/fixtures/app-hmr-changes/mdx-components.ts",
-    "test/e2e/opentelemetry/instrumentation",
-    "test/e2e/opentelemetry/client-trace-metadata/instrumentation.ts",
-    "test/integration/typescript-paths",
-    "test/integration/typescript-workspaces-paths"
-  ]
+  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"]
 }
