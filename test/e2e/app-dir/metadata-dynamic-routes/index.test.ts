@@ -108,8 +108,8 @@ describe('app dir - metadata dynamic routes', () => {
           '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
-          '/gsp/sitemap/[__metadata_id__].xml/route':
-            'app/gsp/sitemap/[__metadata_id__].xml/route.js',
+          '/gsp/sitemap/[__metadata_id__]/route':
+            'app/gsp/sitemap/[__metadata_id__]/route.js',
           '/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route':
             'app/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route.js',
         })

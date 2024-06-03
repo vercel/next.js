@@ -38,7 +38,6 @@ async function enumMetadataFiles(
         ]
       : []
   )
-  console.log('possibleFileNames', possibleFileNames)
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
     if (resolved) {
