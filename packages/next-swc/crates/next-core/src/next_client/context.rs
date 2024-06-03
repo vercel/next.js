@@ -326,7 +326,7 @@ pub async fn get_client_module_options_context(
 pub async fn get_client_chunking_context(
     project_path: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {

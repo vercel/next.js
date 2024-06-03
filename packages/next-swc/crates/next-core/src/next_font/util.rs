@@ -15,9 +15,9 @@ use super::issue::NextFontIssue;
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
     pub font_family: Vc<RcStr>,
-    pub weight: Vc<Option<String>>,
-    pub style: Vc<Option<String>>,
-    pub variable: Vc<Option<String>>,
+    pub weight: Vc<Option<RcStr>>,
+    pub style: Vc<Option<RcStr>>,
+    pub variable: Vc<Option<RcStr>>,
 }
 
 /// A hash of the requested querymap derived from how the user invoked
