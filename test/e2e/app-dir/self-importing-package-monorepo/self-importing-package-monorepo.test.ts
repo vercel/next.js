@@ -18,6 +18,6 @@ describe('self-importing-package-monorepo', () => {
 
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')
-    expect($('h1').text()).toBe('THIS IS THE OTHER FILE')
+    expect($('h1').text()).toBe('Hello world test abc')
   })
 })
