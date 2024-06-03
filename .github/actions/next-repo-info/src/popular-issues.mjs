@@ -65,7 +65,7 @@ async function run() {
 
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
-        channel: '#team-next-js',
+        channel: '#next-info',
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })

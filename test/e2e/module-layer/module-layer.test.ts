@@ -4,10 +4,6 @@ import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
 describe('module layer', () => {
   const { next, isNextStart, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      react: '19.0.0-rc-915b914b3a-20240515',
-      'react-dom': '19.0.0-rc-915b914b3a-20240515',
-    },
   })
 
   function runTests() {
@@ -33,11 +29,6 @@ describe('module layer', () => {
         expect([route, status]).toEqual([route, 200])
       })
     }
-
-    it('should render installed react version for middleware', async () => {
-      const text = await next.fetch('/react-version').then((res) => res.text())
-      expect(text).toContain('19.0.0-rc')
-    })
 
     if (isNextStart) {
       it('should log the build info properly', async () => {
@@ -90,15 +81,22 @@ describe('module layer', () => {
             .replace("// import './lib/mixed-lib'", "import './lib/mixed-lib'")
         )
 
+        const existingCliOutputLength = next.cliOutput.length
         await retry(async () => {
           expect(await hasRedbox(browser)).toBe(true)
           const source = await getRedboxSource(browser)
           expect(source).toContain(
-            isTurbopack
-              ? `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
-              : `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.`
           )
         })
+
+        if (!isTurbopack) {
+          const newCliOutput = next.cliOutput.slice(existingCliOutputLength)
+          expect(newCliOutput).toContain('./middleware.js')
+          expect(newCliOutput).toContain(
+            `'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component`
+          )
+        }
       })
     })
   }

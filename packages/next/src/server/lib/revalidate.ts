@@ -17,10 +17,9 @@ export function formatRevalidate({
   revalidate: Revalidate
   swrDelta?: SwrDelta
 }): string {
-  const swrHeader =
-    swrDelta === undefined
-      ? `stale-while-revalidate=${CACHE_ONE_YEAR}`
-      : `stale-while-revalidate=${swrDelta}`
+  const swrHeader = swrDelta
+    ? `stale-while-revalidate=${swrDelta}`
+    : 'stale-while-revalidate'
 
   if (revalidate === 0) {
     return 'private, no-cache, no-store, max-age=0, must-revalidate'

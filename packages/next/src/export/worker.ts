@@ -248,7 +248,8 @@ async function exportPageImpl(
         incrementalCache,
         distDir,
         htmlFilepath,
-        fileWriter
+        fileWriter,
+        input.renderOpts.experimental
       )
     }
 
@@ -268,12 +269,14 @@ async function exportPageImpl(
       disableOptimizedLoading,
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
-      supportsDynamicHTML: false,
+      supportsDynamicResponse: false,
       originalPathname: page,
       experimental: {
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {

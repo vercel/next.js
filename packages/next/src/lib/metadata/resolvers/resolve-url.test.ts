@@ -53,6 +53,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: false,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -68,6 +69,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: true,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)

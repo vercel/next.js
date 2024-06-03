@@ -21,6 +21,8 @@ Add or generate a `manifest.(json|webmanifest)` file that matches the [Web Manif
 
 Add a `manifest.js` or `manifest.ts` file that returns a [`Manifest` object](#manifest-object).
 
+> Good to know: `manifest.js` is special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+
 ```ts filename="app/manifest.ts" switcher
 import type { MetadataRoute } from 'next'
 

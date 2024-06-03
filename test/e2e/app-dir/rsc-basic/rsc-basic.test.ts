@@ -470,7 +470,7 @@ describe('app dir - rsc basics', () => {
 
   // TODO: (PPR) remove once PPR is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-beta-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
 
   // TODO: (React 19) During Beta, bundled and installed version match.
   it.skip('should not use bundled react for pages with app', async () => {
@@ -605,20 +605,6 @@ describe('app dir - rsc basics', () => {
       'count: 1'
     )
   })
-
-  // Skip as Turbopack doesn't support webpack loaders.
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should support webpack loader rules',
-    async () => {
-      const browser = await next.browser('/loader-rule')
-
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    }
-  )
 
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {
