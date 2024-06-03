@@ -32,6 +32,7 @@ export interface NextInstanceOpts {
   installCommand?: InstallCommand
   buildCommand?: string
   startCommand?: string
+  devCommand?: string
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
@@ -55,6 +56,7 @@ export class NextInstance {
   protected installCommand?: InstallCommand
   protected buildCommand?: string
   protected startCommand?: string
+  protected devCommand?: string
   protected dependencies?: PackageJson['dependencies'] = {}
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
@@ -178,17 +180,19 @@ export class NextInstance {
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.mkdir(this.testDir, { recursive: true })
+          const dependencies = {
+            ...finalDependencies,
+            next:
+              process.env.NEXT_TEST_VERSION ||
+              require('next/package.json').version,
+          }
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
                 ...this.packageJson,
-                dependencies: {
-                  ...finalDependencies,
-                  next:
-                    process.env.NEXT_TEST_VERSION ||
-                    require('next/package.json').version,
-                },
+                dependencies,
+                overrides: dependencies,
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
                   // since we can't get the build id as a build artifact, make it

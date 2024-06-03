@@ -37,7 +37,9 @@ export class NextDevInstance extends NextInstance {
       useDirArg && this.testDir,
     ].filter(Boolean) as string[]
 
-    if (this.startCommand) {
+    if (this.devCommand) {
+      startArgs = this.devCommand.split(' ')
+    } else if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
