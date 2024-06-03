@@ -569,5 +569,16 @@ describe('app dir - metadata dynamic routes', () => {
       )
       expect(isTraced).toBe(true)
     })
+
+    it('should statically optimized single image route', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+      expect(Object.keys(prerenderManifest.routes)).toContain([
+        '/opengraph-image',
+        '/opengraph-image-1ow20b',
+        '/apple-icon',
+      ])
+    })
   }
 })
