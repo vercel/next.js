@@ -89,13 +89,15 @@ export function CopyButton({
       type="button"
       title={title}
       aria-label={label}
-      disabled={isDisabled}
+      aria-disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-stack
       className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState.state}`}
       onClick={() => {
-        React.startTransition(() => {
-          dispatch('copy')
-        })
+        if (!isDisabled) {
+          React.startTransition(() => {
+            dispatch('copy')
+          })
+        }
       }}
     >
       {icon}

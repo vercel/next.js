@@ -143,7 +143,7 @@ export const styles = css`
   .nextjs-data-runtime-error-copy-stack--initial:hover {
     cursor: pointer;
   }
-  .nextjs-data-runtime-error-copy-stack:disabled {
+  .nextjs-data-runtime-error-copy-stack[aria-disabled='true'] {
     opacity: 0.3;
     cursor: not-allowed;
   }
