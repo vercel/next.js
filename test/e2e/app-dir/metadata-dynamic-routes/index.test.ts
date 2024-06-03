@@ -105,7 +105,7 @@ describe('app dir - metadata dynamic routes', () => {
         expect(appPathsManifest).toMatchObject({
           // static routes
           '/twitter-image/route': 'app/twitter-image/route.js',
-          '/sitemap.xml/route': 'app/sitemap/route.js',
+          '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
           '/gsp/sitemap/[__metadata_id__].xml/route':
