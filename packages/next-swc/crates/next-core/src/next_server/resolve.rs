@@ -480,7 +480,7 @@ impl Issue for UnableToExternalize {
         } else if let Some((package, _)) = request.split_once('/') {
             package.into()
         } else {
-            request.into()
+            request.clone()
         };
         Ok(StyledString::Line(vec![
             StyledString::Text("Package ".into()),
@@ -507,15 +507,13 @@ impl Issue for UnableToExternalize {
         Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
-                    StyledString::Text("The request ".to_string()),
-                    StyledString::Code(self.request.to_string()),
-                    StyledString::Text(" matches ".to_string()),
-                    StyledString::Code("serverExternalPackages".to_string()),
-                    StyledString::Text(
-                        " (or the default list), but it can't be external:".to_string(),
-                    ),
+                    StyledString::Text("The request ".into()),
+                    StyledString::Code(self.request.clone()),
+                    StyledString::Text(" matches ".into()),
+                    StyledString::Code("serverExternalPackages".into()),
+                    StyledString::Text(" (or the default list), but it can't be external:".into()),
                 ]),
-                StyledString::Line(vec![StyledString::Text(self.reason.to_string())]),
+                StyledString::Line(vec![StyledString::Text(self.reason.into())]),
             ])
             .cell(),
         ))
