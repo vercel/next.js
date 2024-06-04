@@ -99,7 +99,7 @@ pub(super) fn get_font_axes(
         }
 
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string())),
+            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string().into())),
             ital,
             variable_axes: None,
         }),

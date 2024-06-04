@@ -449,7 +449,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["normal".into()]);
+        assert_eq!(options.styles, vec![RcStr::from("normal")]);
 
         Ok(())
     }
