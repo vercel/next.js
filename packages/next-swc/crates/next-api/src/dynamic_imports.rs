@@ -5,8 +5,8 @@ use futures::Future;
 use indexmap::IndexMap;
 use tracing::Level;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
-    Value, Vc,
+    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
+    ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::ecma::{
@@ -128,7 +128,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
 ///    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
 ///      to wait until all the dynamic components are being loaded, this ensures
 ///      hydration mismatch won't occur
-#[tracing::instrument(level = Level::TRACE, skip_all)]
+#[tracing::instrument(level = Level::INFO, name = "collecting next/dynamic imports", skip_all)]
 pub(crate) async fn collect_next_dynamic_imports(
     server_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
@@ -142,16 +142,24 @@ pub(crate) async fn collect_next_dynamic_imports(
     // and Module<B> is the actual resolved Module)
     let imported_modules_mapping = NonDeterministic::new()
         .skip_duplicates()
-        .visit(server_entries.into_iter(), get_referenced_modules)
+        .visit(
+            server_entries
+                .into_iter()
+                .map(|module| async move { Ok((module, module.ident().to_string().await?)) })
+                .try_join()
+                .await?
+                .into_iter(),
+            NextDynamicVisit,
+        )
         .await
         .completed()?
         .into_inner()
         .into_iter()
-        .map(|server_module| {
+        .map(|(server_module, _)| {
             build_dynamic_imports_map_for_module(client_asset_context, server_module)
         });
 
-    // Consolidate import mappings into a single indexmap
+    // Consolifate import mappings into a single indexmap
     let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
         IndexMap::new();
 
@@ -168,12 +176,37 @@ pub(crate) async fn collect_next_dynamic_imports(
     Ok(import_mappings)
 }
 
-async fn get_referenced_modules(
-    parent: Vc<Box<dyn Module>>,
-) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
-    primary_referenced_modules(parent)
-        .await
-        .map(|modules| modules.clone_value().into_iter())
+struct NextDynamicVisit;
+
+impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<String>)> for NextDynamicVisit {
+    type Edge = (Vc<Box<dyn Module>>, ReadRef<String>);
+    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(
+        &mut self,
+        edge: Self::Edge,
+    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<String>)> {
+        VisitControlFlow::Continue(edge)
+    }
+
+    fn edges(
+        &mut self,
+        &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<String>),
+    ) -> Self::EdgesFuture {
+        async move {
+            primary_referenced_modules(parent)
+                .await?
+                .iter()
+                .map(|&module| async move { Ok((module, module.ident().to_string().await?)) })
+                .try_join()
+                .await
+        }
+    }
+
+    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<String>)) -> tracing::Span {
+        tracing::span!(Level::INFO, "next/dynamic visit", name = display(name))
+    }
 }
 
 #[turbo_tasks::function]
