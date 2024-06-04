@@ -262,7 +262,7 @@ impl LoaderTreeBuilder {
                         )),
                     )
                     .module();
-                self.inner_assets.insert(inner_module_id, module);
+                self.inner_assets.insert(inner_module_id.into(), module);
 
                 let s = "      ";
                 writeln!(self.loader_tree_code, "{s}{identifier},")?;

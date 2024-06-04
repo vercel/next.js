@@ -212,7 +212,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     fn documentation_link(&self) -> Vc<RcStr> {
         Vc::cell(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-                .to_string(),
+                .into(),
         )
     }
 

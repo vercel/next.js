@@ -269,7 +269,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
     fn span(&mut self, node: &VisitClientReferenceNode) -> tracing::Span {
         match &node.ty {
             VisitClientReferenceNodeType::ClientReference(_, name) => {
-                tracing::info_span!("client reference", name = **name)
+                tracing::info_span!("client reference", name = name.to_string())
             }
             VisitClientReferenceNodeType::Internal(_, name) => {
                 tracing::info_span!("module", name = **name)
