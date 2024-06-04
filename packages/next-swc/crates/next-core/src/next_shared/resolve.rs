@@ -311,7 +311,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External(
-                modified_path.to_string(),
+                modified_path.into(),
                 ExternalType::CommonJs,
             ))
             .into(),
