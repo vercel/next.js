@@ -82,7 +82,7 @@ pub(super) fn options_from_request(
     let argument = request.arguments.last().cloned().unwrap_or_default();
 
     // `import` comes from the imported symbol in JS, which separates with _
-    let font_family = request.import.replace('_', " ");
+    let font_family: RcStr = request.import.replace('_', " ").into();
     let font_data = data.get(&font_family).context("Unknown font")?;
 
     let requested_weights: IndexSet<RcStr> = argument
