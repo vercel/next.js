@@ -449,7 +449,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut names = take(&mut self.names);
+        self.names = current_names;
+        self.names.append(&mut names);
 
         if !is_action_fn {
             return;
@@ -534,7 +536,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut names = take(&mut self.names);
+        self.names = current_names;
+        self.names.append(&mut names);
 
         if !is_action_fn {
             return;
@@ -633,7 +637,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         let mut child_names = self.names.clone();
-        self.names.extend(current_names);
+        let mut names = take(&mut self.names);
+        self.names = current_names;
+        self.names.append(&mut names);
 
         if !is_action_fn {
             return;
