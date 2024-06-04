@@ -2,7 +2,7 @@ use std::{io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
 use indoc::writedoc;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_binding::turbopack::{
     core::{
@@ -254,12 +254,12 @@ struct ProxyModuleChunkItem {
 
 #[turbo_tasks::function]
 fn client_proxy_modifier() -> Vc<RcStr> {
-    Vc::cell("client proxy".to_string())
+    Vc::cell("client proxy".into())
 }
 
 #[turbo_tasks::function]
 fn client_reference_description() -> Vc<RcStr> {
-    Vc::cell("client references".to_string())
+    Vc::cell("client references".into())
 }
 
 #[turbo_tasks::value_impl]
