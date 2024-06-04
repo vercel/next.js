@@ -10,8 +10,8 @@ use turbopack_binding::{
 /// enabled for the telemetry. The original implementation code can be found at the following [link](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).
 #[turbo_tasks::value(shared)]
 pub struct NextFeatureTelemetry {
-    pub event_name: String,
-    pub feature_name: String,
+    pub event_name: RcStr,
+    pub feature_name: RcStr,
     pub enabled: bool,
 }
 
