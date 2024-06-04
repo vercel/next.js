@@ -654,8 +654,10 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              nextConfigExperimentalUseEarlyImport:
-                config.experimental.useEarlyImport,
+              nextConfigExperimentalUseEarlyImport: config.experimental
+                .useEarlyImport
+                ? true
+                : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
