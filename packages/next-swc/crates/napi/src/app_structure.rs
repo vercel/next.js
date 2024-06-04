@@ -369,8 +369,8 @@ pub fn stream_entrypoints(
             let value = serde_json::to_value(value)?;
             Ok(vec![value])
         })?;
-    let root_dir = Arc::new(root_dir);
-    let project_dir = Arc::new(project_dir);
+    let root_dir = RcStr::from(root_dir);
+    let project_dir = RcStr::from(project_dir);
     let page_extensions = Arc::new(page_extensions);
     turbo_tasks.spawn_root_task(move || {
         let func: ThreadsafeFunction<Option<ReadRef<EntrypointsForJs>>> = func.clone();
@@ -379,9 +379,9 @@ pub fn stream_entrypoints(
         let page_extensions: Arc<Vec<String>> = page_extensions.clone();
         Box::pin(async move {
             if let Some(entrypoints) = &*get_value(
-                (*root_dir).clone(),
-                (*project_dir).clone(),
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.clone(),
+                project_dir.clone(),
+                page_extensions.iter().map(|s| s.as_str().into()).collect(),
                 true,
             )
             .await?
