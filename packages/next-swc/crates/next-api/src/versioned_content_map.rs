@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use next_core::emit_client_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, State, TryFlatJoinIterExt,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, State, TryFlatJoinIterExt,
     TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbopack_binding::{
