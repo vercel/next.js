@@ -119,7 +119,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         {
                             FontResolvingIssue {
                                 origin_path: lookup_path,
-                                font_path: Vc::cell(font_path.to_string()),
+                                font_path: Vc::cell(font_path.clone()),
                             }
                             .cell()
                             .emit();
@@ -127,10 +127,13 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             return Ok(ResolveResultOption::some(
                                 ResolveResult::primary_with_key(
                                     RequestKey::new(font_path.clone()),
-                                    ResolveResultItem::Error(Vc::cell(format!(
-                                        "Font file not found: Can't resolve {}'",
-                                        font_path
-                                    ))),
+                                    ResolveResultItem::Error(Vc::cell(
+                                        format!(
+                                            "Font file not found: Can't resolve {}'",
+                                            font_path
+                                        )
+                                        .into(),
+                                    )),
                                 )
                                 .into(),
                             ));
@@ -270,7 +273,7 @@ async fn get_font_css_properties(
                 // Don't include values for variable fonts. These are included in font-face
                 // definitions only.
                 .filter(|w| !matches!(w, FontWeight::Variable(_, _)))
-                .map(|w| w.to_string()),
+                .map(|w| w.to_string().into()),
         }),
         style: Vc::cell(match &options.fonts {
             FontDescriptors::Many(_) => None,
