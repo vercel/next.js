@@ -250,10 +250,10 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry,
-        INNER_DOCUMENT.to_string() => process_global_item(pages_structure.document(), reference_type.clone(), context),
-        INNER_APP.to_string() => process_global_item(pages_structure.app(), reference_type.clone(), context),
-        INNER_ERROR.to_string() => process_global_item(pages_structure.error(), reference_type.clone(), context),
+        INNER.into() => entry,
+        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), context),
+        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), context),
+        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), context),
     };
 
     let wrapped = context
