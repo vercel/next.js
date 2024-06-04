@@ -610,7 +610,7 @@ async fn fetch_from_google_fonts(
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch(
         url,
-        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
+        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.into())),
         Vc::cell(None),
     )
     .await?;
@@ -694,8 +694,7 @@ async fn get_mock_stylesheet(
 
     match &val.try_into_single().await? {
         SingleValue::Single(val) => {
-            let val: HashMap<String, Option<String>> =
-                parse_json_with_source_context(val.to_str()?)?;
+            let val: HashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val.to_str()?)?;
             Ok(val
                 .get(&*stylesheet_url.await?)
                 .context("url not found")?
