@@ -12,7 +12,7 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -102,7 +102,7 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,

@@ -1,5 +1,5 @@
-import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled'
-import { RouteKind } from '../../server/future/route-kind'
+import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
+import { RouteKind } from '../../server/route-kind'
 import { hoist } from './helpers'
 
 // Import the app and document modules.

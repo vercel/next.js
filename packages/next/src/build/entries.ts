@@ -62,7 +62,7 @@ import {
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
 import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
-import { RouteKind } from '../server/future/route-kind'
+import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
