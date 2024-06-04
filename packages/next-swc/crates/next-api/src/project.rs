@@ -26,7 +26,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
+    Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
@@ -490,7 +490,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".to_string(), this.project_path.clone(), vec![]);
+        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
         Ok(Vc::upcast(disk_fs))
     }
 
@@ -502,7 +502,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.output_fs().root().join(this.dist_dir.to_string()))
+        Ok(self.output_fs().root().join(this.dist_dir.into()))
     }
 
     #[turbo_tasks::function]
