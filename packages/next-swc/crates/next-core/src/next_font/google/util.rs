@@ -76,8 +76,10 @@ pub(super) fn get_font_axes(
                     weight_axis = Some(format!("{}..{}", axis.min, axis.max));
                 } else if let Some(selected_variable_axes) = selected_variable_axes {
                     if selected_variable_axes.contains(&axis.tag) {
-                        variable_axes
-                            .push((axis.tag.clone(), format!("{}..{}", axis.min, axis.max)));
+                        variable_axes.push((
+                            axis.tag.clone(),
+                            format!("{}..{}", axis.min, axis.max).into(),
+                        ));
                     }
                 }
             }
