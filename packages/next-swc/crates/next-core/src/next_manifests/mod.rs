@@ -117,31 +117,31 @@ pub enum Regions {
 
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
-    pub sorted_middleware: Vec<String>,
-    pub middleware: HashMap<String, EdgeFunctionDefinition>,
+    pub sorted_middleware: Vec<RcStr>,
+    pub middleware: HashMap<RcStr, EdgeFunctionDefinition>,
     pub instrumentation: Option<InstrumentationDefinition>,
-    pub functions: HashMap<String, EdgeFunctionDefinition>,
+    pub functions: HashMap<RcStr, EdgeFunctionDefinition>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactLoadableManifest {
     #[serde(flatten)]
-    pub manifest: HashMap<String, ReactLoadableManifestEntry>,
+    pub manifest: HashMap<RcStr, ReactLoadableManifestEntry>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactLoadableManifestEntry {
     pub id: u32,
-    pub files: Vec<String>,
+    pub files: Vec<RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NextFontManifest {
-    pub pages: HashMap<String, Vec<String>>,
-    pub app: HashMap<String, Vec<String>>,
+    pub pages: HashMap<RcStr, Vec<RcStr>>,
+    pub app: HashMap<RcStr, Vec<RcStr>>,
     pub app_using_size_adjust: bool,
     pub pages_using_size_adjust: bool,
 }
@@ -162,8 +162,8 @@ pub struct AppPathsManifest {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadableManifest {
-    pub id: String,
-    pub files: Vec<String>,
+    pub id: RcStr,
+    pub files: Vec<RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
