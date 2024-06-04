@@ -243,11 +243,11 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "server-only".to_string(),
+        "server-only".into(),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
              used from a Server Component."
-                .to_string(),
+                .into(),
         ],
     )
 }
