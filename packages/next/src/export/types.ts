@@ -111,14 +111,13 @@ export interface ExportAppOptions {
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
-  threads?: number
   debugOutput?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
   exportPageWorker?: ExportWorker
   exportAppPageWorker?: ExportWorker
-  endWorker?: () => Promise<void>
+  endWorker: () => Promise<void>
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
 }

@@ -19,12 +19,6 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
-
-  /**
-   * isAppPPREnabled is true when PPR has been enabled either globally or just for
-   * some pages via the `incremental` option.
-   */
-  isAppPPREnabled: boolean
 }
 
 type TagsManifest = {
@@ -42,7 +36,6 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
-  private readonly isAppPPREnabled: boolean
   private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
@@ -52,7 +45,6 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
-    this.isAppPPREnabled = ctx.isAppPPREnabled
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize) {
@@ -177,7 +169,7 @@ export default class FileSystemCache implements CacheHandler {
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx = {}] = args
-    const { tags, softTags, kindHint } = ctx
+    const { tags, softTags, kindHint, isRoutePPREnabled } = ctx
     let data = memoryCache?.get(key)
 
     if (this.debug) {
@@ -246,7 +238,10 @@ export default class FileSystemCache implements CacheHandler {
               if (this.debug) {
                 console.log('tags vs storedTags mismatch', tags, storedTags)
               }
-              await this.set(key, data.value, { tags })
+              await this.set(key, data.value, {
+                tags,
+                isRoutePPREnabled,
+              })
             }
           }
         } else {
@@ -254,7 +249,7 @@ export default class FileSystemCache implements CacheHandler {
             ? await this.fs.readFile(
                 this.getFilePath(
                   `${key}${
-                    this.isAppPPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
+                    isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
                   }`,
                   'app'
                 ),
@@ -398,7 +393,7 @@ export default class FileSystemCache implements CacheHandler {
         this.getFilePath(
           `${key}${
             isAppPath
-              ? this.isAppPPREnabled
+              ? ctx.isRoutePPREnabled
                 ? RSC_PREFETCH_SUFFIX
                 : RSC_SUFFIX
               : NEXT_DATA_SUFFIX

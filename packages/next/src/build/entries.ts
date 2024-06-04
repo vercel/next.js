@@ -654,8 +654,10 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              nextConfigExperimentalUseEarlyImport:
-                config.experimental.useEarlyImport,
+              nextConfigExperimentalUseEarlyImport: config.experimental
+                .useEarlyImport
+                ? true
+                : undefined,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
@@ -812,14 +814,11 @@ export function finalizeEntrypoint({
       }
     }
     case COMPILER_NAMES.edgeServer: {
-      const layer = isApi
-        ? WEBPACK_LAYERS.api
-        : isMiddlewareFilename(name) || isInstrumentation
-          ? WEBPACK_LAYERS.middleware
-          : undefined
-
       return {
-        layer,
+        layer:
+          isMiddlewareFilename(name) || isApi || isInstrumentation
+            ? WEBPACK_LAYERS.middleware
+            : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,
         asyncChunks: false,

@@ -32,6 +32,7 @@ function isTerminalEditor(editor: string) {
   switch (editor) {
     case 'vi':
     case 'vim':
+    case 'nvim':
     case 'emacs':
     case 'nano': {
       return true
@@ -99,6 +100,7 @@ const COMMON_EDITORS_LINUX = {
   'rubymine.sh': 'rubymine',
   sublime_text: 'sublime_text',
   vim: 'vim',
+  nvim: 'nvim',
   'webstorm.sh': 'webstorm',
   'goland.sh': 'goland',
   'rider.sh': 'rider',
@@ -160,6 +162,7 @@ function getArgumentsForLineNumber(
       return ['-n' + lineNumber, '-c' + colNumber, fileName]
     }
     case 'vim':
+    case 'nvim':
     case 'mvim':
     case 'joe':
     case 'gvim': {

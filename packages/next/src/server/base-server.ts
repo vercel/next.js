@@ -426,6 +426,8 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
+  private readonly isAppPPREnabled: boolean
+
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -491,7 +493,7 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const isAppPPREnabled =
+    this.isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
@@ -500,7 +502,7 @@ export default abstract class Server<
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
       rsc:
@@ -508,7 +510,7 @@ export default abstract class Server<
           ? new RSCPathnameNormalizer()
           : undefined,
       prefetchRSC:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -568,7 +570,6 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        isAppPPREnabled,
         swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
@@ -844,8 +845,7 @@ export default abstract class Server<
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
 
-            const isRSCRequest = isRSCRequestCheck(req) ?? false
-
+            const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
             span.setAttributes({
               'http.status_code': res.statusCode,
               'next.rsc': isRSCRequest,
@@ -940,6 +940,7 @@ export default abstract class Server<
         )
       }
 
+      // Update the `x-forwarded-*` headers.
       const { originalRequest = null } = isNodeNextRequest(req) ? req : {}
       const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
       const isHttps = xForwardedProto
@@ -1831,7 +1832,7 @@ export default abstract class Server<
     resolvedPathname: string
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
-    const isRSCRequest = isRSCRequestCheck(req)
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
 
@@ -1955,9 +1956,11 @@ export default abstract class Server<
      * prefetch request.
      */
     const isPrefetchRSCRequest =
-      (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1' ||
-        getRequestMeta(req, 'isPrefetchRSCRequest')) ??
-      false
+      getRequestMeta(req, 'isPrefetchRSCRequest') ?? false
+
+    // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
+
+    const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     // when we are handling a middleware prefetch and it doesn't
     // resolve to a static data route we bail early to avoid
@@ -2000,9 +2003,6 @@ export default abstract class Server<
       )
     }
 
-    // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isRSCRequest = isRSCRequestCheck(req)
-
     const { routeModule } = components
 
     /**
@@ -2010,9 +2010,9 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
+      this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.isAppPPREnabled
+      isAppPageRouteModule(routeModule)
 
     // If this is a request that's rendering an app page that support's PPR,
     // then if we're in development mode (or using the experimental test
@@ -2773,6 +2773,7 @@ export default abstract class Server<
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
+        isRoutePPREnabled,
       }
     )
 
@@ -3647,8 +3648,4 @@ export default abstract class Server<
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
-}
-
-export function isRSCRequestCheck(req: BaseNextRequest): boolean {
-  return getRequestMeta(req, 'isRSCRequest') === true
 }

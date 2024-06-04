@@ -1,3 +1,5 @@
+import { unstable_rethrow } from 'next/navigation'
+
 const MAX_ATTEMPTS = 5
 
 export const fetchRetry = async (url, init) => {
@@ -5,12 +7,7 @@ export const fetchRetry = async (url, init) => {
     try {
       return await fetch(url, init)
     } catch (err) {
-      // FIXME: (PPR) this is a workaround  until we have a way to detect postpone errors
-      // For PPR, we need to detect if this is a postpone error so we can
-      // re-throw it.
-      if (err.$$typeof === Symbol.for('react.postpone')) {
-        throw err
-      }
+      unstable_rethrow(err)
 
       if (i === MAX_ATTEMPTS - 1) {
         throw err

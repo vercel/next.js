@@ -97,7 +97,7 @@ export default function sitemap() {
 
 Output:
 
-```xml filename="acme.com/sitemap.xml"
+```xml filename="acme.com/sitemap"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://acme.com</loc>
@@ -163,7 +163,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
 Output:
 
-```xml filename="acme.com/sitemap.xml"
+```xml filename="acme.com/sitemap"
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://acme.com</loc>
@@ -295,5 +295,6 @@ type Sitemap = Array<{
 
 | Version   | Changes                                                      |
 | --------- | ------------------------------------------------------------ |
+| `v14.2.0` | Add localizations support.                                   |
 | `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
 | `v13.3.0` | `sitemap` introduced.                                        |

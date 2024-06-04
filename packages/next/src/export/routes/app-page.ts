@@ -95,7 +95,7 @@ export async function exportAppPage(
     // instead of the standard rsc. This is because the standard rsc will
     // contain the dynamic data. We do this if any routes have PPR enabled so
     // that the cache read/write is the same.
-    else if (renderOpts.experimental.isAppPPREnabled) {
+    else if (renderOpts.experimental.isRoutePPREnabled) {
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
