@@ -16,9 +16,9 @@ pub struct NextFeatureTelemetry {
 }
 
 impl NextFeatureTelemetry {
-    pub fn new(feature_name: String, enabled: bool) -> Self {
+    pub fn new(feature_name: RcStr, enabled: bool) -> Self {
         NextFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".to_string(),
+            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
             feature_name,
             enabled,
         }
@@ -29,7 +29,7 @@ impl NextFeatureTelemetry {
 impl Diagnostic for NextFeatureTelemetry {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<RcStr> {
-        Vc::cell("NextFeatureTelemetry_category_tbd".to_string())
+        Vc::cell("NextFeatureTelemetry_category_tbd".into())
     }
 
     #[turbo_tasks::function]
@@ -41,7 +41,7 @@ impl Diagnostic for NextFeatureTelemetry {
     fn payload(&self) -> Vc<DiagnosticPayload> {
         Vc::cell(HashMap::from([(
             self.feature_name.clone(),
-            self.enabled.to_string(),
+            self.enabled.to_string().into(),
         )]))
     }
 }
@@ -50,15 +50,15 @@ impl Diagnostic for NextFeatureTelemetry {
 /// referred as `importing` a certain module. (i.e importing @next/image)
 #[turbo_tasks::value(shared)]
 pub struct ModuleFeatureTelemetry {
-    pub event_name: String,
-    pub feature_name: String,
+    pub event_name: RcStr,
+    pub feature_name: RcStr,
     pub invocation_count: usize,
 }
 
 impl ModuleFeatureTelemetry {
-    pub fn new(feature_name: String, invocation_count: usize) -> Self {
+    pub fn new(feature_name: RcStr, invocation_count: usize) -> Self {
         ModuleFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".to_string(),
+            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
             feature_name,
             invocation_count,
         }
@@ -69,7 +69,7 @@ impl ModuleFeatureTelemetry {
 impl Diagnostic for ModuleFeatureTelemetry {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<RcStr> {
-        Vc::cell("ModuleFeatureTelemetry_category_tbd".to_string())
+        Vc::cell("ModuleFeatureTelemetry_category_tbd".into())
     }
 
     #[turbo_tasks::function]
