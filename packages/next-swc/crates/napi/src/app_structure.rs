@@ -411,9 +411,9 @@ pub async fn get_entrypoints(
     let result = turbo_tasks
         .run_once(async move {
             let value = if let Some(entrypoints) = &*get_value(
-                root_dir,
-                project_dir,
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.into(),
+                project_dir.into(),
+                page_extensions.iter().map(|s| s.as_str().into()).collect(),
                 false,
             )
             .await?
