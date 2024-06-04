@@ -47,7 +47,7 @@ impl EcmascriptClientReferenceModule {
 
 #[turbo_tasks::function]
 fn ecmascript_client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript client reference".to_string())
+    Vc::cell("ecmascript client reference".into())
 }
 
 #[turbo_tasks::value_impl]
