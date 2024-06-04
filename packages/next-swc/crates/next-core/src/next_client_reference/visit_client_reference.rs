@@ -8,7 +8,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    ReadRef, TryJoinIterExt, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},

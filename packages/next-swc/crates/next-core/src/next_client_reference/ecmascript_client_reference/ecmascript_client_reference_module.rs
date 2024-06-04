@@ -1,6 +1,6 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
