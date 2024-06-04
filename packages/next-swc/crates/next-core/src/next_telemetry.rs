@@ -81,7 +81,7 @@ impl Diagnostic for ModuleFeatureTelemetry {
     fn payload(&self) -> Vc<DiagnosticPayload> {
         Vc::cell(HashMap::from([(
             self.feature_name.clone(),
-            self.invocation_count.to_string(),
+            self.invocation_count.to_string().into(),
         )]))
     }
 }
