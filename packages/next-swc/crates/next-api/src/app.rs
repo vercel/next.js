@@ -1273,7 +1273,7 @@ impl Endpoint for AppEndpoint {
             }
         };
         async move {
-            let output = self.output();
+            let output = self.output().await?;
             // Must use self.output_assets() instead of output.output_assets() to make it a
             // single operation
             let output_assets = self.output_assets();
@@ -1297,7 +1297,7 @@ impl Endpoint for AppEndpoint {
                 .await?
                 .clone_value();
 
-            let written_endpoint = match *output.await? {
+            let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
                     server_entry_path: node_root_ref
                         .get_path_to(&*rsc_chunk.ident().path().await?)
