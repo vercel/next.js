@@ -86,7 +86,7 @@ pub async fn get_app_route_entry(
             // TODO(alexkirsz) Is this necessary?
             "VAR_DEFINITION_BUNDLE_PATH" => "".into(),
             "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
-            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value().into(),
+            "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
             "VAR_USERLAND" => INNER.into(),
         },
         indexmap! {
