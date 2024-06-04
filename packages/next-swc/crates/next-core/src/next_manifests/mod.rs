@@ -237,7 +237,7 @@ pub struct ClientReferenceManifest {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
-    pub prefix: String,
+    pub prefix: RcStr,
     pub cross_origin: Option<CrossOriginConfig>,
 }
 
@@ -246,7 +246,7 @@ pub struct ModuleLoading {
 pub struct ManifestNode {
     /// Mapping of export name to manifest node entry.
     #[serde(flatten)]
-    pub module_exports: HashMap<String, ManifestNodeEntry>,
+    pub module_exports: HashMap<RcStr, ManifestNodeEntry>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -255,9 +255,9 @@ pub struct ManifestNodeEntry {
     /// Turbopack module ID.
     pub id: ModuleId,
     /// Export name.
-    pub name: String,
+    pub name: RcStr,
     /// Chunks for the module. JS and CSS.
-    pub chunks: Vec<String>,
+    pub chunks: Vec<RcStr>,
     // TODO(WEB-434)
     pub r#async: bool,
 }
@@ -266,7 +266,7 @@ pub struct ManifestNodeEntry {
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ModuleId {
-    String(String),
+    String(RcStr),
     Number(u64),
 }
 
@@ -277,14 +277,14 @@ pub struct FontManifest(pub Vec<FontManifestEntry>);
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FontManifestEntry {
-    pub url: String,
-    pub content: String,
+    pub url: RcStr,
+    pub content: RcStr,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AppBuildManifest {
-    pub pages: HashMap<String, Vec<String>>,
+    pub pages: HashMap<RcStr, Vec<RcStr>>,
 }
 
 // TODO(alexkirsz) Unify with the one for dev.
@@ -294,8 +294,8 @@ pub struct ClientBuildManifest<'a> {
     #[serde(rename = "__rewrites")]
     pub rewrites: &'a Rewrites,
 
-    pub sorted_pages: &'a [String],
+    pub sorted_pages: &'a [RcStr],
 
     #[serde(flatten)]
-    pub pages: HashMap<String, Vec<&'a str>>,
+    pub pages: HashMap<RcStr, Vec<&'a str>>,
 }
