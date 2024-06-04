@@ -120,7 +120,7 @@ impl Display for FontWeight {
             "{}",
             match self {
                 Self::Variable(start, end) => format!("{} {}", start, end),
-                Self::Fixed(val) => val.to_owned(),
+                Self::Fixed(val) => val.to_string(),
             }
         )
     }
