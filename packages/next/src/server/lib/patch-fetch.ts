@@ -218,10 +218,10 @@ function createPatchedFetcher(
 ): PatchedFetcher {
   // Create the patched fetch function. We don't set the type here, as it's
   // verified as the return value of this function.
-  const patched = async (
+  const patched = async function fetch(
     input: RequestInfo | URL,
     init: RequestInit | undefined
-  ) => {
+  ) {
     let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
