@@ -71,9 +71,9 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
-    pub preview_mode_id: String,
-    pub preview_mode_encryption_key: String,
-    pub preview_mode_signing_key: String,
+    pub preview_mode_id: RcStr,
+    pub preview_mode_encryption_key: RcStr,
+    pub preview_mode_signing_key: RcStr,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -81,19 +81,19 @@ pub struct DraftModeOptions {
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    pub root_path: RcStr,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: String,
+    pub next_config: RcStr,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: String,
+    pub js_config: RcStr,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Vec<(String, String)>,
+    pub env: Vec<(RcStr, RcStr)>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -106,10 +106,10 @@ pub struct ProjectOptions {
     pub dev: bool,
 
     /// The server actions encryption key.
-    pub encryption_key: String,
+    pub encryption_key: RcStr,
 
     /// The build id.
-    pub build_id: String,
+    pub build_id: RcStr,
 
     /// Options for draft mode.
     pub preview_props: DraftModeOptions,
@@ -120,19 +120,19 @@ pub struct ProjectOptions {
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<String>,
+    pub root_path: Option<RcStr>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<String>,
+    pub project_path: Option<RcStr>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: Option<String>,
+    pub next_config: Option<RcStr>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<String>,
+    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Option<Vec<(String, String)>>,
+    pub env: Option<Vec<(RcStr, RcStr)>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -145,10 +145,10 @@ pub struct PartialProjectOptions {
     pub dev: Option<bool>,
 
     /// The server actions encryption key.
-    pub encryption_key: Option<String>,
+    pub encryption_key: Option<RcStr>,
 
     /// The build id.
-    pub build_id: Option<String>,
+    pub build_id: Option<RcStr>,
 
     /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
@@ -157,9 +157,9 @@ pub struct PartialProjectOptions {
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
-    pub client: Vec<(String, String)>,
-    pub edge: Vec<(String, String)>,
-    pub nodejs: Vec<(String, String)>,
+    pub client: Vec<(RcStr, RcStr)>,
+    pub edge: Vec<(RcStr, RcStr)>,
+    pub nodejs: Vec<(RcStr, RcStr)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
@@ -288,7 +288,7 @@ impl ProjectContainer {
             .await?
             .dist_dir
             .as_ref()
-            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+            .map_or_else(|| ".next".into(), |d| d.clone());
 
         Ok(Project {
             root_path,
@@ -301,7 +301,7 @@ impl ProjectContainer {
             define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
-                .to_string(),
+                .into(),
             mode: if dev {
                 NextMode::Development.cell()
             } else {
@@ -353,13 +353,13 @@ impl ProjectContainer {
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    root_path: String,
+    root_path: RcStr,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
-    dist_dir: String,
+    dist_dir: RcStr,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: RcStr,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
@@ -377,15 +377,15 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
-    browserslist_query: String,
+    browserslist_query: RcStr,
 
     mode: Vc<NextMode>,
 
     versioned_content_map: Vc<VersionedContentMap>,
 
-    build_id: String,
+    build_id: RcStr,
 
-    encryption_key: String,
+    encryption_key: RcStr,
 
     preview_props: DraftModeOptions,
 }
@@ -471,8 +471,8 @@ impl Project {
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.to_string(),
-            this.root_path.to_string(),
+            PROJECT_FILESYSTEM_NAME.into(),
+            this.root_path.clone(),
             vec![],
         );
         if this.watch {
@@ -496,13 +496,13 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.dist_dir.to_string()))
+        Ok(Vc::cell(self.await?.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.output_fs().root().join(this.dist_dir.into()))
+        Ok(self.output_fs().root().join(this.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
@@ -518,13 +518,16 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
-        Ok(self.client_root().join(format!(
-            "{}/_next",
-            next_config
-                .base_path
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        )))
+        Ok(self.client_root().join(
+            format!(
+                "{}/_next",
+                next_config
+                    .base_path
+                    .clone()
+                    .unwrap_or_else(|| "".to_string()),
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
