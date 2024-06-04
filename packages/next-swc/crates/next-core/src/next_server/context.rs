@@ -403,8 +403,14 @@ pub async fn get_server_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
-    let mut conditions = vec![mode.await?.condition().to_string()];
-    conditions.extend(next_runtime.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![mode.await?.condition().into()];
+    conditions.extend(
+        next_runtime
+            .conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(RcStr::from),
+    );
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
