@@ -276,7 +276,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             let FindContextFileResult::Found(package_json_file, _) = *package_json_file.await?
             else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package resolved from the project directory can't be \
                      found.",
                 );
@@ -285,7 +285,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 *package_json_from_original_location.await?
             else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package can't be found.",
                 );
             };
