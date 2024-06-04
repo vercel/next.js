@@ -23,12 +23,14 @@ use crate::mode::NextMode;
 pub async fn get_next_dynamic_transform_rule(
     is_server_compiler: bool,
     is_react_server_layer: bool,
+    is_app_dir: bool,
     mode: Vc<NextMode>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
         is_server_compiler,
         is_react_server_layer,
+        is_app_dir,
         mode: *mode.await?,
     }) as _));
     Ok(ModuleRule::new(
@@ -44,6 +46,7 @@ pub async fn get_next_dynamic_transform_rule(
 struct NextJsDynamic {
     is_server_compiler: bool,
     is_react_server_layer: bool,
+    is_app_dir: bool,
     mode: NextMode,
 }
 
@@ -55,7 +58,7 @@ impl CustomTransformer for NextJsDynamic {
             self.mode.is_development(),
             self.is_server_compiler,
             self.is_react_server_layer,
-            false,
+            self.is_app_dir,
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
             None,
