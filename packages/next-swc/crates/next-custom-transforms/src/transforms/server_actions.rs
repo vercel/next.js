@@ -426,7 +426,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        self.names.clear();
 
         // Visit children
         {
@@ -448,10 +448,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        let mut names = take(&mut self.names);
-        self.names = current_names;
-        self.names.append(&mut names);
+        let mut child_names = take(&mut self.names);
 
         if !is_action_fn {
             return;
@@ -513,7 +510,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let is_action_fn = self.get_action_info(f.function.body.as_mut(), true);
 
         let current_declared_idents = self.declared_idents.clone();
-        let current_names = take(&mut self.names);
+        self.names.clear();
 
         {
             // Visit children
@@ -535,10 +532,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        let mut names = take(&mut self.names);
-        self.names = current_names;
-        self.names.append(&mut names);
+        let mut child_names = take(&mut self.names);
 
         if !is_action_fn {
             return;
@@ -609,7 +603,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         );
 
         let declared_idents_until = self.declared_idents.len();
-        let current_names = take(&mut self.names);
+        self.names.clear();
 
         {
             // Visit children
@@ -636,10 +630,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
-        let mut child_names = self.names.clone();
-        let mut names = take(&mut self.names);
-        self.names = current_names;
-        self.names.append(&mut names);
+        let mut child_names = take(&mut self.names);
 
         if !is_action_fn {
             return;
