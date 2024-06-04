@@ -195,6 +195,7 @@ pub(super) fn options_from_request(
 mod tests {
     use anyhow::Result;
     use indexmap::IndexMap;
+    use turbo_tasks::RcStr;
     use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
@@ -416,7 +417,7 @@ mod tests {
         )?;
 
         let options = options_from_request(&request, &data)?;
-        assert_eq!(options.styles, vec!["italic".into()]);
+        assert_eq!(options.styles, vec![RcStr::from("italic")]);
 
         Ok(())
     }
