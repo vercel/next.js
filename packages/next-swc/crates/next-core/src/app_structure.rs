@@ -287,8 +287,8 @@ async fn get_directory_tree(
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
     let span = {
-        let dir = dir.to_string().await?;
-        tracing::info_span!("read app directory tree", name = *dir)
+        let dir = dir.to_string().await?.to_string();
+        tracing::info_span!("read app directory tree", name = dir)
     };
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
