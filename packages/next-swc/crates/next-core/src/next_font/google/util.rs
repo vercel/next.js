@@ -73,7 +73,7 @@ pub(super) fn get_font_axes(
             let mut variable_axes = vec![];
             for axis in defineable_axes {
                 if axis.tag == "wght" {
-                    weight_axis = Some(format!("{}..{}", axis.min, axis.max));
+                    weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
                 } else if let Some(selected_variable_axes) = selected_variable_axes {
                     if selected_variable_axes.contains(&axis.tag) {
                         variable_axes.push((
