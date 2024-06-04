@@ -160,7 +160,7 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
 
     Ok(NextFontLocalOptions {
         fonts,
-        display: display.to_owned(),
+        display: display.as_str().into(),
         preload: preload.to_owned(),
         fallback: fallback.to_owned(),
         adjust_font_fallback: adjust_font_fallback.to_owned(),
