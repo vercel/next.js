@@ -38,7 +38,7 @@ pub async fn create_page_loader_entry_module(
         StringifyJs(&*pathname.await?)
     )?;
 
-    let page_loader_path = next_js_file_path("entry/page-loader.ts".to_string());
+    let page_loader_path = next_js_file_path("entry/page-loader.ts".into());
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -64,7 +64,7 @@ pub async fn create_page_loader_entry_module(
         .process(
             virtual_source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "PAGE".to_string() => module,
+                "PAGE".into() => module,
             }))),
         )
         .module();
