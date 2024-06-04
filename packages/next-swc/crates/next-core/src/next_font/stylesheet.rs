@@ -44,7 +44,7 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
         }
     }
 
-    Ok(Vc::cell(res))
+    Ok(Vc::cell(res.into()))
 }
 
 #[turbo_tasks::function]
