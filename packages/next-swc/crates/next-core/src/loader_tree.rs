@@ -294,7 +294,7 @@ impl LoaderTreeBuilder {
         self.imports
             .push(format!("import {identifier} from \"{inner_module_id}\";").into());
         self.inner_assets.insert(
-            inner_module_id,
+            inner_module_id.into(),
             Vc::upcast(StructuredImageModuleType::create_module(
                 Vc::upcast(FileSource::new(path)),
                 BlurPlaceholderMode::None,
@@ -346,7 +346,7 @@ impl LoaderTreeBuilder {
                     Value::new(ReferenceType::Internal(InnerAssets::empty())),
                 )
                 .module();
-            self.inner_assets.insert(inner_module_id, module);
+            self.inner_assets.insert(inner_module_id.into(), module);
 
             writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
         }
