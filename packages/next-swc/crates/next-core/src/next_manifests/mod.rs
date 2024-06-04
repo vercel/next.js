@@ -62,14 +62,14 @@ impl Default for MiddlewaresManifest {
 pub struct MiddlewareMatcher {
     // When skipped next.js with fill that during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub regexp: Option<String>,
+    pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
     pub locale: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has: Option<Vec<RouteHas>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub missing: Option<Vec<RouteHas>>,
-    pub original_source: String,
+    pub original_source: RcStr,
 }
 
 fn bool_is_true(b: &bool) -> bool {
@@ -78,9 +78,9 @@ fn bool_is_true(b: &bool) -> bool {
 
 #[derive(Serialize, Default, Debug)]
 pub struct EdgeFunctionDefinition {
-    pub files: Vec<String>,
-    pub name: String,
-    pub page: String,
+    pub files: Vec<RcStr>,
+    pub name: RcStr,
+    pub page: RcStr,
     pub matchers: Vec<MiddlewareMatcher>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub wasm: Vec<AssetBinding>,
