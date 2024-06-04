@@ -27,7 +27,7 @@ function generateCacheKey(request: Request): string {
 }
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
-  return function dedupeFetch(
+  const dedupeFetch = function fetch(
     resource: URL | RequestInfo,
     options?: RequestInit
   ) {
@@ -98,4 +98,6 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     // of the body so that it can be read multiple times.
     return match.then((response) => response.clone())
   }
+
+  return dedupeFetch
 }

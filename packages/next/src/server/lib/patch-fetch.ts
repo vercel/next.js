@@ -774,7 +774,6 @@ function createPatchedFetcher(
   }
 
   // Attach the necessary properties to the patched fetch function.
-  patched.name = 'fetch'
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
