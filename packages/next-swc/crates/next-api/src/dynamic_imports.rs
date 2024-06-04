@@ -309,7 +309,7 @@ impl Visit for DynamicImportVisitor {
 
 /// A visitor to collect import source string from import('path/to/module')
 struct CollectImportSourceVisitor {
-    import_source: Option<String>,
+    import_source: Option<RcStr>,
 }
 
 impl CollectImportSourceVisitor {
