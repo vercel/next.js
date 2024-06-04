@@ -481,7 +481,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-ssr".to_string()),
+            Vc::cell("app-edge-ssr".into()),
         )
     }
 
@@ -1100,9 +1100,10 @@ impl AppEndpoint {
                 };
                 let manifest_path_prefix = &app_entry.original_name;
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(format!(
-                        "server/app{manifest_path_prefix}/middleware-manifest.json",
-                    )),
+                    node_root.join(
+                        format!("server/app{manifest_path_prefix}/middleware-manifest.json",)
+                            .into(),
+                    ),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
                             &middleware_manifest_v2,
