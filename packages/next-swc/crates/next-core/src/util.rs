@@ -214,7 +214,7 @@ impl Issue for NextSourceConfigParsingIssue {
             StyledString::Text(
                 "The exported configuration object in a source file need to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))
