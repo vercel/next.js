@@ -895,7 +895,7 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("middleware".to_string()),
+            Vc::cell("middleware".into()),
         ))
     }
 
