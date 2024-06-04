@@ -218,7 +218,7 @@ pub async fn get_client_module_options_context(
     // foreign_code_context_condition. This allows to import codes from
     // node_modules that requires webpack loaders, which next-dev implicitly
     // does by default.
-    let conditions = vec!["browser".to_string(), mode.await?.condition().to_string()];
+    let conditions = vec!["browser".into(), mode.await?.condition().into()];
     let foreign_enable_webpack_loaders = webpack_loader_options(
         project_path,
         next_config,
@@ -226,7 +226,7 @@ pub async fn get_client_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".to_string()))
+            .chain(once("foreign".into()))
             .collect(),
     )
     .await?;
