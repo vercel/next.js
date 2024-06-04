@@ -165,7 +165,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.to_string(),
+                definition_pathname.clone(),
             );
         }
     }
