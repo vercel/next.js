@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_default_values_when_no_arguments() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unnecessary_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unvavailable_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_only_style_when_one_available() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -424,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_normal_style_when_multiple() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_styles() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -496,7 +496,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_display() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -537,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
