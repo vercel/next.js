@@ -251,6 +251,7 @@ fn parse_weight_string(weight_str: &str) -> Result<f64> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use turbo_tasks::RcStr;
 
     use crate::next_font::local::{
         font_fallback::pick_font_for_fallback_generation,
@@ -261,7 +262,7 @@ mod tests {
         FontDescriptor {
             ext: "ttf".into(),
             path: "foo.ttf".into(),
-            style: style.clone(),
+            style: style.clone().map(RcStr::from),
             weight: Some(weight.clone()),
         }
     }
