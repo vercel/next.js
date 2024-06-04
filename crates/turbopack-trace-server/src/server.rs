@@ -81,6 +81,19 @@ pub struct SpanViewEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct Filter {
+    pub op: Op,
+    pub value: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum Op {
+    Gt,
+    Lt,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewRect {
     pub x: u64,
@@ -91,6 +104,8 @@ pub struct ViewRect {
     pub query: String,
     pub view_mode: String,
     pub value_mode: String,
+    pub value_filter: Option<Filter>,
+    pub count_filter: Option<Filter>,
 }
 
 struct ConnectionState {
@@ -130,6 +145,8 @@ fn handle_connection(
             query: String::new(),
             view_mode: "aggregated".to_string(),
             value_mode: "duration".to_string(),
+            count_filter: None,
+            value_filter: None,
         },
         last_update_generation: 0,
     }));
