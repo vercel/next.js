@@ -128,7 +128,7 @@ impl PageLoaderAsset {
 
 #[turbo_tasks::function]
 fn page_loader_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("page loader chunk".to_string())
+    Vc::cell("page loader chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -136,10 +136,15 @@ impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
-        Ok(AssetIdent::from_path(root.join(format!(
-            "static/chunks/pages{}",
-            get_asset_path_from_pathname(&self.pathname.await?, ".js")
-        ))))
+        Ok(AssetIdent::from_path(
+            root.join(
+                format!(
+                    "static/chunks/pages{}",
+                    get_asset_path_from_pathname(&self.pathname.await?, ".js")
+                )
+                .into(),
+            ),
+        ))
     }
 
     #[turbo_tasks::function]
