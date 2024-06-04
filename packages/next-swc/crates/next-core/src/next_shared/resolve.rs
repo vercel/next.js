@@ -308,7 +308,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // always be found since the glob pattern above is specific enough.
         let starting_index = path.find("next/dist").unwrap();
         // Replace '/esm/' with '/' to match the CJS version of the file.
-        let modified_path = &path[starting_index..].replace("/esm/", "/");
+        let modified_path = path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External(
                 modified_path.into(),
