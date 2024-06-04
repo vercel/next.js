@@ -1079,7 +1079,7 @@ impl AppEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                    name: app_entry.pathname,
+                    name: app_entry.pathname.clone(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
                         .config
@@ -1216,10 +1216,13 @@ impl AppEndpoint {
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     client_relative_path,
-                    node_root.join(format!(
-                        "server/app{}/react-loadable-manifest.json",
-                        &app_entry.original_name
-                    )),
+                    node_root.join(
+                        format!(
+                            "server/app{}/react-loadable-manifest.json",
+                            &app_entry.original_name
+                        )
+                        .into(),
+                    ),
                 );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
