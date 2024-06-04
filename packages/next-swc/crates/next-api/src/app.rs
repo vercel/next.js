@@ -275,23 +275,20 @@ impl AppProject {
     fn rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     Vc::upcast(self.client_transition()),
                     self.ssr_transition(),
                 )),
             ),
             (
-                "next-dynamic".to_string(),
+                "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
                 ))),
             ),
-            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
-            (
-                "next-shared".to_string(),
-                Vc::upcast(self.shared_transition()),
-            ),
+            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
+            ("next-shared".into(), Vc::upcast(self.shared_transition())),
         ]
         .into_iter()
         .collect();
@@ -300,7 +297,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
-            Vc::cell("app-rsc".to_string()),
+            Vc::cell("app-rsc".into()),
         )
     }
 
