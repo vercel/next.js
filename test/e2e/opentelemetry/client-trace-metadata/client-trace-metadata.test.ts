@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TEMP: touch file to trigger "Test new tests for flakes"
-
 describe('clientTraceMetadata', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

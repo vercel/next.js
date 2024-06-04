@@ -1,8 +1,6 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { links } from './components/links'
 
-// TEMP: touch file to trigger "Test new tests for flakes"
-
 async function measure(stream: NodeJS.ReadableStream) {
   let streamFirstChunk = 0
   let streamEnd = 0

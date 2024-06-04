@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, findAllTelemetryEvents } from 'next-test-utils'
 
-// TEMP: touch file to trigger "Test new tests for flakes"
-
 describe('ppr', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
