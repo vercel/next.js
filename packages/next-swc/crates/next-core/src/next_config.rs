@@ -980,8 +980,7 @@ impl NextConfig {
                     provider_import_source: Some(
                         options
                             .provider_import_source
-                            .as_ref()
-                            .map(|s| s.clone())
+                            .clone()
                             .unwrap_or(mdx_import_source_file()),
                     ),
                     ..options.clone()
