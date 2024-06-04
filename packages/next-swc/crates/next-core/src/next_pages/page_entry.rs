@@ -238,8 +238,8 @@ async fn wrap_edge_page(
             "nextConfig" => serde_json::to_string(next_config)?.into(),
             "dev" => serde_json::Value::Bool(dev).to_string().into(),
             "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
-            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".to_string(), "/_error".to_string()))?.into(),
-            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".to_string(), "/500".to_string()))?.into(),
+            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
+            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".into(), "/500".into()))?.into(),
         },
         indexmap! {
             // TODO
