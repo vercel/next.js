@@ -979,9 +979,8 @@ impl PageEndpoint {
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root.join(format!(
-                "server/pages{manifest_path_prefix}/build-manifest.json",
-            )),
+            node_root
+                .join(format!("server/pages{manifest_path_prefix}/build-manifest.json",).into()),
             AssetContent::file(File::from(serde_json::to_string_pretty(&build_manifest)?).into()),
         )))
     }
@@ -1066,10 +1065,10 @@ impl PageEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = vec![
-                    "server/server-reference-manifest.js".to_string(),
-                    "server/middleware-build-manifest.js".to_string(),
-                    "server/middleware-react-loadable-manifest.js".to_string(),
-                    "server/next-font-manifest.js".to_string(),
+                    "server/server-reference-manifest.js".into(),
+                    "server/middleware-build-manifest.js".into(),
+                    "server/middleware-react-loadable-manifest.js".into(),
+                    "server/next-font-manifest.js".into(),
                 ];
                 let mut wasm_paths_from_root = vec![];
 
@@ -1083,18 +1082,18 @@ impl PageEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
-                let named_regex = get_named_middleware_regex(&pathname);
+                let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
-                    original_source: pathname.to_string(),
+                    original_source: pathname.clone_value(),
                     ..Default::default()
                 };
                 let original_name = this.original_name.await?;
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                    name: pathname.to_string(),
-                    page: original_name.to_string(),
+                    name: pathname.clone_value(),
+                    page: original_name.clone_value(),
                     regions: None,
                     matchers: vec![matchers],
                     env: this.pages_project.project().edge_env().await?.clone_value(),
