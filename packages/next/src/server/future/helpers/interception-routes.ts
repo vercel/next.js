@@ -8,36 +8,24 @@ export const INTERCEPTION_ROUTE_MARKERS = [
   '(...)',
 ] as const
 
+export const INTERCEPTION_ROUTE_REGEXP =
+  /(?<interceptingRoute>.*\/)(?<marker>\(\.\.\)\(\.\.\)|\(\.{1,3}\))(?<interceptedRoute>.+)/
+
 export function isInterceptionRouteAppPath(path: string): boolean {
-  // TODO-APP: add more serious validation
-  return (
-    path
-      .split('/')
-      .find((segment) =>
-        INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
-      ) !== undefined
-  )
+  return Boolean(path.match(INTERCEPTION_ROUTE_REGEXP))
 }
 
 export function extractInterceptionRouteInformation(path: string) {
-  let interceptingRoute: string | undefined,
-    marker: (typeof INTERCEPTION_ROUTE_MARKERS)[number] | undefined,
-    interceptedRoute: string | undefined
+  const interceptedRouteMatch = path.match(INTERCEPTION_ROUTE_REGEXP)
 
-  for (const segment of path.split('/')) {
-    marker = INTERCEPTION_ROUTE_MARKERS.find((m) => segment.startsWith(m))
-    if (marker) {
-      ;[interceptingRoute, interceptedRoute] = path.split(marker, 2)
-      break
-    }
-  }
-
-  if (!interceptingRoute || !marker || !interceptedRoute) {
+  if (!interceptedRouteMatch?.groups) {
     throw new Error(
-      `Invalid interception route: ${path}. Must be in the format /<intercepting route>/(..|...|..)(..)/<intercepted route>`
+      `Invalid interception route: ${path}. Must be in the format /<intercepting route>/(...)|(..)(..)|(..)|(.)<intercepted route>`
     )
   }
 
+  let { interceptingRoute, marker, interceptedRoute } =
+    interceptedRouteMatch.groups
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
   switch (marker) {
