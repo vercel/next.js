@@ -39,7 +39,7 @@ where
     F: FnMut(Vc<Box<dyn ChunkableModule>>) -> Fu,
     Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
-    let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+    let mut chunks_hash: HashMap<RcStr, Vc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = IndexMap::new();
 
     // Iterate over the collected import mappings, and create a chunk for each
@@ -62,7 +62,7 @@ where
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
                 let chunk_group = build_chunk(module).await?;
-                chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
+                chunks_hash.insert(imported_raw_str.clone(), chunk_group);
                 chunk_group
             };
 
@@ -339,8 +339,8 @@ impl Visit for CollectImportSourceVisitor {
     }
 }
 
-pub type DynamicImportedModules = Vec<(String, Vc<Box<dyn Module>>)>;
-pub type DynamicImportedOutputAssets = Vec<(String, Vc<OutputAssets>)>;
+pub type DynamicImportedModules = Vec<(RcStr, Vc<Box<dyn Module>>)>;
+pub type DynamicImportedOutputAssets = Vec<(RcStr, Vc<OutputAssets>)>;
 
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)

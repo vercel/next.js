@@ -165,13 +165,13 @@ impl MiddlewareEndpoint {
             ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
-            middleware: [("/".to_string(), edge_function_definition)]
+            middleware: [("/".into(), edge_function_definition)]
                 .into_iter()
                 .collect(),
             ..Default::default()
         };
         let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-            node_root.join("server/middleware/middleware-manifest.json".to_string()),
+            node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
                     &middleware_manifest_v2,
