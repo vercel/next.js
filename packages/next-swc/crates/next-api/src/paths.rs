@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
@@ -99,21 +99,21 @@ pub(crate) async fn get_paths_from_root(
 pub(crate) async fn get_js_paths_from_root(
     root: &FileSystemPath,
     output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
+) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
 }
 
 pub(crate) async fn get_wasm_paths_from_root(
     root: &FileSystemPath,
     output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
+) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
 }
 
 pub(crate) async fn get_font_paths_from_root(
     root: &FileSystemPath,
     output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
+) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         path.ends_with(".woff")
             || path.ends_with(".woff2")
@@ -142,7 +142,7 @@ fn get_file_stem(path: &str) -> &str {
     }
 }
 
-pub(crate) fn wasm_paths_to_bindings(paths: Vec<String>) -> Vec<AssetBinding> {
+pub(crate) fn wasm_paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
     paths
         .into_iter()
         .map(|path| {
