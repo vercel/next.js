@@ -56,6 +56,6 @@ fn trace_unnamed(_ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, Token
     )
 }
 
-fn trace_unit(_ident: &Ident) -> (TokenStream2, TokenStream2) {
-    (quote! {}, quote! { { } })
+fn trace_unit(_ident: &Ident) -> TokenStream2 {
+    quote! { { } }
 }

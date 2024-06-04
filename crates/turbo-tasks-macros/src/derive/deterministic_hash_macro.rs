@@ -62,6 +62,6 @@ fn hash_unnamed(_ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, TokenS
 }
 
 /// Hashes a unit struct or enum variant (e.g. `struct Foo;`, `Foo::Bar`).
-fn hash_unit(_ident: &Ident) -> (TokenStream2, TokenStream2) {
-    (quote! {}, quote! { { } })
+fn hash_unit(_ident: &Ident) -> TokenStream2 {
+    quote! { { } }
 }
