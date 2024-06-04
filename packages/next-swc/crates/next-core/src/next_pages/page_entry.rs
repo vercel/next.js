@@ -278,27 +278,27 @@ struct PartialRouteModuleOptions {
 
 #[derive(Serialize)]
 struct RouteDefinition {
-    kind: String,
-    bundle_path: String,
-    filename: String,
+    kind: RcStr,
+    bundle_path: RcStr,
+    filename: RcStr,
     /// Describes the pathname including all internal modifiers such as
     /// intercepting routes, parallel routes and route/page suffixes that are
     /// not part of the pathname.
-    page: String,
+    page: RcStr,
 
     /// The pathname (including dynamic placeholders) for a route to resolve.
-    pathname: String,
+    pathname: RcStr,
 }
 
-fn get_route_module_options(page: String, pathname: String) -> PartialRouteModuleOptions {
+fn get_route_module_options(page: RcStr, pathname: RcStr) -> PartialRouteModuleOptions {
     PartialRouteModuleOptions {
         definition: RouteDefinition {
-            kind: "PAGES".to_string(),
+            kind: "PAGES".into(),
             page,
             pathname,
             // The following aren't used in production.
-            bundle_path: "".to_string(),
-            filename: "".to_string(),
+            bundle_path: "".into(),
+            filename: "".into(),
         },
     }
 }
