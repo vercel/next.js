@@ -63,7 +63,7 @@ impl UnsupportedModulesResolvePlugin {
 impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
     }
 
     #[turbo_tasks::function]
