@@ -1944,7 +1944,7 @@ export default async function getBaseWebpackConfig(
         new webpack.ids.DeterministicModuleIdsPlugin({
           // The default maxLength of 3 (even up to 7) may yield conflicts in
           // assigned module IDs. In this case, Webpack would fall back to
-          // assigning hashed IDs, thus creating non-deterministic bundles. To
+          // assigning unhashed IDs, thus creating non-deterministic bundles. To
           // prevent this, we increase the ID space size to 8 digits.
           maxLength: 8,
           // In test mode, we fail on module ID conflicts to catch regressions.
