@@ -452,7 +452,7 @@ export class NextInstance {
     // This is a temporary workaround for turbopack starting watching too late.
     // So we delay file changes by 500ms to give it some time
     // to connect the WebSocket and start watching.
-    if (process.env.TURBOPACK) {
+    if (isNextDev && process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
       await waitFor(500)
     }
