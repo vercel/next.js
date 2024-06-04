@@ -406,7 +406,7 @@ async fn get_pages_structure_for_directory(
 fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a str> {
     page_extensions
         .iter()
-        .find_map(|allowed| name.strip_suffix(allowed)?.strip_suffix('.'))
+        .find_map(|allowed| name.strip_suffix(&**allowed)?.strip_suffix('.'))
 }
 
 fn next_router_path_for_basename(
