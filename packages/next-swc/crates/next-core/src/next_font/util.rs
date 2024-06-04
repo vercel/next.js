@@ -101,12 +101,12 @@ pub(crate) async fn can_use_next_font(
         NextFontIssue {
             path,
             title: StyledString::Line(vec![
-                StyledString::Code("next/font:".to_string()),
-                StyledString::Text(" error:".to_string()),
+                StyledString::Code("next/font:".into()),
+                StyledString::Text(" error:".into()),
             ])
             .cell(),
             description: StyledString::Line(vec![
-                StyledString::Text("Cannot be used within ".to_string()),
+                StyledString::Text("Cannot be used within ".into()),
                 StyledString::Code(request.path),
             ])
             .cell(),
