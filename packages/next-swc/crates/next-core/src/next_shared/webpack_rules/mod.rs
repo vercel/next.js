@@ -35,5 +35,5 @@ pub async fn webpack_loader_options(
 
 #[turbo_tasks::function]
 fn loader_runner_package_mapping() -> Vc<ImportMapping> {
-    get_external_next_compiled_package_mapping(Vc::cell("loader-runner".to_owned()))
+    get_external_next_compiled_package_mapping(Vc::cell("loader-runner".into()))
 }
