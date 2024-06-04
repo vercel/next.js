@@ -189,7 +189,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             Ok(FileType::UnsupportedExtension)
         }
 
-        let unable_to_externalize = |request_str: String, reason: &str| {
+        let unable_to_externalize = |request_str: RcStr, reason: &str| {
             if must_be_external {
                 UnableToExternalize {
                     file_path: fs_path,
@@ -453,8 +453,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 #[turbo_tasks::value]
 struct UnableToExternalize {
     file_path: Vc<FileSystemPath>,
-    request: String,
-    reason: String,
+    request: RcStr,
+    reason: RcStr,
 }
 
 #[turbo_tasks::value_impl]
