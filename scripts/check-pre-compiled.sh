@@ -11,6 +11,10 @@ cp node_modules/webpack/hot/lazy-compilation-web.js src/bundles/webpack/packages
 
 pnpm run ncc-compiled
 
+cd ../next-vendored
+
+pnpm run ncc-compiled
+
 cd ../../
 
 # Make sure to exit with 1 if there are changes after running ncc-compiled

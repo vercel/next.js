@@ -19,7 +19,8 @@
     "build": "tsc",
     "dev": "tsc -w",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "task-runner": "task-runner --file=dist/taskfile.js"
+    "task-runner": "task-runner --file=dist/taskfile.js",
+    "ncc-compiled": "pnpm task-runner ncc"
   },
   "devDependencies": {
     "@types/amphtml-validator": "1.0.0",
