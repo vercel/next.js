@@ -9,7 +9,6 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackBuiltinReactLayer,
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
@@ -1328,7 +1327,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackBuiltinReactLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1390,7 +1389,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackBuiltinReactLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1472,6 +1471,7 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
               resolve: {
+                mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
                 // Always use default channels when use installed react
                 alias: createRSCRendererAliases(''),
@@ -1482,6 +1482,7 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
               resolve: {
+                mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
                 // Always use default channels when use installed react
                 alias: createRSCRendererAliases(''),
