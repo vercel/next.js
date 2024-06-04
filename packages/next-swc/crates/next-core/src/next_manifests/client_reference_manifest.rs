@@ -244,10 +244,10 @@ impl From<&TurbopackModuleId> for ModuleId {
 }
 
 /// See next.js/packages/next/src/lib/client-reference.ts
-pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> String {
+pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> RcStr {
     if export_name == "*" {
-        server_path.to_string()
+        server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name)
+        format!("{}#{}", server_path, export_name).into()
     }
 }
