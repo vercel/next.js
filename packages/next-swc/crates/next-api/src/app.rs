@@ -461,7 +461,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-ssr".to_string()),
+            Vc::cell("app-ssr".into()),
         )
     }
 
@@ -471,7 +471,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("app-shared".to_string()),
+            Vc::cell("app-shared".into()),
         )
     }
 
@@ -491,7 +491,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("app-edge-shared".to_string()),
+            Vc::cell("app-edge-shared".into()),
         )
     }
 
