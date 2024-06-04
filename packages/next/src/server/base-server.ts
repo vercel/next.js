@@ -3104,7 +3104,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'PAGE') {
+          if (result.value?.kind !== 'APP_PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )
