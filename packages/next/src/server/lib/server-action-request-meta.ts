@@ -48,7 +48,7 @@ export function getServerActionRequestMetadata(
   }
 }
 
-export function getIsServerAction(
+export function checkIsServerAction(
   req: IncomingMessage | BaseNextRequest | NextRequest
 ): boolean {
   return getServerActionRequestMetadata(req).isServerAction

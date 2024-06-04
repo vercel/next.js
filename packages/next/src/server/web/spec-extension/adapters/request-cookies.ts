@@ -94,11 +94,11 @@ type ResponseCookie = NonNullable<
 
 export class MutableRequestCookiesAdapter {
   public static wrap(
-    cookies: RequestCookies,
+    requestCookies: RequestCookies,
     onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
     const responseCookies = new ResponseCookies(new Headers())
-    for (const cookie of cookies.getAll()) {
+    for (const cookie of requestCookies.getAll()) {
       responseCookies.set(cookie)
     }
 
@@ -136,11 +136,14 @@ export class MutableRequestCookiesAdapter {
           // headers have been set.
           case 'delete':
             return function (...args: [string] | [ResponseCookie]) {
-              modifiedCookies.add(
-                typeof args[0] === 'string' ? args[0] : args[0].name
-              )
+              const name = typeof args[0] === 'string' ? args[0] : args[0].name
+              modifiedCookies.add(name)
               try {
                 target.delete(...args)
+
+                // We modify the request cookies to ensure that they're kept in
+                // sync when the mutable cookies are updated.
+                requestCookies.delete(name)
               } finally {
                 updateResponseCookies()
               }
@@ -151,10 +154,17 @@ export class MutableRequestCookiesAdapter {
                 | [key: string, value: string, cookie?: Partial<ResponseCookie>]
                 | [options: ResponseCookie]
             ) {
-              modifiedCookies.add(
-                typeof args[0] === 'string' ? args[0] : args[0].name
-              )
+              const name = typeof args[0] === 'string' ? args[0] : args[0].name
+              modifiedCookies.add(name)
               try {
+                // We modify the request cookies to ensure that they're kept in
+                // sync when the mutable cookies are updated.
+                const value =
+                  typeof args[0] === 'string' ? args[1] : args[0].value
+                if (typeof value !== 'undefined') {
+                  requestCookies.set(name, value)
+                }
+
                 return target.set(...args)
               } finally {
                 updateResponseCookies()

@@ -49,7 +49,7 @@ import {
 } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../../lib/server-action-request-meta'
+import { checkIsServerAction } from '../../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../../client/components/static-generation-bailout'
@@ -282,7 +282,7 @@ export class AppRouteRouteModule extends RouteModule<
     const response: unknown = await this.actionAsyncStorage.run(
       {
         isAppRoute: true,
-        isAction: getIsServerAction(rawRequest),
+        isAction: checkIsServerAction(rawRequest),
       },
       () =>
         RequestAsyncStorageWrapper.wrap(

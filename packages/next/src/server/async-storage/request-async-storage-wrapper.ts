@@ -57,6 +57,33 @@ export type RequestContext = {
   renderOpts?: WrapperRenderOpts
 }
 
+/**
+ * Parse the cookies from the incoming source, including those that were set in
+ * middleware.
+ */
+function parseCookies(source: IncomingHttpHeaders | Headers): RequestCookies {
+  source = HeadersAdapter.from(source)
+
+  const request = new RequestCookies(source)
+
+  if (typeof source.get('x-middleware-set-cookie') === 'string') {
+    const setCookieValue = source.get('x-middleware-set-cookie') as string
+
+    const headers = new Headers()
+    for (const cookie of splitCookiesString(setCookieValue)) {
+      headers.append('set-cookie', cookie)
+    }
+
+    // Transfer cookies from ResponseCookies to RequestCookies
+    const response = new ResponseCookies(headers)
+    for (const cookie of response.getAll()) {
+      request.set(cookie.name, cookie.value ?? '')
+    }
+  }
+
+  return request
+}
+
 export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
   RequestStore,
   RequestContext
@@ -84,18 +111,20 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
 
     const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
 
-    function defaultOnUpdateCookies(cookies: string[]) {
-      if (res) {
-        res.setHeader('Set-Cookie', cookies)
-      }
-    }
-
     const cache: {
+      cookies: {
+        /**
+         * The cookies that represent the source for the render. Any
+         * modifications made to the mutable response cookies will also be
+         * mirrored onto this property.
+         */
+        source?: RequestCookies
+        readonly?: ReadonlyRequestCookies
+        mutable?: ResponseCookies
+      }
       headers?: ReadonlyHeaders
-      cookies?: ReadonlyRequestCookies
-      mutableCookies?: ResponseCookies
       draftMode?: DraftModeProvider
-    } = {}
+    } = { cookies: {} }
 
     const store: RequestStore = {
       get headers() {
@@ -108,48 +137,44 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
         return cache.headers
       },
       get cookies() {
-        if (!cache.cookies) {
-          // if middleware is setting cookie(s), then include those in
-          // the initial cached cookies so they can be read in render
-          const requestCookies = new RequestCookies(
-            HeadersAdapter.from(req.headers)
-          )
-
-          if (
-            'x-middleware-set-cookie' in req.headers &&
-            typeof req.headers['x-middleware-set-cookie'] === 'string'
-          ) {
-            const setCookieValue = req.headers['x-middleware-set-cookie']
-            const responseHeaders = new Headers()
-
-            for (const cookie of splitCookiesString(setCookieValue)) {
-              responseHeaders.append('set-cookie', cookie)
-            }
-
-            const responseCookies = new ResponseCookies(responseHeaders)
-
-            // Transfer cookies from ResponseCookies to RequestCookies
-            for (const cookie of responseCookies.getAll()) {
-              requestCookies.set(cookie.name, cookie.value ?? '')
-            }
-          }
-
-          // Seal the cookies object that'll freeze out any methods that could
-          // mutate the underlying data.
-          cache.cookies = RequestCookiesAdapter.seal(requestCookies)
+        // Ensure that the source cookies is populated.
+        if (!cache.cookies.source) {
+          cache.cookies.source = parseCookies(req.headers)
         }
 
-        return cache.cookies
+        // Ensure that the immutable cookies is populated and sealed.
+        if (!cache.cookies.readonly) {
+          cache.cookies.readonly = RequestCookiesAdapter.seal(
+            cache.cookies.source
+          )
+        }
+
+        return cache.cookies.readonly
       },
       get mutableCookies() {
-        if (!cache.mutableCookies) {
-          cache.mutableCookies = getMutableCookies(
-            req.headers,
-            renderOpts?.onUpdateCookies ||
-              (res ? defaultOnUpdateCookies : undefined)
+        // Ensure that the source cookies is populated.
+        if (!cache.cookies.source) {
+          cache.cookies.source = parseCookies(req.headers)
+        }
+
+        // Ensure that the mutable cookies is populated.
+        if (!cache.cookies.mutable) {
+          cache.cookies.mutable = MutableRequestCookiesAdapter.wrap(
+            cache.cookies.source,
+            (cookies) => {
+              if (renderOpts?.onUpdateCookies) {
+                return renderOpts.onUpdateCookies(cookies)
+              }
+
+              // Update the response if we have one.
+              if (res) {
+                res.setHeader('Set-Cookie', cookies)
+              }
+            }
           )
         }
-        return cache.mutableCookies
+
+        return cache.cookies.mutable
       },
       get draftMode() {
         if (!cache.draftMode) {
