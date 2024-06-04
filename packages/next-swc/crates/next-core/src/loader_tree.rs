@@ -33,7 +33,7 @@ use crate::{
 };
 
 pub struct LoaderTreeBuilder {
-    inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
+    inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     counter: usize,
     imports: Vec<RcStr>,
     loader_tree_code: String,
@@ -439,7 +439,7 @@ impl LoaderTreeBuilder {
 pub struct LoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
-    pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
+    pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 

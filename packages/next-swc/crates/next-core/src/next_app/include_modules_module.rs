@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::turbopack::{
     core::{
@@ -160,7 +160,7 @@ impl IncludedModuleReference {
 impl ValueToString for IncludedModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("module".to_string())
+        Vc::cell("module".into())
     }
 }
 
