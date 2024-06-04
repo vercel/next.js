@@ -171,8 +171,8 @@ impl Issue for InvalidImportModuleIssue {
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
     root: Vc<FileSystemPath>,
-    invalid_import: String,
-    message: Vec<String>,
+    invalid_import: RcStr,
+    message: Vec<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -192,7 +192,7 @@ impl InvalidImportResolvePlugin {
 impl AfterResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
     }
 
     #[turbo_tasks::function]
