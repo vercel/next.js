@@ -53,11 +53,9 @@ pub(super) async fn get_font_fallback(
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
-            let metrics_json = load_next_js_templateon(
-                context,
-                "dist/server/capsize-font-metrics.json".to_string(),
-            )
-            .await?;
+            let metrics_json =
+                load_next_js_templateon(context, "dist/server/capsize-font-metrics.json".into())
+                    .await?;
             let fallback = lookup_fallback(
                 &options.font_family,
                 metrics_json,
