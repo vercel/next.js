@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::options::{FontDescriptors, NextFontLocalOptions};
 use crate::next_font::{

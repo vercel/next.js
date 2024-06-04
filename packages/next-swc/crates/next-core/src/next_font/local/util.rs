@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::options::NextFontLocalOptions;
 use crate::next_font::{
