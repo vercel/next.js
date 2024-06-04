@@ -88,7 +88,7 @@ pub(super) async fn build_font_class_rules(
         ))
     }
 
-    Ok(Vc::cell(rules))
+    Ok(Vc::cell(rules.into))
 }
 
 fn format_fixed_percentage(value: f64) -> String {
