@@ -430,7 +430,7 @@ impl AfterResolvePlugin for ModuleFeatureReportResolvePlugin {
                     .find(|sub_path| path.is_match(sub_path));
 
                 if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path), 1)
+                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
                         .cell()
                         .emit();
                 }
