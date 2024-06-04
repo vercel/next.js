@@ -9,7 +9,7 @@ use next_core::{
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::{common::comments::Comments, ecma::ast::Program},
