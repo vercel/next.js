@@ -394,7 +394,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // mark as external
                     Ok(ResolveResultOption::some(
                         ResolveResult::primary(ResolveResultItem::External(
-                            request_str,
+                            request_str.into(),
                             if resolves_equal {
                                 ExternalType::CommonJs
                             } else {
@@ -409,7 +409,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::EcmaScriptModule,
                     ))
                     .cell(),
@@ -419,7 +419,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // even with require() this resolves to a ESM,
                 // which would break node.js, bundle it
                 unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package seems invalid. require() resolves to a EcmaScript module, which \
                      would result in an error in Node.js.",
                 )
@@ -476,17 +476,18 @@ impl Issue for UnableToExternalize {
                 .take(2)
                 .intersperse("/")
                 .collect::<String>()
+                .into()
         } else if let Some((package, _)) = request.split_once('/') {
-            package.to_string()
+            package.into()
         } else {
-            request.to_string()
+            request.into()
         };
         Ok(StyledString::Line(vec![
-            StyledString::Text("Package ".to_string()),
+            StyledString::Text("Package ".into()),
             StyledString::Code(package),
-            StyledString::Text(" (".to_string()),
-            StyledString::Code("serverExternalPackages".to_string()),
-            StyledString::Text(" or default list) can't be external".to_string()),
+            StyledString::Text(" (".into()),
+            StyledString::Code("serverExternalPackages".into()),
+            StyledString::Text(" or default list) can't be external".into()),
         ])
         .cell())
     }
