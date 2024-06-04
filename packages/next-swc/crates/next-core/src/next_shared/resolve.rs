@@ -112,7 +112,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
-    pub messages: Vec<String>,
+    pub messages: Vec<RcStr>,
     pub skip_context_message: bool,
 }
 
@@ -146,10 +146,8 @@ impl Issue for InvalidImportModuleIssue {
 
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
-            messages.push(format!(
-                "The error was caused by importing '{}'",
-                raw_context.path
-            ));
+            messages
+                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
         }
 
         Ok(Vc::cell(Some(
@@ -228,11 +226,11 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "client-only".to_string(),
+        "client-only".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
-                .to_string(),
+                .into(),
         ],
     )
 }
