@@ -513,7 +513,7 @@ impl Issue for UnableToExternalize {
                     StyledString::Code("serverExternalPackages".into()),
                     StyledString::Text(" (or the default list), but it can't be external:".into()),
                 ]),
-                StyledString::Line(vec![StyledString::Text(self.reason.into())]),
+                StyledString::Line(vec![StyledString::Text(self.reason.clone())]),
             ])
             .cell(),
         ))
