@@ -688,7 +688,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
         let emit_event = |feature_name: &str, enabled: bool| {
-            NextFeatureTelemetry::new(feature_name.to_string(), enabled)
+            NextFeatureTelemetry::new(feature_name.into(), enabled)
                 .cell()
                 .emit();
         };
@@ -786,14 +786,14 @@ impl Project {
                         path: self.project_path(),
                         title: StyledString::Text(
                             format!("App Router and Pages Router both match path: {}", pathname)
-                                .to_string(),
+                                .into(),
                         )
                         .cell(),
                         description: StyledString::Text(
                             "Next.js does not support having both App Router and Pages Router \
                              routes matching the same path. Please remove one of the conflicting \
                              routes."
-                                .to_string(),
+                                .into(),
                         )
                         .cell(),
                         severity: IssueSeverity::Error.cell(),
