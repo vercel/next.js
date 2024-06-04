@@ -912,7 +912,7 @@ impl PageEndpoint {
         let chunk_path = entry_chunk.ident().path().await?;
 
         let asset_path = node_root
-            .join("server".to_string())
+            .join("server".into())
             .await?
             .get_path_to(&chunk_path)
             .context("ssr chunk entry path must be inside the node root")?;
@@ -924,9 +924,8 @@ impl PageEndpoint {
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root.join(format!(
-                "server/pages{manifest_path_prefix}/pages-manifest.json",
-            )),
+            node_root
+                .join(format!("server/pages{manifest_path_prefix}/pages-manifest.json",).into()),
             AssetContent::file(File::from(serde_json::to_string_pretty(&pages_manifest)?).into()),
         )))
     }

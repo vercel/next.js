@@ -168,7 +168,7 @@ impl AppProject {
 
     #[turbo_tasks::function]
     fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
-        Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string())
+        Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.into())
     }
 
     #[turbo_tasks::function]
@@ -878,7 +878,7 @@ impl AppEndpoint {
                     Ok(client_relative_path_ref
                         .get_path_to(path)
                         .context("asset path should be inside client root")?
-                        .to_string())
+                        .into())
                 })
                 .collect::<anyhow::Result<Vec<_>>>()?;
             entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
@@ -890,9 +890,9 @@ impl AppEndpoint {
             };
             let manifest_path_prefix = &app_entry.original_name;
             let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(format!(
-                    "server/app{manifest_path_prefix}/app-build-manifest.json",
-                )),
+                node_root.join(
+                    format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
+                ),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
                 ),
