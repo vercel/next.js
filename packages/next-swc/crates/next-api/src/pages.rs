@@ -113,9 +113,9 @@ impl PagesProject {
                 project_path,
                 original_path,
             } = *page.await?;
-            let pathname = format!("/{}", next_router_path.await?.path);
+            let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
             let pathname_vc = Vc::cell(pathname.clone());
-            let original_name = Vc::cell(format!("/{}", original_path.await?.path));
+            let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
             let route = make_route(pathname_vc, original_name, project_path);
             routes.insert(pathname, route);
             Ok(())
@@ -263,7 +263,7 @@ impl PagesProject {
     fn transitions(self: Vc<Self>) -> Vc<TransitionsByName> {
         Vc::cell(
             [(
-                "next-dynamic".to_string(),
+                "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
                 ))),
@@ -279,7 +279,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("client".into()),
         )
     }
 
