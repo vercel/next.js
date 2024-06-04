@@ -1047,11 +1047,11 @@ impl AppEndpoint {
                 //
                 // they are created in `setup-dev-bundler.ts`
                 let mut file_paths_from_root = vec![
-                    "server/server-reference-manifest.js".to_string(),
-                    "server/middleware-build-manifest.js".to_string(),
-                    "server/middleware-react-loadable-manifest.js".to_string(),
-                    "server/next-font-manifest.js".to_string(),
-                    "server/interception-route-rewrite-manifest.js".to_string(),
+                    "server/server-reference-manifest.js".into(),
+                    "server/middleware-build-manifest.js".into(),
+                    "server/middleware-react-loadable-manifest.js".into(),
+                    "server/next-font-manifest.js".into(),
+                    "server/interception-route-rewrite-manifest.js".into(),
                 ];
                 let mut wasm_paths_from_root = vec![];
 
