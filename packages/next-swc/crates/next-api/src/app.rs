@@ -756,7 +756,7 @@ impl AppEndpoint {
         let client_relative_path = this.app_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
 
-        let server_path = node_root.join("server".to_string());
+        let server_path = node_root.join("server".into());
 
         let mut server_assets = vec![];
         let mut client_assets = vec![];
