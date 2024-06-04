@@ -31,5 +31,5 @@ pub(super) async fn build_font_family_string(
         }
     }
 
-    Ok(Vc::cell(font_families.join(", ")))
+    Ok(Vc::cell(font_families.join(", ").into()))
 }
