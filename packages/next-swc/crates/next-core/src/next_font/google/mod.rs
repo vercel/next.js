@@ -68,7 +68,7 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
                                                Chrome/104.0.0.0 Safari/537.36";
 
 #[turbo_tasks::value(transparent)]
-struct FontData(IndexMap<String, FontDataEntry>);
+struct FontData(IndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
