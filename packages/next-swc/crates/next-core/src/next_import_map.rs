@@ -981,7 +981,10 @@ fn insert_alias_to_alternatives<'a>(
     alias: impl Into<String> + 'a,
     alternatives: Vec<Vc<ImportMapping>>,
 ) {
-    import_map.insert_exact_alias(alias, ImportMapping::Alternatives(alternatives).into());
+    import_map.insert_exact_alias(
+        alias.into(),
+        ImportMapping::Alternatives(alternatives).into(),
+    );
 }
 
 /// Inserts an alias to an import mapping into an import map.
@@ -992,7 +995,7 @@ fn insert_package_alias(
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+        ImportMapping::PrimaryAlternative("./*".into(), Some(package_root)).cell(),
     );
 }
 
