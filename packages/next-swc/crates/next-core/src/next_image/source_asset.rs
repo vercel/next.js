@@ -18,7 +18,7 @@ use turbopack_binding::{
 use super::module::BlurPlaceholderMode;
 
 fn modifier() -> Vc<RcStr> {
-    Vc::cell("structured image object".to_string())
+    Vc::cell("structured image object".into())
 }
 
 #[turbo_tasks::function]
