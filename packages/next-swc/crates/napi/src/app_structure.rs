@@ -59,7 +59,7 @@ enum EntrypointForJs {
 
 #[turbo_tasks::value(transparent)]
 #[serde(rename_all = "camelCase")]
-struct EntrypointsForJs(HashMap<String, EntrypointForJs>);
+struct EntrypointsForJs(HashMap<RcStr, EntrypointForJs>);
 
 #[turbo_tasks::value(transparent)]
 struct OptionEntrypointsForJs(Option<Vc<EntrypointsForJs>>);
@@ -67,14 +67,14 @@ struct OptionEntrypointsForJs(Option<Vc<EntrypointsForJs>>);
 async fn fs_path_to_path(
     project_path: Vc<FileSystemPath>,
     path: Vc<FileSystemPath>,
-) -> Result<String> {
+) -> Result<RcStr> {
     match project_path.await?.get_path_to(&*path.await?) {
         None => Err(anyhow!(
             "Path {} is not inside of the project path {}",
             path.to_string().await?,
             project_path.to_string().await?
         )),
-        Some(p) => Ok(p.to_string()),
+        Some(p) => Ok(p.into()),
     }
 }
 
@@ -82,21 +82,21 @@ async fn fs_path_to_path(
 #[serde(rename_all = "camelCase")]
 struct ComponentsForJs {
     #[serde(skip_serializing_if = "Option::is_none")]
-    page: Option<String>,
+    page: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    layout: Option<String>,
+    layout: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
+    error: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    loading: Option<String>,
+    loading: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    template: Option<String>,
+    template: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "not-found")]
-    not_found: Option<String>,
+    not_found: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    default: Option<String>,
+    default: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    route: Option<String>,
+    route: Option<RcStr>,
     metadata: MetadataForJs,
 }
 
@@ -130,19 +130,19 @@ struct GlobalMetadataForJs {
 #[serde(tag = "type", rename_all = "camelCase")]
 enum MetadataWithAltItemForJs {
     Static {
-        path: String,
-        alt_path: Option<String>,
+        path: RcStr,
+        alt_path: Option<RcStr>,
     },
     Dynamic {
-        path: String,
+        path: RcStr,
     },
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum MetadataItemForJs {
-    Static { path: String },
-    Dynamic { path: String },
+    Static { path: RcStr },
+    Dynamic { path: RcStr },
 }
 
 async fn prepare_components_for_js(
@@ -162,7 +162,7 @@ async fn prepare_components_for_js(
     } = &*components.await?;
     let mut result = ComponentsForJs::default();
     async fn add(
-        result: &mut Option<String>,
+        result: &mut Option<RcStr>,
         project_path: Vc<FileSystemPath>,
         value: &Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
@@ -301,7 +301,7 @@ async fn prepare_entrypoints_for_js(
         .await?
         .iter()
         .map(|(key, value)| {
-            let key = key.to_string();
+            let key = key.to_string().into();
             async move {
                 let value = match *value {
                     Entrypoint::AppPage { loader_tree, .. } => EntrypointForJs::AppPage {
@@ -333,12 +333,12 @@ async fn get_value(
 ) -> Result<Vc<OptionEntrypointsForJs>> {
     let page_extensions = Vc::cell(page_extensions);
     let fs = project_fs(root_dir.clone(), watching);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/");
-    let project_path = fs.root().join(project_relative);
+    let project_path = fs.root().join(project_relative.into());
 
     let app_dir = find_app_dir(project_path);
 
