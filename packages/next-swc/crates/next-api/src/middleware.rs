@@ -140,7 +140,7 @@ impl MiddlewareEndpoint {
                 .iter()
                 .map(|matcher| match matcher {
                     MiddlewareMatcherKind::Str(matchers) => MiddlewareMatcher {
-                        original_source: matchers.to_string(),
+                        original_source: matchers.as_str().into(),
                         ..Default::default()
                     },
                     MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
@@ -148,8 +148,8 @@ impl MiddlewareEndpoint {
                 .collect()
         } else {
             vec![MiddlewareMatcher {
-                regexp: Some("^/.*$".to_string()),
-                original_source: "/:path*".to_string(),
+                regexp: Some("^/.*$".into()),
+                original_source: "/:path*".into(),
                 ..Default::default()
             }]
         };
@@ -157,8 +157,8 @@ impl MiddlewareEndpoint {
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
             wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-            name: "middleware".to_string(),
-            page: "/".to_string(),
+            name: "middleware".into(),
+            page: "/".into(),
             regions: None,
             matchers,
             env: this.project.edge_env().await?.clone_value(),
