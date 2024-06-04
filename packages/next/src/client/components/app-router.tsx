@@ -745,11 +745,14 @@ function RuntimeStyles() {
     }
   }, [renderedStylesSize, forceUpdate])
 
+  const dplId = process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+    : ''
   return [...runtimeStyles].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
-      href={href}
+      href={`${href}${dplId}`}
       // @ts-ignore
       precedence="next"
       // TODO figure out crossOrigin and nonce
