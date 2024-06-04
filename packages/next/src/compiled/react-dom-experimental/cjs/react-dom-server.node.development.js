@@ -21,9 +21,13 @@ var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '19.0.0-experimental-f994737d14-20240522';
+var reactDOMPackageVersion = '19.0.0-experimental-bf3a29d097-20240603';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+// -----------------------------------------------------------------------------
+
+var disableDefaultPropsExceptForClasses = true; // -----------------------------------------------------------------------------
 
 // by calls to these methods by a Babel plugin.
 //
@@ -51,35 +55,49 @@ function error(format) {
       printWarning('error', format, args);
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
+
+var supportsCreateTask = !!console.createTask;
 
 function printWarning(level, format, args) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask && ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack();
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
-
-// -----------------------------------------------------------------------------
-
-var disableDefaultPropsExceptForClasses = true; // -----------------------------------------------------------------------------
 
 var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_PORTAL_TYPE = Symbol.for('react.portal');
@@ -9346,7 +9364,12 @@ function createRequest(children, resumableState, renderState, rootFormatContext,
     onShellError: onShellError === undefined ? noop : onShellError,
     onFatalError: onFatalError === undefined ? noop : onFatalError,
     formState: formState === undefined ? null : formState
-  }; // This segment represents the root fallback.
+  };
+
+  {
+    request.didWarnForKey = null;
+  } // This segment represents the root fallback.
+
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
   false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
@@ -9561,7 +9584,8 @@ function getCurrentStackInDEV() {
   {
     if (currentTaskInDEV === null || currentTaskInDEV.componentStack === null) {
       return '';
-    }
+    } // TODO: Support owner based stacks for logs during SSR.
+
 
     return getStackByComponentStackNode(currentTaskInDEV.componentStack);
   }
@@ -9593,6 +9617,18 @@ function createClassComponentStack(task, type) {
     parent: task.componentStack,
     type: type
   };
+}
+
+function createComponentStackFromType(task, type) {
+  if (typeof type === 'string') {
+    return createBuiltInComponentStack(task, type);
+  }
+
+  if (shouldConstruct(type)) {
+    return createClassComponentStack(task, type);
+  }
+
+  return createFunctionComponentStack(task, type);
 } // While we track component stacks in prod all the time we only produce a reified stack in dev and
 // during prerender in Prod. The reason for this is that the stack is useful for prerender where the timeliness
 // of the request is less critical than the observability of the execution. For renders and resumes however we
@@ -10871,6 +10907,46 @@ function replayFragment(request, task, children, childIndex) {
   }
 }
 
+function warnForMissingKey(request, task, child) {
+  {
+    if (child === null || typeof child !== 'object' || child.$$typeof !== REACT_ELEMENT_TYPE && child.$$typeof !== REACT_PORTAL_TYPE) {
+      return;
+    }
+
+    if (!child._store || (child._store.validated || child.key != null) && child._store.validated !== 2) {
+      return;
+    }
+
+    if (typeof child._store !== 'object') {
+      throw new Error('React Component in warnForMissingKey should have a _store. ' + 'This error is likely caused by a bug in React. Please file an issue.');
+    } // $FlowFixMe[cannot-write] unable to narrow type from mixed to writable object
+
+
+    child._store.validated = 1;
+    var didWarnForKey = request.didWarnForKey;
+
+    if (didWarnForKey == null) {
+      didWarnForKey = request.didWarnForKey = new WeakSet();
+    }
+
+    var parentStackFrame = task.componentStack;
+
+    if (parentStackFrame === null || didWarnForKey.has(parentStackFrame)) {
+      // We already warned for other children in this parent.
+      return;
+    }
+
+    didWarnForKey.add(parentStackFrame); // We create a fake component stack for the child to log the stack trace from.
+
+    var stackFrame = createComponentStackFromType(task, child.type);
+    task.componentStack = stackFrame;
+
+    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', '', '');
+
+    task.componentStack = stackFrame.parent;
+  }
+}
+
 function renderChildrenArray(request, task, children, childIndex) {
   var prevKeyPath = task.keyPath;
 
@@ -10919,6 +10995,11 @@ function renderChildrenArray(request, task, children, childIndex) {
 
   for (var _i = 0; _i < totalChildren; _i++) {
     var _node = children[_i];
+
+    {
+      warnForMissingKey(request, task, _node);
+    }
+
     task.treeContext = pushTreeContext(prevTreeContext, totalChildren, _i); // We need to use the non-destructive form so that we can safely pop back
     // up and render the sibling if something suspends.
 
@@ -12404,6 +12485,16 @@ function getPostponedState(request) {
   };
 }
 
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+
+  if (isomorphicReactPackageVersion !== reactDOMPackageVersion) {
+    throw new Error('Incompatible React versions: The "react" and "react-dom" packages must ' + 'have the exact same version. Instead got:\n' + ("  - react:      " + isomorphicReactPackageVersion + "\n") + ("  - react-dom:  " + reactDOMPackageVersion + "\n") + 'Learn more: https://react.dev/warnings/version-mismatch');
+  }
+}
+
+ensureCorrectIsomorphicReactVersion();
+
 function createDrainHandler(destination, request) {
   return function () {
     return startFlowing(request, destination);
@@ -12474,6 +12565,8 @@ function resumeToPipeableStream(children, postponedState, options) {
   };
 }
 
+ensureCorrectIsomorphicReactVersion();
+
 function createFakeWritable(readable) {
   // The current host config expects a Writable so we create
   // a fake writable for now to push into the Readable.
@@ -12534,6 +12627,6 @@ function prerenderToNodeStream(children, options) {
 exports.prerenderToNodeStream = prerenderToNodeStream;
 exports.renderToPipeableStream = renderToPipeableStream;
 exports.resumeToPipeableStream = resumeToPipeableStream;
-exports.version = ReactVersion;
+exports.version = reactDOMPackageVersion;
   })();
 }

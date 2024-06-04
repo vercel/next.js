@@ -6466,6 +6466,17 @@ function getPostponedState(request) {
     replaySlots: trackedPostpones.rootSlots
   };
 }
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+  if ("19.0.0-experimental-bf3a29d097-20240603" !== isomorphicReactPackageVersion)
+    throw Error(
+      'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
+        (isomorphicReactPackageVersion +
+          "\n  - react-dom:  19.0.0-experimental-bf3a29d097-20240603\nLearn more: https://react.dev/warnings/version-mismatch")
+    );
+}
+ensureCorrectIsomorphicReactVersion();
+ensureCorrectIsomorphicReactVersion();
 exports.prerender = function (children, options) {
   return new Promise(function (resolve, reject) {
     var onHeaders = options ? options.onHeaders : void 0,
@@ -6665,4 +6676,4 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-f994737d14-20240522";
+exports.version = "19.0.0-experimental-bf3a29d097-20240603";
