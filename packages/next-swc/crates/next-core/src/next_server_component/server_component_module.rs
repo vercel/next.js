@@ -29,7 +29,7 @@ use super::server_component_reference::NextServerComponentModuleReference;
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js server component".to_string())
+    Vc::cell("Next.js server component".into())
 }
 
 #[turbo_tasks::value(shared)]
