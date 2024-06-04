@@ -231,8 +231,7 @@ async fn get_pages_structure_for_root_directory(
                             basename => {
                                 let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
-                                let item_original_path =
-                                    next_router_path.join(basename.to_string());
+                                let item_original_path = next_router_path.join(basename.into());
                                 items.push((
                                     basename,
                                     PagesStructureItem::new(
@@ -244,7 +243,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                         }
                     }
-                    DirectoryEntry::Directory(dir_project_path) => match name.as_ref() {
+                    DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
                             api_directory = Some(get_pages_structure_for_directory(
                                 *dir_project_path,
@@ -404,7 +403,7 @@ async fn get_pages_structure_for_directory(
     .await
 }
 
-fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {
+fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a str> {
     page_extensions
         .iter()
         .find_map(|allowed| name.strip_suffix(allowed)?.strip_suffix('.'))
@@ -417,6 +416,6 @@ fn next_router_path_for_basename(
     if basename == "index" {
         next_router_path
     } else {
-        next_router_path.join(basename.to_string())
+        next_router_path.join(basename.into())
     }
 }
