@@ -359,11 +359,10 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let stem = stem.replace(".shared-runtime", "");
 
         let resource_request = format!(
-            "next/dist/server/future/route-modules/{}/vendored/contexts/{}.js",
+            "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
                 ServerContextType::Pages { .. } => "pages",
-                ServerContextType::AppRoute { .. } | ServerContextType::Instrumentation { .. } =>
-                    "app-route",
+                ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
                 _ => "unknown",
             },

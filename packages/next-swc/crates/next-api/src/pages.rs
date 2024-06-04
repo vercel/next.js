@@ -1168,7 +1168,7 @@ impl Endpoint for PageEndpoint {
             }
         };
         async move {
-            let output = self.output();
+            let output = self.output().await?;
             // Must use self.output_assets() instead of output.output_assets() to make it a
             // single operation
             let output_assets = self.output_assets();
@@ -1189,7 +1189,7 @@ impl Endpoint for PageEndpoint {
                 .clone_value();
 
             let node_root = &node_root.await?;
-            let written_endpoint = match *output.await? {
+            let written_endpoint = match *output {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => WrittenEndpoint::NodeJs {
                     server_entry_path: node_root
                         .get_path_to(&*entry_chunk.ident().path().await?)

@@ -50,6 +50,7 @@ struct NextPageStaticInfo {
 
 #[async_trait]
 impl CustomTransformer for NextPageStaticInfo {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_page_static_info", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if let Some(collected_exports) = collect_exports(program)? {
             let mut properties_to_extract = collected_exports.extra_properties.clone();

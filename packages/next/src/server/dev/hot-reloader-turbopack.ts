@@ -72,7 +72,7 @@ import {
 import { TurbopackManifestLoader } from './turbopack/manifest-loader'
 import type { Entrypoints } from './turbopack/types'
 import { findPagePathData } from './on-demand-entry-handler'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
@@ -123,30 +123,35 @@ export async function createHotReloaderTurbopack(
   hotReloaderSpan.stop()
 
   const encryptionKey = await generateEncryptionKeyBase64(true)
-  const project = await bindings.turbo.createProject({
-    projectPath: dir,
-    rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
-    nextConfig: opts.nextConfig,
-    jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-    watch: true,
-    dev: true,
-    env: process.env as Record<string, string>,
-    defineEnv: createDefineEnv({
-      isTurbopack: true,
-      // TODO: Implement
-      clientRouterFilters: undefined,
-      config: nextConfig,
+  const project = await bindings.turbo.createProject(
+    {
+      projectPath: dir,
+      rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
+      nextConfig: opts.nextConfig,
+      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      watch: true,
       dev: true,
-      distDir,
-      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
-      hasRewrites,
-      // TODO: Implement
-      middlewareMatchers: undefined,
-    }),
-    buildId,
-    encryptionKey,
-    previewProps: opts.fsChecker.prerenderManifest.preview,
-  })
+      env: process.env as Record<string, string>,
+      defineEnv: createDefineEnv({
+        isTurbopack: true,
+        // TODO: Implement
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir,
+        fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
+        hasRewrites,
+        // TODO: Implement
+        middlewareMatchers: undefined,
+      }),
+      buildId,
+      encryptionKey,
+      previewProps: opts.fsChecker.prerenderManifest.preview,
+    },
+    {
+      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+    }
+  )
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentEntrypoints: Entrypoints = {

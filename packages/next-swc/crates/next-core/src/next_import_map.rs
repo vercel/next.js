@@ -583,9 +583,10 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
+        ServerContextType::Middleware => {
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
+        ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -683,26 +684,26 @@ async fn rsc_aliases(
         match ty {
             ServerContextType::AppSSR { .. } => {
                 alias.extend(indexmap! {
-                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
-                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
-                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
-                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
-                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
+                    "react" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react"),
+                    "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
+                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                 })
             }
             ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
                 alias.extend(indexmap! {
-                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
-                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
-                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
-                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
-                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                    "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
+                    "react" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react"),
+                    "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
+                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-webpack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
                     "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
                     // Needed to make `react-dom/server` work.

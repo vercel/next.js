@@ -35,6 +35,7 @@ struct NextShakeExports {
 
 #[async_trait]
 impl CustomTransformer for NextShakeExports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_shake_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
 
