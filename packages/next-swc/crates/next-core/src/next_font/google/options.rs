@@ -71,7 +71,7 @@ impl Eq for Axis {}
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
 pub(super) fn options_from_request(
     request: &NextFontRequest,
-    data: &IndexMap<String, FontDataEntry>,
+    data: &IndexMap<RcStr, FontDataEntry>,
 ) -> Result<NextFontGoogleOptions> {
     if request.arguments.len() > 1 {
         return Err(anyhow!(
