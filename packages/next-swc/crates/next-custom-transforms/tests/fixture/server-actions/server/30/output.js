@@ -3,9 +3,9 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 let a, f;
 export async function action0(b, c, ...g) {
     return registerServerReference("9878bfa39811ca7650992850a8751f9591b6a557", $$ACTION_2).bind(null, encryptActionBoundArgs("9878bfa39811ca7650992850a8751f9591b6a557", [
+        b,
         c,
-        g,
-        b
+        g
     ]));
 }
 export async function $$ACTION_0($$ACTION_CLOSURE_BOUND, e) {
@@ -23,18 +23,18 @@ export async function $$ACTION_2($$ACTION_CLOSURE_BOUND, d) {
     console.log(...window, {
         window
     });
-    console.log(a, $$ACTION_ARG_2, action2);
+    console.log(a, $$ACTION_ARG_0, action2);
     var action2 = registerServerReference("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-        $$ACTION_ARG_0,
+        $$ACTION_ARG_1,
         d,
         f,
-        $$ACTION_ARG_1
+        $$ACTION_ARG_2
     ]));
     return [
         action2,
         registerServerReference("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
             action2,
-            $$ACTION_ARG_0,
+            $$ACTION_ARG_1,
             d
         ]))
     ];
