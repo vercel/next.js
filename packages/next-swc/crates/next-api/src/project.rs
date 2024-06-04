@@ -569,8 +569,8 @@ impl Project {
                 self.project_path(),
                 node_root,
                 node_root,
-                node_root.join("chunks".to_string()),
-                node_root.join("assets".to_string()),
+                node_root.join("chunks".into()),
+                node_root.join("assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
             )
@@ -613,11 +613,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn edge_env(&self) -> Vc<EnvMap> {
         let edge_env = indexmap! {
-            "__NEXT_BUILD_ID".to_string() => self.build_id.clone(),
-            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".to_string() => self.encryption_key.clone(),
-            "__NEXT_PREVIEW_MODE_ID".to_string() => self.preview_props.preview_mode_id.clone(),
-            "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY".to_string() => self.preview_props.preview_mode_encryption_key.clone(),
-            "__NEXT_PREVIEW_MODE_SIGNING_KEY".to_string() => self.preview_props.preview_mode_signing_key.clone(),
+            "__NEXT_BUILD_ID".into() => self.build_id.clone(),
+            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".into() => self.encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_ID".into() => self.preview_props.preview_mode_id.clone(),
+            "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY".into() => self.preview_props.preview_mode_encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_SIGNING_KEY".into() => self.preview_props.preview_mode_signing_key.clone(),
         };
         Vc::cell(edge_env)
     }
