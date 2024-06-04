@@ -591,7 +591,8 @@ pub async fn load_next_js_template(
                     import_request
                 },
             )
-            .context("path should not leave the fs")?,
+            .context("path should not leave the fs")?
+            .into(),
         };
 
         let relative = package_root_value
