@@ -12,7 +12,7 @@ use next_core::app_structure::{
     LoaderTree, MetadataItem, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{RcStr, ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
@@ -28,11 +28,7 @@ use crate::register;
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(
-        PROJECT_FILESYSTEM_NAME.to_string(),
-        project_dir.to_string(),
-        vec![],
-    );
+    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), project_dir.into(), vec![]);
     if watching {
         disk_fs.await?.start_watching_with_invalidation_reason()?;
     }
@@ -42,8 +38,8 @@ async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn Fil
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
-    segment: String,
-    parallel_routes: IndexMap<String, ReadRef<LoaderTreeForJs>>,
+    segment: RcStr,
+    parallel_routes: IndexMap<RcStr, ReadRef<LoaderTreeForJs>>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]
@@ -57,7 +53,7 @@ enum EntrypointForJs {
         loader_tree: ReadRef<LoaderTreeForJs>,
     },
     AppRoute {
-        path: String,
+        path: RcStr,
     },
 }
 
