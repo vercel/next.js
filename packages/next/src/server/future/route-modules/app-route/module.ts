@@ -507,7 +507,6 @@ export function hasNonStaticMethods(handlers: AppRouteHandlers): boolean {
   if (
     // Order these by how common they are to be used
     handlers.POST ||
-    handlers.POST ||
     handlers.DELETE ||
     handlers.PATCH ||
     handlers.OPTIONS
