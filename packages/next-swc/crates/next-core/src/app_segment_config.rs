@@ -178,7 +178,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
+        StyledString::Text("Unable to parse config export in source file".into()).cell()
     }
 
     #[turbo_tasks::function]
