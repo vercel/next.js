@@ -86,7 +86,7 @@ pub async fn get_app_page_entry(
             "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
         },
         indexmap! {
-            "tree" => loader_tree_code.into(),
+            "tree" => loader_tree_code,
             "pages" => StringifyJs(&pages).to_string().into(),
             "__next_app_require__" => "__turbopack_require__".into(),
             "__next_app_load_chunk__" => " __turbopack_load__".into(),
