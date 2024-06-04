@@ -111,7 +111,7 @@ const proxy = createProxy(String.raw\`${resourceKey}\`)
         if (ref === '') {
           esmSource += `exports[''] = proxy['']\n`
         } else if (ref === 'default') {
-          esmSource += `export default createProxy(String.raw\`${resourceKey}#default\`)\n`
+          esmSource += `export default proxy.default\n`
         } else {
           esmSource += `const e${cnt} = proxy["${ref}"];\n`
           esmSource += `export { e${cnt++} as ${ref} };\n`
