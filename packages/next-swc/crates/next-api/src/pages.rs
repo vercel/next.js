@@ -1150,16 +1150,16 @@ impl Endpoint for PageEndpoint {
         let span = {
             match this.ty {
                 PageEndpointType::Html => {
-                    tracing::info_span!("page endpoint HTML", name = *original_name)
+                    tracing::info_span!("page endpoint HTML", name = original_name.to_string())
                 }
                 PageEndpointType::Data => {
-                    tracing::info_span!("page endpoint data", name = *original_name)
+                    tracing::info_span!("page endpoint data", name = original_name.to_string())
                 }
                 PageEndpointType::Api => {
-                    tracing::info_span!("page endpoint API", name = *original_name)
+                    tracing::info_span!("page endpoint API", name = original_name.to_string())
                 }
                 PageEndpointType::SsrOnly => {
-                    tracing::info_span!("page endpoint SSR", name = *original_name)
+                    tracing::info_span!("page endpoint SSR", name = original_name.to_string())
                 }
             }
         };
