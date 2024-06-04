@@ -119,7 +119,7 @@ pub async fn create_page_ssr_entry_module(
     }
 
     let mut inner_assets = indexmap! {
-        INNER.to_string() => ssr_module,
+        INNER.into() => ssr_module,
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
