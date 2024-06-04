@@ -62,7 +62,7 @@ pub async fn all_server_paths(
 pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
     root: Vc<FileSystemPath>,
-) -> Result<Vc<Vec<String>>> {
+) -> Result<Vc<Vec<RcStr>>> {
     let all_assets = &*all_assets_from_entries(assets).await?;
     let root = &*root.await?;
 
@@ -75,7 +75,7 @@ pub(crate) async fn get_paths_from_root(
     root: &FileSystemPath,
     output_assets: &[Vc<Box<dyn OutputAsset>>],
     filter: impl FnOnce(&str) -> bool + Copy,
-) -> Result<Vec<String>> {
+) -> Result<Vec<RcStr>> {
     output_assets
         .iter()
         .map({
@@ -86,7 +86,7 @@ pub(crate) async fn get_paths_from_root(
                 };
 
                 Ok(if filter(relative) {
-                    Some(relative.to_string())
+                    Some(relative.into())
                 } else {
                     None
                 })
