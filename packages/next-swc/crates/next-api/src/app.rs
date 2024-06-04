@@ -405,7 +405,7 @@ impl AppProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("app-client".to_string()),
+            Vc::cell("app-client".into()),
         )
     }
 
@@ -1075,14 +1075,14 @@ impl AppEndpoint {
                 // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
-                    regexp: Some(named_regex),
+                    regexp: Some(named_regex.into()),
                     original_source: app_entry.pathname.clone(),
                     ..Default::default()
                 };
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                    name: app_entry.pathname.to_string(),
+                    name: app_entry.pathname,
                     page: app_entry.original_name.clone(),
                     regions: app_entry
                         .config
