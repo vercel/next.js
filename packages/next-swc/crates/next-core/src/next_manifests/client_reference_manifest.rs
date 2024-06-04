@@ -135,15 +135,16 @@ impl ClientReferenceManifest {
                             .iter()
                             .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
                             .map(ToString::to_string)
+                            .map(RcStr::from)
                             .collect::<Vec<_>>()
                     } else {
                         Vec::new()
                     };
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
-                        "*".to_string(),
+                        "*".into(),
                         ManifestNodeEntry {
-                            name: "*".to_string(),
+                            name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
                             // TODO(WEB-434)
