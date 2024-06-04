@@ -1044,15 +1044,18 @@ impl NextConfig {
     pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
         let this = self.await?;
 
-        Ok(Vc::cell(Some(format!(
-            "{}/_next/",
-            if let Some(asset_prefix) = &this.asset_prefix {
-                asset_prefix
-            } else {
-                this.base_path.as_ref().map_or("", |b| b.as_str())
-            }
-            .trim_end_matches('/')
-        ))))
+        Ok(Vc::cell(Some(
+            format!(
+                "{}/_next/",
+                if let Some(asset_prefix) = &this.asset_prefix {
+                    asset_prefix
+                } else {
+                    this.base_path.as_ref().map_or("", |b| b.as_str())
+                }
+                .trim_end_matches('/')
+            )
+            .into(),
+        )))
     }
 
     #[turbo_tasks::function]

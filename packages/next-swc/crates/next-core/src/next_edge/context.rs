@@ -231,7 +231,7 @@ pub async fn get_edge_chunking_context(
         // instead. This special blob url is handled by the custom fetch
         // implementation in the edge sandbox. It will respond with the
         // asset from the output directory.
-        .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
+        .asset_base_path(Vc::cell(Some("blob:server/edge/".into())))
         .minify_type(next_mode.minify_type())
         .build(),
     ))

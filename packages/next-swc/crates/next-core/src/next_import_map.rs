@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{FileSystem, FileSystemPath},
     turbopack::{
@@ -736,8 +736,8 @@ async fn rsc_aliases(
     Ok(())
 }
 
-pub fn mdx_import_source_file() -> String {
-    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
+pub fn mdx_import_source_file() -> RcStr {
+    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source").into()
 }
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
