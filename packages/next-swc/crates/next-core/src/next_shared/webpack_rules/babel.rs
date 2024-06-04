@@ -71,13 +71,11 @@ pub async fn maybe_add_babel_loader(
                     BabelIssue {
                         path: project_root,
                         title: StyledString::Text(
-                            "Unable to resolve babel-loader, but a babel config is present"
-                                .to_owned(),
+                            "Unable to resolve babel-loader, but a babel config is present".into(),
                         )
                         .cell(),
                         description: StyledString::Text(
-                            "Make sure babel-loader is installed via your package manager."
-                                .to_owned(),
+                            "Make sure babel-loader is installed via your package manager.".into(),
                         )
                         .cell(),
                         severity: IssueSeverity::Fatal.cell(),
