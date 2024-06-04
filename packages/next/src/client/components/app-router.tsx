@@ -293,6 +293,7 @@ function Head({
 function Router({
   buildId,
   initialHead,
+  initialLayerAssets,
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
@@ -310,7 +311,7 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
-        initialLayerAssets: null,
+        initialLayerAssets,
         couldBeIntercepted,
       }),
     [
@@ -319,6 +320,7 @@ function Router({
       initialCanonicalUrl,
       initialTree,
       initialHead,
+      initialLayerAssets,
       couldBeIntercepted,
     ]
   )
@@ -657,10 +659,27 @@ function Router({
     head = null
   }
 
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    cache.prefetchLayerAssets !== null
+      ? cache.prefetchLayerAssets
+      : cache.layerAssets
+
+  const layerAssets = useDeferredValue(
+    cache.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
+
   let content = (
     <RedirectBoundary>
       {head}
-      {/* {cache.layerAssets} */}
+      {layerAssets}
       {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
@@ -690,6 +709,7 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
+      <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
@@ -719,4 +739,49 @@ export default function AppRouter(
       <Router {...rest} />
     </ErrorBoundary>
   )
+}
+
+const runtimeStyles = new Set<string>()
+let runtimeStyleChanged = new Set<() => void>()
+
+globalThis._N_E_STYLE_LOAD = function (href: string) {
+  let len = runtimeStyles.size
+  runtimeStyles.add(href)
+  if (runtimeStyles.size !== len) {
+    runtimeStyleChanged.forEach((cb) => cb())
+  }
+  // TODO figure out how to get a promise here
+  // But maybe it's not necessary as react would block rendering until it's loaded
+  return Promise.resolve()
+}
+
+function RuntimeStyles() {
+  const [, forceUpdate] = React.useState(0)
+  const renderedStylesSize = runtimeStyles.size
+  useEffect(() => {
+    const changed = () => forceUpdate((c) => c + 1)
+    runtimeStyleChanged.add(changed)
+    if (renderedStylesSize !== runtimeStyles.size) {
+      changed()
+    }
+    return () => {
+      runtimeStyleChanged.delete(changed)
+    }
+  }, [renderedStylesSize, forceUpdate])
+
+  const dplId = process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+    : ''
+  return [...runtimeStyles].map((href, i) => (
+    <link
+      key={i}
+      rel="stylesheet"
+      href={`${href}${dplId}`}
+      // @ts-ignore
+      precedence="next"
+      // TODO figure out crossOrigin and nonce
+      // crossOrigin={TODO}
+      // nonce={TODO}
+    />
+  ))
 }

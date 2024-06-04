@@ -16,7 +16,7 @@ import {
   RSC_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
-import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 

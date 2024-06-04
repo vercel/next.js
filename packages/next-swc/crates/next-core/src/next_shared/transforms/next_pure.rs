@@ -28,6 +28,7 @@ struct NextPure {}
 
 #[async_trait]
 impl CustomTransformer for NextPure {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_pure", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.visit_mut_with(&mut pure_magic(ctx.comments.clone()));
         Ok(())
