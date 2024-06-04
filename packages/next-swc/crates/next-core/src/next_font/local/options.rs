@@ -151,9 +151,9 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
         ),
         SrcRequest::One(path) => {
             FontDescriptors::One(FontDescriptor::from_src_request(&SrcDescriptor {
-                path: path.to_owned(),
-                weight: weight.to_owned(),
-                style: style.to_owned(),
+                path: path.as_str().into(),
+                weight: weight.as_deref().map(RcStr::from),
+                style: style.as_deref().map(RcStr::from),
             })?)
         }
     };
