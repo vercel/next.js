@@ -945,7 +945,7 @@ fn export_value_to_import_mapping(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative(m.into(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path)).cell()
                     })
                     .collect(),
             )
