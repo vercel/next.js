@@ -155,6 +155,10 @@ export function getDefineEnv({
              * the runtime they are running with, if it's not using `edge-runtime`
              */
             process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
+
+          // process should be only { env: {...} } for edge runtime.
+          // For ignore avoid warn on `process.emit` usage but directly omit it.
+          'process.emit': false,
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
