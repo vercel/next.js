@@ -39,6 +39,9 @@ if (!ReactSharedInternalsServer) {
   throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
 }
 
+// -----------------------------------------------------------------------------
+var enablePostpone = false;
+
 function error(format) {
   {
     {
@@ -49,34 +52,47 @@ function error(format) {
       printWarning('error', format, args);
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
 function printWarning(level, format, args) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternalsServer.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternalsServer.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternalsServer.getCurrentStack();
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
-
-// -----------------------------------------------------------------------------
-var enablePostpone = false;
 
 function scheduleWork(callback) {
   callback();
@@ -1572,6 +1588,7 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
 
   {
     request.environmentName = environmentName === undefined ? 'Server' : environmentName;
+    request.didWarnForKey = null;
   }
 
   var rootTask = createTask(request, model, null, false, abortSet);
@@ -1951,7 +1968,8 @@ function callLazyInitInDEV(lazy) {
 }
 
 function renderFunctionComponent(request, task, key, Component, props, owner, // DEV-only
-stack) // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   // Reset the task's thenable state before continuing, so that if a later
   // component suspends we can reuse the same task object. If the same
@@ -1993,11 +2011,22 @@ stack) // DEV-only
     result = callComponentInDEV(Component, props, componentDebugInfo);
   }
 
-  if (typeof result === 'object' && result !== null) {
+  if (typeof result === 'object' && result !== null && !isClientReference(result)) {
     if (typeof result.then === 'function') {
       // When the return value is in children position we can resolve it immediately,
       // to its value without a wrapper if it's synchronously available.
       var thenable = result;
+
+      {
+        // If the thenable resolves to an element, then it was in a static position,
+        // the return value of a Server Component. That doesn't need further validation
+        // of keys. The Server Component itself would have had a key.
+        thenable.then(function (resolvedValue) {
+          if (typeof resolvedValue === 'object' && resolvedValue !== null && resolvedValue.$$typeof === REACT_ELEMENT_TYPE) {
+            resolvedValue._store.validated = 1;
+          }
+        }, function () {});
+      }
 
       if (thenable.status === 'fulfilled') {
         return thenable.value;
@@ -2069,6 +2098,11 @@ stack) // DEV-only
       {
         result._debugInfo = _iterableChild._debugInfo;
       }
+    } else if (result.$$typeof === REACT_ELEMENT_TYPE) {
+      // If the server component renders to an element, then it was in a static position.
+      // That doesn't need further validation of keys. The Server Component itself would
+      // have had a key.
+      result._store.validated = 1;
     }
   } // Track this element's key on the Server Component on the keyPath context..
 
@@ -2095,6 +2129,20 @@ stack) // DEV-only
 }
 
 function renderFragment(request, task, children) {
+  {
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+
+      if (child !== null && typeof child === 'object' && child.$$typeof === REACT_ELEMENT_TYPE) {
+        var element = child;
+
+        if (element.key === null && !element._store.validated) {
+          element._store.validated = 2;
+        }
+      }
+    }
+  }
+
   if (task.keyPath !== null) {
     // We have a Server Component that specifies a key but we're now splitting
     // the tree using a fragment.
@@ -2188,7 +2236,8 @@ function renderAsyncFragment(request, task, children, getAsyncIterator) {
 }
 
 function renderClientElement(task, type, key, props, owner, // DEV-only
-stack) // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   // We prepend the terminal client element that actually gets serialized with
   // the keys of any Server Components which are not serialized.
@@ -2239,7 +2288,8 @@ function outlineTask(request, task) {
 }
 
 function renderElement(request, task, type, key, ref, props, owner, // DEV only
-stack) // DEV only
+stack, // DEV only
+validated) // DEV only
 {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly

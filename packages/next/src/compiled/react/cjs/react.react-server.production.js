@@ -170,7 +170,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
             (callback = cloneAndReplaceKey(
               callback,
               escapedPrefix +
-                (!callback.key || (children && children.key === callback.key)
+                (null == callback.key ||
+                (children && children.key === callback.key)
                   ? ""
                   : ("" + callback.key).replace(
                       userProvidedKeyEscapeRegex,
@@ -442,18 +443,17 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    callbacks = new Set();
-  ReactSharedInternals.T = { _callbacks: callbacks };
-  var currentTransition = ReactSharedInternals.T;
+    transition = {};
+  ReactSharedInternals.T = transition;
   try {
-    var returnValue = scope();
+    var returnValue = scope(),
+      onStartTransitionFinish = ReactSharedInternals.S;
+    null !== onStartTransitionFinish &&
+      onStartTransitionFinish(transition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
-      (callbacks.forEach(function (callback) {
-        return callback(currentTransition, returnValue);
-      }),
-      returnValue.then(noop, reportGlobalError));
+      returnValue.then(noop, reportGlobalError);
   } catch (error) {
     reportGlobalError(error);
   } finally {
@@ -476,4 +476,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.0.0-rc-f994737d14-20240522";
+exports.version = "19.0.0-rc-bf3a29d097-20240603";
