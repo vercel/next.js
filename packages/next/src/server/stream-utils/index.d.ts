@@ -64,3 +64,85 @@ export function continueFizzStream(
     suffix?: string
   }
 ): Promise<Readable | ReadableStream<Uint8Array>>
+
+export function continueDynamicPrerender(
+  prerenderStream: Readable,
+  options: {
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable>
+export function continueDynamicPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  options: {
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<ReadableStream<Uint8Array>>
+export function continueDynamicPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  options: {
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable | ReadableStream<Uint8Array>>
+
+export function continueStaticPrerender(
+  prerenderStream: Readable,
+  option: {
+    inlinedDataStream: Readable
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable>
+export function continueStaticPrerender(
+  prerenderStream: ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: ReadableStream<Uint8Array>
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<ReadableStream<Uint8Array>>
+export function continueStaticPrerender(
+  prerenderStream: Readable | ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: Readable | ReadableStream<Uint8Array>
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable | ReadableStream<Uint8Array>>
+
+export function continueDynamicHTMLResume(
+  renderStream: Readable,
+  option: {
+    inlinedDataStream: Readable
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable>
+export function continueDynamicHTMLResume(
+  renderStream: ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: ReadableStream<Uint8Array>
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<ReadableStream<Uint8Array>>
+export function continueDynamicHTMLResume(
+  renderStream: Readable | ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: Readable | ReadableStream<Uint8Array>
+    getServerInsertedHTML: () => Promise<string>
+  }
+): Promise<Readable | ReadableStream<Uint8Array>>
+
+export function continueDynamicDataResume(
+  renderStream: Readable,
+  option: {
+    inlinedDataStream: Readable
+  }
+): Promise<Readable>
+export function continueDynamicDataResume(
+  renderStream: ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: ReadableStream<Uint8Array>
+  }
+): Promise<ReadableStream<Uint8Array>>
+export function continueDynamicDataResume(
+  renderStream: Readable | ReadableStream<Uint8Array>,
+  option: {
+    inlinedDataStream: Readable | ReadableStream<Uint8Array>
+  }
+): Promise<Readable | ReadableStream<Uint8Array>>

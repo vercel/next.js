@@ -33,7 +33,6 @@ import {
   continueStaticPrerender,
   continueDynamicHTMLResume,
   continueDynamicDataResume,
-  convertReadable,
 } from '../stream-utils'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
@@ -1066,7 +1065,6 @@ async function renderToHTMLOrFlightImpl(
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
-          stream = convertReadable(stream)
           /**
            * When prerendering there are three outcomes to consider
            *
@@ -1100,6 +1098,7 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
+              // @ts-ignore
               stream: await continueDynamicPrerender(stream, {
                 getServerInsertedHTML,
               }),
@@ -1143,6 +1142,7 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
+                // @ts-ignore
                 stream: await continueDynamicPrerender(stream, {
                   getServerInsertedHTML,
                 }),
@@ -1206,13 +1206,12 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
 
-                const resultStream2 = chainStreams(
-                  stream,
-                  convertReadable(resumeStream)
-                )
-
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = convertReadable(resultStream2)
+                renderedHTMLStream = chainStreams(
+                  // @ts-ignore
+                  stream,
+                  resumeStream
+                )
               }
 
               let inlinedDataStream = createInlinedDataReadableStream(
@@ -1220,13 +1219,6 @@ async function renderToHTMLOrFlightImpl(
                 nonce,
                 formState
               )
-
-              if (
-                process.env.NEXT_RUNTIME === 'nodejs' &&
-                !(inlinedDataStream instanceof ReadableStream)
-              ) {
-                inlinedDataStream = convertReadable(inlinedDataStream)
-              }
 
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
@@ -1238,19 +1230,13 @@ async function renderToHTMLOrFlightImpl(
             }
           }
         } else if (renderOpts.postponed) {
-          stream = convertReadable(stream)
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
           let inlinedDataStream = createInlinedDataReadableStream(
             dataStream,
             nonce,
             formState
           )
-          if (
-            process.env.NEXT_RUNTIME === 'nodejs' &&
-            !(inlinedDataStream instanceof ReadableStream)
-          ) {
-            inlinedDataStream = convertReadable(inlinedDataStream)
-          }
+
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
@@ -1270,22 +1256,21 @@ async function renderToHTMLOrFlightImpl(
             }
           }
         } else {
-          const resultStream2 = await continueFizzStream(stream, {
-            inlinedDataStream: createInlinedDataReadableStream(
-              dataStream,
-              nonce,
-              formState
-            ),
-            isStaticGeneration: isStaticGeneration || generateStaticHTML,
-            getServerInsertedHTML,
-            serverInsertedHTMLToHead: true,
-            validateRootLayout,
-          })
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: convertReadable(resultStream2),
+            stream: await continueFizzStream(stream, {
+              inlinedDataStream: createInlinedDataReadableStream(
+                dataStream,
+                nonce,
+                formState
+              ),
+              isStaticGeneration: isStaticGeneration || generateStaticHTML,
+              getServerInsertedHTML,
+              serverInsertedHTMLToHead: true,
+              validateRootLayout,
+            }),
           }
         }
       } catch (err) {
@@ -1406,31 +1391,30 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          const resultStream3 = await continueFizzStream(fizzStream, {
-            inlinedDataStream: createInlinedDataReadableStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              dataStream,
-              nonce,
-              formState
-            ),
-            isStaticGeneration,
-            getServerInsertedHTML: makeGetServerInsertedHTML({
-              polyfills,
-              renderServerInsertedHTML,
-              serverCapturedErrors: [],
-              tracingMetadata: undefined,
-              basePath: renderOpts.basePath,
-            }),
-            serverInsertedHTMLToHead: true,
-            validateRootLayout,
-          })
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
             err,
-            stream: convertReadable(resultStream3),
+            stream: await continueFizzStream(fizzStream, {
+              inlinedDataStream: createInlinedDataReadableStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                dataStream,
+                nonce,
+                formState
+              ),
+              isStaticGeneration,
+              getServerInsertedHTML: makeGetServerInsertedHTML({
+                polyfills,
+                renderServerInsertedHTML,
+                serverCapturedErrors: [],
+                tracingMetadata: undefined,
+                basePath: renderOpts.basePath,
+              }),
+              serverInsertedHTMLToHead: true,
+              validateRootLayout,
+            }),
           }
         } catch (finalErr: any) {
           if (

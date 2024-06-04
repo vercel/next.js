@@ -461,3 +461,58 @@ export function teeReadable(
   }
   return [stream.pipe(new PassThrough()), stream.pipe(new PassThrough())]
 }
+
+export type ContinueStaticPrerenderOptions = {
+  inlinedDataStream: Readable
+  getServerInsertedHTML: () => Promise<string>
+}
+
+export async function continueStaticPrerender(
+  prerenderStream: Readable,
+  { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions
+) {
+  const closeTag = '</body></html>'
+
+  return prerenderStream
+    .pipe(createBufferedTransformStream())
+    .pipe(createHeadInsertionTransformStream(getServerInsertedHTML))
+    .pipe(inlinedDataStream.pipe(new PassThrough()))
+    .pipe(createMoveSuffixStream(closeTag))
+}
+
+type ContinueResumeOptions = {
+  inlinedDataStream: Readable
+  getServerInsertedHTML: () => Promise<string>
+}
+
+export async function continueDynamicHTMLResume(
+  renderStream: Readable,
+  { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
+) {
+  const closeTag = '</body></html>'
+
+  return renderStream
+    .pipe(createBufferedTransformStream())
+    .pipe(createHeadInsertionTransformStream(getServerInsertedHTML))
+    .pipe(inlinedDataStream.pipe(new PassThrough()))
+    .pipe(createMoveSuffixStream(closeTag))
+}
+
+type ContinueDynamicDataResumeOptions = {
+  inlinedDataStream: Readable
+}
+
+export async function continueDynamicDataResume(
+  renderStream: Readable,
+  { inlinedDataStream }: ContinueDynamicDataResumeOptions
+) {
+  const closeTag = '</body></html>'
+
+  return (
+    renderStream
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      .pipe(inlinedDataStream.pipe(new PassThrough()))
+      // Close tags should always be deferred to the end
+      .pipe(createMoveSuffixStream(closeTag))
+  )
+}
