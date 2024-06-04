@@ -13,19 +13,19 @@ use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
     #[serde(flatten)]
-    pub pages: HashMap<String, String>,
+    pub pages: HashMap<RcStr, RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildManifest {
-    pub dev_files: Vec<String>,
-    pub amp_dev_files: Vec<String>,
-    pub polyfill_files: Vec<String>,
-    pub low_priority_files: Vec<String>,
-    pub root_main_files: Vec<String>,
-    pub pages: HashMap<String, Vec<String>>,
-    pub amp_first_pages: Vec<String>,
+    pub dev_files: Vec<RcStr>,
+    pub amp_dev_files: Vec<RcStr>,
+    pub polyfill_files: Vec<RcStr>,
+    pub low_priority_files: Vec<RcStr>,
+    pub root_main_files: Vec<RcStr>,
+    pub pages: HashMap<RcStr, Vec<RcStr>>,
+    pub amp_first_pages: Vec<RcStr>,
 }
 
 #[derive(Serialize, Debug)]
