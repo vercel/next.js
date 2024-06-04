@@ -55,7 +55,7 @@ pub(super) fn get_font_axes(
                 let definable_axes_tags = defineable_axes
                     .iter()
                     .map(|axis| axis.tag.to_owned())
-                    .collect::<Vec<String>>();
+                    .collect::<Vec<RcStr>>();
 
                 for tag in selected_variable_axes {
                     if !definable_axes_tags.contains(tag) {
