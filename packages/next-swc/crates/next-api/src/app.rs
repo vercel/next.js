@@ -305,24 +305,21 @@ impl AppProject {
     fn edge_rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     Vc::upcast(self.client_transition()),
                     self.edge_ssr_transition(),
                 )),
             ),
             (
-                "next-dynamic".to_string(),
+                "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
                 ))),
             ),
+            ("next-ssr".into(), Vc::upcast(self.edge_ssr_transition())),
             (
-                "next-ssr".to_string(),
-                Vc::upcast(self.edge_ssr_transition()),
-            ),
-            (
-                "next-shared".to_string(),
+                "next-shared".into(),
                 Vc::upcast(self.edge_shared_transition()),
             ),
         ]
@@ -333,7 +330,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
-            Vc::cell("app-edge-rsc".to_string()),
+            Vc::cell("app-edge-rsc".into()),
         )
     }
 
@@ -778,7 +775,7 @@ impl AppEndpoint {
                 app_entry
                     .rsc_entry
                     .ident()
-                    .with_modifier(Vc::cell("client_shared_chunks".to_string())),
+                    .with_modifier(Vc::cell("client_shared_chunks".into())),
                 this.app_project.client_runtime_entries(),
                 client_chunking_context,
             )
@@ -791,7 +788,7 @@ impl AppEndpoint {
                 let chunk_path = chunk.ident().path().await?;
                 if chunk_path.extension_ref() == Some("js") {
                     if let Some(chunk_path) = client_relative_path_ref.get_path_to(&chunk_path) {
-                        client_shared_chunks_paths.push(chunk_path.to_string());
+                        client_shared_chunks_paths.push(chunk_path.into());
                     }
                 }
             }
