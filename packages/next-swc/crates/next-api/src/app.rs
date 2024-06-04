@@ -963,17 +963,14 @@ impl AppEndpoint {
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
             original_name: &str,
-            filename: String,
+            filename: RcStr,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
             let manifest_path_prefix = original_name;
-            let path = node_root.join(format!(
-                "server/app{manifest_path_prefix}/app-paths-manifest.json",
-            ));
+            let path = node_root
+                .join(format!("server/app{manifest_path_prefix}/app-paths-manifest.json",).into());
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
-                    pages: [(original_name.to_string(), filename)]
-                        .into_iter()
-                        .collect(),
+                    pages: [(original_name.into(), filename)].into_iter().collect(),
                 },
                 ..Default::default()
             };
@@ -1069,7 +1066,7 @@ impl AppEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
-                let entry_file = "app-edge-has-no-entrypoint".to_string();
+                let entry_file = "app-edge-has-no-entrypoint".into();
 
                 // create middleware manifest
                 // TODO(alexkirsz) This should be shared with next build.
