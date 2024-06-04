@@ -400,7 +400,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (data?.kind === 'PAGE' || data?.kind === 'APP_PAGE') {
-      const isAppPath = 'rscData' in data
+      const isAppPath = data.kind === 'APP_PAGE'
       const htmlPath = this.getFilePath(
         `${key}.html`,
         isAppPath ? 'app' : 'pages'
@@ -422,7 +422,7 @@ export default class FileSystemCache implements CacheHandler {
         isAppPath ? data.rscData : JSON.stringify(data.pageData)
       )
 
-      if (data.headers || data.status) {
+      if (data.headers || data.status || (isAppPath && data.postponed)) {
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
