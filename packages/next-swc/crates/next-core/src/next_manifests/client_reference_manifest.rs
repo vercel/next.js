@@ -90,6 +90,7 @@ impl ClientReferenceManifest {
                         // It's possible that a chunk also emits CSS files, that will
                         // be handled separatedly.
                         .filter(|path| path.ends_with(".js"))
+                        .map(RcStr::from)
                         .collect::<Vec<_>>()
                 } else {
                     Vec::new()
@@ -97,7 +98,7 @@ impl ClientReferenceManifest {
                 entry_manifest.client_modules.module_exports.insert(
                     get_client_reference_module_key(&server_path, "*"),
                     ManifestNodeEntry {
-                        name: "*".to_string(),
+                        name: "*".into(),
                         id: (&*client_module_id).into(),
                         chunks: client_chunks_paths,
                         // TODO(WEB-434)
