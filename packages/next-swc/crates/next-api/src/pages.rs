@@ -1100,17 +1100,18 @@ impl PageEndpoint {
                     ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                    sorted_middleware: vec![pathname.to_string()],
-                    functions: [(pathname.to_string(), edge_function_definition)]
+                    sorted_middleware: vec![pathname.clone_value()],
+                    functions: [(pathname.clone_value(), edge_function_definition)]
                         .into_iter()
                         .collect(),
                     ..Default::default()
                 };
                 let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                    node_root.join(format!(
-                        "server/pages{manifest_path_prefix}/middleware-manifest.json"
-                    )),
+                    node_root.join(
+                        format!("server/pages{manifest_path_prefix}/middleware-manifest.json")
+                            .into(),
+                    ),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
                             &middleware_manifest_v2,
