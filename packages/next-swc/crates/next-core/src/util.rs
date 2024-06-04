@@ -195,7 +195,7 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
+        StyledString::Text("Unable to parse config export in source file".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -230,7 +230,7 @@ fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsVa
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue {
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
     }
     .cell()
     .emit()
@@ -415,7 +415,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                 ident: module.ident(),
                                 detail: StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
-                                        .to_string(),
+                                        .into(),
                                 )
                                 .cell(),
                             }
