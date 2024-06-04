@@ -8,7 +8,7 @@ use super::request::{NextFontRequest, OneOrManyStrings};
 
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
-pub(super) type FontData = IndexMap<String, FontDataEntry>;
+pub(super) type FontData = IndexMap<RcStr, FontDataEntry>;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash)]
@@ -203,7 +203,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
+        let data: IndexMap<RcStr, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
