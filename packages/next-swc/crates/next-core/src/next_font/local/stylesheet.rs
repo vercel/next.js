@@ -86,7 +86,7 @@ pub(super) async fn build_font_face_definitions(
         ));
     }
 
-    Ok(Vc::cell(definitions))
+    Ok(Vc::cell(definitions.into()))
 }
 
 /// Used as e.g. `format('woff')` in `src` properties in `@font-face`
