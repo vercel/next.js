@@ -255,9 +255,13 @@ pub struct NapiDiagnostic {
 impl NapiDiagnostic {
     pub fn from(diagnostic: &PlainDiagnostic) -> Self {
         Self {
-            category: diagnostic.category.clone(),
-            name: diagnostic.name.clone(),
-            payload: diagnostic.payload.clone(),
+            category: diagnostic.category.to_string(),
+            name: diagnostic.name.to_string(),
+            payload: diagnostic
+                .payload
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
         }
     }
 }
