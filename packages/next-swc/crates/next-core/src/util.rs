@@ -62,10 +62,10 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".to_string(),
+        (PathType::Data, "") => "/index".into(),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
-        (_, path) => format!("/{}", path),
+        (_, path) => format!("/{}", path).into(),
     };
 
     Ok(Vc::cell(path))
@@ -397,7 +397,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
