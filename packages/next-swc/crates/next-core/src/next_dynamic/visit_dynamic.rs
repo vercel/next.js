@@ -117,10 +117,10 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
     fn span(&mut self, node: &VisitDynamicNode) -> tracing::Span {
         match node {
             VisitDynamicNode::Dynamic(_, name) => {
-                tracing::info_span!("dynamic module", name = **name)
+                tracing::info_span!("dynamic module", name = ***name)
             }
             VisitDynamicNode::Internal(_, name) => {
-                tracing::info_span!("module", name = **name)
+                tracing::info_span!("module", name = ***name)
             }
         }
     }
