@@ -92,7 +92,7 @@ async fn build_server_actions_loader(
         let index = import_map.len();
         let module_name = import_map
             .entry(*module)
-            .or_insert_with(|| format!("ACTIONS_MODULE{index}"));
+            .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
         writeln!(
             contents,
             "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
@@ -101,7 +101,8 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js"));
+    let output_path =
+        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
@@ -131,9 +132,8 @@ async fn build_manifest(
     loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = page_name;
-    let manifest_path = node_root.join(format!(
-        "server/app{manifest_path_prefix}/server-reference-manifest.json",
-    ));
+    let manifest_path = node_root
+        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
@@ -164,7 +164,7 @@ async fn build_manifest(
 
 #[turbo_tasks::function]
 fn action_modifier() -> Vc<RcStr> {
-    Vc::cell("action".to_string())
+    Vc::cell("action".into())
 }
 
 /// Traverses the entire module graph starting from [Module], looking for magic

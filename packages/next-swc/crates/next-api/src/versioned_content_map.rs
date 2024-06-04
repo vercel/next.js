@@ -169,7 +169,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
+    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = self.map_path_to_op.get();
             map.keys().copied().collect::<Vec<_>>()
@@ -177,7 +177,7 @@ impl VersionedContentMap {
         let root = &root.await?;
         let keys = keys
             .into_iter()
-            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(|p| p.to_string())) })
+            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(RcStr::from)) })
             .try_flat_join()
             .await?;
         Ok(Vc::cell(keys))
