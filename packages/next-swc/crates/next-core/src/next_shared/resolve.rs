@@ -340,7 +340,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
         )
     }
 
@@ -460,7 +460,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
         )
     }
 
