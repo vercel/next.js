@@ -19,17 +19,20 @@ pub(super) async fn build_stylesheet(
     let scoped_font_family =
         get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
 
-    Ok(Vc::cell(formatdoc!(
-        r#"
+    Ok(Vc::cell(
+        formatdoc!(
+            r#"
             {}
             {}
             {}
         "#,
-        *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
-            .await?,
-        (*build_fallback_definition(fallbacks).await?),
-        *build_font_class_rules(css_properties).await?
-    )))
+            *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
+                .await?,
+            (*build_fallback_definition(fallbacks).await?),
+            *build_font_class_rules(css_properties).await?
+        )
+        .into(),
+    ))
 }
 
 /// Builds a string of `@font-face` definitions for each local font file
