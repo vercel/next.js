@@ -36,9 +36,9 @@ import type {
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppPageRouteModule } from './future/route-modules/app-page/module'
-import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
+import type { AppPageRouteModule } from './route-modules/app-page/module'
+import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { AppRouteRouteHandlerContext } from './route-modules/app-route/module'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -46,7 +46,7 @@ import type {
 } from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
-import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
+import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -100,22 +100,22 @@ import {
 import type {
   MatchOptions,
   RouteMatcherManager,
-} from './future/route-matcher-managers/route-matcher-manager'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
-import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
-import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
-import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
-import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
-import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
-import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+} from './route-matcher-managers/route-matcher-manager'
+import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
+import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
+import { AppPageRouteMatcherProvider } from './route-matcher-providers/app-page-route-matcher-provider'
+import { AppRouteRouteMatcherProvider } from './route-matcher-providers/app-route-route-matcher-provider'
+import { PagesAPIRouteMatcherProvider } from './route-matcher-providers/pages-api-route-matcher-provider'
+import { PagesRouteMatcherProvider } from './route-matcher-providers/pages-route-matcher-provider'
+import { ServerManifestLoader } from './route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { I18NProvider } from './future/helpers/i18n-provider'
+import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
-} from './future/route-modules/helpers/response-handlers'
+} from './route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
@@ -130,19 +130,19 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
-import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './future/normalizers/request/action'
+import { RSCPathnameNormalizer } from './normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
+import { ActionPathnameNormalizer } from './normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
   isPagesRouteModule,
-} from './future/route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
-import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
+} from './route-modules/checks'
+import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
+import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
-import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from './lib/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
@@ -428,6 +428,8 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
+  private readonly isAppPPREnabled: boolean
+
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -493,7 +495,7 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const isAppPPREnabled =
+    this.isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
@@ -502,7 +504,7 @@ export default abstract class Server<
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
       rsc:
@@ -510,7 +512,7 @@ export default abstract class Server<
           ? new RSCPathnameNormalizer()
           : undefined,
       prefetchRSC:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -570,7 +572,6 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        isAppPPREnabled,
         swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
@@ -2011,9 +2012,9 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
+      this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.isAppPPREnabled
+      isAppPageRouteModule(routeModule)
 
     // If this is a request that's rendering an app page that support's PPR,
     // then if we're in development mode (or using the experimental test
@@ -2786,6 +2787,7 @@ export default abstract class Server<
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
+        isRoutePPREnabled,
       }
     )
 

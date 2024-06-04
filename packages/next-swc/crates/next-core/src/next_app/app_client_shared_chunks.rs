@@ -22,6 +22,7 @@ pub async fn get_app_client_shared_chunk_group(
         .cell());
     }
 
+    let _span = tracing::trace_span!("app client shared").entered();
     let app_client_shared_chunk_grou = client_chunking_context.evaluated_chunk_group(
         ident,
         app_client_runtime_entries,

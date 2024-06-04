@@ -1,7 +1,7 @@
 import { withApiAuthRequired, getSession } from "@auth0/nextjs-auth0";
 
 // Serverless function
-// Protected API, requests to '/api/protected' without a valid session cookie will fail
+// Protected API, requests to '/api/protected-api' without a valid session cookie will fail
 
 async function handle(req, res) {
   const { user } = await getSession(req, res);
