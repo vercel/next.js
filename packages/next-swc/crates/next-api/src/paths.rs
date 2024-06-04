@@ -155,7 +155,7 @@ pub(crate) fn wasm_paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
             );
 
             AssetBinding {
-                name: format!("wasm_{}", escaped),
+                name: format!("wasm_{}", escaped).into(),
                 file_path: path,
             }
         })
