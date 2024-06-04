@@ -267,16 +267,16 @@ fn parse_route_matcher_from_js_value(
                     }
                     let r = match route_type.as_deref() {
                         Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
                         Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
                         Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
                         Some("host") => {
                             route_value.map(|route_value| RouteHas::Host { value: route_value })
