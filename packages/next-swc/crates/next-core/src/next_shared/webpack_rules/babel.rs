@@ -120,7 +120,7 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
         project_path,
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
         Request::parse(Value::new(Pattern::Constant(
-            "babel-loader/package.json".to_string(),
+            "babel-loader/package.json".into(),
         ))),
         node_cjs_resolve_options(project_path),
     );
