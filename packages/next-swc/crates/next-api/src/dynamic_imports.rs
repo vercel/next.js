@@ -244,7 +244,7 @@ async fn build_dynamic_imports_map_for_module(
                 client_asset_context,
                 server_module.ident().path(),
             )),
-            Request::parse(Value::new(Pattern::Constant(import.to_string()))),
+            Request::parse(Value::new(Pattern::Constant(import.into()))),
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             IssueSeverity::Error.cell(),
             None,
