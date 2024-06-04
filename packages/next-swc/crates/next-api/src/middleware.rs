@@ -193,7 +193,7 @@ impl Endpoint for MiddlewareEndpoint {
         async move {
             let this = self.await?;
             let output_assets = self.output_assets();
-            output_assets.resolve().await?;
+            let _ = output_assets.resolve().await?;
             this.project
                 .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;
