@@ -124,7 +124,7 @@ pub async fn create_page_ssr_entry_module(
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         inner_assets.insert(
-            INNER_DOCUMENT.to_string(),
+            INNER_DOCUMENT.into(),
             process_global_item(
                 pages_structure.document(),
                 Value::new(reference_type.clone()),
@@ -132,7 +132,7 @@ pub async fn create_page_ssr_entry_module(
             ),
         );
         inner_assets.insert(
-            INNER_APP.to_string(),
+            INNER_APP.into(),
             process_global_item(
                 pages_structure.app(),
                 Value::new(reference_type.clone()),
