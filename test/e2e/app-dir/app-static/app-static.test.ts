@@ -840,6 +840,8 @@ createNextDescribe(
             "variable-revalidate/authorization.rsc",
             "variable-revalidate/authorization/page.js",
             "variable-revalidate/authorization/page_client-reference-manifest.js",
+            "variable-revalidate/authorization/route-cookies/route.js",
+            "variable-revalidate/authorization/route-request/route.js",
             "variable-revalidate/cookie.html",
             "variable-revalidate/cookie.rsc",
             "variable-revalidate/cookie/page.js",
@@ -2454,6 +2456,38 @@ createNextDescribe(
         expect($2('#page-data').text()).toBe(pageData)
         return 'success'
       }, 'success')
+    })
+
+    it('should skip fetch cache when an authorization header is present after dynamic usage', async () => {
+      const initialReq = await next.fetch(
+        '/variable-revalidate/authorization/route-cookies'
+      )
+      const initialJson = await initialReq.json()
+
+      await retry(async () => {
+        const req = await next.fetch(
+          '/variable-revalidate/authorization/route-cookies'
+        )
+        const json = await req.json()
+
+        expect(json).not.toEqual(initialJson)
+      })
+    })
+
+    it('should skip fetch cache when accessing request properties', async () => {
+      const initialReq = await next.fetch(
+        '/variable-revalidate/authorization/route-request'
+      )
+      const initialJson = await initialReq.json()
+
+      await retry(async () => {
+        const req = await next.fetch(
+          '/variable-revalidate/authorization/route-request'
+        )
+        const json = await req.json()
+
+        expect(json).not.toEqual(initialJson)
+      })
     })
 
     it('should not cache correctly with POST method request init', async () => {
