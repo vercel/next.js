@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
@@ -32,7 +32,7 @@ impl CssClientReferenceModule {
 
 #[turbo_tasks::function]
 fn css_client_reference_modifier() -> Vc<RcStr> {
-    Vc::cell("css client reference".to_string())
+    Vc::cell("css client reference".into())
 }
 
 #[turbo_tasks::value_impl]
