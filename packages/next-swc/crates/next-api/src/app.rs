@@ -1185,8 +1185,9 @@ impl AppEndpoint {
 
                 let EntryChunkGroupResult {
                     asset: rsc_chunk, ..
-                } = *chunking_context
-                    .entry_chunk_group(
+                } = *{
+                    let _span = tracing::trace_span!("server node entrypoint").entered();
+                    chunking_context.entry_chunk_group(
                         server_path.join(format!(
                             "app{original_name}.js",
                             original_name = app_entry.original_name
@@ -1195,7 +1196,8 @@ impl AppEndpoint {
                         Vc::cell(evaluatable_assets),
                         Value::new(AvailabilityInfo::Root),
                     )
-                    .await?;
+                }
+                .await?;
                 server_assets.push(rsc_chunk);
 
                 let app_paths_manifest_output = create_app_paths_manifest(
