@@ -76,12 +76,12 @@ pub async fn create_page_ssr_entry_module(
     let mut replacements = indexmap! {
         "VAR_DEFINITION_PAGE" => definition_page.clone(),
         "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
-        "VAR_USERLAND" => INNER.to_string(),
+        "VAR_USERLAND" => INNER.into(),
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.to_string());
-        replacements.insert("VAR_MODULE_APP", INNER_APP.to_string());
+        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.into());
+        replacements.insert("VAR_MODULE_APP", INNER_APP.into());
     }
 
     // Load the file from the next.js codebase.
