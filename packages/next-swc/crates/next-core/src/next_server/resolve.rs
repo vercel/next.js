@@ -293,7 +293,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 &*package_json_file.read_json().await?
             else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package resolved from project directory can't be \
                      parsed.",
                 );
@@ -302,7 +302,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 &*package_json_from_original_location.read_json().await?
             else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package can't be parsed.",
                 );
             };
@@ -311,7 +311,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 package_json_file.get("version"),
             ) else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package has not name or version.",
                 );
             };
@@ -320,7 +320,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 package_json_from_original_location.get("version"),
             ) else {
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package.json of the package resolved from project directory has not name \
                      or version.",
                 );
@@ -328,7 +328,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             if (name, version) != (name2, version2) {
                 // this can't resolve with node.js from the original location, so bundle it
                 return unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "The package resolves to a different version when requested from the project \
                      directory compared to the package requested from the importing module.\nMake \
                      sure to install the same version of the package in both locations.",
@@ -342,19 +342,22 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
                 unable_to_externalize(
-                    request_str,
+                    request_str.into(),
                     "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
                 )
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
-                unable_to_externalize(request_str, "The package.json can't be found or parsed.")
+                unable_to_externalize(
+                    request_str.into(),
+                    "The package.json can't be found or parsed.",
+                )
             }
             (FileType::CommonJs, false) => {
                 // mark as external
                 Ok(ResolveResultOption::some(
                     ResolveResult::primary(ResolveResultItem::External(
-                        request_str,
+                        request_str.into(),
                         ExternalType::CommonJs,
                     ))
                     .cell(),
