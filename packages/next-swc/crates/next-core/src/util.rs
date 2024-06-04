@@ -278,9 +278,9 @@ fn parse_route_matcher_from_js_value(
                             key: route_key.into(),
                             value: route_value.map(From::from),
                         }),
-                        Some("host") => {
-                            route_value.map(|route_value| RouteHas::Host { value: route_value })
-                        }
+                        Some("host") => route_value.map(|route_value| RouteHas::Host {
+                            value: route_value.into(),
+                        }),
                         _ => None,
                     };
 
@@ -319,7 +319,7 @@ fn parse_route_matcher_from_js_value(
                             match key.as_str() {
                                 Some("source") => {
                                     if let Some(value) = value.as_str() {
-                                        matcher.original_source = value.to_string();
+                                        matcher.original_source = value.into();
                                     }
                                 }
                                 Some("missing") => {
@@ -449,7 +449,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     detail: StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
@@ -804,12 +804,12 @@ pub fn virtual_next_js_template_path(
     file: String,
 ) -> Vc<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}").into())
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    path: RcStr,
 ) -> Result<T> {
     let file_path = get_next_package(project_path).join(path.clone());
 
