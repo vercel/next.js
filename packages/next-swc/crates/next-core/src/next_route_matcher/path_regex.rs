@@ -49,12 +49,12 @@ impl RouteMatcherRef for PathRegex {
                     Some((
                         param.name.to_string(),
                         match param.kind {
-                            NamedParamKind::Single => Param::Single(value.as_str().to_string()),
+                            NamedParamKind::Single => Param::Single(value.as_str().into()),
                             NamedParamKind::Multi => Param::Multi(
                                 value
                                     .as_str()
                                     .split('/')
-                                    .map(|segment| segment.to_string())
+                                    .map(|segment| segment.into())
                                     .collect(),
                             ),
                         },
