@@ -35,8 +35,8 @@ pub async fn maybe_add_babel_loader(
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
-        for filename in BABEL_CONFIG_FILES {
-            let filetype = *project_root.join(filename.to_string()).get_type().await?;
+        for &filename in BABEL_CONFIG_FILES {
+            let filetype = *project_root.join(filename.into()).get_type().await?;
             if matches!(filetype, FileSystemEntryType::File) {
                 has_babel_config = true;
                 break;
