@@ -290,7 +290,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string()),
+            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
         )
     }
 
@@ -376,7 +376,9 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let (base, _) = path.split_at(starting_index);
 
-        let new_path = fs_path.root().join(format!("{base}/{resource_request}"));
+        let new_path = fs_path
+            .root()
+            .join(format!("{base}/{resource_request}").into());
 
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
@@ -472,7 +474,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().join(modified_path);
+        let new_path = fs_path.root().join(modified_path.into());
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
         )))
