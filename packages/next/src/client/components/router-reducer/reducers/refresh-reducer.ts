@@ -104,8 +104,10 @@ export function refreshReducer(
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
           const rsc = cacheNodeSeedData[2]
+          const loading = cacheNodeSeedData[3]
           cache.rsc = rsc
           cache.prefetchRsc = null
+          cache.loading = loading
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
