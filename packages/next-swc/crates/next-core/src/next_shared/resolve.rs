@@ -85,7 +85,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
             if UNSUPPORTED_PACKAGES.contains(module.as_str()) {
                 UnsupportedModuleIssue {
                     file_path,
-                    package: module.into(),
+                    package: module.clone(),
                     package_path: None,
                 }
                 .cell()
@@ -96,7 +96,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
                 if UNSUPPORTED_PACKAGE_PATHS.contains(&(module, path)) {
                     UnsupportedModuleIssue {
                         file_path,
-                        package: module.into(),
+                        package: module.clone(),
                         package_path: Some(path.to_owned()),
                     }
                     .cell()
@@ -156,7 +156,7 @@ impl Issue for InvalidImportModuleIssue {
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v)))
+                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
