@@ -100,8 +100,8 @@ fn default_preload() -> bool {
     true
 }
 
-fn default_display() -> String {
-    "swap".to_owned()
+fn default_display() -> RcStr {
+    "swap".into()
 }
 
 #[cfg(test)]
