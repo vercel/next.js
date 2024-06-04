@@ -344,9 +344,9 @@ impl Issue for FontResolvingIssue {
     async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
         let this = self.await?;
         Ok(StyledString::Line(vec![
-            StyledString::Text("Font file not found: Can't resolve '".to_string()),
-            StyledString::Code(this.font_path.await?.to_string()),
-            StyledString::Text("'".to_string()),
+            StyledString::Text("Font file not found: Can't resolve '".into()),
+            StyledString::Code(this.font_path.await?.into()),
+            StyledString::Text("'".into()),
         ])
         .cell())
     }

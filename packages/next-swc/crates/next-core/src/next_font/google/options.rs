@@ -37,7 +37,7 @@ impl NextFontGoogleOptions {
 
     #[turbo_tasks::function]
     pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell((*self.await?.font_family).to_owned()))
+        Ok(Vc::cell((*self.await?.font_family).into()))
     }
 }
 
@@ -162,7 +162,7 @@ pub(super) fn options_from_request(
 
     let display = argument.display.unwrap_or_else(|| "swap".into());
 
-    if !ALLOWED_DISPLAY_VALUES.contains(&display.as_ref()) {
+    if !ALLOWED_DISPLAY_VALUES.contains(&display.as_str()) {
         return Err(anyhow!(
             "Invalid display value {} for font {}.\nAvailable display values: {}",
             display,
