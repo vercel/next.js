@@ -521,10 +521,7 @@ impl Project {
         Ok(self.client_root().join(
             format!(
                 "{}/_next",
-                next_config
-                    .base_path
-                    .clone()
-                    .unwrap_or_else(|| "".to_string()),
+                next_config.base_path.clone().unwrap_or_else(|| "".into()),
             )
             .into(),
         ))
@@ -534,12 +531,12 @@ impl Project {
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
-        let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
+        let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
         let project_relative = project_relative
             .strip_prefix(MAIN_SEPARATOR)
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(project_relative))
+        Ok(root.join(project_relative.into()))
     }
 
     #[turbo_tasks::function]
