@@ -87,7 +87,7 @@ pub async fn maybe_add_babel_loader(
                 }
 
                 let loader = WebpackLoaderItem {
-                    loader: "babel-loader".to_string(),
+                    loader: "babel-loader".into(),
                     options: Default::default(),
                 };
                 if let Some(rule) = rule {
@@ -96,10 +96,10 @@ pub async fn maybe_add_babel_loader(
                     rule.loaders = Vc::cell(loaders);
                 } else {
                     rules.insert(
-                        pattern.to_string(),
+                        pattern.into(),
                         LoaderRuleItem {
                             loaders: Vc::cell(vec![loader]),
-                            rename_as: Some("*".to_string()),
+                            rename_as: Some("*".into()),
                         },
                     );
                 }
