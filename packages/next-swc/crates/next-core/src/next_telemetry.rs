@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use turbo_tasks::RcStr;
 use turbopack_binding::{
     turbo::tasks::Vc,
     turbopack::core::diagnostics::{Diagnostic, DiagnosticPayload},

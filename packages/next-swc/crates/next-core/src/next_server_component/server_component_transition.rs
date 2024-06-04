@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::module::Module,
     ecmascript::chunk::EcmascriptChunkPlaceable,
