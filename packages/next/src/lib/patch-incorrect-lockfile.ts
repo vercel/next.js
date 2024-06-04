@@ -56,7 +56,9 @@ export async function patchIncorrectLockfile(dir: string) {
 
   const lockfileParsed = JSON.parse(content)
   const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10)
-  const expectedSwcPkgs = Object.keys(nextPkgJson['optionalDependencies'] || {})
+  const expectedSwcPkgs = Object.keys(
+    nextPkgJson['optionalDependencies'] || {}
+  ).filter((pkg) => pkg.startsWith('@next/swc-'))
 
   const patchDependency = (
     pkg: string,
