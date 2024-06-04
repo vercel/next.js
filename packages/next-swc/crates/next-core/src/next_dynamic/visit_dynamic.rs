@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    ReadRef, TryJoinIterExt, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},
