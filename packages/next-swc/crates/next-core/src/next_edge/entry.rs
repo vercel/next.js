@@ -37,7 +37,7 @@ pub async fn wrap_edge_entry(
     );
 
     let inner_assets = indexmap! {
-        "MODULE".to_string() => entry
+        "MODULE".into() => entry
     };
 
     let module = context
