@@ -338,23 +338,20 @@ impl AppProject {
     fn route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     Vc::upcast(self.client_transition()),
                     self.ssr_transition(),
                 )),
             ),
             (
-                "next-dynamic".to_string(),
+                "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
                 ))),
             ),
-            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
-            (
-                "next-shared".to_string(),
-                Vc::upcast(self.shared_transition()),
-            ),
+            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
+            ("next-shared".into(), Vc::upcast(self.shared_transition())),
         ]
         .into_iter()
         .collect();
@@ -364,7 +361,7 @@ impl AppProject {
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
-            Vc::cell("app-route".to_string()),
+            Vc::cell("app-route".into()),
         )
     }
 
@@ -372,21 +369,21 @@ impl AppProject {
     fn edge_route_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 Vc::upcast(NextEcmascriptClientReferenceTransition::new(
                     Vc::upcast(self.client_transition()),
                     self.edge_ssr_transition(),
                 )),
             ),
             (
-                "next-dynamic".to_string(),
+                "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
                 ))),
             ),
-            ("next-ssr".to_string(), Vc::upcast(self.ssr_transition())),
+            ("next-ssr".into(), Vc::upcast(self.ssr_transition())),
             (
-                "next-shared".to_string(),
+                "next-shared".into(),
                 Vc::upcast(self.edge_shared_transition()),
             ),
         ]
@@ -397,7 +394,7 @@ impl AppProject {
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
-            Vc::cell("app-edge-route".to_string()),
+            Vc::cell("app-edge-route".into()),
         )
     }
 
@@ -897,16 +894,16 @@ impl AppEndpoint {
             // load it as a RawModule.
             let next_package = get_next_package(this.app_project.project().project_path());
             let polyfill_source = FileSource::new(
-                next_package.join("dist/build/polyfills/polyfill-nomodule.js".to_string()),
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()),
             );
             let polyfill_output_path =
-                client_chunking_context.chunk_path(polyfill_source.ident(), ".js".to_string());
+                client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
             let polyfill_output_asset =
                 RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
             let polyfill_client_path = client_relative_path_ref
                 .get_path_to(&*polyfill_output_path.await?)
                 .context("failed to resolve client-relative path to polyfill")?
-                .to_string();
+                .into();
             let polyfill_client_paths = vec![polyfill_client_path];
             client_assets.push(Vc::upcast(polyfill_output_asset));
 
@@ -916,9 +913,8 @@ impl AppEndpoint {
                 ..Default::default()
             };
             let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(format!(
-                    "server/app{manifest_path_prefix}/build-manifest.json",
-                )),
+                node_root
+                    .join(format!("server/app{manifest_path_prefix}/build-manifest.json",).into()),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
                 ),
