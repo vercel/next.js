@@ -329,7 +329,7 @@ impl Visit for CollectImportSourceVisitor {
         if let Callee::Import(_import) = call_expr.callee {
             if let Some(arg) = call_expr.args.first() {
                 if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                    self.import_source = Some(str_.value.to_string());
+                    self.import_source = Some(str_.value.as_str().into());
                 }
             }
         }
