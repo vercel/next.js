@@ -1011,11 +1011,11 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
 fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) -> Vc<ImportMapping> {
-    ImportMapping::PrimaryAlternative(request.to_string(), Some(context_path)).cell()
+    ImportMapping::PrimaryAlternative(request.into(), Some(context_path)).cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
 fn external_request_to_import_mapping(request: &str) -> Vc<ImportMapping> {
-    ImportMapping::External(Some(request.to_string()), ExternalType::CommonJs).into()
+    ImportMapping::External(Some(request.into()), ExternalType::CommonJs).into()
 }
