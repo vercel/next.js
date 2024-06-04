@@ -204,7 +204,7 @@ function extractInfoFromReactVersion(reactVersion) {
 async function getChangelogFromGitHub(baseSha, newSha) {
   const pageSize = 50
   let changelog = []
-  for (let currentPage = 0; ; currentPage++) {
+  for (let currentPage = 1; ; currentPage++) {
     const url = `https://api.github.com/repos/facebook/react/compare/${baseSha}...${newSha}?per_page=${pageSize}&page=${currentPage}`
     const headers = {}
     // GITHUB_TOKEN is optional but helps in case of rate limiting during development.
@@ -221,10 +221,7 @@ async function getChangelogFromGitHub(baseSha, newSha) {
     }
     const data = await response.json()
 
-    const { base_commit, commits } = data
-    if (currentPage === 0) {
-      commits.unshift(base_commit)
-    }
+    const { commits } = data
     for (const { commit, sha } of commits) {
       const title = commit.message.split('\n')[0] || ''
       const match =
