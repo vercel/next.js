@@ -3,7 +3,7 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     swc::core::{

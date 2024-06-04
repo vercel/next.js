@@ -108,7 +108,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
     Ok(match meta {
         MetadataItem::Static { path } => {
             let path_value = path.await?;
-            Vc::cell(path_value.file_name().to_string())
+            Vc::cell(path_value.file_name().into())
         }
         MetadataItem::Dynamic { path } => {
             let Some(stem) = &*path.file_stem().await? else {
@@ -119,7 +119,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
             };
 
             match stem.as_str() {
-                "manifest" => Vc::cell("manifest.webmanifest".to_string()),
+                "manifest" => Vc::cell("manifest.webmanifest".into()),
                 _ => Vc::cell(stem.clone()),
             }
         }
