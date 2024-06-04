@@ -1,17 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="113px" height="100px" viewBox="0 0 113 100" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <!-- Generator: Sketch 51.2 (57519) - http://www.bohemiancoding.com/sketch -->
-    <title>Logotype - White</title>
-    <desc>Created with Sketch.</desc>
-    <defs>
-        <linearGradient x1="196.572434%" y1="228.815483%" x2="50%" y2="50%" id="linearGradient-1">
-            <stop stop-color="#000000" offset="0%"></stop>
-            <stop stop-color="#FFFFFF" offset="100%"></stop>
-        </linearGradient>
-    </defs>
-    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <g id="White-Triangle" transform="translate(-294.000000, -150.000000)" fill="url(#linearGradient-1)">
-            <polygon id="Logotype---White" points="350.5 150 407 250 294 250"></polygon>
-        </g>
-    </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="113" height="100" version="1.1" viewBox="0 0 113 100"><title>Logotype - White</title><desc>Created with Sketch.</desc><defs><linearGradient id="linearGradient-1" x1="196.572%" x2="50%" y1="228.815%" y2="50%"><stop offset="0%" stop-color="#000"/><stop offset="100%" stop-color="#FFF"/></linearGradient></defs><g id="Page-1" fill="none" fill-rule="evenodd" stroke="none" stroke-width="1"><g id="White-Triangle" fill="url(#linearGradient-1)" transform="translate(-294.000000, -150.000000)"><polygon id="Logotype---White" points="350.5 150 407 250 294 250"/></g></g></svg>
