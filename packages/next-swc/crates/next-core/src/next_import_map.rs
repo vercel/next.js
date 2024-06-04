@@ -249,11 +249,7 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias("styled-jsx", external);
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".to_string()),
-            ExternalType::CommonJs,
-        )
-        .cell(),
+        ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs).cell(),
     );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
@@ -929,7 +925,7 @@ pub async fn insert_alias_option<const N: usize>(
 
 fn export_value_to_import_mapping(
     value: &SubpathValue,
-    conditions: &BTreeMap<String, ConditionValue>,
+    conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: Vc<FileSystemPath>,
 ) -> Option<Vc<ImportMapping>> {
     let mut result = Vec::new();
@@ -943,13 +939,13 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.to_string(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path)).cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative(m.to_string(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative(m.into(), Some(project_path)).cell()
                     })
                     .collect(),
             )
