@@ -914,7 +914,7 @@ pub async fn insert_alias_option<const N: usize>(
     alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
-    let conditions = BTreeMap::from(conditions.map(|c| (c.to_string(), ConditionValue::Set)));
+    let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
     for (alias, value) in &alias_options.await? {
         if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
             import_map.insert_alias(alias, mapping);
