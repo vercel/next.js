@@ -902,9 +902,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
     let result = resolve(
         context_directory,
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-        Request::parse(Value::new(Pattern::Constant(
-            "next/package.json".to_string(),
-        ))),
+        Request::parse(Value::new(Pattern::Constant("next/package.json".into()))),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
