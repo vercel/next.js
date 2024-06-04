@@ -441,12 +441,9 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")));
-    let request_glob = Glob::new(format!(
-        "{{{},{}/**}}",
-        packages.join(","),
-        packages.join("/**,")
-    ));
+    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")).into());
+    let request_glob =
+        Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
     Ok(Vc::cell(Some(PackagesGlobs {
         path_glob: path_glob.resolve().await?,
         request_glob: request_glob.resolve().await?,
