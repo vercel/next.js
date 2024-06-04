@@ -126,7 +126,7 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 self.project
                     .node_root()
-                    .join("server/instrumentation.js".to_string()),
+                    .join("server/instrumentation.js".into()),
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation),

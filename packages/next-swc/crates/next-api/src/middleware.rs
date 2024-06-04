@@ -75,7 +75,7 @@ impl MiddlewareEndpoint {
             self.context,
             self.project.project_path(),
             module,
-            "middleware".to_string(),
+            "middleware".into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(

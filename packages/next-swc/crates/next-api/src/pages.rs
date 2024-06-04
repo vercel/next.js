@@ -104,7 +104,7 @@ impl PagesProject {
         let mut routes = IndexMap::new();
 
         async fn add_page_to_routes(
-            routes: &mut IndexMap<String, Route>,
+            routes: &mut IndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
         ) -> Result<()> {
@@ -122,7 +122,7 @@ impl PagesProject {
         }
 
         async fn add_dir_to_routes(
-            routes: &mut IndexMap<String, Route>,
+            routes: &mut IndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<FileSystemPath>) -> Route,
         ) -> Result<()> {
@@ -201,9 +201,9 @@ impl PagesProject {
             project_path,
             original_path,
         } = *item.await?;
-        let pathname = format!("/{}", next_router_path.await?.path);
+        let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
         let pathname_vc = Vc::cell(pathname.clone());
-        let original_name = Vc::cell(format!("/{}", original_path.await?.path));
+        let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
         let path = project_path;
         let endpoint = Vc::upcast(PageEndpoint::new(
             ty,
@@ -255,7 +255,7 @@ impl PagesProject {
         Ok(if let Some(pages) = self.pages_structure().await?.pages {
             pages.project_path()
         } else {
-            self.project().project_path().join("pages".to_string())
+            self.project().project_path().join("pages".into())
         })
     }
 
@@ -317,7 +317,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".to_string()),
+            Vc::cell("client".into()),
         ))
     }
 
@@ -328,7 +328,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr".to_string()),
+            Vc::cell("ssr".into()),
         )
     }
 
@@ -341,7 +341,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.api_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("api".to_string()),
+            Vc::cell("api".into()),
         )
     }
 
@@ -352,7 +352,7 @@ impl PagesProject {
             self.project().server_compile_time_info(),
             self.ssr_data_module_options_context(),
             self.ssr_resolve_options_context(),
-            Vc::cell("ssr-data".to_string()),
+            Vc::cell("ssr-data".into()),
         )
     }
 
@@ -363,7 +363,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr".to_string()),
+            Vc::cell("edge-ssr".into()),
         )
     }
 
@@ -374,7 +374,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_api_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-api".to_string()),
+            Vc::cell("edge-api".into()),
         )
     }
 
@@ -385,7 +385,7 @@ impl PagesProject {
             self.project().edge_compile_time_info(),
             self.edge_ssr_data_module_options_context(),
             self.edge_ssr_resolve_options_context(),
-            Vc::cell("edge-ssr-data".to_string()),
+            Vc::cell("edge-ssr-data".into()),
         )
     }
 
@@ -640,17 +640,14 @@ impl PageEndpoint {
             let client_main_module = esm_resolve(
                 Vc::upcast(PlainResolveOrigin::new(
                     client_module_context,
-                    this.pages_project
-                        .project()
-                        .project_path()
-                        .join("_".to_string()),
+                    this.pages_project.project().project_path().join("_".into()),
                 )),
                 Request::parse(Value::new(Pattern::Constant(
                     match *this.pages_project.project().next_mode().await? {
                         NextMode::Development => "next/dist/client/next-dev-turbopack.js",
                         NextMode::Build => "next/dist/client/next-turbopack.js",
                     }
-                    .to_string(),
+                    .into(),
                 ))),
                 Value::new(EcmaScriptModulesReferenceSubType::Undefined),
                 IssueSeverity::Error.cell(),
@@ -798,7 +795,7 @@ impl PageEndpoint {
 
                 let asset_path = get_asset_path_from_pathname(pathname, ".js");
 
-                let ssr_entry_chunk_path_string = format!("pages{asset_path}");
+                let ssr_entry_chunk_path_string: RcStr = format!("pages{asset_path}").into();
                 let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
                 let EntryChunkGroupResult {
                     asset: ssr_entry_chunk,
@@ -851,7 +848,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server".to_string()),
+                .join("server".into()),
             this.pages_project.project().project_path(),
             this.pages_project.ssr_module_context(),
             this.pages_project.edge_ssr_module_context(),
@@ -871,7 +868,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server/data".to_string()),
+                .join("server/data".into()),
             this.pages_project.project().project_path(),
             this.pages_project.ssr_data_module_context(),
             this.pages_project.edge_ssr_data_module_context(),
@@ -891,7 +888,7 @@ impl PageEndpoint {
             this.pages_project
                 .project()
                 .node_root()
-                .join("server".to_string()),
+                .join("server".into()),
             this.pages_project.project().project_path(),
             this.pages_project.api_module_context(),
             this.pages_project.edge_api_module_context(),
@@ -918,7 +915,7 @@ impl PageEndpoint {
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(this.pathname.await?.clone_value(), asset_path.to_string())]
+            pages: [(this.pathname.await?.clone_value(), asset_path.into())]
                 .into_iter()
                 .collect(),
         };
@@ -941,9 +938,9 @@ impl PageEndpoint {
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
             client_relative_path,
-            node_root.join(format!(
-                "server/pages{loadable_path_prefix}/react-loadable-manifest.json"
-            )),
+            node_root.join(
+                format!("server/pages{loadable_path_prefix}/react-loadable-manifest.json").into(),
+            ),
         ))
     }
 
@@ -970,7 +967,7 @@ impl PageEndpoint {
                             Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
                                 .context("client chunk entry path must be inside the client root")?
-                                .to_string())
+                                .into())
                         }
                     })
                     .try_join()
