@@ -24,9 +24,9 @@ use turbopack_binding::{
 #[turbo_tasks::value(into = "shared")]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
-    AllExcept(Vc<Vec<String>>),
+    AllExcept(Vc<Vec<RcStr>>),
     /// Only mark modules listed as external.
-    Only(Vc<Vec<String>>),
+    Only(Vc<Vec<RcStr>>),
 }
 
 /// Mark modules as external, so they're resolved at runtime instead of bundled.
@@ -62,7 +62,7 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: Vc<FileSystemPath>) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".to_string()))
+    AfterResolvePluginCondition::new(root, Glob::new("**/node_modules/**".into()))
 }
 
 #[turbo_tasks::value_impl]
