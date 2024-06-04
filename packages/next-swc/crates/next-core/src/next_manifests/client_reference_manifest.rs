@@ -39,7 +39,7 @@ impl ClientReferenceManifest {
             .computed_asset_prefix()
             .await?
             .as_ref()
-            .map(|p| p.to_owned())
+            .map(|p| p.clone())
             .unwrap_or_default();
 
         entry_manifest.module_loading.cross_origin = next_config
