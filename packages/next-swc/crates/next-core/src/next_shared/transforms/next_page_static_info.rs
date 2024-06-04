@@ -166,7 +166,7 @@ impl Issue for PageStaticInfoIssue {
             StyledString::Line(
                 self.messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v)))
+                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
