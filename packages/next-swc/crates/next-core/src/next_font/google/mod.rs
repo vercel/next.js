@@ -388,7 +388,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 async fn load_font_data(project_root: Vc<FileSystemPath>) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_templateon(
         project_root,
-        "dist/compiled/@next/font/dist/google/font-data.json".to_string(),
+        "dist/compiled/@next/font/dist/google/font-data.json".into(),
     )
     .await?;
 
