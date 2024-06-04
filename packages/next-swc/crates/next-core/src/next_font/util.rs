@@ -60,17 +60,20 @@ pub(crate) async fn get_scoped_font_family(
         FontFamilyType::Fallback => format!("{} Fallback", font_family_base),
     };
 
-    Ok(Vc::cell(font_family_name))
+    Ok(Vc::cell(font_family_name.into()))
 }
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
 #[turbo_tasks::function]
 pub async fn get_request_id(font_family: Vc<RcStr>, request_hash: u32) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(format!(
-        "{}_{:x?}",
-        font_family.await?.to_lowercase().replace(' ', "_"),
-        request_hash
-    )))
+    Ok(Vc::cell(
+        format!(
+            "{}_{:x?}",
+            font_family.await?.to_lowercase().replace(' ', "_"),
+            request_hash
+        )
+        .into(),
+    ))
 }
 
 #[derive(Debug, Deserialize)]
