@@ -537,7 +537,7 @@ async fn get_font_css_properties(
     }
 
     Ok(FontCssProperties::cell(FontCssProperties {
-        font_family: Vc::cell(font_families.join(", ")),
+        font_family: Vc::cell(font_families.join(", ").into()),
         weight: Vc::cell(match &options.weights {
             FontWeights::Variable => None,
             FontWeights::Fixed(weights) => {
@@ -545,7 +545,7 @@ async fn get_font_css_properties(
                     // Don't set a rule for weight if multiple are requested
                     None
                 } else {
-                    weights.first().map(|w| w.to_string())
+                    weights.first().map(|w| w.to_string().into())
                 }
             }
         }),
