@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
