@@ -377,6 +377,7 @@ async function generateFlight(
 
 type RenderToStreamResult = {
   stream: RenderResultResponse
+  inlinedDataStream: RenderResultResponse
   err?: unknown
 }
 
@@ -396,29 +397,29 @@ type RenderToStreamOptions = {
  * Creates a resolver that eagerly generates a flight payload that is then
  * resolved when the resolver is called.
  */
-function createFlightDataResolver(ctx: AppRenderContext) {
-  // Generate the flight data and as soon as it can, convert it into a string.
-  const promise = generateFlight(ctx)
-    .then(async (result) => ({
-      flightData: await result.toUnchunkedString(true),
-    }))
-    // Otherwise if it errored, return the error.
-    .catch((err) => ({ err }))
+// function createFlightDataResolver(ctx: AppRenderContext) {
+//   // Generate the flight data and as soon as it can, convert it into a string.
+//   const promise = generateFlight(ctx)
+//     .then(async (result) => ({
+//       flightData: await result.toUnchunkedString(true),
+//     }))
+//     // Otherwise if it errored, return the error.
+//     .catch((err) => ({ err }))
 
-  return async () => {
-    // Resolve the promise to get the flight data or error.
-    const result = await promise
+//   return async () => {
+//     // Resolve the promise to get the flight data or error.
+//     const result = await promise
 
-    // If the flight data failed to render due to an error, re-throw the error
-    // here.
-    if ('err' in result) {
-      throw result.err
-    }
+//     // If the flight data failed to render due to an error, re-throw the error
+//     // here.
+//     if ('err' in result) {
+//       throw result.err
+//     }
 
-    // Otherwise, return the flight data.
-    return result.flightData
-  }
-}
+//     // Otherwise, return the flight data.
+//     return result.flightData
+//   }
+// }
 
 type ReactServerAppProps = {
   tree: LoaderTree
@@ -626,7 +627,7 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   baseCtx: AppRenderBaseContext,
   requestEndedState: { ended?: boolean }
-) {
+): ReturnType<AppPageRender> {
   const isNotFoundPath = pagePath === '/404'
 
   // A unique request timestamp used by development to ensure that it's
@@ -881,7 +882,7 @@ async function renderToHTMLOrFlightImpl(
   }
 
   if (isRSCRequest && !isStaticGeneration) {
-    return generateFlight(ctx)
+    return [await generateFlight(ctx), null]
   }
 
   // Create the resolver that can get the flight payload when it's ready or
@@ -889,9 +890,9 @@ async function renderToHTMLOrFlightImpl(
   // don't need to generate the flight payload because it's a dynamic request
   // which means we're either getting the flight payload only or just the
   // regular HTML.
-  const flightDataResolver = isStaticGeneration
-    ? createFlightDataResolver(ctx)
-    : null
+  // const flightDataResolver = isStaticGeneration
+  //   ? createFlightDataResolver(ctx)
+  //   : null
 
   const validateRootLayout = dev
 
@@ -962,7 +963,8 @@ async function renderToHTMLOrFlightImpl(
       )
 
       // We are going to consume this render both for SSR and for inlining the flight data
-      let [renderStream, dataStream] = serverStream.tee()
+      const [renderStream, renderDataStream] = serverStream.tee()
+      const [originDataStream, inlinedDataStream] = renderDataStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -1069,12 +1071,12 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicPrerender(stream, {
                 getServerInsertedHTML,
               }),
+              inlinedDataStream,
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const [original, flightSpy] = dataStream.tee()
-            dataStream = original
+            const [, flightSpy] = renderDataStream.tee()
 
             await flightRenderComplete(flightSpy)
 
@@ -1099,6 +1101,7 @@ async function renderToHTMLOrFlightImpl(
                 stream: await continueDynamicPrerender(stream, {
                   getServerInsertedHTML,
                 }),
+                inlinedDataStream,
               }
             } else {
               // This is the Static case
@@ -1158,19 +1161,20 @@ async function renderToHTMLOrFlightImpl(
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
                   inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
+                    originDataStream,
                     nonce,
                     formState
                   ),
                   getServerInsertedHTML,
                 }),
+                inlinedDataStream,
               }
             }
           }
         } else if (renderOpts.postponed) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const inlinedDataStream = createInlinedDataReadableStream(
-            dataStream,
+          const inlinedDataReadableStream = createInlinedDataReadableStream(
+            originDataStream,
             nonce,
             formState
           )
@@ -1178,16 +1182,18 @@ async function renderToHTMLOrFlightImpl(
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
               stream: await continueDynamicHTMLResume(stream, {
-                inlinedDataStream,
+                inlinedDataStream: inlinedDataReadableStream,
                 getServerInsertedHTML,
               }),
+              inlinedDataStream,
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
               stream: await continueDynamicDataResume(stream, {
-                inlinedDataStream,
+                inlinedDataStream: inlinedDataReadableStream,
               }),
+              inlinedDataStream,
             }
           }
         } else {
@@ -1197,7 +1203,7 @@ async function renderToHTMLOrFlightImpl(
           return {
             stream: await continueFizzStream(stream, {
               inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
+                originDataStream,
                 nonce,
                 formState
               ),
@@ -1206,6 +1212,7 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            inlinedDataStream,
           }
         }
       } catch (err) {
@@ -1321,7 +1328,7 @@ async function renderToHTMLOrFlightImpl(
                 // This is intentionally using the readable datastream from the
                 // main render rather than the flight data from the error page
                 // render
-                dataStream,
+                originDataStream,
                 nonce,
                 formState
               ),
@@ -1336,6 +1343,7 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            inlinedDataStream,
           }
         } catch (finalErr: any) {
           if (
@@ -1375,11 +1383,11 @@ async function renderToHTMLOrFlightImpl(
         formState,
       })
 
-      return new RenderResult(response.stream, { metadata })
+      return [new RenderResult(response.stream, { metadata }), null]
     } else if (actionRequestResult.type === 'done') {
       if (actionRequestResult.result) {
         actionRequestResult.result.assignMetadata(metadata)
-        return actionRequestResult.result
+        return [actionRequestResult.result, null]
       } else if (actionRequestResult.formState) {
         formState = actionRequestResult.formState
       }
@@ -1414,10 +1422,13 @@ async function renderToHTMLOrFlightImpl(
 
   // Create the new render result for the response.
   const result = new RenderResult(response.stream, options)
+  const inlinedDataResult = response.inlinedDataStream
+    ? new RenderResult(response.inlinedDataStream, options)
+    : null
 
   // If we aren't performing static generation, we can return the result now.
   if (!isStaticGeneration) {
-    return result
+    return [result, inlinedDataResult]
   }
 
   // If this is static generation, we should read this in now rather than
@@ -1442,11 +1453,11 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  if (!flightDataResolver) {
-    throw new Error(
-      'Invariant: Flight data resolver is missing when generating static HTML'
-    )
-  }
+  // if (!flightDataResolver) {
+  //   throw new Error(
+  //     'Invariant: Flight data resolver is missing when generating static HTML'
+  //   )
+  // }
 
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
@@ -1455,11 +1466,17 @@ async function renderToHTMLOrFlightImpl(
   }
 
   // Wait for and collect the flight payload data if we don't have it
-  // already
-  const flightData = await flightDataResolver()
-  if (flightData) {
-    metadata.flightData = flightData
+  if (inlinedDataResult) {
+    const flightData = await inlinedDataResult.toUnchunkedString(true)
+    if (flightData) {
+      metadata.flightData = flightData
+    }
   }
+  // already
+  // const flightData = await flightDataResolver!()
+  // if (flightData) {
+  //   metadata.flightData = flightData
+  // }
 
   // If force static is specifically set to false, we should not revalidate
   // the page.
@@ -1479,7 +1496,12 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  return new RenderResult(response.stream, options)
+  return [
+    new RenderResult(response.stream, options),
+    response.inlinedDataStream
+      ? new RenderResult(response.inlinedDataStream, options)
+      : null,
+  ]
 }
 
 export type AppPageRender = (
@@ -1488,7 +1510,15 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
-) => Promise<RenderResult<AppPageRenderResultMetadata>>
+) => // | Promise<RenderResult<AppPageRenderResultMetadata>>
+Promise<
+  [
+    RenderResult, // <AppPageRenderResultMetadata>,
+    RenderResult | null,
+    // RenderResult<AppPageRenderResultMetadata> | null
+  ]
+>
+// | Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
   req,

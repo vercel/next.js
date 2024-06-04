@@ -547,7 +547,7 @@ export default class NextNodeServer extends BaseServer<
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult> {
+  ): Promise<[RenderResult, RenderResult | null]> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
     )
@@ -559,7 +559,7 @@ export default class NextNodeServer extends BaseServer<
     pathname: string,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult> {
+  ): Promise<[RenderResult, RenderResult | null]> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
         'Invariant: renderHTML should not be called in minimal mode'
@@ -578,13 +578,16 @@ export default class NextNodeServer extends BaseServer<
       // TODO: re-enable this once we've refactored to use implicit matches
       // throw new Error('Invariant: render should have used routeModule')
 
-      return lazyRenderPagesPage(
-        req.originalRequest,
-        res.originalResponse,
-        pathname,
-        query,
-        renderOpts
-      )
+      return [
+        await lazyRenderPagesPage(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts
+        ),
+        null,
+      ]
     }
   }
 

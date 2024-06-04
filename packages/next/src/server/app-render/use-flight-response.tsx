@@ -72,6 +72,7 @@ export async function flightRenderComplete(
 
   while (true) {
     const { done } = await flightReader.read()
+
     if (done) {
       return
     }
