@@ -70,6 +70,7 @@ struct NextJsStripPageExports {
 
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_strip_page_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();

@@ -40,6 +40,7 @@ struct NextJsFont {
 
 #[async_trait]
 impl CustomTransformer for NextJsFont {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_font", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut next_font = next_font_loaders(Config {
             font_loaders: self.font_loaders.clone(),
