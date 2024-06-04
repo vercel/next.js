@@ -22,7 +22,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
-import { lifecycleAsyncStorage } from '../../client/components/lifecycle-async-storage-instance'
+import { lifecycleAsyncStorage } from '../../client/components/lifecycle-async-storage.external'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
