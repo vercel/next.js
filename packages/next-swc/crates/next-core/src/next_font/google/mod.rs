@@ -498,18 +498,21 @@ async fn get_stylesheet_url_from_options(
     }
 
     let options = options.await?;
-    Ok(Vc::cell(get_stylesheet_url(
-        css_url.as_deref().unwrap_or(GOOGLE_FONTS_STYLESHEET_URL),
-        &options.font_family,
-        &get_font_axes(
-            &*font_data.await?,
+    Ok(Vc::cell(
+        get_stylesheet_url(
+            css_url.as_deref().unwrap_or(GOOGLE_FONTS_STYLESHEET_URL),
             &options.font_family,
-            &options.weights,
-            &options.styles,
-            &options.selected_variable_axes,
-        )?,
-        &options.display,
-    )?))
+            &get_font_axes(
+                &*font_data.await?,
+                &options.font_family,
+                &options.weights,
+                &options.styles,
+                &options.selected_variable_axes,
+            )?,
+            &options.display,
+        )?
+        .into(),
+    ))
 }
 
 #[turbo_tasks::function]
