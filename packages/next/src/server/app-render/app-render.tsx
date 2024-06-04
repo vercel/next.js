@@ -949,7 +949,7 @@ async function renderToHTMLOrFlightImpl(
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
-      const serverStream = ComponentMod.renderToReadableStream(
+      const serverStream: ReadableStream = ComponentMod.renderToReadableStream(
         <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
         clientReferenceManifest.clientModules,
         {
@@ -1290,12 +1290,14 @@ async function renderToHTMLOrFlightImpl(
           }
         )
 
+        const [errorRenderStream, errorDataStream] = errorServerStream.tee()
+
         try {
           const fizzStream = await renderToInitialFizzStream({
             ReactDOMServer: require('react-dom/server.edge'),
             element: (
               <ReactServerEntrypoint
-                reactServerStream={errorServerStream}
+                reactServerStream={errorRenderStream}
                 preinitScripts={errorPreinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 nonce={nonce}
@@ -1315,10 +1317,7 @@ async function renderToHTMLOrFlightImpl(
             err,
             stream: await continueFizzStream(fizzStream, {
               inlinedDataStream: createInlinedDataReadableStream(
-                // This is intentionally using the readable datastream from the
-                // main render rather than the flight data from the error page
-                // render
-                dataStream,
+                errorDataStream,
                 nonce,
                 formState
               ),
