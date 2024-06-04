@@ -52,6 +52,7 @@ struct NextJsDynamic {
 
 #[async_trait]
 impl CustomTransformer for NextJsDynamic {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_dynamic", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut next_dynamic(
