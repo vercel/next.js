@@ -445,14 +445,6 @@ export function continueFizzStream(
   })
 }
 
-export function convertReadable(
-  stream: Readable | ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-  return !(stream instanceof ReadableStream)
-    ? (Readable.toWeb(stream) as ReadableStream<Uint8Array>)
-    : stream
-}
-
 export function teeReadable(
   stream: PipeableStream | Readable
 ): [Readable, Readable] {

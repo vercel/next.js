@@ -657,9 +657,3 @@ export async function continueDynamicDataResume(
       .pipeThrough(createMoveSuffixStream(closeTag))
   )
 }
-
-export function convertReadable(
-  stream: ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-  return stream
-}
