@@ -55,6 +55,7 @@ import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
+import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -598,11 +599,7 @@ const forceStaticRequestHandlers = {
             ))
         )
       default:
-        const result = Reflect.get(target, prop, receiver)
-        if (typeof result === 'function') {
-          return result.bind(target)
-        }
-        return result
+        return ReflectAdapter.get(target, prop, receiver)
     }
   },
   // We don't need to proxy set because all the properties we proxy are ready only
@@ -649,11 +646,7 @@ const forceStaticNextUrlHandlers = {
             new Proxy(target.clone(), forceStaticNextUrlHandlers))
         )
       default:
-        const result = Reflect.get(target, prop, receiver)
-        if (typeof result === 'function') {
-          return result.bind(target)
-        }
-        return result
+        return ReflectAdapter.get(target, prop, receiver)
     }
   },
 }
@@ -677,11 +670,7 @@ function proxyNextRequest(
         case 'toString':
         case 'origin': {
           trackDynamicDataAccessed(staticGenerationStore, `nextUrl.${prop}`)
-          const result = Reflect.get(target, prop, receiver)
-          if (typeof result === 'function') {
-            return result.bind(target)
-          }
-          return result
+          return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
           return (
@@ -690,11 +679,7 @@ function proxyNextRequest(
               new Proxy(target.clone(), nextUrlHandlers))
           )
         default:
-          const result = Reflect.get(target, prop, receiver)
-          if (typeof result === 'function') {
-            return result.bind(target)
-          }
-          return result
+          return ReflectAdapter.get(target, prop, receiver)
       }
     },
   }
@@ -702,8 +687,7 @@ function proxyNextRequest(
   const nextRequestHandlers = {
     get(
       target: NextRequest & RequestSymbolTarget,
-      prop: string | symbol,
-      receiver: any
+      prop: string | symbol
     ): unknown {
       switch (prop) {
         case 'nextUrl':
@@ -721,12 +705,10 @@ function proxyNextRequest(
         case 'arrayBuffer':
         case 'formData': {
           trackDynamicDataAccessed(staticGenerationStore, `request.${prop}`)
-
-          const result = Reflect.get(target, prop, receiver)
-          if (typeof result === 'function') {
-            return result.bind(target)
-          }
-          return result
+          // The receiver arg is intentionally the same as the target to fix an issue with
+          // edge runtime, where attempting to access internal slots with the wrong `this` context
+          // results in an error.
+          return ReflectAdapter.get(target, prop, target)
         }
         case 'clone':
           return (
@@ -745,11 +727,10 @@ function proxyNextRequest(
               ))
           )
         default:
-          const result = Reflect.get(target, prop, receiver)
-          if (typeof result === 'function') {
-            return result.bind(target)
-          }
-          return result
+          // The receiver arg is intentionally the same as the target to fix an issue with
+          // edge runtime, where attempting to access internal slots with the wrong `this` context
+          // results in an error.
+          return ReflectAdapter.get(target, prop, target)
       }
     },
     // We don't need to proxy set because all the properties we proxy are ready only
@@ -803,11 +784,7 @@ const requireStaticRequestHandlers = {
             ))
         )
       default:
-        const result = Reflect.get(target, prop, receiver)
-        if (typeof result === 'function') {
-          return result.bind(target)
-        }
-        return result
+        return ReflectAdapter.get(target, prop, receiver)
     }
   },
   // We don't need to proxy set because all the properties we proxy are ready only
@@ -838,11 +815,7 @@ const requireStaticNextUrlHandlers = {
             new Proxy(target.clone(), requireStaticNextUrlHandlers))
         )
       default:
-        const result = Reflect.get(target, prop, receiver)
-        if (typeof result === 'function') {
-          return result.bind(target)
-        }
-        return result
+        return ReflectAdapter.get(target, prop, receiver)
     }
   },
 }

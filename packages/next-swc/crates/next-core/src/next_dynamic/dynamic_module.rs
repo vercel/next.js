@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
@@ -46,8 +46,8 @@ impl NextDynamicEntryModule {
 }
 
 #[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<String> {
-    Vc::cell("dynamic".to_string())
+fn dynamic_modifier() -> Vc<RcStr> {
+    Vc::cell("dynamic".into())
 }
 
 #[turbo_tasks::value_impl]
