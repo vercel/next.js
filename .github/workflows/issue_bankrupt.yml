@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
       - run: corepack enable
       - name: 'Bankrupt issues & send notification to Slack'
-        run: node ./.github/actions/next-repo-info/dist/bankrupt/index.mjs
+        run: node ./.github/actions/next-repo-actions/dist/bankrupt/index.js
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
