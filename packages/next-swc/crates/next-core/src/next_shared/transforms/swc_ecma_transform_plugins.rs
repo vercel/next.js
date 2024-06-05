@@ -1,5 +1,7 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+#[allow(unused_imports)]
+use turbo_tasks::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
 
