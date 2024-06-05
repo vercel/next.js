@@ -340,6 +340,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
                     .unwrap_or_default(),
                 ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
             )
+            .into(),
         ))?;
 
         if is_multi_dynamic {
