@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{
@@ -89,12 +89,12 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
     Middleware,
     Instrumentation,
@@ -139,9 +139,9 @@ pub async fn get_server_resolve_options_context(
     );
 
     // Always load these predefined packages as external.
-    let mut external_packages: Vec<String> = load_next_js_templateon(
+    let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".to_string(),
+        "dist/lib/server-external-packages.json".into(),
     )
     .await?;
 
@@ -174,16 +174,17 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
         NextRuntime::NodeJs
             .conditions()
             .iter()
-            .map(ToString::to_string),
+            .map(ToString::to_string)
+            .map(RcStr::from),
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".to_string());
+        custom_conditions.push("react-server".into());
     };
 
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
@@ -305,17 +306,17 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });
@@ -402,8 +403,14 @@ pub async fn get_server_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
-    let mut conditions = vec![mode.await?.condition().to_string()];
-    conditions.extend(next_runtime.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![mode.await?.condition().into()];
+    conditions.extend(
+        next_runtime
+            .conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(RcStr::from),
+    );
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -416,7 +423,7 @@ pub async fn get_server_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".to_string()))
+            .chain(once("foreign".into()))
             .collect(),
     )
     .await?;
@@ -809,7 +816,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
@@ -820,8 +827,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".to_string()),
-        client_root.join("static/media".to_string()),
+        node_root.join("server/chunks/ssr".into()),
+        client_root.join("static/media".into()),
         environment,
         next_mode.runtime_type(),
     )
@@ -845,8 +852,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".to_string()),
-        node_root.join("server/assets".to_string()),
+        node_root.join("server/chunks".into()),
+        node_root.join("server/assets".into()),
         environment,
         next_mode.runtime_type(),
     )

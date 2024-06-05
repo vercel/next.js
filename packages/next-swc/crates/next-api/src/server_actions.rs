@@ -9,7 +9,7 @@ use next_core::{
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::{common::comments::Comments, ecma::ast::Program},
@@ -54,7 +54,7 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name.to_string(), actions, asset_context);
+        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
@@ -76,7 +76,7 @@ pub(crate) async fn create_server_actions_manifest(
 #[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: String,
+    page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
@@ -92,7 +92,7 @@ async fn build_server_actions_loader(
         let index = import_map.len();
         let module_name = import_map
             .entry(*module)
-            .or_insert_with(|| format!("ACTIONS_MODULE{index}"));
+            .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
         writeln!(
             contents,
             "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
@@ -101,7 +101,8 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js"));
+    let output_path =
+        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
@@ -128,12 +129,11 @@ async fn build_manifest(
     page_name: &str,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    loader_id: Vc<String>,
+    loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = page_name;
-    let manifest_path = node_root.join(format!(
-        "server/app{manifest_path_prefix}/server-reference-manifest.json",
-    ));
+    let manifest_path = node_root
+        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
@@ -163,8 +163,8 @@ async fn build_manifest(
 }
 
 #[turbo_tasks::function]
-fn action_modifier() -> Vc<String> {
-    Vc::cell("action".to_string())
+fn action_modifier() -> Vc<RcStr> {
+    Vc::cell("action".into())
 }
 
 /// Traverses the entire module graph starting from [Module], looking for magic
