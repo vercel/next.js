@@ -60,7 +60,7 @@ mod.prototype.require = function (request: string) {
   if (request.endsWith('.shared-runtime')) {
     return originalRequire.call(
       this,
-      `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
+      `next/dist/server/route-modules/pages/vendored/contexts/${path.basename(
         request,
         '.shared-runtime'
       )}`
