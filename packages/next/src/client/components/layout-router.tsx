@@ -450,6 +450,7 @@ function InnerLayoutRouter({
       childNode.lazyDataResolved = true
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
     use(unresolvedThenable) as never
   }
 
