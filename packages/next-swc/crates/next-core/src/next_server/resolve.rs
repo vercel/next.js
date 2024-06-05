@@ -192,6 +192,21 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let unable_to_externalize = |request_str: RcStr, reason: &str| {
             if must_be_external {
                 UnableToExternalize {
+                    severity: IssueSeverity::Error.cell(),
+                    file_path: fs_path,
+                    request: request_str,
+                    reason: reason.into(),
+                }
+                .cell()
+                .emit();
+            }
+            Ok(ResolveResultOption::none())
+        };
+
+        let unable_to_externalize_warning = |request_str: RcStr, reason: &str| {
+            if must_be_external {
+                UnableToExternalize {
+                    severity: IssueSeverity::Warning.cell(),
                     file_path: fs_path,
                     request: request_str,
                     reason: reason.into(),
@@ -220,7 +235,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 *node_resolved_from_original_location.first_source().await?
             else {
                 if is_esm && !request_str.ends_with(".js") {
-                    // We have a fallback solution for convinience: If user doesn't
+                    // We have a fallback solution for convenience: If user doesn't
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
@@ -259,11 +274,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         let result = result.resolve().await?;
         let result_from_original_location = result_from_original_location.resolve().await?;
+
         if result_from_original_location != result {
             let package_json_file = find_context_file(
                 result.ident().path().parent().resolve().await?,
                 package_json(),
             );
+
             let package_json_from_original_location = find_context_file(
                 result_from_original_location
                     .ident()
@@ -273,6 +290,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     .await?,
                 package_json(),
             );
+
             let FindContextFileResult::Found(package_json_file, _) = *package_json_file.await?
             else {
                 return unable_to_externalize(
@@ -281,6 +299,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                      found.",
                 );
             };
+
             let FindContextFileResult::Found(package_json_from_original_location, _) =
                 *package_json_from_original_location.await?
             else {
@@ -289,6 +308,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     "The package.json of the package can't be found.",
                 );
             };
+
             let FileJsonContent::Content(package_json_file) =
                 &*package_json_file.read_json().await?
             else {
@@ -298,6 +318,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                      parsed.",
                 );
             };
+
             let FileJsonContent::Content(package_json_from_original_location) =
                 &*package_json_from_original_location.read_json().await?
             else {
@@ -306,6 +327,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     "The package.json of the package can't be parsed.",
                 );
             };
+
             let (Some(name), Some(version)) = (
                 package_json_file.get("name"),
                 package_json_file.get("version"),
@@ -315,6 +337,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     "The package.json of the package has not name or version.",
                 );
             };
+
             let (Some(name2), Some(version2)) = (
                 package_json_from_original_location.get("name"),
                 package_json_from_original_location.get("version"),
@@ -325,6 +348,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                      or version.",
                 );
             };
+
             if (name, version) != (name2, version2) {
                 // this can't resolve with node.js from the original location, so bundle it
                 return unable_to_externalize(
@@ -341,7 +365,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                unable_to_externalize(
+                unable_to_externalize_warning(
                     request_str.into(),
                     "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
                 )
@@ -455,6 +479,7 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 
 #[turbo_tasks::value]
 struct UnableToExternalize {
+    severity: Vc<IssueSeverity>,
     file_path: Vc<FileSystemPath>,
     request: RcStr,
     reason: RcStr,
@@ -464,7 +489,7 @@ struct UnableToExternalize {
 impl Issue for UnableToExternalize {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.cell()
+        self.severity
     }
 
     #[turbo_tasks::function]
