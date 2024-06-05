@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{
@@ -12,9 +12,9 @@ use crate::ident::AssetIdent;
 pub struct AnalyzeIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,
-    pub title: Vc<String>,
+    pub title: Vc<RcStr>,
     pub message: Vc<StyledString>,
-    pub code: Option<String>,
+    pub code: Option<RcStr>,
     pub source: Option<Vc<IssueSource>>,
 }
 
@@ -27,15 +27,15 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let title = &*self.title.await?;
+        let title = &**self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
             StyledString::Line(vec![
-                StyledString::Strong(code.to_string()),
-                StyledString::Text(" ".to_string()),
-                StyledString::Text(title.to_string()),
+                StyledString::Strong(code.clone()),
+                StyledString::Text(" ".into()),
+                StyledString::Text(title.into()),
             ])
         } else {
-            StyledString::Text(title.to_string())
+            StyledString::Text(title.into())
         }
         .cell())
     }

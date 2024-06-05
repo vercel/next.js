@@ -2,14 +2,14 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use crate::{DiskFileSystem, File, FileContent, FileSystem};
 
 #[turbo_tasks::function]
 pub async fn content_from_relative_path(
-    package_path: String,
-    path: String,
+    package_path: RcStr,
+    path: RcStr,
 ) -> Result<Vc<FileContent>> {
     let package_path = PathBuf::from(package_path);
     let resolved_path = package_path.join(path);
@@ -19,18 +19,18 @@ pub async fn content_from_relative_path(
     let path = resolved_path.file_name().unwrap().to_str().unwrap();
 
     let disk_fs = DiskFileSystem::new(
-        root_path.to_string_lossy().to_string(),
-        root_path.to_string_lossy().to_string(),
+        root_path.to_string_lossy().into(),
+        root_path.to_string_lossy().into(),
         vec![],
     );
     disk_fs.await?.start_watching()?;
 
-    let fs_path = disk_fs.root().join(path.to_string());
+    let fs_path = disk_fs.root().join(path.into());
     Ok(fs_path.read())
 }
 
 #[turbo_tasks::function]
-pub async fn content_from_str(string: String) -> Result<Vc<FileContent>> {
+pub async fn content_from_str(string: RcStr) -> Result<Vc<FileContent>> {
     Ok(File::from(string).into())
 }
 
@@ -57,7 +57,7 @@ macro_rules! embed_file {
 macro_rules! embed_file {
     ($path:expr) => {
         turbo_tasks_fs::embed::content_from_str(
-            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path)).to_string(),
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/", $path)).into(),
         )
     };
 }

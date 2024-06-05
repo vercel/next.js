@@ -10,7 +10,7 @@ use swc_core::{
         ModuleItem, NamedExport, Program,
     },
 };
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -263,7 +263,7 @@ impl Analyzer<'_> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Key {
     ModuleEvaluation,
-    Export(String),
+    Export(RcStr),
 }
 
 /// Converts [Vc<ModulePart>] to the index.
@@ -273,7 +273,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     // TODO implement ModulePart::Facade
     let key = match &*part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.await?.to_string()),
+        ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Exports
@@ -503,7 +503,7 @@ pub(super) async fn part_of_module(
                             swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
                                 orig: ModuleExportName::Ident(Ident::new(
-                                    export_name.into(),
+                                    export_name.as_str().into(),
                                     DUMMY_SP,
                                 )),
                                 exported: None,
@@ -579,7 +579,7 @@ pub(super) async fn part_of_module(
                             swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
                                 orig: ModuleExportName::Ident(Ident::new(
-                                    export_name.into(),
+                                    export_name.as_str().into(),
                                     DUMMY_SP,
                                 )),
                                 exported: None,

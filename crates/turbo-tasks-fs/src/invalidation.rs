@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use indexmap::IndexSet;
-use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind};
+use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind, RcStr};
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]
@@ -50,7 +50,7 @@ impl InvalidationReasonKind for WatchChangeKind {
 /// before.
 #[derive(PartialEq, Eq, Hash)]
 pub struct WatchStart {
-    pub name: String,
+    pub name: RcStr,
 }
 
 impl InvalidationReason for WatchStart {

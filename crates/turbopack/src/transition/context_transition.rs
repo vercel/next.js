@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
@@ -11,7 +11,7 @@ pub struct ContextTransition {
     compile_time_info: Vc<CompileTimeInfo>,
     module_options_context: Vc<ModuleOptionsContext>,
     resolve_options_context: Vc<ResolveOptionsContext>,
-    layer: Vc<String>,
+    layer: Vc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -21,7 +21,7 @@ impl ContextTransition {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<String>,
+        layer: Vc<RcStr>,
     ) -> Result<Vc<ContextTransition>> {
         Ok(ContextTransition {
             module_options_context,
@@ -44,7 +44,7 @@ impl Transition for ContextTransition {
     }
 
     #[turbo_tasks::function]
-    fn process_layer(&self, _layer: Vc<String>) -> Vc<String> {
+    fn process_layer(&self, _layer: Vc<RcStr>) -> Vc<RcStr> {
         self.layer
     }
 

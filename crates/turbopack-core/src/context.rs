@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
@@ -42,7 +42,7 @@ pub trait AssetContext {
     fn compile_time_info(self: Vc<Self>) -> Vc<CompileTimeInfo>;
 
     /// Gets the layer of the asset context.
-    fn layer(self: Vc<Self>) -> Vc<String>;
+    fn layer(self: Vc<Self>) -> Vc<RcStr>;
 
     /// Gets the resolve options for a given path.
     fn resolve_options(
@@ -75,7 +75,7 @@ pub trait AssetContext {
     ) -> Vc<ModuleResolveResult>;
 
     /// Gets a new AssetContext with the transition applied.
-    fn with_transition(self: Vc<Self>, transition: String) -> Vc<Box<dyn AssetContext>>;
+    fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn AssetContext>>;
 
     fn side_effect_free_packages(self: Vc<Self>) -> Vc<Glob>;
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
@@ -40,8 +40,8 @@ impl EcmascriptDevChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell("Ecmascript Dev Chunk".to_string()))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("Ecmascript Dev Chunk".into()))
     }
 }
 
@@ -58,8 +58,8 @@ impl OutputChunk for EcmascriptDevChunk {
 }
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("ecmascript dev chunk".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript dev chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -80,7 +80,7 @@ impl OutputAsset for EcmascriptDevChunk {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         let ident = self.chunk.ident().with_modifier(modifier());
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".to_string()))
+        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -125,35 +125,35 @@ impl GenerateSourceMap for EcmascriptDevChunk {
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: String) -> Vc<OptionSourceMap> {
+    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionSourceMap> {
         self.own_content().by_section(section)
     }
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("dev ecmascript chunk".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("dev ecmascript chunk".into())
 }
 
 #[turbo_tasks::function]
-fn introspectable_details() -> Vc<String> {
-    Vc::cell("generates a development ecmascript chunk".to_string())
+fn introspectable_details() -> Vc<RcStr> {
+    Vc::cell("generates a development ecmascript chunk".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<String> {
+    fn title(self: Vc<Self>) -> Vc<RcStr> {
         self.ident().to_string()
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> Vc<String> {
+    fn details(&self) -> Vc<RcStr> {
         introspectable_details()
     }
 
@@ -163,7 +163,7 @@ impl Introspectable for EcmascriptDevChunk {
         let chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
             .resolve()
             .await?;
-        children.insert((Vc::cell("chunk".to_string()), chunk));
+        children.insert((Vc::cell("chunk".into()), chunk));
         Ok(Vc::cell(children))
     }
 }

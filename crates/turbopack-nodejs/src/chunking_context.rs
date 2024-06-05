@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Context, Result};
 use tracing::Instrument;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -33,7 +33,7 @@ pub struct NodeJsChunkingContextBuilder {
 }
 
 impl NodeJsChunkingContextBuilder {
-    pub fn asset_prefix(mut self, asset_prefix: Vc<Option<String>>) -> Self {
+    pub fn asset_prefix(mut self, asset_prefix: Vc<Option<RcStr>>) -> Self {
         self.chunking_context.asset_prefix = asset_prefix;
         self
     }
@@ -75,7 +75,7 @@ pub struct NodeJsChunkingContext {
     /// Static assets are placed at this path
     asset_root_path: Vc<FileSystemPath>,
     /// Static assets requested from this url base
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     /// The environment chunks will be evaluated in.
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
@@ -143,7 +143,7 @@ impl NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_prefix(&self) -> Vc<Option<String>> {
+    pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         self.asset_prefix
     }
 
@@ -220,8 +220,8 @@ impl NodeJsChunkingContext {
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
-    fn name(&self) -> Vc<String> {
-        Vc::cell("unknown".to_string())
+    fn name(&self) -> Vc<RcStr> {
+        Vc::cell("unknown".into())
     }
 
     #[turbo_tasks::function]
@@ -240,29 +240,32 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<String>> {
+    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
         let this = self.await?;
         let asset_path = ident.path().await?.to_string();
         let asset_path = asset_path
             .strip_prefix(&format!("{}/", this.client_root.await?.path))
             .context("expected client root to contain asset path")?;
 
-        Ok(Vc::cell(format!(
-            "{}{}",
-            this.asset_prefix
-                .await?
-                .as_ref()
-                .map(|s| s.to_owned())
-                .unwrap_or_else(|| "/".to_owned()),
-            asset_path
-        )))
+        Ok(Vc::cell(
+            format!(
+                "{}{}",
+                this.asset_prefix
+                    .await?
+                    .as_ref()
+                    .map(|s| s.clone())
+                    .unwrap_or_else(|| "/".into()),
+                asset_path
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
     async fn chunk_path(
         &self,
         ident: Vc<AssetIdent>,
-        extension: String,
+        extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
         let name = ident.output_name(self.context_path, extension).await?;
@@ -277,7 +280,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: String,
+        content_hash: RcStr,
         original_asset_ident: Vc<AssetIdent>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
@@ -293,7 +296,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 content_hash = &content_hash[..8]
             ),
         };
-        Ok(self.asset_root_path.join(asset_path))
+        Ok(self.asset_root_path.join(asset_path.into()))
     }
 
     #[turbo_tasks::function]
@@ -302,7 +305,10 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", module = *module.ident().to_string().await?);
+        let span = tracing::info_span!(
+            "chunking",
+            module = module.ident().to_string().await?.to_string()
+        );
         async move {
             let MakeChunkGroupResult {
                 chunks,

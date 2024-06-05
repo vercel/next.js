@@ -21,7 +21,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{util::WrapFuture, Value, ValueToString, Vc};
+use turbo_tasks::{util::WrapFuture, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -58,7 +58,7 @@ pub enum ParseResult {
         source_map: Arc<swc_core::common::SourceMap>,
     },
     Unparseable {
-        messages: Option<Vec<String>>,
+        messages: Option<Vec<RcStr>>,
     },
     NotFound,
 }
@@ -157,8 +157,8 @@ pub async fn parse(
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?;
-    let span = tracing::info_span!("parse ecmascript", name = *name, ty = display(&*ty));
+    let name = source.ident().to_string().await?.to_string();
+    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
     match parse_internal(source, ty, transforms)
         .instrument(span)
         .await
@@ -185,7 +185,7 @@ async fn parse_internal(
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {
-            let error = PrettyPrintError(&error).to_string();
+            let error: RcStr = PrettyPrintError(&error).to_string().into();
             ReadSourceIssue {
                 source,
                 error: error.clone(),
@@ -227,7 +227,7 @@ async fn parse_internal(
                     }
                 }
                 Err(error) => {
-                    let error = PrettyPrintError(&error).to_string();
+                    let error: RcStr = PrettyPrintError(&error).to_string().into();
                     ReadSourceIssue {
                         source,
                         error: error.clone(),
@@ -262,14 +262,14 @@ async fn parse_content(
         Box::new(IssueEmitter::new(
             source,
             source_map.clone(),
-            Some("Ecmascript file had an error".to_string()),
+            Some("Ecmascript file had an error".into()),
         )),
     );
 
     let emitter = Box::new(IssueEmitter::new(
         source,
         source_map.clone(),
-        Some("Parsing ecmascript source code failed".to_string()),
+        Some("Parsing ecmascript source code failed".into()),
     ));
     let parser_handler = Handler::with_emitter(true, false, emitter.clone());
     let globals = Arc::new(Globals::new());
@@ -327,7 +327,7 @@ async fn parse_content(
                 let mut has_errors = vec![];
                 for e in parser.take_errors() {
                     let mut e = e.into_diagnostic(&parser_handler);
-                    has_errors.extend(e.message.iter().map(|m| m.0.clone()));
+                    has_errors.extend(e.message.iter().map(|m| m.0.as_str().into()));
                     e.emit();
                 }
 
@@ -341,7 +341,7 @@ async fn parse_content(
                     Ok(parsed_program) => parsed_program,
                     Err(e) => {
                         let mut e = e.into_diagnostic(&parser_handler);
-                        let messages = e.message.iter().map(|m| m.0.clone()).collect();
+                        let messages = e.message.iter().map(|m| m.0.as_str().into()).collect();
 
                         e.emit();
 
@@ -405,7 +405,7 @@ async fn parse_content(
                 } else {
                     None
                 };
-                let messages = Some(messages.unwrap_or_else(|| vec![string.to_string()]));
+                let messages = Some(messages.unwrap_or_else(|| vec![string.into()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
 
@@ -451,7 +451,7 @@ async fn parse_content(
 #[turbo_tasks::value]
 struct ReadSourceIssue {
     source: Vc<Box<dyn Source>>,
-    error: String,
+    error: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -463,16 +463,20 @@ impl Issue for ReadSourceIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Reading source code for parsing failed".to_string()).cell()
+        StyledString::Text("Reading source code for parsing failed".into()).cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(format!(
-                "An unexpected error happened while trying to read the source code to parse: {}",
-                self.error
-            ))
+            StyledString::Text(
+                format!(
+                    "An unexpected error happened while trying to read the source code to parse: \
+                     {}",
+                    self.error
+                )
+                .into(),
+            )
             .cell(),
         ))
     }

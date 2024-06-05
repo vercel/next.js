@@ -15,7 +15,7 @@ use internal::PassthroughDebug;
 
 /// The return type of `ValueDebug::dbg`.
 ///
-/// We don't use `Vc<String>` directly because we don't want the
+/// We don't use `Vc<RcStr>` directly because we don't want the
 /// `Debug`/`Display` representations to be escaped.
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);

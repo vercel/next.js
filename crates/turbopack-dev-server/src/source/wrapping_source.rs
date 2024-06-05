@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 
 use super::{
     ContentSourceContent, ContentSourceData, ContentSourceDataVary, GetContentSourceContent,
@@ -49,7 +49,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
         &self,
-        path: String,
+        path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let res = self.inner.get(path, data);

@@ -9,7 +9,7 @@ use std::{env, sync::Mutex};
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 pub use self::{
     command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,
@@ -17,7 +17,7 @@ pub use self::{
 };
 
 #[turbo_tasks::value(transparent)]
-pub struct EnvMap(#[turbo_tasks(trace_ignore)] IndexMap<String, String>);
+pub struct EnvMap(#[turbo_tasks(trace_ignore)] IndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
@@ -35,7 +35,7 @@ impl ProcessEnv for EnvMap {
     }
 
     #[turbo_tasks::function]
-    async fn read(self: Vc<Self>, name: String) -> Vc<Option<String>> {
+    async fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
         case_insensitive_read(self, name)
     }
 }
@@ -51,23 +51,25 @@ pub trait ProcessEnv {
     fn read_all(self: Vc<Self>) -> Vc<EnvMap>;
 
     /// Reads a single env variable. Ignores casing.
-    fn read(self: Vc<Self>, name: String) -> Vc<Option<String>> {
+    fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
         case_insensitive_read(self.read_all(), name)
     }
 }
 
-pub fn sorted_env_vars() -> IndexMap<String, String> {
-    let mut vars = env::vars().collect::<IndexMap<_, _>>();
+pub fn sorted_env_vars() -> IndexMap<RcStr, RcStr> {
+    let mut vars = env::vars()
+        .map(|(k, v)| (k.into(), v.into()))
+        .collect::<IndexMap<_, _>>();
     vars.sort_keys();
     vars
 }
 
 #[turbo_tasks::function]
-pub async fn case_insensitive_read(map: Vc<EnvMap>, name: String) -> Result<Vc<Option<String>>> {
+pub async fn case_insensitive_read(map: Vc<EnvMap>, name: RcStr) -> Result<Vc<Option<RcStr>>> {
     Ok(Vc::cell(
         to_uppercase_map(map)
             .await?
-            .get(&name.to_uppercase())
+            .get(&RcStr::from(name.to_uppercase()))
             .cloned(),
     ))
 }
@@ -77,7 +79,7 @@ async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
     let map = &*map.await?;
     let mut new = IndexMap::with_capacity(map.len());
     for (k, v) in map {
-        new.insert(k.to_uppercase(), v.clone());
+        new.insert(k.to_uppercase().into(), v.clone());
     }
     Ok(Vc::cell(new))
 }

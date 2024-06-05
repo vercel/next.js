@@ -24,7 +24,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
+    RcStr, ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -50,7 +50,7 @@ use crate::{
 #[serde(untagged)]
 pub enum ModuleId {
     Number(u32),
-    String(String),
+    String(RcStr),
 }
 
 impl Display for ModuleId {
@@ -65,8 +65,8 @@ impl Display for ModuleId {
 #[turbo_tasks::value_impl]
 impl ValueToString for ModuleId {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::cell(self.to_string())
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(self.to_string().into())
     }
 }
 
@@ -74,7 +74,7 @@ impl ModuleId {
     pub fn parse(id: &str) -> Result<ModuleId> {
         Ok(match id.parse::<u32>() {
             Ok(i) => ModuleId::Number(i),
-            Err(_) => ModuleId::String(id.to_string()),
+            Err(_) => ModuleId::String(id.into()),
         })
     }
 }
@@ -226,7 +226,7 @@ enum ChunkContentGraphNode {
     // Chunk items that are placed into the current chunk group
     ChunkItem {
         item: Vc<Box<dyn ChunkItem>>,
-        ident: ReadRef<String>,
+        ident: ReadRef<RcStr>,
     },
     // Async module that is referenced from the chunk group
     AsyncModule {

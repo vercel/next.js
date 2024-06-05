@@ -9,7 +9,7 @@ use swc_core::{
         visit::fields::{CalleeField, PropField},
     },
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::EsmAssetReference;
@@ -23,7 +23,7 @@ use crate::{
 #[derive(Hash, Debug)]
 pub struct EsmBinding {
     pub reference: Vc<EsmAssetReference>,
-    pub export: Option<String>,
+    pub export: Option<RcStr>,
     pub ast_path: Vc<AstPath>,
 }
 
@@ -32,7 +32,7 @@ impl EsmBinding {
     #[turbo_tasks::function]
     pub fn new(
         reference: Vc<EsmAssetReference>,
-        export: Option<String>,
+        export: Option<RcStr>,
         ast_path: Vc<AstPath>,
     ) -> Vc<Self> {
         EsmBinding {

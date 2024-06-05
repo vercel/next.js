@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -21,7 +21,7 @@ use crate::output::OutputAssets;
 #[turbo_tasks::value]
 struct ChunkItemInfo {
     ty: Vc<Box<dyn ChunkType>>,
-    name: Vc<String>,
+    name: Vc<RcStr>,
     size: usize,
 }
 
@@ -48,7 +48,7 @@ async fn chunk_item_info(
 pub async fn make_chunks(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
-    key_prefix: String,
+    key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vc<Chunks>> {
     let chunk_items = chunk_items
@@ -107,7 +107,7 @@ type ChunkItemWithInfo = (
     Vc<Box<dyn ChunkItem>>,
     Option<Vc<AsyncModuleInfo>>,
     usize,
-    ReadRef<String>,
+    ReadRef<RcStr>,
 );
 
 struct SplitContext<'a> {

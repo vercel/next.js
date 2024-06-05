@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
@@ -65,10 +65,13 @@ impl GenerateSourceMap for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for SourceMapReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "source map file is referenced by {}",
-            self.from.to_string().await?
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "source map file is referenced by {}",
+                self.from.to_string().await?
+            )
+            .into(),
+        ))
     }
 }

@@ -3,7 +3,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{Value, ValueDefault, Vc};
+use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,8 +27,8 @@ use turbopack_ecmascript::{
 };
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("mdx".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("mdx".into())
 }
 
 #[turbo_tasks::value(shared)]
@@ -48,12 +48,12 @@ pub enum MdxParseConstructs {
 pub struct MdxTransformOptions {
     pub development: Option<bool>,
     pub jsx: Option<bool>,
-    pub jsx_runtime: Option<String>,
-    pub jsx_import_source: Option<String>,
+    pub jsx_runtime: Option<RcStr>,
+    pub jsx_import_source: Option<RcStr>,
     /// The path to a module providing Components to mdx modules.
     /// The provider must export a useMDXComponents, which is called to access
     /// an object of components.
-    pub provider_import_source: Option<String>,
+    pub provider_import_source: Option<RcStr>,
     /// Determines how to parse mdx contents.
     pub mdx_type: Option<MdxParseConstructs>,
 }
@@ -136,13 +136,16 @@ async fn into_ecmascript_module_asset(
     let options = Options {
         parse: parse_options,
         development: transform_options.development.unwrap_or(false),
-        provider_import_source: transform_options.provider_import_source.clone(),
+        provider_import_source: transform_options
+            .provider_import_source
+            .clone()
+            .map(RcStr::into_owned),
         jsx: transform_options.jsx.unwrap_or(false), // true means 'preserve' jsx syntax.
         jsx_runtime,
         jsx_import_source: transform_options
             .jsx_import_source
-            .as_ref()
-            .map(|s| s.into()),
+            .clone()
+            .map(RcStr::into_owned),
         filepath: Some(this.source.ident().path().await?.to_string()),
         ..Default::default()
     };

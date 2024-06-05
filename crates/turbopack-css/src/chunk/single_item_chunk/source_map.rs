@@ -30,7 +30,7 @@ impl OutputAsset for SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(
-            self.chunk.path().append(".map".to_string()),
+            self.chunk.path().append(".map".into()),
         ))
     }
 }

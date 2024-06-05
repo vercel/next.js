@@ -86,7 +86,7 @@ impl ChunkItem for ManifestChunkItem {
         let this = self.await?;
         let mut references = this.manifest.references().await?.clone_value();
 
-        let key = Vc::cell("chunk data reference".to_string());
+        let key = Vc::cell("chunk data reference".into());
 
         for chunk_data in &*self.chunks_data().await? {
             references.extend(chunk_data.references().await?.iter().map(|&output_asset| {

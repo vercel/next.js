@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, RcStr, ReadRef, State, TraitRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -122,7 +122,7 @@ pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
     /// needs to be stored somewhere.
-    fn id(self: Vc<Self>) -> Vc<String>;
+    fn id(self: Vc<Self>) -> Vc<RcStr>;
 }
 
 /// This trait allows multiple `VersionedContent` to declare which
@@ -159,8 +159,8 @@ impl NotFoundVersion {
 #[turbo_tasks::value_impl]
 impl Version for NotFoundVersion {
     #[turbo_tasks::function]
-    fn id(&self) -> Vc<String> {
-        Vc::cell("".to_string())
+    fn id(&self) -> Vc<RcStr> {
+        Vc::cell(Default::default())
     }
 }
 
@@ -205,7 +205,7 @@ pub struct PartialUpdate {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct FileHashVersion {
-    hash: String,
+    hash: RcStr,
 }
 
 impl FileHashVersion {
@@ -216,7 +216,9 @@ impl FileHashVersion {
                 FileContent::Content(file) => {
                     let hash = hash_xxh3_hash64(file.content());
                     let hex_hash = encode_hex(hash);
-                    Ok(Self::cell(FileHashVersion { hash: hex_hash }))
+                    Ok(Self::cell(FileHashVersion {
+                        hash: hex_hash.into(),
+                    }))
                 }
                 FileContent::NotFound => Err(anyhow!("file not found")),
             },
@@ -228,7 +230,7 @@ impl FileHashVersion {
 #[turbo_tasks::value_impl]
 impl Version for FileHashVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<String>> {
+    async fn id(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(self.hash.clone()))
     }
 }

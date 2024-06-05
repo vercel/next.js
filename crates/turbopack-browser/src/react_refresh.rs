@@ -12,12 +12,12 @@ use turbopack_resolve::{
 
 #[turbo_tasks::function]
 fn react_refresh_request() -> Vc<Request> {
-    Request::parse_string("@next/react-refresh-utils/dist/runtime".to_string())
+    Request::parse_string("@next/react-refresh-utils/dist/runtime".into())
 }
 
 #[turbo_tasks::function]
 fn react_refresh_request_in_next() -> Vc<Request> {
-    Request::parse_string("next/dist/compiled/@next/react-refresh-utils/dist/runtime".to_string())
+    Request::parse_string("next/dist/compiled/@next/react-refresh-utils/dist/runtime".into())
 }
 
 #[turbo_tasks::value]
@@ -84,7 +84,7 @@ impl Issue for ReactRefreshResolvingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Could not resolve React Refresh runtime".to_string()).cell()
+        StyledString::Text("Could not resolve React Refresh runtime".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -102,13 +102,12 @@ impl Issue for ReactRefreshResolvingIssue {
         Vc::cell(Some(
             StyledString::Line(vec![
                 StyledString::Text(
-                    "React Refresh will be disabled.\nTo enable React Refresh, install the "
-                        .to_string(),
+                    "React Refresh will be disabled.\nTo enable React Refresh, install the ".into(),
                 ),
-                StyledString::Code("react-refresh".to_string()),
-                StyledString::Text(" and ".to_string()),
-                StyledString::Code("@next/react-refresh-utils".to_string()),
-                StyledString::Text(" modules.".to_string()),
+                StyledString::Code("react-refresh".into()),
+                StyledString::Text(" and ".into()),
+                StyledString::Code("@next/react-refresh-utils".into()),
+                StyledString::Text(" modules.".into()),
             ])
             .cell(),
         ))

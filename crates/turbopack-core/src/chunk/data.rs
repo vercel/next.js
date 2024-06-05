@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -27,8 +27,8 @@ pub struct ChunkDataOption(Option<Vc<ChunkData>>);
 pub struct ChunksData(Vec<Vc<ChunkData>>);
 
 #[turbo_tasks::function]
-fn module_chunk_reference_description() -> Vc<String> {
-    Vc::cell("module chunk".to_string())
+fn module_chunk_reference_description() -> Vc<RcStr> {
+    Vc::cell("module chunk".into())
 }
 
 #[turbo_tasks::value_impl]

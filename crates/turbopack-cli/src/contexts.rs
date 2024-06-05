@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt};
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
@@ -61,7 +61,7 @@ pub async fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Result<V
     import_map.insert_wildcard_alias(
         "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
-            "./*".to_string(),
+            "./*".into(),
             Some(turbopack_ecmascript_runtime::embed_fs().root()),
         )
         .cell(),
@@ -77,7 +77,7 @@ pub async fn get_client_resolve_options_context(
     let next_client_import_map = get_client_import_map(project_path);
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec!["development".to_string()],
+        custom_conditions: vec!["development".into()],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -189,7 +189,7 @@ pub fn get_client_asset_context(
         compile_time_info,
         module_options_context,
         resolve_options_context,
-        Vc::cell("client".to_string()),
+        Vc::cell("client".into()),
     ));
 
     asset_context
@@ -206,7 +206,7 @@ fn client_defines(node_env: &NodeEnv) -> Vc<CompileTimeDefines> {
 
 #[turbo_tasks::function]
 pub async fn get_client_compile_time_info(
-    browserslist_query: String,
+    browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
     Ok(

@@ -15,7 +15,7 @@ pub struct RenderingIssue {
 impl Issue for RenderingIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error during SSR Rendering".to_string()).cell()
+        StyledString::Text("Error during SSR Rendering".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -39,7 +39,9 @@ impl Issue for RenderingIssue {
 
         if let Some(status) = self.status {
             if status != 0 {
-                details.push(StyledString::Text(format!("Node.js exit code: {status}")));
+                details.push(StyledString::Text(
+                    format!("Node.js exit code: {status}").into(),
+                ));
             }
         }
 

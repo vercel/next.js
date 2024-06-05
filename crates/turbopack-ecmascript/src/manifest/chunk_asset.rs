@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -15,8 +15,8 @@ use super::chunk_item::ManifestChunkItem;
 use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("manifest chunk".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("manifest chunk".into())
 }
 
 /// The manifest module is deferred until requested by the manifest loader
@@ -90,15 +90,16 @@ impl ManifestAsyncModule {
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.inner.ident();
         if let Some(available_modules) = self.availability_info.available_chunk_items() {
-            ident = ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string()));
+            ident =
+                ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string().into()));
         }
         Ok(ident)
     }
 }
 
 #[turbo_tasks::function]
-fn manifest_chunk_reference_description() -> Vc<String> {
-    Vc::cell("manifest chunk".to_string())
+fn manifest_chunk_reference_description() -> Vc<RcStr> {
+    Vc::cell("manifest chunk".into())
 }
 
 #[turbo_tasks::value_impl]

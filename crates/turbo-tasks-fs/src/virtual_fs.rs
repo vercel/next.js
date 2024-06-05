@@ -1,11 +1,11 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ValueDefault, ValueToString, Vc};
 
 use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
-    name: String,
+    name: RcStr,
 }
 
 impl VirtualFileSystem {
@@ -19,7 +19,7 @@ impl VirtualFileSystem {
     /// [`Vc<VirtualFileSystem>`].
     pub fn new() -> Vc<Self> {
         Self::cell(VirtualFileSystem {
-            name: "virtual file system".to_string(),
+            name: "virtual file system".into(),
         })
     }
 
@@ -31,7 +31,7 @@ impl VirtualFileSystem {
     /// will never be equivalent, nor be interoperable, with a
     /// [`Vc<FileSystemPath>`] created from another
     /// [`Vc<VirtualFileSystem>`].
-    pub fn new_with_name(name: String) -> Vc<Self> {
+    pub fn new_with_name(name: RcStr) -> Vc<Self> {
         Self::cell(VirtualFileSystem { name })
     }
 }
@@ -91,7 +91,7 @@ impl FileSystem for VirtualFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for VirtualFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.name.clone())
     }
 }

@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -17,8 +17,8 @@ use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 /// other subpaths, including if the request path does not include the prefix.
 #[turbo_tasks::value(shared)]
 pub struct PrefixedRouterContentSource {
-    pub prefix: Vc<String>,
-    pub routes: Vec<(String, Vc<Box<dyn ContentSource>>)>,
+    pub prefix: Vc<RcStr>,
+    pub routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
     pub fallback: Vc<Box<dyn ContentSource>>,
 }
 
@@ -26,8 +26,8 @@ pub struct PrefixedRouterContentSource {
 impl PrefixedRouterContentSource {
     #[turbo_tasks::function]
     pub async fn new(
-        prefix: Vc<String>,
-        routes: Vec<(String, Vc<Box<dyn ContentSource>>)>,
+        prefix: Vc<RcStr>,
+        routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
         fallback: Vc<Box<dyn ContentSource>>,
     ) -> Result<Vc<Self>> {
         Ok(PrefixedRouterContentSource {
@@ -40,7 +40,7 @@ impl PrefixedRouterContentSource {
 }
 
 fn get_children(
-    routes: &[(String, Vc<Box<dyn ContentSource>>)],
+    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
     fallback: &Vc<Box<dyn ContentSource>>,
 ) -> Vc<ContentSources> {
     Vc::cell(
@@ -53,14 +53,14 @@ fn get_children(
 }
 
 async fn get_introspection_children(
-    routes: &[(String, Vc<Box<dyn ContentSource>>)],
+    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
     fallback: &Vc<Box<dyn ContentSource>>,
 ) -> Result<Vc<IntrospectableChildren>> {
     Ok(Vc::cell(
         routes
             .iter()
             .cloned()
-            .chain(std::iter::once((String::new(), *fallback)))
+            .chain(std::iter::once((RcStr::default(), *fallback)))
             .map(|(path, source)| async move {
                 Ok(Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(source)
                     .await?
@@ -119,8 +119,8 @@ impl ContentSource for PrefixedRouterContentSource {
 
 #[turbo_tasks::value]
 struct PrefixedRouterContentSourceMapper {
-    prefix: Vc<String>,
-    path: String,
+    prefix: Vc<RcStr>,
+    path: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -156,17 +156,17 @@ impl GetContentSourceContent for PrefixedRouterGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
         &self,
-        path: String,
+        path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let prefix = self.mapper.await?.prefix.await?;
-        if let Some(path) = path.strip_prefix(&*prefix) {
+        if let Some(path) = path.strip_prefix(&**prefix) {
             if path.is_empty() {
-                return Ok(self.get_content.get("".to_string(), data));
+                return Ok(self.get_content.get("".into(), data));
             } else if prefix.is_empty() {
-                return Ok(self.get_content.get(path.to_string(), data));
+                return Ok(self.get_content.get(path.into(), data));
             } else if let Some(path) = path.strip_prefix('/') {
-                return Ok(self.get_content.get(path.to_string(), data));
+                return Ok(self.get_content.get(path.into(), data));
             }
         }
         Ok(ContentSourceContent::not_found())
@@ -176,14 +176,14 @@ impl GetContentSourceContent for PrefixedRouterGetContentSourceContent {
 #[turbo_tasks::value_impl]
 impl Introspectable for PrefixedRouterContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
-        Vc::cell("prefixed router content source".to_string())
+    fn ty(&self) -> Vc<RcStr> {
+        Vc::cell("prefixed router content source".into())
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<String>> {
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let prefix = self.prefix.await?;
-        Ok(Vc::cell(format!("prefix: '{}'", prefix)))
+        Ok(Vc::cell(format!("prefix: '{}'", prefix).into()))
     }
 
     #[turbo_tasks::function]

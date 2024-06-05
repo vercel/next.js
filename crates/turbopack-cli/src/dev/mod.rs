@@ -13,7 +13,7 @@ use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    RcStr, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -51,14 +51,14 @@ pub(crate) mod web_entry_source;
 
 pub struct TurbopackDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-    project_dir: String,
-    root_dir: String,
+    project_dir: RcStr,
+    root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
     issue_reporter: Option<Box<dyn IssueReporterProvider>>,
     port: Option<u16>,
-    browserslist_query: String,
+    browserslist_query: RcStr,
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
@@ -68,8 +68,8 @@ pub struct TurbopackDevServerBuilder {
 impl TurbopackDevServerBuilder {
     pub fn new(
         turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-        project_dir: String,
-        root_dir: String,
+        project_dir: RcStr,
+        root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
         TurbopackDevServerBuilder {
             turbo_tasks,
@@ -82,7 +82,7 @@ impl TurbopackDevServerBuilder {
             port: None,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
-                .to_owned(),
+                .into(),
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
@@ -110,7 +110,7 @@ impl TurbopackDevServerBuilder {
         self
     }
 
-    pub fn browserslist_query(mut self, browserslist_query: String) -> TurbopackDevServerBuilder {
+    pub fn browserslist_query(mut self, browserslist_query: RcStr) -> TurbopackDevServerBuilder {
         self.browserslist_query = browserslist_query;
         self
     }
@@ -190,12 +190,12 @@ impl TurbopackDevServerBuilder {
         let server = self.find_port(host, port, 10)?;
 
         let turbo_tasks = self.turbo_tasks;
-        let project_dir = self.project_dir;
-        let root_dir = self.root_dir;
+        let project_dir: RcStr = self.project_dir;
+        let root_dir: RcStr = self.root_dir;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
-        let log_detail = self.log_detail;
-        let browserslist_query = self.browserslist_query;
+        let log_detail: bool = self.log_detail;
+        let browserslist_query: RcStr = self.browserslist_query;
         let log_args = Arc::new(LogOptions {
             current_dir: current_dir().unwrap(),
             project_dir: PathBuf::from(project_dir.clone()),
@@ -227,31 +227,32 @@ impl TurbopackDevServerBuilder {
 
 #[turbo_tasks::function]
 async fn source(
-    root_dir: String,
-    project_dir: String,
+    root_dir: RcStr,
+    project_dir: RcStr,
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
-    browserslist_query: String,
+    browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
-    let project_relative = project_relative
+    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
+    let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
-        .replace(MAIN_SEPARATOR, "/");
+        .replace(MAIN_SEPARATOR, "/")
+        .into();
 
     let output_fs = output_fs(project_dir);
     let fs = project_fs(root_dir);
     let project_path: Vc<turbo_tasks_fs::FileSystemPath> = fs.root().join(project_relative);
 
     let env = load_env(project_path);
-    let build_output_root = output_fs.root().join(".turbopack/build".to_string());
+    let build_output_root = output_fs.root().join(".turbopack/build".into());
 
     let build_chunking_context = BrowserChunkingContext::builder(
         project_path,
         build_output_root,
         build_output_root,
-        build_output_root.join("chunks".to_string()),
-        build_output_root.join("assets".to_string()),
+        build_output_root.join("chunks".into()),
+        build_output_root.join("assets".into()),
         node_build_environment(),
         RuntimeType::Development,
     )
@@ -291,8 +292,8 @@ async fn source(
         browserslist_query,
     );
     let static_source = Vc::upcast(StaticAssetsContentSource::new(
-        String::new(),
-        project_path.join("public".to_string()),
+        Default::default(),
+        project_path.join("public".into()),
     ));
     let main_source = CombinedContentSource::new(vec![static_source, web_source]);
     let introspect = Vc::upcast(
@@ -304,7 +305,7 @@ async fn source(
     let main_source = Vc::upcast(main_source);
     let source = Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![("__turbopack__".to_string(), introspect)],
+        vec![("__turbopack__".into(), introspect)],
         main_source,
     ));
 

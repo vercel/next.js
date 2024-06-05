@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File};
 use turbopack_core::{
     asset::AssetContent,
@@ -23,18 +23,18 @@ pub struct IntrospectionSource {
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
-        Vc::cell("introspection-source".to_string())
+    fn ty(&self) -> Vc<RcStr> {
+        Vc::cell("introspection-source".into())
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("introspection-source".to_string())
+    fn title(&self) -> Vc<RcStr> {
+        Vc::cell("introspection-source".into())
     }
 
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
-        let name = Vc::cell("root".to_string());
+        let name = Vc::cell("root".into());
         Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
     }
 }
@@ -89,7 +89,7 @@ impl GetContentSourceContent for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get(
         self: Vc<Self>,
-        path: String,
+        path: RcStr,
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         // get last segment
@@ -105,7 +105,7 @@ impl GetContentSourceContent for IntrospectionSource {
             parse_json_with_source_context(path)?
         };
         let internal_ty = Vc::debug_identifier(introspectable).await?;
-        fn str_or_err(s: &Result<ReadRef<String>>) -> Cow<'_, str> {
+        fn str_or_err(s: &Result<ReadRef<RcStr>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),
                 |d| Cow::Borrowed(&**d),
@@ -153,21 +153,22 @@ impl GetContentSourceContent for IntrospectionSource {
                 details = HtmlEscaped(details)
             )
         };
-        let html = format!(
+        let html: RcStr = format!(
             "<!DOCTYPE html>
-<html><head><title>{title}</title></head>
-<body>
-  <h3>{internal_ty}</h3>
-  <h2>{ty}</h2>
-  <h1>{title}</h1>
-  {details}
-  <ul>{children}</ul>
-</body>
-</html>",
+    <html><head><title>{title}</title></head>
+    <body>
+      <h3>{internal_ty}</h3>
+      <h2>{ty}</h2>
+      <h1>{title}</h1>
+      {details}
+      <ul>{children}</ul>
+    </body>
+    </html>",
             title = HtmlEscaped(title),
             ty = HtmlEscaped(ty),
             children = FormatIter(|| children.iter())
-        );
+        )
+        .into();
         Ok(ContentSourceContent::static_content(
             AssetContent::file(
                 File::from(html)

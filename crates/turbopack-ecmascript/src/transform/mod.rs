@@ -18,7 +18,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{ValueDefault, Vc};
+use turbo_tasks::{RcStr, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -37,9 +37,9 @@ pub enum EcmascriptInputTransform {
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: Vc<Option<String>>,
+        import_source: Vc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
-        runtime: Vc<Option<String>>,
+        runtime: Vc<Option<RcStr>>,
     },
     GlobalTypeofs {
         window_value: String,
@@ -175,7 +175,7 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.clone_value(),
+                    import_source: import_source.await?.as_deref().map(ToString::to_string),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
                             refresh_reg: "__turbopack_refresh__.register".to_string(),

@@ -4,7 +4,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
     quote,
 };
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -63,11 +63,10 @@ impl ModuleReference for CjsAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for CjsAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "generic commonjs {}",
-            self.request.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("generic commonjs {}", self.request.to_string().await?,).into(),
+        ))
     }
 }
 
@@ -120,11 +119,10 @@ impl ModuleReference for CjsRequireAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for CjsRequireAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "require {}",
-            self.request.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("require {}", self.request.to_string().await?,).into(),
+        ))
     }
 }
 
@@ -228,11 +226,10 @@ impl ModuleReference for CjsRequireResolveAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "require.resolve {}",
-            self.request.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("require.resolve {}", self.request.to_string().await?,).into(),
+        ))
     }
 }
 

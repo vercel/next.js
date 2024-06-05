@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -32,11 +32,10 @@ impl ModuleReference for InternalCssAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for InternalCssAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "internal css {}",
-            self.module.ident().to_string().await?
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("internal css {}", self.module.ident().to_string().await?).into(),
+        ))
     }
 }
 

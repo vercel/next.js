@@ -50,7 +50,7 @@ impl ProcessEnv for TryDotenvProcessEnv {
                     // read_all_with_prior will wrap a current error with a context containing the
                     // failing file, which we don't really care about (we report the filepath as the
                     // Issue context, not the description). So extract the real error.
-                    description: StyledString::Text(e.root_cause().to_string()).cell(),
+                    description: StyledString::Text(e.root_cause().to_string().into()).cell(),
                 }
                 .cell()
                 .emit();

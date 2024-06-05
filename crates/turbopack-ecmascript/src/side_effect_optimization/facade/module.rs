@@ -207,13 +207,13 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 let esm_exports = esm_exports.await?;
                 if esm_exports.exports.keys().any(|name| name == "default") {
                     exports.insert(
-                        "default".to_string(),
+                        "default".into(),
                         EsmExport::ImportedBinding(
                             Vc::upcast(EcmascriptModulePartReference::new_part(
                                 self.module,
                                 ModulePart::exports(),
                             )),
-                            "default".to_string(),
+                            "default".into(),
                             false,
                         ),
                     );

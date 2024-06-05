@@ -12,7 +12,7 @@ use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
@@ -155,7 +155,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
-        let out = run_test(resource.to_str().unwrap().to_string());
+        let out = run_test(resource.to_str().unwrap().into());
         let _ = out.resolve_strongly_consistent().await?;
         let captured_issues = out.peek_issues_with_path().await?;
 
@@ -165,7 +165,7 @@ async fn run(resource: PathBuf) -> Result<()> {
             .try_join()
             .await?;
 
-        snapshot_issues(plain_issues, out.join("issues".to_string()), &REPO_ROOT)
+        snapshot_issues(plain_issues, out.join("issues".into()), &REPO_ROOT)
             .await
             .context("Unable to handle issues")?;
         Ok(Vc::<()>::default())
@@ -176,7 +176,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 }
 
 #[turbo_tasks::function]
-async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
+async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
     assert!(test_path.exists(), "{} does not exist", resource);
     assert!(
@@ -190,16 +190,16 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let root_fs = DiskFileSystem::new("workspace".to_string(), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new("project".to_string(), REPO_ROOT.clone(), vec![]);
+    let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
+    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
     let project_root = project_fs.root();
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
-    let relative_path = sys_to_unix(relative_path.to_str().unwrap());
-    let path = root_fs.root().join(relative_path.to_string());
-    let project_path = project_root.join(relative_path.to_string());
+    let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
+    let path = root_fs.root().join(relative_path.clone());
+    let project_path = project_root.join(relative_path.clone());
 
-    let entry_asset = project_path.join(options.entry);
+    let entry_asset = project_path.join(options.entry.into());
 
     let env = Environment::new(Value::new(match options.environment {
         SnapshotEnvironment::Browser => {
@@ -209,7 +209,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                     dom: true,
                     web_worker: false,
                     service_worker: false,
-                    browserslist_query: options.browserslist.to_owned(),
+                    browserslist_query: options.browserslist.into(),
                 }
                 .into(),
             )
@@ -237,10 +237,10 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
         .cell();
 
     let conditions = ModuleRuleCondition::any(vec![
-        ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".js".into()),
+        ModuleRuleCondition::ResourcePathEndsWith(".jsx".into()),
+        ModuleRuleCondition::ResourcePathEndsWith(".ts".into()),
+        ModuleRuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
     let custom_rules = ModuleRule::new(
@@ -270,7 +270,7 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             ignore_dynamic_requests: true,
             use_swc_css: options.use_swc_css,
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".to_string()),
+                ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
                     use_swc_css: options.use_swc_css,
                     ..Default::default()
@@ -286,12 +286,12 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             enable_typescript: true,
             enable_react: true,
             enable_node_modules: Some(project_root),
-            custom_conditions: vec!["development".to_string()],
+            custom_conditions: vec!["development".into()],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".to_string()),
+                ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
-                    custom_conditions: vec!["development".to_string()],
+                    custom_conditions: vec!["development".into()],
                     ..Default::default()
                 }
                 .cell(),
@@ -299,15 +299,15 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
             ..Default::default()
         }
         .cell(),
-        Vc::cell("test".to_string()),
+        Vc::cell("test".into()),
     ));
 
     let runtime_entries = maybe_load_env(asset_context, project_path)
         .await?
         .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
 
-    let chunk_root_path = path.join("output".to_string());
-    let static_root_path = path.join("static".to_string());
+    let chunk_root_path = path.join("output".into());
+    let static_root_path = path.join("static".into());
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Dev => Vc::upcast(
@@ -380,9 +380,9 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
                                         .await?
                                         .as_deref()
                                         .unwrap()
-                                        .to_string(),
+                                        .into(),
                                 )
-                                .with_extension("entry.js".to_string()),
+                                .with_extension("entry.js".into()),
                             Vc::upcast(ecmascript),
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
@@ -466,7 +466,7 @@ async fn maybe_load_env(
     _context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
 ) -> Result<Option<Vc<Box<dyn Source>>>> {
-    let dotenv_path = path.join("input/.env".to_string());
+    let dotenv_path = path.join("input/.env".into());
 
     if !dotenv_path.read().await?.is_content() {
         return Ok(None);

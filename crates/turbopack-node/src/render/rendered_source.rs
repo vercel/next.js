@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -49,7 +49,7 @@ pub fn create_node_rendered_source(
     route_type: RouteType,
     server_root: Vc<FileSystemPath>,
     route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     entry: Vc<Box<dyn NodeEntry>>,
     fallback_page: Vc<DevHtmlAsset>,
     render_data: Vc<JsonValue>,
@@ -89,7 +89,7 @@ pub struct NodeRenderContentSource {
     route_type: RouteType,
     server_root: Vc<FileSystemPath>,
     route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     entry: Vc<Box<dyn NodeEntry>>,
     fallback_page: Vc<DevHtmlAsset>,
     render_data: Vc<JsonValue>,
@@ -99,7 +99,7 @@ pub struct NodeRenderContentSource {
 #[turbo_tasks::value_impl]
 impl NodeRenderContentSource {
     #[turbo_tasks::function]
-    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<RcStr>> {
         Ok(self.await?.pathname)
     }
 }
@@ -167,7 +167,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
     #[turbo_tasks::function]
     async fn get(
         &self,
-        path: String,
+        path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
@@ -208,7 +208,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: pathname.clone_value(),
+                path: pathname.as_str().into(),
                 data: Some(self.render_data.await?),
             }
             .cell(),
@@ -246,28 +246,31 @@ impl GetContentSourceContent for NodeRenderContentSource {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("node render content source".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("node render content source".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeRenderContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<RcStr> {
         self.pathname
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "base: {:?}\ntype: {:?}",
-            self.base_segments, self.route_type
-        )))
+    async fn details(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "base: {:?}\ntype: {:?}",
+                self.base_segments, self.route_type
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -276,11 +279,11 @@ impl Introspectable for NodeRenderContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                Vc::cell("module".to_string()),
+                Vc::cell("module".into()),
                 IntrospectableModule::new(Vc::upcast(entry.module)),
             ));
             set.insert((
-                Vc::cell("intermediate asset".to_string()),
+                Vc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     entry.chunking_context,
                     entry.module,

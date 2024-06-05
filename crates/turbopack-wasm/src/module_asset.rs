@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -30,8 +30,8 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("wasm module".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("wasm module".into())
 }
 
 /// Creates a javascript loader which instantiates the WebAssembly source and
@@ -74,7 +74,7 @@ impl WebAssemblyModuleAsset {
         let module = self.asset_context.process(
             loader_source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "WASM_PATH".to_string() => Vc::upcast(RawWebAssemblyModuleAsset::new(self.source, self.asset_context)),
+                "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(self.source, self.asset_context)),
             }))),
         ).module();
 

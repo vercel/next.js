@@ -66,7 +66,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
-            "Unsupported SWC EcmaScript transform plugins on this platform.".to_string(),
+            "Unsupported SWC EcmaScript transform plugins on this platform.".into(),
         )
         .cell())
     }
@@ -82,7 +82,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
             StyledString::Text(
                 "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
                  platform."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))

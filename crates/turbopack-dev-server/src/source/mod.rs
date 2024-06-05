@@ -18,7 +18,7 @@ use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, Upcast, Value, ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, RcStr, Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -36,7 +36,7 @@ pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
     /// Headers arranged as contiguous (name, value) pairs.
-    pub headers: Vec<(String, String)>,
+    pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
     pub body: Body,
 }
@@ -44,7 +44,7 @@ pub struct ProxyResult {
 #[turbo_tasks::value_impl]
 impl Version for ProxyResult {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<String>> {
+    async fn id(&self) -> Result<Vc<RcStr>> {
         let mut hash = Xxh3Hash64Hasher::new();
         hash.write_u16(self.status);
         for (name, value) in &self.headers {
@@ -55,7 +55,7 @@ impl Version for ProxyResult {
         while let Some(chunk) = read.try_next().await? {
             hash.write_bytes(&chunk);
         }
-        Ok(Vc::cell(hash.finish().to_string()))
+        Ok(Vc::cell(hash.finish().to_string().into()))
     }
 }
 
@@ -69,11 +69,8 @@ pub trait GetContentSourceContent {
     }
 
     /// Get the content
-    fn get(
-        self: Vc<Self>,
-        path: String,
-        data: Value<ContentSourceData>,
-    ) -> Vc<ContentSourceContent>;
+    fn get(self: Vc<Self>, path: RcStr, data: Value<ContentSourceData>)
+        -> Vc<ContentSourceContent>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -111,7 +108,7 @@ impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
     fn get(
         self: Vc<Self>,
-        _path: String,
+        _path: RcStr,
         _data: Value<ContentSourceData>,
     ) -> Vc<ContentSourceContent> {
         self
@@ -158,12 +155,12 @@ impl ContentSourceContent {
 
 /// A list of headers arranged as contiguous (name, value) pairs.
 #[turbo_tasks::value(transparent)]
-pub struct HeaderList(Vec<(String, String)>);
+pub struct HeaderList(Vec<(RcStr, RcStr)>);
 
 #[turbo_tasks::value_impl]
 impl HeaderList {
     #[turbo_tasks::function]
-    pub fn new(headers: Vec<(String, String)>) -> Vc<Self> {
+    pub fn new(headers: Vec<(RcStr, RcStr)>) -> Vc<Self> {
         HeaderList(headers).cell()
     }
 
@@ -183,22 +180,22 @@ impl HeaderList {
 #[derive(Clone, Debug, PartialOrd, Ord, Hash, Default)]
 pub struct ContentSourceData {
     /// HTTP method, if requested.
-    pub method: Option<String>,
+    pub method: Option<RcStr>,
     /// The full url (including query string), if requested.
-    pub url: Option<String>,
+    pub url: Option<RcStr>,
     /// The full url (including query string) before rewrites where applied, if
     /// requested.
-    pub original_url: Option<String>,
+    pub original_url: Option<RcStr>,
     /// Query string items, if requested.
     pub query: Option<Query>,
     /// raw query string, if requested. Does not include the `?`.
-    pub raw_query: Option<String>,
+    pub raw_query: Option<RcStr>,
     /// HTTP headers, might contain multiple headers with the same name, if
     /// requested.
     pub headers: Option<Headers>,
     /// Raw HTTP headers, might contain multiple headers with the same name, if
     /// requested.
-    pub raw_headers: Option<Vec<(String, String)>>,
+    pub raw_headers: Option<Vec<(RcStr, RcStr)>>,
     /// Request body, if requested.
     pub body: Option<Vc<Body>>,
     /// See [ContentSourceDataVary::cache_buster].
@@ -423,7 +420,7 @@ pub trait ContentSourceExt: Send {
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
-        description: String,
+        description: RcStr,
     ) -> Vc<Box<dyn ContentSource>>;
 }
 
@@ -434,7 +431,7 @@ where
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
-        description: String,
+        description: RcStr,
     ) -> Vc<Box<dyn ContentSource>> {
         Vc::upcast(IssueFilePathContentSource::new_file_path(
             file_path,
@@ -480,7 +477,7 @@ pub enum RewriteType {
     Location {
         /// The new path and query used to lookup content. This _does not_ need
         /// to be the original path or query.
-        path_and_query: String,
+        path_and_query: RcStr,
     },
     ContentSource {
         /// [Vc<Box<dyn ContentSource>>]s from which to restart the lookup
@@ -489,7 +486,7 @@ pub enum RewriteType {
         source: Vc<Box<dyn ContentSource>>,
         /// The new path and query used to lookup content. This _does not_ need
         /// to be the original path or query.
-        path_and_query: String,
+        path_and_query: RcStr,
     },
     Sources {
         /// [GetContentSourceContent]s from which to restart the lookup
@@ -520,7 +517,7 @@ pub struct RewriteBuilder {
 }
 
 impl RewriteBuilder {
-    pub fn new(path_and_query: String) -> Self {
+    pub fn new(path_and_query: RcStr) -> Self {
         Self {
             rewrite: Rewrite {
                 ty: RewriteType::Location { path_and_query },
@@ -532,7 +529,7 @@ impl RewriteBuilder {
 
     pub fn new_source_with_path_and_query(
         source: Vc<Box<dyn ContentSource>>,
-        path_and_query: String,
+        path_and_query: RcStr,
     ) -> Self {
         Self {
             rewrite: Rewrite {

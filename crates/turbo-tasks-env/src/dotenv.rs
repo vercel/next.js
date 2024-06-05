@@ -2,7 +2,7 @@ use std::{env, sync::MutexGuard};
 
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
@@ -84,11 +84,7 @@ impl ProcessEnv for DotenvProcessEnv {
 }
 
 /// Restores the global env variables to mirror `to`.
-fn restore_env(
-    from: &IndexMap<String, String>,
-    to: &IndexMap<String, String>,
-    _lock: &MutexGuard<()>,
-) {
+fn restore_env(from: &IndexMap<RcStr, RcStr>, to: &IndexMap<RcStr, RcStr>, _lock: &MutexGuard<()>) {
     for key in from.keys() {
         if !to.contains_key(key) {
             env::remove_var(key);

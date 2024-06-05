@@ -10,7 +10,7 @@ use swc_core::css::{
     ast::UrlValue,
     visit::{VisitMut, VisitMutWith},
 };
-use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -107,9 +107,9 @@ impl ChunkableModuleReference for UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("url {}", self.request.to_string().await?,),
+            format!("url {}", self.request.to_string().await?,).into(),
         ))
     }
 }
@@ -118,13 +118,13 @@ impl ValueToString for UrlAssetReference {
 pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<Option<String>>> {
+) -> Result<Vc<Option<RcStr>>> {
     let this = url.await?;
     // TODO(WEB-662) This is not the correct way to get the current chunk path. It
     // currently works as all chunks are in the same directory.
     let chunk_path = chunking_context.chunk_path(
         AssetIdent::from_path(this.origin.origin_path()),
-        ".css".to_string(),
+        ".css".into(),
     );
     let context_path = chunk_path.parent().await?;
 
@@ -134,7 +134,7 @@ pub async fn resolve_url_reference(
         let path = asset.ident().path().await?;
         let relative_path = context_path
             .get_relative_path_to(&path)
-            .unwrap_or_else(|| format!("/{}", path.path));
+            .unwrap_or_else(|| format!("/{}", path.path).into());
 
         return Ok(Vc::cell(Some(relative_path)));
     }
@@ -144,7 +144,7 @@ pub async fn resolve_url_reference(
 
 pub fn replace_url_references(
     ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &HashMap<String, String>,
+    urls: &HashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
     match ss {
@@ -158,7 +158,7 @@ pub fn replace_url_references(
 }
 
 struct AssetReferenceReplacer<'a> {
-    urls: &'a HashMap<String, String>,
+    urls: &'a HashMap<RcStr, RcStr>,
 }
 
 impl VisitMut for AssetReferenceReplacer<'_> {
@@ -193,7 +193,7 @@ impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
         u.visit_children(self)?;
 
         if let Some(new) = self.urls.get(&*u.url) {
-            u.url = new.clone().into();
+            u.url = new.to_string().into();
         }
 
         Ok(())

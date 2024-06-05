@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::File;
 
 use crate::{
@@ -32,7 +32,7 @@ impl OutputAsset for SourceMapAsset {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
         Ok(AssetIdent::from_path(
-            self.asset.ident().path().append(".map".to_string()),
+            self.asset.ident().path().append(".map".into()),
         ))
     }
 }
@@ -57,29 +57,29 @@ impl Asset for SourceMapAsset {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("source map".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("source map".into())
 }
 
 #[turbo_tasks::function]
-fn introspectable_details() -> Vc<String> {
-    Vc::cell("source map of an asset".to_string())
+fn introspectable_details() -> Vc<RcStr> {
+    Vc::cell("source map of an asset".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for SourceMapAsset {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<String> {
+    fn title(self: Vc<Self>) -> Vc<RcStr> {
         self.ident().to_string()
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> Vc<String> {
+    fn details(&self) -> Vc<RcStr> {
         introspectable_details()
     }
 
@@ -88,7 +88,7 @@ impl Introspectable for SourceMapAsset {
         let mut children = IndexSet::new();
         if let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.asset).await?
         {
-            children.insert((Vc::cell("asset".to_string()), asset));
+            children.insert((Vc::cell("asset".into()), asset));
         }
         Ok(Vc::cell(children))
     }

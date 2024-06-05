@@ -9,7 +9,7 @@ use std::{
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::RawVc;
+use crate::{RawVc, RcStr};
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -70,7 +70,7 @@ ignore!(
     AtomicBool,
     AtomicUsize
 );
-ignore!((), String, Duration, anyhow::Error);
+ignore!((), String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
 ignore!(serde_json::Value);
 

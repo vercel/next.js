@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
@@ -62,29 +62,29 @@ impl EcmascriptDevChunkList {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell("Ecmascript Dev Chunk List".to_string()))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("Ecmascript Dev Chunk List".into()))
     }
 }
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("ecmascript dev chunk list".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript dev chunk list".into())
 }
 
 #[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<String> {
-    Vc::cell("dynamic".to_string())
+fn dynamic_modifier() -> Vc<RcStr> {
+    Vc::cell("dynamic".into())
 }
 
 #[turbo_tasks::function]
-fn chunk_list_chunk_reference_description() -> Vc<String> {
-    Vc::cell("chunk list chunk".to_string())
+fn chunk_list_chunk_reference_description() -> Vc<RcStr> {
+    Vc::cell("chunk list chunk".into())
 }
 
 #[turbo_tasks::function]
-fn chunk_key() -> Vc<String> {
-    Vc::cell("chunk".to_string())
+fn chunk_key() -> Vc<RcStr> {
+    Vc::cell("chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -93,7 +93,7 @@ impl OutputAsset for EcmascriptDevChunkList {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
         for &evaluatable_asset in self.evaluatable_assets.await?.iter() {
-            ident.add_asset(Vc::<String>::default(), evaluatable_asset.ident());
+            ident.add_asset(Vc::<RcStr>::default(), evaluatable_asset.ident());
         }
 
         ident.add_modifier(modifier());
@@ -111,7 +111,7 @@ impl OutputAsset for EcmascriptDevChunkList {
 
         let ident = AssetIdent::new(Value::new(ident));
         Ok(AssetIdent::from_path(
-            self.chunking_context.chunk_path(ident, ".js".to_string()),
+            self.chunking_context.chunk_path(ident, ".js".into()),
         ))
     }
 

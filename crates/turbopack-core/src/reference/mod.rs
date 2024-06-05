@@ -4,7 +4,7 @@ use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    TryJoinIterExt, ValueToString, Vc,
+    RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -49,7 +49,7 @@ impl ModuleReferences {
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
     asset: Vc<Box<dyn Module>>,
-    description: Vc<String>,
+    description: Vc<RcStr>,
 }
 
 impl SingleModuleReference {
@@ -70,7 +70,7 @@ impl ModuleReference for SingleModuleReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for SingleModuleReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         self.description
     }
 }
@@ -80,7 +80,7 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn Module>>, description: Vc<String>) -> Vc<Self> {
+    pub fn new(asset: Vc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
@@ -95,7 +95,7 @@ impl SingleModuleReference {
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
     asset: Vc<Box<dyn OutputAsset>>,
-    description: Vc<String>,
+    description: Vc<RcStr>,
 }
 
 impl SingleOutputAssetReference {
@@ -116,7 +116,7 @@ impl ModuleReference for SingleOutputAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for SingleOutputAssetReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         self.description
     }
 }
@@ -126,7 +126,7 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>, description: Vc<String>) -> Vc<Self> {
+    pub fn new(asset: Vc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 

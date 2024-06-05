@@ -345,7 +345,7 @@ fn next_arg<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{VcCellNewMode, VcDefaultRead};
+    use crate::{RcStr, VcCellNewMode, VcDefaultRead};
 
     #[test]
     fn test_task_fn() {
@@ -369,18 +369,15 @@ mod tests {
             todo!()
         }
 
-        fn with_recv_and_str(_a: &i32, _s: String) -> crate::Vc<i32> {
+        fn with_recv_and_str(_a: &i32, _s: RcStr) -> crate::Vc<i32> {
             todo!()
         }
 
-        async fn async_with_recv_and_str(_a: &i32, _s: String) -> crate::Vc<i32> {
+        async fn async_with_recv_and_str(_a: &i32, _s: RcStr) -> crate::Vc<i32> {
             todo!()
         }
 
-        async fn async_with_recv_and_str_and_result(
-            _a: &i32,
-            _s: String,
-        ) -> Result<crate::Vc<i32>> {
+        async fn async_with_recv_and_str_and_result(_a: &i32, _s: RcStr) -> Result<crate::Vc<i32>> {
             todo!()
         }
 

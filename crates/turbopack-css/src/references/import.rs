@@ -11,7 +11,7 @@ use swc_core::{
         CodeGenerator, CodegenConfig, Emit,
     },
 };
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -150,15 +150,17 @@ impl ImportAttributes {
             } => turbopack_core::reference_type::ImportAttributes {
                 layer: layer_name
                     .as_ref()
-                    .map(|l| l.to_css_string(Default::default()).unwrap()),
+                    .map(|l| l.to_css_string(Default::default()).unwrap())
+                    .map(From::from),
                 supports: supports
                     .as_ref()
-                    .map(|s| s.to_css_string(Default::default()).unwrap()),
+                    .map(|s| s.to_css_string(Default::default()).unwrap())
+                    .map(From::from),
                 media: {
                     if media.always_matches() {
                         None
                     } else {
-                        Some(media.to_css_string(Default::default()).unwrap())
+                        Some(media.to_css_string(Default::default()).unwrap().into())
                     }
                 },
             },
@@ -167,11 +169,11 @@ impl ImportAttributes {
                 supports,
                 media,
             } => turbopack_core::reference_type::ImportAttributes {
-                layer: layer_name.as_ref().map(gen_swc_node),
-                supports: supports.as_ref().map(gen_swc_node),
+                layer: layer_name.as_ref().map(gen_swc_node).map(From::from),
+                supports: supports.as_ref().map(gen_swc_node).map(From::from),
                 media: media
                     .as_ref()
-                    .map(|queries| queries.iter().map(gen_swc_node).collect()),
+                    .map(|queries| queries.iter().map(gen_swc_node).collect::<String>().into()),
             },
         }
     }
@@ -244,11 +246,10 @@ impl ModuleReference for ImportAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for ImportAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "import(url) {}",
-            self.request.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("import(url) {}", self.request.to_string().await?,).into(),
+        ))
     }
 }
 
@@ -267,10 +268,9 @@ impl CodeGenerateable for ImportAssetReference {
             ..
         } = &*this.request.await?
         {
-            imports.push(CssImport::External(Vc::cell(format!(
-                "{}{}",
-                protocol, remainder
-            ))))
+            imports.push(CssImport::External(Vc::cell(
+                format!("{}{}", protocol, remainder).into(),
+            )))
         }
 
         Ok(CodeGeneration { imports }.into())

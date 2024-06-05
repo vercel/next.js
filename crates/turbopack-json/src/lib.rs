@@ -11,7 +11,7 @@
 use std::fmt::Write;
 
 use anyhow::{bail, Error, Result};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,8 +27,8 @@ use turbopack_ecmascript::chunk::{
 };
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("json".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("json".into())
 }
 
 #[turbo_tasks::value]

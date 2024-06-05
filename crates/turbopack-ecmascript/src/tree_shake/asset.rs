@@ -96,7 +96,7 @@ impl Module for EcmascriptModulePartAsset {
                     ModulePart::evaluation(),
                     self.import_externals,
                 )),
-                Vc::cell("ecmascript module evaluation".to_string()),
+                Vc::cell("ecmascript module evaluation".into()),
             ));
 
             references.push(reference);
@@ -107,7 +107,7 @@ impl Module for EcmascriptModulePartAsset {
                     ModulePart::exports(),
                     self.import_externals,
                 )),
-                Vc::cell("ecmascript reexports".to_string()),
+                Vc::cell("ecmascript reexports".into()),
             ));
 
             references.push(reference);
@@ -129,7 +129,7 @@ impl Module for EcmascriptModulePartAsset {
                             ModulePart::export(e.clone()),
                             self.import_externals,
                         )),
-                        Vc::cell(format!("ecmascript export '{e}'")),
+                        Vc::cell(format!("ecmascript export '{e}'").into()),
                     ));
 
                     references.push(reference);
@@ -160,7 +160,7 @@ impl Module for EcmascriptModulePartAsset {
                         ModulePart::internal(part_id),
                         self.import_externals,
                     )),
-                    Vc::cell("ecmascript module part".to_string()),
+                    Vc::cell("ecmascript module part".into()),
                 )))
             })
             .collect::<Result<Vec<_>>>()?;

@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -147,7 +147,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
-                    Vc::cell(output_root.to_string()),
+                    Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -155,7 +155,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
-                    Vc::cell(output_root.to_string()),
+                    Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -190,14 +190,14 @@ impl EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell("Ecmascript Dev Evaluate Chunk".to_string()))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("Ecmascript Dev Evaluate Chunk".into()))
     }
 }
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("ecmascript dev evaluate chunk".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript dev evaluate chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -221,7 +221,7 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
 
         let ident = AssetIdent::new(Value::new(ident));
         Ok(AssetIdent::from_path(
-            self.chunking_context.chunk_path(ident, ".js".to_string()),
+            self.chunking_context.chunk_path(ident, ".js".into()),
         ))
     }
 

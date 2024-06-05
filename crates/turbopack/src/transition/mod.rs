@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
-use turbo_tasks::{Value, ValueDefault, Vc};
+use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::ProcessResult, module::Module,
     reference_type::ReferenceType, source::Source,
@@ -32,7 +32,7 @@ pub trait Transition {
         compile_time_info
     }
     /// Apply modifications to the layer
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
     /// Apply modifications/wrapping to the module options context
@@ -100,7 +100,7 @@ pub trait Transition {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct TransitionsByName(HashMap<String, Vc<Box<dyn Transition>>>);
+pub struct TransitionsByName(HashMap<RcStr, Vc<Box<dyn Transition>>>);
 
 #[turbo_tasks::value_impl]
 impl ValueDefault for TransitionsByName {

@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -25,7 +25,7 @@ pub struct LockedVersions {}
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
-    Nested(Vc<FileSystemPath>, Vec<String>),
+    Nested(Vc<FileSystemPath>, Vec<RcStr>),
     /// look into that directory
     Path(Vc<FileSystemPath>),
     /// lookup versions based on lockfile in the registry filesystem
@@ -51,7 +51,7 @@ impl From<bool> for ConditionValue {
     }
 }
 
-pub type ResolutionConditions = BTreeMap<String, ConditionValue>;
+pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
@@ -68,14 +68,14 @@ pub enum ResolveIntoPackage {
     /// [main]: https://nodejs.org/api/packages.html#main
     /// [module]: https://esbuild.github.io/api/#main-fields
     /// [browser]: https://esbuild.github.io/api/#main-fields
-    MainField { field: String },
+    MainField { field: RcStr },
 }
 
 // The different ways to resolve a request withing a package
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
-    AliasField(String),
+    AliasField(RcStr),
     /// Using the [imports] field.
     ///
     /// [imports]: https://nodejs.org/api/packages.html#imports
@@ -88,13 +88,13 @@ pub enum ResolveInPackage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ImportMapping {
-    External(Option<String>, ExternalType),
+    External(Option<RcStr>, ExternalType),
     /// An already resolved result that will be returned directly.
     Direct(Vc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
     /// the original request if it fails. Useful for the tsconfig.json
     /// `compilerOptions.paths` option and Next aliases.
-    PrimaryAlternative(String, Option<Vc<FileSystemPath>>),
+    PrimaryAlternative(RcStr, Option<Vc<FileSystemPath>>),
     Ignore,
     Empty,
     Alternatives(Vec<Vc<ImportMapping>>),
@@ -103,7 +103,7 @@ pub enum ImportMapping {
 
 impl ImportMapping {
     pub fn primary_alternatives(
-        list: Vec<String>,
+        list: Vec<RcStr>,
         lookup_path: Option<Vc<FileSystemPath>>,
     ) -> ImportMapping {
         if list.is_empty() {
@@ -129,13 +129,19 @@ impl AliasTemplate for Vc<ImportMapping> {
             Ok(match this {
                 ImportMapping::External(name, ty) => {
                     if let Some(name) = name {
-                        ImportMapping::External(Some(name.clone().replace('*', capture)), *ty)
+                        ImportMapping::External(
+                            Some(name.clone().replace('*', capture).into()),
+                            *ty,
+                        )
                     } else {
                         ImportMapping::External(None, *ty)
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, context) => {
-                    ImportMapping::PrimaryAlternative(name.clone().replace('*', capture), *context)
+                    ImportMapping::PrimaryAlternative(
+                        name.clone().replace('*', capture).into(),
+                        *context,
+                    )
                 }
                 ImportMapping::Direct(_) | ImportMapping::Ignore | ImportMapping::Empty => {
                     this.clone()
@@ -148,7 +154,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .await?,
                 ),
                 ImportMapping::Dynamic(replacement) => {
-                    (*replacement.replace(capture.to_string()).await?).clone()
+                    (*replacement.replace(capture.into()).await?).clone()
                 }
             }
             .cell())
@@ -187,7 +193,7 @@ impl ImportMap {
     /// Inserts an exact alias into the import map.
     pub fn insert_exact_alias<'a>(
         &mut self,
-        pattern: impl Into<String> + 'a,
+        pattern: impl Into<RcStr> + 'a,
         mapping: Vc<ImportMapping>,
     ) {
         self.map.insert(AliasPattern::exact(pattern), mapping);
@@ -196,7 +202,7 @@ impl ImportMap {
     /// Inserts a wildcard alias into the import map.
     pub fn insert_wildcard_alias<'a>(
         &mut self,
-        prefix: impl Into<String> + 'a,
+        prefix: impl Into<RcStr> + 'a,
         mapping: Vc<ImportMapping>,
     ) {
         self.map.insert(AliasPattern::wildcard(prefix, ""), mapping);
@@ -205,8 +211,8 @@ impl ImportMap {
     /// Inserts a wildcard alias with suffix into the import map.
     pub fn insert_wildcard_alias_with_suffix<'p, 's>(
         &mut self,
-        prefix: impl Into<String> + 'p,
-        suffix: impl Into<String> + 's,
+        prefix: impl Into<RcStr> + 'p,
+        suffix: impl Into<RcStr> + 's,
         mapping: Vc<ImportMapping>,
     ) {
         self.map
@@ -217,14 +223,14 @@ impl ImportMap {
     /// to create a singleton.
     pub fn insert_singleton_alias<'a>(
         &mut self,
-        prefix: impl Into<String> + 'a,
+        prefix: impl Into<RcStr> + 'a,
         context_path: Vc<FileSystemPath>,
     ) {
-        let prefix = prefix.into();
-        let wildcard_prefix = prefix.clone() + "/";
-        let wildcard_alias: String = prefix.clone() + "/*";
+        let prefix: RcStr = prefix.into();
+        let wildcard_prefix: RcStr = (prefix.to_string() + "/").into();
+        let wildcard_alias: RcStr = (prefix.to_string() + "/*").into();
         self.insert_exact_alias(
-            &prefix,
+            prefix.clone(),
             ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path)).cell(),
         );
         self.insert_wildcard_alias(
@@ -269,7 +275,7 @@ async fn import_mapping_to_result(
         ImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ImportMapping::External(name, ty) => ImportMapResult::Result(
             ResolveResult::primary(if let Some(name) = name {
-                ResolveResultItem::External(name.to_string(), *ty)
+                ResolveResultItem::External(name.clone(), *ty)
             } else if let Some(request) = request.await?.request() {
                 ResolveResultItem::External(request, *ty)
             } else {
@@ -284,7 +290,7 @@ async fn import_mapping_to_result(
             ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
         }
         ImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(Value::new(name.to_string().into()));
+            let request = Request::parse(Value::new(name.clone().into()));
 
             ImportMapResult::Alias(request, *context)
         }
@@ -303,9 +309,9 @@ async fn import_mapping_to_result(
 #[turbo_tasks::value_impl]
 impl ValueToString for ImportMapResult {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
-            ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".to_string())),
+            ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".into())),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
                     let path = path.to_string().await?;
@@ -317,7 +323,7 @@ impl ValueToString for ImportMapResult {
                 } else {
                     format!("aliased to {}", request.to_string().await?)
                 };
-                Ok(Vc::cell(s))
+                Ok(Vc::cell(s.into()))
             }
             ImportMapResult::Alternatives(alternatives) => {
                 let strings = alternatives
@@ -329,9 +335,9 @@ impl ValueToString for ImportMapResult {
                     .iter()
                     .map(|string| string.as_str())
                     .collect::<Vec<_>>();
-                Ok(Vc::cell(strings.join(" | ")))
+                Ok(Vc::cell(strings.join(" | ").into()))
             }
-            ImportMapResult::NoEntry => Ok(Vc::cell("No import map entry".to_string())),
+            ImportMapResult::NoEntry => Ok(Vc::cell("No import map entry".into())),
         }
     }
 }
@@ -420,7 +426,7 @@ pub struct ResolveOptions {
     /// request first.
     pub prefer_relative: bool,
     /// The extensions that should be added to a request when resolving.
-    pub extensions: Vec<String>,
+    pub extensions: Vec<RcStr>,
     /// The locations where to resolve modules.
     pub modules: Vec<ResolveModules>,
     /// How to resolve packages.
@@ -428,7 +434,7 @@ pub struct ResolveOptions {
     /// How to resolve in packages.
     pub in_package: Vec<ResolveInPackage>,
     /// The default files to resolve in a folder.
-    pub default_files: Vec<String>,
+    pub default_files: Vec<RcStr>,
     /// An import map to use before resolving a request.
     pub import_map: Option<Vc<ImportMap>>,
     /// An import map to use when a request is otherwise unresolveable.
@@ -477,7 +483,7 @@ impl ResolveOptions {
 
     /// Overrides the extensions used for resolving
     #[turbo_tasks::function]
-    pub async fn with_extensions(self: Vc<Self>, extensions: Vec<String>) -> Result<Vc<Self>> {
+    pub async fn with_extensions(self: Vc<Self>, extensions: Vec<RcStr>) -> Result<Vc<Self>> {
         let mut resolve_options = self.await?.clone_value();
         resolve_options.extensions = extensions;
         Ok(resolve_options.into())
@@ -500,7 +506,7 @@ impl ResolveOptions {
 #[derive(Hash, Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,
-    pub extensions: Vec<String>,
+    pub extensions: Vec<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -517,7 +523,7 @@ pub async fn resolve_modules_options(
 
 #[turbo_tasks::value_trait]
 pub trait ImportMappingReplacement {
-    fn replace(self: Vc<Self>, capture: String) -> Vc<ImportMapping>;
+    fn replace(self: Vc<Self>, capture: RcStr) -> Vc<ImportMapping>;
     fn result(
         self: Vc<Self>,
         lookup_path: Vc<FileSystemPath>,

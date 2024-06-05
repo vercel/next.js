@@ -211,7 +211,7 @@ fn run(input: PathBuf) {
                 for e in &entries {
                     let key = match e {
                         ItemIdGroupKind::ModuleEvaluation => Key::ModuleEvaluation,
-                        ItemIdGroupKind::Export(_, name) => Key::Export(name.to_string()),
+                        ItemIdGroupKind::Export(_, name) => Key::Export(name.as_str().into()),
                     };
 
                     let index = entrypoints[&key];

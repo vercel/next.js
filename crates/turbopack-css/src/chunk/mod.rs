@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -225,8 +225,8 @@ impl OutputChunk for CssChunk {
 }
 
 #[turbo_tasks::function]
-fn chunk_item_key() -> Vc<String> {
-    Vc::cell("chunk item".to_string())
+fn chunk_item_key() -> Vc<RcStr> {
+    Vc::cell("chunk item".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -275,7 +275,7 @@ impl OutputAsset for CssChunk {
             } else {
                 ServerFileSystem::new().root()
             },
-            query: Vc::<String>::default(),
+            query: Vc::<RcStr>::default(),
             fragment: None,
             assets,
             modifiers: Vec::new(),
@@ -285,7 +285,7 @@ impl OutputAsset for CssChunk {
 
         Ok(AssetIdent::from_path(this.chunking_context.chunk_path(
             AssetIdent::new(Value::new(ident)),
-            ".css".to_string(),
+            ".css".into(),
         )))
     }
 
@@ -358,7 +358,7 @@ pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
-    External(Vc<String>),
+    External(Vc<RcStr>),
     Internal(Vc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
     Composes(Vc<Box<dyn CssChunkItem>>),
 }
@@ -382,29 +382,29 @@ pub trait CssChunkItem: ChunkItem {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("css chunk".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("css chunk".into())
 }
 
 #[turbo_tasks::function]
-fn entry_module_key() -> Vc<String> {
-    Vc::cell("entry module".to_string())
+fn entry_module_key() -> Vc<RcStr> {
+    Vc::cell("entry module".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for CssChunk {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<String> {
+    fn title(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<String>> {
+    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let content = content_to_details(self.content());
         let mut details = String::new();
         let this = self.await?;
@@ -415,7 +415,7 @@ impl Introspectable for CssChunk {
         }
         details += "\nContent:\n\n";
         write!(details, "{}", content.await?)?;
-        Ok(Vc::cell(details))
+        Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
@@ -440,8 +440,8 @@ pub struct CssChunkType {}
 #[turbo_tasks::value_impl]
 impl ValueToString for CssChunkType {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::cell("css".to_string())
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("css".into())
     }
 }
 

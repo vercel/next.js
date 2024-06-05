@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
@@ -16,17 +16,15 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
     environment: Vc<Environment>,
-    chunk_base_path: Vc<Option<String>>,
-    output_root: Vc<String>,
+    chunk_base_path: Vc<Option<RcStr>>,
+    output_root: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment);
 
     let shared_runtime_utils_code =
-        embed_static_code(asset_context, "shared/runtime-utils.ts".to_string());
-    let runtime_base_code = embed_static_code(
-        asset_context,
-        "dev/runtime/base/runtime-base.ts".to_string(),
-    );
+        embed_static_code(asset_context, "shared/runtime-utils.ts".into());
+    let runtime_base_code =
+        embed_static_code(asset_context, "dev/runtime/base/runtime-base.ts".into());
 
     let chunk_loading = &*asset_context
         .compile_time_info()
@@ -37,9 +35,9 @@ pub async fn get_browser_runtime_code(
     let runtime_backend_code = embed_static_code(
         asset_context,
         match chunk_loading {
-            ChunkLoading::None => "dev/runtime/none/runtime-backend-none.ts".to_string(),
-            ChunkLoading::NodeJs => "dev/runtime/nodejs/runtime-backend-nodejs.ts".to_string(),
-            ChunkLoading::Dom => "dev/runtime/dom/runtime-backend-dom.ts".to_string(),
+            ChunkLoading::None => "dev/runtime/none/runtime-backend-none.ts".into(),
+            ChunkLoading::NodeJs => "dev/runtime/nodejs/runtime-backend-nodejs.ts".into(),
+            ChunkLoading::Dom => "dev/runtime/dom/runtime-backend-dom.ts".into(),
         },
     );
 
@@ -70,26 +68,19 @@ pub async fn get_browser_runtime_code(
 
     if *environment.supports_commonjs_externals().await? {
         code.push_code(
-            &*embed_static_code(
-                asset_context,
-                "shared-node/base-externals-utils.ts".to_string(),
-            )
-            .await?,
+            &*embed_static_code(asset_context, "shared-node/base-externals-utils.ts".into())
+                .await?,
         );
     }
     if *environment.node_externals().await? {
         code.push_code(
-            &*embed_static_code(
-                asset_context,
-                "shared-node/node-externals-utils.ts".to_string(),
-            )
-            .await?,
+            &*embed_static_code(asset_context, "shared-node/node-externals-utils.ts".into())
+                .await?,
         );
     }
     if *environment.supports_wasm().await? {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".to_string())
-                .await?,
+            &*embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".into()).await?,
         );
     }
 

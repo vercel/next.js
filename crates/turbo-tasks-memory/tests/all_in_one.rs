@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 use indexmap::{IndexMap, IndexSet};
-use turbo_tasks::{debug::ValueDebug, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebug, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_testing::{register, run};
 
 register!();
@@ -133,10 +133,10 @@ impl MyEnumValue {
 #[turbo_tasks::value_impl]
 impl ValueToString for MyEnumValue {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         match self {
-            MyEnumValue::Yeah(value) => Vc::cell(value.to_string()),
-            MyEnumValue::Nah => Vc::cell("nah".to_string()),
+            MyEnumValue::Yeah(value) => Vc::cell(value.to_string().into()),
+            MyEnumValue::Nah => Vc::cell("nah".into()),
             MyEnumValue::More(more) => more.to_string(),
         }
     }
@@ -162,30 +162,30 @@ impl MyStructValue {
 #[turbo_tasks::value_impl]
 impl ValueToString for MyStructValue {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::cell(self.value.to_string())
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(self.value.to_string().into())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl MyTrait for MyStructValue {
     #[turbo_tasks::function]
-    fn my_trait_function2(self: Vc<Self>) -> Vc<String> {
+    fn my_trait_function2(self: Vc<Self>) -> Vc<RcStr> {
         self.to_string()
     }
     #[turbo_tasks::function]
-    async fn my_trait_function3(&self) -> Result<Vc<String>> {
+    async fn my_trait_function3(&self) -> Result<Vc<RcStr>> {
         if let Some(next) = self.next {
             return Ok(next.my_trait_function3());
         }
-        Ok(Vc::cell(self.value.to_string()))
+        Ok(Vc::cell(self.value.to_string().into()))
     }
 }
 
 #[turbo_tasks::value_trait]
 trait MyTrait: ValueToString {
     // TODO #[turbo_tasks::function]
-    async fn my_trait_function(self: Vc<Self>) -> Result<Vc<String>> {
+    async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
             return Err(anyhow!(
                 "my_trait_function must only be called with 42 as value"
@@ -195,8 +195,8 @@ trait MyTrait: ValueToString {
         Ok(self.to_string())
     }
 
-    fn my_trait_function2(self: Vc<Self>) -> Vc<String>;
-    fn my_trait_function3(self: Vc<Self>) -> Vc<String>;
+    fn my_trait_function2(self: Vc<Self>) -> Vc<RcStr>;
+    fn my_trait_function3(self: Vc<Self>) -> Vc<RcStr>;
 }
 
 #[turbo_tasks::function]

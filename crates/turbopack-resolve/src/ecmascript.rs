@@ -49,8 +49,8 @@ pub async fn apply_esm_specific_options(
     // TODO set fully_specified when in strict ESM mode
     // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".to_string(), ConditionValue::Set);
-        conditions.insert("require".to_string(), ConditionValue::Unset);
+        conditions.insert("import".into(), ConditionValue::Set);
+        conditions.insert("require".into(), ConditionValue::Unset);
     }
 
     if matches!(
@@ -67,8 +67,8 @@ pub async fn apply_esm_specific_options(
 pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.await?.clone_value();
     for conditions in get_condition_maps(&mut options) {
-        conditions.insert("import".to_string(), ConditionValue::Unset);
-        conditions.insert("require".to_string(), ConditionValue::Set);
+        conditions.insert("import".into(), ConditionValue::Unset);
+        conditions.insert("require".into(), ConditionValue::Set);
     }
     Ok(options.into())
 }

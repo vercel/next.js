@@ -15,7 +15,7 @@ pub mod fixed;
 pub mod output_asset;
 
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -38,8 +38,8 @@ use turbopack_ecmascript::{
 use self::output_asset::StaticAsset;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("static".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("static".into())
 }
 
 #[turbo_tasks::value]
@@ -128,10 +128,13 @@ impl ChunkItem for ModuleChunkItem {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
             Vc::upcast(self.static_asset),
-            Vc::cell(format!(
-                "static(url) {}",
-                self.static_asset.ident().to_string().await?
-            )),
+            Vc::cell(
+                format!(
+                    "static(url) {}",
+                    self.static_asset.ident().to_string().await?
+                )
+                .into(),
+            ),
         ))]))
     }
 

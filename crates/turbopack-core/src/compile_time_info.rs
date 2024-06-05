@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -37,16 +37,16 @@ macro_rules! definable_name_map_internal {
         $crate::definable_name_map_internal!($map, $($more)+);
     };
     ($name:ident) => {
-        [stringify!($name).to_string()]
+        [stringify!($name).into()]
     };
     ($name:ident . $($more:ident).+) => {
-        $crate::definable_name_map_internal!($($more).+, [stringify!($name).to_string()])
+        $crate::definable_name_map_internal!($($more).+, [stringify!($name).into()])
     };
     ($name:ident, [$($array:expr),+]) => {
-        [$($array),+, stringify!($name).to_string()]
+        [$($array),+, stringify!($name).into()]
     };
     ($name:ident . $($more:ident).+, [$($array:expr),+]) => {
-        $crate::definable_name_map_internal!($($more).+, [$($array),+, stringify!($name).to_string()])
+        $crate::definable_name_map_internal!($($more).+, [$($array),+, stringify!($name).into()])
     };
 }
 
@@ -78,8 +78,8 @@ macro_rules! free_var_references {
 #[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum CompileTimeDefineValue {
     Bool(bool),
-    String(String),
-    JSON(String),
+    String(RcStr),
+    JSON(RcStr),
 }
 
 impl From<bool> for CompileTimeDefineValue {
@@ -88,31 +88,37 @@ impl From<bool> for CompileTimeDefineValue {
     }
 }
 
+impl From<RcStr> for CompileTimeDefineValue {
+    fn from(value: RcStr) -> Self {
+        Self::String(value)
+    }
+}
+
 impl From<String> for CompileTimeDefineValue {
     fn from(value: String) -> Self {
-        Self::String(value)
+        Self::String(value.into())
     }
 }
 
 impl From<&str> for CompileTimeDefineValue {
     fn from(value: &str) -> Self {
-        Self::String(value.to_string())
+        Self::String(value.into())
     }
 }
 
 impl From<serde_json::Value> for CompileTimeDefineValue {
     fn from(value: serde_json::Value) -> Self {
-        Self::JSON(value.to_string())
+        Self::JSON(value.to_string().into())
     }
 }
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct CompileTimeDefines(pub IndexMap<Vec<String>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(pub IndexMap<Vec<RcStr>, CompileTimeDefineValue>);
 
 impl IntoIterator for CompileTimeDefines {
-    type Item = (Vec<String>, CompileTimeDefineValue);
-    type IntoIter = indexmap::map::IntoIter<Vec<String>, CompileTimeDefineValue>;
+    type Item = (Vec<RcStr>, CompileTimeDefineValue);
+    type IntoIter = indexmap::map::IntoIter<Vec<RcStr>, CompileTimeDefineValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -131,12 +137,12 @@ impl CompileTimeDefines {
 #[derive(Debug, Clone)]
 pub enum FreeVarReference {
     EcmaScriptModule {
-        request: String,
+        request: RcStr,
         lookup_path: Option<Vc<FileSystemPath>>,
-        export: Option<String>,
+        export: Option<RcStr>,
     },
     Value(CompileTimeDefineValue),
-    Error(String),
+    Error(RcStr),
 }
 
 impl From<bool> for FreeVarReference {
@@ -165,7 +171,7 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(pub IndexMap<Vec<String>, FreeVarReference>);
+pub struct FreeVarReferences(pub IndexMap<Vec<RcStr>, FreeVarReference>);
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {

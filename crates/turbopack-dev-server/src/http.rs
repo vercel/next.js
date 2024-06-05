@@ -103,15 +103,15 @@ pub async fn process_request_with_content_source(
 
                 for (header_name, header_value) in headers {
                     header_map.append(
-                        HeaderName::try_from(header_name.clone())?,
+                        HeaderName::try_from(header_name.as_str())?,
                         hyper::header::HeaderValue::try_from(header_value.as_str())?,
                     );
                 }
 
                 for (header_name, header_value) in header_overwrites.iter() {
                     header_map.insert(
-                        HeaderName::try_from(header_name.clone())?,
-                        hyper::header::HeaderValue::try_from(header_value)?,
+                        HeaderName::try_from(header_name.as_str())?,
+                        hyper::header::HeaderValue::try_from(header_value.as_str())?,
                     );
                 }
 

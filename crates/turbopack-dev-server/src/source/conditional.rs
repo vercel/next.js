@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, State, Value, Vc};
+use turbo_tasks::{Completion, RcStr, State, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -86,47 +86,47 @@ impl MapGetContentSourceContent for ConditionalContentSourceMapper {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("conditional content source".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("conditional content source".into())
 }
 
 #[turbo_tasks::function]
-fn activator_key() -> Vc<String> {
-    Vc::cell("activator".to_string())
+fn activator_key() -> Vc<RcStr> {
+    Vc::cell("activator".into())
 }
 
 #[turbo_tasks::function]
-fn action_key() -> Vc<String> {
-    Vc::cell("action".to_string())
+fn action_key() -> Vc<RcStr> {
+    Vc::cell("action".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for ConditionalContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<String>> {
+    async fn details(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
             if *self.activated.get() {
                 "activated"
             } else {
                 "not activated"
             }
-            .to_string(),
+            .into(),
         ))
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
+    async fn title(&self) -> Result<Vc<RcStr>> {
         if let Some(activator) =
             Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.activator).await?
         {
             Ok(activator.title())
         } else {
-            Ok(Vc::<String>::default())
+            Ok(Vc::<RcStr>::default())
         }
     }
 
@@ -164,7 +164,7 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
     #[turbo_tasks::function]
     async fn get(
         self: Vc<Self>,
-        path: String,
+        path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));

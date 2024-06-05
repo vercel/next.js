@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use indoc::{formatdoc, writedoc};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 use turbopack_ecmascript::utils::StringifyJs;
@@ -51,8 +51,10 @@ pub(crate) async fn instantiating_loader_source(
         exports = analysis.exports.join(", "),
     )?;
 
+    let code: RcStr = code.into();
+
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append("_.loader.mjs".to_string()),
+        source.ident().path().append("_.loader.mjs".into()),
         AssetContent::file(File::from(code).into()),
     )))
 }
@@ -63,7 +65,7 @@ pub(crate) async fn instantiating_loader_source(
 pub(crate) async fn compiling_loader_source(
     source: Vc<WebAssemblySource>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let code = formatdoc! {
+    let code: RcStr = formatdoc! {
         r#"
             import wasmPath from "WASM_PATH";
 
@@ -71,10 +73,11 @@ pub(crate) async fn compiling_loader_source(
 
             export default mod;
         "#
-    };
+    }
+    .into();
 
     Ok(Vc::upcast(VirtualSource::new(
-        source.ident().path().append("_.loader.mjs".to_string()),
+        source.ident().path().append("_.loader.mjs".into()),
         AssetContent::file(File::from(code).into()),
     )))
 }

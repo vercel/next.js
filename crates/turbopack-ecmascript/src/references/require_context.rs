@@ -13,7 +13,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{primitives::Regex, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::Regex, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -52,7 +52,7 @@ pub(crate) enum DirListEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(IndexMap<String, DirListEntry>);
+pub(crate) struct DirList(IndexMap<RcStr, DirListEntry>);
 
 #[turbo_tasks::value_impl]
 impl DirList {
@@ -134,7 +134,7 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(IndexMap<String, Vc<FileSystemPath>>);
+pub(crate) struct FlatDirList(IndexMap<RcStr, Vc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
@@ -147,14 +147,14 @@ impl FlatDirList {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct RequireContextMapEntry {
-    pub origin_relative: String,
+    pub origin_relative: RcStr,
     pub request: Vc<Request>,
     pub result: Vc<ModuleResolveResult>,
 }
 
 /// The resolved context map for a `require.context(..)` call.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(IndexMap<String, RequireContextMapEntry>);
+pub struct RequireContextMap(IndexMap<RcStr, RequireContextMapEntry>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
@@ -201,7 +201,7 @@ impl RequireContextMap {
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
     pub inner: Vc<RequireContextAsset>,
-    pub dir: String,
+    pub dir: RcStr,
     pub include_subdirs: bool,
 
     pub path: Vc<AstPath>,
@@ -215,7 +215,7 @@ impl RequireContextAssetReference {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        dir: String,
+        dir: RcStr,
         include_subdirs: bool,
         filter: Vc<Regex>,
         path: Vc<AstPath>,
@@ -262,12 +262,15 @@ impl ModuleReference for RequireContextAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for RequireContextAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "require.context {}/{}",
-            self.dir,
-            if self.include_subdirs { "**" } else { "*" },
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "require.context {}/{}",
+                self.dir,
+                if self.include_subdirs { "**" } else { "*" },
+            )
+            .into(),
+        ))
     }
 }
 
@@ -314,8 +317,8 @@ impl ModuleReference for ResolvedModuleReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for ResolvedModuleReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell("resolved reference".to_string()))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("resolved reference".into()))
     }
 }
 
@@ -329,17 +332,20 @@ pub struct RequireContextAsset {
     origin: Vc<Box<dyn ResolveOrigin>>,
     map: Vc<RequireContextMap>,
 
-    dir: String,
+    dir: RcStr,
     include_subdirs: bool,
 }
 
 #[turbo_tasks::function]
-fn modifier(dir: String, include_subdirs: bool) -> Vc<String> {
-    Vc::cell(format!(
-        "require.context {}/{}",
-        dir,
-        if include_subdirs { "**" } else { "*" },
-    ))
+fn modifier(dir: RcStr, include_subdirs: bool) -> Vc<RcStr> {
+    Vc::cell(
+        format!(
+            "require.context {}/{}",
+            dir,
+            if include_subdirs { "**" } else { "*" },
+        )
+        .into(),
+    )
 }
 
 #[turbo_tasks::value_impl]

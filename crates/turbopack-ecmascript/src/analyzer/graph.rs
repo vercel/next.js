@@ -12,7 +12,7 @@ use swc_core::{
         visit::{fields::*, *},
     },
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::source::Source;
 
 use super::{ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind};
@@ -146,7 +146,7 @@ pub enum Effect {
     /// A reference to an imported binding.
     ImportedBinding {
         esm_reference_index: usize,
-        export: Option<String>,
+        export: Option<RcStr>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,

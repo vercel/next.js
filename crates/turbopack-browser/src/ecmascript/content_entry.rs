@@ -103,9 +103,9 @@ async fn item_code(
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error.cell(),
                     path: item.asset_ident().path(),
-                    title: StyledString::Text("Code generation for chunk item errored".to_string())
+                    title: StyledString::Text("Code generation for chunk item errored".into())
                         .cell(),
-                    message: StyledString::Text(error_message).cell(),
+                    message: StyledString::Text(error_message.into()).cell(),
                 }
                 .cell()
                 .emit();

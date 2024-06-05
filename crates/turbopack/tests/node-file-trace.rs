@@ -28,7 +28,7 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
-use turbo_tasks::{backend::Backend, ReadRef, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{backend::Backend, RcStr, ReadRef, TurboTasks, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -374,10 +374,10 @@ fn node_file_trace<B: Backend + 'static>(
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut tests_output_root = temp_dir();
         tests_output_root.push("tests_output");
-        let package_root = package_root.to_string_lossy().to_string();
-        let input = format!("node-file-trace/{input_path}");
+        let package_root: RcStr = package_root.to_string_lossy().into();
+        let input: RcStr = format!("node-file-trace/{input_path}").into();
         let directory_path = tests_output_root.join(format!("{mode}_{input}"));
-        let directory = directory_path.to_string_lossy().to_string();
+        let directory: RcStr = directory_path.to_string_lossy().into();
 
         remove_dir_all(&directory)
             .or_else(|err| {
@@ -403,18 +403,17 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
                 let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
-                    "workspace".to_string(),
+                    "workspace".into(),
                     package_root.clone(),
                     vec![],
                 ));
                 let input_dir = workspace_fs.root();
-                let input = input_dir.join(format!("tests/{input_string}"));
+                let input = input_dir.join(format!("tests/{input_string}").into());
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let original_output = exec_node(package_root, input);
 
-                let output_fs =
-                    DiskFileSystem::new("output".to_string(), directory.clone(), vec![]);
+                let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
                 let output_dir = output_fs.root();
 
                 let source = FileSource::new(input);
@@ -435,11 +434,11 @@ fn node_file_trace<B: Backend + 'static>(
                     ResolveOptionsContext {
                         enable_node_native_modules: true,
                         enable_node_modules: Some(input_dir),
-                        custom_conditions: vec!["node".to_string()],
+                        custom_conditions: vec!["node".into()],
                         ..Default::default()
                     }
                     .cell(),
-                    Vc::cell("test".to_string()),
+                    Vc::cell("test".into()),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
@@ -456,7 +455,8 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
                     let output = exec_node(directory.clone(), output_path);
-                    let output = assert_output(original_output, output, expected_stderr);
+                    let output =
+                        assert_output(original_output, output, expected_stderr.map(From::from));
                     output.await
                 }
                 #[cfg(feature = "bench_against_node_nft")]
@@ -574,7 +574,7 @@ impl Display for CommandOutput {
 }
 
 #[turbo_tasks::function]
-async fn exec_node(directory: String, path: Vc<FileSystemPath>) -> Result<Vc<CommandOutput>> {
+async fn exec_node(directory: RcStr, path: Vc<FileSystemPath>) -> Result<Vc<CommandOutput>> {
     let mut cmd = Command::new("node");
 
     let p = path.await?;
@@ -673,15 +673,15 @@ fn diff(expected: &str, actual: &str) -> String {
 async fn assert_output(
     expected: Vc<CommandOutput>,
     actual: Vc<CommandOutput>,
-    expected_stderr: Option<String>,
+    expected_stderr: Option<RcStr>,
 ) -> Result<Vc<CommandOutput>> {
     let expected = expected.await?;
     let actual = actual.await?;
     Ok(CommandOutput::cell(CommandOutput {
         stdout: diff(&expected.stdout, &actual.stdout),
         stderr: if let Some(expected_stderr) = expected_stderr {
-            if actual.stderr.contains(&expected_stderr)
-                && expected.stderr.contains(&expected_stderr)
+            if actual.stderr.contains(&*expected_stderr)
+                && expected.stderr.contains(&*expected_stderr)
             {
                 String::new()
             } else {

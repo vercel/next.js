@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -11,8 +11,8 @@ use turbopack_core::{
 use crate::source::WebAssemblySource;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("wasm".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("wasm".into())
 }
 
 /// Emits the [WebAssemblySource] at a chunk path determined by the
@@ -43,7 +43,7 @@ impl OutputAsset for WebAssemblyAsset {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let ident = self.source.ident().with_modifier(modifier());
 
-        let asset_path = self.chunking_context.chunk_path(ident, ".wasm".to_string());
+        let asset_path = self.chunking_context.chunk_path(ident, ".wasm".into());
 
         Ok(AssetIdent::from_path(asset_path))
     }

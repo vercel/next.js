@@ -58,7 +58,7 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, ReadRef,
+    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, RcStr, ReadRef,
     ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
@@ -77,7 +77,7 @@ use crate::{
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     fn root(self: Vc<Self>) -> Vc<FileSystemPath> {
-        FileSystemPath::new_normalized(self, String::new())
+        FileSystemPath::new_normalized(self, RcStr::default())
     }
     fn read(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileContent>;
     fn read_link(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<LinkContent>;
@@ -98,8 +98,8 @@ pub trait FileSystem: ValueToString {
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
-    pub name: String,
-    pub root: String,
+    pub name: RcStr,
+    pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     mutex_map: MutexMap<PathBuf>,
@@ -119,7 +119,7 @@ pub struct DiskFileSystem {
 impl DiskFileSystem {
     /// Returns the root as Path
     fn root_path(&self) -> &Path {
-        simplified(Path::new(&self.root))
+        simplified(Path::new(&*self.root))
     }
 
     /// registers the path as an invalidator for the current task,
@@ -288,11 +288,7 @@ impl DiskFileSystem {
     ///   root & project dir is different and requires to ignore specific
     ///   subpaths from each.
     #[turbo_tasks::function]
-    pub async fn new(
-        name: String,
-        root: String,
-        ignored_subpaths: Vec<String>,
-    ) -> Result<Vc<Self>> {
+    pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
         mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
@@ -383,10 +379,10 @@ impl FileSystem for DiskFileSystem {
                 let path = e.path();
 
                 // we filter out any non unicode names and paths without the same root here
-                let file_name = path.file_name()?.to_str()?.to_string();
+                let file_name: RcStr = path.file_name()?.to_str()?.into();
                 let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
 
-                let fs_path = FileSystemPath::new_normalized(fs_path.fs, path_to_root.to_string());
+                let fs_path = FileSystemPath::new_normalized(fs_path.fs, path_to_root.into());
 
                 let entry = match e.file_type() {
                     Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
@@ -456,7 +452,7 @@ impl FileSystem for DiskFileSystem {
         };
 
         let (target, file_type) = if is_link_absolute {
-            let target_string = relative_to_root_path.to_string_lossy().to_string();
+            let target_string: RcStr = relative_to_root_path.to_string_lossy().into();
             (
                 target_string.clone(),
                 FileSystemPath::new_normalized(fs_path.fs(), target_string)
@@ -465,14 +461,10 @@ impl FileSystem for DiskFileSystem {
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
-            let link_path_unix = sys_to_unix(&link_path_string_cow);
+            let link_path_unix: RcStr = sys_to_unix(&link_path_string_cow).into();
             (
-                link_path_unix.to_string(),
-                fs_path
-                    .parent()
-                    .join(link_path_unix.to_string())
-                    .get_type()
-                    .await?,
+                link_path_unix.clone(),
+                fs_path.parent().join(link_path_unix).get_type().await?,
             )
         };
 
@@ -721,7 +713,7 @@ impl FileSystem for DiskFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for DiskFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.name.clone())
     }
 }
@@ -730,12 +722,12 @@ impl ValueToString for DiskFileSystem {
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: Vc<Box<dyn FileSystem>>,
-    pub path: String,
+    pub path: RcStr,
 }
 
 impl FileSystemPath {
     pub fn is_inside_ref(&self, other: &FileSystemPath) -> bool {
-        if self.fs == other.fs && self.path.starts_with(&other.path) {
+        if self.fs == other.fs && self.path.starts_with(&*other.path) {
             if other.path.is_empty() {
                 true
             } else {
@@ -747,7 +739,7 @@ impl FileSystemPath {
     }
 
     pub fn is_inside_or_equal_ref(&self, other: &FileSystemPath) -> bool {
-        if self.fs == other.fs && self.path.starts_with(&other.path) {
+        if self.fs == other.fs && self.path.starts_with(&*other.path) {
             if other.path.is_empty() {
                 true
             } else {
@@ -772,7 +764,7 @@ impl FileSystemPath {
         if self.fs != inner.fs {
             return None;
         }
-        let path = inner.path.strip_prefix(&self.path)?;
+        let path = inner.path.strip_prefix(&*self.path)?;
         if self.path.is_empty() {
             Some(path)
         } else if let Some(stripped) = path.strip_prefix('/') {
@@ -782,7 +774,7 @@ impl FileSystemPath {
         }
     }
 
-    pub fn get_relative_path_to(&self, other: &FileSystemPath) -> Option<String> {
+    pub fn get_relative_path_to(&self, other: &FileSystemPath) -> Option<RcStr> {
         if self.fs != other.fs {
             return None;
         }
@@ -799,7 +791,7 @@ impl FileSystemPath {
         while self_segments.peek() == other_segments.peek() {
             self_segments.next();
             if other_segments.next().is_none() {
-                return Some(".".to_string());
+                return Some(".".into());
             }
         }
         let mut result = Vec::new();
@@ -813,7 +805,7 @@ impl FileSystemPath {
         for segment in other_segments {
             result.push(segment);
         }
-        Some(result.join("/"))
+        Some(result.join("/").into())
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -890,7 +882,7 @@ impl FileSystemPath {
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
     #[turbo_tasks::function]
-    fn new_normalized(fs: Vc<Box<dyn FileSystem>>, path: String) -> Vc<Self> {
+    fn new_normalized(fs: Vc<Box<dyn FileSystem>>, path: RcStr) -> Vc<Self> {
         // On Windows, the path must be converted to a unix path before creating. But on
         // Unix, backslashes are a valid char in file names, and the path can be
         // provided by the user, so we allow it.
@@ -900,7 +892,7 @@ impl FileSystemPath {
             path,
         );
         debug_assert!(
-            normalize_path(&path).as_ref() == Some(&path),
+            normalize_path(&path).as_deref() == Some(&*path),
             "path {} must be normalized",
             path,
         );
@@ -911,10 +903,10 @@ impl FileSystemPath {
     /// contain ".." or "." seqments, but it must not leave the root of the
     /// filesystem.
     #[turbo_tasks::function]
-    pub async fn join(self: Vc<Self>, path: String) -> Result<Vc<Self>> {
+    pub async fn join(self: Vc<Self>, path: RcStr) -> Result<Vc<Self>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, &path) {
-            Ok(Self::new_normalized(this.fs, path))
+            Ok(Self::new_normalized(this.fs, path.into()))
         } else {
             bail!(
                 "Vc<FileSystemPath>(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -926,7 +918,7 @@ impl FileSystemPath {
 
     /// Adds a suffix to the filename. [path] must not contain `/`.
     #[turbo_tasks::function]
-    pub async fn append(self: Vc<Self>, path: String) -> Result<Vc<Self>> {
+    pub async fn append(self: Vc<Self>, path: RcStr) -> Result<Vc<Self>> {
         let this = self.await?;
         if path.contains('/') {
             bail!(
@@ -937,14 +929,14 @@ impl FileSystemPath {
         }
         Ok(Self::new_normalized(
             this.fs,
-            format!("{}{}", this.path, path),
+            format!("{}{}", this.path, path).into(),
         ))
     }
 
     /// Adds a suffix to the basename of the filename. [appending] must not
     /// contain `/`. Extension will stay intact.
     #[turbo_tasks::function]
-    pub async fn append_to_stem(self: Vc<Self>, appending: String) -> Result<Vc<Self>> {
+    pub async fn append_to_stem(self: Vc<Self>, appending: RcStr) -> Result<Vc<Self>> {
         let this = self.await?;
         if appending.contains('/') {
             bail!(
@@ -956,23 +948,23 @@ impl FileSystemPath {
         if let (path, Some(ext)) = this.split_extension() {
             return Ok(Self::new_normalized(
                 this.fs,
-                format!("{}{}.{}", path, appending, ext),
+                format!("{}{}.{}", path, appending, ext).into(),
             ));
         }
         Ok(Self::new_normalized(
             this.fs,
-            format!("{}{}", this.path, appending),
+            format!("{}{}", this.path, appending).into(),
         ))
     }
 
     /// Similar to [FileSystemPath::join], but returns an Option that will be
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
-    pub async fn try_join(self: Vc<Self>, path: String) -> Result<Vc<FileSystemPathOption>> {
+    pub async fn try_join(self: Vc<Self>, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, &path) {
             Ok(Vc::cell(Some(
-                Self::new_normalized(this.fs, path).resolve().await?,
+                Self::new_normalized(this.fs, path.into()).resolve().await?,
             )))
         } else {
             Ok(FileSystemPathOption::none())
@@ -982,12 +974,12 @@ impl FileSystemPath {
     /// Similar to [FileSystemPath::join], but returns an Option that will be
     /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
-    pub async fn try_join_inside(self: Vc<Self>, path: String) -> Result<Vc<FileSystemPathOption>> {
+    pub async fn try_join_inside(self: Vc<Self>, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, &path) {
-            if path.starts_with(&this.path) {
+            if path.starts_with(&*this.path) {
                 return Ok(Vc::cell(Some(
-                    Self::new_normalized(this.fs, path).resolve().await?,
+                    Self::new_normalized(this.fs, path.into()).resolve().await?,
                 )));
             }
         }
@@ -1014,9 +1006,9 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn extension(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn extension(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let this = self.await?;
-        Ok(Vc::cell(this.extension_ref().unwrap_or("").to_string()))
+        Ok(Vc::cell(this.extension_ref().unwrap_or("").into()))
     }
 
     #[turbo_tasks::function]
@@ -1032,7 +1024,7 @@ impl FileSystemPath {
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(self: Vc<Self>, extension: String) -> Result<Vc<FileSystemPath>> {
+    pub async fn with_extension(self: Vc<Self>, extension: RcStr) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let (path_without_extension, _) = this.split_extension();
         Ok(Self::new_normalized(
@@ -1040,8 +1032,8 @@ impl FileSystemPath {
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
             match extension.is_empty() {
-                true => path_without_extension.to_string(),
-                false => format!("{path_without_extension}.{extension}"),
+                true => path_without_extension.into(),
+                false => format!("{path_without_extension}.{extension}").into(),
             },
         ))
     }
@@ -1056,13 +1048,13 @@ impl FileSystemPath {
     ///   `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
-    pub async fn file_stem(self: Vc<Self>) -> Result<Vc<Option<String>>> {
+    pub async fn file_stem(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
         let this = self.await?;
         let (_, file_stem, _) = this.split_file_stem_extension();
         if file_stem.is_empty() {
             return Ok(Vc::cell(None));
         }
-        Ok(Vc::cell(Some(file_stem.to_string())))
+        Ok(Vc::cell(Some(file_stem.into())))
     }
 }
 
@@ -1086,7 +1078,7 @@ pub async fn rebase(
         if new_base.path.is_empty() {
             new_path = fs_path.path.clone();
         } else {
-            new_path = [new_base.path.as_str(), "/", &fs_path.path].concat();
+            new_path = [new_base.path.as_str(), "/", &fs_path.path].concat().into();
         }
     } else {
         let base_path = [&old_base.path, "/"].concat();
@@ -1099,9 +1091,11 @@ pub async fn rebase(
             );
         }
         if new_base.path.is_empty() {
-            new_path = [&fs_path.path[base_path.len()..]].concat();
+            new_path = [&fs_path.path[base_path.len()..]].concat().into();
         } else {
-            new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]].concat();
+            new_path = [new_base.path.as_str(), &fs_path.path[old_base.path.len()..]]
+                .concat()
+                .into();
         }
     }
     Ok(new_base.fs.root().join(new_path))
@@ -1171,7 +1165,7 @@ impl FileSystemPath {
             Some(index) => path[..index].to_string(),
             None => "".to_string(),
         };
-        Ok(FileSystemPath::new_normalized(this.fs, p))
+        Ok(FileSystemPath::new_normalized(this.fs, p.into()))
     }
 
     #[turbo_tasks::function]
@@ -1222,11 +1216,7 @@ impl FileSystemPath {
             .rsplit_once('/')
             .map_or(this.path.as_str(), |(_, name)| name);
         let real_self = if parent_result.path != parent {
-            parent_result
-                .path
-                .join(basename.to_string())
-                .resolve()
-                .await?
+            parent_result.path.join(basename.into()).resolve().await?
         } else {
             self
         };
@@ -1239,7 +1229,7 @@ impl FileSystemPath {
                 } else {
                     result.path
                 }
-                .join(target.to_string())
+                .join(target.clone())
                 .resolve()
                 .await?;
                 return Ok(result.cell());
@@ -1253,12 +1243,10 @@ impl FileSystemPath {
 #[turbo_tasks::value_impl]
 impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "[{}]/{}",
-            self.fs.to_string().await?,
-            self.path
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("[{}]/{}", self.fs.to_string().await?, self.path).into(),
+        ))
     }
 }
 
@@ -1429,7 +1417,7 @@ pub enum LinkContent {
     // normalized, which means in `fn write_link` we couldn't restore the raw value of the file
     // link because there is only **dist** path in `fn write_link`, and we need the raw path if
     // we want to restore the link value in `fn write_link`
-    Link { target: String, link_type: LinkType },
+    Link { target: RcStr, link_type: LinkType },
     Invalid,
     NotFound,
 }
@@ -1499,14 +1487,20 @@ impl Debug for File {
     }
 }
 
+impl From<RcStr> for File {
+    fn from(s: RcStr) -> Self {
+        s.into_owned().into()
+    }
+}
+
 impl From<String> for File {
     fn from(s: String) -> Self {
         File::from_bytes(s.into_bytes())
     }
 }
 
-impl From<ReadRef<String>> for File {
-    fn from(s: ReadRef<String>) -> Self {
+impl From<ReadRef<RcStr>> for File {
+    fn from(s: ReadRef<RcStr>) -> Self {
         File::from_bytes(s.as_bytes().to_vec())
     }
 }
@@ -1762,9 +1756,9 @@ impl ValueToString for FileJsonContent {
     /// This operation will only succeed if the file contents are a valid JSON
     /// value.
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
-            FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string())),
+            FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
             FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
             FileJsonContent::NotFound => Err(anyhow!("File not found")),
         }
@@ -1856,12 +1850,12 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum DirectoryContent {
-    Entries(AutoMap<String, DirectoryEntry>),
+    Entries(AutoMap<RcStr, DirectoryEntry>),
     NotFound,
 }
 
 impl DirectoryContent {
-    pub fn new(entries: AutoMap<String, DirectoryEntry>) -> Vc<Self> {
+    pub fn new(entries: AutoMap<RcStr, DirectoryEntry>) -> Vc<Self> {
         Self::cell(DirectoryContent::Entries(entries))
     }
 
@@ -1914,8 +1908,8 @@ impl FileSystem for NullFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for NullFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::cell(String::from("null"))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(RcStr::from("null"))
     }
 }
 
@@ -1953,24 +1947,24 @@ mod tests {
 
             let path_txt = FileSystemPath::new_normalized(fs, "foo/bar.txt".into());
 
-            let path_json = path_txt.with_extension("json".to_string());
+            let path_json = path_txt.with_extension("json".into());
             assert_eq!(&*path_json.await.unwrap().path, "foo/bar.json");
 
-            let path_no_ext = path_txt.with_extension("".to_string());
+            let path_no_ext = path_txt.with_extension("".into());
             assert_eq!(&*path_no_ext.await.unwrap().path, "foo/bar");
 
-            let path_new_ext = path_no_ext.with_extension("json".to_string());
+            let path_new_ext = path_no_ext.with_extension("json".into());
             assert_eq!(&*path_new_ext.await.unwrap().path, "foo/bar.json");
 
             let path_no_slash_txt = FileSystemPath::new_normalized(fs, "bar.txt".into());
 
-            let path_no_slash_json = path_no_slash_txt.with_extension("json".to_string());
+            let path_no_slash_json = path_no_slash_txt.with_extension("json".into());
             assert_eq!(path_no_slash_json.await.unwrap().path.as_str(), "bar.json");
 
-            let path_no_slash_no_ext = path_no_slash_txt.with_extension("".to_string());
+            let path_no_slash_no_ext = path_no_slash_txt.with_extension("".into());
             assert_eq!(path_no_slash_no_ext.await.unwrap().path.as_str(), "bar");
 
-            let path_no_slash_new_ext = path_no_slash_no_ext.with_extension("json".to_string());
+            let path_no_slash_new_ext = path_no_slash_no_ext.with_extension("json".into());
             assert_eq!(
                 path_no_slash_new_ext.await.unwrap().path.as_str(),
                 "bar.json"
