@@ -145,8 +145,6 @@ Or, run this command with no arguments to use the most recently published versio
     console.log()
   }
 
-  console.log(`Successfully updated React from ${baseSha} to ${newSha}.\n`)
-
   // Fetch the changelog from GitHub and print it to the console.
   try {
     const changelog = await getChangelogFromGitHub(baseSha, newSha)
@@ -178,6 +176,13 @@ Or run this command again without the --no-install flag to do both automatically
     `
     )
   }
+
+  console.log(
+    `Successfully updated React from ${baseSha} to ${newSha}.\n` +
+      `Don't forget to find & replace all references to the React version '${baseVersionStr}' with '${newVersionStr}':\n` +
+      `-${baseVersionStr}\n` +
+      `+${newVersionStr}\n`
+  )
 }
 
 function readBoolArg(argv, argName) {
@@ -189,8 +194,8 @@ function readStringArg(argv, argName) {
   return argIndex === -1 ? null : argv[argIndex + 1]
 }
 
-function extractInfoFromReactVersion(reactCanaryVersion) {
-  const match = reactCanaryVersion.match(
+function extractInfoFromReactVersion(reactVersion) {
+  const match = reactVersion.match(
     /(?<semverVersion>.*)-(?<releaseLabel>.*)-(?<sha>.*)-(?<dateString>.*)$/
   )
   return match ? match.groups : null
@@ -251,8 +256,8 @@ async function getChangelogFromGitHub(baseSha, newSha) {
   return changelog.length > 0 ? changelog.join('\n') : null
 }
 
-sync('rc')
-  .then(() => sync('experimental'))
+sync('experimental')
+  .then(() => sync('rc'))
   .catch((error) => {
     console.error(error)
     process.exit(1)
