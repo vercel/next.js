@@ -91,6 +91,16 @@ export async function streamToString(stream: Readable) {
   return string
 }
 
+export async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const buffers: Buffer[] = []
+
+  for await (const chunk of stream) {
+    buffers.push(chunk)
+  }
+
+  return Buffer.concat(buffers)
+}
+
 export function chainStreams(...streams: Readable[]): Readable {
   if (streams.length === 0) {
     throw new Error('Invariant: chainStreams requires at least one stream')

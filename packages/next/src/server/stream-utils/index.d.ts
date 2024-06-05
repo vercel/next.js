@@ -23,6 +23,10 @@ export function streamFromString(
   string: string
 ): Readable | ReadableStream<Uint8Array>
 
+export function streamToBuffer(
+  stream: Readable | ReadableStream<Uint8Array>
+): Promise<Buffer>
+
 export function chainStreams(
   ...streams: ReadableStream<Uint8Array>[] | Readable[]
 ): ReadableStream<Uint8Array> | Readable
