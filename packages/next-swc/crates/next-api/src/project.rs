@@ -929,6 +929,30 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
+            Vc::cell("instrumentation-edge".into()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
+        Vc::upcast(ModuleAssetContext::new(
+            Default::default(),
+            self.edge_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation),
+                self.next_mode(),
+                self.next_config(),
+                NextRuntime::Edge,
+            ),
+            get_edge_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation),
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
             Vc::cell("instrumentation".into()),
         ))
     }
@@ -940,7 +964,7 @@ impl Project {
         is_edge: bool,
     ) -> Vc<InstrumentationEndpoint> {
         let context = if is_edge {
-            self.middleware_context()
+            self.edge_instrumentation_context()
         } else {
             self.node_instrumentation_context()
         };

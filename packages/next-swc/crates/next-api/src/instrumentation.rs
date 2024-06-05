@@ -77,7 +77,7 @@ impl InstrumentationEndpoint {
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware),
+            Value::new(ServerContextType::Instrumentation),
             self.project.next_mode(),
         )
         .resolve_entries(self.context)
