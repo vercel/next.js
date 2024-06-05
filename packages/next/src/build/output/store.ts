@@ -1,5 +1,5 @@
-import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import createStore from '@next/vendored/unistore'
+import stripAnsi from '@next/vendored/strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
 import { teardownHeapProfiler, teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
@@ -36,7 +36,7 @@ export function formatTrigger(trigger: string) {
   }
   return trigger
 }
-
+// @ts-ignore Typescript complains here when emitting declarations.
 export const store = createStore<OutputState>({
   appUrl: null,
   bindAddr: null,

@@ -2,7 +2,7 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
-import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
+import { platformArchTriples } from '@next/vendored/@napi-rs/triples'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'

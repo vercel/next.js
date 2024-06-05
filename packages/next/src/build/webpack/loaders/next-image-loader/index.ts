@@ -1,7 +1,7 @@
 import type { CompilerNameValues } from '../../../../shared/lib/constants'
 
 import path from 'path'
-import loaderUtils from 'next/dist/compiled/loader-utils3'
+import loaderUtils from '@next/vendored/loader-utils3'
 import { getImageSize } from '../../../../server/image-optimizer'
 import { getBlurImage } from './blur'
 

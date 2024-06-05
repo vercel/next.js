@@ -10,7 +10,7 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 let TSCONFIG_WARNED = false
 
 function parseJsonFile(filePath: string) {
-  const JSON5 = require('next/dist/compiled/json5')
+  const JSON5 = require('@next/vendored/json5')
   const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file

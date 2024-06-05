@@ -3,7 +3,7 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { CachedFetchValue } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from '@next/vendored/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import {
   NEXT_CACHE_TAGS_HEADER,

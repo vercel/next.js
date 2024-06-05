@@ -1,5 +1,5 @@
 import { yellow } from '../picocolors'
-import spawn from 'next/dist/compiled/cross-spawn'
+import spawn from '@next/vendored/cross-spawn'
 import type { PackageManager } from './get-pkg-manager'
 
 interface InstallArgs {

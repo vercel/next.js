@@ -38,12 +38,12 @@ import {
   bold,
   underline,
 } from '../lib/picocolors'
-import getGzipSize from 'next/dist/compiled/gzip-size'
-import textTable from 'next/dist/compiled/text-table'
+import getGzipSize from '@next/vendored/gzip-size'
+import textTable from '@next/vendored/text-table'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -71,7 +71,7 @@ import { loadComponents } from '../server/load-components'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import { Sema } from 'next/dist/compiled/async-sema'
+import { Sema } from '@next/vendored/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'

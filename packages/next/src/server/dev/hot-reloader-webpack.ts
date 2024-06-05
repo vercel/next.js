@@ -59,7 +59,7 @@ import {
 import { DecodeError } from '../../shared/lib/utils'
 import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
-import ws from 'next/dist/compiled/ws'
+import ws from '@next/vendored/ws'
 import { existsSync, promises as fs } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'

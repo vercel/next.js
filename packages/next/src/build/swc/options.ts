@@ -14,7 +14,7 @@ const nextDistPath =
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
 const regeneratorRuntimePath = require.resolve(
-  'next/dist/compiled/regenerator-runtime'
+  '@next/vendored/regenerator-runtime'
 )
 
 function isTypeScriptFile(filename: string) {

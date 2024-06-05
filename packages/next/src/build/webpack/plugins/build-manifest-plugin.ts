@@ -1,5 +1,5 @@
 import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
-import devalue from 'next/dist/compiled/devalue'
+import devalue from '@next/vendored/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,

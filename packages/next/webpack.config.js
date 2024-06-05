@@ -70,15 +70,15 @@ const sharedExternals = [
   'next/dist/compiled/edge-runtime',
   'next/dist/compiled/@edge-runtime/ponyfill',
   'next/dist/compiled/undici',
-  'next/dist/compiled/raw-body',
+  '@next/vendored/raw-body',
   'next/dist/server/capsize-font-metrics.json',
   'critters',
-  'next/dist/compiled/node-html-parser',
-  'next/dist/compiled/compression',
+  '@next/vendored/node-html-parser',
+  '@next/vendored/compression',
   'next/dist/compiled/jsonwebtoken',
   'next/dist/compiled/@opentelemetry/api',
   'next/dist/compiled/@mswjs/interceptors/ClientRequest',
-  'next/dist/compiled/ws',
+  '@next/vendored/ws',
 ]
 
 const externalsMap = {

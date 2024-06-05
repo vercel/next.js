@@ -14,9 +14,9 @@ import path from 'path'
 import http from 'http'
 import https from 'https'
 import os from 'os'
-import Watchpack from 'next/dist/compiled/watchpack'
+import Watchpack from '@next/vendored/watchpack'
 import * as Log from '../../build/output/log'
-import setupDebug from 'next/dist/compiled/debug'
+import setupDebug from '@next/vendored/debug'
 import {
   RESTART_EXIT_CODE,
   getFormattedDebugAddress,

@@ -2,7 +2,7 @@ import {
   extractICSS,
   replaceValueSymbols,
   replaceSymbols,
-} from 'next/dist/compiled/icss-utils'
+} from '@next/vendored/icss-utils'
 
 import { normalizeUrl, resolveRequests, requestify } from '../utils'
 

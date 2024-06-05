@@ -518,29 +518,29 @@ pub fn get_next_client_resolved_map(
 }
 
 static NEXT_ALIASES: [(&str, &str); 23] = [
-    ("assert", "next/dist/compiled/assert"),
-    ("buffer", "next/dist/compiled/buffer"),
-    ("constants", "next/dist/compiled/constants-browserify"),
-    ("crypto", "next/dist/compiled/crypto-browserify"),
-    ("domain", "next/dist/compiled/domain-browser"),
-    ("http", "next/dist/compiled/stream-http"),
-    ("https", "next/dist/compiled/https-browserify"),
-    ("os", "next/dist/compiled/os-browserify"),
-    ("path", "next/dist/compiled/path-browserify"),
-    ("punycode", "next/dist/compiled/punycode"),
+    ("assert", "@next/vendored/assert"),
+    ("buffer", "@next/vendored/buffer"),
+    ("constants", "@next/vendored/constants-browserify"),
+    ("crypto", "@next/vendored/crypto-browserify"),
+    ("domain", "@next/vendored/domain-browser"),
+    ("http", "@next/vendored/stream-http"),
+    ("https", "@next/vendored/https-browserify"),
+    ("os", "@next/vendored/os-browserify"),
+    ("path", "@next/vendored/path-browserify"),
+    ("punycode", "@next/vendored/punycode"),
     ("process", "next/dist/build/polyfills/process"),
-    ("querystring", "next/dist/compiled/querystring-es3"),
-    ("stream", "next/dist/compiled/stream-browserify"),
-    ("string_decoder", "next/dist/compiled/string_decoder"),
-    ("sys", "next/dist/compiled/util"),
-    ("timers", "next/dist/compiled/timers-browserify"),
-    ("tty", "next/dist/compiled/tty-browserify"),
-    ("url", "next/dist/compiled/native-url"),
-    ("util", "next/dist/compiled/util"),
-    ("vm", "next/dist/compiled/vm-browserify"),
-    ("zlib", "next/dist/compiled/browserify-zlib"),
-    ("events", "next/dist/compiled/events"),
-    ("setImmediate", "next/dist/compiled/setimmediate"),
+    ("querystring", "@next/vendored/querystring-es3"),
+    ("stream", "@next/vendored/stream-browserify"),
+    ("string_decoder", "@next/vendored/string_decoder"),
+    ("sys", "@next/vendored/util"),
+    ("timers", "@next/vendored/timers-browserify"),
+    ("tty", "@next/vendored/tty-browserify"),
+    ("url", "@next/vendored/native-url"),
+    ("util", "@next/vendored/util"),
+    ("vm", "@next/vendored/vm-browserify"),
+    ("zlib", "@next/vendored/browserify-zlib"),
+    ("events", "@next/vendored/events"),
+    ("setImmediate", "@next/vendored/setimmediate"),
 ];
 
 async fn insert_next_server_special_aliases(
@@ -761,8 +761,8 @@ async fn insert_optimized_module_aliases(
             "object.assign/implementation" => "next/dist/build/polyfills/object.assign/implementation.js".to_string(),
             "object.assign/polyfill" => "next/dist/build/polyfills/object.assign/polyfill.js".to_string(),
             "object.assign/shim" => "next/dist/build/polyfills/object.assign/shim.js".to_string(),
-            "url" => "next/dist/compiled/native-url".to_string(),
-            "node:url" => "next/dist/compiled/native-url".to_string(),
+            "url" => "@next/vendored/native-url".to_string(),
+            "node:url" => "@next/vendored/native-url".to_string(),
         },
     );
     Ok(())
@@ -846,7 +846,7 @@ async fn insert_next_shared_aliases(
     //https://github.com/vercel/next.js/blob/f94d4f93e4802f951063cfa3351dd5a2325724b3/packages/next/src/build/webpack-config.ts#L1196
     import_map.insert_exact_alias(
         "setimmediate",
-        request_to_import_mapping(project_path, "next/dist/compiled/setimmediate"),
+        request_to_import_mapping(project_path, "@next/vendored/setimmediate"),
     );
 
     import_map.insert_exact_alias(

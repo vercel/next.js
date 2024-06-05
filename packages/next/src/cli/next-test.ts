@@ -9,11 +9,11 @@ import {
 } from '../lib/has-necessary-dependencies'
 import { installDependencies } from '../lib/install-dependencies'
 import type { NextConfigComplete } from '../server/config-shared'
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 import path from 'path'
-import spawn from 'next/dist/compiled/cross-spawn'
+import spawn from '@next/vendored/cross-spawn'
 
 export interface NextTestOptions {
   testRunner?: string

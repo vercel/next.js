@@ -3,7 +3,7 @@ import {
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-import pLimit from 'next/dist/compiled/p-limit'
+import pLimit from '@next/vendored/p-limit'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment: any) {

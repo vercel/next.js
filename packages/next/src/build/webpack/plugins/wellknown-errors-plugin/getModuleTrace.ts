@@ -1,5 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import loaderUtils from 'next/dist/compiled/loader-utils3'
+import loaderUtils from '@next/vendored/loader-utils3'
 import { relative } from 'path'
 
 function formatModule(compiler: webpack.Compiler, module: any) {

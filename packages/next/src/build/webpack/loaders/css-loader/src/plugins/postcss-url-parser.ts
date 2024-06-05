@@ -1,4 +1,4 @@
-import valueParser from 'next/dist/compiled/postcss-value-parser'
+import valueParser from '@next/vendored/postcss-value-parser'
 
 import {
   resolveRequests,

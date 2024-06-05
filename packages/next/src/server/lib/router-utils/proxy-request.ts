@@ -20,7 +20,7 @@ export async function proxyRequest(
 
   const target = url.format(parsedUrl)
   const HttpProxy =
-    require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+    require('@next/vendored/http-proxy') as typeof import('@next/vendored/http-proxy')
 
   const proxy = new HttpProxy({
     target,

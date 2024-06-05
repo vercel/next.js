@@ -58,7 +58,7 @@ import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/
 import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from '@next/vendored/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
@@ -175,7 +175,7 @@ export default class DevServer extends Server {
         this.nextConfig.experimental.amp &&
         this.nextConfig.experimental.amp.validator
       const AmpHtmlValidator =
-        require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
+        require('@next/vendored/amphtml-validator') as typeof import('@next/vendored/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
         const result = validator.validateString(html)
         ampValidation(

@@ -10,7 +10,7 @@ if (typeof (globalThis as any).AsyncLocalStorage !== 'function') {
 if (typeof (globalThis as any).WebSocket !== 'function') {
   Object.defineProperty(globalThis, 'WebSocket', {
     get() {
-      return require('next/dist/compiled/ws').WebSocket
+      return require('@next/vendored/ws').WebSocket
     },
   })
 }

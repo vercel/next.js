@@ -31,7 +31,7 @@ import {
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
-import type ws from 'next/dist/compiled/ws'
+import type ws from '@next/vendored/ws'
 import isInternal from '../../shared/lib/is-internal'
 
 export async function getTurbopackJsConfig(

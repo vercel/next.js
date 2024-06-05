@@ -1,4 +1,4 @@
-import retry from 'next/dist/compiled/async-retry'
+import retry from '@next/vendored/async-retry'
 
 export function _postPayload(endpoint: string, body: object, signal?: any) {
   if (!signal && 'timeout' in AbortSignal) {

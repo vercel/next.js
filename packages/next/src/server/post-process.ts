@@ -1,6 +1,5 @@
 import type { RenderOpts } from './render'
-import type { HTMLElement } from 'next/dist/compiled/node-html-parser'
-
+import type { HTMLElement } from '@next/vendored/node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from '../shared/lib/constants'
 import { nonNullable } from '../lib/non-nullable'
 
@@ -45,9 +44,9 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
-
   const { parse } =
-    require('next/dist/compiled/node-html-parser') as typeof import('next/dist/compiled/node-html-parser')
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('@next/vendored/node-html-parser') as typeof import('@next/vendored/node-html-parser')
   const root: HTMLElement = parse(html)
   let document = html
 

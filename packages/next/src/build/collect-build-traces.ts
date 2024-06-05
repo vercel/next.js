@@ -18,14 +18,14 @@ import fs from 'fs/promises'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
-import debugOriginal from 'next/dist/compiled/debug'
-import picomatch from 'next/dist/compiled/picomatch'
+import debugOriginal from '@next/vendored/debug'
+import picomatch from '@next/vendored/picomatch'
 import { defaultOverrides } from '../server/require-hook'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from '@next/vendored/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
-import type { NodeFileTraceReasons } from '@vercel/nft'
+import type { NodeFileTraceReasons } from '@next/vendored/@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
@@ -303,7 +303,7 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
+        '@next/vendored/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
           ? [
@@ -686,7 +686,7 @@ export async function collectBuildTraces({
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
   await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
-      require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+      require('@next/vendored/glob') as typeof import('@next/vendored/glob')
     const glob = (pattern: string): Promise<string[]> => {
       return new Promise((resolve, reject) => {
         globOrig(

@@ -38,7 +38,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export var webpack: any
 }
 
-declare module 'next/dist/compiled/superstruct' {
+declare module '@next/vendored/superstruct' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   export type Struct<T, S> = any
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

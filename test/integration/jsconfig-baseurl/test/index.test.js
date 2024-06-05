@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import {
   renderViaHTTP,
   findPort,

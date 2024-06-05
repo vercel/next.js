@@ -6,7 +6,7 @@ import { APP_DIR_ALIAS } from './constants'
 import type { PageExtensions } from '../build/page-extensions-type'
 
 const globOrig =
-  require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+  require('@next/vendored/glob') as typeof import('@next/vendored/glob')
 const glob = (cwd: string, pattern: string): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     globOrig(pattern, { cwd }, (err, files) => {

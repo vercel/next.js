@@ -1,4 +1,4 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 
 const EVENT_PLUGIN_PRESENT = 'NEXT_PACKAGE_DETECTED'
 type NextPluginsEvent = {

@@ -14,7 +14,7 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import isAnimated from 'next/dist/compiled/is-animated'
+import isAnimated from '@next/vendored/is-animated'
 import type { RequestInit } from 'node-fetch'
 
 type SetupTestsCtx = {

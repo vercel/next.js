@@ -1,4 +1,4 @@
-import type ws from 'next/dist/compiled/ws'
+import type ws from '@next/vendored/ws'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {
@@ -9,7 +9,7 @@ import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
 
-import createDebug from 'next/dist/compiled/debug'
+import createDebug from '@next/vendored/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import {

@@ -1,5 +1,5 @@
 import { dirname } from 'path'
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '@next/vendored/find-up'
 
 export function findRootLockFile(cwd: string) {
   return findUp.sync(

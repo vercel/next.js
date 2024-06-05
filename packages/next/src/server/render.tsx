@@ -85,7 +85,7 @@ import {
   renderToInitialFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
   adaptForAppRouterInstance,

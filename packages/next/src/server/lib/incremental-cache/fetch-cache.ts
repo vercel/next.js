@@ -1,7 +1,7 @@
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 import type { IncrementalCacheValue } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import LRUCache from '@next/vendored/lru-cache'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_SOFT_TAGS_HEADER,

@@ -1,4 +1,4 @@
-import terser from 'next/dist/compiled/terser'
+import terser from '@next/vendored/terser'
 
 function buildTerserOptions(terserOptions: any = {}) {
   return {

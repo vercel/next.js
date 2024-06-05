@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '@next/vendored/strip-ansi'
 import {
   fetchViaHTTP,
   findPort,

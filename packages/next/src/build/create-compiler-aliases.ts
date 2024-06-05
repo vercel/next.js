@@ -164,7 +164,7 @@ export function createWebpackAliases({
       '_'
     ),
 
-    setimmediate: 'next/dist/compiled/setimmediate',
+    setimmediate: '@next/vendored/setimmediate',
   }
 }
 
@@ -348,7 +348,7 @@ export function getOptimizedModuleAliases(): CompilerAliases {
     'object.assign/shim': require.resolve(
       'next/dist/build/polyfills/object.assign/shim.js'
     ),
-    url: require.resolve('next/dist/compiled/native-url'),
+    url: require.resolve('@next/vendored/native-url'),
   }
 }
 

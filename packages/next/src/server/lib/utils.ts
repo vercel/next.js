@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util'
-import { InvalidArgumentError } from 'next/dist/compiled/commander'
+import { InvalidArgumentError } from '@next/vendored/commander'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {

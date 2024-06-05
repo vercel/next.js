@@ -1,4 +1,4 @@
-import stringHash from 'next/dist/compiled/string-hash'
+import stringHash from '@next/vendored/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'

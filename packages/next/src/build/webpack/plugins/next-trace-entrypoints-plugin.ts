@@ -3,8 +3,8 @@ import crypto from 'crypto'
 import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
+import { nodeFileTrace } from '@next/vendored/@vercel/nft'
+import type { NodeFileTraceReasons } from '@next/vendored/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
@@ -18,7 +18,7 @@ import {
 } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
-import picomatch from 'next/dist/compiled/picomatch'
+import picomatch from '@next/vendored/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
@@ -355,7 +355,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     doResolve: (
       request: string,
       parent: string,
-      job: import('@vercel/nft/out/node-file-trace').Job,
+      job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job,
       isEsmRequested: boolean
     ) => Promise<string>,
     readlink: any,
@@ -756,7 +756,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           return (
             parent: string,
             request: string,
-            job: import('@vercel/nft/out/node-file-trace').Job
+            job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job
           ) =>
             new Promise<[string, boolean]>((resolve, reject) => {
               const context = nodePath.dirname(parent)
@@ -859,7 +859,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         const doResolve = async (
           request: string,
           parent: string,
-          job: import('@vercel/nft/out/node-file-trace').Job,
+          job: import('@next/vendored/@vercel/nft/out/node-file-trace').Job,
           isEsmRequested: boolean
         ): Promise<string> => {
           const context = nodePath.dirname(parent)

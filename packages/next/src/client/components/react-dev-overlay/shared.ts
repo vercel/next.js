@@ -1,6 +1,6 @@
 import { useReducer } from 'react'
 
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from '@next/vendored/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './internal/container/Errors'
 import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'

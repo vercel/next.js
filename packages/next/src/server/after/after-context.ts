@@ -1,4 +1,4 @@
-import PromiseQueue from 'next/dist/compiled/p-queue'
+import PromiseQueue from '@next/vendored/p-queue'
 import {
   requestAsyncStorage,
   type RequestStore,

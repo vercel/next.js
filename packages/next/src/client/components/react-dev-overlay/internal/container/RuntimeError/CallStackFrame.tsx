@@ -1,4 +1,4 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from '@next/vendored/stacktrace-parser'
 import {
   getFrameSource,
   type OriginalStackFrame,
