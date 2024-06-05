@@ -5456,13 +5456,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_751 = React.version;
 if (
-  "19.0.0-rc-bf3a29d097-20240603" !==
+  "19.0.0-rc-1df34bdf62-20240605" !==
   isomorphicReactPackageVersion$jscomp$inline_751
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_751 +
-        "\n  - react-dom:  19.0.0-rc-bf3a29d097-20240603\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-1df34bdf62-20240605\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 function createDrainHandler(destination, request) {
   return function () {
@@ -5789,4 +5789,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-rc-bf3a29d097-20240603";
+exports.version = "19.0.0-rc-1df34bdf62-20240605";

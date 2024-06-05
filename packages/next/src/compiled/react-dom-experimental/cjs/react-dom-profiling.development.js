@@ -114,7 +114,7 @@ function warn(format) {
         args[_key - 1] = arguments[_key];
       }
 
-      printWarning('warn', format, args);
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
     }
   }
 }
@@ -125,14 +125,14 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
 } // eslint-disable-next-line react-internal/no-production-logging
 
 var supportsCreateTask = !!console.createTask;
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
@@ -142,7 +142,7 @@ function printWarning(level, format, args) {
       // We only add the current stack to the console when createTask is not supported.
       // Since createTask requires DevTools to be open to work, this means that stacks
       // can be lost while DevTools isn't open but we can't detect this.
-      var stack = ReactSharedInternals.getCurrentStack();
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
       if (stack !== '') {
         format += '%s';
@@ -1010,18 +1010,28 @@ function describeFunctionComponentFrame(fn) {
 /** @noinline */
 
 function callComponentInDEV(Component, props, secondArg) {
+  var wasRendering = isRendering;
   setIsRendering(true);
-  var result = Component(props, secondArg);
-  setIsRendering(false);
-  return result;
+
+  try {
+    var result = Component(props, secondArg);
+    return result;
+  } finally {
+    setIsRendering(wasRendering);
+  }
 }
 /** @noinline */
 
 function callRenderInDEV(instance) {
+  var wasRendering = isRendering;
   setIsRendering(true);
-  var result = instance.render();
-  setIsRendering(false);
-  return result;
+
+  try {
+    var result = instance.render();
+    return result;
+  } finally {
+    setIsRendering(wasRendering);
+  }
 }
 /** @noinline */
 
@@ -1132,6 +1142,11 @@ function filterDebugStack(error) {
   if (lastFrameIdx !== -1) {
     // Cut off everything after our "callComponent" slot since it'll be Fiber internals.
     frames.length = lastFrameIdx;
+  } else {
+    // We didn't find any internal callsite out to user space.
+    // This means that this was called outside an owner or the owner is fully internal.
+    // To keep things light we exclude the entire trace in this case.
+    return '';
   }
 
   return frames.filter(isNotExternal).join('\n');
@@ -1212,10 +1227,22 @@ function describeFunctionComponentFrameWithoutLineNumber(fn) {
   return name ? describeBuiltInComponentFrame(name) : '';
 }
 
-function getOwnerStackByFiberInDev(workInProgress) {
+function getOwnerStackByFiberInDev(workInProgress, topStack) {
 
   try {
     var info = '';
+
+    if (topStack) {
+      // Prefix with a filtered version of the currently executing
+      // stack. This information will be available in the native
+      // stack regardless but it's hidden since we're reprinting
+      // the stack on top of it.
+      var formattedTopStack = formatOwnerStack(topStack);
+
+      if (formattedTopStack !== '') {
+        info += '\n' + formattedTopStack;
+      }
+    }
 
     if (workInProgress.tag === HostText) {
       // Text nodes never have an owner/stack because they're not created through JSX.
@@ -1248,14 +1275,16 @@ function getOwnerStackByFiberInDev(workInProgress) {
       case FunctionComponent:
       case SimpleMemoComponent:
       case ClassComponent:
-        if (!workInProgress._debugOwner) {
+        if (!workInProgress._debugOwner && info === '') {
+          // Only if we have no other data about the callsite do we add
+          // the component name as the single stack frame.
           info += describeFunctionComponentFrameWithoutLineNumber(workInProgress.type);
         }
 
         break;
 
       case ForwardRef:
-        if (!workInProgress._debugOwner) {
+        if (!workInProgress._debugOwner && info === '') {
           info += describeFunctionComponentFrameWithoutLineNumber(workInProgress.type.render);
         }
 
@@ -1337,7 +1366,7 @@ function getCurrentParentStackInDev() {
   }
 }
 
-function getCurrentFiberStackInDev() {
+function getCurrentFiberStackInDev(stack) {
   {
     if (current === null) {
       return '';
@@ -1348,7 +1377,7 @@ function getCurrentFiberStackInDev() {
 
 
     {
-      return getOwnerStackByFiberInDev(current);
+      return getOwnerStackByFiberInDev(current, stack);
     }
   }
 }
@@ -36907,7 +36936,7 @@ identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, transition
   return root;
 }
 
-var ReactVersion = '19.0.0-experimental-bf3a29d097-20240603';
+var ReactVersion = '19.0.0-experimental-1df34bdf62-20240605';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

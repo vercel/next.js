@@ -71,7 +71,7 @@ function warn(format) {
         args[_key - 1] = arguments[_key];
       }
 
-      printWarning('warn', format, args);
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
     }
   }
 }
@@ -82,14 +82,14 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
 } // eslint-disable-next-line react-internal/no-production-logging
 
 var supportsCreateTask = !!console.createTask;
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
@@ -99,7 +99,7 @@ function printWarning(level, format, args) {
       // We only add the current stack to the console when createTask is not supported.
       // Since createTask requires DevTools to be open to work, this means that stacks
       // can be lost while DevTools isn't open but we can't detect this.
-      var stack = ReactSharedInternals.getCurrentStack();
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
       if (stack !== '') {
         format += '%s';
@@ -1683,7 +1683,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '19.0.0-experimental-bf3a29d097-20240603';
+var ReactVersion = '19.0.0-experimental-1df34bdf62-20240605';
 
 var getPrototypeOf = Object.getPrototypeOf;
 
