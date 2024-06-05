@@ -1301,7 +1301,7 @@ export default async function getBaseWebpackConfig(
                 // Ensure that the app page module is in the client layers, this
                 // enables React to work correctly for RSC.
                 layer: WEBPACK_LAYERS.serverSideRendering,
-                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
+                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
                 issuerLayer: isWebpackAppLayer,
@@ -1713,7 +1713,7 @@ export default async function getBaseWebpackConfig(
               default:
                 runtime = 'pages'
             }
-            resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
+            resource.request = `next/dist/server/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }
         ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
