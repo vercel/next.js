@@ -1,6 +1,7 @@
 use swc_core::ecma::ast::{Lit, Program};
 
 pub mod client;
+pub mod client_disallowed;
 pub mod server;
 mod server_to_client_proxy;
 
