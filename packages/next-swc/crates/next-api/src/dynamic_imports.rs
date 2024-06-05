@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
-    ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::ecma::{
