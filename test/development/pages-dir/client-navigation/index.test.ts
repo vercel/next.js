@@ -565,7 +565,7 @@ describe('Client Navigation', () => {
     describe('check hydration mis-match', () => {
       it('should not have hydration mis-match for hash link', async () => {
         const browser = await webdriver(next.appPort, '/nav/hash-changes')
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           console.log('log.message', log.message)
@@ -1717,7 +1717,7 @@ describe.each([[false], [true]])(
 
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let foundStyles = false
         let foundScripts = false
         const logs = []
@@ -1750,7 +1750,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {
@@ -1771,7 +1771,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head-with-json-ld-snippet')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {

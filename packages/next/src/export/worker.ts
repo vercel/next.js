@@ -231,7 +231,6 @@ async function exportPageImpl(
             distDir,
             dir,
             enabledDirectories,
-            isAppPPREnabled: input.renderOpts.experimental.isAppPPREnabled,
             // skip writing to disk in minimal mode for now, pending some
             // changes to better support it
             flushToDisk: !hasNextSupport,

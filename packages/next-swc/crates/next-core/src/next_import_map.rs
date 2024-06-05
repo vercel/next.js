@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{FileSystem, FileSystemPath},
     turbopack::{
@@ -256,11 +256,7 @@ pub fn get_next_build_import_map() -> Vc<ImportMap> {
     import_map.insert_exact_alias("styled-jsx", external);
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(
-            Some("styled-jsx/style.js".to_string()),
-            ExternalType::CommonJs,
-        )
-        .cell(),
+        ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs).cell(),
     );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
@@ -337,11 +333,8 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
                 "styled-jsx/style",
-                ImportMapping::External(
-                    Some("styled-jsx/style.js".to_string()),
-                    ExternalType::CommonJs,
-                )
-                .cell(),
+                ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
+                    .cell(),
             );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
@@ -691,26 +684,26 @@ async fn rsc_aliases(
         match ty {
             ServerContextType::AppSSR { .. } => {
                 alias.extend(indexmap! {
-                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
-                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
-                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
-                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react"),
-                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-dom"),
-                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-compiler-runtime"),
+                    "react" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react"),
+                    "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
+                    "react-server-dom-webpack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
+                    "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                 })
             }
             ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
                 alias.extend(indexmap! {
-                    "react/jsx-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
-                    "react/jsx-dev-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
-                    "react/compiler-runtime" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
-                    "react" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react"),
-                    "react-dom" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-dom"),
-                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                    "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
-                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
-                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
+                    "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
+                    "react/compiler-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-compiler-runtime"),
+                    "react" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react"),
+                    "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-dom"),
+                    "react-server-dom-webpack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-webpack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+                    "react-server-dom-turbopack/server.edge" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
+                    "react-server-dom-turbopack/server.node" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
                     "next/navigation" => format!("next/dist/api/navigation.react-server"),
 
                     // Needed to make `react-dom/server` work.
@@ -746,8 +739,8 @@ async fn rsc_aliases(
     Ok(())
 }
 
-pub fn mdx_import_source_file() -> String {
-    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source")
+pub fn mdx_import_source_file() -> RcStr {
+    format!("{VIRTUAL_PACKAGE_NAME}/mdx-import-source").into()
 }
 
 // Insert aliases for Next.js stubs of fetch, object-assign, and url
@@ -912,9 +905,7 @@ pub async fn get_next_package(context_directory: Vc<FileSystemPath>) -> Result<V
     let result = resolve(
         context_directory,
         Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-        Request::parse(Value::new(Pattern::Constant(
-            "next/package.json".to_string(),
-        ))),
+        Request::parse(Value::new(Pattern::Constant("next/package.json".into()))),
         node_cjs_resolve_options(context_directory.root()),
     );
     let source = result
@@ -930,7 +921,7 @@ pub async fn insert_alias_option<const N: usize>(
     alias_options: Vc<ResolveAliasMap>,
     conditions: [&'static str; N],
 ) -> Result<()> {
-    let conditions = BTreeMap::from(conditions.map(|c| (c.to_string(), ConditionValue::Set)));
+    let conditions = BTreeMap::from(conditions.map(|c| (c.into(), ConditionValue::Set)));
     for (alias, value) in &alias_options.await? {
         if let Some(mapping) = export_value_to_import_mapping(value, &conditions, project_path) {
             import_map.insert_alias(alias, mapping);
@@ -941,7 +932,7 @@ pub async fn insert_alias_option<const N: usize>(
 
 fn export_value_to_import_mapping(
     value: &SubpathValue,
-    conditions: &BTreeMap<String, ConditionValue>,
+    conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: Vc<FileSystemPath>,
 ) -> Option<Vc<ImportMapping>> {
     let mut result = Vec::new();
@@ -955,13 +946,13 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.to_string(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path)).cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
                     .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative(m.to_string(), Some(project_path)).cell()
+                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path)).cell()
                     })
                     .collect(),
             )
@@ -997,7 +988,10 @@ fn insert_alias_to_alternatives<'a>(
     alias: impl Into<String> + 'a,
     alternatives: Vec<Vc<ImportMapping>>,
 ) {
-    import_map.insert_exact_alias(alias, ImportMapping::Alternatives(alternatives).into());
+    import_map.insert_exact_alias(
+        alias.into(),
+        ImportMapping::Alternatives(alternatives).into(),
+    );
 }
 
 /// Inserts an alias to an import mapping into an import map.
@@ -1008,7 +1002,7 @@ fn insert_package_alias(
 ) {
     import_map.insert_wildcard_alias(
         prefix,
-        ImportMapping::PrimaryAlternative("./*".to_string(), Some(package_root)).cell(),
+        ImportMapping::PrimaryAlternative("./*".into(), Some(package_root)).cell(),
     );
 }
 
@@ -1024,11 +1018,11 @@ fn insert_turbopack_dev_alias(import_map: &mut ImportMap) {
 /// Creates a direct import mapping to the result of resolving a request
 /// in a context.
 fn request_to_import_mapping(context_path: Vc<FileSystemPath>, request: &str) -> Vc<ImportMapping> {
-    ImportMapping::PrimaryAlternative(request.to_string(), Some(context_path)).cell()
+    ImportMapping::PrimaryAlternative(request.into(), Some(context_path)).cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
 fn external_request_to_import_mapping(request: &str) -> Vc<ImportMapping> {
-    ImportMapping::External(Some(request.to_string()), ExternalType::CommonJs).into()
+    ImportMapping::External(Some(request.into()), ExternalType::CommonJs).into()
 }

@@ -10,9 +10,9 @@ import type {
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { NextParsedUrlQuery } from '../request-meta'
+import { getRequestMeta, type NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -37,12 +37,13 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
-  RSC_HEADER,
 } from '../../client/components/app-router-headers'
-import { createMetadataComponents } from '../../lib/metadata/metadata'
+import {
+  createMetadataComponents,
+  createMetadataContext,
+} from '../../lib/metadata/metadata'
 import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -99,7 +100,7 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -326,9 +327,8 @@ async function generateFlight(
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
-      pathname: urlPathname,
-      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
+      metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
@@ -399,7 +399,7 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   // Generate the flight data and as soon as it can, convert it into a string.
   const promise = generateFlight(ctx)
     .then(async (result) => ({
-      flightData: await result.toUnchunkedString(true),
+      flightData: await result.toUnchunkedBuffer(true),
     }))
     // Otherwise if it errored, return the error.
     .catch((err) => ({ err }))
@@ -451,9 +451,8 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
+    metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
@@ -482,33 +481,31 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
   return (
-    <>
-      {styles}
-      <AppRouter
-        buildId={ctx.renderOpts.buildId}
-        assetPrefix={ctx.assetPrefix}
-        initialCanonicalUrl={urlPathname}
-        // This is the router state tree.
-        initialTree={initialTree}
-        // This is the tree of React nodes that are seeded into the cache
-        initialSeedData={seedData}
-        couldBeIntercepted={couldBeIntercepted}
-        initialHead={
-          <>
-            {typeof ctx.res.statusCode === 'number' &&
-              ctx.res.statusCode > 400 && (
-                <meta name="robots" content="noindex" />
-              )}
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={ctx.requestId} />
-          </>
-        }
-        globalErrorComponent={GlobalError}
-        // This is used to provide debug information (when in development mode)
-        // about which slots were not filled by page components while creating the component tree.
-        missingSlots={missingSlots}
-      />
-    </>
+    <AppRouter
+      buildId={ctx.renderOpts.buildId}
+      assetPrefix={ctx.assetPrefix}
+      initialCanonicalUrl={urlPathname}
+      // This is the router state tree.
+      initialTree={initialTree}
+      // This is the tree of React nodes that are seeded into the cache
+      initialSeedData={seedData}
+      couldBeIntercepted={couldBeIntercepted}
+      initialHead={
+        <>
+          {typeof ctx.res.statusCode === 'number' &&
+            ctx.res.statusCode > 400 && (
+              <meta name="robots" content="noindex" />
+            )}
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={ctx.requestId} />
+        </>
+      }
+      initialLayerAssets={styles}
+      globalErrorComponent={GlobalError}
+      // This is used to provide debug information (when in development mode)
+      // about which slots were not filled by page components while creating the component tree.
+      missingSlots={missingSlots}
+    />
   )
 }
 
@@ -539,8 +536,7 @@ async function ReactServerError({
 
   const [MetadataTree] = createMetadataComponents({
     tree,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
+    metadataContext: createMetadataContext(urlPathname, ctx.renderOpts),
     errorType,
     query,
     getDynamicParamFromSegment,
@@ -585,6 +581,7 @@ async function ReactServerError({
       initialCanonicalUrl={urlPathname}
       initialTree={initialTree}
       initialHead={head}
+      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
@@ -801,12 +798,11 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isRSCRequest = Boolean(getRequestMeta(req, 'isRSCRequest'))
 
-  const isPrefetchRSCRequest =
-    isRSCRequest &&
-    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
-
+  const isPrefetchRSCRequest = Boolean(
+    getRequestMeta(req, 'isPrefetchRSCRequest')
+  )
   /**
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request

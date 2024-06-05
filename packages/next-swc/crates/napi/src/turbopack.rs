@@ -190,10 +190,21 @@ impl FromNapiValue for NapiRouteHas {
 impl From<NapiRouteHas> for RouteHas {
     fn from(val: NapiRouteHas) -> Self {
         match val {
-            NapiRouteHas::Header { key, value } => RouteHas::Header { key, value },
-            NapiRouteHas::Query { key, value } => RouteHas::Query { key, value },
-            NapiRouteHas::Cookie { key, value } => RouteHas::Cookie { key, value },
-            NapiRouteHas::Host { value } => RouteHas::Host { value },
+            NapiRouteHas::Header { key, value } => RouteHas::Header {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Query { key, value } => RouteHas::Query {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Cookie { key, value } => RouteHas::Cookie {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Host { value } => RouteHas::Host {
+                value: value.into(),
+            },
         }
     }
 }

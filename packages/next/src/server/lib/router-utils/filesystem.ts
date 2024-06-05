@@ -37,9 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
-import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 
 export type FsOutput = {
   type:

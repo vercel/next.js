@@ -156,11 +156,11 @@ pub async fn get_jsx_transform_options(
         // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
         // This'll be ignored if ts|jsconfig explicitly specifies importSource
         import_source: if is_emotion_enabled && !is_rsc_context {
-            Some("@emotion/react".to_string())
+            Some("@emotion/react".into())
         } else {
             None
         },
-        runtime: Some("automatic".to_string()),
+        runtime: Some("automatic".into()),
         react_refresh: enable_react_refresh,
     };
 
@@ -168,7 +168,7 @@ pub async fn get_jsx_transform_options(
         read_from_tsconfigs(&tsconfig, |json, _| {
             let jsx_import_source = json["compilerOptions"]["jsxImportSource"]
                 .as_str()
-                .map(|s| s.to_string());
+                .map(|s| s.into());
 
             Some(JsxTransformOptions {
                 import_source: if jsx_import_source.is_some() {

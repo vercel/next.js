@@ -2122,6 +2122,19 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts": {
+      "passed": [
+        "next-dynamic-css app dir should have correct order of styles between global and css modules",
+        "next-dynamic-css should have correct order of global styles between layout and pages",
+        "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+      ],
+      "failed": [
+        "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/next-font/next-font.test.ts": {
       "passed": [
         "app dir - next/font app dir - next-font computed styles should have correct styles at /",
@@ -2410,6 +2423,15 @@
       "failed": [
         "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
+      "passed": [],
+      "failed": [
+        "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
       ],
       "pending": [],
       "flakey": [],
@@ -2979,8 +3001,7 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
         "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
         "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
@@ -3018,10 +3039,10 @@
         "app dir - rsc basics should track client components in dynamic imports",
         "app dir - rsc basics should use canary react for app"
       ],
+      "failed": [],
       "pending": [
         "app dir - rsc basics should not use bundled react for pages with app",
-        "app dir - rsc basics should support partial hydration with inlined server data in browser",
-        "app dir - rsc basics should support webpack loader rules"
+        "app dir - rsc basics should support partial hydration with inlined server data in browser"
       ],
       "flakey": [],
       "runtimeError": false
@@ -8459,11 +8480,12 @@
         "Next Lint don't create .eslintrc file if package.json has eslintConfig field",
         "Next Lint file flag can selectively lint only a single file",
         "Next Lint file flag can selectively lints multiple files",
+        "Next Lint format flag \"compact\" creates a file respecting the chosen format",
+        "Next Lint format flag \"json\" creates a file respecting the chosen format",
         "Next Lint format flag supports additional user-defined formats",
         "Next Lint lint files with cjs and mjs file extension",
         "Next Lint max warnings flag does not error when warnings do not exceed threshold",
         "Next Lint max warnings flag errors when warnings exceed threshold",
-        "Next Lint output flag create a file respecting the chosen format",
         "Next Lint quiet flag suppresses warnings and only reports errors",
         "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
         "Next Lint should generate next-env.d.ts before lint command",
