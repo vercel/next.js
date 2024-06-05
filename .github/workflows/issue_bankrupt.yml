@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run:
+  bankrupt:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
