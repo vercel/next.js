@@ -5908,7 +5908,7 @@
             Value(
                 Constant(
                     Str(
-                        Atom(
+                        RcStr(
                             "--service=0.14.12",
                         ),
                     ),

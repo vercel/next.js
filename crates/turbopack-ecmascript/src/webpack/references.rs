@@ -49,7 +49,7 @@ pub async fn module_references(
                 Box::new(IssueEmitter::new(
                     source,
                     source_map.clone(),
-                    Some("Parsing webpack bundle failed".to_string()),
+                    Some("Parsing webpack bundle failed".into()),
                 )),
             );
             HANDLER.set(&handler, || {

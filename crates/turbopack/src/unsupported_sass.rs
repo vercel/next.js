@@ -31,10 +31,7 @@ impl UnsupportedSassResolvePlugin {
 impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(
-            self.root.root(),
-            Glob::new("**/*.{sass,scss}".to_string()),
-        )
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**/*.{sass,scss}".into()))
     }
 
     #[turbo_tasks::function]
@@ -46,7 +43,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let extension = fs_path.extension().await?;
-        if ["sass", "scss"].iter().any(|ext| ext == &*extension) {
+        if ["sass", "scss"].iter().any(|ext| *ext == &**extension) {
             UnsupportedSassModuleIssue {
                 file_path: lookup_path,
                 request,
@@ -74,10 +71,13 @@ impl Issue for UnsupportedSassModuleIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(format!(
-            "Unsupported Sass request: {}",
-            self.request.await?.request().as_deref().unwrap_or("N/A")
-        ))
+        Ok(StyledString::Text(
+            format!(
+                "Unsupported Sass request: {}",
+                self.request.await?.request().as_deref().unwrap_or("N/A")
+            )
+            .into(),
+        )
         .cell())
     }
 
@@ -89,10 +89,8 @@ impl Issue for UnsupportedSassModuleIssue {
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
-            StyledString::Text(
-                "Turbopack does not yet support importing Sass modules.".to_string(),
-            )
-            .cell(),
+            StyledString::Text("Turbopack does not yet support importing Sass modules.".into())
+                .cell(),
         ))
     }
 

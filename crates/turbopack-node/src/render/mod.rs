@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::ReadRef;
+use turbo_tasks::{RcStr, ReadRef};
 
 use crate::{route_matcher::Param, ResponseHeaders, StructuredError};
 
@@ -15,13 +15,13 @@ pub mod rendered_source;
 #[turbo_tasks::value(shared)]
 #[serde(rename_all = "camelCase")]
 pub struct RenderData {
-    params: IndexMap<String, Param>,
-    method: String,
-    url: String,
-    original_url: String,
-    raw_query: String,
-    raw_headers: Vec<(String, String)>,
-    path: String,
+    params: IndexMap<RcStr, Param>,
+    method: RcStr,
+    url: RcStr,
+    original_url: RcStr,
+    raw_query: RcStr,
+    raw_headers: Vec<(RcStr, RcStr)>,
+    path: RcStr,
     data: Option<ReadRef<JsonValue>>,
 }
 
@@ -54,8 +54,8 @@ enum RenderStaticIncomingMessage {
     #[serde(rename_all = "camelCase")]
     Response {
         status_code: u16,
-        headers: Vec<(String, String)>,
-        body: String,
+        headers: Vec<(RcStr, RcStr)>,
+        body: RcStr,
     },
     Headers {
         data: ResponseHeaders,
@@ -65,7 +65,7 @@ enum RenderStaticIncomingMessage {
     },
     BodyEnd,
     Rewrite {
-        path: String,
+        path: RcStr,
     },
     Error(StructuredError),
 }

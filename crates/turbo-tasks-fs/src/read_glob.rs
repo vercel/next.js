@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
 
@@ -27,7 +27,7 @@ pub async fn read_glob(
 
 #[turbo_tasks::function]
 async fn read_glob_inner(
-    prefix: String,
+    prefix: RcStr,
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
     include_dot_files: bool,
@@ -50,7 +50,7 @@ async fn read_glob_internal(
                 match item {
                     (segment, DirectoryEntry::Directory(path)) => {
                         let full_path = format!("{prefix}{segment}");
-                        let full_path_prefix = format!("{full_path}/");
+                        let full_path_prefix: RcStr = format!("{full_path}/").into();
                         if glob_value.execute(&full_path) {
                             result
                                 .results

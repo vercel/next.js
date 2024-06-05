@@ -160,20 +160,20 @@ async fn static_error(
         .to_string();
 
     body.push_str(
-        error_html_body(500, "Error rendering page".to_string(), message)
+        error_html_body(500, "Error rendering page".into(), message.into())
             .await?
             .as_str(),
     );
 
     let issue = RenderingIssue {
         file_path: path,
-        message: StyledString::Text(error).cell(),
+        message: StyledString::Text(error.into()).cell(),
         status: status.and_then(|status| status.code()),
     };
 
     issue.cell().emit();
 
-    let html = fallback_page.with_body(body);
+    let html = fallback_page.with_body(body.into());
 
     Ok(html.content())
 }

@@ -2,18 +2,18 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use turbo_tasks::{emit, CollectiblesSource, Upcast, Vc};
+use turbo_tasks::{emit, CollectiblesSource, RcStr, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainDiagnostic {
-    pub category: String,
-    pub name: String,
-    pub payload: HashMap<String, String>,
+    pub category: RcStr,
+    pub name: RcStr,
+    pub payload: HashMap<RcStr, RcStr>,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub HashMap<String, String>);
+pub struct DiagnosticPayload(pub HashMap<RcStr, RcStr>);
 
 /// An arbitrary payload can be used to analyze, diagnose
 /// Turbopack's behavior.
@@ -25,9 +25,9 @@ pub trait Diagnostic {
     /// `slow_perf_event`, or something else. This is not strongly typed
     /// though; since consumer or implementation may need to define own
     /// category.
-    fn category(&self) -> Vc<String>;
+    fn category(&self) -> Vc<RcStr>;
     /// Name of the specific diagnostic event.
-    fn name(&self) -> Vc<String>;
+    fn name(&self) -> Vc<RcStr>;
     /// Arbitarary payload included in the diagnostic event.
     fn payload(&self) -> Vc<DiagnosticPayload>;
 

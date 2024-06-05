@@ -1,7 +1,7 @@
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
@@ -10,31 +10,31 @@ use super::pattern::Pattern;
 pub enum Request {
     Raw {
         path: Pattern,
-        query: Vc<String>,
+        query: Vc<RcStr>,
         force_in_lookup_dir: bool,
-        fragment: Vc<String>,
+        fragment: Vc<RcStr>,
     },
     Relative {
         path: Pattern,
-        query: Vc<String>,
+        query: Vc<RcStr>,
         force_in_lookup_dir: bool,
-        fragment: Vc<String>,
+        fragment: Vc<RcStr>,
     },
     Module {
-        module: String,
+        module: RcStr,
         path: Pattern,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
     },
     ServerRelative {
         path: Pattern,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
     },
     Windows {
         path: Pattern,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
     },
     Empty,
     PackageInternal {
@@ -43,8 +43,8 @@ pub enum Request {
     Uri {
         protocol: String,
         remainder: String,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
     },
     Unknown {
         path: Pattern,
@@ -55,69 +55,69 @@ pub enum Request {
     },
 }
 
-fn split_off_query_fragment(raw: String) -> (Pattern, Vc<String>, Vc<String>) {
+fn split_off_query_fragment(raw: RcStr) -> (Pattern, Vc<RcStr>, Vc<RcStr>) {
     let Some((raw, query)) = raw.split_once('?') else {
         if let Some((raw, fragment)) = raw.split_once('#') {
             return (
-                Pattern::Constant(raw.to_string()),
-                Vc::<String>::default(),
-                Vc::cell(fragment.to_string()),
+                Pattern::Constant(raw.into()),
+                Vc::<RcStr>::default(),
+                Vc::cell(fragment.into()),
             );
         }
 
         return (
             Pattern::Constant(raw),
-            Vc::<String>::default(),
-            Vc::<String>::default(),
+            Vc::<RcStr>::default(),
+            Vc::<RcStr>::default(),
         );
     };
 
     let (query, fragment) = query.split_once('#').unwrap_or((query, ""));
 
     (
-        Pattern::Constant(raw.to_string()),
-        Vc::cell(format!("?{}", query)),
-        Vc::cell(format!("#{}", fragment)),
+        Pattern::Constant(raw.into()),
+        Vc::cell(format!("?{}", query).into()),
+        Vc::cell(format!("#{}", fragment).into()),
     )
 }
 
 impl Request {
-    pub fn request(&self) -> Option<String> {
+    pub fn request(&self) -> Option<RcStr> {
         Some(match self {
             Request::Raw {
                 path: Pattern::Constant(path),
                 ..
-            } => path.to_string(),
+            } => path.clone(),
             Request::Relative {
                 path: Pattern::Constant(path),
                 ..
-            } => path.to_string(),
+            } => path.clone(),
             Request::Module {
                 module,
                 path: Pattern::Constant(path),
                 ..
-            } => format!("{module}{path}"),
+            } => format!("{module}{path}").into(),
             Request::ServerRelative {
                 path: Pattern::Constant(path),
                 ..
-            } => path.to_string(),
+            } => path.clone(),
             Request::Windows {
                 path: Pattern::Constant(path),
                 ..
-            } => path.to_string(),
-            Request::Empty => "".to_string(),
+            } => path.clone(),
+            Request::Empty => "".into(),
             Request::PackageInternal {
                 path: Pattern::Constant(path),
                 ..
-            } => path.to_string(),
+            } => path.clone(),
             Request::Uri {
                 protocol,
                 remainder,
                 ..
-            } => format!("{protocol}{remainder}"),
+            } => format!("{protocol}{remainder}").into(),
             Request::Unknown {
                 path: Pattern::Constant(path),
-            } => path.to_string(),
+            } => path.clone(),
             _ => return None,
         })
     }
@@ -141,7 +141,7 @@ impl Request {
                     Request::PackageInternal {
                         path: Pattern::Constant(r),
                     }
-                } else if r.starts_with("./") || r.starts_with("../") || r == "." || r == ".." {
+                } else if r.starts_with("./") || r.starts_with("../") || &*r == "." || &*r == ".." {
                     let (path, query, fragment) = split_off_query_fragment(r);
 
                     Request::Relative {
@@ -174,8 +174,8 @@ impl Request {
                             return Request::Uri {
                                 protocol: protocol.as_str().to_string(),
                                 remainder: remainder.as_str().to_string(),
-                                query: Vc::<String>::default(),
-                                fragment: Vc::<String>::default(),
+                                query: Vc::<RcStr>::default(),
+                                fragment: Vc::<RcStr>::default(),
                             };
                         }
                     }
@@ -185,10 +185,10 @@ impl Request {
                         .and_then(|caps| caps.get(1).zip(caps.get(2)))
                     {
                         let (path, query, fragment) =
-                            split_off_query_fragment(path.as_str().to_string());
+                            split_off_query_fragment(path.as_str().into());
 
                         return Request::Module {
-                            module: module.as_str().to_string(),
+                            module: module.as_str().into(),
                             path,
                             query,
                             fragment,
@@ -259,15 +259,15 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn parse_string(request: String) -> Vc<Self> {
+    pub fn parse_string(request: RcStr) -> Vc<Self> {
         Self::cell(Request::parse_ref(request.into()))
     }
 
     #[turbo_tasks::function]
     pub fn raw(
         request: Value<Pattern>,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
     ) -> Vc<Self> {
         Self::cell(Request::Raw {
@@ -281,8 +281,8 @@ impl Request {
     #[turbo_tasks::function]
     pub fn relative(
         request: Value<Pattern>,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
         force_in_lookup_dir: bool,
     ) -> Vc<Self> {
         Self::cell(Request::Relative {
@@ -295,10 +295,10 @@ impl Request {
 
     #[turbo_tasks::function]
     pub fn module(
-        module: String,
+        module: RcStr,
         path: Value<Pattern>,
-        query: Vc<String>,
-        fragment: Vc<String>,
+        query: Vc<RcStr>,
+        fragment: Vc<RcStr>,
     ) -> Vc<Self> {
         Self::cell(Request::Module {
             module,
@@ -325,18 +325,18 @@ impl Request {
                 query: _,
                 fragment: _,
             } => {
-                let mut pat = Pattern::Constant(format!("./{module}"));
+                let mut pat = Pattern::Constant(format!("./{module}").into());
                 pat.push(path.clone());
                 // TODO add query
                 Self::parse(Value::new(pat))
             }
             Request::PackageInternal { path } => {
-                let mut pat = Pattern::Constant("./".to_string());
+                let mut pat = Pattern::Constant("./".into());
                 pat.push(path.clone());
                 Self::parse(Value::new(pat))
             }
             Request::Unknown { path } => {
-                let mut pat = Pattern::Constant("./".to_string());
+                let mut pat = Pattern::Constant("./".into());
                 pat.push(path.clone());
                 Self::parse(Value::new(pat))
             }
@@ -348,7 +348,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_query(self: Vc<Self>, query: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn with_query(self: Vc<Self>, query: Vc<RcStr>) -> Result<Vc<Self>> {
         Ok(match &*self.await? {
             Request::Raw {
                 path,
@@ -423,7 +423,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_fragment(self: Vc<Self>, fragment: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn with_fragment(self: Vc<Self>, fragment: Vc<RcStr>) -> Result<Vc<Self>> {
         Ok(match &*self.await? {
             Request::Raw {
                 path,
@@ -498,7 +498,7 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub async fn append_path(self: Vc<Self>, suffix: String) -> Result<Vc<Self>> {
+    pub async fn append_path(self: Vc<Self>, suffix: RcStr) -> Result<Vc<Self>> {
         Ok(match &*self.await? {
             Request::Raw {
                 path,
@@ -596,20 +596,20 @@ impl Request {
     }
 
     #[turbo_tasks::function]
-    pub fn query(&self) -> Vc<String> {
+    pub fn query(&self) -> Vc<RcStr> {
         match self {
             Request::Raw { query, .. } => *query,
             Request::Relative { query, .. } => *query,
             Request::Module { query, .. } => *query,
             Request::ServerRelative { query, .. } => *query,
             Request::Windows { query, .. } => *query,
-            Request::Empty => Vc::<String>::default(),
-            Request::PackageInternal { .. } => Vc::<String>::default(),
-            Request::Uri { .. } => Vc::<String>::default(),
-            Request::Unknown { .. } => Vc::<String>::default(),
-            Request::Dynamic => Vc::<String>::default(),
+            Request::Empty => Vc::<RcStr>::default(),
+            Request::PackageInternal { .. } => Vc::<RcStr>::default(),
+            Request::Uri { .. } => Vc::<RcStr>::default(),
+            Request::Unknown { .. } => Vc::<RcStr>::default(),
+            Request::Dynamic => Vc::<RcStr>::default(),
             // TODO: is this correct, should we return the first one instead?
-            Request::Alternatives { .. } => Vc::<String>::default(),
+            Request::Alternatives { .. } => Vc::<RcStr>::default(),
         }
     }
 }
@@ -617,7 +617,7 @@ impl Request {
 #[turbo_tasks::value_impl]
 impl ValueToString for Request {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(match self {
             Request::Raw {
                 path,
@@ -625,9 +625,9 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("in-lookup-dir {path}")
+                    format!("in-lookup-dir {path}").into()
                 } else {
-                    format!("{path}")
+                    format!("{path}").into()
                 }
             }
             Request::Relative {
@@ -636,35 +636,36 @@ impl ValueToString for Request {
                 ..
             } => {
                 if *force_in_lookup_dir {
-                    format!("relative-in-lookup-dir {path}")
+                    format!("relative-in-lookup-dir {path}").into()
                 } else {
-                    format!("relative {path}")
+                    format!("relative {path}").into()
                 }
             }
             Request::Module { module, path, .. } => {
                 if path.could_match_others("") {
-                    format!("module \"{module}\" with subpath {path}")
+                    format!("module \"{module}\" with subpath {path}").into()
                 } else {
-                    format!("module \"{module}\"")
+                    format!("module \"{module}\"").into()
                 }
             }
-            Request::ServerRelative { path, .. } => format!("server relative {path}"),
-            Request::Windows { path, .. } => format!("windows {path}"),
-            Request::Empty => "empty".to_string(),
-            Request::PackageInternal { path } => format!("package internal {path}"),
+            Request::ServerRelative { path, .. } => format!("server relative {path}").into(),
+            Request::Windows { path, .. } => format!("windows {path}").into(),
+            Request::Empty => "empty".into(),
+            Request::PackageInternal { path } => format!("package internal {path}").into(),
             Request::Uri {
                 protocol,
                 remainder,
                 ..
-            } => format!("uri \"{protocol}\" \"{remainder}\""),
-            Request::Unknown { path } => format!("unknown {path}"),
-            Request::Dynamic => "dynamic".to_string(),
+            } => format!("uri \"{protocol}\" \"{remainder}\"").into(),
+            Request::Unknown { path } => format!("unknown {path}").into(),
+            Request::Dynamic => "dynamic".into(),
             Request::Alternatives { requests } => {
                 let vec = requests.iter().map(|i| i.to_string()).try_join().await?;
                 vec.iter()
                     .map(|r| r.as_str())
                     .collect::<Vec<_>>()
                     .join(" or ")
+                    .into()
             }
         }))
     }

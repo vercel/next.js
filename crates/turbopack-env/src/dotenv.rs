@@ -12,13 +12,13 @@ use crate::TryDotenvProcessEnv;
 pub async fn load_env(project_path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn ProcessEnv>>> {
     let env: Vc<Box<dyn ProcessEnv>> = Vc::upcast(CommandLineProcessEnv::new());
 
-    let node_env = env.read("NODE_ENV".to_string()).await?;
+    let node_env = env.read("NODE_ENV".into()).await?;
     let node_env = node_env.as_deref().unwrap_or("development");
 
     let env = Vc::upcast(CustomProcessEnv::new(
         env,
         Vc::cell(indexmap! {
-            "NODE_ENV".to_string() => node_env.to_string(),
+            "NODE_ENV".into() => node_env.into(),
         }),
     ));
 
@@ -36,7 +36,7 @@ pub async fn load_env(project_path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Pro
     .flatten();
 
     let env = files.fold(env, |prior, f| {
-        let path = project_path.join(f);
+        let path = project_path.join(f.into());
         Vc::upcast(TryDotenvProcessEnv::new(prior, path))
     });
 

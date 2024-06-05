@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{RcStr, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{chunk::ModuleId, version::Version};
@@ -48,7 +48,7 @@ impl EcmascriptDevChunkVersion {
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptDevChunkVersion {
     #[turbo_tasks::function]
-    fn id(&self) -> Vc<String> {
+    fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
         let sorted_hashes = {
@@ -61,6 +61,6 @@ impl Version for EcmascriptDevChunkVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash)
+        Vc::cell(hex_hash.into())
     }
 }

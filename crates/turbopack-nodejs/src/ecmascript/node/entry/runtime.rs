@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -91,8 +91,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell("Ecmascript Build Node Runtime Chunk".to_string()))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell("Ecmascript Build Node Runtime Chunk".into()))
     }
 }
 
@@ -103,10 +103,10 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
         let ident = AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
-                .join("runtime.js".to_string()),
+                .join("runtime.js".into()),
         );
 
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".to_string()))
+        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
     }
 
     #[turbo_tasks::function]

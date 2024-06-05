@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -56,15 +56,15 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 #[turbo_tasks::value(serialization = "custom")]
 struct WebpackLoadersProcessingResult {
-    source: String,
-    map: Option<String>,
+    source: RcStr,
+    map: Option<RcStr>,
     #[turbo_tasks(trace_ignore)]
     assets: Option<Vec<EmittedAsset>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub struct WebpackLoaderItem {
-    pub loader: String,
+    pub loader: RcStr,
     #[turbo_tasks(trace_ignore)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
@@ -78,7 +78,7 @@ pub struct WebpackLoaders {
     evaluate_context: Vc<Box<dyn AssetContext>>,
     execution_context: Vc<ExecutionContext>,
     loaders: Vc<WebpackLoaderItems>,
-    rename_as: Option<String>,
+    rename_as: Option<RcStr>,
     resolve_options_context: Vc<ResolveOptionsContext>,
 }
 
@@ -89,7 +89,7 @@ impl WebpackLoaders {
         evaluate_context: Vc<Box<dyn AssetContext>>,
         execution_context: Vc<ExecutionContext>,
         loaders: Vc<WebpackLoaderItems>,
-        rename_as: Option<String>,
+        rename_as: Option<RcStr>,
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Vc<Self> {
         WebpackLoaders {
@@ -129,7 +129,7 @@ impl Source for WebpackLoadersProcessedAsset {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
             if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source.ident().rename_as(rename_as.to_string())
+                self.source.ident().rename_as(rename_as.into())
             } else {
                 self.source.ident()
             },
@@ -164,7 +164,7 @@ struct ProcessWebpackLoadersResult {
 fn webpack_loaders_executor(evaluate_context: Vc<Box<dyn AssetContext>>) -> Vc<ProcessResult> {
     evaluate_context.process(
         Vc::upcast(FileSource::new(embed_file_path(
-            "transforms/webpack-loaders.ts".to_string(),
+            "transforms/webpack-loaders.ts".into(),
         ))),
         Value::new(ReferenceType::Internal(InnerAssets::empty())),
     )
@@ -221,7 +221,7 @@ impl WebpackLoadersProcessedAsset {
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
                 Vc::cell(content.into()),
-                Vc::cell(resource_path.into()),
+                Vc::cell(resource_path.to_string().into()),
                 Vc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable(),
@@ -309,14 +309,14 @@ pub struct LogInfo {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum InfoMessage {
     FileDependency {
-        path: String,
+        path: RcStr,
     },
     BuildDependency {
-        path: String,
+        path: RcStr,
     },
     DirDependency {
-        path: String,
-        glob: String,
+        path: RcStr,
+        glob: RcStr,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -329,13 +329,13 @@ pub enum InfoMessage {
 #[serde(rename_all = "camelCase")]
 
 pub struct WebpackResolveOptions {
-    alias_fields: Option<Vec<String>>,
-    condition_names: Option<Vec<String>>,
+    alias_fields: Option<Vec<RcStr>>,
+    condition_names: Option<Vec<RcStr>>,
     no_package_json: bool,
-    extensions: Option<Vec<String>>,
-    main_fields: Option<Vec<String>>,
+    extensions: Option<Vec<RcStr>>,
+    main_fields: Option<Vec<RcStr>>,
     no_exports_field: bool,
-    main_files: Option<Vec<String>>,
+    main_files: Option<Vec<RcStr>>,
     no_modules: bool,
     prefer_relative: bool,
 }
@@ -346,15 +346,15 @@ pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     Resolve {
         options: WebpackResolveOptions,
-        lookup_path: String,
-        request: String,
+        lookup_path: RcStr,
+        request: RcStr,
     },
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
-    Resolve { path: String },
+    Resolve { path: RcStr },
 }
 
 #[derive(Clone, PartialEq, Eq, TaskInput)]
@@ -566,7 +566,7 @@ async fn apply_webpack_resolve_options(
             .extract_if(|field| matches!(field, ResolveInPackage::AliasField(..)))
             .collect::<Vec<_>>();
         for field in alias_fields {
-            if field == "..." {
+            if &*field == "..." {
                 resolve_options.in_package.extend(take(&mut old));
             } else {
                 resolve_options
@@ -607,7 +607,7 @@ async fn apply_webpack_resolve_options(
             .extract_if(|field| matches!(field, ResolveIntoPackage::MainField { .. }))
             .collect::<Vec<_>>();
         for field in main_fields {
-            if field == "..." {
+            if &*field == "..." {
                 resolve_options.into_package.extend(take(&mut old));
             } else {
                 resolve_options
@@ -649,7 +649,7 @@ impl Issue for BuildDependencyIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Build dependencies are not yet supported".to_string()).cell()
+        StyledString::Text("Build dependencies are not yet supported".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -664,12 +664,19 @@ impl Issue for BuildDependencyIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(StyledString::Line(vec![
-            StyledString::Text("The file at ".to_string()),
-            StyledString::Code(self.path.await?.to_string()),
-            StyledString::Text(" is a build dependency, which is not yet implemented.
-Changing this file or any dependency will not be recognized and might require restarting the server".to_string()),
-        ]).cell())))
+        Ok(Vc::cell(Some(
+            StyledString::Line(vec![
+                StyledString::Text("The file at ".into()),
+                StyledString::Code(self.path.await?.to_string().into()),
+                StyledString::Text(
+                    " is a build dependency, which is not yet implemented.
+    Changing this file or any dependency will not be recognized and might require restarting the \
+                     server"
+                        .into(),
+                ),
+            ])
+            .cell(),
+        )))
     }
 }
 
@@ -698,7 +705,7 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
                 file.track().await?;
             }
             DirectoryEntry::Directory(dir) => {
-                dir_dependency(dir.read_glob(Glob::new("**".to_string()), false)).await?;
+                dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
             }
             DirectoryEntry::Symlink(symlink) => {
                 symlink.read_link().await?;
@@ -741,7 +748,7 @@ impl Issue for EvaluateEmittedErrorIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Issue while running loader".to_string()).cell()
+        StyledString::Text("Issue while running loader".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -755,7 +762,8 @@ impl Issue for EvaluateEmittedErrorIssue {
                         self.project_dir,
                         FormattingMode::Plain,
                     )
-                    .await?,
+                    .await?
+                    .into(),
             )
             .cell(),
         )))
@@ -792,7 +800,7 @@ impl Issue for EvaluateErrorLoggingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error logging while running loader".to_string()).cell()
+        StyledString::Text("Error logging while running loader".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -818,11 +826,13 @@ impl Issue for EvaluateErrorLoggingIssue {
             .logging
             .iter()
             .map(|log| match log.log_type {
-                LogType::Error => StyledString::Strong(fmt_args("<e> ".to_string(), &log.args)),
-                LogType::Warn => StyledString::Text(fmt_args("<w> ".to_string(), &log.args)),
-                LogType::Info => StyledString::Text(fmt_args("<i> ".to_string(), &log.args)),
-                LogType::Log => StyledString::Text(fmt_args("<l> ".to_string(), &log.args)),
-                LogType::Clear => StyledString::Strong("---".to_string()),
+                LogType::Error => {
+                    StyledString::Strong(fmt_args("<e> ".to_string(), &log.args).into())
+                }
+                LogType::Warn => StyledString::Text(fmt_args("<w> ".to_string(), &log.args).into()),
+                LogType::Info => StyledString::Text(fmt_args("<i> ".to_string(), &log.args).into()),
+                LogType::Log => StyledString::Text(fmt_args("<l> ".to_string(), &log.args).into()),
+                LogType::Clear => StyledString::Strong("---".into()),
                 _ => {
                     unimplemented!("{:?} is not implemented", log.log_type)
                 }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
@@ -42,11 +42,10 @@ impl ModuleReference for TsConfigReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsConfigReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "tsconfig {}",
-            self.tsconfig.to_string().await?,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("tsconfig {}", self.tsconfig.to_string().await?,).into(),
+        ))
     }
 }
 
@@ -54,13 +53,13 @@ impl ValueToString for TsConfigReference {
 #[derive(Hash, Debug)]
 pub struct TsReferencePathAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub path: String,
+    pub path: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, path: String) -> Vc<Self> {
+    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, path: RcStr) -> Vc<Self> {
         Self::cell(TsReferencePathAssetReference { origin, path })
     }
 }
@@ -98,11 +97,10 @@ impl ModuleReference for TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "typescript reference path comment {}",
-            self.path,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("typescript reference path comment {}", self.path,).into(),
+        ))
     }
 }
 
@@ -110,13 +108,13 @@ impl ValueToString for TsReferencePathAssetReference {
 #[derive(Hash, Debug)]
 pub struct TsReferenceTypeAssetReference {
     pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub module: String,
+    pub module: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, module: String) -> Vc<Self> {
+    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, module: RcStr) -> Vc<Self> {
         Self::cell(TsReferenceTypeAssetReference { origin, module })
     }
 }
@@ -129,9 +127,9 @@ impl ModuleReference for TsReferenceTypeAssetReference {
             self.origin,
             Request::module(
                 self.module.clone(),
-                Value::new("".to_string().into()),
-                Vc::<String>::default(),
-                Vc::<String>::default(),
+                Value::new(RcStr::default().into()),
+                Vc::<RcStr>::default(),
+                Vc::<RcStr>::default(),
             ),
         )
     }
@@ -140,10 +138,9 @@ impl ModuleReference for TsReferenceTypeAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "typescript reference type comment {}",
-            self.module,
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("typescript reference type comment {}", self.module,).into(),
+        ))
     }
 }

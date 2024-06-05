@@ -51,7 +51,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{CompileTimeInfo, FreeVarReference},
@@ -372,8 +372,8 @@ pub(crate) async fn analyse_ecmascript_module(
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
-        let module = module.ident().to_string().await?;
-        tracing::info_span!("analyse ecmascript module", module = *module)
+        let module = module.ident().to_string().await?.to_string();
+        tracing::info_span!("analyse ecmascript module", module = module)
     };
     let result = analyse_ecmascript_module_internal(module, part)
         .instrument(span)
@@ -474,15 +474,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let text = &comment.text;
                     if let Some(m) = REFERENCE_PATH.captures(text) {
                         let path = &m[1];
-                        analysis.add_reference(TsReferencePathAssetReference::new(
-                            origin,
-                            path.to_string(),
-                        ));
+                        analysis
+                            .add_reference(TsReferencePathAssetReference::new(origin, path.into()));
                     } else if let Some(m) = REFERENCE_TYPES.captures(text) {
                         let types = &m[1];
                         analysis.add_reference(TsReferenceTypeAssetReference::new(
                             origin,
-                            types.to_string(),
+                            types.into(),
                         ));
                     }
                 }
@@ -509,7 +507,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
         let origin_path = origin.origin_path();
         if path.ends_with(".map") {
-            let source_map_origin = origin_path.parent().join(path.to_string());
+            let source_map_origin = origin_path.parent().join(path.into());
             let reference = SourceMapReference::new(origin_path, source_map_origin);
             analysis.add_reference(reference);
             let source_map = reference.generate_source_map();
@@ -520,7 +518,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             source_map_from_comment = true;
         } else if path.starts_with("data:application/json;base64,") {
             let source_map_origin = origin_path;
-            let source_map = maybe_decode_data_url(path.to_string());
+            let source_map = maybe_decode_data_url(path.into());
             analysis.set_source_map(convert_to_turbopack_source_map(
                 source_map,
                 source_map_origin,
@@ -554,7 +552,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
             origin,
-            Request::parse(Value::new(r.module_path.to_string().into())),
+            Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
             r.issue_source,
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
@@ -563,7 +561,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         evaluation_references.push(i);
                         Some(ModulePart::evaluation())
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export(name.to_string())),
+                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
                     ImportedSymbol::Namespace => None,
@@ -573,7 +571,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         evaluation_references.push(i);
                         Some(ModulePart::evaluation())
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export(name.to_string())),
+                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => None,
                     ImportedSymbol::Namespace => None,
@@ -613,7 +611,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     Reexport::Namespace { exported: n } => {
                         visitor.esm_exports.insert(
-                            n.to_string(),
+                            n.as_str().into(),
                             EsmExport::ImportedNamespace(Vc::upcast(import_ref)),
                         );
                     }
@@ -622,10 +620,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         exported: e,
                     } => {
                         visitor.esm_exports.insert(
-                            e.to_string(),
+                            e.as_str().into(),
                             EsmExport::ImportedBinding(
                                 Vc::upcast(import_ref),
-                                i.to_string(),
+                                i.to_string().into(),
                                 false,
                             ),
                         );
@@ -779,14 +777,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
             code: None,
-            message: StyledString::Text(
-                "top level await is only supported in ESM modules.".to_string(),
-            )
-            .cell(),
+            message: StyledString::Text("top level await is only supported in ESM modules.".into())
+                .cell(),
             source_ident: source.ident(),
             severity: IssueSeverity::Error.into(),
             source: Some(issue_source(source, span)),
-            title: Vc::cell("unexpected top level await".to_string()),
+            title: Vc::cell("unexpected top level await".into()),
         }
         .cell()
         .emit();
@@ -1604,7 +1600,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     let current_context = origin
                         .origin_path()
                         .root()
-                        .join(s.trim_start_matches("/ROOT/").to_string());
+                        .join(s.trim_start_matches("/ROOT/").into());
                     analysis.add_reference(NodeGypBuildReference::new(
                         current_context,
                         compile_time_info.environment().compile_target(),
@@ -1629,11 +1625,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let first_arg = state.link_value(args[0].clone(), in_try).await?;
-                if let Some(ref s) = first_arg.as_str() {
-                    analysis.add_reference(NodeBindingsReference::new(
-                        origin.origin_path(),
-                        s.to_string(),
-                    ));
+                if let Some(s) = first_arg.as_str() {
+                    analysis
+                        .add_reference(NodeBindingsReference::new(origin.origin_path(), s.into()));
                     return Ok(());
                 }
             }
@@ -1724,7 +1718,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
                 let abs_pattern = if p.starts_with("/ROOT/") {
-                    Pattern::Constant(format!("{p}/intl"))
+                    Pattern::Constant(format!("{p}/intl").into())
                 } else {
                     let linked_func_call = state
                         .link_value(
@@ -1803,7 +1797,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     {
                         analysis.add_reference(DirAssetReference::new(
                             source,
-                            Pattern::new(Pattern::Constant(dir)),
+                            Pattern::new(Pattern::Constant(dir.into())),
                         ));
                     }
                     return Ok(());
@@ -1848,11 +1842,11 @@ async fn handle_member(
                 if name.len() != def_name_len + 1 {
                     continue;
                 }
-                let mut it = name.iter().map(Cow::Borrowed).rev();
+                let mut it = name.iter().map(|v| Cow::Borrowed(&**v)).rev();
                 if it.next().unwrap() != Cow::Borrowed(prop) {
                     continue;
                 }
-                if obj.iter_defineable_name_rev().eq(it)
+                if it.eq(obj.iter_defineable_name_rev())
                     && handle_free_var_reference(ast_path, value, span, state, analysis).await?
                 {
                     return Ok(());
@@ -1894,7 +1888,7 @@ async fn handle_free_var(
 
             if var
                 .iter_defineable_name_rev()
-                .eq(name.iter().map(Cow::Borrowed).rev())
+                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
                 && handle_free_var_reference(ast_path, value, span, state, analysis).await?
             {
                 return Ok(());
@@ -1963,7 +1957,7 @@ async fn handle_free_var_reference(
                     Some(TreeShakingMode::ModuleFragments)
                     | Some(TreeShakingMode::ReexportsOnly) => export
                         .as_ref()
-                        .map(|export| ModulePart::export(export.to_string())),
+                        .map(|export| ModulePart::export(export.clone())),
                     None => None,
                 },
                 state.import_externals,
@@ -2122,7 +2116,7 @@ fn analyze_amd_define_with_deps(
                     requests.push(AmdDefineDependencyElement::Module);
                 }
                 _ => {
-                    let request = Request::parse_string(dep.to_string());
+                    let request = Request::parse_string(dep.into());
                     let reference = AmdDefineAssetReference::new(
                         origin,
                         request,
@@ -2210,7 +2204,7 @@ async fn value_visitor_inner(
                 continue;
             }
             if v.iter_defineable_name_rev()
-                .eq(name.iter().map(Cow::Borrowed).rev())
+                .eq(name.iter().map(|v| Cow::Borrowed(&**v)).rev())
             {
                 return Ok((value.into(), true));
             }
@@ -2460,9 +2454,9 @@ struct ModuleReferencesVisitor<'a> {
     old_analyser: StaticAnalyser,
     import_references: &'a [Vc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-    esm_exports: BTreeMap<String, EsmExport>,
+    esm_exports: BTreeMap<RcStr, EsmExport>,
     esm_star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
-    webpack_runtime: Option<(String, Span)>,
+    webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
 }
@@ -2491,10 +2485,10 @@ fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParent
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
-fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
+fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(RcStr)) {
     match decl {
         Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
-            f(ident.sym.to_string());
+            f(ident.sym.as_str().into());
         }
         Decl::Var(var_decl) => {
             let decls = &*var_decl.decls;
@@ -2513,10 +2507,10 @@ fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(String)) {
         }
     }
 }
-fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(String)) {
+fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(RcStr)) {
     match pat {
         Pat::Ident(BindingIdent { id, .. }) => {
-            f(id.sym.to_string());
+            f(id.sym.as_str().into());
         }
         Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
             if let Some(e) = e {
@@ -2532,7 +2526,7 @@ fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(String)) {
                     for_each_ident_in_pat(value, f);
                 }
                 ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                    f(key.sym.to_string());
+                    f(key.sym.as_str().into());
                 }
                 ObjectPatProp::Rest(RestPat { arg, .. }) => {
                     for_each_ident_in_pat(arg, f);
@@ -2574,10 +2568,10 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
 
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
-                fn to_string(name: &ModuleExportName) -> String {
+                fn to_string(name: &ModuleExportName) -> &JsWord {
                     match name {
-                        ModuleExportName::Ident(ident) => ident.sym.to_string(),
-                        ModuleExportName::Str(str) => str.value.to_string(),
+                        ModuleExportName::Ident(ident) => &ident.sym,
+                        ModuleExportName::Str(str) => &str.value,
                     }
                 }
                 match spec {
@@ -2594,8 +2588,8 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                         );
                     }
                     ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
-                        let key = to_string(exported.as_ref().unwrap_or(orig));
-                        let binding_name = to_string(orig);
+                        let key = to_string(exported.as_ref().unwrap_or(orig)).as_str().into();
+                        let binding_name = to_string(orig).as_str().into();
                         let export = {
                             let imported_binding = if let ModuleExportName::Ident(ident) = orig {
                                 self.eval_context.imports.get_binding(&ident.to_id())
@@ -2647,8 +2641,8 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.esm_exports.insert(
-            "default".to_string(),
-            EsmExport::LocalBinding(magic_identifier::mangle("default export"), false),
+            "default".into(),
+            EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
         );
         self.analysis
             .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
@@ -2663,12 +2657,12 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         match &export.decl {
             DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
                 self.esm_exports.insert(
-                    "default".to_string(),
+                    "default".into(),
                     EsmExport::LocalBinding(
                         ident
                             .as_ref()
-                            .map(|i| i.sym.to_string())
-                            .unwrap_or_else(|| magic_identifier::mangle("default export")),
+                            .map(|i| i.sym.as_str().into())
+                            .unwrap_or_else(|| magic_identifier::mangle("default export").into()),
                         false,
                     ),
                 );
@@ -2741,7 +2735,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
                                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                                         if let Some(Lit::Str(str)) = expr.as_lit() {
                                             self.webpack_runtime =
-                                                Some((str.value.to_string(), call.span));
+                                                Some((str.value.as_str().into(), call.span));
                                             return;
                                         }
                                     }
@@ -2965,7 +2959,7 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
 }
 
 #[turbo_tasks::function]
-fn maybe_decode_data_url(url: String) -> Vc<OptionSourceMap> {
+fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
     if let Ok(map) = decode_data_url(&url) {
         Vc::cell(Some(SourceMap::new_decoded(map).cell()))
     } else {

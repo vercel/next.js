@@ -5,7 +5,7 @@ use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
-use turbo_tasks::{IntoTraitRef, ReadRef, TransientInstance, Vc};
+use turbo_tasks::{IntoTraitRef, RcStr, ReadRef, TransientInstance, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -42,7 +42,7 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
 
 #[turbo_tasks::function]
 async fn get_update_stream_item(
-    resource: String,
+    resource: RcStr,
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
@@ -55,8 +55,9 @@ async fn get_update_stream_item(
         Err(e) => {
             plain_issues.push(
                 FatalStreamIssue {
-                    resource: resource.to_string(),
-                    description: StyledString::Text(format!("{}", PrettyPrintError(&e))).cell(),
+                    resource,
+                    description: StyledString::Text(format!("{}", PrettyPrintError(&e)).into())
+                        .cell(),
                 }
                 .cell()
                 .into_plain(OptionIssueProcessingPathItems::none())
@@ -159,7 +160,7 @@ async fn get_update_stream_item(
 
 #[turbo_tasks::function]
 async fn compute_update_stream(
-    resource: String,
+    resource: RcStr,
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
@@ -181,7 +182,7 @@ pub(super) struct UpdateStream(
 impl UpdateStream {
     #[tracing::instrument(skip(get_content), name = "UpdateStream::new")]
     pub async fn new(
-        resource: String,
+        resource: RcStr,
         get_content: TransientInstance<GetContentFn>,
     ) -> Result<UpdateStream> {
         let (sx, rx) = tokio::sync::mpsc::channel(32);
@@ -281,7 +282,7 @@ pub enum UpdateStreamItem {
 #[turbo_tasks::value(serialization = "none")]
 struct FatalStreamIssue {
     description: Vc<StyledString>,
-    resource: String,
+    resource: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -303,7 +304,7 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Fatal error while getting content to stream".to_string()).cell()
+        StyledString::Text("Fatal error while getting content to stream".into()).cell()
     }
 
     #[turbo_tasks::function]

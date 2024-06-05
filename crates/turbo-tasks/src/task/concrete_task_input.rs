@@ -16,7 +16,7 @@ use crate::{
     id::{FunctionId, TraitTypeId},
     magic_any::MagicAny,
     manager::{read_task_cell, read_task_output},
-    registry, turbo_tasks, CellId, RawVc, TaskId, TraitType, ValueTypeId,
+    registry, turbo_tasks, CellId, RawVc, RcStr, TaskId, TraitType, ValueTypeId,
 };
 
 #[derive(Clone)]
@@ -330,7 +330,7 @@ pub enum ConcreteTaskInput {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
     List(Vec<ConcreteTaskInput>),
-    String(String),
+    String(RcStr),
     Bool(bool),
     Usize(usize),
     I8(i8),

@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -21,8 +21,8 @@ use turbopack_ecmascript::{
 use crate::{output_asset::WebAssemblyAsset, source::WebAssemblySource};
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("wasm raw".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("wasm raw".into())
 }
 
 /// Exports the relative path to the WebAssembly file without loading it.
@@ -115,10 +115,7 @@ impl ChunkItem for RawModuleChunkItem {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
             Vc::upcast(self.wasm_asset),
-            Vc::cell(format!(
-                "wasm(url) {}",
-                self.wasm_asset.ident().to_string().await?
-            )),
+            Vc::cell(format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into()),
         ))]))
     }
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -25,11 +25,11 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn modifier(use_swc_css: bool) -> Vc<String> {
+fn modifier(use_swc_css: bool) -> Vc<RcStr> {
     if use_swc_css {
-        Vc::cell("swc css".to_string())
+        Vc::cell("swc css".into())
     } else {
-        Vc::cell("css".to_string())
+        Vc::cell("css".into())
     }
 }
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::resolve::parse::Request;
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
@@ -26,7 +26,7 @@ pub fn throw_module_not_found_error_expr(request: &str, message: &str) -> Expr {
 }
 
 #[turbo_tasks::function]
-pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<String>> {
+pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
     Ok(Vc::cell(
         request
             .await?

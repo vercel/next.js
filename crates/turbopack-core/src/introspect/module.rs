@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 
 use super::{
     utils::{children_from_module_references, content_to_details},
@@ -21,24 +21,24 @@ impl IntrospectableModule {
 }
 
 #[turbo_tasks::function]
-fn ty() -> Vc<String> {
-    Vc::cell("asset".to_string())
+fn ty() -> Vc<RcStr> {
+    Vc::cell("asset".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableModule {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         ty()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<RcStr> {
         self.0.ident().to_string()
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> Vc<String> {
+    fn details(&self) -> Vc<RcStr> {
         content_to_details(self.0.content())
     }
 

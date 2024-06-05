@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct FileSource {
     pub path: Vc<FileSystemPath>,
-    pub query: Vc<String>,
+    pub query: Vc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -22,12 +22,12 @@ impl FileSource {
     pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: Vc::<String>::default(),
+            query: Vc::<RcStr>::default(),
         })
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_query(path: Vc<FileSystemPath>, query: Vc<String>) -> Vc<Self> {
+    pub fn new_with_query(path: Vc<FileSystemPath>, query: Vc<RcStr>) -> Vc<Self> {
         Self::cell(FileSource { path, query })
     }
 }

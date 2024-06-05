@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::version::Version;
 
@@ -16,7 +16,7 @@ pub(super) struct EcmascriptDevMergedChunkVersion {
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptDevMergedChunkVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<String>> {
+    async fn id(&self) -> Result<Vc<RcStr>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_value(self.versions.len());
         let sorted_ids = {
@@ -34,6 +34,6 @@ impl Version for EcmascriptDevMergedChunkVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash))
+        Ok(Vc::cell(hex_hash.into()))
     }
 }

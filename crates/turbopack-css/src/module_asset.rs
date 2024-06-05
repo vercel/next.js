@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -35,8 +35,8 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("css module".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("css module".into())
 }
 
 #[turbo_tasks::value]
@@ -191,7 +191,9 @@ impl ModuleCssAsset {
                                 original: name.to_string(),
                                 from: CssModuleComposeReference::new(
                                     Vc::upcast(self),
-                                    Request::parse(Value::new(specifier.to_string().into())),
+                                    Request::parse(Value::new(
+                                        RcStr::from(specifier.clone()).into(),
+                                    )),
                                 ),
                             }
                         }
@@ -336,7 +338,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                         Module {from} referenced in `composes: ... from {from};` can't be resolved.
                                     "#,
                                     from = &*from.await?.request.to_string().await?
-                                },
+                                }.into(),
                             }.cell().emit();
                             continue;
                         };
@@ -353,7 +355,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                         Module {from} referenced in `composes: ... from {from};` is not a CSS module.
                                     "#,
                                     from = &*from.await?.request.to_string().await?
-                                },
+                                }.into(),
                             }.cell().emit();
                             continue;
                         };
@@ -427,7 +429,7 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
 struct CssModuleComposesIssue {
     severity: Vc<IssueSeverity>,
     source: Vc<AssetIdent>,
-    message: String,
+    message: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -440,7 +442,7 @@ impl Issue for CssModuleComposesIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
-            "An issue occurred while resolving a CSS module `composes:` rule".to_string(),
+            "An issue occurred while resolving a CSS module `composes:` rule".into(),
         )
         .cell())
     }

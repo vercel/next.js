@@ -9,7 +9,7 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_tasks::{util::FormatDuration, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{util::FormatDuration, RcStr, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem,
     FileSystemPath,
@@ -29,13 +29,13 @@ async fn main() -> Result<()> {
 
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
-            let root = current_dir().unwrap().to_str().unwrap().to_string();
-            let disk_fs = DiskFileSystem::new("project".to_string(), root, vec![]);
+            let root = current_dir().unwrap().to_str().unwrap().into();
+            let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
             disk_fs.await?.start_watching()?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join("demo".to_string());
+            let input = fs.root().join("demo".into());
             let dir_hash = hash_directory(input);
             print_hash(dir_hash).await?;
             Ok::<Vc<()>, _>(Default::default())
@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: Vc<String>) -> Result<Vc<()>> {
+async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
     println!("DIR HASH: {}", dir_hash.await?.as_str());
     Ok(Default::default())
 }
@@ -65,7 +65,7 @@ async fn filename(path: Vc<FileSystemPath>) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<String>> {
+async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
     let dir_path = &directory.await?.path;
     let content = directory.read_dir();
     let mut hashes = BTreeMap::new();
@@ -92,7 +92,7 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<String>> {
     let hash = hash_content(
         &mut hashes
             .into_values()
-            .collect::<Vec<String>>()
+            .collect::<Vec<RcStr>>()
             .join(",")
             .as_bytes(),
     );
@@ -101,18 +101,18 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<String>> {
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: Vc<FileSystemPath>) -> Result<Vc<String>> {
+async fn hash_file(file_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),
         FileContent::NotFound => {
             // report error
-            Vc::cell("".to_string())
+            Vc::cell(Default::default())
         }
     })
 }
 
-fn hash_content<R: Read>(content: &mut R) -> Vc<String> {
+fn hash_content<R: Read>(content: &mut R) -> Vc<RcStr> {
     let mut hasher = Sha256::new();
     let mut buf = [0; 1024];
     while let Ok(size) = content.read(&mut buf) {
@@ -120,5 +120,5 @@ fn hash_content<R: Read>(content: &mut R) -> Vc<String> {
     }
     let result = format!("{:x}", hasher.finalize());
 
-    Vc::cell(result)
+    Vc::cell(result.into())
 }

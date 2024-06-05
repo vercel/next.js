@@ -10,7 +10,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
@@ -183,9 +183,9 @@ impl ImportMap {
     }
 
     // TODO this could return &str instead of String to avoid cloning
-    pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<String>)> {
+    pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<RcStr>)> {
         if let Some((i, i_sym)) = self.imports.get(id) {
-            return Some((*i, Some(i_sym.to_string())));
+            return Some((*i, Some(i_sym.as_str().into())));
         }
         if let Some(i) = self.namespace_imports.get(id) {
             return Some((*i, None));
@@ -418,7 +418,7 @@ fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
         PartId::Internal(index) => ImportedSymbol::Part(index),
         PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
-        PartId::Export(e) => ImportedSymbol::Symbol(e.into()),
+        PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
         PartId::Exports => ImportedSymbol::Exports,
     })
 }

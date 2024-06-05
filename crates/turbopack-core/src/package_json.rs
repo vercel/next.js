@@ -2,7 +2,7 @@ use std::{fmt::Write, ops::Deref};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ReadRef, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
@@ -44,7 +44,7 @@ pub async fn read_package_json(path: Vc<FileSystemPath>) -> Result<Vc<OptionPack
                 write!(message, "{}", e)?;
             }
             PackageJsonIssue {
-                error_message: message,
+                error_message: message.into(),
                 path,
             }
             .cell()
@@ -58,14 +58,14 @@ pub async fn read_package_json(path: Vc<FileSystemPath>) -> Result<Vc<OptionPack
 #[turbo_tasks::value(shared)]
 pub struct PackageJsonIssue {
     pub path: Vc<FileSystemPath>,
-    pub error_message: String,
+    pub error_message: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error parsing package.json file".to_string()).cell()
+        StyledString::Text("Error parsing package.json file".into()).cell()
     }
 
     #[turbo_tasks::function]

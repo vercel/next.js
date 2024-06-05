@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use similar::TextDiff;
-use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
     FileSystemPath,
@@ -48,7 +48,7 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         };
         let hash = encode_hex(plain_issue.internal_hash_ref(true));
 
-        let path = issues_path.join(format!("{title}-{}.txt", &hash[0..6]));
+        let path = issues_path.join(format!("{title}-{}.txt", &hash[0..6]).into());
         if !seen.insert(path) {
             continue;
         }
@@ -68,12 +68,13 @@ pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
         // Annoyingly, the PlainIssue.source -> PlainIssueSource.asset ->
         // PlainSource.path -> FileSystemPath.fs -> DiskFileSystem.root changes
         // for everyone.
-        let content = formatted
+        let content: RcStr = formatted
             .as_str()
             .replace(workspace_root, "WORKSPACE_ROOT")
             .replace(&*ANSI_REGEX, "")
             // Normalize syspaths from Windows. These appear in stack traces.
-            .replace("\\\\", "/");
+            .replace("\\\\", "/")
+            .into();
 
         let asset = AssetContent::file(File::from(content).into());
 
@@ -129,7 +130,7 @@ pub async fn diff(path: Vc<FileSystemPath>, actual: Vc<AssetContent>) -> Result<
     if actual != expected {
         if let Some(actual) = actual {
             if *UPDATE {
-                let content = File::from(actual).into();
+                let content = File::from(RcStr::from(actual)).into();
                 path.write(content).await?;
                 println!("updated contents of {}", path_str);
             } else {

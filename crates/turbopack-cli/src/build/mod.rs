@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{RcStr, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::ecmascript::EcmascriptModuleAsset;
@@ -49,10 +49,10 @@ pub fn register() {
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-    project_dir: String,
-    root_dir: String,
+    project_dir: RcStr,
+    root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
-    browserslist_query: String,
+    browserslist_query: RcStr,
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
@@ -62,15 +62,15 @@ pub struct TurbopackBuildBuilder {
 impl TurbopackBuildBuilder {
     pub fn new(
         turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-        project_dir: String,
-        root_dir: String,
+        project_dir: RcStr,
+        root_dir: RcStr,
     ) -> Self {
         TurbopackBuildBuilder {
             turbo_tasks,
             project_dir,
             root_dir,
             entry_requests: vec![],
-            browserslist_query: "chrome 64, edge 79, firefox 67, opera 51, safari 12".to_owned(),
+            browserslist_query: "chrome 64, edge 79, firefox 67, opera 51, safari 12".into(),
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
@@ -83,7 +83,7 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub fn browserslist_query(mut self, browserslist_query: String) -> Self {
+    pub fn browserslist_query(mut self, browserslist_query: RcStr) -> Self {
         self.browserslist_query = browserslist_query;
         self
     }
@@ -157,10 +157,10 @@ impl TurbopackBuildBuilder {
 
 #[turbo_tasks::function]
 async fn build_internal(
-    project_dir: String,
-    root_dir: String,
+    project_dir: RcStr,
+    root_dir: RcStr,
     entry_requests: Vc<EntryRequests>,
-    browserslist_query: String,
+    browserslist_query: RcStr,
     minify_type: MinifyType,
 ) -> Result<Vc<()>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::Browser(
@@ -174,13 +174,14 @@ async fn build_internal(
     )));
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone());
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
-    let project_relative = project_relative
+    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
+    let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
-        .replace(MAIN_SEPARATOR, "/");
+        .replace(MAIN_SEPARATOR, "/")
+        .into();
     let project_path = project_fs.root().join(project_relative);
-    let build_output_root = output_fs.root().join("dist".to_string());
+    let build_output_root = output_fs.root().join("dist".into());
 
     let node_env = NodeEnv::Production.cell();
 
@@ -231,7 +232,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, output_fs.root().join("_".to_string()));
+    let origin = PlainResolveOrigin::new(asset_context, output_fs.root().join("_".into()));
     let project_dir = &project_dir;
     let entries = entry_requests
         .into_iter()
@@ -274,9 +275,9 @@ async fn build_internal(
                                             .await?
                                             .as_deref()
                                             .unwrap()
-                                            .to_string(),
+                                            .into(),
                                     )
-                                    .with_extension("entry.js".to_string()),
+                                    .with_extension("entry.js".into()),
                                 Vc::upcast(ecmascript),
                                 EvaluatableAssets::one(Vc::upcast(ecmascript)),
                                 Value::new(AvailabilityInfo::Root),

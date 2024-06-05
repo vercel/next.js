@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{Value, ValueDefault, Vc};
+use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -31,13 +31,13 @@ use crate::ecmascript::get_condition_maps;
 pub struct TsConfigIssue {
     pub severity: Vc<IssueSeverity>,
     pub source_ident: Vc<AssetIdent>,
-    pub message: String,
+    pub message: RcStr,
 }
 
 #[turbo_tasks::function]
 async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
     let mut opts = resolve_options.await?.clone_value();
-    opts.extensions = vec![".json".to_string()];
+    opts.extensions = vec![".json".into()];
     Ok(opts.cell())
 }
 
@@ -65,7 +65,7 @@ pub async fn read_tsconfigs(
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     source_ident: tsconfig.ident(),
-                    message,
+                    message: message.into(),
                 }
                 .cell()
                 .emit();
@@ -91,7 +91,8 @@ pub async fn read_tsconfigs(
                         TsConfigIssue {
                             severity: IssueSeverity::Error.into(),
                             source_ident: tsconfig.ident(),
-                            message: format!("extends: \"{}\" doesn't resolve correctly", extends),
+                            message: format!("extends: \"{}\" doesn't resolve correctly", extends)
+                                .into(),
                         }
                         .cell()
                         .emit();
@@ -113,7 +114,7 @@ async fn resolve_extends(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<OptionSource>> {
     let parent_dir = tsconfig.ident().path().parent();
-    let request = Request::parse_string(extends.to_string());
+    let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
     // types. There might be multiple alternatives like
@@ -139,7 +140,7 @@ async fn resolve_extends(
 
         // An empty extends is treated as "./tsconfig"
         Request::Empty => {
-            let request = Request::parse_string("./tsconfig".to_string());
+            let request = Request::parse_string("./tsconfig".into());
             Ok(resolve(parent_dir,
                 Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source())
         }
@@ -149,7 +150,7 @@ async fn resolve_extends(
         _ => {
             let mut result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
             if result.await?.is_none() {
-                let request = Request::parse_string(format!("{extends}/tsconfig"));
+                let request = Request::parse_string(format!("{extends}/tsconfig").into());
                 result = resolve(parent_dir, Value::new(ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)), request, resolve_options).first_source();
             }
             Ok(result)
@@ -177,7 +178,7 @@ async fn resolve_extends_rooted_or_relative(
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
     if !path.ends_with(".json") && result.await?.is_none() {
-        let request = Request::parse_string(format!("{path}.json"));
+        let request = Request::parse_string(format!("{path}.json").into());
         result = resolve(
             lookup_path,
             Value::new(ReferenceType::TypeScript(
@@ -240,13 +241,9 @@ pub async fn tsconfig_resolve_options(
     }
 
     let base_url = if let Some(base_url) = read_from_tsconfigs(&configs, |json, source| {
-        json["compilerOptions"]["baseUrl"].as_str().map(|base_url| {
-            source
-                .ident()
-                .path()
-                .parent()
-                .try_join(base_url.to_string())
-        })
+        json["compilerOptions"]["baseUrl"]
+            .as_str()
+            .map(|base_url| source.ident().path().parent().try_join(base_url.into()))
     })
     .await?
     {
@@ -261,7 +258,7 @@ pub async fn tsconfig_resolve_options(
             if let JsonValue::Object(paths) = &json["compilerOptions"]["paths"] {
                 let mut context_dir = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
-                    if let Some(new_context) = *context_dir.try_join(base_url.to_string()).await? {
+                    if let Some(new_context) = *context_dir.try_join(base_url.into()).await? {
                         context_dir = new_context;
                     }
                 };
@@ -279,9 +276,9 @@ pub async fn tsconfig_resolve_options(
                                 entry.map(|s| {
                                     // tsconfig paths are always relative requests
                                     if s.starts_with("./") || s.starts_with("../") {
-                                        s.to_string()
+                                        s.into()
                                     } else {
-                                        format!("./{s}")
+                                        format!("./{s}").into()
                                     }
                                 })
                             })
@@ -299,7 +296,8 @@ pub async fn tsconfig_resolve_options(
                                  expected\n{key}: {value:#}",
                                 key = serde_json::to_string(key)?,
                                 value = value
-                            ),
+                            )
+                            .into(),
                         }
                         .cell()
                         .emit()
@@ -327,11 +325,8 @@ pub async fn tsconfig_resolve_options(
 }
 
 #[turbo_tasks::function]
-pub fn tsconfig() -> Vc<Vec<String>> {
-    Vc::cell(vec![
-        "tsconfig.json".to_string(),
-        "jsconfig.json".to_string(),
-    ])
+pub fn tsconfig() -> Vc<Vec<RcStr>> {
+    Vc::cell(vec!["tsconfig.json".into(), "jsconfig.json".into()])
 }
 
 #[turbo_tasks::function]
@@ -378,15 +373,15 @@ pub async fn type_resolve(
     } = &*request.await?
     {
         let m = if let Some(stripped) = m.strip_prefix('@') {
-            stripped.replace('/', "__")
+            stripped.replace('/', "__").into()
         } else {
             m.clone()
         };
         Some(Request::module(
-            format!("@types/{m}"),
+            format!("@types/{m}").into(),
             Value::new(p.clone()),
-            Vc::<String>::default(),
-            Vc::<String>::default(),
+            Vc::<RcStr>::default(),
+            Vc::<RcStr>::default(),
         ))
     } else {
         None
@@ -458,7 +453,7 @@ async fn apply_typescript_types_options(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
     let mut resolve_options = resolve_options.await?.clone_value();
-    resolve_options.extensions = vec![".tsx".to_string(), ".ts".to_string(), ".d.ts".to_string()];
+    resolve_options.extensions = vec![".tsx".into(), ".ts".into(), ".d.ts".into()];
     resolve_options.into_package = resolve_options
         .into_package
         .drain(..)
@@ -468,7 +463,7 @@ async fn apply_typescript_types_options(
                 unspecified_conditions,
             } = into
             {
-                conditions.insert("types".to_string(), ConditionValue::Set);
+                conditions.insert("types".into(), ConditionValue::Set);
                 Some(ResolveIntoPackage::ExportsField {
                     conditions,
                     unspecified_conditions,
@@ -481,10 +476,10 @@ async fn apply_typescript_types_options(
     resolve_options
         .into_package
         .push(ResolveIntoPackage::MainField {
-            field: "types".to_string(),
+            field: "types".into(),
         });
     for conditions in get_condition_maps(&mut resolve_options) {
-        conditions.insert("types".to_string(), ConditionValue::Set);
+        conditions.insert("types".into(), ConditionValue::Set);
     }
     Ok(resolve_options.into())
 }
@@ -499,7 +494,7 @@ impl Issue for TsConfigIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(
-            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".to_string())
+            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into())
                 .cell(),
         )
     }

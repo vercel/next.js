@@ -5,7 +5,7 @@ use swc_core::common::{
     source_map::Pos,
     SourceMap,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
@@ -15,7 +15,7 @@ use turbopack_core::{
 pub struct IssueEmitter {
     pub source: Vc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
-    pub title: Option<String>,
+    pub title: Option<RcStr>,
     pub emitted_issues: Vec<Vc<AnalyzeIssue>>,
 }
 
@@ -23,7 +23,7 @@ impl IssueEmitter {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         source_map: Arc<SourceMap>,
-        title: Option<String>,
+        title: Option<RcStr>,
     ) -> Self {
         Self {
             source,
@@ -44,8 +44,8 @@ impl Emitter for IssueEmitter {
             .collect::<Vec<_>>()
             .join("");
         let code = db.code.as_ref().map(|d| match d {
-            DiagnosticId::Error(s) => format!("error {s}"),
-            DiagnosticId::Lint(s) => format!("lint {s}"),
+            DiagnosticId::Error(s) => format!("error {s}").into(),
+            DiagnosticId::Lint(s) => format!("lint {s}").into(),
         });
 
         let title;
@@ -53,7 +53,7 @@ impl Emitter for IssueEmitter {
             title = t.clone();
         } else {
             let mut message_split = message.split('\n');
-            title = message_split.next().unwrap().to_string();
+            title = message_split.next().unwrap().to_string().into();
             message = message_split.remainder().unwrap_or("").to_string();
         }
 
@@ -76,7 +76,7 @@ impl Emitter for IssueEmitter {
             .cell(),
             source_ident: self.source.ident(),
             title: Vc::cell(title),
-            message: StyledString::Text(message).cell(),
+            message: StyledString::Text(message.into()).cell(),
             code,
             source,
         }

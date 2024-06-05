@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -43,7 +43,7 @@ pub struct ChunkGroupResult {
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
-    fn name(self: Vc<Self>) -> Vc<String>;
+    fn name(self: Vc<Self>) -> Vc<RcStr>;
     fn context_path(self: Vc<Self>) -> Vc<FileSystemPath>;
     fn output_root(self: Vc<Self>) -> Vc<FileSystemPath>;
 
@@ -55,7 +55,7 @@ pub trait ChunkingContext {
     // discretion of chunking context implementors. However, we currently use this
     // in a couple of places in `turbopack-css`, so we need to remove that
     // dependency first.
-    fn chunk_path(self: Vc<Self>, ident: Vc<AssetIdent>, extension: String) -> Vc<FileSystemPath>;
+    fn chunk_path(self: Vc<Self>, ident: Vc<AssetIdent>, extension: RcStr) -> Vc<FileSystemPath>;
 
     // TODO(alexkirsz) Remove this from the chunking context.
     /// Reference Source Map Assets for chunks
@@ -63,11 +63,11 @@ pub trait ChunkingContext {
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
-    fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<String>>;
+    fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>>;
 
     fn asset_path(
         self: Vc<Self>,
-        content_hash: String,
+        content_hash: RcStr,
         original_asset_ident: Vc<AssetIdent>,
     ) -> Vc<FileSystemPath>;
 

@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{ReadRef, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
@@ -34,14 +34,14 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let module_not_found = StyledString::Strong("Module not found".to_string());
+        let module_not_found = StyledString::Strong("Module not found".into());
 
         Ok(match self.request.await?.request() {
             Some(request) => StyledString::Line(vec![
                 module_not_found,
-                StyledString::Text(": Can't resolve '".to_string()),
+                StyledString::Text(": Can't resolve '".into()),
                 StyledString::Code(request),
-                StyledString::Text("'".to_string()),
+                StyledString::Text("'".into()),
             ]),
             None => module_not_found,
         }
@@ -77,7 +77,9 @@ impl Issue for ResolvingIssue {
                 }
             }
         }
-        Ok(Vc::cell(Some(StyledString::Text(description).cell())))
+        Ok(Vc::cell(Some(
+            StyledString::Text(description.into()).cell(),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -104,7 +106,7 @@ impl Issue for ResolvingIssue {
             "Type of request: {request_type}",
             request_type = self.request_type,
         )?;
-        Ok(Vc::cell(Some(StyledString::Text(detail).cell())))
+        Ok(Vc::cell(Some(StyledString::Text(detail.into()).cell())))
     }
 
     #[turbo_tasks::function]
@@ -120,7 +122,7 @@ async fn lookup_import_map(
     import_map: Vc<ImportMap>,
     file_path: Vc<FileSystemPath>,
     request: Vc<Request>,
-) -> Result<Option<ReadRef<String>>> {
+) -> Result<Option<ReadRef<RcStr>>> {
     let result = import_map.await?.lookup(file_path, request).await?;
 
     if matches!(result, ImportMapResult::NoEntry) {

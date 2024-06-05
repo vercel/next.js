@@ -14,6 +14,7 @@ use serde::{
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
+    RcStr,
 };
 
 /// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
@@ -311,14 +312,16 @@ pub struct AliasMapIntoIter<T> {
 }
 
 struct AliasMapIntoIterItem<T> {
-    prefix: String,
+    prefix: RcStr,
     iterator: std::collections::btree_map::IntoIter<AliasKey, T>,
 }
 
 impl<T> AliasMapIntoIter<T> {
     fn advance_iter(&mut self) -> Option<&mut AliasMapIntoIterItem<T>> {
         let (prefix, map) = self.iter.next()?;
-        let prefix = String::from_utf8(prefix).expect("invalid UTF-8 key in AliasMap");
+        let prefix = String::from_utf8(prefix)
+            .expect("invalid UTF-8 key in AliasMap")
+            .into();
         self.current_prefix_iterator = Some(AliasMapIntoIterItem {
             prefix,
             iterator: map.into_iter(),
@@ -374,7 +377,7 @@ pub struct AliasMapIter<'a, T> {
 }
 
 struct AliasMapIterItem<'a, T> {
-    prefix: String,
+    prefix: RcStr,
     iterator: std::collections::btree_map::Iter<'a, AliasKey, T>,
 }
 
@@ -383,7 +386,9 @@ impl<'a, T> AliasMapIter<'a, T> {
         let Some((prefix, map)) = self.iter.next() else {
             return false;
         };
-        let prefix = String::from_utf8(prefix).expect("invalid UTF-8 key in AliasMap");
+        let prefix = String::from_utf8(prefix)
+            .expect("invalid UTF-8 key in AliasMap")
+            .into();
         self.current_prefix_iterator = Some(AliasMapIterItem {
             prefix,
             iterator: map.iter(),
@@ -470,7 +475,7 @@ where
                         // The suffix is longer than what remains of the request.
                         suffix.len() > remaining.len()
                             // Not a suffix match.
-                            || !remaining.ends_with(suffix)
+                            || !remaining.ends_with(&**suffix)
                         {
                             continue;
                         }
@@ -492,9 +497,9 @@ where
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum AliasPattern {
     /// Will match an exact string.
-    Exact(String),
+    Exact(RcStr),
     /// Will match a pattern with a single wildcard.
-    Wildcard { prefix: String, suffix: String },
+    Wildcard { prefix: RcStr, suffix: RcStr },
 }
 
 impl AliasPattern {
@@ -504,25 +509,27 @@ impl AliasPattern {
     /// characters, including path separators.
     pub fn parse<'a, T>(pattern: T) -> Self
     where
-        T: Into<String> + 'a,
+        T: Into<RcStr> + 'a,
     {
-        let mut pattern = pattern.into();
+        let pattern = pattern.into();
         if let Some(wildcard_index) = pattern.find('*') {
-            let suffix = pattern[wildcard_index + 1..].to_string();
+            let mut pattern = pattern.into_owned();
+
+            let suffix = pattern[wildcard_index + 1..].into();
             pattern.truncate(wildcard_index);
             AliasPattern::Wildcard {
-                prefix: pattern,
+                prefix: pattern.into(),
                 suffix,
             }
         } else {
-            AliasPattern::Exact(pattern.to_string())
+            AliasPattern::Exact(pattern)
         }
     }
 
     /// Creates a pattern that will only match exactly what was passed in.
     pub fn exact<'a, T>(pattern: T) -> Self
     where
-        T: Into<String> + 'a,
+        T: Into<RcStr> + 'a,
     {
         AliasPattern::Exact(pattern.into())
     }
@@ -533,8 +540,8 @@ impl AliasPattern {
     /// 3. a suffix.
     pub fn wildcard<'p, 's, P, S>(prefix: P, suffix: S) -> Self
     where
-        P: Into<String> + 'p,
-        S: Into<String> + 's,
+        P: Into<RcStr> + 'p,
+        S: Into<RcStr> + 's,
     {
         AliasPattern::Wildcard {
             prefix: prefix.into(),
@@ -546,7 +553,7 @@ impl AliasPattern {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 enum AliasKey {
     Exact,
-    Wildcard { suffix: String },
+    Wildcard { suffix: RcStr },
 }
 
 /// Result of a lookup in the alias map.

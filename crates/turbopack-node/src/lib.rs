@@ -11,7 +11,7 @@ use indexmap::IndexSet;
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -200,7 +200,7 @@ async fn separate_assets(
 fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<Completion> {
     emit(
         Vc::upcast(VirtualOutputAsset::new(
-            dir.join("package.json".to_string()),
+            dir.join("package.json".into()),
             AssetContent::file(File::from("{\"type\": \"commonjs\"}").into()),
         )),
         dir,
@@ -266,7 +266,7 @@ pub async fn get_intermediate_asset(
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
     Ok(Vc::upcast(
         NodeJsBootstrapAsset {
-            path: chunking_context.chunk_path(main_entry.ident(), ".js".to_string()),
+            path: chunking_context.chunk_path(main_entry.ident(), ".js".into()),
             chunking_context,
             evaluatable_assets: other_entries.with_entry(main_entry),
         }
@@ -278,7 +278,7 @@ pub async fn get_intermediate_asset(
 #[turbo_tasks::value(shared)]
 pub struct ResponseHeaders {
     pub status: u16,
-    pub headers: Vec<(String, String)>,
+    pub headers: Vec<(RcStr, RcStr)>,
 }
 
 pub fn register() {

@@ -4,7 +4,7 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -55,9 +55,9 @@ impl EcmascriptModulePartReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptModulePartReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         self.part
-            .map_or_else(|| Vc::cell("module".to_string()), |part| part.to_string())
+            .map_or_else(|| Vc::cell("module".into()), |part| part.to_string())
     }
 }
 
@@ -134,7 +134,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
                 "var $name = __turbopack_import__($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP),
                 id: Expr = Expr::Lit(match &*id {
-                    ModuleId::String(s) => s.clone().into(),
+                    ModuleId::String(s) => s.as_str().into(),
                     ModuleId::Number(n) => (*n as f64).into(),
                 })
             );

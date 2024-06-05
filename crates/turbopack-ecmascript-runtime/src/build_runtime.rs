@@ -13,18 +13,14 @@ pub async fn get_nodejs_runtime_code(environment: Vc<Environment>) -> Result<Vc<
     let asset_context = get_runtime_asset_context(environment);
 
     let shared_runtime_utils_code =
-        embed_static_code(asset_context, "shared/runtime-utils.ts".to_string());
-    let shared_base_external_utils_code = embed_static_code(
-        asset_context,
-        "shared-node/base-externals-utils.ts".to_string(),
-    );
-    let shared_node_external_utils_code = embed_static_code(
-        asset_context,
-        "shared-node/node-externals-utils.ts".to_string(),
-    );
+        embed_static_code(asset_context, "shared/runtime-utils.ts".into());
+    let shared_base_external_utils_code =
+        embed_static_code(asset_context, "shared-node/base-externals-utils.ts".into());
+    let shared_node_external_utils_code =
+        embed_static_code(asset_context, "shared-node/node-externals-utils.ts".into());
     let shared_node_wasm_utils_code =
-        embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".to_string());
-    let runtime_code = embed_static_code(asset_context, "build/runtime.ts".to_string());
+        embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".into());
+    let runtime_code = embed_static_code(asset_context, "build/runtime.ts".into());
 
     let mut code = CodeBuilder::default();
     code.push_code(&*shared_runtime_utils_code.await?);

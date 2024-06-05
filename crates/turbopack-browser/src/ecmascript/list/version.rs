@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{TraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{RcStr, TraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::version::{Version, VersionedContentMerger};
 
@@ -22,7 +22,7 @@ pub(super) struct EcmascriptDevChunkListVersion {
 #[turbo_tasks::value_impl]
 impl Version for EcmascriptDevChunkListVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<String>> {
+    async fn id(&self) -> Result<Vc<RcStr>> {
         let by_path = {
             let mut by_path = self
                 .by_path
@@ -60,6 +60,6 @@ impl Version for EcmascriptDevChunkListVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash))
+        Ok(Vc::cell(hex_hash.into()))
     }
 }

@@ -8,6 +8,7 @@ use anyhow::{bail, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use turbo_tasks::RcStr;
 
 use super::{
     alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
@@ -47,11 +48,11 @@ pub enum SubpathValue {
     /// file that uses ESM syntax.
     /// Node defines several conditions in https://nodejs.org/api/packages.html#conditional-exports
     /// TODO: Should this use an enum of predefined keys?
-    Conditional(Vec<(String, SubpathValue)>),
+    Conditional(Vec<(RcStr, SubpathValue)>),
 
     /// A result subpath, defined with `"path": "other"`, remaps imports of
     /// `path` to `other`.
-    Result(String),
+    Result(RcStr),
 
     /// An excluded subpath, defined with `"path": null`, prevents importing
     /// this subpath.
@@ -73,7 +74,7 @@ impl AliasTemplate for SubpathValue {
                     .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
                     .collect::<Result<Vec<_>>>()?,
             ),
-            SubpathValue::Result(value) => SubpathValue::Result(value.replace('*', capture)),
+            SubpathValue::Result(value) => SubpathValue::Result(value.replace('*', capture).into()),
             SubpathValue::Excluded => SubpathValue::Excluded,
         })
     }
@@ -91,7 +92,7 @@ impl SubpathValue {
     /// also exposed to the consumer.
     pub fn add_results<'a>(
         &'a self,
-        conditions: &BTreeMap<String, ConditionValue>,
+        conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut HashMap<&'a str, ConditionValue>,
         target: &mut Vec<(&'a str, Vec<(&'a str, bool)>)>,
@@ -170,7 +171,7 @@ impl SubpathValue {
     fn try_new(value: &Value, ty: ExportImport) -> Result<Self> {
         match value {
             Value::Null => Ok(SubpathValue::Excluded),
-            Value::String(s) => Ok(SubpathValue::Result(s.to_string())),
+            Value::String(s) => Ok(SubpathValue::Result(s.as_str().into())),
             Value::Number(_) => bail!("numeric values are invalid in {ty}s field entries"),
             Value::Bool(_) => bail!("boolean values are invalid in {ty}s field entries"),
             Value::Object(object) => Ok(SubpathValue::Conditional(
@@ -185,7 +186,7 @@ impl SubpathValue {
                             );
                         }
 
-                        Ok((key.to_string(), SubpathValue::try_new(value, ty)?))
+                        Ok((key.as_str().into(), SubpathValue::try_new(value, ty)?))
                     })
                     .collect::<Result<Vec<_>>>()?,
             )),
@@ -204,7 +205,7 @@ struct ResultsIterMut<'a> {
 }
 
 impl<'a> Iterator for ResultsIterMut<'a> {
-    type Item = &'a mut String;
+    type Item = &'a mut RcStr;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(value) = self.stack.pop() {
@@ -257,7 +258,7 @@ impl TryFrom<&Value> for ExportsField {
                     let pattern = if is_folder_shorthand(key) {
                         expand_folder_shorthand(key, &mut value)?
                     } else {
-                        AliasPattern::parse(key)
+                        AliasPattern::parse(key.as_str())
                     };
 
                     map.insert(pattern, value);
@@ -265,13 +266,13 @@ impl TryFrom<&Value> for ExportsField {
 
                 if !conditions.is_empty() {
                     map.insert(
-                        AliasPattern::Exact(".".to_string()),
+                        AliasPattern::Exact(".".into()),
                         SubpathValue::Conditional(
                             conditions
                                 .into_iter()
                                 .map(|(key, value)| {
                                     Ok((
-                                        key.to_string(),
+                                        key.as_str().into(),
                                         SubpathValue::try_new(value, ExportImport::Export)?,
                                     ))
                                 })
@@ -286,7 +287,7 @@ impl TryFrom<&Value> for ExportsField {
                 let mut map = AliasMap::new();
                 map.insert(
                     AliasPattern::exact("."),
-                    SubpathValue::Result(string.to_string()),
+                    SubpathValue::Result(string.as_str().into()),
                 );
                 map
             }
@@ -340,7 +341,7 @@ impl TryFrom<&Value> for ImportsField {
                         bail!("imports key \"{key}\" must begin with a '#'")
                     }
                     let value = SubpathValue::try_new(value, ExportImport::Import)?;
-                    map.insert(AliasPattern::parse(key), value);
+                    map.insert(AliasPattern::parse(key.as_str()), value);
                 }
 
                 map
@@ -378,7 +379,9 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
     for result in value.results_mut() {
         if result.ends_with('/') {
             if result.find('*').is_none() {
-                result.push('*');
+                let mut buf = result.to_string();
+                buf.push('*');
+                *result = buf.into();
             } else {
                 bail!(
                     "invalid exports field value \"{}\" for key \"{}\": \"*\" is not allowed in \
@@ -405,10 +408,10 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
 #[derive(Default)]
 pub struct ResolveAliasMap(#[turbo_tasks(trace_ignore)] AliasMap<SubpathValue>);
 
-impl TryFrom<&IndexMap<String, Value>> for ResolveAliasMap {
+impl TryFrom<&IndexMap<RcStr, Value>> for ResolveAliasMap {
     type Error = anyhow::Error;
 
-    fn try_from(object: &IndexMap<String, Value>) -> Result<Self> {
+    fn try_from(object: &IndexMap<RcStr, Value>) -> Result<Self> {
         let mut map = AliasMap::new();
 
         for (key, value) in object.iter() {
@@ -417,7 +420,7 @@ impl TryFrom<&IndexMap<String, Value>> for ResolveAliasMap {
             let pattern = if is_folder_shorthand(key) {
                 expand_folder_shorthand(key, &mut value)?
             } else {
-                AliasPattern::parse(key)
+                AliasPattern::parse(key.as_str())
             };
 
             map.insert(pattern, value);

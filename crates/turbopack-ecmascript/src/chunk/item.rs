@@ -241,12 +241,12 @@ async fn module_factory_with_code_generation_issue(
                     "An error occurred while generating the chunk item {}",
                     id
                 ));
-                let error_message = format!("{}", PrettyPrintError(&error));
+                let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error.cell(),
                     path: chunk_item.asset_ident().path(),
-                    title: StyledString::Text("Code generation for chunk item errored".to_string())
+                    title: StyledString::Text("Code generation for chunk item errored".into())
                         .cell(),
                     message: StyledString::Text(error_message).cell(),
                 }

@@ -225,7 +225,7 @@ async fn resolve_source_mapping(
     let Some(sm) = *generate_source_map.generate_source_map().await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.to_string()))
+    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.clone().into()))
         .trace()
         .await?;
     match &*trace {
@@ -237,7 +237,7 @@ async fn resolve_source_mapping(
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {
-                let fs_path = project_dir.join(project_path.to_string());
+                let fs_path = project_dir.join(project_path.into());
                 if lib_code {
                     return Ok(ResolvedSourceMapping::MappedLibrary {
                         frame: frame.clone(),

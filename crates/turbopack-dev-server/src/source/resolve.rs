@@ -8,7 +8,7 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{TransientInstance, Value, Vc};
+use turbo_tasks::{RcStr, TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -43,7 +43,7 @@ pub async fn resolve_source_request(
 ) -> Result<Vc<ResolveSourceRequestResult>> {
     let original_path = request.uri.path().to_string();
     // Remove leading slash.
-    let mut current_asset_path = urlencoding::decode(&original_path[1..])?.into_owned();
+    let mut current_asset_path: RcStr = urlencoding::decode(&original_path[1..])?.into();
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
     let mut route_tree = source.get_routes().resolve_strongly_consistent().await?;
@@ -66,30 +66,30 @@ pub async fn resolve_source_request(
                             request_overwrites.headers.clear();
                             for (name, value) in &*headers.await? {
                                 request_overwrites.headers.insert(
-                                    HyperHeaderName::try_from(name)?,
-                                    HyperHeaderValue::try_from(value)?,
+                                    HyperHeaderName::try_from(name.as_str())?,
+                                    HyperHeaderValue::try_from(value.as_str())?,
                                 );
                             }
                         }
                         // do the rewrite
                         match &rewrite.ty {
                             RewriteType::Location { path_and_query } => {
-                                let new_uri = Uri::try_from(path_and_query)?;
+                                let new_uri = Uri::try_from(path_and_query.as_str())?;
                                 let new_asset_path =
                                     urlencoding::decode(&new_uri.path()[1..])?.into_owned();
                                 request_overwrites.uri = new_uri;
-                                current_asset_path = new_asset_path;
+                                current_asset_path = new_asset_path.into();
                                 continue 'routes;
                             }
                             RewriteType::ContentSource {
                                 source,
                                 path_and_query,
                             } => {
-                                let new_uri = Uri::try_from(path_and_query)?;
+                                let new_uri = Uri::try_from(path_and_query.as_str())?;
                                 let new_asset_path =
                                     urlencoding::decode(&new_uri.path()[1..])?.into_owned();
                                 request_overwrites.uri = new_uri;
-                                current_asset_path = new_asset_path;
+                                current_asset_path = new_asset_path.into();
                                 route_tree =
                                     source.get_routes().resolve_strongly_consistent().await?;
                                 continue 'routes;
@@ -134,26 +134,28 @@ async fn request_to_data(
 ) -> Result<ContentSourceData> {
     let mut data = ContentSourceData::default();
     if vary.method {
-        data.method = Some(request.method.clone());
+        data.method = Some(request.method.clone().into());
     }
     if vary.url {
-        data.url = Some(request.uri.to_string());
+        data.url = Some(request.uri.to_string().into());
     }
     if vary.original_url {
-        data.original_url = Some(original_request.uri.to_string());
+        data.original_url = Some(original_request.uri.to_string().into());
     }
     if vary.body {
         data.body = Some(request.body.clone().into());
     }
     if vary.raw_query {
-        data.raw_query = Some(request.uri.query().unwrap_or("").to_string());
+        data.raw_query = Some(request.uri.query().unwrap_or("").into());
     }
     if vary.raw_headers {
         data.raw_headers = Some(
             request
                 .headers
                 .iter()
-                .map(|(name, value)| Ok((name.to_string(), value.to_str()?.to_string())))
+                .map(|(name, value)| {
+                    Ok((name.to_string().into(), value.to_str()?.to_string().into()))
+                })
                 .collect::<Result<Vec<_>>>()?,
         );
     }

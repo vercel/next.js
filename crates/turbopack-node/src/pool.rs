@@ -28,7 +28,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, Vc};
+use turbo_tasks::{duration_span, RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -309,7 +309,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 impl NodeJsPoolProcess {
     async fn new(
         cwd: &Path,
-        env: &HashMap<String, String>,
+        env: &HashMap<RcStr, RcStr>,
         entrypoint: &Path,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         assets_root: Vc<FileSystemPath>,
@@ -688,7 +688,7 @@ enum AcquiredPermits {
 pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
-    env: HashMap<String, String>,
+    env: HashMap<RcStr, RcStr>,
     pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
     pub assets_root: Vc<FileSystemPath>,
     pub project_dir: Vc<FileSystemPath>,
@@ -719,7 +719,7 @@ impl NodeJsPool {
     pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
-        env: HashMap<String, String>,
+        env: HashMap<RcStr, RcStr>,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         assets_root: Vc<FileSystemPath>,
         project_dir: Vc<FileSystemPath>,

@@ -23,14 +23,14 @@ impl Issue for SpecifiedModuleTypeIssue {
             SpecifiedModuleType::CommonJs => "Specified module format (CommonJs) is not matching \
                                               the module format of the source code (EcmaScript \
                                               Modules)"
-                .to_string(),
+                .into(),
             SpecifiedModuleType::EcmaScript => "Specified module format (EcmaScript Modules) is \
                                                 not matching the module format of the source code \
                                                 (CommonJs)"
-                .to_string(),
+                .into(),
             SpecifiedModuleType::Automatic => "Specified module format is not matching the module \
                                                format of the source code"
-                .to_string(),
+                .into(),
         })
         .cell()
     }
@@ -49,7 +49,7 @@ impl Issue for SpecifiedModuleTypeIssue {
                      in the source file.\nIn some cases EcmaScript import/export syntax is added \
                      by an transform and isn't actually part of the source code. In these cases \
                      revisit transformation options to inject the correct syntax."
-                        .to_string()
+                        .into()
                 }
                 SpecifiedModuleType::EcmaScript => {
                     "The EcmaScript module format was specified in the package.json that is \
@@ -59,12 +59,12 @@ impl Issue for SpecifiedModuleTypeIssue {
                      EcmaScript mode. Either change the \"type\" field in the package.json or \
                      replace CommonJs syntax with EcmaScript import/export syntax in the source \
                      file."
-                        .to_string()
+                        .into()
                 }
                 SpecifiedModuleType::Automatic => "The module format specified in the \
                                                    package.json file is not matching the module \
                                                    format of the source code."
-                    .to_string(),
+                    .into(),
             })
             .cell(),
         ))

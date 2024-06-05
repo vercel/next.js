@@ -3,7 +3,7 @@ use indexmap::indexmap;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, Completions, TaskInput, TryFlatJoinIterExt, Value, Vc,
+    trace::TraceRawVcs, Completion, Completions, RcStr, TaskInput, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -62,7 +62,7 @@ pub struct PostCssTransformOptions {
 }
 
 #[turbo_tasks::function]
-fn postcss_configs() -> Vc<Vec<String>> {
+fn postcss_configs() -> Vc<Vec<RcStr>> {
     Vc::cell(
         [
             ".postcssrc",
@@ -85,7 +85,7 @@ fn postcss_configs() -> Vc<Vec<String>> {
             "postcss.config.json",
         ]
         .into_iter()
-        .map(ToOwned::to_owned)
+        .map(RcStr::from)
         .collect(),
     )
 }
@@ -193,8 +193,8 @@ async fn extra_configs_changed(
     let parent_path = postcss_config_path.parent();
 
     let config_paths = [
-        parent_path.join("tailwind.config.js".to_string()),
-        parent_path.join("tailwind.config.ts".to_string()),
+        parent_path.join("tailwind.config.js".into()),
+        parent_path.join("tailwind.config.ts".into()),
     ];
 
     let configs = config_paths
@@ -264,7 +264,7 @@ pub(crate) async fn config_loader_source(
     };
 
     Ok(Vc::upcast(VirtualSource::new(
-        postcss_config_path.append("_.loader.mjs".to_string()),
+        postcss_config_path.append("_.loader.mjs".into()),
         AssetContent::file(File::from(code).into()),
     )))
 }
@@ -284,11 +284,11 @@ async fn postcss_executor(
 
     Ok(asset_context.process(
         Vc::upcast(VirtualSource::new(
-            postcss_config_path.join("transform.ts".to_string()),
-            AssetContent::File(embed_file("transforms/postcss.ts".to_string())).cell(),
+            postcss_config_path.join("transform.ts".into()),
+            AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
         )),
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            "CONFIG".to_string() => config_asset
+            "CONFIG".into() => config_asset
         }))),
     ))
 }
@@ -374,10 +374,10 @@ impl PostCssTransformedAsset {
             .await?
             .get_relative_path_to(&*css_fs_path.await?)
         {
-            css_path
+            css_path.into_owned()
         } else {
             // This shouldn't be an error since it can happen on virtual assets
-            "".to_string()
+            "".into()
         };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
@@ -415,9 +415,9 @@ impl PostCssTransformedAsset {
 #[turbo_tasks::value]
 struct PostCssTransformIssue {
     source: Vc<FileSystemPath>,
-    description: String,
+    description: RcStr,
     severity: Vc<IssueSeverity>,
-    title: String,
+    title: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -429,14 +429,12 @@ impl Issue for PostCssTransformIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(self.title.to_string()).cell()
+        StyledString::Text(self.title.clone()).cell()
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.to_string()).cell(),
-        ))
+        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
     }
 
     #[turbo_tasks::function]

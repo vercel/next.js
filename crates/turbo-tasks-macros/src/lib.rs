@@ -161,7 +161,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
 ///
 /// // Now you can do the following, for any `A` and `B` value types:
 ///
-/// let vc: Vc<GenericType<Vc<u32>, Vc<String>>> = Vc::cell(
+/// let vc: Vc<GenericType<Vc<u32>, Vc<RcStr>>> = Vc::cell(
 ///     GenericType::new(
 ///         Vc::cell(42),
 ///         Vc::cell("hello".to_string())

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -39,12 +39,12 @@ impl ContentSource for CombinedContentSource {
 #[turbo_tasks::value_impl]
 impl Introspectable for CombinedContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
-        Vc::cell("combined content source".to_string())
+    fn ty(&self) -> Vc<RcStr> {
+        Vc::cell("combined content source".into())
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<String>> {
+    async fn title(&self) -> Result<Vc<RcStr>> {
         let titles = self
             .sources
             .iter()
@@ -73,12 +73,12 @@ impl Introspectable for CombinedContentSource {
         if titles.len() > NUMBER_OF_TITLES_TO_DISPLAY {
             titles[NUMBER_OF_TITLES_TO_DISPLAY] = "...";
         }
-        Ok(Vc::cell(titles.join(", ")))
+        Ok(Vc::cell(titles.join(", ").into()))
     }
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let source = Vc::cell("source".to_string());
+        let source = Vc::cell("source".into());
         Ok(Vc::cell(
             self.sources
                 .iter()

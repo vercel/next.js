@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
@@ -30,7 +30,7 @@ pub async fn node_evaluate_asset_context(
     execution_context: Vc<ExecutionContext>,
     import_map: Option<Vc<ImportMap>>,
     transitions: Option<Vc<TransitionsByName>>,
-    layer: String,
+    layer: RcStr,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
         import_map.await?.clone_value()
@@ -40,17 +40,17 @@ pub async fn node_evaluate_asset_context(
     import_map.insert_wildcard_alias(
         "@vercel/turbopack-node/",
         ImportMapping::PrimaryAlternative(
-            "./*".to_string(),
+            "./*".into(),
             Some(turbopack_node::embed_js::embed_fs().root()),
         )
         .cell(),
     );
     let import_map = import_map.cell();
-    let node_env =
-        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".to_string()).await? {
-            node_env.clone()
+    let node_env: RcStr =
+        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".into()).await? {
+            node_env.as_str().into()
         } else {
-            "development".to_string()
+            "development".into()
         };
 
     // base context used for node_modules (and context for app code will be derived
@@ -59,7 +59,7 @@ pub async fn node_evaluate_asset_context(
         enable_node_modules: Some(execution_context.project_path().root().resolve().await?),
         enable_node_externals: true,
         enable_node_native_modules: true,
-        custom_conditions: vec![node_env.clone(), "node".to_string()],
+        custom_conditions: vec![node_env.clone(), "node".into()],
         ..Default::default()
     };
     // app code context, includes a rule to switch to the node_modules context
@@ -80,7 +80,7 @@ pub async fn node_evaluate_asset_context(
             .defines(
                 compile_time_defines!(
                     process.turbopack = true,
-                    process.env.NODE_ENV = node_env,
+                    process.env.NODE_ENV = node_env.into_owned(),
                     process.env.TURBOPACK = true
                 )
                 .cell(),

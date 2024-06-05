@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_tasks::{TurboTasks, Value, Vc};
+use turbo_tasks::{RcStr, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -68,11 +68,11 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
     b.to_async(rt).iter(move || {
         let tt = TurboTasks::new(MemoryBackend::default());
-        let tests_root = bench_input.tests_root.clone();
-        let input = bench_input.input.clone();
+        let tests_root: RcStr = bench_input.tests_root.clone().into();
+        let input: RcStr = bench_input.input.clone().into();
         async move {
             let task = tt.spawn_once_task(async move {
-                let input_fs = DiskFileSystem::new("tests".to_string(), tests_root.clone(), vec![]);
+                let input_fs = DiskFileSystem::new("tests".into(), tests_root.clone(), vec![]);
                 let input = input_fs.root().join(input.clone());
 
                 let input_dir = input.parent().parent();
@@ -97,7 +97,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         ..Default::default()
                     }
                     .cell(),
-                    Vc::cell("node_file_trace".to_string()),
+                    Vc::cell("node_file_trace".into()),
                 );
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))

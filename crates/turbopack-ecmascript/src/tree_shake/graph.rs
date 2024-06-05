@@ -23,6 +23,7 @@ use swc_core::{
         utils::{find_pat_ids, private_ident, quote_ident, IdentExt},
     },
 };
+use turbo_tasks::RcStr;
 
 use super::{
     util::{ids_captured_by, ids_used_by, ids_used_by_ignoring_nested},
@@ -271,7 +272,7 @@ impl DepGraph {
                         required_vars.insert(id);
 
                         if let Some(export) = &data[item].export {
-                            exports.insert(Key::Export(export.to_string()), ix as u32);
+                            exports.insert(Key::Export(export.as_str().into()), ix as u32);
                         }
                     }
                     ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
@@ -1128,7 +1129,7 @@ const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
 pub(crate) enum PartId {
     ModuleEvaluation,
     Exports,
-    Export(String),
+    Export(RcStr),
     Internal(u32),
 }
 

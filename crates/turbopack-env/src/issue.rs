@@ -13,7 +13,7 @@ pub struct ProcessEnvIssue {
 impl Issue for ProcessEnvIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error loading dotenv file".to_string()).cell()
+        StyledString::Text("Error loading dotenv file".into()).cell()
     }
 
     #[turbo_tasks::function]

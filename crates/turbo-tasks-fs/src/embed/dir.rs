@@ -2,14 +2,14 @@ pub use ::include_dir::{
     include_dir, {self},
 };
 use anyhow::Result;
-use turbo_tasks::{TransientInstance, Vc};
+use turbo_tasks::{RcStr, TransientInstance, Vc};
 
 use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
 
 #[turbo_tasks::function]
 pub async fn directory_from_relative_path(
-    name: String,
-    path: String,
+    name: RcStr,
+    path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(name, path, vec![]);
     disk_fs.await?.start_watching()?;
@@ -19,7 +19,7 @@ pub async fn directory_from_relative_path(
 
 #[turbo_tasks::function]
 pub async fn directory_from_include_dir(
-    name: String,
+    name: RcStr,
     dir: TransientInstance<&'static include_dir::Dir<'static>>,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     Ok(Vc::upcast(EmbeddedFileSystem::new(name, dir)))
@@ -72,7 +72,7 @@ macro_rules! embed_directory_internal {
         static dir: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
 
         turbo_tasks_fs::embed::directory_from_include_dir(
-            $name.to_string(),
+            $name.into(),
             turbo_tasks::TransientInstance::new(&dir),
         )
     }};

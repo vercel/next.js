@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -26,16 +26,19 @@ impl ProcessEnv for EmbeddableProcessEnv {
 
         let encoded = prior
             .iter()
-            .map(|(k, v)| (k.clone(), StringifyJs(v).to_string()))
+            .map(|(k, v)| (k.clone(), StringifyJs(v).to_string().into()))
             .collect();
 
         Ok(Vc::cell(encoded))
     }
 
     #[turbo_tasks::function]
-    async fn read(&self, name: String) -> Result<Vc<Option<String>>> {
+    async fn read(&self, name: RcStr) -> Result<Vc<Option<RcStr>>> {
         let prior = self.prior.read(name).await?;
-        let encoded = prior.as_deref().map(|s| StringifyJs(s).to_string());
+        let encoded = prior
+            .as_deref()
+            .map(|s| StringifyJs(s).to_string())
+            .map(RcStr::from);
         Ok(Vc::cell(encoded))
     }
 }

@@ -20,14 +20,14 @@ pub fn unparen(expr: &Expr) -> &Expr {
 pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     let mut result = match value {
         JsValue::Constant(v) => Pattern::Constant(match v {
-            ConstantValue::Str(str) => str.to_string(),
-            ConstantValue::True => "true".to_string(),
-            ConstantValue::False => "false".to_string(),
-            ConstantValue::Null => "null".to_string(),
-            ConstantValue::Num(ConstantNumber(n)) => n.to_string(),
-            ConstantValue::BigInt(n) => n.to_string(),
-            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}"),
-            ConstantValue::Undefined => "undefined".to_string(),
+            ConstantValue::Str(str) => str.as_str().into(),
+            ConstantValue::True => "true".into(),
+            ConstantValue::False => "false".into(),
+            ConstantValue::Null => "null".into(),
+            ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
+            ConstantValue::BigInt(n) => n.to_string().into(),
+            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Undefined => "undefined".into(),
         }),
         JsValue::Alternatives(_, alts) => {
             Pattern::Alternatives(alts.iter().map(js_value_to_pattern).collect())

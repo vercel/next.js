@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
 };
@@ -64,7 +64,7 @@ impl FileSystem for ServerFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for ServerFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
-        Vc::cell("root of the server".to_string())
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("root of the server".into())
     }
 }

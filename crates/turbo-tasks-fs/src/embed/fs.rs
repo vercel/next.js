@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use include_dir::{Dir, DirEntry};
-use turbo_tasks::{Completion, TransientInstance, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, TransientInstance, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileMeta, FileSystem, FileSystemPath,
@@ -9,7 +9,7 @@ use crate::{
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EmbeddedFileSystem {
-    name: String,
+    name: RcStr,
     #[turbo_tasks(trace_ignore)]
     dir: TransientInstance<&'static Dir<'static>>,
 }
@@ -18,7 +18,7 @@ pub struct EmbeddedFileSystem {
 impl EmbeddedFileSystem {
     #[turbo_tasks::function]
     pub(super) fn new(
-        name: String,
+        name: RcStr,
         dir: TransientInstance<&'static Dir<'static>>,
     ) -> Vc<EmbeddedFileSystem> {
         EmbeddedFileSystem { name, dir }.cell()
@@ -55,11 +55,16 @@ impl FileSystem for EmbeddedFileSystem {
             .entries()
             .iter()
             .map(|e| {
-                let entry_name = e.path().file_name().unwrap_or_default().to_string_lossy();
-                let entry_path = path.join(entry_name.to_string());
+                let entry_name: RcStr = e
+                    .path()
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into();
+                let entry_path = path.join(entry_name.clone());
 
                 (
-                    entry_name.to_string(),
+                    entry_name,
                     match e {
                         DirEntry::Dir(_) => DirectoryEntry::Directory(entry_path),
                         DirEntry::File(_) => DirectoryEntry::File(entry_path),
@@ -107,7 +112,7 @@ impl FileSystem for EmbeddedFileSystem {
 #[turbo_tasks::value_impl]
 impl ValueToString for EmbeddedFileSystem {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<String> {
+    fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.name.clone())
     }
 }

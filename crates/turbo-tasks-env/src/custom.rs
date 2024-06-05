@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use crate::{case_insensitive_read, EnvMap, ProcessEnv};
 
@@ -32,7 +32,7 @@ impl ProcessEnv for CustomProcessEnv {
     }
 
     #[turbo_tasks::function]
-    async fn read(&self, name: String) -> Result<Vc<Option<String>>> {
+    async fn read(&self, name: RcStr) -> Result<Vc<Option<RcStr>>> {
         let custom = case_insensitive_read(self.custom, name.clone());
         match &*custom.await? {
             Some(_) => Ok(custom),

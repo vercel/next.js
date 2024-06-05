@@ -76,7 +76,7 @@ impl EcmascriptBuildNodeChunkContent {
             code,
             r#"
                 module.exports = {{
-
+    
             "#,
         )?;
 

@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -26,7 +26,7 @@ pub fn create_node_api_source(
     route_type: RouteType,
     server_root: Vc<FileSystemPath>,
     route_match: Vc<Box<dyn RouteMatcher>>,
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     entry: Vc<Box<dyn NodeEntry>>,
     render_data: Vc<JsonValue>,
     debug: bool,
@@ -61,7 +61,7 @@ pub struct NodeApiContentSource {
     base_segments: Vec<BaseSegment>,
     route_type: RouteType,
     server_root: Vc<FileSystemPath>,
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     route_match: Vc<Box<dyn RouteMatcher>>,
     entry: Vc<Box<dyn NodeEntry>>,
     render_data: Vc<JsonValue>,
@@ -71,7 +71,7 @@ pub struct NodeApiContentSource {
 #[turbo_tasks::value_impl]
 impl NodeApiContentSource {
     #[turbo_tasks::function]
-    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<RcStr>> {
         Ok(self.await?.pathname)
     }
 }
@@ -109,7 +109,7 @@ impl GetContentSourceContent for NodeApiContentSource {
     #[turbo_tasks::function]
     async fn get(
         &self,
-        path: String,
+        path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
@@ -145,7 +145,7 @@ impl GetContentSourceContent for NodeApiContentSource {
                 original_url: original_url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", path),
+                path: format!("/{}", path).into(),
                 data: Some(self.render_data.await?),
             }
             .cell(),
@@ -157,28 +157,31 @@ impl GetContentSourceContent for NodeApiContentSource {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("node api content source".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("node api content source".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
+    fn title(&self) -> Vc<RcStr> {
         self.pathname
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "base: {:?}\ntype: {:?}",
-            self.base_segments, self.route_type
-        )))
+    async fn details(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "base: {:?}\ntype: {:?}",
+                self.base_segments, self.route_type
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -187,11 +190,11 @@ impl Introspectable for NodeApiContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                Vc::cell("module".to_string()),
+                Vc::cell("module".into()),
                 IntrospectableModule::new(Vc::upcast(entry.module)),
             ));
             set.insert((
-                Vc::cell("intermediate asset".to_string()),
+                Vc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     entry.chunking_context,
                     entry.module,

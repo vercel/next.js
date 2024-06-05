@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
@@ -10,7 +10,7 @@ use crate::{module::Module, resolve::ModulePart};
 /// per-module aliases of some requests to already created module assets.
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<String, Vc<Box<dyn Module>>>);
+pub struct InnerAssets(IndexMap<RcStr, Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
@@ -55,9 +55,9 @@ pub enum EcmaScriptModulesReferenceSubType {
 #[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub struct ImportAttributes {
-    pub layer: Option<String>,
-    pub supports: Option<String>,
-    pub media: Option<String>,
+    pub layer: Option<RcStr>,
+    pub supports: Option<RcStr>,
+    pub media: Option<RcStr>,
 }
 
 /// The accumulated list of conditions that should be applied to this module
@@ -65,15 +65,15 @@ pub struct ImportAttributes {
 #[derive(Debug, Default)]
 #[turbo_tasks::value]
 pub struct ImportContext {
-    pub layers: Vec<String>,
-    pub supports: Vec<String>,
-    pub media: Vec<String>,
+    pub layers: Vec<RcStr>,
+    pub supports: Vec<RcStr>,
+    pub media: Vec<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl ImportContext {
     #[turbo_tasks::function]
-    pub fn new(layers: Vec<String>, media: Vec<String>, supports: Vec<String>) -> Vc<Self> {
+    pub fn new(layers: Vec<RcStr>, media: Vec<RcStr>, supports: Vec<RcStr>) -> Vc<Self> {
         ImportContext {
             layers,
             media,
@@ -85,9 +85,9 @@ impl ImportContext {
     #[turbo_tasks::function]
     pub async fn add_attributes(
         self: Vc<Self>,
-        attr_layer: Option<String>,
-        attr_media: Option<String>,
-        attr_supports: Option<String>,
+        attr_layer: Option<RcStr>,
+        attr_media: Option<RcStr>,
+        attr_supports: Option<RcStr>,
     ) -> Result<Vc<Self>> {
         let this = &*self.await?;
 
@@ -95,7 +95,7 @@ impl ImportContext {
             let mut layers = this.layers.clone();
             if let Some(attr_layer) = attr_layer {
                 if !layers.contains(&attr_layer) {
-                    layers.push(attr_layer.to_owned());
+                    layers.push(attr_layer);
                 }
             }
             layers
@@ -105,7 +105,7 @@ impl ImportContext {
             let mut media = this.media.clone();
             if let Some(attr_media) = attr_media {
                 if !media.contains(&attr_media) {
-                    media.push(attr_media.to_owned());
+                    media.push(attr_media);
                 }
             }
             media
@@ -115,7 +115,7 @@ impl ImportContext {
             let mut supports = this.supports.clone();
             if let Some(attr_supports) = attr_supports {
                 if !supports.contains(&attr_supports) {
-                    supports.push(attr_supports.to_owned());
+                    supports.push(attr_supports);
                 }
             }
             supports
@@ -125,7 +125,7 @@ impl ImportContext {
     }
 
     #[turbo_tasks::function]
-    pub fn modifier(&self) -> Result<Vc<String>> {
+    pub fn modifier(&self) -> Result<Vc<RcStr>> {
         use std::fmt::Write;
         let mut modifier = String::new();
         if !self.layers.is_empty() {
@@ -158,7 +158,7 @@ impl ImportContext {
                 write!(modifier, "supports({})", supports)?
             }
         }
-        Ok(Vc::cell(modifier))
+        Ok(Vc::cell(modifier.into()))
     }
 }
 

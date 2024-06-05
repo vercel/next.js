@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -93,8 +93,8 @@ impl Chunk for SingleItemCssChunk {
 }
 
 #[turbo_tasks::function]
-fn single_item_modifier() -> Vc<String> {
-    Vc::cell("single item css chunk".to_string())
+fn single_item_modifier() -> Vc<RcStr> {
+    Vc::cell("single item css chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -106,7 +106,7 @@ impl OutputAsset for SingleItemCssChunk {
                 self.item
                     .asset_ident()
                     .with_modifier(single_item_modifier()),
-                ".css".to_string(),
+                ".css".into(),
             ),
         ))
     }
@@ -146,29 +146,29 @@ impl GenerateSourceMap for SingleItemCssChunk {
 }
 
 #[turbo_tasks::function]
-fn introspectable_type() -> Vc<String> {
-    Vc::cell("single asset css chunk".to_string())
+fn introspectable_type() -> Vc<RcStr> {
+    Vc::cell("single asset css chunk".into())
 }
 
 #[turbo_tasks::function]
-fn entry_module_key() -> Vc<String> {
-    Vc::cell("entry module".to_string())
+fn entry_module_key() -> Vc<RcStr> {
+    Vc::cell("entry module".into())
 }
 
 #[turbo_tasks::value_impl]
 impl Introspectable for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
+    fn ty(&self) -> Vc<RcStr> {
         introspectable_type()
     }
 
     #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<String> {
+    fn title(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<String>> {
+    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let this = self.await?;
         let mut details = String::new();
         write!(
@@ -176,6 +176,6 @@ impl Introspectable for SingleItemCssChunk {
             "Chunk item: {}",
             this.item.asset_ident().to_string().await?
         )?;
-        Ok(Vc::cell(details))
+        Ok(Vc::cell(details.into()))
     }
 }

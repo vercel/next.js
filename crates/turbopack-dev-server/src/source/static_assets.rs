@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -15,7 +15,7 @@ use super::{
 
 #[turbo_tasks::value(shared)]
 pub struct StaticAssetsContentSource {
-    pub prefix: Vc<String>,
+    pub prefix: Vc<RcStr>,
     pub dir: Vc<FileSystemPath>,
 }
 
@@ -23,13 +23,13 @@ pub struct StaticAssetsContentSource {
 impl StaticAssetsContentSource {
     // TODO(WEB-1151): Remove this method and migrate users to `with_prefix`.
     #[turbo_tasks::function]
-    pub fn new(prefix: String, dir: Vc<FileSystemPath>) -> Vc<StaticAssetsContentSource> {
+    pub fn new(prefix: RcStr, dir: Vc<FileSystemPath>) -> Vc<StaticAssetsContentSource> {
         StaticAssetsContentSource::with_prefix(Vc::cell(prefix), dir)
     }
 
     #[turbo_tasks::function]
     pub async fn with_prefix(
-        prefix: Vc<String>,
+        prefix: Vc<RcStr>,
         dir: Vc<FileSystemPath>,
     ) -> Result<Vc<StaticAssetsContentSource>> {
         if cfg!(debug_assertions) {
@@ -95,7 +95,7 @@ impl StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    fn get(&self, _path: String, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
+    fn get(&self, _path: RcStr, _data: Value<ContentSourceData>) -> Vc<ContentSourceContent> {
         let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(self.path)).content();
         ContentSourceContent::static_content(content.versioned())
     }
@@ -104,8 +104,8 @@ impl GetContentSourceContent for StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl Introspectable for StaticAssetsContentSource {
     #[turbo_tasks::function]
-    fn ty(&self) -> Vc<String> {
-        Vc::cell("static assets directory content source".to_string())
+    fn ty(&self) -> Vc<RcStr> {
+        Vc::cell("static assets directory content source".into())
     }
 
     #[turbo_tasks::function]
@@ -125,7 +125,7 @@ impl Introspectable for StaticAssetsContentSource {
                     }
                     DirectoryEntry::Directory(path) => {
                         Vc::upcast(StaticAssetsContentSource::with_prefix(
-                            Vc::cell(format!("{}{name}/", &*prefix)),
+                            Vc::cell(format!("{}{name}/", &*prefix).into()),
                             *path,
                         ))
                     }

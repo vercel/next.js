@@ -4,7 +4,7 @@ use anyhow::Result;
 use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -88,7 +88,7 @@ pub struct SourceMapTrace {
     map: Vc<SourceMap>,
     line: usize,
     column: usize,
-    name: Option<String>,
+    name: Option<RcStr>,
 }
 
 /// The result of performing a source map trace.
@@ -106,7 +106,7 @@ impl SourceMapTrace {
         map: Vc<SourceMap>,
         line: usize,
         column: usize,
-        name: Option<String>,
+        name: Option<RcStr>,
     ) -> Vc<Self> {
         SourceMapTrace {
             map,
@@ -140,7 +140,12 @@ impl SourceMapTrace {
                 file: t.original_file.clone().into(),
                 line: Some(t.original_line.saturating_add(1)),
                 column: Some(t.original_column.saturating_add(1)),
-                name: t.name.clone().or_else(|| this.name.clone()).map(Into::into),
+                name: t
+                    .name
+                    .clone()
+                    .or_else(|| this.name.clone())
+                    .map(|v| v.into_owned())
+                    .map(Cow::Owned),
             }),
             _ => TraceResult::NotFound,
         };

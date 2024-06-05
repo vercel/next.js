@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types)]
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
@@ -30,9 +30,9 @@ pub struct HttpResponseBody(pub Vec<u8>);
 #[turbo_tasks::value_impl]
 impl HttpResponseBody {
     #[turbo_tasks::function]
-    pub async fn to_string(self: Vc<Self>) -> Result<Vc<String>> {
+    pub async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
         let this = &*self.await?;
-        Ok(Vc::cell(std::str::from_utf8(&this.0)?.to_owned()))
+        Ok(Vc::cell(std::str::from_utf8(&this.0)?.into()))
     }
 }
 
@@ -48,8 +48,8 @@ pub struct OptionProxyConfig(Option<ProxyConfig>);
 
 #[turbo_tasks::function]
 pub async fn fetch(
-    url: Vc<String>,
-    user_agent: Vc<Option<String>>,
+    url: Vc<RcStr>,
+    user_agent: Vc<Option<RcStr>>,
     proxy_option: Vc<OptionProxyConfig>,
 ) -> Result<Vc<FetchResult>> {
     let url = &*url.await?;
@@ -65,9 +65,9 @@ pub async fn fetch(
 
     let client = client_builder.build()?;
 
-    let mut builder = client.get(url);
+    let mut builder = client.get(url.as_str());
     if let Some(user_agent) = user_agent {
-        builder = builder.header("User-Agent", user_agent);
+        builder = builder.header("User-Agent", user_agent.as_str());
     }
 
     let response = builder.send().await.and_then(|r| r.error_for_status());
@@ -99,7 +99,7 @@ pub enum FetchErrorKind {
 
 #[turbo_tasks::value(shared)]
 pub struct FetchError {
-    pub url: Vc<String>,
+    pub url: Vc<RcStr>,
     pub kind: Vc<FetchErrorKind>,
     pub detail: Vc<StyledString>,
 }
@@ -117,8 +117,8 @@ impl FetchError {
         };
 
         FetchError {
-            detail: StyledString::Text(error.to_string()).cell(),
-            url: Vc::cell(url.to_owned()),
+            detail: StyledString::Text(error.to_string().into()).cell(),
+            url: Vc::cell(url.into()),
             kind: kind.into(),
         }
     }
@@ -148,7 +148,7 @@ impl FetchError {
 pub struct FetchIssue {
     pub issue_context: Vc<FileSystemPath>,
     pub severity: Vc<IssueSeverity>,
-    pub url: Vc<String>,
+    pub url: Vc<RcStr>,
     pub kind: Vc<FetchErrorKind>,
     pub detail: Vc<StyledString>,
 }
@@ -167,7 +167,7 @@ impl Issue for FetchIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Error while requesting resource".to_string()).cell()
+        StyledString::Text("Error while requesting resource".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -185,15 +185,17 @@ impl Issue for FetchIssue {
                 FetchErrorKind::Connect => format!(
                     "There was an issue establishing a connection while requesting {}.",
                     url
-                ),
-                FetchErrorKind::Status(status) => {
-                    format!(
-                        "Received response with status {} when requesting {}",
-                        status, url
-                    )
+                )
+                .into(),
+                FetchErrorKind::Status(status) => format!(
+                    "Received response with status {} when requesting {}",
+                    status, url
+                )
+                .into(),
+                FetchErrorKind::Timeout => {
+                    format!("Connection timed out when requesting {}", url).into()
                 }
-                FetchErrorKind::Timeout => format!("Connection timed out when requesting {}", url),
-                FetchErrorKind::Other => format!("There was an issue requesting {}", url),
+                FetchErrorKind::Other => format!("There was an issue requesting {}", url).into(),
             })
             .cell(),
         )))

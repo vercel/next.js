@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,8 +21,8 @@ pub(super) struct NodeJsBootstrapAsset {
 }
 
 #[turbo_tasks::function]
-fn node_js_bootstrap_chunk_reference_description() -> Vc<String> {
-    Vc::cell("node.js bootstrap chunk".to_string())
+fn node_js_bootstrap_chunk_reference_description() -> Vc<RcStr> {
+    Vc::cell("node.js bootstrap chunk".into())
 }
 
 impl NodeJsBootstrapAsset {

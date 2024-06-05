@@ -106,7 +106,8 @@ async fn base_resolve_options(
         for req in EDGE_NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(Some(format!("node:{req}")), ExternalType::CommonJs).into(),
+                ImportMapping::External(Some(format!("node:{req}").into()), ExternalType::CommonJs)
+                    .into(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
@@ -126,31 +127,31 @@ async fn base_resolve_options(
 
     let conditions = {
         let mut conditions: ResolutionConditions = [
-            ("import".to_string(), ConditionValue::Unknown),
-            ("require".to_string(), ConditionValue::Unknown),
+            ("import".into(), ConditionValue::Unknown),
+            ("require".into(), ConditionValue::Unknown),
         ]
         .into_iter()
         .collect();
         if opt.browser {
-            conditions.insert("browser".to_string(), ConditionValue::Set);
+            conditions.insert("browser".into(), ConditionValue::Set);
         }
         if opt.module {
-            conditions.insert("module".to_string(), ConditionValue::Set);
+            conditions.insert("module".into(), ConditionValue::Set);
         }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
-                conditions.insert(condition.to_string(), ConditionValue::Set);
+                conditions.insert(condition.clone(), ConditionValue::Set);
             }
         }
         for condition in opt.custom_conditions.iter() {
-            conditions.insert(condition.to_string(), ConditionValue::Set);
+            conditions.insert(condition.clone(), ConditionValue::Set);
         }
         // Infer some well-known conditions
         let dev = conditions.get("development").cloned();
         let prod = conditions.get("production").cloned();
         if prod.is_none() {
             conditions.insert(
-                "production".to_string(),
+                "production".into(),
                 if matches!(dev, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -160,7 +161,7 @@ async fn base_resolve_options(
         }
         if dev.is_none() {
             conditions.insert(
-                "development".to_string(),
+                "development".into(),
                 if matches!(prod, Some(ConditionValue::Set)) {
                     ConditionValue::Unset
                 } else {
@@ -178,42 +179,36 @@ async fn base_resolve_options(
     } else {
         let mut ext = Vec::new();
         if opt.enable_typescript && opt.enable_react {
-            ext.push(".tsx".to_string());
+            ext.push(".tsx".into());
         }
         if opt.enable_typescript {
-            ext.push(".ts".to_string());
+            ext.push(".ts".into());
         }
         if opt.enable_react {
-            ext.push(".jsx".to_string());
+            ext.push(".jsx".into());
         }
-        ext.push(".js".to_string());
+        ext.push(".js".into());
         if opt.enable_mjs_extension {
-            ext.push(".mjs".to_string());
+            ext.push(".mjs".into());
         }
         if opt.enable_node_native_modules {
-            ext.push(".node".to_string());
+            ext.push(".node".into());
         }
-        ext.push(".json".to_string());
+        ext.push(".json".into());
         ext
     };
     Ok(ResolveOptions {
         extensions,
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
-                vec![ResolveModules::Nested(
-                    root,
-                    vec!["node_modules".to_string()],
-                )]
+                vec![ResolveModules::Nested(root, vec!["node_modules".into()])]
             } else {
                 Vec::new()
             }
         } else {
             let mut mods = Vec::new();
             if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(
-                    dir,
-                    vec!["node_modules".to_string()],
-                ));
+                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
             }
             mods
         },
@@ -224,16 +219,16 @@ async fn base_resolve_options(
             }];
             if opt.browser {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "browser".to_string(),
+                    field: "browser".into(),
                 });
             }
             if opt.module {
                 resolve_into.push(ResolveIntoPackage::MainField {
-                    field: "module".to_string(),
+                    field: "module".into(),
                 });
             }
             resolve_into.push(ResolveIntoPackage::MainField {
-                field: "main".to_string(),
+                field: "main".into(),
             });
             resolve_into
         },
@@ -243,11 +238,11 @@ async fn base_resolve_options(
                 unspecified_conditions: ConditionValue::Unset,
             }];
             if opt.browser {
-                resolve_in.push(ResolveInPackage::AliasField("browser".to_string()));
+                resolve_in.push(ResolveInPackage::AliasField("browser".into()));
             }
             resolve_in
         },
-        default_files: vec!["index".to_string()],
+        default_files: vec!["index".into()],
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
         plugins,

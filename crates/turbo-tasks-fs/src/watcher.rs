@@ -18,7 +18,7 @@ use notify_debouncer_full::{DebounceEventResult, DebouncedEvent, Debouncer, File
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator};
+use turbo_tasks::{spawn_thread, Invalidator, RcStr};
 
 use crate::{
     format_absolute_fs_path,
@@ -124,9 +124,9 @@ impl DiskWatcher {
     /// - Doesn't emit Modify events after a Create event
     pub(crate) fn start_watching(
         self: Arc<Self>,
-        name: String,
+        name: RcStr,
         root_path: PathBuf,
-        report_invalidation_reason: Option<(String, PathBuf)>,
+        report_invalidation_reason: Option<(RcStr, PathBuf)>,
         invalidation_lock: Arc<RwLock<()>>,
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
@@ -209,7 +209,7 @@ impl DiskWatcher {
         &self,
         rx: Receiver<DebounceEventResult>,
         root_path: PathBuf,
-        report_invalidation_reason: Option<(String, PathBuf)>,
+        report_invalidation_reason: Option<(RcStr, PathBuf)>,
         invalidation_lock: Arc<RwLock<()>>,
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
@@ -428,7 +428,7 @@ impl DiskWatcher {
 
 #[instrument(parent = None, level = "info", name = "DiskFileSystem file change", skip_all, fields(name = display(path.display())))]
 fn invalidate(
-    report_invalidation_reason: &Option<(String, PathBuf)>,
+    report_invalidation_reason: &Option<(RcStr, PathBuf)>,
     path: &Path,
     invalidator: Invalidator,
 ) {
@@ -442,7 +442,7 @@ fn invalidate(
 }
 
 fn invalidate_path(
-    report_invalidation_reason: &Option<(String, PathBuf)>,
+    report_invalidation_reason: &Option<(RcStr, PathBuf)>,
     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {
@@ -457,7 +457,7 @@ fn invalidate_path(
 }
 
 fn invalidate_path_and_children_execute(
-    report_invalidation_reason: &Option<(String, PathBuf)>,
+    report_invalidation_reason: &Option<(RcStr, PathBuf)>,
     invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {

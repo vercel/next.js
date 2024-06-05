@@ -14,8 +14,8 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt,
-    Upcast, ValueToString, Vc,
+    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -88,12 +88,12 @@ pub enum StyledString {
     /// block elements, just like the top level [StyledString].
     Stack(Vec<StyledString>),
     /// Some prose text.
-    Text(String),
+    Text(RcStr),
     /// Code snippet.
     // TODO add language to support syntax hightlighting
-    Code(String),
+    Code(RcStr),
     /// Some important text.
-    Strong(String),
+    Strong(RcStr),
 }
 
 #[turbo_tasks::value_trait]
@@ -134,8 +134,8 @@ pub trait Issue {
 
     /// A link to relevant documentation of the issue. Only displayed in console
     /// if the user explicitly asks for detailed messages.
-    fn documentation_link(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::default()
+    fn documentation_link(self: Vc<Self>) -> Vc<RcStr> {
+        Vc::<RcStr>::default()
     }
 
     /// The source location that caused the issue. Eg, for a parsing error it
@@ -202,20 +202,18 @@ trait IssueProcessingPath {
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
     pub file_path: Option<Vc<FileSystemPath>>,
-    pub description: Vc<String>,
+    pub description: Vc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for IssueProcessingPathItem {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
         if let Some(context) = self.file_path {
             let description_str = self.description.await?;
-            Ok(Vc::cell(format!(
-                "{} ({})",
-                context.to_string().await?,
-                description_str
-            )))
+            Ok(Vc::cell(
+                format!("{} ({})", context.to_string().await?, description_str).into(),
+            ))
         } else {
             Ok(self.description)
         }
@@ -312,7 +310,7 @@ impl IssueProcessingPath for ItemIssueProcessingPath {
                         let (mut a, mut b) = (old.iter(), path.iter());
                         while let (Some(a), Some(b)) = (a.next(), b.next()) {
                             let (a, b) = (a.to_string().await?, b.to_string().await?);
-                            match String::cmp(&*a, &*b) {
+                            match RcStr::cmp(&*a, &*b) {
                                 Ordering::Less => break,
                                 Ordering::Greater => {
                                     shortest = Some(path);
@@ -567,14 +565,14 @@ impl Display for IssueStage {
 #[derive(Clone, Debug)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
-    pub file_path: String,
+    pub file_path: RcStr,
 
     pub stage: IssueStage,
 
     pub title: StyledString,
     pub description: Option<StyledString>,
     pub detail: Option<StyledString>,
-    pub documentation_link: String,
+    pub documentation_link: RcStr,
 
     pub source: Option<ReadRef<PlainIssueSource>>,
     pub sub_issues: Vec<ReadRef<PlainIssue>>,
@@ -704,7 +702,7 @@ impl IssueSource {
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainSource {
-    pub ident: ReadRef<String>,
+    pub ident: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -734,8 +732,8 @@ pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathI
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, DeterministicHash)]
 pub struct PlainIssueProcessingPathItem {
-    pub file_path: Option<ReadRef<String>>,
-    pub description: ReadRef<String>,
+    pub file_path: Option<ReadRef<RcStr>>,
+    pub description: ReadRef<RcStr>,
 }
 
 #[turbo_tasks::value_trait]
@@ -811,7 +809,7 @@ where
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
                             file_path: file_path.into(),
-                            description: Vc::cell(description.into()),
+                            description: Vc::cell(RcStr::from(description.into())),
                         })),
                         children,
                     )),
@@ -839,7 +837,7 @@ where
                     ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
                             file_path: file_path.into(),
-                            description: Vc::cell(description.into()),
+                            description: Vc::cell(RcStr::from(description.into())),
                         })),
                         children,
                     )),

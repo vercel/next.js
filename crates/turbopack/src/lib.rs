@@ -30,7 +30,7 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -334,7 +334,7 @@ pub struct ModuleAssetContext {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
-    pub layer: Vc<String>,
+    pub layer: Vc<RcStr>,
     transition: Option<Vc<Box<dyn Transition>>>,
 }
 
@@ -346,7 +346,7 @@ impl ModuleAssetContext {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<String>,
+        layer: Vc<RcStr>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,
@@ -364,7 +364,7 @@ impl ModuleAssetContext {
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
-        layer: Vc<String>,
+        layer: Vc<RcStr>,
         transition: Vc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
@@ -435,7 +435,7 @@ async fn process_default(
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
-        name = *source.ident().to_string().await?,
+        name = source.ident().to_string().await?.to_string(),
         reference_type = display(&*reference_type)
     );
     process_default_internal(
@@ -545,12 +545,11 @@ async fn process_default_internal(
                             Some(module_type) => {
                                 ModuleIssue {
                                     ident,
-                                    title: StyledString::Text("Invalid module type".to_string())
-                                        .cell(),
+                                    title: StyledString::Text("Invalid module type".into()).cell(),
                                     description: StyledString::Text(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
@@ -561,12 +560,11 @@ async fn process_default_internal(
                             None => {
                                 ModuleIssue {
                                     ident,
-                                    title: StyledString::Text("Missing module type".to_string())
-                                        .cell(),
+                                    title: StyledString::Text("Missing module type".into()).cell(),
                                     description: StyledString::Text(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
@@ -586,11 +584,11 @@ async fn process_default_internal(
         None => {
             ModuleIssue {
                 ident,
-                title: StyledString::Text("Unknown module type".to_string()).cell(),
+                title: StyledString::Text("Unknown module type".into()).cell(),
                 description: StyledString::Text(
                     r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".to_string(),
+Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
                 )
                 .cell(),
             }
@@ -620,7 +618,7 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    fn layer(&self) -> Vc<String> {
+    fn layer(&self) -> Vc<RcStr> {
         self.layer
     }
 
@@ -716,7 +714,7 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn with_transition(&self, transition: String) -> Result<Vc<Box<dyn AssetContext>>> {
+    async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
             if let Some(transition) = self.transitions.await?.get(&transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
@@ -751,7 +749,7 @@ impl AssetContext for ModuleAssetContext {
         let mut globs = Vec::with_capacity(pkgs.len());
 
         for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg)));
+            globs.push(Glob::new(format!("**/node_modules/{{{}}}/**", pkg).into()));
         }
 
         Ok(Glob::alternatives(globs))

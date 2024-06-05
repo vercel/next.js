@@ -107,7 +107,7 @@ fn result_to_issue<T>(ident: Vc<AssetIdent>, result: Result<T>) -> Option<T> {
         Err(err) => {
             ImageProcessingIssue {
                 path: ident.path(),
-                message: StyledString::Text(format!("{}", PrettyPrintError(&err))).cell(),
+                message: StyledString::Text(format!("{}", PrettyPrintError(&err)).into()).cell(),
                 issue_severity: None,
                 title: None,
             }
@@ -167,10 +167,10 @@ fn load_image_internal(
             message: StyledString::Text(
                 "This version of Turbopack does not support AVIF images, will emit without \
                  optimization or encoding"
-                    .to_string(),
+                    .into(),
             )
             .cell(),
-            title: Some(StyledString::Text("AVIF image not supported".to_string()).cell()),
+            title: Some(StyledString::Text("AVIF image not supported".into()).cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -185,10 +185,10 @@ fn load_image_internal(
             message: StyledString::Text(
                 "This version of Turbopack does not support WEBP images, will emit without \
                  optimization or encoding"
-                    .to_string(),
+                    .into(),
             )
             .cell(),
-            title: Some(StyledString::Text("WEBP image not supported".to_string()).cell()),
+            title: Some(StyledString::Text("WEBP image not supported".into()).cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -213,7 +213,7 @@ fn compute_blur_data(
         Err(err) => {
             ImageProcessingIssue {
                 path: ident.path(),
-                message: StyledString::Text(format!("{}", PrettyPrintError(&err))).cell(),
+                message: StyledString::Text(format!("{}", PrettyPrintError(&err)).into()).cell(),
                 issue_severity: None,
                 title: None,
             }
@@ -503,7 +503,7 @@ impl Issue for ImageProcessingIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
         self.title
-            .unwrap_or(StyledString::Text("Processing image failed".to_string()).cell())
+            .unwrap_or(StyledString::Text("Processing image failed".into()).cell())
     }
 
     #[turbo_tasks::function]

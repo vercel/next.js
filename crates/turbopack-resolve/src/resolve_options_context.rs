@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ValueDefault, Vc};
+use turbo_tasks::{RcStr, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -44,9 +44,9 @@ pub struct ResolveOptionsContext {
     /// Enables the "module" field and export condition in package.json
     pub module: bool,
     #[serde(default)]
-    pub custom_conditions: Vec<String>,
+    pub custom_conditions: Vec<RcStr>,
     #[serde(default)]
-    pub custom_extensions: Option<Vec<String>>,
+    pub custom_extensions: Option<Vec<RcStr>>,
     #[serde(default)]
     /// An additional import map to use when resolving modules.
     ///

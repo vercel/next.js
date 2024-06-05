@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -31,12 +31,12 @@ type DevHtmlEntry = (
 pub struct DevHtmlAsset {
     path: Vc<FileSystemPath>,
     entries: Vec<DevHtmlEntry>,
-    body: Option<String>,
+    body: Option<RcStr>,
 }
 
 #[turbo_tasks::function]
-fn dev_html_chunk_reference_description() -> Vc<String> {
-    Vc::cell("dev html chunk".to_string())
+fn dev_html_chunk_reference_description() -> Vc<RcStr> {
+    Vc::cell("dev html chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -80,7 +80,7 @@ impl DevHtmlAsset {
     pub fn new_with_body(
         path: Vc<FileSystemPath>,
         entries: Vec<DevHtmlEntry>,
-        body: String,
+        body: RcStr,
     ) -> Vc<Self> {
         DevHtmlAsset {
             path,
@@ -101,7 +101,7 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn with_body(self: Vc<Self>, body: String) -> Result<Vc<Self>> {
+    pub async fn with_body(self: Vc<Self>, body: RcStr) -> Result<Vc<Self>> {
         let mut html: DevHtmlAsset = self.await?.clone_value();
         html.body = Some(body);
         Ok(html.cell())
@@ -118,7 +118,7 @@ impl DevHtmlAsset {
         for chunk in &*self.chunks().await? {
             let chunk_path = &*chunk.ident().path().await?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
-                chunk_paths.push(format!("/{relative_path}"));
+                chunk_paths.push(format!("/{relative_path}").into());
             }
         }
 
@@ -167,12 +167,12 @@ impl DevHtmlAsset {
 
 #[turbo_tasks::value]
 struct DevHtmlAssetContent {
-    chunk_paths: Vec<String>,
-    body: Option<String>,
+    chunk_paths: Vec<RcStr>,
+    body: Option<RcStr>,
 }
 
 impl DevHtmlAssetContent {
-    fn new(chunk_paths: Vec<String>, body: Option<String>) -> Vc<Self> {
+    fn new(chunk_paths: Vec<RcStr>, body: Option<RcStr>) -> Vc<Self> {
         DevHtmlAssetContent { chunk_paths, body }.cell()
     }
 }
@@ -204,12 +204,13 @@ impl DevHtmlAssetContent {
             None => "",
         };
 
-        let html = format!(
+        let html: RcStr = format!(
             "<!DOCTYPE html>\n<html>\n<head>\n{}\n</head>\n<body>\n{}\n{}\n</body>\n</html>",
             stylesheets.join("\n"),
             body,
             scripts.join("\n"),
-        );
+        )
+        .into();
 
         Ok(AssetContent::file(
             File::from(html).with_content_type(TEXT_HTML_UTF_8).into(),
@@ -244,7 +245,7 @@ struct DevHtmlAssetVersion {
 #[turbo_tasks::value_impl]
 impl Version for DevHtmlAssetVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<String>> {
+    async fn id(&self) -> Result<Vc<RcStr>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for relative_path in &*self.content.chunk_paths {
             hasher.write_ref(relative_path);
@@ -254,6 +255,6 @@ impl Version for DevHtmlAssetVersion {
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash))
+        Ok(Vc::cell(hex_hash.into()))
     }
 }

@@ -143,7 +143,7 @@ pub async fn make_chunk_group(
     let mut chunks = make_chunks(
         chunking_context,
         Vc::cell(chunk_items.into_iter().collect()),
-        "".to_string(),
+        "".into(),
         references_to_output_assets(external_module_references).await?,
     )
     .await?
@@ -156,7 +156,7 @@ pub async fn make_chunk_group(
         let async_loader_chunks = make_chunks(
             chunking_context,
             Vc::cell(async_loader_chunk_items.into_iter().collect()),
-            "async-loader-".to_string(),
+            "async-loader-".into(),
             references_to_output_assets(async_loader_external_module_references).await?,
         )
         .await?;

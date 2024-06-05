@@ -33,7 +33,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -428,7 +428,7 @@ pub async fn finalize_css(
             for (src, reference) in (*url_references.await?).iter() {
                 let resolved = resolve_url_reference(*reference, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
-                    url_map.insert(src.to_string(), v);
+                    url_map.insert(RcStr::from(src.as_str()), v);
                 }
             }
 
@@ -477,8 +477,8 @@ pub async fn parse_css(
     use_swc_css: bool,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
-        let name = source.ident().to_string().await?;
-        tracing::info_span!("parse css", name = *name)
+        let name = source.ident().to_string().await?.to_string();
+        tracing::info_span!("parse css", name = name)
     };
     async move {
         let content = source.content();
@@ -597,7 +597,7 @@ async fn process_content(
 
                                 ParsingIssue {
                                     file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string()),
+                                    msg: Vc::cell(err.to_string().into()),
                                     source: Vc::cell(source),
                                 }
                                 .cell()
@@ -624,7 +624,7 @@ async fn process_content(
 
                     ParsingIssue {
                         file: fs_path_vc,
-                        msg: Vc::cell(e.to_string()),
+                        msg: Vc::cell(e.to_string().into()),
                         source: Vc::cell(source),
                     }
                     .cell()
@@ -642,7 +642,7 @@ async fn process_content(
             Box::new(IssueEmitter::new(
                 source,
                 cm.clone(),
-                Some("Parsing css source code failed".to_string()),
+                Some("Parsing css source code failed".into()),
             )),
         );
 
@@ -749,7 +749,7 @@ impl CssError {
             CssError::SwcSelectorInModuleNotPure { span } => {
                 ParsingIssue {
                     file,
-                    msg: Vc::cell(CSS_MODULE_ERROR.to_string()),
+                    msg: Vc::cell(CSS_MODULE_ERROR.into()),
                     source: Vc::cell(Some(IssueSource::from_swc_offsets(
                         source,
                         span.lo.0 as _,
@@ -762,7 +762,7 @@ impl CssError {
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})")),
+                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
                     source: Vc::cell(None),
                 }
                 .cell()
@@ -1083,7 +1083,7 @@ impl TransformConfig for ModuleTransformConfig {
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: Vc<String>,
+    msg: Vc<RcStr>,
     file: Vc<FileSystemPath>,
     source: Vc<OptionIssueSource>,
 }
@@ -1102,7 +1102,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Parsing css source code failed".to_string()).cell()
+        StyledString::Text("Parsing css source code failed".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -1113,7 +1113,7 @@ impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.clone_value()).cell(),
+            StyledString::Text(self.msg.await?.as_str().into()).cell(),
         )))
     }
 }

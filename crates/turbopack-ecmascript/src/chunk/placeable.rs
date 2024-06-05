@@ -50,19 +50,22 @@ async fn side_effects_from_package_json(
                     .filter_map(|side_effect| {
                         if let Some(side_effect) = side_effect.as_str() {
                             if side_effect.contains('/') {
-                                Some(Glob::new(side_effect.to_string()))
+                                Some(Glob::new(side_effect.into()))
                             } else {
-                                Some(Glob::new(format!("**/{side_effect}")))
+                                Some(Glob::new(format!("**/{side_effect}").into()))
                             }
                         } else {
                             SideEffectsInPackageJsonIssue {
                                 path: package_json,
                                 description: Some(
-                                    StyledString::Text(format!(
-                                        "Each element in sideEffects must be a string, but found \
-                                         {:?}",
-                                        side_effect
-                                    ))
+                                    StyledString::Text(
+                                        format!(
+                                            "Each element in sideEffects must be a string, but \
+                                             found {:?}",
+                                            side_effect
+                                        )
+                                        .into(),
+                                    )
                                     .cell(),
                                 ),
                             }
@@ -78,10 +81,13 @@ async fn side_effects_from_package_json(
                                 SideEffectsInPackageJsonIssue {
                                     path: package_json,
                                     description: Some(
-                                        StyledString::Text(format!(
-                                            "Invalid glob in sideEffects: {}",
-                                            PrettyPrintError(&err)
-                                        ))
+                                        StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
+                                        )
                                         .cell(),
                                     ),
                                 }
@@ -100,10 +106,13 @@ async fn side_effects_from_package_json(
                 SideEffectsInPackageJsonIssue {
                     path: package_json,
                     description: Some(
-                        StyledString::Text(format!(
-                            "sideEffects must be a boolean or an array, but found {:?}",
-                            side_effects
-                        ))
+                        StyledString::Text(
+                            format!(
+                                "sideEffects must be a boolean or an array, but found {:?}",
+                                side_effects
+                            )
+                            .into(),
+                        )
                         .cell(),
                     ),
                 }
@@ -140,7 +149,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Invalid value for sideEffects in package.json".to_string()).cell()
+        StyledString::Text("Invalid value for sideEffects in package.json".into()).cell()
     }
 
     #[turbo_tasks::function]
