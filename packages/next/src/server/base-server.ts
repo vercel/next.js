@@ -13,6 +13,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type {
+  CachedAppPageValue,
+  CachedPageValue,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -2599,15 +2601,28 @@ export default abstract class Server<
       }
 
       // We now have a valid HTML result that we can return to the user.
+      if (isAppPath) {
+        return {
+          value: {
+            kind: 'APP_PAGE',
+            html: result,
+            headers,
+            rscData: metadata.flightData,
+            postponed: metadata.postponed,
+            status: res.statusCode,
+          } satisfies CachedAppPageValue,
+          revalidate: metadata.revalidate,
+        }
+      }
+
       return {
         value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData ?? metadata.flightData,
-          postponed: metadata.postponed,
           headers,
           status: isAppPath ? res.statusCode : undefined,
-        },
+        } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
       }
     }
@@ -2720,7 +2735,6 @@ export default abstract class Server<
               value: {
                 kind: 'PAGE',
                 html: RenderResult.fromStatic(html),
-                postponed: undefined,
                 status: undefined,
                 headers: undefined,
                 pageData: {},
@@ -2790,7 +2804,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' &&
+      cacheEntry.value?.kind === 'APP_PAGE' &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2883,9 +2897,23 @@ export default abstract class Server<
     // and the revalidate options.
     const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
     if (onCacheEntry) {
-      const finished = await onCacheEntry(cacheEntry, {
-        url: getRequestMeta(req, 'initURL'),
-      })
+      const finished = await onCacheEntry(
+        {
+          ...cacheEntry,
+          // TODO: remove this when upstream doesn't
+          // always expect this value to be "PAGE"
+          value: {
+            ...cacheEntry.value,
+            kind:
+              cacheEntry.value?.kind === 'APP_PAGE'
+                ? 'PAGE'
+                : cacheEntry.value?.kind,
+          },
+        },
+        {
+          url: getRequestMeta(req, 'initURL'),
+        }
+      )
       if (finished) {
         // TODO: maybe we have to end the request?
         return null
@@ -2954,7 +2982,7 @@ export default abstract class Server<
         })
       )
       return null
-    } else if (isAppPath) {
+    } else if (cachedData.kind === 'APP_PAGE') {
       // If the request has a postponed state and it's a resume request we
       // should error.
       if (cachedData.postponed && minimalPostponed) {
@@ -3015,7 +3043,7 @@ export default abstract class Server<
       // return the generated payload
       if (isRSCRequest && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
-        if (typeof cachedData.pageData !== 'string') {
+        if (typeof cachedData.rscData === 'undefined') {
           if (cachedData.postponed) {
             throw new Error('Invariant: Expected postponed to be undefined')
           }
@@ -3036,7 +3064,7 @@ export default abstract class Server<
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.pageData),
+          body: RenderResult.fromStatic(cachedData.rscData),
           revalidate: cacheEntry.revalidate,
         }
       }
@@ -3076,7 +3104,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'PAGE') {
+          if (result.value?.kind !== 'APP_PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )

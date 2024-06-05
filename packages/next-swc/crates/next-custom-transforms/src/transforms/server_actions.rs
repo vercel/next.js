@@ -50,9 +50,8 @@ pub fn server_actions<C: Comments>(
         in_default_export_decl: false,
         has_action: false,
 
-        action_cnt: 0,
+        reference_index: 0,
         in_module_level: true,
-        in_action_fn: false,
         should_track_names: false,
 
         names: Default::default(),
@@ -92,9 +91,8 @@ struct ServerActions<C: Comments> {
     in_default_export_decl: bool,
     has_action: bool,
 
-    action_cnt: u32,
+    reference_index: u32,
     in_module_level: bool,
-    in_action_fn: bool,
     should_track_names: bool,
 
     names: Vec<Name>,
@@ -159,7 +157,7 @@ impl<C: Comments> ServerActions<C> {
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
-        let action_name: JsWord = gen_ident(&mut self.action_cnt);
+        let action_name: JsWord = gen_ident(&mut self.reference_index);
         let action_ident = private_ident!(action_name.clone());
         let export_name: JsWord = action_name;
 
@@ -430,18 +428,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Visit children
         {
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -473,7 +468,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
-                    let action_name = gen_ident(&mut self.action_cnt);
+                    let action_name = gen_ident(&mut self.reference_index);
                     let ident = Ident::new(action_name, DUMMY_SP);
                     f.ident.insert(ident)
                 }
@@ -521,18 +516,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -624,12 +616,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
@@ -640,7 +630,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
             a.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -833,7 +822,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // export default function() {}
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -852,7 +841,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 } else {
                                     // export default async () => {}
                                     let new_ident =
-                                        Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -871,7 +860,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Call(call) => {
                                 // export default fn()
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
