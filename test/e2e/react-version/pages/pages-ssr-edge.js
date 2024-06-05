@@ -1,3 +1,9 @@
-export { default } from './pages-ssr'
+import { ReactConditionUI } from '../lib/react-version'
 
-export const runtime = 'experimental-edge'
+export default function Page() {
+  return <ReactConditionUI />
+}
+
+export const config = {
+  runtime: 'experimental-edge',
+}

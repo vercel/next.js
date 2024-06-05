@@ -1461,8 +1461,11 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.api,
               parser: {
-                // Switch back to normal URL handling
-                url: true,
+                // In Node.js, switch back to normal URL handling.
+                // In Edge runtime, we should disable parser.url handling in webpack so URLDependency is not added.
+                // Then there's browser code won't be injected into the edge runtime chunk.
+                // x-ref: https://github.com/webpack/webpack/blob/d9ce3b1f87e63c809d8a19bbd92257d65922e81f/lib/web/JsonpChunkLoadingRuntimeModule.js#L69
+                url: !isEdgeServer,
               },
               use: apiRoutesLayerLoaders,
             },
