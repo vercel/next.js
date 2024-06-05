@@ -220,7 +220,7 @@ impl ModuleOptions {
         );
 
         let mut rules = vec![
-            ModuleRule::new(
+            ModuleRule::new_all(
                 ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
             ),
