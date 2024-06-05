@@ -18,7 +18,10 @@ use turbopack_binding::{
             free_var_references,
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
-        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer,
+            client_disallowed::ClientDisallowedDirectiveTransformer,
+        },
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -739,11 +742,19 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
+
+            custom_source_transform_rules.push(get_ecma_transform_rule(
+                Box::new(ClientDisallowedDirectiveTransformer::new(
+                    "next/dist/client/use-client-disallowed.js".to_string(),
+                )),
+                enable_mdx_rs.is_some(),
+                true,
+            ));
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
