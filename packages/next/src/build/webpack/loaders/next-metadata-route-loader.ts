@@ -220,7 +220,15 @@ ${
 
 export async function GET(_, ctx) {
   const { __metadata_id__: id, ...params } = ctx.params || {}
-  const targetId = id ? id.slice(0, -4) : undefined
+  const hasXmlExtension = id ? id.endsWith('.xml') : false
+
+  if (id && !hasXmlExtension) {
+    return new NextResponse('Not Found', {
+      status: 404,
+    })
+  }
+
+  const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
 
   const data = await handler({ id: targetId })
   const content = resolveRouteData(data, fileType)
