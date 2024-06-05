@@ -2,14 +2,15 @@ use std::cmp::Ordering;
 
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{indexset, IndexSet};
+use turbo_tasks::RcStr;
 
 use super::options::{FontData, FontWeights};
 
 #[derive(Debug, PartialEq)]
 pub(super) struct FontAxes {
-    pub(super) wght: IndexSet<String>,
+    pub(super) wght: IndexSet<RcStr>,
     pub(super) ital: IndexSet<FontStyle>,
-    pub(super) variable_axes: Option<Vec<(String, String)>>,
+    pub(super) variable_axes: Option<Vec<(RcStr, RcStr)>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -23,8 +24,8 @@ pub(super) fn get_font_axes(
     font_data: &FontData,
     font_family: &str,
     weights: &FontWeights,
-    styles: &[String],
-    selected_variable_axes: &Option<Vec<String>>,
+    styles: &[RcStr],
+    selected_variable_axes: &Option<Vec<RcStr>>,
 ) -> Result<FontAxes> {
     let all_axes = &font_data
         .get(font_family)
@@ -32,8 +33,8 @@ pub(super) fn get_font_axes(
         .axes;
 
     let ital = {
-        let has_italic = styles.contains(&"italic".to_owned());
-        let has_normal = styles.contains(&"normal".to_owned());
+        let has_italic = styles.contains(&"italic".into());
+        let has_normal = styles.contains(&"normal".into());
         let mut set = IndexSet::new();
         if has_normal {
             set.insert(FontStyle::Normal);
@@ -54,7 +55,7 @@ pub(super) fn get_font_axes(
                 let definable_axes_tags = defineable_axes
                     .iter()
                     .map(|axis| axis.tag.to_owned())
-                    .collect::<Vec<String>>();
+                    .collect::<Vec<RcStr>>();
 
                 for tag in selected_variable_axes {
                     if !definable_axes_tags.contains(tag) {
@@ -72,11 +73,13 @@ pub(super) fn get_font_axes(
             let mut variable_axes = vec![];
             for axis in defineable_axes {
                 if axis.tag == "wght" {
-                    weight_axis = Some(format!("{}..{}", axis.min, axis.max));
+                    weight_axis = Some(format!("{}..{}", axis.min, axis.max).into());
                 } else if let Some(selected_variable_axes) = selected_variable_axes {
                     if selected_variable_axes.contains(&axis.tag) {
-                        variable_axes
-                            .push((axis.tag.clone(), format!("{}..{}", axis.min, axis.max)));
+                        variable_axes.push((
+                            axis.tag.clone(),
+                            format!("{}..{}", axis.min, axis.max).into(),
+                        ));
                     }
                 }
             }
@@ -96,7 +99,7 @@ pub(super) fn get_font_axes(
         }
 
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string())),
+            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string().into())),
             ital,
             variable_axes: None,
         }),
@@ -320,12 +323,12 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".to_owned()]),
+                &Some(vec!["slnt".into()]),
             )?,
             FontAxes {
-                wght: indexset! {"100..900".to_owned()},
+                wght: indexset! {"100..900".into()},
                 ital: indexset! {},
-                variable_axes: Some(vec![("slnt".to_owned(), "-10..0".to_owned())])
+                variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
             }
         );
         Ok(())
@@ -361,12 +364,12 @@ mod tests {
                 "Inter",
                 &FontWeights::Variable,
                 &[],
-                &Some(vec!["slnt".to_owned()]),
+                &Some(vec!["slnt".into()]),
             )?,
             FontAxes {
                 wght: indexset! {},
                 ital: indexset! {},
-                variable_axes: Some(vec![("slnt".to_owned(), "-10..0".to_owned())])
+                variable_axes: Some(vec![("slnt".into(), "-10..0".into())])
             }
         );
         Ok(())
@@ -396,7 +399,7 @@ mod tests {
         assert_eq!(
             get_font_axes(&data, "Hind", &FontWeights::Fixed(vec![500]), &[], &None)?,
             FontAxes {
-                wght: indexset! {"500".to_owned()},
+                wght: indexset! {"500".into()},
                 ital: indexset! {},
                 variable_axes: None
             }
@@ -411,7 +414,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Mono",
                 &FontAxes {
-                    wght: indexset! {"500".to_owned()},
+                    wght: indexset! {"500".into()},
                     ital: indexset! {FontStyle::Normal},
                     variable_axes: None
                 },
@@ -430,12 +433,12 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".to_owned()},
+                    wght: indexset! {"500".into()},
                     ital: indexset! {FontStyle::Normal},
                     variable_axes: Some(vec![
-                        ("GRAD".to_owned(), "-50..100".to_owned()),
-                        ("opsz".to_owned(), "8..144".to_owned()),
-                        ("wdth".to_owned(), "50..150".to_owned()),
+                        ("GRAD".into(), "-50..100".into()),
+                        ("opsz".into(), "8..144".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"
@@ -453,12 +456,12 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Roboto Serif",
                 &FontAxes {
-                    wght: indexset! {"500".to_owned(), "300".to_owned()},
+                    wght: indexset! {"500".into(), "300".into()},
                     ital: indexset! {FontStyle::Normal, FontStyle::Italic},
                     variable_axes: Some(vec![
-                        ("GRAD".to_owned(), "-50..100".to_owned()),
-                        ("opsz".to_owned(), "8..144".to_owned()),
-                        ("wdth".to_owned(), "50..150".to_owned()),
+                        ("GRAD".into(), "-50..100".into()),
+                        ("opsz".into(), "8..144".into()),
+                        ("wdth".into(), "50..150".into()),
                     ])
                 },
                 "optional"
@@ -480,8 +483,8 @@ mod tests {
                     wght: indexset! {},
                     ital: indexset! {},
                     variable_axes: Some(vec![
-                        ("EDPT".to_owned(), "0..200".to_owned()),
-                        ("EHLT".to_owned(), "0..24".to_owned()),
+                        ("EDPT".into(), "0..200".into()),
+                        ("EHLT".into(), "0..24".into()),
                     ])
                 },
                 "optional"
@@ -537,7 +540,7 @@ mod tests {
                 GOOGLE_FONTS_STYLESHEET_URL,
                 "Hind",
                 &FontAxes {
-                    wght: indexset! {"500".to_owned()},
+                    wght: indexset! {"500".into()},
                     ital: indexset! {},
                     variable_axes: None
                 },

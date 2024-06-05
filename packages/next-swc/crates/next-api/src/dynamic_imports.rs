@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
-    ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::ecma::{
@@ -39,7 +39,7 @@ where
     F: FnMut(Vc<Box<dyn ChunkableModule>>) -> Fu,
     Fu: Future<Output = Result<Vc<OutputAssets>>> + Send,
 {
-    let mut chunks_hash: HashMap<String, Vc<OutputAssets>> = HashMap::new();
+    let mut chunks_hash: HashMap<RcStr, Vc<OutputAssets>> = HashMap::new();
     let mut dynamic_import_chunks = IndexMap::new();
 
     // Iterate over the collected import mappings, and create a chunk for each
@@ -62,7 +62,7 @@ where
                 // chunks in case if there are same modules being imported in differnt
                 // origins.
                 let chunk_group = build_chunk(module).await?;
-                chunks_hash.insert(imported_raw_str.to_string(), chunk_group);
+                chunks_hash.insert(imported_raw_str.clone(), chunk_group);
                 chunk_group
             };
 
@@ -178,22 +178,19 @@ pub(crate) async fn collect_next_dynamic_imports(
 
 struct NextDynamicVisit;
 
-impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<String>)> for NextDynamicVisit {
-    type Edge = (Vc<Box<dyn Module>>, ReadRef<String>);
+impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> for NextDynamicVisit {
+    type Edge = (Vc<Box<dyn Module>>, ReadRef<RcStr>);
     type EdgesIntoIter = Vec<Self::Edge>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
     fn visit(
         &mut self,
         edge: Self::Edge,
-    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<String>)> {
+    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> {
         VisitControlFlow::Continue(edge)
     }
 
-    fn edges(
-        &mut self,
-        &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<String>),
-    ) -> Self::EdgesFuture {
+    fn edges(&mut self, &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> Self::EdgesFuture {
         async move {
             primary_referenced_modules(parent)
                 .await?
@@ -204,7 +201,7 @@ impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<String>)> for NextD
         }
     }
 
-    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<String>)) -> tracing::Span {
+    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> tracing::Span {
         tracing::span!(Level::INFO, "next/dynamic visit", name = display(name))
     }
 }
@@ -244,7 +241,7 @@ async fn build_dynamic_imports_map_for_module(
                 client_asset_context,
                 server_module.ident().path(),
             )),
-            Request::parse(Value::new(Pattern::Constant(import.to_string()))),
+            Request::parse(Value::new(Pattern::Constant(import.clone()))),
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             IssueSeverity::Error.cell(),
             None,
@@ -264,7 +261,7 @@ async fn build_dynamic_imports_map_for_module(
 /// import wrapped with dynamic() via CollectImportSourceVisitor.
 struct DynamicImportVisitor {
     dynamic_ident: Option<Ident>,
-    pub import_sources: Vec<String>,
+    pub import_sources: Vec<RcStr>,
 }
 
 impl DynamicImportVisitor {
@@ -309,7 +306,7 @@ impl Visit for DynamicImportVisitor {
 
 /// A visitor to collect import source string from import('path/to/module')
 struct CollectImportSourceVisitor {
-    import_source: Option<String>,
+    import_source: Option<RcStr>,
 }
 
 impl CollectImportSourceVisitor {
@@ -329,7 +326,7 @@ impl Visit for CollectImportSourceVisitor {
         if let Callee::Import(_import) = call_expr.callee {
             if let Some(arg) = call_expr.args.first() {
                 if let Expr::Lit(Lit::Str(str_)) = &*arg.expr {
-                    self.import_source = Some(str_.value.to_string());
+                    self.import_source = Some(str_.value.as_str().into());
                 }
             }
         }
@@ -339,8 +336,8 @@ impl Visit for CollectImportSourceVisitor {
     }
 }
 
-pub type DynamicImportedModules = Vec<(String, Vc<Box<dyn Module>>)>;
-pub type DynamicImportedOutputAssets = Vec<(String, Vc<OutputAssets>)>;
+pub type DynamicImportedModules = Vec<(RcStr, Vc<Box<dyn Module>>)>;
+pub type DynamicImportedOutputAssets = Vec<(RcStr, Vc<OutputAssets>)>;
 
 /// A struct contains mapping for the dynamic imports to construct chunk per
 /// each individual module (Origin Module, Vec<(ImportSourceString, Module)>)

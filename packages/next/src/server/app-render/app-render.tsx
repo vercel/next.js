@@ -10,7 +10,7 @@ import type {
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { NextParsedUrlQuery } from '../request-meta'
+import { getRequestMeta, type NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -37,10 +37,8 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
-  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   createMetadataComponents,
@@ -400,7 +398,7 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   // Generate the flight data and as soon as it can, convert it into a string.
   const promise = generateFlight(ctx)
     .then(async (result) => ({
-      flightData: await result.toUnchunkedString(true),
+      flightData: await result.toUnchunkedBuffer(true),
     }))
     // Otherwise if it errored, return the error.
     .catch((err) => ({ err }))
@@ -799,12 +797,11 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isRSCRequest = Boolean(getRequestMeta(req, 'isRSCRequest'))
 
-  const isPrefetchRSCRequest =
-    isRSCRequest &&
-    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
-
+  const isPrefetchRSCRequest = Boolean(
+    getRequestMeta(req, 'isPrefetchRSCRequest')
+  )
   /**
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request
