@@ -54,7 +54,7 @@ function warn(format) {
         args[_key - 1] = arguments[_key];
       }
 
-      printWarning('warn', format, args);
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
     }
   }
 }
@@ -65,12 +65,12 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
 } // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
@@ -80,7 +80,7 @@ function printWarning(level, format, args) {
       // We only add the current stack to the console when createTask is not supported.
       // Since createTask requires DevTools to be open to work, this means that stacks
       // can be lost while DevTools isn't open but we can't detect this.
-      var stack = ReactSharedInternals.getCurrentStack();
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
       if (stack !== '') {
         format += '%s';
@@ -1421,7 +1421,7 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
-function noop$1() {}
+function noop() {}
 
 function resolveThenable(thenable) {
   switch (thenable.status) {
@@ -1445,7 +1445,7 @@ function resolveThenable(thenable) {
           // some custom userspace implementation. We treat it as "pending".
           // Attach a dummy listener, to ensure that any lazy initialization can
           // happen. Flight lazily parses JSON when the value is actually awaited.
-          thenable.then(noop$1, noop$1);
+          thenable.then(noop, noop);
         } else {
           // This is an uncached thenable that we haven't seen before.
           // TODO: Detect infinite ping loops caused by uncached promises.
@@ -1788,13 +1788,6 @@ function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
-function useActionState(action, initialState, permalink) {
-  {
-    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
-    return dispatcher.useActionState(action, initialState, permalink);
-  }
-}
 
 function forwardRef(render) {
   {
@@ -2075,84 +2068,7 @@ function cache(fn) {
   };
 }
 
-var reportGlobalError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
-// emulating an uncaught JavaScript error.
-reportError : function (error) {
-  if (typeof window === 'object' && typeof window.ErrorEvent === 'function') {
-    // Browser Polyfill
-    var message = typeof error === 'object' && error !== null && typeof error.message === 'string' ? // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error.message) : // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error);
-    var event = new window.ErrorEvent('error', {
-      bubbles: true,
-      cancelable: true,
-      message: message,
-      error: error
-    });
-    var shouldLog = window.dispatchEvent(event);
-
-    if (!shouldLog) {
-      return;
-    }
-  } else if (typeof process === 'object' && // $FlowFixMe[method-unbinding]
-  typeof process.emit === 'function') {
-    // Node Polyfill
-    process.emit('uncaughtException', error);
-    return;
-  } // eslint-disable-next-line react-internal/no-production-logging
-
-
-  console['error'](error);
-};
-
-function startTransition(scope, options) {
-  var prevTransition = ReactSharedInternals.T;
-  var transition = {};
-  ReactSharedInternals.T = transition;
-  var currentTransition = ReactSharedInternals.T;
-
-  {
-    ReactSharedInternals.T._updatedFibers = new Set();
-  }
-
-  {
-    try {
-      var returnValue = scope();
-      var onStartTransitionFinish = ReactSharedInternals.S;
-
-      if (onStartTransitionFinish !== null) {
-        onStartTransitionFinish(transition, returnValue);
-      }
-
-      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
-        returnValue.then(noop, reportGlobalError);
-      }
-    } catch (error) {
-      reportGlobalError(error);
-    } finally {
-      warnAboutTransitionSubscriptions(prevTransition, currentTransition);
-      ReactSharedInternals.T = prevTransition;
-    }
-  }
-}
-
-function warnAboutTransitionSubscriptions(prevTransition, currentTransition) {
-  {
-    if (prevTransition === null && currentTransition._updatedFibers) {
-      var updatedFibersCount = currentTransition._updatedFibers.size;
-
-      currentTransition._updatedFibers.clear();
-
-      if (updatedFibersCount > 10) {
-        warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
-      }
-    }
-  }
-}
-
-function noop() {}
-
-var ReactVersion = '19.0.0-rc-bf3a29d097-20240603';
+var ReactVersion = '19.0.0-rc-1df34bdf62-20240605';
 
 var Children = {
   map: mapChildren,
@@ -2176,9 +2092,7 @@ exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
 exports.memo = memo;
-exports.startTransition = startTransition;
 exports.use = use;
-exports.useActionState = useActionState;
 exports.useCallback = useCallback;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;

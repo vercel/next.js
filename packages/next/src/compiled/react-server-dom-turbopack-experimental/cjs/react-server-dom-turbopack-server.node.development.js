@@ -52,14 +52,14 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
 } // eslint-disable-next-line react-internal/no-production-logging
 
 var supportsCreateTask = !!console.createTask;
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
@@ -69,7 +69,7 @@ function printWarning(level, format, args) {
       // We only add the current stack to the console when createTask is not supported.
       // Since createTask requires DevTools to be open to work, this means that stacks
       // can be lost while DevTools isn't open but we can't detect this.
-      var stack = ReactSharedInternalsServer.getCurrentStack();
+      var stack = ReactSharedInternalsServer.getCurrentStack(currentStack);
 
       if (stack !== '') {
         format += '%s';
@@ -1621,10 +1621,41 @@ function isNotExternal(stackFrame) {
   return !externalRegExp.test(stackFrame);
 }
 
+function prepareStackTrace(error, structuredStackTrace) {
+  var name = error.name || 'Error';
+  var message = error.message || '';
+  var stack = name + ': ' + message;
+
+  for (var i = 0; i < structuredStackTrace.length; i++) {
+    stack += '\n    at ' + structuredStackTrace[i].toString();
+  }
+
+  return stack;
+}
+
+function getStack(error) {
+  // We override Error.prepareStackTrace with our own version that normalizes
+  // the stack to V8 formatting even if the server uses other formatting.
+  // It also ensures that source maps are NOT applied to this since that can
+  // be slow we're better off doing that lazily from the client instead of
+  // eagerly on the server. If the stack has already been read, then we might
+  // not get a normalized stack and it might still have been source mapped.
+  // So the client still needs to be resilient to this.
+  var previousPrepare = Error.prepareStackTrace;
+  Error.prepareStackTrace = prepareStackTrace;
+
+  try {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    return String(error.stack);
+  } finally {
+    Error.prepareStackTrace = previousPrepare;
+  }
+}
+
 function initCallComponentFrame() {
   // Extract the stack frame of the callComponentInDEV function.
   var error = callComponentInDEV(Error, 'react-stack-top-frame', {});
-  var stack = error.stack;
+  var stack = getStack(error);
   var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
   var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1643,7 +1674,7 @@ function initCallIteratorFrame() {
     });
     return '';
   } catch (error) {
-    var stack = error.stack;
+    var stack = getStack(error);
     var startIdx = stack.startsWith('TypeError: ') ? stack.indexOf('\n') + 1 : 0;
     var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1662,7 +1693,7 @@ function initCallLazyInitFrame() {
     _init: Error,
     _payload: 'react-stack-top-frame'
   });
-  var stack = error.stack;
+  var stack = getStack(error);
   var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
   var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1678,7 +1709,7 @@ function filterDebugStack(error) {
   // to save bandwidth even in DEV. We'll also replay these stacks on the client so by
   // stripping them early we avoid that overhead. Otherwise we'd normally just rely on
   // the DevTools or framework's ignore lists to filter them out.
-  var stack = error.stack;
+  var stack = getStack(error);
 
   if (stack.startsWith('Error: react-stack-top-frame\n')) {
     // V8's default formatting prefixes with the error message which we
@@ -2492,7 +2523,7 @@ function renderFragment(request, task, children) {
     // the tree using a fragment.
     var fragment = [REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, task.keyPath, {
       children: children
-    }];
+    }, null, null, 0]  ;
 
     if (!task.implicitSlot) {
       // If this was keyed inside a set. I.e. the outer Server Component was keyed
@@ -2549,7 +2580,7 @@ function renderAsyncFragment(request, task, children, getAsyncIterator) {
     // the tree using a fragment.
     var fragment = [REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, task.keyPath, {
       children: children
-    }];
+    }, null, null, 0]  ;
 
     if (!task.implicitSlot) {
       // If this was keyed inside a set. I.e. the outer Server Component was keyed
@@ -3626,9 +3657,8 @@ function emitPostponeChunk(request, id, postponeInstance) {
 
     try {
       // eslint-disable-next-line react-internal/safe-string-coercion
-      reason = String(postponeInstance.message); // eslint-disable-next-line react-internal/safe-string-coercion
-
-      stack = String(postponeInstance.stack);
+      reason = String(postponeInstance.message);
+      stack = getStack(postponeInstance);
     } catch (x) {}
 
     row = serializeRowHeader('P', id) + stringify({
@@ -3651,9 +3681,8 @@ function emitErrorChunk(request, id, digest, error) {
     try {
       if (error instanceof Error) {
         // eslint-disable-next-line react-internal/safe-string-coercion
-        message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
-
-        stack = String(error.stack);
+        message = String(error.message);
+        stack = getStack(error);
       } else if (typeof error === 'object' && error !== null) {
         message = describeObjectForErrorMessage(error);
       } else {
