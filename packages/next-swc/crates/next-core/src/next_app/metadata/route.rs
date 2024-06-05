@@ -225,11 +225,11 @@ async fn dynamic_site_map_route_source(
                     const params = []
 
                     for (const item of sitemaps) {
-                        if (process.env.NODE_ENV !== 'production') {{
-                            if (item?.id == null) {{
+                        if (process.env.NODE_ENV !== 'production') {
+                            if (item?.id == null) {
                                 throw new Error('id property is required for every item returned from generateSitemaps')
-                            }}
-                        }}
+                            }
+                        }
                         params.push({ __metadata_id__: item.id.toString() + ".xml" })
                     }
                     return params
@@ -260,7 +260,7 @@ async fn dynamic_site_map_route_source(
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
                 if (id && !hasXmlExtension) {
                     return new NextResponse('Not Found', {
-                    status: 404,
+                        status: 404,
                     })
                 }
                 const targetId = id hasXmlExtension ? id.slice(0, -4) : undefined
