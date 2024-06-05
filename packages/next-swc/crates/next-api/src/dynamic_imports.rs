@@ -178,22 +178,19 @@ pub(crate) async fn collect_next_dynamic_imports(
 
 struct NextDynamicVisit;
 
-impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<String>)> for NextDynamicVisit {
-    type Edge = (Vc<Box<dyn Module>>, ReadRef<String>);
+impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> for NextDynamicVisit {
+    type Edge = (Vc<Box<dyn Module>>, ReadRef<RcStr>);
     type EdgesIntoIter = Vec<Self::Edge>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
     fn visit(
         &mut self,
         edge: Self::Edge,
-    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<String>)> {
+    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> {
         VisitControlFlow::Continue(edge)
     }
 
-    fn edges(
-        &mut self,
-        &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<String>),
-    ) -> Self::EdgesFuture {
+    fn edges(&mut self, &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> Self::EdgesFuture {
         async move {
             primary_referenced_modules(parent)
                 .await?
@@ -204,7 +201,7 @@ impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<String>)> for NextD
         }
     }
 
-    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<String>)) -> tracing::Span {
+    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> tracing::Span {
         tracing::span!(Level::INFO, "next/dynamic visit", name = display(name))
     }
 }
@@ -244,7 +241,7 @@ async fn build_dynamic_imports_map_for_module(
                 client_asset_context,
                 server_module.ident().path(),
             )),
-            Request::parse(Value::new(Pattern::Constant(import.into()))),
+            Request::parse(Value::new(Pattern::Constant(import.clone().into()))),
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             IssueSeverity::Error.cell(),
             None,
@@ -264,7 +261,7 @@ async fn build_dynamic_imports_map_for_module(
 /// import wrapped with dynamic() via CollectImportSourceVisitor.
 struct DynamicImportVisitor {
     dynamic_ident: Option<Ident>,
-    pub import_sources: Vec<String>,
+    pub import_sources: Vec<RcStr>,
 }
 
 impl DynamicImportVisitor {
