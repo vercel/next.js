@@ -19,7 +19,7 @@ function escape(filenames) {
 }
 
 module.exports = {
-  '**/*.{js,jsx,mjs,ts,tsx,mts}': async (filenames) => {
+  '*.{js,jsx,mjs,ts,tsx,mts}': async (filenames) => {
     const escapedFileNames = escape(filenames).join(' ')
     const eslintFileNames = await Promise.all(
       filenames.map(async (filename) => {
@@ -39,15 +39,8 @@ module.exports = {
       `git add ${escapedFileNames}`,
     ]
   },
-  '**/*.{json,md,mdx,css,html,yml,yaml,scss}': (filenames) => {
-    const escapedFileNames = escape(filenames).join(' ')
-    return [
-      `prettier --with-node-modules --ignore-path .prettierignore --write ${escapedFileNames}`,
-      `git add ${escapedFileNames}`,
-    ]
-  },
-  '**/*.rs': (filenames) => {
-    const escapedFileNames = escape(filenames).join(' ')
-    return [`cargo fmt -- ${escapedFileNames}`, `git add ${escapedFileNames}`]
-  },
+  '*.{json,md,mdx,css,html,yml,yaml,scss}': [
+    'prettier --with-node-modules --ignore-path .prettierignore --write',
+  ],
+  '*.rs': ['cargo fmt --'],
 }
