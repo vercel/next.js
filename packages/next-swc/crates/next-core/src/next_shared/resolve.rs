@@ -360,9 +360,11 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
                 ServerContextType::Pages { .. } => "pages",
-                ServerContextType::AppRoute { .. } | ServerContextType::Instrumentation { .. } =>
-                    "app-route",
-                ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
+                ServerContextType::AppRoute { .. }
+                | ServerContextType::AppSSR { .. }
+                | ServerContextType::AppRSC { .. } => "app-page",
+                ServerContextType::Middleware { .. }
+                | ServerContextType::Instrumentation { .. } => "pages",
                 _ => "unknown",
             },
             stem

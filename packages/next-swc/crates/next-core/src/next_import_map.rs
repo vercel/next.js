@@ -649,19 +649,29 @@ async fn rsc_aliases(
     let taint = *next_config.enable_taint().await?;
     let react_channel = if ppr || taint { "-experimental" } else { "" };
 
-    let mut alias = indexmap! {
-        "react" => format!("next/dist/compiled/react{react_channel}"),
-        "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
-        "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-        "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-        "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
-        "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
-        "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
-        "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
-        "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
-        "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
-        "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-        "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+    let mut alias = IndexMap::new();
+    if matches!(
+        ty,
+        ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+    ) {
+        alias.extend(indexmap! {
+            "react" => format!("next/dist/compiled/react{react_channel}"),
+            "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
+            "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
+            "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+            "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
+            "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
+            "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
+            "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
+            "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
+            "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
+            "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
+            "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+        });
+    }
+    alias.extend(indexmap! {
         "react-server-dom-webpack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
         "react-server-dom-webpack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-webpack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
@@ -670,7 +680,7 @@ async fn rsc_aliases(
         "react-server-dom-turbopack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-turbopack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
         "react-server-dom-turbopack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-    };
+    });
 
     if runtime == NextRuntime::NodeJs {
         match ty {
@@ -683,7 +693,7 @@ async fn rsc_aliases(
                     "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
                     "react-server-dom-webpack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                     "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                })
+                });
             }
             ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
                 alias.extend(indexmap! {
@@ -700,7 +710,7 @@ async fn rsc_aliases(
 
                     // Needed to make `react-dom/server` work.
                     "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
-                })
+                });
             }
             _ => {}
         }
