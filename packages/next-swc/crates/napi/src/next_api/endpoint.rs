@@ -57,7 +57,7 @@ impl From<WrittenEndpoint> for NapiWrittenEndpoint {
             } => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path),
-                client_paths,
+                client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
@@ -66,7 +66,7 @@ impl From<WrittenEndpoint> for NapiWrittenEndpoint {
                 client_paths,
             } => Self {
                 r#type: "edge".to_string(),
-                client_paths,
+                client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },

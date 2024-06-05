@@ -7,7 +7,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
@@ -33,15 +33,15 @@ use crate::{
 };
 
 pub struct LoaderTreeBuilder {
-    inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
+    inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     counter: usize,
-    imports: Vec<String>,
+    imports: Vec<RcStr>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
     /// next.config.js' basePath option to construct og metadata.
-    base_path: Option<String>,
+    base_path: Option<RcStr>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,7 +73,7 @@ impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        base_path: Option<String>,
+        base_path: Option<RcStr>,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -123,15 +123,19 @@ impl LoaderTreeBuilder {
                 path = StringifyJs(&module.ident().path().to_string().await?)
             )?;
 
-            self.imports.push(formatdoc!(
-                r#"
+            self.imports.push(
+                formatdoc!(
+                    r#"
                     import {} from "COMPONENT_{}";
                     "#,
-                identifier,
-                i
-            ));
+                    identifier,
+                    i
+                )
+                .into(),
+            );
 
-            self.inner_assets.insert(format!("COMPONENT_{i}"), module);
+            self.inner_assets
+                .insert(format!("COMPONENT_{i}").into(), module);
         }
         Ok(())
     }
@@ -240,12 +244,12 @@ impl LoaderTreeBuilder {
                 let inner_module_id = format!("METADATA_{i}");
 
                 self.imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
                 let source = dynamic_image_metadata_source(
                     Vc::upcast(self.context),
                     *path,
-                    name.to_string(),
+                    name.into(),
                     app_page.clone(),
                 );
 
@@ -258,7 +262,7 @@ impl LoaderTreeBuilder {
                         )),
                     )
                     .module();
-                self.inner_assets.insert(inner_module_id, module);
+                self.inner_assets.insert(inner_module_id.into(), module);
 
                 let s = "      ";
                 writeln!(self.loader_tree_code, "{s}{identifier},")?;
@@ -279,18 +283,18 @@ impl LoaderTreeBuilder {
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        let helper_import = "import { fillMetadataSegment } from \
-                             \"next/dist/lib/metadata/get-metadata-route\""
-            .to_string();
+        let helper_import: RcStr = "import { fillMetadataSegment } from \
+                                    \"next/dist/lib/metadata/get-metadata-route\""
+            .into();
 
         if !self.imports.contains(&helper_import) {
             self.imports.push(helper_import);
         }
 
         self.imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";"));
+            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
         self.inner_assets.insert(
-            inner_module_id,
+            inner_module_id.into(),
             Vc::upcast(StructuredImageModuleType::create_module(
                 Vc::upcast(FileSource::new(path)),
                 BlurPlaceholderMode::None,
@@ -332,7 +336,7 @@ impl LoaderTreeBuilder {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
             self.imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";"));
+                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
             let module = self
                 .context
                 .process(
@@ -342,7 +346,7 @@ impl LoaderTreeBuilder {
                     Value::new(ReferenceType::Internal(InnerAssets::empty())),
                 )
                 .module();
-            self.inner_assets.insert(inner_module_id, module);
+            self.inner_assets.insert(inner_module_id.into(), module);
 
             writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
         }
@@ -425,7 +429,7 @@ impl LoaderTreeBuilder {
         self.walk_tree(loader_tree, true).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
-            loader_tree_code: self.loader_tree_code,
+            loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.inner_assets,
             pages: self.pages,
         })
@@ -433,9 +437,9 @@ impl LoaderTreeBuilder {
 }
 
 pub struct LoaderTreeModule {
-    pub imports: Vec<String>,
-    pub loader_tree_code: String,
-    pub inner_assets: IndexMap<String, Vc<Box<dyn Module>>>,
+    pub imports: Vec<RcStr>,
+    pub loader_tree_code: RcStr,
+    pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 
@@ -444,7 +448,7 @@ impl LoaderTreeModule {
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
-        base_path: Option<String>,
+        base_path: Option<RcStr>,
     ) -> Result<Self> {
         LoaderTreeBuilder::new(context, server_component_transition, base_path)
             .build(loader_tree)

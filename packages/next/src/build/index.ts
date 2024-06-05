@@ -169,7 +169,7 @@ import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
-import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
@@ -1820,7 +1820,6 @@ export default async function build(
           minimalMode: ciEnvironment.hasNextSupport,
           allowedRevalidateHeaderKeys:
             config.experimental.allowedRevalidateHeaderKeys,
-          isAppPPREnabled,
         })
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
@@ -2794,8 +2793,10 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-                // We write the `.prefetch.rsc` when the app has PPR enabled, so
-                // always add the prefetch data route to the manifest.
+                // While we may only write the `.rsc` when the route does not
+                // have PPR enabled, we still want to generate the route when
+                // deployed so it doesn't 404. If the app has PPR enabled, we
+                // should add this key.
                 if (!isRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
@@ -2868,8 +2869,10 @@ export default async function build(
 
               let prefetchDataRoute: string | undefined
 
-              // We write the `.prefetch.rsc` when the app has PPR enabled, so
-              // always add the prefetch data route to the manifest.
+              // While we may only write the `.rsc` when the route does not
+              // have PPR enabled, we still want to generate the route when
+              // deployed so it doesn't 404. If the app has PPR enabled, we
+              // should add this key.
               if (!isRouteHandler && isAppPPREnabled) {
                 prefetchDataRoute = path.posix.join(
                   `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
