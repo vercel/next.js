@@ -2,7 +2,9 @@ import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
-import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { isNavigationSignalError } from '../../export/helpers/is-navigation-signal-error'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -57,12 +59,14 @@ export function createErrorHandler({
 
     if (allCapturedErrors) allCapturedErrors.push(err)
 
-    // These errors are expected. We return the digest
-    // so that they can be properly handled.
-    if (isDynamicUsageError(err)) return err.digest
-
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
+
+    // If we're bailing out to CSR, we don't need to log the error.
+    if (isBailoutToCSRError(err)) return err.digest
+
+    // If this is a navigation error, we don't need to log the error.
+    if (isNavigationSignalError(err)) return err.digest
 
     if (!digestErrorsMap.has(digest)) {
       digestErrorsMap.set(digest, err)
@@ -71,6 +75,12 @@ export function createErrorHandler({
       // we should use the existing error object to avoid duplicate error logs.
       err = digestErrorsMap.get(digest)
     }
+
+    // If this error occurs, we know that we should be stopping the static
+    // render. This is only thrown in static generation when PPR is not enabled,
+    // which causes the whole page to be marked as dynamic. We don't need to
+    // tell the user about this error, as it's not actionable.
+    if (isDynamicServerError(err)) return err.digest
 
     // Format server errors in development to add more helpful error messages
     if (dev) {

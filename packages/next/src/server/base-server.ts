@@ -13,6 +13,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
 import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
 import type {
+  CachedAppPageValue,
+  CachedPageValue,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -34,9 +36,9 @@ import type {
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { AppPageRouteModule } from './future/route-modules/app-page/module'
-import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
+import type { AppPageRouteModule } from './route-modules/app-page/module'
+import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { AppRouteRouteHandlerContext } from './route-modules/app-route/module'
 import type {
   Server as HTTPServer,
   IncomingMessage,
@@ -44,7 +46,7 @@ import type {
 } from 'http'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
-import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
+import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -98,22 +100,22 @@ import {
 import type {
   MatchOptions,
   RouteMatcherManager,
-} from './future/route-matcher-managers/route-matcher-manager'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
-import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
-import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
-import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
-import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
-import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
-import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+} from './route-matcher-managers/route-matcher-manager'
+import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
+import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
+import { AppPageRouteMatcherProvider } from './route-matcher-providers/app-page-route-matcher-provider'
+import { AppRouteRouteMatcherProvider } from './route-matcher-providers/app-route-route-matcher-provider'
+import { PagesAPIRouteMatcherProvider } from './route-matcher-providers/pages-api-route-matcher-provider'
+import { PagesRouteMatcherProvider } from './route-matcher-providers/pages-route-matcher-provider'
+import { ServerManifestLoader } from './route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer, isBubbledError, SpanKind } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { I18NProvider } from './future/helpers/i18n-provider'
+import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
-} from './future/route-modules/helpers/response-handlers'
+} from './route-modules/helpers/response-handlers'
 import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
@@ -128,19 +130,19 @@ import {
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { stripInternalHeaders } from './internal-utils'
-import { RSCPathnameNormalizer } from './future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from './future/normalizers/request/postponed'
-import { ActionPathnameNormalizer } from './future/normalizers/request/action'
+import { RSCPathnameNormalizer } from './normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
+import { ActionPathnameNormalizer } from './normalizers/request/action'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
   isPagesRouteModule,
-} from './future/route-modules/checks'
-import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
-import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
+} from './route-modules/checks'
+import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
+import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
-import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from './lib/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
@@ -426,6 +428,8 @@ export default abstract class Server<
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
+  private readonly isAppPPREnabled: boolean
+
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -491,7 +495,7 @@ export default abstract class Server<
 
     this.enabledDirectories = this.getEnabledDirectories(dev)
 
-    const isAppPPREnabled =
+    this.isAppPPREnabled =
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
@@ -500,7 +504,7 @@ export default abstract class Server<
       // mode as otherwise that route is not exposed external to the server as
       // we instead only rely on the headers.
       postponed:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PostponedPathnameNormalizer()
           : undefined,
       rsc:
@@ -508,7 +512,7 @@ export default abstract class Server<
           ? new RSCPathnameNormalizer()
           : undefined,
       prefetchRSC:
-        isAppPPREnabled && this.minimalMode
+        this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
@@ -568,7 +572,6 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        isAppPPREnabled,
         swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
@@ -2009,9 +2012,9 @@ export default abstract class Server<
      * enabled, then the given route _could_ support PPR.
      */
     const couldSupportPPR: boolean =
+      this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      this.renderOpts.experimental.isAppPPREnabled
+      isAppPageRouteModule(routeModule)
 
     // If this is a request that's rendering an app page that support's PPR,
     // then if we're in development mode (or using the experimental test
@@ -2598,15 +2601,28 @@ export default abstract class Server<
       }
 
       // We now have a valid HTML result that we can return to the user.
+      if (isAppPath) {
+        return {
+          value: {
+            kind: 'APP_PAGE',
+            html: result,
+            headers,
+            rscData: metadata.flightData,
+            postponed: metadata.postponed,
+            status: res.statusCode,
+          } satisfies CachedAppPageValue,
+          revalidate: metadata.revalidate,
+        }
+      }
+
       return {
         value: {
           kind: 'PAGE',
           html: result,
           pageData: metadata.pageData ?? metadata.flightData,
-          postponed: metadata.postponed,
           headers,
           status: isAppPath ? res.statusCode : undefined,
-        },
+        } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
       }
     }
@@ -2719,7 +2735,6 @@ export default abstract class Server<
               value: {
                 kind: 'PAGE',
                 html: RenderResult.fromStatic(html),
-                postponed: undefined,
                 status: undefined,
                 headers: undefined,
                 pageData: {},
@@ -2772,6 +2787,7 @@ export default abstract class Server<
         incrementalCache,
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
+        isRoutePPREnabled,
       }
     )
 
@@ -2788,7 +2804,7 @@ export default abstract class Server<
     }
 
     const didPostpone =
-      cacheEntry.value?.kind === 'PAGE' &&
+      cacheEntry.value?.kind === 'APP_PAGE' &&
       typeof cacheEntry.value.postponed === 'string'
 
     if (
@@ -2881,9 +2897,23 @@ export default abstract class Server<
     // and the revalidate options.
     const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
     if (onCacheEntry) {
-      const finished = await onCacheEntry(cacheEntry, {
-        url: getRequestMeta(req, 'initURL'),
-      })
+      const finished = await onCacheEntry(
+        {
+          ...cacheEntry,
+          // TODO: remove this when upstream doesn't
+          // always expect this value to be "PAGE"
+          value: {
+            ...cacheEntry.value,
+            kind:
+              cacheEntry.value?.kind === 'APP_PAGE'
+                ? 'PAGE'
+                : cacheEntry.value?.kind,
+          },
+        },
+        {
+          url: getRequestMeta(req, 'initURL'),
+        }
+      )
       if (finished) {
         // TODO: maybe we have to end the request?
         return null
@@ -2952,7 +2982,7 @@ export default abstract class Server<
         })
       )
       return null
-    } else if (isAppPath) {
+    } else if (cachedData.kind === 'APP_PAGE') {
       // If the request has a postponed state and it's a resume request we
       // should error.
       if (cachedData.postponed && minimalPostponed) {
@@ -3013,7 +3043,7 @@ export default abstract class Server<
       // return the generated payload
       if (isRSCRequest && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
-        if (typeof cachedData.pageData !== 'string') {
+        if (typeof cachedData.rscData === 'undefined') {
           if (cachedData.postponed) {
             throw new Error('Invariant: Expected postponed to be undefined')
           }
@@ -3034,7 +3064,7 @@ export default abstract class Server<
         // data.
         return {
           type: 'rsc',
-          body: RenderResult.fromStatic(cachedData.pageData),
+          body: RenderResult.fromStatic(cachedData.rscData),
           revalidate: cacheEntry.revalidate,
         }
       }
@@ -3074,7 +3104,7 @@ export default abstract class Server<
             throw new Error('Invariant: expected a result to be returned')
           }
 
-          if (result.value?.kind !== 'PAGE') {
+          if (result.value?.kind !== 'APP_PAGE') {
             throw new Error(
               `Invariant: expected a page response, got ${result.value?.kind}`
             )

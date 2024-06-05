@@ -386,6 +386,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
+            memoryLimit: z.number().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -435,6 +436,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
             .optional(),
         ]),
+        staticGenerationRetryCount: z.number().int().optional(),
       })
       .optional(),
     exportPathMap: z

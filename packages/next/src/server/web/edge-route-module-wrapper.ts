@@ -2,14 +2,14 @@ import type { NextRequest } from './spec-extension/request'
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
-} from '../future/route-modules/app-route/module'
+} from '../route-modules/app-route/module'
 import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
 import { adapter, type AdapterOptions } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
+import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
