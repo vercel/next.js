@@ -30,7 +30,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 #[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: Vc<FileSystemPath>,
-    plugin_configs: &[(String, serde_json::Value)],
+    plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::{bail, Context};
@@ -58,7 +58,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         // one for implicit package name resolves to node_modules,
         // and one for explicit path to a .wasm binary.
         // Current resolve will fail with latter.
-        let request = Request::parse(Value::new(Pattern::Constant(name.to_string())));
+        let request = Request::parse(Value::new(Pattern::Constant(name.as_str().into())));
         let resolve_options = resolve_options(
             project_path,
             ResolveOptionsContext {
