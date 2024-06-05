@@ -334,7 +334,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         page.push(PageSegment::Static(
             format!(
                 "{}{}{}",
-                normalized_base_name,
+                base_name,
                 suffix
                     .map(|suffix| format!("-{suffix}"))
                     .unwrap_or_default(),
