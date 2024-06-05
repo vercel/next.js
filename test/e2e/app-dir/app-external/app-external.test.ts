@@ -43,7 +43,7 @@ createNextDescribe(
         expect(result).toContain('Server subpath: subpath.default')
         expect(result).toContain('Client: index.default')
         expect(result).toContain('Client subpath: subpath.default')
-        expect(result).toContain('opt-out-react-version: 18.2.0')
+        expect(result).toContain('opt-out-react-version: 18.3.1')
       })
     })
 
