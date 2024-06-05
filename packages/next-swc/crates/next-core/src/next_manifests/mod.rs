@@ -88,13 +88,13 @@ pub struct EdgeFunctionDefinition {
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
-    pub env: IndexMap<String, String>,
+    pub env: IndexMap<RcStr, RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
 pub struct InstrumentationDefinition {
-    pub files: Vec<String>,
-    pub name: String,
+    pub files: Vec<RcStr>,
+    pub name: RcStr,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub wasm: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -104,15 +104,15 @@ pub struct InstrumentationDefinition {
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AssetBinding {
-    pub name: String,
-    pub file_path: String,
+    pub name: RcStr,
+    pub file_path: RcStr,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum Regions {
-    Multiple(Vec<String>),
-    Single(String),
+    Multiple(Vec<RcStr>),
+    Single(RcStr),
 }
 
 #[derive(Serialize, Default, Debug)]
