@@ -256,8 +256,14 @@ async fn dynamic_site_map_route_source(
             }}
 
             export async function GET(_, ctx) {{
-                const {{ __metadata_id__, ...params }} = ctx.params || {{}}
-                const targetId = __metadata_id__ ? __metadata_id__.slice(0, -4) : undefined
+                const {{ __metadata_id__: id, ...params }} = ctx.params || {{}}
+                const hasXmlExtension = id ? id.endsWith('.xml') : false
+                if (id && !hasXmlExtension) {
+                    return new NextResponse('Not Found', {
+                    status: 404,
+                    })
+                }
+                const targetId = id hasXmlExtension ? id.slice(0, -4) : undefined
                 const data = await handler({{ id: targetId }})
                 const content = resolveRouteData(data, fileType)
 

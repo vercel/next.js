@@ -70,13 +70,20 @@ describe('app dir - metadata dynamic routes', () => {
 
     it('should support generate multi sitemaps with generateSitemaps', async () => {
       const ids = ['child0', 'child1', 'child2', 'child3']
-      function fetchSitemap(id) {
-        return next.fetch(`/gsp/sitemap/${id}.xml`).then((res) => res.text())
+      function fetchSitemap(id, withExtension) {
+        return next.fetch(`/gsp/sitemap/${id}${withExtension ? `.xml` : ''}`)
       }
 
+      // Required to have .xml extension for dynamic sitemap
       for (const id of ids) {
-        const text = await fetchSitemap(id)
+        const text = await fetchSitemap(id, true).then((res) => res.text())
         expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
+      }
+
+      // Should 404 when missing .xml extension
+      for (const id of ids) {
+        const { status } = await fetchSitemap(id, false)
+        expect(status).toBe(404)
       }
     })
 
