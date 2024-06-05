@@ -71,7 +71,7 @@ pub struct NextSegmentConfig {
     pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<String>>,
+    pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
 }
 
@@ -402,14 +402,14 @@ fn parse_config_value(
 
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
-                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string()],
+                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
                 // Array of strings is turned into a Vec. If one of the values in not a String it
                 // will error.
                 JsValue::Array { items, .. } => {
                     let mut regions = Vec::new();
                     for item in items {
                         if let JsValue::Constant(ConstantValue::Str(str)) = item {
-                            regions.push(str.to_string());
+                            regions.push(str.to_string().into());
                         } else {
                             invalid_config(
                                 "Values of the `preferredRegion` array need to static strings",

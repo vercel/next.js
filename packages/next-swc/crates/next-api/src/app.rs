@@ -544,7 +544,7 @@ impl AppProject {
                 .iter()
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
-                        pathname.into(),
+                        pathname.to_string().into(),
                         app_entry_point_to_route(self, app_entrypoint.clone())
                             .await?
                             .clone_value(),
@@ -1133,10 +1133,13 @@ impl AppEndpoint {
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
                     client_relative_path,
-                    node_root.join(format!(
-                        "server/app{}/react-loadable-manifest.json",
-                        &app_entry.original_name
-                    )),
+                    node_root.join(
+                        format!(
+                            "server/app{}/react-loadable-manifest.json",
+                            &app_entry.original_name
+                        )
+                        .into(),
+                    ),
                 );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
 
