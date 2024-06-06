@@ -69,7 +69,10 @@ export default class FileSystemCache implements CacheHandler {
             }
             // rough estimate of size of cache value
             return (
-              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+              value.html.length +
+              (JSON.stringify(
+                value.kind === 'APP_PAGE' ? value.rscData : value.pageData
+              )?.length || 0)
             )
           },
         })
@@ -245,23 +248,6 @@ export default class FileSystemCache implements CacheHandler {
             }
           }
         } else {
-          const pageData = isAppPath
-            ? await this.fs.readFile(
-                this.getFilePath(
-                  `${key}${
-                    isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
-                  }`,
-                  'app'
-                ),
-                'utf8'
-              )
-            : JSON.parse(
-                await this.fs.readFile(
-                  this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, 'pages'),
-                  'utf8'
-                )
-              )
-
           let meta: RouteMetadata | undefined
 
           if (isAppPath) {
@@ -275,16 +261,42 @@ export default class FileSystemCache implements CacheHandler {
             } catch {}
           }
 
-          data = {
-            lastModified: mtime.getTime(),
-            value: {
-              kind: 'PAGE',
-              html: fileData,
-              pageData,
-              postponed: meta?.postponed,
-              headers: meta?.headers,
-              status: meta?.status,
-            },
+          if (isAppPath) {
+            const rscData = await this.fs.readFile(
+              this.getFilePath(
+                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                'app'
+              )
+            )
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: 'APP_PAGE',
+                html: fileData,
+                rscData,
+                postponed: meta?.postponed,
+                headers: meta?.headers,
+                status: meta?.status,
+              },
+            }
+          } else {
+            const pageData = JSON.parse(
+              await this.fs.readFile(
+                this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, 'pages'),
+                'utf8'
+              )
+            )
+
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: 'PAGE',
+                html: fileData,
+                pageData,
+                headers: meta?.headers,
+                status: meta?.status,
+              },
+            }
           }
         }
 
@@ -296,7 +308,7 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    if (data?.value?.kind === 'PAGE') {
+    if (data?.value?.kind === 'APP_PAGE' || data?.value?.kind === 'PAGE') {
       let cacheTags: undefined | string[]
       const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
@@ -380,8 +392,8 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    if (data?.kind === 'PAGE') {
-      const isAppPath = typeof data.pageData === 'string'
+    if (data?.kind === 'PAGE' || data?.kind === 'APP_PAGE') {
+      const isAppPath = data.kind === 'APP_PAGE'
       const htmlPath = this.getFilePath(
         `${key}.html`,
         isAppPath ? 'app' : 'pages'
@@ -400,14 +412,14 @@ export default class FileSystemCache implements CacheHandler {
           }`,
           isAppPath ? 'app' : 'pages'
         ),
-        isAppPath ? data.pageData : JSON.stringify(data.pageData)
+        isAppPath ? data.rscData : JSON.stringify(data.pageData)
       )
 
-      if (data.headers || data.status) {
+      if (data.headers || data.status || (isAppPath && data.postponed)) {
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
-          postponed: data.postponed,
+          postponed: isAppPath ? data.postponed : undefined,
         }
 
         await this.fs.writeFile(

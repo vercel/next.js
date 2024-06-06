@@ -3,7 +3,7 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     swc::core::{
@@ -71,7 +71,7 @@ pub struct NextSegmentConfig {
     pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<String>>,
+    pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
 }
 
@@ -178,7 +178,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
+        StyledString::Text("Unable to parse config export in source file".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -197,7 +197,7 @@ impl Issue for NextSegmentConfigParsingIssue {
             StyledString::Text(
                 "The exported configuration object in a source file need to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))
@@ -209,10 +209,10 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<String> {
+    fn documentation_link(&self) -> Vc<RcStr> {
         Vc::cell(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-                .to_string(),
+                .into(),
         )
     }
 
@@ -312,7 +312,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
             source: issue_source(source, span),
         }
         .cell()
@@ -402,14 +402,14 @@ fn parse_config_value(
 
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
-                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string()],
+                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
                 // Array of strings is turned into a Vec. If one of the values in not a String it
                 // will error.
                 JsValue::Array { items, .. } => {
                     let mut regions = Vec::new();
                     for item in items {
                         if let JsValue::Constant(ConstantValue::Str(str)) = item {
-                            regions.push(str.to_string());
+                            regions.push(str.to_string().into());
                         } else {
                             invalid_config(
                                 "Values of the `preferredRegion` array need to static strings",

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
@@ -63,7 +63,7 @@ impl UnsupportedModulesResolvePlugin {
 impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
     }
 
     #[turbo_tasks::function]
@@ -85,7 +85,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
             if UNSUPPORTED_PACKAGES.contains(module.as_str()) {
                 UnsupportedModuleIssue {
                     file_path,
-                    package: module.into(),
+                    package: module.clone(),
                     package_path: None,
                 }
                 .cell()
@@ -96,7 +96,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
                 if UNSUPPORTED_PACKAGE_PATHS.contains(&(module, path)) {
                     UnsupportedModuleIssue {
                         file_path,
-                        package: module.into(),
+                        package: module.clone(),
                         package_path: Some(path.to_owned()),
                     }
                     .cell()
@@ -112,7 +112,7 @@ impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
-    pub messages: Vec<String>,
+    pub messages: Vec<RcStr>,
     pub skip_context_message: bool,
 }
 
@@ -146,17 +146,15 @@ impl Issue for InvalidImportModuleIssue {
 
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
-            messages.push(format!(
-                "The error was caused by importing '{}'",
-                raw_context.path
-            ));
+            messages
+                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
         }
 
         Ok(Vc::cell(Some(
             StyledString::Line(
                 messages
                     .iter()
-                    .map(|v| StyledString::Text(format!("{}\n", v)))
+                    .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
@@ -171,14 +169,14 @@ impl Issue for InvalidImportModuleIssue {
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
     root: Vc<FileSystemPath>,
-    invalid_import: String,
-    message: Vec<String>,
+    invalid_import: RcStr,
+    message: Vec<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, invalid_import: String, message: Vec<String>) -> Vc<Self> {
+    pub fn new(root: Vc<FileSystemPath>, invalid_import: RcStr, message: Vec<RcStr>) -> Vc<Self> {
         InvalidImportResolvePlugin {
             root,
             invalid_import,
@@ -192,7 +190,7 @@ impl InvalidImportResolvePlugin {
 impl AfterResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
     }
 
     #[turbo_tasks::function]
@@ -228,11 +226,11 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "client-only".to_string(),
+        "client-only".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
-                .to_string(),
+                .into(),
         ],
     )
 }
@@ -245,11 +243,11 @@ pub(crate) fn get_invalid_server_only_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "server-only".to_string(),
+        "server-only".into(),
         vec![
             "'server-only' cannot be imported from a Client Component module. It should only be \
              used from a Server Component."
-                .to_string(),
+                .into(),
         ],
     )
 }
@@ -260,15 +258,15 @@ pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
 ) -> Vc<InvalidImportResolvePlugin> {
     InvalidImportResolvePlugin::new(
         root,
-        "styled-jsx".to_string(),
+        "styled-jsx".into(),
         vec![
             "'client-only' cannot be imported from a Server Component module. It should only be \
              used from a Client Component."
-                .to_string(),
+                .into(),
             "The error was caused by using 'styled-jsx'. It only works in a Client Component but \
              none of its parents are marked with \"use client\", so they're Server Components by \
              default."
-                .to_string(),
+                .into(),
         ],
     )
 }
@@ -292,7 +290,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".to_string()),
+            Glob::new("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js".into()),
         )
     }
 
@@ -310,10 +308,10 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // always be found since the glob pattern above is specific enough.
         let starting_index = path.find("next/dist").unwrap();
         // Replace '/esm/' with '/' to match the CJS version of the file.
-        let modified_path = &path[starting_index..].replace("/esm/", "/");
+        let modified_path = path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External(
-                modified_path.to_string(),
+                modified_path.into(),
                 ExternalType::CommonJs,
             ))
             .into(),
@@ -342,7 +340,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/**/*.shared-runtime.js".into()),
         )
     }
 
@@ -378,7 +376,9 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let (base, _) = path.split_at(starting_index);
 
-        let new_path = fs_path.root().join(format!("{base}/{resource_request}"));
+        let new_path = fs_path
+            .root()
+            .join(format!("{base}/{resource_request}").into());
 
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
@@ -405,7 +405,7 @@ impl ModuleFeatureReportResolvePlugin {
 impl AfterResolvePlugin for ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
     }
 
     #[turbo_tasks::function]
@@ -430,7 +430,7 @@ impl AfterResolvePlugin for ModuleFeatureReportResolvePlugin {
                     .find(|sub_path| path.is_match(sub_path));
 
                 if let Some(sub_path) = sub_path {
-                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path), 1)
+                    ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
                         .cell()
                         .emit();
                 }
@@ -460,7 +460,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
         AfterResolvePluginCondition::new(
             self.root.root(),
-            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".to_string()),
+            Glob::new("**/next/dist/esm/**/*.shared-runtime.js".into()),
         )
     }
 
@@ -474,7 +474,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     ) -> Result<Vc<ResolveResultOption>> {
         let raw_fs_path = &*fs_path.await?;
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
-        let new_path = fs_path.root().join(modified_path);
+        let new_path = fs_path.root().join(modified_path.into());
         Ok(Vc::cell(Some(
             ResolveResult::source(Vc::upcast(FileSource::new(new_path))).into(),
         )))

@@ -8,7 +8,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    ReadRef, TryJoinIterExt, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},
@@ -170,9 +170,9 @@ struct VisitClientReferenceNode {
     Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 enum VisitClientReferenceNodeType {
-    ClientReference(ClientReference, ReadRef<String>),
-    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<String>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
+    ClientReference(ClientReference, ReadRef<RcStr>),
+    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<RcStr>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitClientReferenceNode> for VisitClientReference {
@@ -269,13 +269,13 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
     fn span(&mut self, node: &VisitClientReferenceNode) -> tracing::Span {
         match &node.ty {
             VisitClientReferenceNodeType::ClientReference(_, name) => {
-                tracing::info_span!("client reference", name = **name)
+                tracing::info_span!("client reference", name = name.to_string())
             }
             VisitClientReferenceNodeType::Internal(_, name) => {
-                tracing::info_span!("module", name = **name)
+                tracing::info_span!("module", name = name.to_string())
             }
             VisitClientReferenceNodeType::ServerComponentEntry(_, name) => {
-                tracing::info_span!("layout segment", name = **name)
+                tracing::info_span!("layout segment", name = name.to_string())
             }
         }
     }

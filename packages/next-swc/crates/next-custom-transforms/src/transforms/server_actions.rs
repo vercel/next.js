@@ -48,11 +48,11 @@ pub fn server_actions<C: Comments>(
         in_action_file: false,
         in_export_decl: false,
         in_default_export_decl: false,
+        in_callee: false,
         has_action: false,
 
-        action_cnt: 0,
+        reference_index: 0,
         in_module_level: true,
-        in_action_fn: false,
         should_track_names: false,
 
         names: Default::default(),
@@ -90,11 +90,11 @@ struct ServerActions<C: Comments> {
     in_action_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
+    in_callee: bool,
     has_action: bool,
 
-    action_cnt: u32,
+    reference_index: u32,
     in_module_level: bool,
-    in_action_fn: bool,
     should_track_names: bool,
 
     names: Vec<Name>,
@@ -159,7 +159,7 @@ impl<C: Comments> ServerActions<C> {
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
-        let action_name: JsWord = gen_ident(&mut self.action_cnt);
+        let action_name: JsWord = gen_ident(&mut self.reference_index);
         let action_ident = private_ident!(action_name.clone());
         let export_name: JsWord = action_name;
 
@@ -430,18 +430,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         // Visit children
         {
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -473,7 +470,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
-                    let action_name = gen_ident(&mut self.action_cnt);
+                    let action_name = gen_ident(&mut self.reference_index);
                     let ident = Ident::new(action_name, DUMMY_SP);
                     f.ident.insert(ident)
                 }
@@ -521,18 +518,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -624,12 +618,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         {
             // Visit children
-            let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
-            self.in_action_fn = is_action_fn;
             self.in_module_level = false;
             self.should_track_names = is_action_fn || self.should_track_names;
             self.in_export_decl = false;
@@ -640,7 +632,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
             a.visit_mut_children_with(self);
-            self.in_action_fn = old_in_action_fn;
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
@@ -720,9 +711,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
     }
 
+    fn visit_mut_callee(&mut self, n: &mut Callee) {
+        let old_in_callee = self.in_callee;
+        self.in_callee = true;
+        n.visit_mut_children_with(self);
+        self.in_callee = old_in_callee;
+    }
+
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if !self.in_module_level && self.should_track_names {
-            if let Ok(name) = Name::try_from(&*n) {
+            if let Ok(mut name) = Name::try_from(&*n) {
+                if self.in_callee {
+                    // This is a callee i.e. `foo.bar()`,
+                    // we need to track the actual value instead of the method name.
+                    if !name.1.is_empty() {
+                        name.1.pop();
+                    }
+                }
+
                 self.names.push(name);
                 self.should_track_names = false;
                 n.visit_mut_children_with(self);
@@ -833,7 +839,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             } else {
                                 // export default function() {}
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -852,7 +858,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 } else {
                                     // export default async () => {}
                                     let new_ident =
-                                        Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -871,7 +877,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Expr::Call(call) => {
                                 // export default fn()
                                 let new_ident =
-                                    Ident::new(gen_ident(&mut self.action_cnt), DUMMY_SP);
+                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -1179,19 +1185,46 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 }
 
 fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
-    // Collect all the identifiers defined inside the closure and used
-    // in the action function. With deduplication.
-    let mut added_names = Vec::new();
-    child_names.retain(|name| {
-        if added_names.contains(name) {
-            false
-        } else if current_declared_idents.contains(&name.0) {
-            added_names.push(name.clone());
-            true
-        } else {
-            false
+    // Collect the names to retain in a separate vector
+    let mut retained_names = Vec::new();
+
+    for name in child_names.iter() {
+        let mut should_retain = true;
+
+        // Merge child_names. For example if both `foo.bar` and `foo.bar.baz` are used,
+        // we only need to keep `foo.bar` as it covers the other.
+
+        // Currently this is O(n^2) and we can potentially improve this to O(n log n)
+        // by sorting or using a hashset.
+        for another_name in child_names.iter() {
+            if name != another_name
+                && name.0 == another_name.0
+                && name.1.len() >= another_name.1.len()
+            {
+                let mut is_prefix = true;
+                for i in 0..another_name.1.len() {
+                    if name.1[i] != another_name.1[i] {
+                        is_prefix = false;
+                        break;
+                    }
+                }
+                if is_prefix {
+                    should_retain = false;
+                    break;
+                }
+            }
         }
-    });
+
+        if should_retain
+            && current_declared_idents.contains(&name.0)
+            && !retained_names.contains(name)
+        {
+            retained_names.push(name.clone());
+        }
+    }
+
+    // Replace the original child_names with the retained names
+    *child_names = retained_names;
 }
 
 fn gen_ident(cnt: &mut u32) -> JsWord {
