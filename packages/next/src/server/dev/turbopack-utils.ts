@@ -33,6 +33,7 @@ import {
 } from './turbopack/entry-key'
 import type ws from 'next/dist/compiled/ws'
 import isInternal from '../../shared/lib/is-internal'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -994,4 +995,20 @@ export async function handlePagesErrorRoute({
     rewrites,
     pageEntrypoints: entrypoints.page,
   })
+}
+
+export function mapMetadataRouteToEntryKey(route: string): string {
+  let entrypointKey = route
+  if (isMetadataRoute(entrypointKey)) {
+    entrypointKey = entrypointKey.endsWith('/route')
+      ? entrypointKey.slice(0, -'/route'.length)
+      : entrypointKey
+    if (entrypointKey.endsWith('/sitemap.xml')) {
+      entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+    } else if (entrypointKey.endsWith('/[__metadata_id__]')) {
+      entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
+    }
+    entrypointKey = entrypointKey + '/route'
+  }
+  return entrypointKey
 }
