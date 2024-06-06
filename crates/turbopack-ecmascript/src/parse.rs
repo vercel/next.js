@@ -322,7 +322,9 @@ async fn parse_content(
                 );
 
                 let mut parser = Parser::new_from(lexer);
+                let span = tracing::trace_span!("swc_parse").entered();
                 let program_result = parser.parse_program();
+                drop(span);
 
                 let mut has_errors = vec![];
                 for e in parser.take_errors() {
@@ -360,11 +362,16 @@ async fn parse_content(
                 EcmascriptModuleAssetType::Typescript { .. }
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
+            let span = tracing::trace_span!("swc_resolver").entered();
+
             parsed_program.visit_mut_with(&mut resolver(
                 unresolved_mark,
                 top_level_mark,
                 is_typescript,
             ));
+            drop(span);
+
+            let span = tracing::trace_span!("swc_lint").entered();
 
             let lint_config = LintConfig::default();
             let rules = swc_core::ecma::lints::rules::all(LintParams {
@@ -377,6 +384,7 @@ async fn parse_content(
             });
             parsed_program =
                 parsed_program.fold_with(&mut swc_core::ecma::lints::rules::lint_to_fold(rules));
+            drop(span);
 
             let transform_context = TransformContext {
                 comments: &comments,
@@ -388,11 +396,17 @@ async fn parse_content(
                 file_name_hash: file_path_hash,
                 file_path: fs_path_vc,
             };
-            for transform in transforms.iter() {
-                transform
-                    .apply(&mut parsed_program, &transform_context)
-                    .await?;
+            let span = tracing::trace_span!("transforms");
+            async {
+                for transform in transforms.iter() {
+                    transform
+                        .apply(&mut parsed_program, &transform_context)
+                        .await?;
+                }
+                anyhow::Ok(())
             }
+            .instrument(span)
+            .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = emitter.emitted_issues.last() {

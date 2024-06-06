@@ -28,6 +28,7 @@ impl ServerDirectiveTransformer {
 
 #[async_trait]
 impl CustomTransformer for ServerDirectiveTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "server_directive", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if is_server_module(program) {
             let stmt = quote!(

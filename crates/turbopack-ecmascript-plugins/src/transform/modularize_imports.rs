@@ -52,6 +52,7 @@ impl ModularizeImportsTransformer {
 
 #[async_trait]
 impl CustomTransformer for ModularizeImportsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut modularize_imports(Config {
