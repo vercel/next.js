@@ -871,10 +871,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn notify_scheduled_tasks(&self) {
         let _ = CURRENT_TASK_STATE.try_with(|cell| {
-            let CurrentTaskState {
-                tasks_to_notify, ..
-            } = &mut *cell.borrow_mut();
-            let tasks = take(tasks_to_notify);
+            let tasks = {
+                let CurrentTaskState {
+                    tasks_to_notify, ..
+                } = &mut *cell.borrow_mut();
+                take(tasks_to_notify)
+            };
             if tasks.is_empty() {
                 return;
             }
