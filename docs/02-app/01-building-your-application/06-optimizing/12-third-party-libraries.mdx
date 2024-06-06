@@ -288,7 +288,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { param1: 'xyz', param2: 'ijk' })}
       >
         Send Event
       </button>
@@ -308,7 +308,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { param1: 'xyz', param2: 'ijk' })}
       >
         Send Event
       </button>
