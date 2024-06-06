@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: support react-server condition for instrumentation hook in turbopack
 describe('rsc layers transform', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,

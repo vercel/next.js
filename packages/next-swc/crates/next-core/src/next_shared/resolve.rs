@@ -359,13 +359,10 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let resource_request = format!(
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
-                ServerContextType::Pages { .. }
-                | ServerContextType::Middleware { .. }
-                | ServerContextType::Instrumentation { .. } => "pages",
                 ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
-
-                _ => "unknown",
+                // Use default pages context for all other contexts.
+                _ => "pages",
             },
             stem
         );
