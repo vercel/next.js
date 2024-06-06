@@ -28,6 +28,7 @@ indexmap = { workspace = true }
 lightningcss = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tracing = { workspace = true }
 
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

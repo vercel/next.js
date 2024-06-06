@@ -94,6 +94,7 @@ impl EmotionTransformer {
 
 #[async_trait]
 impl CustomTransformer for EmotionTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "emotion", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "transform_emotion")]
         {

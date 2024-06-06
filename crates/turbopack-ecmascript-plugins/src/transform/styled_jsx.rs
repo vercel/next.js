@@ -31,6 +31,7 @@ impl StyledJsxTransformer {
 
 #[async_trait]
 impl CustomTransformer for StyledJsxTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_jsx", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut styled_jsx::visitor::styled_jsx(

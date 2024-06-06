@@ -19,6 +19,7 @@ impl ClientDirectiveTransformer {
 
 #[async_trait]
 impl CustomTransformer for ClientDirectiveTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "client_directive", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if is_client_module(program) {
             let transition_name = &*self.transition_name.await?;
