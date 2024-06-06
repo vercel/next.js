@@ -125,13 +125,11 @@ async function createAppRouteCode({
   if (isMetadataRoute(name) && fileBaseName !== 'route') {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
     const isDynamicRouteExtension = pageExtensions.includes(ext)
-    const isDynamicMultiRoute = fileBaseName.endsWith('[]')
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
       filePath: resolvedPagePath,
       isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
-      isDynamicMultiRoute: isDynamicMultiRoute ? '1' : '0',
     })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 

@@ -56,10 +56,7 @@ async function nextMetadataImageLoader(
   )
 
   const isDynamicResource = pageExtensions.includes(extension)
-  let pageSegment = isDynamicResource ? fileNameBase : interpolatedName
-  if (pageSegment.endsWith('[]')) {
-    pageSegment = pageSegment.slice(0, -2)
-  }
+  const pageSegment = isDynamicResource ? fileNameBase : interpolatedName
   const hashQuery = contentHash ? '?' + contentHash : ''
   const pathnamePrefix = normalizePathSep(path.join(basePath, segment))
 

@@ -29,13 +29,9 @@ async function enumMetadataFiles(
   const collectedFiles: string[] = []
 
   // Collect <filename>.<ext>, <filename>[].<ext>
-  // Collect <filename><num>.<ext>, <filename><num>[].<ext>
-  const possibleFileNames = [filename, filename + '[]'].concat(
+  const possibleFileNames = [filename].concat(
     numericSuffix
-      ? [
-          ...NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index),
-          ...NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index + '[]'),
-        ]
+      ? NUMERIC_SUFFIX_ARRAY.map((_, index) => filename + index)
       : []
   )
   for (const name of possibleFileNames) {

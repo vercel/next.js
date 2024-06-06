@@ -46,10 +46,6 @@ export function fillMetadataSegment(
   return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
 }
 
-function isDynamicMetadataRoute(page: string) {
-  return page.endsWith('[]')
-}
-
 /**
  * Map metadata page key to the corresponding route
  *
@@ -69,8 +65,6 @@ export function normalizeMetadataRoute(page: string) {
     route += '.txt'
   } else if (page === '/manifest') {
     route += '.webmanifest'
-  } else if (page.endsWith('/sitemap')) {
-    route += '.xml'
   } else {
     // Remove the file extension,
     // e.g. /path/robots.txt -> /route-path
@@ -82,21 +76,30 @@ export function normalizeMetadataRoute(page: string) {
   // If it's a metadata file route, we need to append /[id]/route to the page.
   if (!route.endsWith('/route')) {
     const { dir, name: baseName, ext } = path.parse(route)
-    const isDynamicMultiMetadataRoute = isDynamicMetadataRoute(page)
-    const normalizedBaseName = isDynamicMultiMetadataRoute
-      ? baseName.slice(0, -2)
-      : baseName
-
-    // For multi-dynamic metadata routes, generate a sub-route segment.
-    // e.g. /opengraph-image[].js -> /opengraph-image/[__metadata_id__]/route
-    // e.g. /sitemap[].js -> /sitemap/[__metadata_id__]/route
     route = path.posix.join(
       dir,
-      `${normalizedBaseName}${suffix ? `-${suffix}` : ''}${ext}`,
-      isDynamicMultiMetadataRoute ? '[__metadata_id__]' : '',
+      `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
       'route'
     )
   }
 
   return route
+}
+
+// Normalize metadata route page to either a single route or a dynamic route.
+// e.g. Input: /sitemap/route
+// when isDynamic is false, single route -> /sitemap.xml/route
+// when isDynamic is false, dynamic route -> /sitemap/[__metadata_id__]/route
+// also works for pathname such as /sitemap -> /sitemap.xml, but will not append /route suffix
+export function normalizeMetadataPageToRoute(page: string, isDynamic: boolean) {
+  const isRoute = page.endsWith('/route')
+  const routePagePath = isRoute ? page.slice(0, -'/route'.length) : page
+  const metadataRouteExtension = routePagePath.endsWith('/sitemap')
+    ? '.xml'
+    : ''
+  const mapped = isDynamic
+    ? `${routePagePath}/[__metadata_id__]`
+    : `${routePagePath}${metadataRouteExtension}`
+
+  return mapped + (isRoute ? '/route' : '')
 }

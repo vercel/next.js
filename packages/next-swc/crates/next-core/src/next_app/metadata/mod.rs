@@ -90,7 +90,6 @@ pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String>
     let ext = &*path.extension().await?;
 
     let name = stem.as_deref().unwrap_or_default();
-    let name = name.strip_suffix("[]").unwrap_or(name);
     let mut ext = ext.as_str();
     if ext == "jpg" {
         ext = "jpeg"
@@ -202,7 +201,6 @@ pub fn is_metadata_route_file(
         let stem = match_numbered_metadata(stem)
             .map(|(stem, _)| stem)
             .unwrap_or(stem);
-        let stem = stem.strip_suffix("[]").unwrap_or(stem);
 
         if STATIC_LOCAL_METADATA.contains_key(stem) {
             return true;
@@ -326,8 +324,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
         let (base_name, ext) = split_extension(&route);
-        let is_multi_dynamic = base_name.ends_with("[]");
-        let base_name = base_name.strip_suffix("[]").unwrap_or(base_name);
+        // TODO: parse exports to get is_multi_dynamic
+        let is_multi_dynamic = false;
 
         page.0.pop();
 
