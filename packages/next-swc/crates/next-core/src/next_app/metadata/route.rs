@@ -38,8 +38,8 @@ pub async fn get_app_metadata_route_source(
         MetadataItem::Dynamic { path } => {
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
-            let is_multi_dynamic = stem.to_string().ends_with("[]");
-            let stem = stem.strip_suffix("[]").unwrap_or(stem);
+            // TODO: parse exports to get is_multi_dynamic
+            let is_multi_dynamic = false;
 
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
@@ -212,7 +212,6 @@ async fn dynamic_site_map_route_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
-    let file_type = stem.strip_suffix("[]").unwrap_or(stem);
     let ext = &*path.extension().await?;
     let content_type = get_content_type(path).await?;
     let mut static_generation_code = "";
@@ -279,7 +278,7 @@ async fn dynamic_site_map_route_source(
         "#,
         resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
         content_type = StringifyJs(&content_type),
-        file_type = StringifyJs(&file_type),
+        file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
         static_generation_code = static_generation_code,
     };

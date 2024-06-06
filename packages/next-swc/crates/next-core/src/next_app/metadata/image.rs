@@ -119,7 +119,7 @@ pub async fn dynamic_image_metadata_source(
         exported_fields_excluding_default = exported_fields_excluding_default,
         resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
         pathname_prefix = StringifyJs(&page.to_string()),
-        page_segment = StringifyJs(stem.strip_suffix("[]").unwrap_or(stem)),
+        page_segment = StringifyJs(stem),
         sizes = sizes,
         hash_query = StringifyJs(&hash_query),
     };

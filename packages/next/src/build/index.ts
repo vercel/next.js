@@ -933,15 +933,16 @@ export default async function build(
       }
       NextBuildContext.previewProps = previewProps
 
-      const mappedPages = nextBuildSpan
+      const mappedPages = await nextBuildSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
             pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagesPaths,
             pagesDir,
+            appDir,
           })
         )
       NextBuildContext.mappedPages = mappedPages
@@ -963,27 +964,29 @@ export default async function build(
             })
           )
 
-        mappedAppPages = nextBuildSpan
+        mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
-          .traceFn(() =>
+          .traceAsyncFn(() =>
             createPagesMapping({
               pagePaths: appPaths,
               isDev: false,
               pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
-              pagesDir: pagesDir,
+              pagesDir,
+              appDir,
             })
           )
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
-      const mappedRootPaths = createPagesMapping({
+      const mappedRootPaths = await createPagesMapping({
         isDev: false,
         pageExtensions: config.pageExtensions,
         pagePaths: rootPaths,
         pagesType: PAGE_TYPES.ROOT,
         pagesDir: pagesDir,
+        appDir,
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
@@ -1210,11 +1213,6 @@ export default async function build(
         path.join(distDir, 'package.json'),
         '{"type": "commonjs"}'
       )
-
-      // We need to write the manifest with rewrites before build
-      await nextBuildSpan
-        .traceChild('write-routes-manifest')
-        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       await writeEdgePartialPrerenderManifest(distDir, {})
 
@@ -2380,8 +2378,13 @@ export default async function build(
           return buildDataRoute(page, buildId)
         })
 
-        await writeManifest(routesManifestPath, routesManifest)
+        // await writeManifest(routesManifestPath, routesManifest)
       }
+
+      // We need to write the manifest with rewrites before build
+      await nextBuildSpan
+        .traceChild('write-routes-manifest')
+        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
