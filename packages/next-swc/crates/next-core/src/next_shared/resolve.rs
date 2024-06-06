@@ -359,12 +359,12 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let resource_request = format!(
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
-                ServerContextType::Pages { .. } => "pages",
-                ServerContextType::AppRoute { .. }
-                | ServerContextType::AppSSR { .. }
-                | ServerContextType::AppRSC { .. } => "app-page",
-                ServerContextType::Middleware { .. }
+                ServerContextType::Pages { .. }
+                | ServerContextType::Middleware { .. }
                 | ServerContextType::Instrumentation { .. } => "pages",
+                ServerContextType::AppRoute { .. } => "app-route",
+                ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
+
                 _ => "unknown",
             },
             stem
