@@ -5134,7 +5134,7 @@ export declare function Damion<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dancing_Script<
   T extends CssVariable | undefined = undefined,
@@ -13840,7 +13840,7 @@ export declare function Noto_Rashi_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
+  subsets?: Array<'greek-ext' | 'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans<
   T extends CssVariable | undefined = undefined,
@@ -23309,6 +23309,18 @@ export declare function Tinos<
     | 'latin-ext'
     | 'vietnamese'
   >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Tiny5<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Bangla<
   T extends CssVariable | undefined = undefined,
