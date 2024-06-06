@@ -497,6 +497,16 @@ export const metadata = {
     ],
     locale: 'en_US',
     type: 'website',
+    videos: [
+      '/link-to-video', // Can be a string of just the url - a relative path as shown can point to your public folder
+
+      // Or a video descriptor object
+      {
+        url: '/link-to-video',
+        width: 800,
+        height: 600,
+      },
+    ],
   },
 }
 ```
