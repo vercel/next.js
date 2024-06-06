@@ -495,18 +495,15 @@ export const metadata = {
         alt: 'My custom alt',
       },
     ],
-    locale: 'en_US',
-    type: 'website',
     videos: [
-      '/link-to-video', // Can be a string of just the url - a relative path as shown can point to your public folder
-
-      // Or a video descriptor object
       {
-        url: '/link-to-video',
+        url: 'https://nextjs.org/video.mp4', // Must be an absolute URL
         width: 800,
         height: 600,
       },
     ],
+    locale: 'en_US',
+    type: 'website',
   },
 }
 ```
