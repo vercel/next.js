@@ -2,7 +2,7 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Ok, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::{formatdoc, indoc};
 use turbo_tasks::{ValueToString, Vc};
@@ -22,7 +22,9 @@ use super::get_content_type;
 use crate::{
     app_structure::MetadataItem,
     mode::NextMode,
-    next_app::{app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage},
+    next_app::{
+        app_entry::AppEntry, app_route_entry::get_app_route_entry, AppPage, PageSegment, PageType,
+    },
     next_config::NextConfig,
     parse_segment_config_from_source,
 };
@@ -30,6 +32,7 @@ use crate::{
 /// Computes the route source for a Next.js metadata file.
 #[turbo_tasks::function]
 pub async fn get_app_metadata_route_source(
+    page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
 ) -> Result<Vc<Box<dyn Source>>> {
@@ -38,26 +41,24 @@ pub async fn get_app_metadata_route_source(
         MetadataItem::Dynamic { path } => {
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
-            // TODO: parse exports to get is_multi_dynamic
-            let is_multi_dynamic = false;
 
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(path, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, path, page)
             } else {
-                dynamic_image_route_source(path, is_multi_dynamic)
+                dynamic_image_route_source(path)
             }
         }
     })
 }
 
 #[turbo_tasks::function]
-pub fn get_app_metadata_route_entry(
+pub async fn get_app_metadata_route_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
     project_root: Vc<FileSystemPath>,
-    page: AppPage,
+    mut page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
     next_config: Vc<NextConfig>,
@@ -71,11 +72,38 @@ pub fn get_app_metadata_route_entry(
     let source = Vc::upcast(FileSource::new(original_path));
     let segment_config = parse_segment_config_from_source(source);
 
+    // is_multi_dynamic is true when config.generateSitemaps or
+    // config.generateImageMetadata is defined
+    let is_multi_dynamic: bool = if Some(segment_config).is_some() {
+        let config = segment_config.await.unwrap();
+        config.generate_sitemaps.is_some() || config.generate_image_metadata.is_some()
+    } else {
+        false
+    };
+
+    // remove the last /route segment of page
+    page.0.pop();
+
+    let _ = if is_multi_dynamic {
+        // push /[__metadata_id__] to the page
+        page.push(PageSegment::Dynamic("[__metadata_id__]".into()))
+    } else {
+        // if page last segment is sitemap, change to sitemap.xml
+        if page.last() == Some(&PageSegment::Static("sitemap".into())) {
+            page.0.pop();
+            page.push(PageSegment::Static("sitemap.xml".into()))
+        } else {
+            Ok(())
+        }
+    };
+    // Push /route back
+    let _ = page.push(PageSegment::PageType(PageType::Route));
+
     get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(mode, metadata),
-        page,
+        get_app_metadata_route_source(page.clone(), mode, metadata),
+        page.clone(),
         project_root,
         Some(segment_config),
         next_config,
@@ -207,8 +235,9 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
 #[turbo_tasks::function]
 async fn dynamic_site_map_route_source(
+    mode: NextMode,
     path: Vc<FileSystemPath>,
-    is_multi_dynamic: bool,
+    page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
@@ -216,21 +245,16 @@ async fn dynamic_site_map_route_source(
     let content_type = get_content_type(path).await?;
     let mut static_generation_code = "";
 
-    if is_multi_dynamic {
+    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".into())) {
         static_generation_code = indoc! {
             r#"
                 export async function generateStaticParams() {
                     const sitemaps = await generateSitemaps()
                     const params = []
 
-                    for (const item of sitemaps) {
-                        if (process.env.NODE_ENV !== 'production') {{
-                            if (item?.id == null) {{
-                                throw new Error('id property is required for every item returned from generateSitemaps')
-                            }}
-                        }}
-                        params.push({ __metadata_id__: item.id.toString() + ".xml" })
-                    }
+                    for (const item of sitemaps) {{
+                        params.push({ __metadata_id__: item.id.toString() + '.xml' })
+                    }}
                     return params
                 }
             "#,
@@ -262,6 +286,16 @@ async fn dynamic_site_map_route_source(
                         status: 404,
                     }})
                 }}
+
+                if (process.env.NODE_ENV !== 'production' && sitemapModule.generateSitemaps) {{
+                    const sitemaps = await sitemapModule.generateSitemaps()
+                    for (const item of sitemaps) {{
+                        if (item?.id == null) {{
+                            throw new Error('id property is required for every item returned from generateSitemaps')
+                        }}
+                    }}
+                }}
+                
                 const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
                 const data = await handler({{ id: targetId }})
                 const content = resolveRouteData(data, fileType)
@@ -293,10 +327,7 @@ async fn dynamic_site_map_route_source(
 }
 
 #[turbo_tasks::function]
-async fn dynamic_image_route_source(
-    path: Vc<FileSystemPath>,
-    is_multi_dynamic: bool,
-) -> Result<Vc<Box<dyn Source>>> {
+async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
     let stem = stem.as_deref().unwrap_or_default();
     let ext = &*path.extension().await?;
@@ -320,7 +351,7 @@ async fn dynamic_image_route_source(
                 const targetId = __metadata_id__
                 let id = undefined
 
-                if ({is_multi_dynamic}) {{
+                if (generateImageMetadata) {{
                     const imageMetadata = await generateImageMetadata({{ params }})
                     id = imageMetadata.find((item) => {{
                         if (process.env.NODE_ENV !== 'production') {{
@@ -342,7 +373,6 @@ async fn dynamic_image_route_source(
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
-        is_multi_dynamic = is_multi_dynamic,
     };
 
     let file = File::from(code);

@@ -40,8 +40,8 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number, _is_multi_dynamic) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d+)(\\[\\])?$",
+    let (_whole, stem, number) = lazy_regex::regex_captures!(
+        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d+)$",
         stem
     )?;
 
@@ -62,10 +62,6 @@ fn match_metadata_file<'a>(
         }
         _ => (stem, None),
     };
-    let stem = stem
-        .ends_with("[]")
-        .then(|| &stem[..stem.len() - 2])
-        .unwrap_or(stem);
 
     let exts = metadata.get(stem)?;
 
@@ -310,9 +306,6 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
-    // Do not append the suffix for the sitemap route
-    } else if route.ends_with("/sitemap") {
-        route += ".xml"
     } else {
         // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
         let pathname_prefix = split_directory(&route).0.unwrap_or_default();
@@ -324,8 +317,6 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
         let (base_name, ext) = split_extension(&route);
-        // TODO: parse exports to get is_multi_dynamic
-        let is_multi_dynamic = false;
 
         page.0.pop();
 
@@ -340,10 +331,6 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
             )
             .into(),
         ))?;
-
-        if is_multi_dynamic {
-            page.push(PageSegment::Dynamic("__metadata_id__".into()))?;
-        }
 
         page.push(PageSegment::PageType(PageType::Route))?;
     }

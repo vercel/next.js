@@ -73,6 +73,9 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
+    /// Wether these metadata exports are defined in the source file.
+    pub generate_image_metadata: Option<bool>,
+    pub generate_sitemaps: Option<bool>,
 }
 
 #[turbo_tasks::value_impl]
@@ -95,6 +98,7 @@ impl NextSegmentConfig {
             runtime,
             preferred_region,
             experimental_ppr,
+            ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
@@ -137,6 +141,7 @@ impl NextSegmentConfig {
             runtime,
             preferred_region,
             experimental_ppr,
+            ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
@@ -430,6 +435,14 @@ fn parse_config_value(
             };
 
             config.preferred_region = Some(preferred_region);
+        }
+        // Match exported generateImageMetadata function and generateSitemaps function, and pass
+        // them to config.
+        "generateImageMetadata" => {
+            config.generate_image_metadata = Some(true);
+        }
+        "generateSitemaps" => {
+            config.generate_sitemaps = Some(true);
         }
         "experimental_ppr" => {
             let value = eval_context.eval(init);
