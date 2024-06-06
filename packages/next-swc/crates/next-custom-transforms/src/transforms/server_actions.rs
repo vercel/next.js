@@ -48,6 +48,7 @@ pub fn server_actions<C: Comments>(
         in_action_file: false,
         in_export_decl: false,
         in_default_export_decl: false,
+        in_callee: false,
         has_action: false,
 
         action_cnt: 0,
@@ -90,6 +91,7 @@ struct ServerActions<C: Comments> {
     in_action_file: bool,
     in_export_decl: bool,
     in_default_export_decl: bool,
+    in_callee: bool,
     has_action: bool,
 
     action_cnt: u32,
@@ -720,9 +722,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
     }
 
+    fn visit_mut_callee(&mut self, n: &mut Callee) {
+        let old_in_callee = self.in_callee;
+        self.in_callee = true;
+        n.visit_mut_children_with(self);
+        self.in_callee = old_in_callee;
+    }
+
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if !self.in_module_level && self.should_track_names {
-            if let Ok(name) = Name::try_from(&*n) {
+            if let Ok(mut name) = Name::try_from(&*n) {
+                if self.in_callee {
+                    // This is a callee i.e. `foo.bar()`,
+                    // we need to track the actual value instead of the method name.
+                    if !name.1.is_empty() {
+                        name.1.pop();
+                    }
+                }
+
                 self.names.push(name);
                 self.should_track_names = false;
                 n.visit_mut_children_with(self);
@@ -1179,19 +1196,46 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 }
 
 fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
-    // Collect all the identifiers defined inside the closure and used
-    // in the action function. With deduplication.
-    let mut added_names = Vec::new();
-    child_names.retain(|name| {
-        if added_names.contains(name) {
-            false
-        } else if current_declared_idents.contains(&name.0) {
-            added_names.push(name.clone());
-            true
-        } else {
-            false
+    // Collect the names to retain in a separate vector
+    let mut retained_names = Vec::new();
+
+    for name in child_names.iter() {
+        let mut should_retain = true;
+
+        // Merge child_names. For example if both `foo.bar` and `foo.bar.baz` are used,
+        // we only need to keep `foo.bar` as it covers the other.
+
+        // Currently this is O(n^2) and we can potentially improve this to O(n log n)
+        // by sorting or using a hashset.
+        for another_name in child_names.iter() {
+            if name != another_name
+                && name.0 == another_name.0
+                && name.1.len() >= another_name.1.len()
+            {
+                let mut is_prefix = true;
+                for i in 0..another_name.1.len() {
+                    if name.1[i] != another_name.1[i] {
+                        is_prefix = false;
+                        break;
+                    }
+                }
+                if is_prefix {
+                    should_retain = false;
+                    break;
+                }
+            }
         }
-    });
+
+        if should_retain
+            && current_declared_idents.contains(&name.0)
+            && !retained_names.contains(name)
+        {
+            retained_names.push(name.clone());
+        }
+    }
+
+    // Replace the original child_names with the retained names
+    *child_names = retained_names;
 }
 
 fn gen_ident(cnt: &mut u32) -> JsWord {
