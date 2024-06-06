@@ -263,7 +263,7 @@ async fn dynamic_site_map_route_source(
                         status: 404,
                     }})
                 }}
-                const targetId = id hasXmlExtension ? id.slice(0, -4) : undefined
+                const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
                 const data = await handler({{ id: targetId }})
                 const content = resolveRouteData(data, fileType)
 

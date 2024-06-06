@@ -18,15 +18,15 @@ describe('app-dir - dynamic in generate params', () => {
   })
 
   it('should render sitemap with generateSitemaps in force-dynamic config dynamically', async () => {
-    const firstTime = await getLastModifiedTime(next, 'sitemap/0')
-    const secondTime = await getLastModifiedTime(next, 'sitemap/0')
+    const firstTime = await getLastModifiedTime(next, 'sitemap/0.xml')
+    const secondTime = await getLastModifiedTime(next, 'sitemap/0.xml')
 
     expect(firstTime).not.toEqual(secondTime)
   })
 
   it('should be able to call while generating multiple dynamic sitemaps', async () => {
-    const res0 = await next.fetch('sitemap/0')
-    const res1 = await next.fetch('sitemap/1')
+    const res0 = await next.fetch('sitemap/0.xml')
+    const res1 = await next.fetch('sitemap/1.xml')
     assertSitemapResponse(res0)
     assertSitemapResponse(res1)
   })
