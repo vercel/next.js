@@ -75,44 +75,6 @@ jobs:
       stepName: 'build-next'
     secrets: inherit
 
-  build-next-artifacts:
-    needs: ['changes', 'build-native', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
-    steps:
-      # TODO: extract relevant stuff from build_reusable into a composite action
-      # Call that composite action instead since all we want is adding additional steps.
-      # Ask jj if he considered composite actions instead of reusable workflows.
-      - run: corepack enable
-      - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: ./.github/actions/setup-rust
-      # clean up any previous artifacts to avoid hitting disk space limits
-      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
-      - run: cargo clean
-      # normalize versions before build-native for better cache hits
-      - run: node scripts/normalize-version-bump.js
-        name: normalize versions
-      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
-      # undo normalize version changes for install/build
-      - run: git checkout .
-      - run: pnpm install
-      - run: ANALYZE=1 pnpm build
-      - run: pnpm playwright install-deps
-      - run: pnpm playwright install chromium
-      - run: turbo run get-test-timings -- --build ${{ github.sha }}
-      - name: Create tarballs
-        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
-      - name: Upload tarballs
-        uses: actions/upload-artifact@v4
-        with:
-          name: preview-tarballs
-          path: ${{ runner.temp }}/preview-tarballs/*.tgz
-
   lint:
     name: lint
     needs: ['build-native', 'build-next']

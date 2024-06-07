@@ -157,6 +157,10 @@ async function main() {
     const tarballName = stdout.trim().split('\n').pop()
     console.info(`Created tarball ${path.join(tarballDirectory, tarballName)}`)
   }
+
+  console.info(
+    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get('next')}`
+  )
 }
 
 main().catch((err) => {

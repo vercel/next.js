@@ -2,7 +2,9 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary']
+    # TODO: Check if CI approved
+    # TODO: Make this conditional on something? Or throw machines/money at the problem.
+    # TODO: Can we merge this with build_and_test?
   workflow_dispatch:
 
 env:
@@ -412,9 +414,6 @@ jobs:
       - build
       - build-wasm
       - build-native
-    env:
-      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - name: Setup node
         uses: actions/setup-node@v4
@@ -446,9 +445,14 @@ jobs:
           merge-multiple: true
           path: packages/next-swc/crates/wasm
 
-      - run: npm i -g vercel@latest
+      - name: Create tarballs
+        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
-      - run: node ./scripts/deploy-tarball.js
+      - name: Upload tarballs
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-tarballs
+          path: ${{ runner.temp }}/preview-tarballs/*.tgz
 
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
@@ -509,6 +513,7 @@ jobs:
           path: /home/runner/.npm/_logs/*
 
   deployExamples:
+    if: ${{ github.ref == 'refs/heads/canary' || github.event_name == 'workflow_dispatch'}}
     name: Deploy examples
     runs-on: ubuntu-latest
     needs: [build]
@@ -560,6 +565,7 @@ jobs:
           NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
   upload_turbopack_bytesize:
+    if: ${{ github.ref == 'refs/heads/canary' || github.event_name == 'workflow_dispatch'}}
     name: Upload Turbopack Bytesize metrics to Datadog
     runs-on: ubuntu-latest
     needs: [build-native]
