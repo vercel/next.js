@@ -28,10 +28,8 @@ impl Rendering {
 }
 
 #[turbo_tasks::value]
-#[derive(Default)]
 pub enum ChunkLoading {
-    #[default]
-    None,
+    Edge,
     /// CommonJS in Node.js
     NodeJs,
     /// <script> and <link> tags in the browser
@@ -221,9 +219,9 @@ impl Environment {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 ChunkLoading::NodeJs.cell()
             }
-            ExecutionEnvironment::EdgeWorker(_) => ChunkLoading::None.cell(),
+            ExecutionEnvironment::EdgeWorker(_) => ChunkLoading::Edge.cell(),
             ExecutionEnvironment::Browser(_) => ChunkLoading::Dom.cell(),
-            _ => ChunkLoading::None.cell(),
+            ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
 }
