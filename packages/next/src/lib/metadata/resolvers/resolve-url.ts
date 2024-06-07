@@ -112,6 +112,8 @@ function resolveAbsoluteUrlWithPathname(
     let isRelative = resolvedUrl.startsWith('/')
     let isExternal = false
     let hasQuery = resolvedUrl.includes('?')
+    let hasFileExtension = /\.[0-9a-z]+$/i.test(resolvedUrl)
+
     if (!isRelative) {
       try {
         const parsedUrl = new URL(resolvedUrl)
@@ -121,7 +123,8 @@ function resolveAbsoluteUrlWithPathname(
         // If it's not a valid URL, treat it as external
         isExternal = true
       }
-      if (!isExternal && !hasQuery) return `${resolvedUrl}/`
+      if (!hasFileExtension && !isExternal && !hasQuery)
+        return `${resolvedUrl}/`
     }
   }
 
