@@ -268,15 +268,21 @@ impl Visit for Analyzer<'_> {
     fn visit_import_decl(&mut self, import: &ImportDecl) {
         let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-        self.ensure_reference(
-            import.span,
-            import.src.value.clone(),
-            ImportedSymbol::ModuleEvaluation,
-            annotations.clone(),
-        );
+        let internal_symbol = parse_with(import.with.as_deref());
+
+        if internal_symbol.is_none() || import.specifiers.is_empty() {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                ImportedSymbol::ModuleEvaluation,
+                annotations.clone(),
+            );
+        }
 
         for s in &import.specifiers {
-            let symbol = get_import_symbol_from_import(s, import.with.as_deref());
+            let symbol = internal_symbol
+                .clone()
+                .unwrap_or_else(|| get_import_symbol_from_import(s));
             let i = self.ensure_reference(
                 import.span,
                 import.src.value.clone(),
@@ -339,15 +345,21 @@ impl Visit for Analyzer<'_> {
 
         let annotations = ImportAnnotations::parse(export.with.as_deref());
 
-        self.ensure_reference(
-            export.span,
-            src.value.clone(),
-            ImportedSymbol::ModuleEvaluation,
-            annotations.clone(),
-        );
+        let internal_symbol = parse_with(export.with.as_deref());
+
+        if internal_symbol.is_none() || export.specifiers.is_empty() {
+            self.ensure_reference(
+                export.span,
+                src.value.clone(),
+                ImportedSymbol::ModuleEvaluation,
+                annotations.clone(),
+            );
+        }
 
         for spec in export.specifiers.iter() {
-            let symbol = get_import_symbol_from_export(spec, export.with.as_deref());
+            let symbol = internal_symbol
+                .clone()
+                .unwrap_or_else(|| get_import_symbol_from_export(spec));
 
             let i =
                 self.ensure_reference(export.span, src.value.clone(), symbol, annotations.clone());
@@ -423,14 +435,7 @@ fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     })
 }
 
-fn get_import_symbol_from_import(
-    specifier: &ImportSpecifier,
-    with: Option<&ObjectLit>,
-) -> ImportedSymbol {
-    if let Some(part) = parse_with(with) {
-        return part;
-    }
-
+fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol {
     match specifier {
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
@@ -443,14 +448,7 @@ fn get_import_symbol_from_import(
     }
 }
 
-fn get_import_symbol_from_export(
-    specifier: &ExportSpecifier,
-    with: Option<&ObjectLit>,
-) -> ImportedSymbol {
-    if let Some(part) = parse_with(with) {
-        return part;
-    }
-
+fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
             ImportedSymbol::Symbol(orig_name(orig))
