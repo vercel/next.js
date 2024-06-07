@@ -416,7 +416,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
-        staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
