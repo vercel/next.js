@@ -139,6 +139,7 @@ export type GenerateFlight = typeof generateFlight
 export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
+  pathName: string
   isPrefetch: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
@@ -799,6 +800,8 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
+  const pathName = new URL(`http://localhost${req.url}`).pathname
+
   // We read these values from the request object as, in certain cases, base-server
   // will strip them to opt into different rendering behavior.
   const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
@@ -861,6 +864,7 @@ async function renderToHTMLOrFlightImpl(
 
   const ctx: AppRenderContext = {
     ...baseCtx,
+    pathName,
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRSCRequest,
