@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     swc::core::{
         common::{source_map::Pos, Span, Spanned, GLOBALS},
-        ecma::ast::{Expr, Ident, Program},
+        ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
     },
     turbopack::{
         core::{
@@ -74,8 +74,8 @@ pub struct NextSegmentConfig {
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
     /// Wether these metadata exports are defined in the source file.
-    pub generate_image_metadata: Option<bool>,
-    pub generate_sitemaps: Option<bool>,
+    pub generate_image_metadata: bool,
+    pub generate_sitemaps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -277,22 +277,35 @@ pub async fn parse_segment_config_from_source(
         let mut config = NextSegmentConfig::default();
 
         for item in &module_ast.body {
-            let Some(decl) = item
+            let Some(export_decl) = item
                 .as_module_decl()
                 .and_then(|mod_decl| mod_decl.as_export_decl())
-                .and_then(|export_decl| export_decl.decl.as_var())
             else {
                 continue;
             };
 
-            for decl in &decl.decls {
-                let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
-                    continue;
-                };
+            match &export_decl.decl {
+                Decl::Var(var_decl) => {
+                    for decl in &var_decl.decls {
+                        let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+                            continue;
+                        };
 
-                if let Some(init) = decl.init.as_ref() {
-                    parse_config_value(source, &mut config, ident, init, eval_context);
+                        if let Some(init) = decl.init.as_ref() {
+                            parse_config_value(source, &mut config, ident, init, eval_context);
+                        }
+                    }
                 }
+                Decl::Fn(fn_decl) => {
+                    let ident = &fn_decl.ident;
+                    // create an empty expression of {}, we don't need init for function
+                    let init = Expr::Fn(FnExpr {
+                        ident: None,
+                        function: fn_decl.function.clone(),
+                    });
+                    parse_config_value(source, &mut config, ident, &init, eval_context);
+                }
+                _ => {}
             }
         }
         config
@@ -439,10 +452,10 @@ fn parse_config_value(
         // Match exported generateImageMetadata function and generateSitemaps function, and pass
         // them to config.
         "generateImageMetadata" => {
-            config.generate_image_metadata = Some(true);
+            config.generate_image_metadata = true;
         }
         "generateSitemaps" => {
-            config.generate_sitemaps = Some(true);
+            config.generate_sitemaps = true;
         }
         "experimental_ppr" => {
             let value = eval_context.eval(init);

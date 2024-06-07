@@ -520,7 +520,9 @@ export async function handleRouteType({
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(page)
+      await manifestLoader.loadAppPathsManifest(
+        page.replace('/[__metadata_id__]', '')
+      )
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
