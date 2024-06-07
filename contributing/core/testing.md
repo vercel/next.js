@@ -125,3 +125,24 @@ To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment
 ```sh
 TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
 ```
+
+## Integration testing outside the repository with preview builds
+
+Every branch build will create a tarball of Next.js that can be used in external repositories.
+
+You can use this preview build in other packages by using a https://vercel-packages.vercel.app URL instead of a version in the `package.json` e.g.
+
+```json
+{
+  "dependencies": {
+    "next": "https://vercel-packages.vercel.app/next/prs/12345/packages/next"
+  }
+}
+```
+
+You can refer to builds by commit SHA or PR number.
+
+These all work as expected:
+
+- https://vercel-packages.vercel.app/next/prs/12345/packages/next
+- https://vercel-packages.vercel.app/next/commits/12345/packages/next

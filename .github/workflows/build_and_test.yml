@@ -110,7 +110,7 @@ jobs:
       - name: Upload tarballs
         uses: actions/upload-artifact@v4
         with:
-          name: Next.js package tarballs
+          name: preview-tarballs
           path: ${{ runner.temp }}/preview-tarballs/*.tgz
 
   lint:

@@ -93,13 +93,13 @@ async function main() {
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/repos/vercel/next.js/${commitSha}/${packageInfo.name}`
+      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/repos/vercel/next.js/${commitSha}/${nextSwcPackageName}`
+      `https://vercel-packages.vercel.app/next/commits/${commitSha}/${nextSwcPackageName}`
     )
   }
 
