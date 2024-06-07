@@ -32,7 +32,6 @@ use crate::{
 /// Computes the route source for a Next.js metadata file.
 #[turbo_tasks::function]
 pub async fn get_app_metadata_route_source(
-    page: AppPage,
     mode: NextMode,
     metadata: MetadataItem,
     is_multi_dynamic: bool,
@@ -46,7 +45,7 @@ pub async fn get_app_metadata_route_source(
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, path, page, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
             } else {
                 dynamic_image_route_source(path)
             }
@@ -82,15 +81,11 @@ pub async fn get_app_metadata_route_entry(
         false
     };
 
-    let origin_page = page.clone();
     // remove the last /route segment of page
     page.0.pop();
 
     let _ = if is_multi_dynamic {
-        // push /[__metadata_id__] to the page
-
         page.push(PageSegment::Dynamic("__metadata_id__".into()))
-        // Ok(())
     } else {
         // if page last segment is sitemap, change to sitemap.xml
         if page.last() == Some(&PageSegment::Static("sitemap".into())) {
@@ -107,7 +102,7 @@ pub async fn get_app_metadata_route_entry(
     get_app_route_entry(
         nodejs_context,
         edge_context,
-        get_app_metadata_route_source(page.clone(), mode, metadata, is_multi_dynamic),
+        get_app_metadata_route_source(mode, metadata, is_multi_dynamic),
         page,
         project_root,
         Some(segment_config),
@@ -242,7 +237,6 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 async fn dynamic_site_map_route_source(
     mode: NextMode,
     path: Vc<FileSystemPath>,
-    _page: AppPage,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
@@ -251,8 +245,6 @@ async fn dynamic_site_map_route_source(
     let content_type = get_content_type(path).await?;
     let mut static_generation_code = "";
 
-    // if mode.is_production() &&
-    // page.contains(&PageSegment::Dynamic("__metadata_id__".into())) {
     if mode.is_production() && is_multi_dynamic {
         static_generation_code = indoc! {
             r#"
@@ -269,12 +261,6 @@ async fn dynamic_site_map_route_source(
         };
     }
 
-    let file_name = if is_multi_dynamic {
-        // append /[__metadata_id__] to the file path after stem
-        format!("{}/[__metadata_id__]", stem)
-    } else {
-        stem.to_string()
-    };
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
