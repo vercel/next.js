@@ -41,11 +41,6 @@ describe('dynamic = "error" in devmode', () => {
       '/metadata-base/unset/icon/100'
     )
 
-    // const originalOutputIndex = next.cliOutput.length
-
-    // await next.patchFile(iconFilePath, contentMissingIdProperty)
-    // await next.fetch('/metadata-base/unset/icon/100')
-
     await retry(async () => {
       expect(next.cliOutput).toContain(
         `id property is required for every item returned from generateImageMetadata`
@@ -78,24 +73,14 @@ describe('dynamic = "error" in devmode', () => {
     const { cleanup } = await sandbox(
       next,
       new Map([[sitemapFilePath, contentMissingIdProperty]]),
-      '/metadata-base/unset/icon/100'
+      '/metadata-base/unset/sitemap/100.xml'
     )
-
-    // const originalOutputIndex = next.cliOutput.length
-
-    await next.patchFile(sitemapFilePath, contentMissingIdProperty)
-    await next.fetch('/metadata-base/unset/sitemap/0')
 
     await retry(async () => {
       expect(next.cliOutput).toContain(
         `id property is required for every item returned from generateSitemaps`
       )
     })
-    // try {
-    // } finally {
-    //   await next.deleteFile(sitemapFilePath)
-    //   await next.fetch('/metadata-base/unset/sitemap/0')
-    // }
 
     await cleanup()
   })
