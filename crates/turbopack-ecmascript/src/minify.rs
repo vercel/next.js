@@ -16,6 +16,7 @@ use swc_core::{
         },
         minifier::option::{ExtraOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
+        transforms::base::fixer::paren_remover,
         visit::FoldWith,
     },
 };
@@ -63,6 +64,8 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
             let top_level_mark = Mark::new();
 
             Ok(compiler.run_transform(handler, false, || {
+                let program = program.fold_with(&mut paren_remover(Some(&comments)));
+
                 let mut program =
                     program.fold_with(&mut swc_core::ecma::transforms::base::resolver(
                         unresolved_mark,
