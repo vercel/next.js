@@ -420,7 +420,7 @@ async fn graph_node_to_referenced_nodes(
                         ChunkingType::Async => {
                             let chunk_loading =
                                 chunking_context.environment().chunk_loading().await?;
-                            if matches!(*chunk_loading, ChunkLoading::None) {
+                            if matches!(*chunk_loading, ChunkLoading::Edge) {
                                 let chunk_item = chunkable_module
                                     .as_chunk_item(chunking_context)
                                     .resolve()
