@@ -202,7 +202,7 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
@@ -215,7 +215,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::Instrumentation => vec![],
     };
 
-    let mut after_resolve_plugins = match ty {
+    let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
@@ -271,8 +271,8 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation => {
-            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code

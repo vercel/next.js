@@ -158,12 +158,14 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))],
+        before_resolve_plugins: vec![
+            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
+            Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+        ],
         after_resolve_plugins: vec![
             Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
             Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
             Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
-            Vc::upcast(get_invalid_server_only_resolve_plugin(project_path)),
         ],
         ..Default::default()
     };

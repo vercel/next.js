@@ -70,7 +70,7 @@ impl NextFontLocalResolvePlugin {
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::new(Glob::new(
+        BeforeResolvePluginCondition::from_request_glob(Glob::new(
             "{next,@vercel/turbopack-next/internal}/font/local/*".into(),
         ))
     }

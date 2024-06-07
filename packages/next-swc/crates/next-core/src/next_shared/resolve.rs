@@ -17,7 +17,10 @@ use turbopack_binding::{
         resolve::{
             parse::Request,
             pattern::Pattern,
-            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
+            plugin::{
+                AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
+                BeforeResolvePluginCondition,
+            },
             ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
@@ -187,34 +190,34 @@ impl InvalidImportResolvePlugin {
 }
 
 #[turbo_tasks::value_impl]
-impl AfterResolvePlugin for InvalidImportResolvePlugin {
+impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+        BeforeResolvePluginCondition::from_modules(Vc::cell(vec![self.invalid_import.clone()]))
     }
 
     #[turbo_tasks::function]
-    async fn after_resolve(
+    async fn before_resolve(
         &self,
-        _fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
-        request: Vc<Request>,
+        _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        if let Request::Module { module, .. } = &*request.await? {
-            if module.as_str() == self.invalid_import.as_str() {
-                InvalidImportModuleIssue {
-                    file_path: context,
-                    messages: self.message.clone(),
-                    // styled-jsx specific resolve error have own message
-                    skip_context_message: self.invalid_import == "styled-jsx",
-                }
-                .cell()
-                .emit();
-            }
+        InvalidImportModuleIssue {
+            file_path: lookup_path,
+            messages: self.message.clone(),
+            // styled-jsx specific resolve error has its own message
+            skip_context_message: self.invalid_import == "styled-jsx",
         }
+        .cell()
+        .emit();
 
-        Ok(ResolveResultOption::none())
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+                self.message.join("\n").into(),
+            )))
+            .cell(),
+        ))
     }
 }
 
