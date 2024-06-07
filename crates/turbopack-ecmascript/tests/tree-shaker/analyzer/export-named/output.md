@@ -20,7 +20,7 @@ export { cat as fakeCat } from "./lib";
 ```
 
 - Hoisted
-- Declares: `__TURBOPACK__reexport__fakeCat__`
+- Declares: `__TURBOPACK__reexport__cat__`
 
 # Phase 1
 ```mermaid
@@ -68,7 +68,7 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation), ItemId(0, ImportOfModule)]"];
-    N1["Items: [ItemId(Export((&quot;__TURBOPACK__reexport__fakeCat__&quot;, #3), &quot;fakeCat&quot;)), ItemId(0, ImportBinding(0))]"];
+    N1["Items: [ItemId(Export((&quot;__TURBOPACK__reexport__cat__&quot;, #3), &quot;fakeCat&quot;)), ItemId(0, ImportBinding(0))]"];
 ```
 # Entrypoints
 
@@ -91,8 +91,8 @@ import "./lib";
 ```
 ## Part 1
 ```js
-export { __TURBOPACK__reexport__fakeCat__ as fakeCat };
-import { cat as __TURBOPACK__reexport__fakeCat__ } from "./lib";
+export { __TURBOPACK__reexport__cat__ as fakeCat };
+import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
 
 ```
 ## Merged (module eval)
@@ -122,8 +122,8 @@ import "./lib";
 ```
 ## Part 1
 ```js
-export { __TURBOPACK__reexport__fakeCat__ as fakeCat };
-import { cat as __TURBOPACK__reexport__fakeCat__ } from "./lib";
+export { __TURBOPACK__reexport__cat__ as fakeCat };
+import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
 
 ```
 ## Merged (module eval)

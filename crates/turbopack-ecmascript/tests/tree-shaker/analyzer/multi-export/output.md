@@ -5,22 +5,22 @@ Count: 5
 ## Item 1: Stmt 0, `VarDeclarator(0)`
 
 ```js
-const a = "a";
+const dog = "dog";
 
 ```
 
-- Declares: `a`
-- Write: `a`
+- Declares: `dog`
+- Write: `dog`
 
 ## Item 2: Stmt 1, `VarDeclarator(0)`
 
 ```js
-const b = "b";
+const cat = "cat";
 
 ```
 
-- Declares: `b`
-- Write: `b`
+- Declares: `cat`
+- Write: `cat`
 
 # Phase 1
 ```mermaid
@@ -30,9 +30,9 @@ graph TD
     Item3;
     Item3["ModuleEvaluation"];
     Item4;
-    Item4["export a"];
+    Item4["export DOG"];
     Item5;
-    Item5["export b"];
+    Item5["export cat"];
 ```
 # Phase 2
 ```mermaid
@@ -42,9 +42,9 @@ graph TD
     Item3;
     Item3["ModuleEvaluation"];
     Item4;
-    Item4["export a"];
+    Item4["export DOG"];
     Item5;
-    Item5["export b"];
+    Item5["export cat"];
 ```
 # Phase 3
 ```mermaid
@@ -54,9 +54,9 @@ graph TD
     Item3;
     Item3["ModuleEvaluation"];
     Item4;
-    Item4["export a"];
+    Item4["export DOG"];
     Item5;
-    Item5["export b"];
+    Item5["export cat"];
 ```
 # Phase 4
 ```mermaid
@@ -66,9 +66,9 @@ graph TD
     Item3;
     Item3["ModuleEvaluation"];
     Item4;
-    Item4["export a"];
+    Item4["export DOG"];
     Item5;
-    Item5["export b"];
+    Item5["export cat"];
     Item4 --> Item1;
     Item5 --> Item2;
 ```
@@ -76,8 +76,8 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(ModuleEvaluation)]"];
-    N1["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;)), ItemId(0, VarDeclarator(0))]"];
-    N2["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;)), ItemId(1, VarDeclarator(0))]"];
+    N1["Items: [ItemId(Export((&quot;dog&quot;, #2), &quot;DOG&quot;)), ItemId(0, VarDeclarator(0))]"];
+    N2["Items: [ItemId(Export((&quot;cat&quot;, #2), &quot;cat&quot;)), ItemId(1, VarDeclarator(0))]"];
 ```
 # Entrypoints
 
@@ -85,10 +85,10 @@ graph TD
 {
     ModuleEvaluation: 0,
     Export(
-        "b",
+        "cat",
     ): 2,
     Export(
-        "a",
+        "DOG",
     ): 1,
 }
 ```
@@ -102,18 +102,18 @@ graph TD
 ```
 ## Part 1
 ```js
-export { a as a };
-const a = "a";
-export { a } from "__TURBOPACK_VAR__" assert {
+export { dog as DOG };
+const dog = "dog";
+export { dog } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-export { b as b };
-const b = "b";
-export { b } from "__TURBOPACK_VAR__" assert {
+export { cat as cat };
+const cat = "cat";
+export { cat } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -129,10 +129,10 @@ export { b } from "__TURBOPACK_VAR__" assert {
 {
     ModuleEvaluation: 0,
     Export(
-        "b",
+        "cat",
     ): 2,
     Export(
-        "a",
+        "DOG",
     ): 1,
 }
 ```
@@ -146,18 +146,18 @@ export { b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-export { a as a };
-const a = "a";
-export { a } from "__TURBOPACK_VAR__" assert {
+export { dog as DOG };
+const dog = "dog";
+export { dog } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-export { b as b };
-const b = "b";
-export { b } from "__TURBOPACK_VAR__" assert {
+export { cat as cat };
+const cat = "cat";
+export { cat } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 

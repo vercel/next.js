@@ -11,7 +11,6 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
         ChunkingTypeOption, ModuleId,
     },
-    context::AssetContext,
     issue::{IssueSeverity, IssueSource},
     module::Module,
     reference::ModuleReference,
@@ -152,7 +151,6 @@ impl ModuleReference for EsmAssetReference {
             EcmaScriptModulesReferenceSubType::Import
         };
 
-        // Skip side effect free self-references here.
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = self.export_name {
@@ -160,18 +158,6 @@ impl ModuleReference for EsmAssetReference {
                         Vc::try_resolve_downcast_type(self.origin)
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
-
-                    let side_effect_free_packages =
-                        full_module.asset_context().side_effect_free_packages();
-
-                    if let ModulePart::Evaluation = *part.await? {
-                        if *full_module
-                            .is_marked_as_side_effect_free(side_effect_free_packages)
-                            .await?
-                        {
-                            return Ok(ModuleResolveResult::ignored().cell());
-                        }
-                    }
 
                     let module =
                         EcmascriptModulePartAsset::new(full_module, part, self.import_externals);

@@ -1,4 +1,2 @@
-const a = "a";
-const b = "b";
-
-export { a, b };
+export const a = "aaaaaaaaaaa";
+export const b = "bbbbbbbbbbb";
