@@ -19,6 +19,14 @@ export const invokeRequest = async (
     ipcForbiddenHeaders
   ) as IncomingMessage['headers']
 
+  if (
+    requestInit.method === 'GET' ||
+    requestInit.method === 'HEAD' ||
+    !readableBody
+  ) {
+    delete invokeHeaders['content-length']
+  }
+
   return await fetch(targetUrl, {
     headers: invokeHeaders as any as Headers,
     method: requestInit.method,
