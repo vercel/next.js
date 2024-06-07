@@ -6,6 +6,15 @@ const fs = require('fs/promises')
 const cwd = process.cwd()
 
 async function main() {
+  const [commitSha] = process.argv.slice(2)
+  const [shortSha, dateString] = await Promise.all([
+    execa('git', ['rev-parse', '--short', commitSha]),
+    // Source: https://github.com/facebook/react/blob/767f52237cf7892ad07726f21e3e8bacfc8af839/scripts/release/utils.js#L114
+    execa(
+      `git show -s --no-show-signature --format=%cd --date=format:%Y%m%d ${commitSha}`
+    ),
+  ])
+
   const deployDir = path.join(cwd, 'files')
   const publicDir = path.join(deployDir, 'public')
   await fs.mkdir(publicDir, { recursive: true })
@@ -30,9 +39,13 @@ async function main() {
   )
 
   const optionalDeps = {}
-  const { version } = JSON.parse(
+  const { version: currentVersion } = JSON.parse(
     await fs.readFile(path.join(cwd, 'lerna.json'), 'utf8')
   )
+  // 15.0.0-canary.17 -> 15.0.0
+  // 15.0.0 -> 15.0.0
+  const [semverStableVersion] = currentVersion.split('-')
+  const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
 
   await Promise.all(
     platforms.map(async (platform) => {
