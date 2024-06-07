@@ -24,6 +24,32 @@ const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
 
+async function fetchRetryWithTimeout(
+  url: Parameters<typeof fetch>[0],
+  init: Parameters<typeof fetch>[1],
+  retryIndex = 0
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, 500)
+
+  return fetch(url, {
+    ...(init || {}),
+    signal: controller.signal,
+  })
+    .catch((err) => {
+      if (retryIndex < 3) {
+        throw err
+      } else {
+        return fetchRetryWithTimeout(url, init, retryIndex + 1)
+      }
+    })
+    .finally(() => {
+      clearTimeout(timeout)
+    })
+}
+
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
@@ -147,7 +173,7 @@ export default class FetchCache implements CacheHandler {
     }
 
     try {
-      const res = await fetch(
+      const res = await fetchRetryWithTimeout(
         `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
           .map((tag) => encodeURIComponent(tag))
           .join(',')}`,
@@ -207,7 +233,7 @@ export default class FetchCache implements CacheHandler {
           fetchUrl: fetchUrl,
           fetchIdx,
         }
-        const res = await fetch(
+        const res = await fetchRetryWithTimeout(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
@@ -365,7 +391,7 @@ export default class FetchCache implements CacheHandler {
           fetchUrl,
           fetchIdx,
         }
-        const res = await fetch(
+        const res = await fetchRetryWithTimeout(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
