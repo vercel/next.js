@@ -58,7 +58,7 @@ use turbopack_binding::{
 };
 
 use crate::{
-    app::{AppProject, OptionAppProject},
+    app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -876,9 +876,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            Default::default(),
+    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        if let Some(app_project) = &*self.app_project().await? {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.edge_client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -896,7 +905,7 @@ impl Project {
                 self.execution_context(),
             ),
             Vc::cell("middleware".into()),
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -910,9 +919,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn node_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            Default::default(),
+    async fn node_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        if let Some(app_project) = &*self.app_project().await? {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
             self.server_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -930,13 +948,22 @@ impl Project {
                 self.execution_context(),
             ),
             Vc::cell("instrumentation-edge".into()),
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
-    fn edge_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            Default::default(),
+    async fn edge_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        if let Some(app_project) = &*self.app_project().await? {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.edge_client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -954,7 +981,7 @@ impl Project {
                 self.execution_context(),
             ),
             Vc::cell("instrumentation".into()),
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
