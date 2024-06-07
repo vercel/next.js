@@ -345,7 +345,7 @@ pub async fn get_next_server_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
 
     insert_next_server_special_aliases(
@@ -433,7 +433,9 @@ pub async fn get_next_edge_import_map(
     match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {}
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
@@ -446,7 +448,6 @@ pub async fn get_next_edge_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -465,6 +466,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -474,7 +476,6 @@ pub async fn get_next_edge_import_map(
                 execution_context,
             );
         }
-        _ => {}
     }
 
     Ok(import_map.cell())
@@ -577,7 +578,8 @@ async fn insert_next_server_special_aliases(
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
         ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
+            // rsc_aliases(import_map, project_path, ty, runtime,
+            // next_config).await?;
         }
     }
 
@@ -695,7 +697,10 @@ async fn rsc_aliases(
                     "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                 });
             }
-            ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+            ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation { .. } => {
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
