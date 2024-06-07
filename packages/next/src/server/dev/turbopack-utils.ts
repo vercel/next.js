@@ -997,13 +997,14 @@ export async function handlePagesErrorRoute({
   })
 }
 
-export function mapMetadataRouteToEntryKey(route: string): string {
+export function mapMetadataRouteToEntryKey(route: string, ext: string): string {
   let entrypointKey = route
   if (isMetadataRoute(entrypointKey)) {
     entrypointKey = entrypointKey.endsWith('/route')
       ? entrypointKey.slice(0, -'/route'.length)
       : entrypointKey
-    if (entrypointKey.endsWith('/sitemap.xml')) {
+    if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
+      // For dynamic sitemap route, remove the extension
       entrypointKey = entrypointKey.slice(0, -'.xml'.length)
     } else if (entrypointKey.endsWith('/[__metadata_id__]')) {
       entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)

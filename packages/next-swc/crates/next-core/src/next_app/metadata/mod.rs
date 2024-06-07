@@ -41,7 +41,7 @@ pub struct MetadataFileMatch<'a> {
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
     let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image|sitemap)(\\d+)$",
+        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
         stem
     )?;
 

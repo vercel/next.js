@@ -249,7 +249,6 @@ export async function createPagesMapping({
   const promises = pagePaths.map<Promise<void>>(async (pagePath) => {
     // Do not process .d.ts files as routes
     if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
-      // return result
       return
     }
 

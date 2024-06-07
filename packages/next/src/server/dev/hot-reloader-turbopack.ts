@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join } from 'path'
+import { join, extname } from 'path'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -808,7 +808,10 @@ export async function createHotReloaderTurbopack(
       await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const entrypointKey = mapMetadataRouteToEntryKey(page)
+      const entrypointKey = mapMetadataRouteToEntryKey(
+        page,
+        extname(definition?.filename ?? '')
+      )
 
       const route = isInsideAppDir
         ? currentEntrypoints.app.get(entrypointKey)
