@@ -72,22 +72,20 @@ pub async fn get_app_metadata_route_entry(
     let source = Vc::upcast(FileSource::new(original_path));
     let segment_config = parse_segment_config_from_source(source);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
-    let is_multi_dynamic: bool = Some(segment_config).is_some();
+    let is_multi_dynamic: bool = if Some(segment_config).is_some() {
+        // is_multi_dynamic is true when config.generateSitemaps or
+        // config.generateImageMetadata is defined in dynamic routes
+        let config = segment_config.await.unwrap();
+        config.generate_sitemaps || config.generate_image_metadata
+    } else {
+        false
+    };
 
     // Map dynamic sitemap and image routes based on the exports.
     // if there's generator export: add /[__metadata_id__] to the route;
     // otherwise keep the original route.
     // For sitemap, if the last segment is sitemap, appending .xml suffix.
     if is_dynamic_metadata {
-        if is_multi_dynamic {
-            // is_multi_dynamic is true when config.generateSitemaps or
-            // config.generateImageMetadata is defined in dynamic routes
-            let config = segment_config.await.unwrap();
-            config.generate_sitemaps || config.generate_image_metadata
-        } else {
-            false
-        };
-
         // remove the last /route segment of page
         page.0.pop();
 

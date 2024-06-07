@@ -520,7 +520,10 @@ export async function handleRouteType({
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(page)
+      await manifestLoader.loadAppPathsManifest(
+        mapMetadataRouteToEntryKey(page, false)
+      )
+
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
@@ -997,17 +1000,24 @@ export async function handlePagesErrorRoute({
   })
 }
 
-export function mapMetadataRouteToEntryKey(route: string, ext: string): string {
+export function mapMetadataRouteToEntryKey(
+  route: string,
+  ext: string | false
+): string {
   let entrypointKey = route
   if (isMetadataRoute(entrypointKey)) {
     entrypointKey = entrypointKey.endsWith('/route')
       ? entrypointKey.slice(0, -'/route'.length)
       : entrypointKey
-    if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
-      // For dynamic sitemap route, remove the extension
-      entrypointKey = entrypointKey.slice(0, -'.xml'.length)
-    } else if (entrypointKey.endsWith('/[__metadata_id__]')) {
-      entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
+
+    if (ext) {
+      if (entrypointKey.endsWith('/[__metadata_id__]')) {
+        entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
+      }
+      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
+        // For dynamic sitemap route, remove the extension
+        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      }
     }
     entrypointKey = entrypointKey + '/route'
   }

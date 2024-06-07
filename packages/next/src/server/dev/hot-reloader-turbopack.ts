@@ -810,7 +810,7 @@ export async function createHotReloaderTurbopack(
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
       const entrypointKey = mapMetadataRouteToEntryKey(
         page,
-        extname(definition?.filename ?? '')
+        extname(routeDef.filename)
       )
 
       const route = isInsideAppDir
