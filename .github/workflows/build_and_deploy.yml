@@ -435,7 +435,9 @@ jobs:
 
       - run: npm i -g vercel@latest
 
-      - run: node ./scripts/deploy-tarball.js
+      # User docs in contributing/core/testing.md
+      - name: Deploy Next.js tarball
+        run: node ./scripts/deploy-tarball.js ${{ github.sha }}
 
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
