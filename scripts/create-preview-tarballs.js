@@ -34,6 +34,53 @@ async function main() {
   // 15.0.0 -> 15.0.0
   const [semverStableVersion] = lernaConfig.version.split('-')
   const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
+  console.info(`Designated version: ${version}`)
+
+  const nativePackagesDir = path.join(
+    repoRoot,
+    'packages/next-swc/crates/napi/npm'
+  )
+  // For local testing, just specify your platform here e.g. `const platforms = ['darwin-arm64']` if you have an M-series MacBook.
+  const platforms = (await fs.readdir(nativePackagesDir)).filter(
+    (name) => !name.startsWith('.')
+  )
+
+  console.info(`Creating tarballs for next-swc packages`)
+  const nextSwcPackageNames = new Set()
+  await Promise.all(
+    platforms.map(async (platform) => {
+      const binaryName = `next-swc.${platform}.node`
+      await fs.cp(
+        path.join(repoRoot, 'packages/next-swc/native', binaryName),
+        path.join(nativePackagesDir, platform, binaryName)
+      )
+      const manifest = JSON.parse(
+        await fs.readFile(
+          path.join(nativePackagesDir, platform, 'package.json'),
+          'utf8'
+        )
+      )
+      manifest.version = version
+      await fs.writeFile(
+        path.join(nativePackagesDir, platform, 'package.json'),
+        JSON.stringify(manifest, null, 2) + '\n'
+      )
+      const { stdout } = await execa(
+        'npm',
+        ['pack', '--pack-destination', tarballDirectory],
+        {
+          cwd: path.join(nativePackagesDir, platform),
+        }
+      )
+      // tarball name is printed as the last line of npm-pack
+      const tarballName = stdout.trim().split('\n').pop()
+      console.info(
+        `Created tarball ${path.join(tarballDirectory, tarballName)}`
+      )
+
+      nextSwcPackageNames.add(manifest.name)
+    })
+  )
 
   const lernaListJson = await execa('pnpm', [
     '--silent',
@@ -49,8 +96,14 @@ async function main() {
       `https://vercel-packages.vercel.app/repos/vercel/next.js/${commitSha}/${packageInfo.name}`
     )
   }
+  for (const nextSwcPackageName of nextSwcPackageNames) {
+    packagesByVersion.set(
+      nextSwcPackageName,
+      `https://vercel-packages.vercel.app/repos/vercel/next.js/${commitSha}/${nextSwcPackageName}`
+    )
+  }
 
-  console.log(`Creating tarballs for version ${version}`)
+  console.info(`Creating tarballs for regular packages`)
   for (const packageInfo of packages) {
     if (packageInfo.private) {
       continue
@@ -61,6 +114,14 @@ async function main() {
     const manifest = JSON.parse(packageJson)
 
     manifest.version = version
+
+    if (packageInfo.name === 'next') {
+      manifest.optionalDependencies ??= {}
+      for (const nextSwcPackageName of nextSwcPackageNames) {
+        manifest.optionalDependencies[nextSwcPackageName] =
+          packagesByVersion.get(nextSwcPackageName)
+      }
+    }
 
     // ensure it depends on packages from this release.
     for (const [dependencyName, version] of packagesByVersion) {
