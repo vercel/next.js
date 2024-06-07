@@ -63,7 +63,7 @@ import {
   type TopLevelIssuesMap,
   isWellKnownError,
   printNonFatalIssue,
-  mapMetadataRouteToEntryKey,
+  normalizeAppMetadataRoutePage,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -808,14 +808,14 @@ export async function createHotReloaderTurbopack(
       await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const entrypointKey = mapMetadataRouteToEntryKey(
+      const normalizedAppPage = normalizeAppMetadataRoutePage(
         page,
         extname(routeDef.filename)
       )
 
       const route = isInsideAppDir
-        ? currentEntrypoints.app.get(entrypointKey)
-        : currentEntrypoints.page.get(entrypointKey)
+        ? currentEntrypoints.app.get(normalizedAppPage)
+        : currentEntrypoints.page.get(page)
 
       if (!route) {
         // TODO: why is this entry missing in turbopack?

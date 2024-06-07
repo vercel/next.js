@@ -968,7 +968,6 @@ impl AppEndpoint {
             let manifest_path_prefix = original_name;
             let path = node_root
                 .join(format!("server/app{manifest_path_prefix}/app-paths-manifest.json",).into());
-
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
                     pages: [(original_name.into(), filename)].into_iter().collect(),

@@ -521,7 +521,7 @@ export async function handleRouteType({
       const type = writtenEndpoint?.type
 
       await manifestLoader.loadAppPathsManifest(
-        mapMetadataRouteToEntryKey(page, false)
+        normalizeAppMetadataRoutePage(page, false)
       )
 
       if (type === 'edge') {
@@ -1000,7 +1000,7 @@ export async function handlePagesErrorRoute({
   })
 }
 
-export function mapMetadataRouteToEntryKey(
+export function normalizeAppMetadataRoutePage(
   route: string,
   ext: string | false
 ): string {
