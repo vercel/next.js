@@ -97,22 +97,6 @@ async function main() {
     path.join(publicDir, nextTarballName)
   )
 
-  await fs.writeFile(
-    path.join(deployDir, 'vercel.json'),
-    JSON.stringify(
-      {
-        version: 2,
-        rewrites: [
-          {
-            source: '/next.tgz',
-            destination: `/${nextTarballName}`,
-          },
-        ],
-      },
-      null,
-      2
-    )
-  )
   const vercelConfigDir = path.join(cwd, '.vercel')
 
   if (process.env.VERCEL_TEST_TOKEN) {
@@ -159,7 +143,7 @@ async function main() {
   await child
 
   const deployUrl = deployOutput.trim()
-  console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/next.tgz`)
+  console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/${nextTarballName}`)
 }
 
 main().catch((err) => {
