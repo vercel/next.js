@@ -76,6 +76,7 @@ jobs:
     secrets: inherit
 
   build-next-artifacts:
+    needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     runs-on:
       - 'self-hosted'
@@ -104,23 +105,13 @@ jobs:
       - run: pnpm playwright install-deps
       - run: pnpm playwright install chromium
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
-      - name: Prepare version
-        # --workspace-concurrency so we don't hit some unknown race condition 
-        # npm ERR! path /Users/sebbie/repos/next.js/packages/next-mdx/package.json
-        # npm ERR! JSON.parse Unexpected end of JSON input while parsing empty string
-        # TODO: keep part of current version string
-        # TODO: data
-        # TODO: short sha
-        # TODO update dependencies e.g. `next@0.0.0-...` should depend on `@next/env@0.0.0-...`
-        # However, pnpm version --no-git-tag-version 0.0.0-abc  in packages/next-bundle-analyzer crashes with npm ERR! Cannot read properties of null (reading 'matches')
-        run: pnpm --filter "./packages/**" -r --workspace-concurrency=1 exec npm version --no-git-tag-version --workspaces-update false "0.0.0-${{ github.sha }}"
       - name: Create tarballs
-        run: pnpm --filter "./packages/**" -r exec npm pack
+        run: node scripts/create-preview-tarballs.js "${{ github.sha }}" "${{ runner.temp }}/preview-tarballs"
       - name: Upload tarballs
         uses: actions/upload-artifact@v4
         with:
           name: Next.js package tarballs
-          path: packages/*/*.tgz
+          path: ${{ runner.temp }}/preview-tarballs/*.tgz
 
   lint:
     name: lint
