@@ -531,6 +531,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
+    "passed": [
+      "SharedRevalidateTimings should clear the in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
+      "SharedRevalidateTimings should return undefined if revalidate timing not found",
+      "SharedRevalidateTimings should set revalidate timing in cache"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/interception-routes.test.ts": {
     "passed": [
       "Interception Route helper extractInterceptionRouteInformation should check the segment length",
@@ -539,6 +552,73 @@
       "Interception Route helper isInterceptionRouteAppPath should not validate incorrect paths",
       "Interception Route helper isInterceptionRouteAppPath should validate correct paths"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/mock-request.test.ts": {
+    "passed": [
+      "MockedRequest should have the correct properties",
+      "MockedResponse should handle set-cookie headers correctly",
+      "MockedResponse should merge headers correctly when calling writeHead",
+      "MockedResponse should update the statusMessage after calling writeHead"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/to-route.test.ts": {
+    "passed": [
+      "toRoute Function should remove trailing `/index`",
+      "toRoute Function should remove trailing slash",
+      "toRoute Function should return `/` when input is `/index/`",
+      "toRoute Function should return `/` when input is `/index`",
+      "toRoute Function should return `/` when input is empty",
+      "toRoute Function should return `/` when input is only a slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/utils.test.ts": {
+    "passed": [
+      "formatNodeOptions wraps values with spaces in quotes",
+      "getFormattedNodeOptionsWithoutInspect handles options with quotes",
+      "getFormattedNodeOptionsWithoutInspect handles options with spaces",
+      "getFormattedNodeOptionsWithoutInspect ignores unrelated options starting with --inspect-",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option at end of line",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option with parameters",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option with parameters",
+      "getParsedDebugAddress supports the flag with an equal sign",
+      "getParsedDebugAddress supports the flag without an equal sign",
+      "tokenizeArgs splits arguments by spaces",
+      "tokenizeArgs supports quoted values"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/load-manifest.test.ts": {
+    "passed": [
+      "loadManifest should cache the manifest when not already cached",
+      "loadManifest should freeze the manifest when caching",
+      "loadManifest should load the manifest from the file system when not cached",
+      "loadManifest should return the cached manifest when available",
+      "loadManifest should throw an error when the manifest file cannot be read"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/node-polyfill-crypto.test.ts": {
+    "passed": ["node-polyfill-crypto overwrite crypto"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -750,86 +830,6 @@
       "PagesRouteMatcherProvider manifest matching returns the correct routes for /users/[id]",
       "PagesRouteMatcherProvider returns no routes with an empty manifest"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
-    "passed": [
-      "SharedRevalidateTimings should clear the in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
-      "SharedRevalidateTimings should return undefined if revalidate timing not found",
-      "SharedRevalidateTimings should set revalidate timing in cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/mock-request.test.ts": {
-    "passed": [
-      "MockedRequest should have the correct properties",
-      "MockedResponse should handle set-cookie headers correctly",
-      "MockedResponse should merge headers correctly when calling writeHead",
-      "MockedResponse should update the statusMessage after calling writeHead"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/to-route.test.ts": {
-    "passed": [
-      "toRoute Function should remove trailing `/index`",
-      "toRoute Function should remove trailing slash",
-      "toRoute Function should return `/` when input is `/index/`",
-      "toRoute Function should return `/` when input is `/index`",
-      "toRoute Function should return `/` when input is empty",
-      "toRoute Function should return `/` when input is only a slash"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/utils.test.ts": {
-    "passed": [
-      "formatNodeOptions wraps values with spaces in quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with spaces",
-      "getFormattedNodeOptionsWithoutInspect ignores unrelated options starting with --inspect-",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option at end of line",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option with parameters",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option with parameters",
-      "getParsedDebugAddress supports the flag with an equal sign",
-      "getParsedDebugAddress supports the flag without an equal sign",
-      "tokenizeArgs splits arguments by spaces",
-      "tokenizeArgs supports quoted values"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/load-manifest.test.ts": {
-    "passed": [
-      "loadManifest should cache the manifest when not already cached",
-      "loadManifest should freeze the manifest when caching",
-      "loadManifest should load the manifest from the file system when not cached",
-      "loadManifest should return the cached manifest when available",
-      "loadManifest should throw an error when the manifest file cannot be read"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/node-polyfill-crypto.test.ts": {
-    "passed": ["node-polyfill-crypto overwrite crypto"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2495,6 +2495,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
+    "passed": [
+      "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-export.test.ts": {
     "passed": [
       "app-dir action handling - next export skip test for development mode"
@@ -2655,6 +2664,15 @@
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+    "passed": [
+      "app dir client cache semantics (default semantics) should return fresh data every navigation"
     ],
     "failed": [],
     "pending": [],
@@ -2907,6 +2925,15 @@
   },
   "test/e2e/app-dir/app-prefetch-static/app-prefetch-static.test.ts": {
     "passed": ["app-prefetch-static should skip next dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
+    "passed": [
+      "app dir - prefetching (custom staleTime) should skip next dev for now"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3168,6 +3195,8 @@
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
       "app-dir static/dynamic handling should skip cache in draft mode",
+      "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
+      "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
       "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
@@ -3175,6 +3204,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
       "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
@@ -3183,6 +3213,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -3250,6 +3282,8 @@
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
       "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
       "app-dir static/dynamic handling should skip cache in draft mode",
+      "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
+      "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
       "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
@@ -3257,6 +3291,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
       "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
@@ -3265,6 +3300,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -3320,6 +3357,7 @@
       "app dir - basic <Link /> should push to external url",
       "app dir - basic <Link /> should replace to external url",
       "app dir - basic <Link /> should soft push",
+      "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
@@ -3413,7 +3451,6 @@
     ],
     "failed": [],
     "pending": [
-      "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly when changing the component type",
       "app dir - basic known bugs should support React fetch instrumentation client component",
       "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",
@@ -3501,6 +3538,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/binary/rsc-binary.test.ts": {
+    "passed": [
+      "RSC binary serialization should correctly encode/decode binaries and hydrate"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/build-size/index.test.ts": {
     "passed": ["app-dir build size should skip next dev for now"],
     "failed": [],
@@ -3542,6 +3588,16 @@
   "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
     "passed": [
       "css-client-side-nav-parallel-routes should apply styles after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
+    "passed": [
+      "css-modules-scoping should not prefix grid areas",
+      "css-modules-scoping should prefix animation"
     ],
     "failed": [],
     "pending": [],
@@ -4205,6 +4261,18 @@
   },
   "test/e2e/app-dir/metadata-warnings/index.test.ts": {
     "passed": [
+      "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
+      "app dir - metadata missing metadataBase should not warn metadataBase is missing if there is only absolute url",
+      "app dir - metadata missing metadataBase should show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-warnings/standalone.test.ts": {
+    "passed": [
       "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing if there is only absolute url",
@@ -4234,7 +4302,6 @@
       "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
       "app dir - metadata basic should use parent layout title when no title is defined in page",
-      "app dir - metadata file based icons should handle updates to the file icon name and order",
       "app dir - metadata file based icons should not render if image file is not specified",
       "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should merge icons from layout if no static icons files are specified",
@@ -4266,7 +4333,9 @@
       "app dir - metadata viewport should support dynamic viewport export"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - metadata file based icons should handle updates to the file icon name and order"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4291,6 +4360,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
+    "passed": ["navigation-redirect-import should work using fetch"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4370,6 +4446,7 @@
       "unstable_after() in edge runtime runs in generateMetadata()",
       "unstable_after() in edge runtime runs in middleware",
       "unstable_after() in edge runtime runs in server actions",
+      "unstable_after() in edge runtime uses waitUntil from request context if available",
       "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
       "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
       "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
@@ -4383,7 +4460,8 @@
       "unstable_after() in nodejs runtime runs in dynamic route handlers",
       "unstable_after() in nodejs runtime runs in generateMetadata()",
       "unstable_after() in nodejs runtime runs in middleware",
-      "unstable_after() in nodejs runtime runs in server actions"
+      "unstable_after() in nodejs runtime runs in server actions",
+      "unstable_after() in nodejs runtime uses waitUntil from request context if available"
     ],
     "failed": [],
     "pending": [],
@@ -4408,6 +4486,19 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts": {
+    "passed": [
+      "next-dynamic-css should have correct order of global styles between layout and pages",
+      "next-dynamic-css should have correct order of styles between global and css modules",
+      "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+    ],
+    "failed": [],
+    "pending": [
+      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic (TODO)"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4708,6 +4799,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-layouts/parallel-routes-layouts.test.ts": {
     "passed": [
       "parallel-routes-layouts should properly render layouts for multiple slots"
@@ -4902,6 +5002,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-navigations/incremental/incremental.test.ts": {
+    "passed": [
+      "ppr-navigations incremental can navigate between all the links and back without writing to disk"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
     "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
     "failed": [],
@@ -4911,6 +5020,15 @@
   },
   "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
     "passed": ["search-params ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
+    "passed": [
+      "ppr-navigations simple can navigate between all the links and back"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5145,6 +5263,15 @@
     "pending": [
       "app dir - rsc basics should not use bundled react for pages with app",
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir - rsc webpack loader should support webpack loader rules"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5657,11 +5784,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typeof-window/typeof-window.test.ts": {
+    "passed": ["typeof-window should work using cheerio"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve app path with %5F",
       "underscore-ignore-app-paths should serve pages path with underscore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts": {
+    "passed": [
+      "unstable-rethrow should correctly trigger the not found page as not found",
+      "unstable-rethrow should handle an internal error that gets propagated to the `cause` field"
     ],
     "failed": [],
     "pending": [],
@@ -6918,7 +7062,6 @@
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
       "module layer client packages in middleware should error when import server packages in middleware",
-      "module layer with server-only in server targets should render installed react version for middleware",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
