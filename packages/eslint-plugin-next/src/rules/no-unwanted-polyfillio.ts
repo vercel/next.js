@@ -8,6 +8,8 @@ const NEXT_POLYFILLED_FEATURES = [
   'Array.prototype.fill',
   'Array.prototype.find',
   'Array.prototype.findIndex',
+  'Array.prototype.findLast',
+  'Array.prototype.findLastIndex',
   'Array.prototype.flatMap',
   'Array.prototype.flat',
   'Array.from',
