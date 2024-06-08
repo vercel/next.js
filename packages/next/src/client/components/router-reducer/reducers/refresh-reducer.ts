@@ -122,6 +122,7 @@ export function refreshReducer(
           updatedTree: newTree,
           updatedCache: cache,
           includeNextUrl,
+          canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
         })
 
         mutable.cache = cache
