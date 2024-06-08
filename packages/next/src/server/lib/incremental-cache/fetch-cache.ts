@@ -233,7 +233,7 @@ export default class FetchCache implements CacheHandler {
           fetchUrl: fetchUrl,
           fetchIdx,
         }
-        const res = await fetchRetryWithTimeout(
+        const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'GET',
@@ -391,7 +391,7 @@ export default class FetchCache implements CacheHandler {
           fetchUrl,
           fetchIdx,
         }
-        const res = await fetchRetryWithTimeout(
+        const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
             method: 'POST',
