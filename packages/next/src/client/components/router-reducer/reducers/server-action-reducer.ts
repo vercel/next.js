@@ -210,6 +210,11 @@ export function serverActionReducer(
       // Remove cache.data as it has been resolved at this point.
       mutable.inFlightServerAction = null
 
+      if (redirectLocation) {
+        const newHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = newHref
+      }
+
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
         if (flightDataPath.length !== 4) {
@@ -268,6 +273,7 @@ export function serverActionReducer(
             updatedTree: newTree,
             updatedCache: cache,
             includeNextUrl: Boolean(nextUrl),
+            canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
           })
 
           mutable.cache = cache
@@ -275,14 +281,7 @@ export function serverActionReducer(
         }
 
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
-
         currentTree = newTree
-      }
-
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
       }
 
       resolve(actionResult)
