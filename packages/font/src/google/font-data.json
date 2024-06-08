@@ -2918,7 +2918,7 @@
   "Damion": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": ["latin", "latin-ext"]
   },
   "Dancing Script": {
     "weights": ["400", "500", "600", "700", "variable"],
@@ -7618,7 +7618,7 @@
         "defaultValue": 400
       }
     ],
-    "subsets": ["hebrew", "latin", "latin-ext"]
+    "subsets": ["greek-ext", "hebrew", "latin", "latin-ext"]
   },
   "Noto Sans": {
     "weights": [
@@ -13696,6 +13696,11 @@
       "latin-ext",
       "vietnamese"
     ]
+  },
+  "Tiny5": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Tiro Bangla": {
     "weights": ["400"],
