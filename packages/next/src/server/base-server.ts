@@ -2860,9 +2860,8 @@ export default abstract class Server<
       typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
     ) {
-      // If this is a preview mode request, we shouldn't cache it. We also don't
-      // cache 404 pages.
-      if (isPreviewMode || (is404Page && !isNextDataRequest)) {
+      // If this is a preview mode request, we shouldn't cache it
+      if (isPreviewMode) {
         revalidate = 0
       }
 
