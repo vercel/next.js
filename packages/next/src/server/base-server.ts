@@ -2873,6 +2873,18 @@ export default abstract class Server<
         }
       }
 
+      // If we are rendering the 404 page we derive the cache-control
+      // revalidate period from the value that trigged the not found
+      // to be rendered. So if `getStaticProps` returns
+      // { notFound: true, revalidate 60 } the revalidate period should
+      // be 60 but if a static asset 404s directly it should have a revalidate
+      // period of 0 so that it doesn't get cached unexpectedly by a CDN
+      else if (is404Page) {
+        const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
+        revalidate =
+          typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
+      }
+
       // If the cache entry has a revalidate value that's a number, use it.
       else if (typeof cacheEntry.revalidate === 'number') {
         if (cacheEntry.revalidate < 1) {
@@ -2920,6 +2932,12 @@ export default abstract class Server<
     }
 
     if (!cachedData) {
+      // add revalidate metadata before rendering 404 page
+      // so that we can use this as source of truth for the
+      // cache-control header instead of what the 404 page returns
+      // for the revalidate value
+      addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
+
       if (cacheEntry.revalidate) {
         res.setHeader(
           'Cache-Control',
@@ -2938,7 +2956,6 @@ export default abstract class Server<
       if (this.renderOpts.dev) {
         query.__nextNotFoundSrcPage = pathname
       }
-
       await this.render404(req, res, { pathname, query }, false)
       return null
     } else if (cachedData.kind === 'REDIRECT') {
