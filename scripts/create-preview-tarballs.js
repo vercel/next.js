@@ -40,7 +40,6 @@ async function main() {
     repoRoot,
     'packages/next-swc/crates/napi/npm'
   )
-  // For local testing, just specify your platform here e.g. `const platforms = ['darwin-arm64']` if you have an M-series MacBook.
   const platforms = (await fs.readdir(nativePackagesDir)).filter(
     (name) => !name.startsWith('.')
   )
@@ -50,10 +49,20 @@ async function main() {
   await Promise.all(
     platforms.map(async (platform) => {
       const binaryName = `next-swc.${platform}.node`
-      await fs.cp(
-        path.join(repoRoot, 'packages/next-swc/native', binaryName),
-        path.join(nativePackagesDir, platform, binaryName)
-      )
+      try {
+        await fs.cp(
+          path.join(repoRoot, 'packages/next-swc/native', binaryName),
+          path.join(nativePackagesDir, platform, binaryName)
+        )
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          console.warn(
+            `Skipping next-swc platform '${platform}' tarball creation because ${binaryName} was never built.`
+          )
+          return
+        }
+        throw error
+      }
       const manifest = JSON.parse(
         await fs.readFile(
           path.join(nativePackagesDir, platform, 'package.json'),
