@@ -24,6 +24,8 @@ const CACHE_REVALIDATE_HEADER = 'x-vercel-revalidate' as const
 const CACHE_FETCH_URL_HEADER = 'x-vercel-cache-item-name' as const
 const CACHE_CONTROL_VALUE_HEADER = 'x-vercel-cache-control' as const
 
+const DEBUG = Boolean(process.env.NEXT_PRIVATE_DEBUG_CACHE)
+
 async function fetchRetryWithTimeout(
   url: Parameters<typeof fetch>[0],
   init: Parameters<typeof fetch>[1],
@@ -39,9 +41,12 @@ async function fetchRetryWithTimeout(
     signal: controller.signal,
   })
     .catch((err) => {
-      if (retryIndex < 3) {
+      if (retryIndex === 3) {
         throw err
       } else {
+        if (DEBUG) {
+          console.log(`Fetch failed for ${url} retry ${retryIndex}`)
+        }
         return fetchRetryWithTimeout(url, init, retryIndex + 1)
       }
     })
@@ -53,7 +58,6 @@ async function fetchRetryWithTimeout(
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
   private cacheEndpoint?: string
-  private debug: boolean
 
   private hasMatchingTags(arr1: string[], arr2: string[]) {
     if (arr1.length !== arr2.length) return false
@@ -79,7 +83,6 @@ export default class FetchCache implements CacheHandler {
   }
 
   constructor(ctx: CacheHandlerContext) {
-    this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.headers = {}
     this.headers['Content-Type'] = 'application/json'
 
@@ -105,17 +108,18 @@ export default class FetchCache implements CacheHandler {
     }
 
     if (scHost) {
-      this.cacheEndpoint = `https://${scHost}${scBasePath || ''}`
-      if (this.debug) {
+      const scProto = process.env.SUSPENSE_CACHE_PROTO || 'https'
+      this.cacheEndpoint = `${scProto}://${scHost}${scBasePath || ''}`
+      if (DEBUG) {
         console.log('using cache endpoint', this.cacheEndpoint)
       }
-    } else if (this.debug) {
+    } else if (DEBUG) {
       console.log('no cache endpoint available')
     }
 
     if (ctx.maxMemoryCacheSize) {
       if (!memoryCache) {
-        if (this.debug) {
+        if (DEBUG) {
           console.log('using memory store for fetch cache')
         }
 
@@ -144,7 +148,7 @@ export default class FetchCache implements CacheHandler {
         })
       }
     } else {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('not using memory store for fetch cache')
       }
     }
@@ -159,14 +163,14 @@ export default class FetchCache implements CacheHandler {
   ) {
     let [tags] = args
     tags = typeof tags === 'string' ? [tags] : tags
-    if (this.debug) {
+    if (DEBUG) {
       console.log('revalidateTag', tags)
     }
 
     if (!tags.length) return
 
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited ', rateLimitedUntil)
       }
       return
@@ -207,7 +211,7 @@ export default class FetchCache implements CacheHandler {
     }
 
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited')
       }
       return null
@@ -253,7 +257,7 @@ export default class FetchCache implements CacheHandler {
         }
 
         if (res.status === 404) {
-          if (this.debug) {
+          if (DEBUG) {
             console.log(
               `no fetch cache entry for ${key}, duration: ${
                 Date.now() - start
@@ -271,7 +275,7 @@ export default class FetchCache implements CacheHandler {
         const cached: IncrementalCacheValue = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
-          this.debug && console.log({ cached })
+          DEBUG && console.log({ cached })
           throw new Error('invalid cache value')
         }
 
@@ -298,7 +302,7 @@ export default class FetchCache implements CacheHandler {
               : Date.now() - parseInt(age || '0', 10) * 1000,
         }
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
@@ -315,7 +319,7 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to get data from fetch-cache
-        if (this.debug) {
+        if (DEBUG) {
           console.error(`Failed to get from fetch-cache`, err)
         }
       }
@@ -340,7 +344,7 @@ export default class FetchCache implements CacheHandler {
           JSON.stringify((newValue as Record<string, string | Object>)[field])
       )
     ) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log(`skipping cache set for ${key} as not modified`)
       }
       return
@@ -350,7 +354,7 @@ export default class FetchCache implements CacheHandler {
     if (!fetchCache) return
 
     if (Date.now() < rateLimitedUntil) {
-      if (this.debug) {
+      if (DEBUG) {
         console.log('rate limited')
       }
       return
@@ -382,7 +386,7 @@ export default class FetchCache implements CacheHandler {
           tags: undefined,
         })
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log('set cache', key)
         }
         const fetchParams: NextFetchCacheParams = {
@@ -411,11 +415,11 @@ export default class FetchCache implements CacheHandler {
         }
 
         if (!res.ok) {
-          this.debug && console.log(await res.text())
+          DEBUG && console.log(await res.text())
           throw new Error(`invalid response ${res.status}`)
         }
 
-        if (this.debug) {
+        if (DEBUG) {
           console.log(
             `successfully set to fetch-cache for ${key}, duration: ${
               Date.now() - start
@@ -424,7 +428,7 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to set to fetch-cache
-        if (this.debug) {
+        if (DEBUG) {
           console.error(`Failed to update fetch cache`, err)
         }
       }
