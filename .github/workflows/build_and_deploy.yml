@@ -96,7 +96,7 @@ jobs:
 
   # Build binaries for publishing
   build-native:
-    needs: 
+    needs:
       - deploy-target
     defaults:
       run:
