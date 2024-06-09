@@ -7,11 +7,12 @@ import {
   fastForwardTo,
   getPathname,
 } from './test-utils'
+import path from 'path'
 
 createNextDescribe(
   'app dir client cache semantics',
   {
-    files: __dirname,
+    files: path.join(__dirname, 'fixtures', 'regular'),
   },
   ({ next, isNextDev }) => {
     if (isNextDev) {
