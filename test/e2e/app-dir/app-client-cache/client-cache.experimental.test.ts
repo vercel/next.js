@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
+import path from 'path'
 
 describe('app dir client cache semantics (experimental staleTimes)', () => {
   describe('dynamic: 0', () => {
     const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0 } },
       },
@@ -242,7 +243,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
   describe('static: 180', () => {
     const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { static: 180 } },
       },
@@ -360,7 +361,7 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
 
   describe('dynamic: 0, static: 0', () => {
     const { next } = nextTestSetup({
-      files: __dirname,
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0, static: 0 } },
       },
