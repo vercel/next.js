@@ -486,7 +486,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: preview-tarballs
-          path: ${{ runner.temp }}/preview-tarballs/*.tgz
+          path: ${{ runner.temp }}/preview-tarballs/*
 
   publishRelease:
     if: ${{ needs.deploy-target.outputs.value == 'production' }}

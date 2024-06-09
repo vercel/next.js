@@ -74,18 +74,19 @@ async function main() {
         path.join(nativePackagesDir, platform, 'package.json'),
         JSON.stringify(manifest, null, 2) + '\n'
       )
+      // By encoding the package name in the directory, we can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
+      const packDestination = path.join(tarballDirectory, manifest.name)
+      await fs.mkdir(packDestination, { recursive: true })
       const { stdout } = await execa(
         'npm',
-        ['pack', '--pack-destination', tarballDirectory],
+        ['pack', '--pack-destination', packDestination],
         {
           cwd: path.join(nativePackagesDir, platform),
         }
       )
       // tarball name is printed as the last line of npm-pack
       const tarballName = stdout.trim().split('\n').pop()
-      console.info(
-        `Created tarball ${path.join(tarballDirectory, tarballName)}`
-      )
+      console.info(`Created tarball ${path.join(packDestination, tarballName)}`)
 
       nextSwcPackageNames.add(manifest.name)
     })
@@ -155,16 +156,19 @@ async function main() {
         '\n'
     )
 
+    // By encoding the package name in the directory, we can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
+    const packDestination = path.join(tarballDirectory, manifest.name)
+    await fs.mkdir(packDestination, { recursive: true })
     const { stdout } = await execa(
       'npm',
-      ['pack', '--pack-destination', tarballDirectory],
+      ['pack', '--pack-destination', packDestination],
       {
         cwd: packageInfo.location,
       }
     )
     // tarball name is printed as the last line of npm-pack
     const tarballName = stdout.trim().split('\n').pop()
-    console.info(`Created tarball ${path.join(tarballDirectory, tarballName)}`)
+    console.info(`Created tarball ${path.join(packDestination, tarballName)}`)
   }
 
   console.info(
