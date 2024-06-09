@@ -7,10 +7,11 @@ import {
   fastForwardTo,
   getPathname,
 } from './test-utils'
+import path from 'path'
 
 describe('app dir client cache semantics (default semantics)', () => {
   const { next, isNextDev } = nextTestSetup({
-    files: __dirname,
+    files: path.join(__dirname, 'fixtures', 'regular'),
   })
 
   if (isNextDev) {
