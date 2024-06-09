@@ -29,4 +29,5 @@ class ReadonlyURLSearchParams extends URLSearchParams {
 export { redirect, permanentRedirect, RedirectType } from './redirect'
 export { notFound } from './not-found'
 export { forbidden } from './forbidden'
+export { unstable_rethrow } from './unstable-rethrow'
 export { ReadonlyURLSearchParams }

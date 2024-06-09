@@ -7,10 +7,6 @@ import { outdent } from 'outdent'
 describe('ReactRefreshRequire app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-04b058868c-20240508',
-      'react-dom': '19.0.0-beta-04b058868c-20240508',
-    },
     skipStart: true,
   })
 

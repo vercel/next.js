@@ -145,7 +145,7 @@ async fn static_route_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -197,7 +197,7 @@ async fn dynamic_text_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<dy
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -218,8 +218,7 @@ async fn dynamic_site_map_route_source(
 
     let mut static_generation_code = "";
 
-    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
-    {
+    if mode.is_production() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".into())) {
         static_generation_code = indoc! {
             r#"
                 export async function generateStaticParams() {
@@ -297,7 +296,7 @@ async fn dynamic_site_map_route_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -355,7 +354,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--route-entry.js")),
+        path.parent().join(format!("{stem}--route-entry.js").into()),
         AssetContent::file(file.into()),
     );
 

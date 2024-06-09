@@ -120,6 +120,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
+      metadataContext,
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -192,6 +193,7 @@ function mergeMetadata({
         target.twitter = resolveTwitter(
           source.twitter,
           metadataBase,
+          metadataContext,
           titleTemplates.twitter
         )
         break
@@ -567,7 +569,8 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
-  titleTemplates: TitleTemplates
+  titleTemplates: TitleTemplates,
+  metadataContext: MetadataContext
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
 
@@ -600,6 +603,7 @@ function postProcessMetadata(
       const partialTwitter = resolveTwitter(
         autoFillProps,
         metadata.metadataBase,
+        metadataContext,
         titleTemplates.twitter
       )
       if (metadata.twitter) {
@@ -779,7 +783,7 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, titleTemplates)
+  return postProcessMetadata(resolvedMetadata, titleTemplates, metadataContext)
 }
 
 export async function accumulateViewport(

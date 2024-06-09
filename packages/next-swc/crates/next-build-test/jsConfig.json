@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "lib": ["lib.dom.d.ts", "lib.dom.iterable.d.ts", "lib.esnext.d.ts"],
+    "module": 99,
+    "target": 8,
+    "moduleResolution": 2,
+    "incremental": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": 1,
+    "plugins": [
+      {
+        "name": "typescript-plugin-css-modules",
+        "options": {
+          "goToDefinition": true
+        }
+      },
+      {
+        "name": "next"
+      }
+    ],
+    "allowJs": true,
+    "paths": {},
+    "tsBuildInfoFile": "/tmp/ignore",
+    "strictNullChecks": true,
+    "pathsBasePath": "/tmp/ignore"
+  }
+}
