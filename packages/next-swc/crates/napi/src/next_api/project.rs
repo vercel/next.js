@@ -38,11 +38,7 @@ use turbopack_binding::{
             SOURCE_MAP_PREFIX,
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
-        trace_utils::{
-            exit::ExitGuard,
-            raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
-        },
+        trace_utils::{exit::ExitHandler, raw_trace::RawTraceLayer, trace_writer::TraceWriter},
     },
 };
 use url::Url;
@@ -252,8 +248,6 @@ impl From<NapiDefineEnv> for DefineEnv {
 pub struct ProjectInstance {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
     container: Vc<ProjectContainer>,
-    #[allow(dead_code)]
-    guard: Option<ExitGuard<TraceWriterGuard>>,
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
@@ -264,8 +258,9 @@ pub async fn project_new(
     register();
 
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+    let exit = ExitHandler::listen();
 
-    let guard = if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -297,10 +292,12 @@ pub async fn project_new(
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
         let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        let guard = ExitGuard::new(guard).unwrap();
+        exit.on_exit(async move {
+            drop(trace_writer_guard);
+        });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
@@ -313,11 +310,7 @@ pub async fn project_new(
         }
 
         subscriber.init();
-
-        Some(guard)
-    } else {
-        None
-    };
+    }
 
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
         turbo_engine_options
@@ -325,6 +318,23 @@ pub async fn project_new(
             .map(|m| m as usize)
             .unwrap_or(usize::MAX),
     ));
+    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+    if let Some(stats_path) = stats_path {
+        let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || {
+                serde_json::to_writer(
+                    std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?,
+                    &task_stats,
+                )
+                .context("failed to serialize or write task statistics")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        });
+    }
     let options = options.into();
     let container = turbo_tasks
         .run_once(async move {
@@ -344,7 +354,6 @@ pub async fn project_new(
         ProjectInstance {
             turbo_tasks,
             container,
-            guard,
         },
         100,
     ))
