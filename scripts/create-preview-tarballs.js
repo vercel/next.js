@@ -74,7 +74,7 @@ async function main() {
         path.join(nativePackagesDir, platform, 'package.json'),
         JSON.stringify(manifest, null, 2) + '\n'
       )
-      // By encoding the package name in the directory, we can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
+      // By encoding the package name in the directory, vercel-packages can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
       const packDestination = path.join(tarballDirectory, manifest.name)
       await fs.mkdir(packDestination, { recursive: true })
       const { stdout } = await execa(
@@ -156,7 +156,7 @@ async function main() {
         '\n'
     )
 
-    // By encoding the package name in the directory, we can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
+    // By encoding the package name in the directory, vercel-packages can later extract the package name of a tarball from its path when `tarballDirectory` is zipped.
     const packDestination = path.join(tarballDirectory, manifest.name)
     await fs.mkdir(packDestination, { recursive: true })
     const { stdout } = await execa(

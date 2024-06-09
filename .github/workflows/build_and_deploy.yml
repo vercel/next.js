@@ -1,3 +1,4 @@
+# Update all mentions of this name in vercel-packages when changing.
 name: build-and-deploy
 
 on:
@@ -485,6 +486,7 @@ jobs:
       - name: Upload tarballs
         uses: actions/upload-artifact@v4
         with:
+          # Update all mentions of this name in vercel-packages when changing.
           name: preview-tarballs
           path: ${{ runner.temp }}/preview-tarballs/*
 
