@@ -1,6 +1,16 @@
 {
   "version": 2,
   "suites": {
+    "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
+        "fetch-cache should retry 3 times when revalidate times out"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",

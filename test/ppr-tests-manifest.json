@@ -2,6 +2,9 @@
   "version": 2,
   "suites": {
     "test/e2e/app-dir/app-static/app-static.test.ts": {
+      "failed": ["fetch-cache should retry 3 times when revalidate times out"]
+    },
+    "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
