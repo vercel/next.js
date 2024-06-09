@@ -7,7 +7,7 @@ import { handleRedirectResponse } from '../../helpers/response-handlers'
 import {
   getUIErrorStatusCode,
   matchUIError,
-} from '../../../../../shared/lib/ui-error-types'
+} from '../../../../shared/lib/ui-error-types'
 
 export function resolveHandlerError(err: any): Response | false {
   if (isRedirectError(err)) {
