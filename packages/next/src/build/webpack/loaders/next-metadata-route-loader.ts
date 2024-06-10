@@ -21,6 +21,9 @@ const cacheHeader = {
 }
 
 type MetadataRouteLoaderOptions = {
+  // Using separate argument to avoid json being parsed and hit error
+  // x-ref: https://github.com/vercel/next.js/pull/62615
+  filePath: string
   isDynamicRouteExtension: '1' | '0'
 }
 
@@ -243,9 +246,9 @@ ${staticGenerationCode}
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { isDynamicRouteExtension } = this.getOptions()
-    const filePath = this.resourcePath
+    const { isDynamicRouteExtension, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
+    this.addDependency(filePath)
 
     let code = ''
     if (isDynamicRouteExtension === '1') {
