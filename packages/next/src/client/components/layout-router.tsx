@@ -18,6 +18,7 @@ import React, {
   startTransition,
   Suspense,
   useDeferredValue,
+  type JSX,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -363,6 +364,8 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       lazyDataResolved: false,
@@ -447,11 +450,28 @@ function InnerLayoutRouter({
       // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
       // the patch to the tree.
       childNode.lazyDataResolved = true
-
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      use(unresolvedThenable) as never
     }
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
+    use(unresolvedThenable) as never
   }
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    childNode.prefetchLayerAssets !== null
+      ? childNode.prefetchLayerAssets
+      : childNode.layerAssets
+
+  const layerAssets = useDeferredValue(
+    childNode.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
 
   // If we get to this point, then we know we have something we can render.
   const subtree = (
@@ -465,6 +485,7 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
+      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )

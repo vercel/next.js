@@ -1,12 +1,12 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
 
 pub(crate) struct DefaultFallbackFont {
-    pub name: String,
-    pub capsize_key: String,
+    pub name: RcStr,
+    pub capsize_key: RcStr,
     pub az_avg_width: f64,
     pub units_per_em: u32,
 }
@@ -14,16 +14,16 @@ pub(crate) struct DefaultFallbackFont {
 // From https://github.com/vercel/next.js/blob/a3893bf69c83fb08e88c87bf8a21d987a0448c8e/packages/font/src/utils.ts#L4
 pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
-        name: "Arial".to_owned(),
-        capsize_key: "arial".to_owned(),
+        name: "Arial".into(),
+        capsize_key: "arial".into(),
         az_avg_width: 934.5116279069767,
         units_per_em: 2048,
     });
 
 pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
-        name: "Times New Roman".to_owned(),
-        capsize_key: "timesNewRoman".to_owned(),
+        name: "Times New Roman".into(),
+        capsize_key: "timesNewRoman".into(),
         az_avg_width: 854.3953488372093,
         units_per_em: 2048,
     });
@@ -32,9 +32,9 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
 #[turbo_tasks::value(shared)]
 pub(crate) struct AutomaticFontFallback {
     /// e.g. `__Roboto_Fallback_c123b8`
-    pub scoped_font_family: Vc<String>,
+    pub scoped_font_family: Vc<RcStr>,
     /// The name of font locally, used in `src: local("{}")`
-    pub local_font_family: Vc<String>,
+    pub local_font_family: Vc<RcStr>,
     pub adjustment: Option<FontAdjustment>,
 }
 
@@ -48,7 +48,7 @@ pub(crate) enum FontFallback {
     /// return this and omit fallback information instead.
     Error,
     /// A list of manually provided font names to use a fallback, as-is.
-    Manual(Vec<String>),
+    Manual(Vec<RcStr>),
 }
 
 #[turbo_tasks::value_impl]

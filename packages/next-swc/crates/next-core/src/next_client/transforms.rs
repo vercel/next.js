@@ -40,6 +40,8 @@ pub async fn get_next_client_transforms_rules(
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs));
 
+    let mut is_app_dir = false;
+
     match context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
@@ -59,6 +61,7 @@ pub async fn get_next_client_transforms_rules(
             }
         }
         ClientContextType::App { .. } => {
+            is_app_dir = true;
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 enable_mdx_rs,
@@ -72,7 +75,9 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_next_cjs_optimizer_rule(enable_mdx_rs));
         rules.push(get_next_pure_rule(enable_mdx_rs));
 
-        rules.push(get_next_dynamic_transform_rule(false, false, mode, enable_mdx_rs).await?);
+        rules.push(
+            get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
+        );
 
         rules.push(get_next_image_rule());
         rules.push(get_next_page_static_info_assert_rule(

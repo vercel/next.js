@@ -69,6 +69,7 @@ struct NextCjsOptimizer {
 
 #[async_trait]
 impl CustomTransformer for NextCjsOptimizer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_cjs_optimizer", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut visitor = cjs_optimizer(
             self.config.clone(),

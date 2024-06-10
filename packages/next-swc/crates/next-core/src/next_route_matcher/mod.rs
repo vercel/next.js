@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::node::route_matcher::{Params, RouteMatcher, RouteMatcherRef};
 
 use self::{
@@ -15,13 +15,13 @@ mod prefix_suffix;
 /// A route matcher that matches a path against an exact route.
 #[turbo_tasks::value]
 pub(crate) struct NextExactMatcher {
-    path: Vc<String>,
+    path: Vc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextExactMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextExactMatcher { path }))
     }
 }
@@ -29,12 +29,12 @@ impl NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextExactMatcher {
     #[turbo_tasks::function]
-    async fn matches(&self, path: String) -> Result<Vc<bool>> {
+    async fn matches(&self, path: RcStr) -> Result<Vc<bool>> {
         Ok(Vc::cell(path == *self.path.await?))
     }
 
     #[turbo_tasks::function]
-    async fn params(&self, path: String) -> Result<Vc<Params>> {
+    async fn params(&self, path: RcStr) -> Result<Vc<Params>> {
         Ok(Vc::cell(if path == *self.path.await? {
             Some(Default::default())
         } else {
@@ -53,7 +53,7 @@ pub(crate) struct NextParamsMatcher {
 #[turbo_tasks::value_impl]
 impl NextParamsMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextParamsMatcher {
             matcher: build_path_regex(path.await?.as_str())?,
         }))
@@ -63,12 +63,12 @@ impl NextParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: RcStr) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: RcStr) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }
@@ -86,7 +86,7 @@ impl NextPrefixSuffixParamsMatcher {
     /// Converts a filename within the server root into a regular expression
     /// with named capture groups for every dynamic segment.
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<String>, prefix: String, suffix: String) -> Result<Vc<Self>> {
+    pub async fn new(path: Vc<RcStr>, prefix: RcStr, suffix: RcStr) -> Result<Vc<Self>> {
         Ok(Self::cell(NextPrefixSuffixParamsMatcher {
             matcher: PrefixSuffixMatcher::new(
                 prefix.to_string(),
@@ -100,12 +100,12 @@ impl NextPrefixSuffixParamsMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextPrefixSuffixParamsMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: RcStr) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: RcStr) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }
@@ -128,12 +128,12 @@ impl NextFallbackMatcher {
 #[turbo_tasks::value_impl]
 impl RouteMatcher for NextFallbackMatcher {
     #[turbo_tasks::function]
-    fn matches(&self, path: String) -> Vc<bool> {
+    fn matches(&self, path: RcStr) -> Vc<bool> {
         Vc::cell(self.matcher.matches(&path))
     }
 
     #[turbo_tasks::function]
-    fn params(&self, path: String) -> Vc<Params> {
+    fn params(&self, path: RcStr) -> Vc<Params> {
         Params::cell(self.matcher.params(&path))
     }
 }

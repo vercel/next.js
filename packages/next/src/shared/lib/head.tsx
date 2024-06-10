@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useContext } from 'react'
+import React, { useContext, type JSX } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context.shared-runtime'
 import { HeadManagerContext } from './head-manager-context.shared-runtime'
@@ -21,7 +21,7 @@ export function defaultHead(inAmpMode = false): JSX.Element[] {
 
 function onlyReactElement(
   list: Array<React.ReactElement<any>>,
-  child: React.ReactChild
+  child: React.ReactElement | number | string
 ): Array<React.ReactElement<any>> {
   // React children can be "string" or "number" in this case we ignore them for backwards compat
   if (typeof child === 'string' || typeof child === 'number') {
@@ -35,7 +35,7 @@ function onlyReactElement(
         // @ts-expect-error @types/react does not remove fragments but this could also return ReactPortal[]
         (
           fragmentList: Array<React.ReactElement<any>>,
-          fragmentChild: React.ReactChild
+          fragmentChild: React.ReactElement | number | string
         ): Array<React.ReactElement<any>> => {
           if (
             typeof fragmentChild === 'string' ||
