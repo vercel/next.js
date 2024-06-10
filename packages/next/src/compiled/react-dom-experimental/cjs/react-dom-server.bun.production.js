@@ -3569,7 +3569,9 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    performWork(request));
+    setTimeout(function () {
+      return performWork(request);
+    }, 0));
 }
 function createSuspenseBoundary(request, fallbackAbortableTasks) {
   return {
@@ -5818,18 +5820,27 @@ function flushCompletedQueues(request, destination) {
       : flushBuffered(destination);
   }
 }
+function startWork(request) {
+  request.flushScheduled = null !== request.destination;
+  setTimeout(function () {
+    return performWork(request);
+  }, 0);
+  null === request.trackedPostpones &&
+    setTimeout(function () {
+      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    }, 0);
+}
 function enqueueFlush(request) {
-  if (
-    !1 === request.flushScheduled &&
+  !1 === request.flushScheduled &&
     0 === request.pingedTasks.length &&
-    null !== request.destination
-  ) {
-    request.flushScheduled = !0;
-    var destination = request.destination;
-    destination
-      ? flushCompletedQueues(request, destination)
-      : (request.flushScheduled = !1);
-  }
+    null !== request.destination &&
+    ((request.flushScheduled = !0),
+    setTimeout(function () {
+      var destination = request.destination;
+      destination
+        ? flushCompletedQueues(request, destination)
+        : (request.flushScheduled = !1);
+    }, 0));
 }
 function abort(request, reason) {
   try {
@@ -5864,13 +5875,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_800 = React.version;
 if (
-  "19.0.0-experimental-6230622a1a-20240610" !==
+  "19.0.0-experimental-20b6f4c0e8-20240607" !==
   isomorphicReactPackageVersion$jscomp$inline_800
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_800 +
-        "\n  - react-dom:  19.0.0-experimental-6230622a1a-20240610\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-experimental-20b6f4c0e8-20240607\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5955,10 +5966,7 @@ exports.renderToReadableStream = function (children, options) {
         signal.addEventListener("abort", listener);
       }
     }
-    request.flushScheduled = null !== request.destination;
-    performWork(request);
-    null === request.trackedPostpones &&
-      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-6230622a1a-20240610";
+exports.version = "19.0.0-experimental-20b6f4c0e8-20240607";

@@ -129,7 +129,7 @@ function printWarning(level, format, args, currentStack) {
   }
 }
 
-var ReactVersion = '19.0.0-experimental-6230622a1a-20240610';
+var ReactVersion = '19.0.0-experimental-20b6f4c0e8-20240607';
 
 var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_PORTAL_TYPE = Symbol.for('react.portal');

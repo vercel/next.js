@@ -2763,9 +2763,16 @@ function stopStream(response, id, row) {
 
 function resolveErrorDev(response, id, digest, message, stack) {
 
+  var error;
 
-  var error = new Error(message || 'An error occurred in the Server Components render but no message was provided');
-  error.stack = stack;
+  {
+    // Executing Error within a native stack isn't really limited to owner stacks
+    // but we gate it behind the same flag for now while iterating.
+    // eslint-disable-next-line react-internal/prod-error-codes
+    error = Error(message || 'An error occurred in the Server Components render but no message was provided');
+    error.stack = stack;
+  }
+
   error.digest = digest;
   var errorWithDigest = error;
   var chunks = response._chunks;

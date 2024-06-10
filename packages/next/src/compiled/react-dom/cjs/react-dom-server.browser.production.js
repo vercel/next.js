@@ -123,6 +123,16 @@ function murmurhash3_32_gc(key, seed) {
     4294967295;
   return (h1 ^ (h1 >>> 16)) >>> 0;
 }
+var channel = new MessageChannel(),
+  taskQueue = [];
+channel.port1.onmessage = function () {
+  var task = taskQueue.shift();
+  task && task();
+};
+function scheduleWork(callback) {
+  taskQueue.push(callback);
+  channel.port2.postMessage(null);
+}
 var currentView = null,
   writtenBytes = 0;
 function writeChunk(destination, chunk) {
@@ -3743,7 +3753,9 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    performWork(request));
+    scheduleWork(function () {
+      return performWork(request);
+    }));
 }
 function createSuspenseBoundary(request, fallbackAbortableTasks) {
   return {
@@ -5685,18 +5697,27 @@ function flushCompletedQueues(request, destination) {
       : completeWriting(destination);
   }
 }
+function startWork(request) {
+  request.flushScheduled = null !== request.destination;
+  scheduleWork(function () {
+    return performWork(request);
+  });
+  null === request.trackedPostpones &&
+    scheduleWork(function () {
+      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    });
+}
 function enqueueFlush(request) {
-  if (
-    !1 === request.flushScheduled &&
+  !1 === request.flushScheduled &&
     0 === request.pingedTasks.length &&
-    null !== request.destination
-  ) {
-    request.flushScheduled = !0;
-    var destination = request.destination;
-    destination
-      ? flushCompletedQueues(request, destination)
-      : (request.flushScheduled = !1);
-  }
+    null !== request.destination &&
+    ((request.flushScheduled = !0),
+    scheduleWork(function () {
+      var destination = request.destination;
+      destination
+        ? flushCompletedQueues(request, destination)
+        : (request.flushScheduled = !1);
+    }));
 }
 function abort(request, reason) {
   try {
@@ -5715,16 +5736,16 @@ function abort(request, reason) {
     logRecoverableError(request, error$46, {}), fatalError(request, error$46);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_728 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_720 = React.version;
 if (
-  "19.0.0-rc-6230622a1a-20240610" !==
-  isomorphicReactPackageVersion$jscomp$inline_728
+  "19.0.0-rc-20b6f4c0e8-20240607" !==
+  isomorphicReactPackageVersion$jscomp$inline_720
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_728,
-      "19.0.0-rc-6230622a1a-20240610"
+      isomorphicReactPackageVersion$jscomp$inline_720,
+      "19.0.0-rc-20b6f4c0e8-20240607"
     )
   );
 exports.renderToReadableStream = function (children, options) {
@@ -5810,10 +5831,7 @@ exports.renderToReadableStream = function (children, options) {
         signal.addEventListener("abort", listener);
       }
     }
-    request.flushScheduled = null !== request.destination;
-    performWork(request);
-    null === request.trackedPostpones &&
-      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+    startWork(request);
   });
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.0.0-rc-20b6f4c0e8-20240607";
