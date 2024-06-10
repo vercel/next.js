@@ -94,6 +94,11 @@ export interface RequestMeta {
     cacheEntry: any,
     requestMeta: any
   ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
 }
 
 /**

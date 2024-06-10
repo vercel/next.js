@@ -852,8 +852,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 ...(typeof val === 'string'
                   ? [val]
                   : Array.isArray(val)
-                  ? val
-                  : []),
+                    ? val
+                    : []),
               ]),
             ]
           }
@@ -904,8 +904,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-forwarded-port'] ??= this.port
         ? this.port.toString()
         : isHttps
-        ? '443'
-        : '80'
+          ? '443'
+          : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
@@ -1674,8 +1674,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof fallbackField === 'string'
           ? 'static'
           : fallbackField === null
-          ? 'blocking'
-          : fallbackField,
+            ? 'blocking'
+            : fallbackField,
     }
   }
 
@@ -2647,10 +2647,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
-          ? 'MISS'
-          : cacheEntry.isStale
-          ? 'STALE'
-          : 'HIT'
+            ? 'MISS'
+            : cacheEntry.isStale
+              ? 'STALE'
+              : 'HIT'
       )
     }
 
@@ -2684,9 +2684,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isDataReq))
     ) {
-      // If this is a preview mode request, we shouldn't cache it. We also don't
-      // cache 404 pages.
-      if (isPreviewMode || (is404Page && !isDataReq)) {
+      // If this is a preview mode request, we shouldn't cache it
+      if (isPreviewMode) {
         revalidate = 0
       }
 
@@ -2696,6 +2695,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!res.getHeader('Cache-Control')) {
           revalidate = 0
         }
+      }
+
+      // If we are rendering the 404 page we derive the cache-control
+      // revalidate period from the value that trigged the not found
+      // to be rendered. So if `getStaticProps` returns
+      // { notFound: true, revalidate 60 } the revalidate period should
+      // be 60 but if a static asset 404s directly it should have a revalidate
+      // period of 0 so that it doesn't get cached unexpectedly by a CDN
+      else if (is404Page) {
+        const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
+        revalidate =
+          typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
       }
 
       // If the cache entry has a revalidate value that's a number, use it.
@@ -2731,6 +2742,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (!cachedData) {
+      // add revalidate metadata before rendering 404 page
+      // so that we can use this as source of truth for the
+      // cache-control header instead of what the 404 page returns
+      // for the revalidate value
+      addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
+
       if (cacheEntry.revalidate) {
         res.setHeader(
           'Cache-Control',
@@ -2749,7 +2766,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (this.renderOpts.dev) {
         query.__nextNotFoundSrcPage = pathname
       }
-
       await this.render404(req, res, { pathname, query }, false)
       return null
     } else if (cachedData.kind === 'REDIRECT') {
