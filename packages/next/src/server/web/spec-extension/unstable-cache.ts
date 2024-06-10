@@ -54,6 +54,9 @@ export function unstable_cache<T extends Callback>(
   cb: T,
   keyParts?: string[],
   options: {
+    /**
+     * The revalidation interval in seconds.
+     */
     revalidate?: number | false
     tags?: string[]
   } = {}
@@ -102,12 +105,26 @@ export function unstable_cache<T extends Callback>(
     }
     const incrementalCache = maybeIncrementalCache
 
+    const { pathname, searchParams } = new URL(
+      store?.urlPathname || '/',
+      'http://n'
+    )
+    const sortedSearchKeys = [...searchParams.keys()].sort((a, b) => {
+      return a.localeCompare(b)
+    })
+    const sortedSearch = sortedSearchKeys
+      .map((key) => `${key}=${searchParams.get(key)}`)
+      .join('&')
+
     // Construct the complete cache key for this function invocation
     // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
     // the keyspace smaller than the execution space
     const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
     const cacheKey = await incrementalCache.fetchCacheKey(invocationKey)
-    const fetchUrl = `unstable_cache ${cb.name ? ` ${cb.name}` : cacheKey}`
+    // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
+    const fetchUrl = `unstable_cache ${pathname}${
+      sortedSearch.length ? '?' : ''
+    }${sortedSearch} ${cb.name ? ` ${cb.name}` : cacheKey}`
     const fetchIdx = (store ? store.nextFetchId : noStoreFetchIdx) ?? 1
 
     if (store) {
@@ -165,6 +182,7 @@ export function unstable_cache<T extends Callback>(
           tags,
           softTags: implicitTags,
           fetchIdx,
+          fetchUrl,
         })
 
         if (cacheEntry && cacheEntry.value) {
@@ -261,10 +279,17 @@ export function unstable_cache<T extends Callback>(
       if (!incrementalCache.isOnDemandRevalidate) {
         // We aren't doing an on demand revalidation so we check use the cache if valid
 
+        // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
+        // of this function is potentially a little confusing
+        const implicitTags = store && addImplicitTags(store)
+
         const cacheEntry = await incrementalCache.get(cacheKey, {
           kindHint: 'fetch',
           revalidate: options.revalidate,
           tags,
+          fetchIdx,
+          fetchUrl,
+          softTags: implicitTags,
         })
 
         if (cacheEntry && cacheEntry.value) {

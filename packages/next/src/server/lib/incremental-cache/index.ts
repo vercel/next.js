@@ -59,7 +59,9 @@ export class CacheHandler {
     ..._args: Parameters<IncrementalCache['set']>
   ): Promise<void> {}
 
-  public async revalidateTag(_tag: string): Promise<void> {}
+  public async revalidateTag(
+    ..._args: Parameters<IncrementalCache['revalidateTag']>
+  ): Promise<void> {}
 
   public resetRequestCache(): void {}
 }
@@ -275,7 +277,7 @@ export class IncrementalCache implements IncrementalCacheType {
     return unlockNext
   }
 
-  async revalidateTag(tag: string) {
+  async revalidateTag(tags: string | string[]): Promise<void> {
     if (
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
       process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
@@ -291,7 +293,7 @@ export class IncrementalCache implements IncrementalCacheType {
       })
     }
 
-    return this.cacheHandler?.revalidateTag?.(tag)
+    return this.cacheHandler?.revalidateTag?.(tags)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23

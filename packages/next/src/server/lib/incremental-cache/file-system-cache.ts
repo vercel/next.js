@@ -105,22 +105,33 @@ export default class FileSystemCache implements CacheHandler {
     if (this.debug) console.log('loadTagsManifest', tagsManifest)
   }
 
-  public async revalidateTag(tag: string) {
+  public async revalidateTag(
+    ...args: Parameters<CacheHandler['revalidateTag']>
+  ) {
+    let [tags] = args
+    tags = typeof tags === 'string' ? [tags] : tags
+
     if (this.debug) {
-      console.log('revalidateTag', tag)
+      console.log('revalidateTag', tags)
+    }
+
+    if (tags.length === 0) {
+      return
     }
 
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
     // time and we can't flush out of sync data
-    this.loadTagsManifest()
+    await this.loadTagsManifest()
     if (!tagsManifest || !this.tagsManifestPath) {
       return
     }
 
-    const data = tagsManifest.items[tag] || {}
-    data.revalidatedAt = Date.now()
-    tagsManifest.items[tag] = data
+    for (const tag of tags) {
+      const data = tagsManifest.items[tag] || {}
+      data.revalidatedAt = Date.now()
+      tagsManifest.items[tag] = data
+    }
 
     try {
       await this.fs.mkdir(path.dirname(this.tagsManifestPath))
