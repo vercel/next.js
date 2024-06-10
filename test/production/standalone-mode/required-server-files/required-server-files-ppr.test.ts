@@ -10,11 +10,12 @@ import {
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let delayedPostpone
   let rewritePostpone
 
@@ -93,7 +94,7 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
