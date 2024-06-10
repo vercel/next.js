@@ -3585,6 +3585,18 @@ export declare function Cabin_Sketch<
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Cactus_Classical_Serif<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Caesar_Dressing<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -4312,6 +4324,18 @@ export declare function Chivo_Mono<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Chocolate_Classical_Sans<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chokokutai<
   T extends CssVariable | undefined = undefined,
@@ -5110,7 +5134,7 @@ export declare function Damion<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Dancing_Script<
   T extends CssVariable | undefined = undefined,
@@ -10527,6 +10551,48 @@ export declare function Kurale<
     'cyrillic' | 'cyrillic-ext' | 'devanagari' | 'latin' | 'latin-ext'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function LXGW_WenKai_Mono_TC<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'lisu'
+    | 'vietnamese'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function LXGW_WenKai_TC<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '300' | '400' | '700' | Array<'300' | '400' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'greek'
+    | 'greek-ext'
+    | 'latin'
+    | 'latin-ext'
+    | 'lisu'
+    | 'vietnamese'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function La_Belle_Aurore<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -13774,7 +13840,7 @@ export declare function Noto_Rashi_Hebrew<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'hebrew' | 'latin' | 'latin-ext'>
+  subsets?: Array<'greek-ext' | 'hebrew' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans<
   T extends CssVariable | undefined = undefined,
@@ -23243,6 +23309,18 @@ export declare function Tinos<
     | 'latin-ext'
     | 'vietnamese'
   >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Tiny5<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Tiro_Bangla<
   T extends CssVariable | undefined = undefined,

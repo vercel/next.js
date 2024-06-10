@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { links, locales } from './components/page'
+import { locales } from './components/page'
 
 describe('ppr-navigations simple', () => {
   const { next } = nextTestSetup({
@@ -10,7 +10,7 @@ describe('ppr-navigations simple', () => {
     const browser = await next.browser('/')
 
     try {
-      for (const { href } of links) {
+      for (const href of ['/fr/about', '/fr', '/en/about', '/en', '/']) {
         // Find the link element for the href and click it.
         await browser.elementByCss(`a[href="${href}"]`).click()
 

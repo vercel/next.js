@@ -39,6 +39,7 @@
   "oslo",
   "pg",
   "playwright",
+  "playwright-core",
   "postcss",
   "prettier",
   "prisma",

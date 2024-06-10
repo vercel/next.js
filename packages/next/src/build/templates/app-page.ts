@@ -1,6 +1,6 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-import { AppPageRouteModule } from '../../server/future/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
-import { RouteKind } from '../../server/future/route-kind'
+import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+import { RouteKind } from '../../server/route-kind'
 
 // These are injected by the loader afterwards.
 
