@@ -113,7 +113,7 @@ export function unstable_cache<T extends Callback>(
       return a.localeCompare(b)
     })
     const sortedSearch = sortedSearchKeys
-      .map((key) => searchParams.get(key))
+      .map((key) => `${key}=${searchParams.get(key)}`)
       .join('&')
 
     // Construct the complete cache key for this function invocation
@@ -180,6 +180,7 @@ export function unstable_cache<T extends Callback>(
           tags,
           softTags: implicitTags,
           fetchIdx,
+          fetchUrl,
         })
 
         if (cacheEntry && cacheEntry.value) {
@@ -276,10 +277,17 @@ export function unstable_cache<T extends Callback>(
       if (!incrementalCache.isOnDemandRevalidate) {
         // We aren't doing an on demand revalidation so we check use the cache if valid
 
+        // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
+        // of this function is potentially a little confusing
+        const implicitTags = store && addImplicitTags(store)
+
         const cacheEntry = await incrementalCache.get(cacheKey, {
           kindHint: 'fetch',
           revalidate: options.revalidate,
           tags,
+          fetchIdx,
+          fetchUrl,
+          softTags: implicitTags,
         })
 
         if (cacheEntry && cacheEntry.value) {

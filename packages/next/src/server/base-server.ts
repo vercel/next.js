@@ -2795,8 +2795,6 @@ export default abstract class Server<
             kind: 'PAGE',
             html: RenderResult.fromStatic(''),
             pageData: {},
-            // @ts-ignore To be removed
-            postponed: undefined,
             headers: undefined,
             status: undefined,
           },
