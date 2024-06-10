@@ -450,10 +450,10 @@ function InnerLayoutRouter({
       // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
       // the patch to the tree.
       childNode.lazyDataResolved = true
-
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      use(unresolvedThenable) as never
     }
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
+    use(unresolvedThenable) as never
   }
 
   // We use `useDeferredValue` to handle switching between the prefetched and

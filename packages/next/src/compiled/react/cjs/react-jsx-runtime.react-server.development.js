@@ -79,32 +79,48 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternalsServer.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternalsServer.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternalsServer.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
@@ -295,7 +311,9 @@ function checkKeyStringCoercion(value) {
   }
 }
 
-var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference'); // This function is deprecated. Don't use. Only the renderer knows what a valid type is.
+// TODO: Delete this when enableOwnerStacks ships.
+
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -693,7 +711,8 @@ function describeFunctionComponentFrame(fn) {
 function shouldConstruct(Component) {
   var prototype = Component.prototype;
   return !!(prototype && prototype.isReactComponent);
-}
+} // TODO: Delete this once the key warning no longer uses it. I.e. when enableOwnerStacks ship.
+
 
 function describeUnknownElementTypeFrameInDEV(type) {
 
@@ -924,7 +943,7 @@ function ReactElement(type, key, _ref, self, source, owner, props, debugStack, d
       configurable: false,
       enumerable: false,
       writable: true,
-      value: false
+      value: 0
     }); // debugInfo contains Server Component debug information.
 
     Object.defineProperty(element, '_debugInfo', {
@@ -957,13 +976,13 @@ function ReactElement(type, key, _ref, self, source, owner, props, debugStack, d
 function jsxProdSignatureRunningInDevWithDynamicChildren(type, config, maybeKey, source, self) {
   {
     var isStaticChildren = false;
-    return jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self);
+    return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self);
   }
 }
 function jsxProdSignatureRunningInDevWithStaticChildren(type, config, maybeKey, source, self) {
   {
     var isStaticChildren = true;
-    return jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self);
+    return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self);
   }
 }
 var didWarnAboutKeySpread = {};
@@ -975,6 +994,10 @@ var didWarnAboutKeySpread = {};
  */
 
 function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
+  return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self);
+}
+
+function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self, debugStack, debugTask) {
   {
     if (!isValidElementType(type)) {
       // This is an invalid element type.
@@ -1109,29 +1132,7 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
       }
     }
 
-    var element = ReactElement(type, key, ref, self, source, getOwner(), props);
-
-    if (type === REACT_FRAGMENT_TYPE) {
-      validateFragmentProps(element);
-    }
-
-    return element;
-  }
-}
-
-function getDeclarationErrorAddendum() {
-  {
-    var owner = getOwner();
-
-    if (owner) {
-      var name = getComponentNameFromType(owner.type);
-
-      if (name) {
-        return '\n\nCheck the render method of `' + name + '`.';
-      }
-    }
-
-    return '';
+    return ReactElement(type, key, ref, self, source, getOwner(), props);
   }
 }
 /**
@@ -1143,7 +1144,6 @@ function getDeclarationErrorAddendum() {
  * @param {ReactNode} node Statically passed child of any type.
  * @param {*} parentType node's parent's type.
  */
-
 
 function validateChildKeys(node, parentType) {
   {
@@ -1162,7 +1162,7 @@ function validateChildKeys(node, parentType) {
     } else if (isValidElement(node)) {
       // This element was passed in a valid location.
       if (node._store) {
-        node._store.validated = true;
+        node._store.validated = 1;
       }
     } else {
       var iteratorFn = getIteratorFn(node);
@@ -1213,12 +1213,13 @@ var ownerHasKeyUseWarning = {};
  */
 
 function validateExplicitKey(element, parentType) {
+
   {
     if (!element._store || element._store.validated || element.key != null) {
       return;
     }
 
-    element._store.validated = true;
+    element._store.validated = 1;
     var currentComponentErrorInfo = getCurrentComponentErrorInfo(parentType);
 
     if (ownerHasKeyUseWarning[currentComponentErrorInfo]) {
@@ -1244,28 +1245,37 @@ function validateExplicitKey(element, parentType) {
       childOwner = " It was passed a child from " + ownerName + ".";
     }
 
-    setCurrentlyValidatingElement(element);
+    var prevGetCurrentStack = ReactSharedInternalsServer.getCurrentStack;
+
+    ReactSharedInternalsServer.getCurrentStack = function () {
+
+      var stack = describeUnknownElementTypeFrameInDEV(element.type); // Delegate to the injected renderer-specific implementation
+
+      if (prevGetCurrentStack) {
+        stack += prevGetCurrentStack() || '';
+      }
+
+      return stack;
+    };
 
     error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
 
-    setCurrentlyValidatingElement(null);
-  }
-}
-
-function setCurrentlyValidatingElement(element) {
-  {
-    if (element) {
-      var stack = describeUnknownElementTypeFrameInDEV(element.type);
-      ReactSharedInternalsServer.setExtraStackFrame(stack);
-    } else {
-      ReactSharedInternalsServer.setExtraStackFrame(null);
-    }
+    ReactSharedInternalsServer.getCurrentStack = prevGetCurrentStack;
   }
 }
 
 function getCurrentComponentErrorInfo(parentType) {
   {
-    var info = getDeclarationErrorAddendum();
+    var info = '';
+    var owner = getOwner();
+
+    if (owner) {
+      var name = getComponentNameFromType(owner.type);
+
+      if (name) {
+        info = '\n\nCheck the render method of `' + name + '`.';
+      }
+    }
 
     if (!info) {
       var parentName = getComponentNameFromType(parentType);
@@ -1276,31 +1286,6 @@ function getCurrentComponentErrorInfo(parentType) {
     }
 
     return info;
-  }
-}
-/**
- * Given a fragment, validate that it can only be provided with fragment props
- * @param {ReactElement} fragment
- */
-
-
-function validateFragmentProps(fragment) {
-  // TODO: Move this to render phase instead of at element creation.
-  {
-    var keys = Object.keys(fragment.props);
-
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-
-      if (key !== 'children' && key !== 'key') {
-        setCurrentlyValidatingElement(fragment);
-
-        error('Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', key);
-
-        setCurrentlyValidatingElement(null);
-        break;
-      }
-    }
   }
 }
 

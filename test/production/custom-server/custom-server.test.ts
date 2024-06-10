@@ -27,9 +27,7 @@ describe('custom server', () => {
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages:/)
-      // TODO: should not match rc once React 19 stable is out
-      expect($('body').text()).toMatch(/rc/)
+      expect($('body').text()).toMatch(/pages: 19.0.0/)
     })
   })
 })
