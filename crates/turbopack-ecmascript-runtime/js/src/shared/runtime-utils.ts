@@ -406,13 +406,10 @@ function asyncModule(
 
   const depQueues: Set<AsyncQueue> = new Set();
 
-  ensureDynamicExports(module, module.exports);
-  const exports = module.exports;
-
   const { resolve, reject, promise: rawPromise } = createPromise<Exports>();
 
   const promise: AsyncModulePromise = Object.assign(rawPromise, {
-    [turbopackExports]: exports,
+    [turbopackExports]: module.exports,
     [turbopackQueues]: (fn) => {
       queue && fn(queue);
       depQueues.forEach(fn);
@@ -420,7 +417,20 @@ function asyncModule(
     },
   } satisfies AsyncModuleExt);
 
-  module.exports = module.namespaceObject = promise;
+  const attributes: PropertyDescriptor = {
+    get(): any {
+      return promise;
+    },
+    set(v: any) {
+      // Calling `esmExport` leads to this.
+      if (v !== promise) {
+        promise[turbopackExports] = v;
+      }
+    },
+  };
+
+  Object.defineProperty(module, "exports", attributes);
+  Object.defineProperty(module, "namespaceObject", attributes);
 
   function handleAsyncDependencies(deps: Dep[]) {
     const currentDeps = wrapDeps(deps);
@@ -456,7 +466,7 @@ function asyncModule(
     if (err) {
       reject((promise[turbopackError] = err));
     } else {
-      resolve(exports);
+      resolve(promise[turbopackExports]);
     }
 
     resolveQueue(queue);

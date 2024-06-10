@@ -16,10 +16,7 @@ use turbopack_core::{
 };
 
 use super::esm::base::ReferencedAsset;
-use crate::{
-    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration, create_visitor,
-    references::esm::base::insert_hoisted_stmt,
-};
+use crate::{code_gen::CodeGeneration, create_visitor, references::esm::base::insert_hoisted_stmt};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
@@ -47,7 +44,6 @@ impl OptionAsyncModuleOptions {
 /// level await statement or is referencing an external ESM module.
 #[turbo_tasks::value(shared)]
 pub struct AsyncModule {
-    pub placeable: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     pub has_top_level_await: bool,
     pub import_externals: bool,
 }
@@ -116,10 +112,7 @@ impl AsyncModule {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
-                    ReferencedAsset::External(
-                        _,
-                        ExternalType::OriginalReference | ExternalType::EcmaScriptModule,
-                    ) => {
+                    ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset.get_ident().await?
                         } else {
@@ -168,10 +161,7 @@ impl AsyncModule {
                         };
                         Ok(matches!(
                             &*referenced_asset,
-                            ReferencedAsset::External(
-                                _,
-                                ExternalType::OriginalReference | ExternalType::EcmaScriptModule
-                            )
+                            ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
                         ))
                     })
                     .try_join()

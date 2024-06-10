@@ -51,7 +51,6 @@ impl EcmascriptModuleFacadeModule {
                 (false, false)
             };
         Ok(AsyncModule {
-            placeable: Vc::upcast(self),
             has_top_level_await,
             import_externals,
         }

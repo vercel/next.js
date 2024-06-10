@@ -114,17 +114,15 @@ impl SinglePatternMapping {
                 span: DUMMY_SP,
                 type_args: None,
             }),
-            Self::External(request, ExternalType::OriginalReference | ExternalType::CommonJs) => {
-                Expr::Call(CallExpr {
-                    callee: Callee::Expr(quote_expr!("require")),
-                    args: vec![ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(request.as_str().into()))),
-                    }],
-                    span: DUMMY_SP,
-                    type_args: None,
-                })
-            }
+            Self::External(request, ExternalType::CommonJs) => Expr::Call(CallExpr {
+                callee: Callee::Expr(quote_expr!("__turbopack_external_require__")),
+                args: vec![ExprOrSpread {
+                    spread: None,
+                    expr: request.as_str().into(),
+                }],
+                span: DUMMY_SP,
+                type_args: None,
+            }),
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!("Unsupported external type {:?} for commonjs reference", ty),
@@ -150,7 +148,7 @@ impl SinglePatternMapping {
                 })
             }
             Self::Unresolveable(_) => self.create_id(key_expr),
-            Self::External(_, ExternalType::EcmaScriptModule | ExternalType::OriginalReference) => {
+            Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
                         callee: Callee::Expr(quote_expr!("__turbopack_external_import__")),
@@ -405,11 +403,7 @@ impl PatternMapping {
                     .iter()
                     .filter_map(|(k, v)| {
                         let request = k.request.as_ref()?;
-                        if set.insert(request) {
-                            Some((request.to_string(), v))
-                        } else {
-                            None
-                        }
+                        set.insert(request).then(|| (request.to_string(), v))
                     })
                     .map(|(k, v)| async move {
                         let single_pattern_mapping =
