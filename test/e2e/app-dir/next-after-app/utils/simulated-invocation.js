@@ -1,5 +1,5 @@
 import { requestAsyncStorage } from 'next/dist/client/components/request-async-storage.external'
-import { Awaiter } from 'next/dist/server/lib/awaiter'
+import { AwaiterOnce } from 'next/dist/server/lib/awaiter'
 import { cliLog } from './log'
 
 // replaced in tests
@@ -74,7 +74,7 @@ So for edge, the flow goes like this:
 */
 
 function createInvocationContext() {
-  const awaiter = new Awaiter()
+  const awaiter = new AwaiterOnce()
 
   const waitUntil = (promise) => {
     awaiter.waitUntil(promise)

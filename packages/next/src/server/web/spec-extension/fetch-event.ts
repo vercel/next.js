@@ -1,11 +1,10 @@
-import { Awaiter } from '../../lib/awaiter'
+import { AwaiterOnce } from '../../lib/awaiter'
 import { PageSignatureError } from '../error'
 import type { NextRequest } from './request'
 
 const responseSymbol = Symbol('response')
 const passThroughSymbol = Symbol('passThrough')
 const awaiterSymbol = Symbol('awaiter')
-const waitUntilCacheSymbol = Symbol('waitUntil.cache')
 
 export const waitUntilSymbol = Symbol('waitUntil')
 
@@ -13,14 +12,10 @@ class FetchEvent {
   [responseSymbol]?: Promise<Response>;
   [passThroughSymbol] = false;
 
-  [awaiterSymbol] = new Awaiter();
-  [waitUntilCacheSymbol]: Promise<void> | undefined = undefined;
+  [awaiterSymbol] = new AwaiterOnce();
 
   [waitUntilSymbol] = () => {
-    if (!this[waitUntilCacheSymbol]) {
-      this[waitUntilCacheSymbol] = this[awaiterSymbol].awaiting()
-    }
-    return this[waitUntilCacheSymbol]
+    return this[awaiterSymbol].awaiting()
   }
 
   // eslint-disable-next-line @typescript-eslint/no-useless-constructor
