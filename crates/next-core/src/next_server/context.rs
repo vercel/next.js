@@ -841,7 +841,7 @@ pub async fn get_server_module_options_context(
 pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
     ModuleOptionsContext {
         enable_typescript_transform: Some(Default::default()),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
         esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
         ..Default::default()
     }
