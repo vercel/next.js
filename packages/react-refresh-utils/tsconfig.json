@@ -3,7 +3,6 @@
     "module": "commonjs",
     "sourceMap": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "target": "es2015",
     "lib": ["dom"],
     "downlevelIteration": true,

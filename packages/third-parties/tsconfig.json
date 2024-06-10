@@ -7,8 +7,7 @@
     "jsx": "react-jsx",
     "resolveJsonModule": true,
     "module": "commonjs",
-    "rootDir": "src",
-    "skipLibCheck": true
+    "rootDir": "src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules"]

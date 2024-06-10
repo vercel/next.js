@@ -8,8 +8,7 @@
     "moduleResolution": "node",
     "jsx": "react-jsx",
     "stripInternal": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true
+    "verbatimModuleSyntax": true
   },
   "exclude": [
     "dist",
