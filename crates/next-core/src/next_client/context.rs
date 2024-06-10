@@ -278,7 +278,7 @@ pub async fn get_client_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()

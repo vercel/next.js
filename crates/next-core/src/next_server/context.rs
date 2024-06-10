@@ -486,7 +486,7 @@ pub async fn get_server_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
         execution_context: Some(execution_context),
         use_swc_css,
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
         import_externals: *next_config.import_externals().await?,
         ignore_dynamic_requests: true,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
