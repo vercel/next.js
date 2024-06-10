@@ -15,11 +15,12 @@ import {
   retry,
   waitFor,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let stderr = ''
   let requiredFilesManifest
@@ -124,7 +125,7 @@ describe('required server files', () => {
       {
         ...process.env,
         ENV_FROM_HOST: 'FOOBAR',
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
