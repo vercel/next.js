@@ -30,7 +30,7 @@ module.exports = {
 
     return [
       `prettier --with-node-modules --ignore-path .prettierignore --write ${escapedFileNames}`,
-      `eslint --no-ignore --max-warnings=0 --fix ${eslintFileNames
+      `eslint --no-ignore --fix ${eslintFileNames
         .filter((filename) => filename !== null)
         .map((filename) => {
           return `"${filename}"`
