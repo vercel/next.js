@@ -94,6 +94,16 @@ function printWarning(level, format, args, currentStack) {
   }
 }
 
+function handleErrorInNextTick(error) {
+  setTimeout(function () {
+    throw error;
+  });
+}
+
+var LocalPromise = Promise;
+var scheduleMicrotask = typeof queueMicrotask === 'function' ? queueMicrotask : function (callback) {
+  LocalPromise.resolve(null).then(callback).catch(handleErrorInNextTick);
+};
 function scheduleWork(callback) {
   setTimeout(callback, 0);
 }
@@ -1579,6 +1589,8 @@ var PENDING$1 = 0;
 var COMPLETED = 1;
 var ABORTED = 3;
 var ERRORED$1 = 4;
+var RENDERING = 5;
+var AbortSigil = {};
 
 function defaultErrorHandler(error) {
   console['error'](error); // Don't transform to our wrapper
@@ -1588,8 +1600,9 @@ function defaultPostponeHandler(reason) {// Noop
 }
 
 var OPEN = 0;
-var CLOSING = 1;
-var CLOSED = 2;
+var ABORTING = 1;
+var CLOSING = 2;
+var CLOSED = 3;
 function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpone, environmentName, temporaryReferences) {
   if (ReactSharedInternals.A !== null && ReactSharedInternals.A !== DefaultAsyncDispatcher) {
     throw new Error('Currently React only supports one RSC renderer at a time.');
@@ -1687,6 +1700,16 @@ function serializeThenable(request, task, thenable) {
 
     default:
       {
+        if (request.status === ABORTING) {
+          // We can no longer accept any resolved values
+          newTask.status = ABORTED;
+          var errorId = request.fatalError;
+          var model = stringify(serializeByValueID(errorId));
+          emitModelChunk(request, newTask.id, model);
+          request.abortableTasks.delete(newTask);
+          return newTask.id;
+        }
+
         if (typeof thenable.status === 'string') {
           // Only instrument the thenable if the status if not defined. If
           // it's defined, but an unknown value, assume it's been instrumented by
@@ -2063,6 +2086,13 @@ validated) // DEV-only
     result = callComponentInDEV(Component, props, componentDebugInfo);
   }
 
+  if (request.status === ABORTING) {
+    // If we aborted during rendering we should interrupt the render but
+    // we don't need to provide an error because the renderer will encode
+    // the abort error as the reason.
+    throw AbortSigil;
+  }
+
   if (typeof result === 'object' && result !== null && !isClientReference(result)) {
     if (typeof result.then === 'function') {
       // When the return value is in children position we can resolve it immediately,
@@ -2404,6 +2434,13 @@ validated) // DEV only
             wrappedType = callLazyInitInDEV(type);
           }
 
+          if (request.status === ABORTING) {
+            // lazy initializers are user code and could abort during render
+            // we don't wan to return any value resolved from the lazy initializer
+            // if it aborts so we interrupt rendering here
+            throw AbortSigil;
+          }
+
           return renderElement(request, task, wrappedType, key, ref, props, owner);
         }
 
@@ -2428,7 +2465,7 @@ function pingTask(request, task) {
 
   if (pingedTasks.length === 1) {
     request.flushScheduled = request.destination !== null;
-    scheduleWork(function () {
+    scheduleMicrotask(function () {
       return performWork(request);
     });
   }
@@ -2726,21 +2763,32 @@ function renderModel(request, task, parent, key, value) {
   try {
     return renderModelDestructive(request, task, parent, key, value);
   } catch (thrownValue) {
+    // If the suspended/errored value was an element or lazy it can be reduced
+    // to a lazy reference, so that it doesn't error the parent.
+    var model = task.model;
+    var wasReactNode = typeof model === 'object' && model !== null && (model.$$typeof === REACT_ELEMENT_TYPE || model.$$typeof === REACT_LAZY_TYPE);
     var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
     // reasons, the rest of the Suspense implementation expects the thrown
     // value to be a thenable, because before `use` existed that was the
     // (unstable) API for suspending. This implementation detail can change
     // later, once we deprecate the old API in favor of `use`.
-    getSuspendedThenable() : thrownValue; // If the suspended/errored value was an element or lazy it can be reduced
-    // to a lazy reference, so that it doesn't error the parent.
-
-    var model = task.model;
-    var wasReactNode = typeof model === 'object' && model !== null && (model.$$typeof === REACT_ELEMENT_TYPE || model.$$typeof === REACT_LAZY_TYPE);
+    getSuspendedThenable() : thrownValue;
 
     if (typeof x === 'object' && x !== null) {
       // $FlowFixMe[method-unbinding]
       if (typeof x.then === 'function') {
-        // Something suspended, we'll need to create a new task and resolve it later.
+        if (request.status === ABORTING) {
+          task.status = ABORTED;
+          var errorId = request.fatalError;
+
+          if (wasReactNode) {
+            return serializeLazyID(errorId);
+          }
+
+          return serializeByValueID(errorId);
+        } // Something suspended, we'll need to create a new task and resolve it later.
+
+
         var newTask = createTask(request, task.model, task.keyPath, task.implicitSlot, request.abortableTasks);
         var ping = newTask.ping;
         x.then(ping, ping);
@@ -2756,6 +2804,17 @@ function renderModel(request, task, parent, key, value) {
 
         return serializeByValueID(newTask.id);
       }
+    }
+
+    if (thrownValue === AbortSigil) {
+      task.status = ABORTED;
+      var _errorId = request.fatalError;
+
+      if (wasReactNode) {
+        return serializeLazyID(_errorId);
+      }
+
+      return serializeByValueID(_errorId);
     } // Restore the context. We assume that this will be restored by the inner
     // functions in case nothing throws so we don't use "finally" here.
 
@@ -2768,10 +2827,12 @@ function renderModel(request, task, parent, key, value) {
       // We'll replace this element with a lazy reference that throws on the client
       // once it gets rendered.
       request.pendingChunks++;
-      var errorId = request.nextChunkId++;
+
+      var _errorId2 = request.nextChunkId++;
+
       var digest = logRecoverableError(request, x);
-      emitErrorChunk(request, errorId, digest, x);
-      return serializeLazyID(errorId);
+      emitErrorChunk(request, _errorId2, digest, x);
+      return serializeLazyID(_errorId2);
     } // Something errored but it was not in a React Node. There's no need to serialize
     // it by value because it'll just error the whole parent row anyway so we can
     // just stop any siblings and error the whole parent row.
@@ -2873,6 +2934,13 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
           {
             resolvedModel = callLazyInitInDEV(lazy);
+          }
+
+          if (request.status === ABORTING) {
+            // lazy initializers are user code and could abort during render
+            // we don't wan to return any value resolved from the lazy initializer
+            // if it aborts so we interrupt rendering here
+            throw AbortSigil;
           }
 
           {
@@ -3789,6 +3857,7 @@ function retryTask(request, task) {
   }
 
   var prevDebugID = debugID;
+  task.status = RENDERING;
 
   try {
     // Track the root so we know that we have to emit this object even though it
@@ -3845,12 +3914,33 @@ function retryTask(request, task) {
     if (typeof x === 'object' && x !== null) {
       // $FlowFixMe[method-unbinding]
       if (typeof x.then === 'function') {
-        // Something suspended again, let's pick it back up later.
+        if (request.status === ABORTING) {
+          request.abortableTasks.delete(task);
+          task.status = ABORTED;
+          var errorId = request.fatalError;
+          var model = stringify(serializeByValueID(errorId));
+          emitModelChunk(request, task.id, model);
+          return;
+        } // Something suspended again, let's pick it back up later.
+
+
+        task.status = PENDING$1;
+        task.thenableState = getThenableStateAfterSuspending();
         var ping = task.ping;
         x.then(ping, ping);
-        task.thenableState = getThenableStateAfterSuspending();
         return;
       }
+    }
+
+    if (x === AbortSigil) {
+      request.abortableTasks.delete(task);
+      task.status = ABORTED;
+      var _errorId3 = request.fatalError;
+
+      var _model = stringify(serializeByValueID(_errorId3));
+
+      emitModelChunk(request, task.id, _model);
+      return;
     }
 
     request.abortableTasks.delete(task);
@@ -3914,6 +4004,11 @@ function performWork(request) {
 }
 
 function abortTask(task, request, errorId) {
+  if (task.status === RENDERING) {
+    // This task will be aborted by the render
+    return;
+  }
+
   task.status = ABORTED; // Instead of emitting an error per task.id, we emit a model that only
   // has a single value referencing the error.
 
@@ -4006,6 +4101,7 @@ function flushCompletedChunks(request, destination) {
 
   if (request.pendingChunks === 0) {
 
+    request.status = CLOSED;
     close$1(destination);
     request.destination = null;
   }
@@ -4030,10 +4126,14 @@ function enqueueFlush(request) {
   request.pingedTasks.length === 0 && // If there is no destination there is nothing we can flush to. A flush will
   // happen when we start flowing again
   request.destination !== null) {
-    var destination = request.destination;
     request.flushScheduled = true;
     scheduleWork(function () {
-      return flushCompletedChunks(request, destination);
+      request.flushScheduled = false;
+      var destination = request.destination;
+
+      if (destination) {
+        flushCompletedChunks(request, destination);
+      }
     });
   }
 }
@@ -4069,15 +4169,17 @@ function stopFlowing(request) {
 
 function abort(request, reason) {
   try {
+    request.status = ABORTING;
     var abortableTasks = request.abortableTasks; // We have tasks to abort. We'll emit one error row and then emit a reference
     // to that row from every row that's still remaining.
 
     if (abortableTasks.size > 0) {
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
+      request.fatalError = errorId;
 
       var postponeInstance; if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) ; else {
-        var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+        var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : typeof reason === 'object' && reason !== null && typeof reason.then === 'function' ? new Error('The render was aborted by the server with a promise.') : reason;
         var digest = logRecoverableError(request, error);
         emitErrorChunk(request, errorId, digest, error);
       }
@@ -4094,7 +4196,7 @@ function abort(request, reason) {
       var _error;
 
       if (enablePostpone && typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) ; else {
-        _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+        _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : typeof reason === 'object' && reason !== null && typeof reason.then === 'function' ? new Error('The render was aborted by the server with a promise.') : reason;
       }
 
       abortListeners.forEach(function (callback) {

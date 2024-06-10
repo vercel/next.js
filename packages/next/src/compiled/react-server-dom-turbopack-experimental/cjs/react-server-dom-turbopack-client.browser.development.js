@@ -2970,9 +2970,20 @@ function stopStream(response, id, row) {
 
 function resolveErrorDev(response, id, digest, message, stack) {
 
+  var error;
 
-  var error = new Error(message || 'An error occurred in the Server Components render but no message was provided');
-  error.stack = stack;
+  {
+    var callStack = buildFakeCallStack(response, stack, // $FlowFixMe[incompatible-use]
+    Error.bind(null, message || 'An error occurred in the Server Components render but no message was provided'));
+    var rootTask = response._debugRootTask;
+
+    if (rootTask != null) {
+      error = rootTask.run(callStack);
+    } else {
+      error = callStack();
+    }
+  }
+
   error.digest = digest;
   var errorWithDigest = error;
   var chunks = response._chunks;
@@ -3011,6 +3022,7 @@ function resolveHint(response, code, model) {
 var supportsCreateTask = !!console.createTask;
 var taskCache = supportsCreateTask ? new WeakMap() : null;
 var fakeFunctionCache = new Map() ;
+var fakeFunctionIdx = 0;
 
 function createFakeFunction(name, filename, sourceMap, line, col) {
   // This creates a fake copy of a Server Module. It represents a module that has already
@@ -3022,15 +3034,31 @@ function createFakeFunction(name, filename, sourceMap, line, col) {
   var code;
 
   if (line <= 1) {
-    code = '_=>' + ' '.repeat(col < 4 ? 0 : col - 4) + '_()\n' + comment + '\n';
+    code = '_=>' + ' '.repeat(col < 4 ? 0 : col - 4) + '_()\n' + comment;
   } else {
-    code = comment + '\n'.repeat(line - 2) + '_=>\n' + ' '.repeat(col < 1 ? 0 : col - 1) + '_()\n';
+    code = comment + '\n'.repeat(line - 2) + '_=>\n' + ' '.repeat(col < 1 ? 0 : col - 1) + '_()';
+  }
+
+  if (filename.startsWith('/')) {
+    // If the filename starts with `/` we assume that it is a file system file
+    // rather than relative to the current host. Since on the server fully qualified
+    // stack traces use the file path.
+    // TODO: What does this look like on Windows?
+    filename = 'file://' + filename;
   }
 
   if (sourceMap) {
-    code += '//# sourceMappingURL=' + sourceMap;
+    // We use the prefix rsc://React/ to separate these from other files listed in
+    // the Chrome DevTools. We need a "host name" and not just a protocol because
+    // otherwise the group name becomes the root folder. Ideally we don't want to
+    // show these at all but there's two reasons to assign a fake URL.
+    // 1) A printed stack trace string needs a unique URL to be able to source map it.
+    // 2) If source maps are disabled or fails, you should at least be able to tell
+    //    which file it was.
+    code += '\n//# sourceURL=rsc://React/' + filename + '?' + fakeFunctionIdx++;
+    code += '\n//# sourceMappingURL=' + sourceMap;
   } else if (filename) {
-    code += '//# sourceURL=' + filename;
+    code += '\n//# sourceURL=' + filename;
   }
 
   var fn;
