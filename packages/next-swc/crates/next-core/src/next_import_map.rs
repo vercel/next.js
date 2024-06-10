@@ -578,8 +578,7 @@ async fn insert_next_server_special_aliases(
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
         ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            // rsc_aliases(import_map, project_path, ty, runtime,
-            // next_config).await?;
+            rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
     }
 
