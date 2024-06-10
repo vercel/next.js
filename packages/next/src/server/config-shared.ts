@@ -438,11 +438,6 @@ export interface ExperimentalConfig {
    */
   trustHostHeader?: boolean
 
-  /**
-   * Uses an IPC server to dedupe build-time requests to the cache handler
-   */
-  staticWorkerRequestDeduping?: boolean
-
   useWasmBinary?: boolean
 
   /**
