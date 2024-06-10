@@ -1297,7 +1297,7 @@ describe('required server files', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
