@@ -141,8 +141,9 @@ export const run = async (moduleFactory)=>{
 ```
 
 - Declares: `run`
-- Reads (eventual): `Map`, `ipc`, `Promise`, `queue`, `undefined`, `JSON`, `Error`, `console`, `process`
+- Reads (eventual): `ipc`, `queue`
 - Write: `run`
+- Write (eventual): `ipc`, `queue`
 
 # Phase 1
 ```mermaid

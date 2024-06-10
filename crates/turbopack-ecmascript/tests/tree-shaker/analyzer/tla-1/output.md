@@ -10,7 +10,6 @@ await Promise.resolve();
 ```
 
 - Side effects
-- Reads: `Promise`
 
 ## Item 2: Stmt 1, `VarDeclarator(0)`
 
@@ -35,6 +34,7 @@ export function effect(name) {
 - Declares: `effect`
 - Reads (eventual): `effects`
 - Write: `effect`
+- Write (eventual): `effects`
 
 # Phase 1
 ```mermaid

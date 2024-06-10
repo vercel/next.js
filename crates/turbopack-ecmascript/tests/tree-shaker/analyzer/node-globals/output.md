@@ -10,7 +10,6 @@ process.turbopack = {};
 ```
 
 - Side effects
-- Reads: `process`
 
 # Phase 1
 ```mermaid

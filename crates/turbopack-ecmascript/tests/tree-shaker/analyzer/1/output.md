@@ -92,7 +92,7 @@ console.log(foobarCopy);
 ```
 
 - Side effects
-- Reads: `console`, `foobarCopy`
+- Reads: `foobarCopy`
 
 ## Item 10: Stmt 8, `Normal`
 

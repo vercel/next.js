@@ -26,8 +26,8 @@
     {"offset": {"line": 198, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 203, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 214, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 219, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/index.js"],"sourcesContent":["import * as lib from './lib'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";;;;;;;AAEA,QAAQ,GAAG,CAAC,6NAAI,GAAG"}},
-    {"offset": {"line": 227, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 232, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 237, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 219, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/index.js"],"sourcesContent":["import * as lib from './lib'\n\nconsole.log(lib.cat)\n"],"names":[],"mappings":";;;;;;;;;AAEA,QAAQ,GAAG,CAAC,6NAAI,GAAG"}},
+    {"offset": {"line": 230, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 235, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 240, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
