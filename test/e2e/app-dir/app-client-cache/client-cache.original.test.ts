@@ -7,11 +7,12 @@ import {
   fastForwardTo,
   getPathname,
 } from './test-utils'
+import path from 'path'
 
 // This preserves existing tests for the 30s/5min heuristic (previous router defaults)
 describe('app dir client cache semantics (30s/5min)', () => {
   const { next, isNextDev } = nextTestSetup({
-    files: __dirname,
+    files: path.join(__dirname, 'fixtures', 'regular'),
     nextConfig: {
       experimental: { staleTimes: { dynamic: 30, static: 180 } },
     },

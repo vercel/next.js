@@ -10,7 +10,7 @@ import type {
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import { getRequestMeta, type NextParsedUrlQuery } from '../request-meta'
+import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -37,8 +37,10 @@ import {
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
+  NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
   NEXT_URL,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   createMetadataComponents,
@@ -798,11 +800,13 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isRSCRequest = Boolean(getRequestMeta(req, 'isRSCRequest'))
+  // We read these values from the request object as, in certain cases, base-server
+  // will strip them to opt into different rendering behavior.
+  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
+  const isPrefetchRSCRequest =
+    isRSCRequest &&
+    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
-  const isPrefetchRSCRequest = Boolean(
-    getRequestMeta(req, 'isPrefetchRSCRequest')
-  )
   /**
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request
