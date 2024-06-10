@@ -20,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-var ReactVersion = '19.0.0-rc-6230622a1a-20240610';
+var ReactVersion = '19.0.0-rc-20b6f4c0e8-20240607';
 
 // -----------------------------------------------------------------------------
 

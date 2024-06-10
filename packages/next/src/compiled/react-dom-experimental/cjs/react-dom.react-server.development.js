@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '19.0.0-experimental-6230622a1a-20240610';
+var ReactVersion = '19.0.0-experimental-20b6f4c0e8-20240607';
 
 var ReactSharedInternalsServer = // $FlowFixMe: It's defined in the one we resolve to.
 React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
