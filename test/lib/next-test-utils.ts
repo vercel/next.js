@@ -52,7 +52,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env,
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -191,6 +191,12 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+
+  /**
+   * If true, this enables the linting step in the build process. If false or
+   * undefined, it adds a `--no-lint` flag to the build command.
+   */
+  lint?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -428,12 +434,11 @@ export function launchApp(
       dir,
       '-p',
       port as string,
+      '--hostname',
+      '::',
     ].filter(Boolean),
     undefined,
-    {
-      ...options,
-      turbo: useTurbo,
-    }
+    { ...options, turbo: useTurbo }
   )
 }
 
@@ -442,6 +447,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  // If the build hasn't requested it to be linted explicitly, disable linting
+  // if it's not already disabled.
+  if (!opts.lint && !args.includes('--no-lint')) {
+    args.push('--no-lint')
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -472,10 +483,11 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
-  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    { ...opts, nextStart: true }
+  )
 }
 
 export function buildTS(

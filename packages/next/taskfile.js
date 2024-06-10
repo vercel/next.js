@@ -2120,7 +2120,12 @@ export async function ncc_ws(task, opts) {
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('path-to-regexp')))
+    .source(
+      join(
+        dirname(relative(__dirname, require.resolve('path-to-regexp'))),
+        '*.{js,map}'
+      )
+    )
     .target('dist/compiled/path-to-regexp')
 }
 

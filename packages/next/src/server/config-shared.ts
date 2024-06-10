@@ -148,6 +148,11 @@ export interface ExperimentalTurboOptions {
    * Use swc_css instead of lightningcss for turbopakc
    */
   useSwcCss?: boolean
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
@@ -433,11 +438,6 @@ export interface ExperimentalConfig {
    */
   trustHostHeader?: boolean
 
-  /**
-   * Uses an IPC server to dedupe build-time requests to the cache handler
-   */
-  staticWorkerRequestDeduping?: boolean
-
   useWasmBinary?: boolean
 
   /**
@@ -484,6 +484,11 @@ export interface ExperimentalConfig {
    * Enables `unstable_after`
    */
   after?: boolean
+
+  /**
+   * The number of times to retry static generation (per page) before giving up.
+   */
+  staticGenerationRetryCount?: number
 }
 
 export type ExportPathMap = {
@@ -985,6 +990,7 @@ export const defaultConfig: NextConfig = {
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
     after: false,
+    staticGenerationRetryCount: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

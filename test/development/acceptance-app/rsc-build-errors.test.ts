@@ -7,10 +7,6 @@ import { outdent } from 'outdent'
 describe('Error overlay - RSC build errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
-    dependencies: {
-      react: '19.0.0-rc-f994737d14-20240522',
-      'react-dom': '19.0.0-rc-f994737d14-20240522',
-    },
     skipStart: true,
   })
 

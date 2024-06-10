@@ -637,7 +637,7 @@ export async function collectBuildTraces({
 
       for (const type of moduleTypes) {
         const modulePath = require.resolve(
-          `next/dist/server/future/route-modules/${type}/module.compiled`
+          `next/dist/server/route-modules/${type}/module.compiled`
         )
         const relativeModulePath = path.relative(root, modulePath)
 

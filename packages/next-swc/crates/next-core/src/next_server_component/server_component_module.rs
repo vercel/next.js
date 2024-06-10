@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
@@ -28,8 +28,8 @@ use turbopack_binding::turbopack::{
 use super::server_component_reference::NextServerComponentModuleReference;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<String> {
-    Vc::cell("Next.js server component".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("Next.js server component".into())
 }
 
 #[turbo_tasks::value(shared)]
@@ -96,7 +96,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         let exports = BTreeMap::from([(
-            "default".to_string(),
+            "default".into(),
             EsmExport::ImportedNamespace(Vc::upcast(NextServerComponentModuleReference::new(
                 Vc::upcast(self.module),
             ))),

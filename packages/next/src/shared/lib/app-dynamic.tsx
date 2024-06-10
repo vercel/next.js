@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import Loadable from './lazy-dynamic/loadable'
 
 import type {

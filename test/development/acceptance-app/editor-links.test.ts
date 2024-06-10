@@ -28,10 +28,6 @@ async function clickImportTraceFiles(browser: any) {
 describe('Error overlay - editor links', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-rc-f994737d14-20240522',
-      'react-dom': '19.0.0-rc-f994737d14-20240522',
-    },
     skipStart: true,
   })
 
