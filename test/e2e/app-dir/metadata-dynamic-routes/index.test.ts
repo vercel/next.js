@@ -44,7 +44,7 @@ describe('app dir - metadata dynamic routes', () => {
 
   describe('sitemap', () => {
     it('should handle sitemap.[ext] dynamic routes', async () => {
-      const res = await next.fetch('/sitemap')
+      const res = await next.fetch('/sitemap.xml')
       const text = await res.text()
 
       expect(res.headers.get('content-type')).toBe('application/xml')
@@ -70,23 +70,30 @@ describe('app dir - metadata dynamic routes', () => {
 
     it('should support generate multi sitemaps with generateSitemaps', async () => {
       const ids = ['child0', 'child1', 'child2', 'child3']
-      function fetchSitemap(id) {
-        return next.fetch(`/gsp/sitemap/${id}`).then((res) => res.text())
+      function fetchSitemap(id, withExtension) {
+        return next.fetch(`/gsp/sitemap/${id}${withExtension ? `.xml` : ''}`)
       }
 
+      // Required to have .xml extension for dynamic sitemap
       for (const id of ids) {
-        const text = await fetchSitemap(id)
+        const text = await fetchSitemap(id, true).then((res) => res.text())
         expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
+      }
+
+      // Should 404 when missing .xml extension
+      for (const id of ids) {
+        const { status } = await fetchSitemap(id, false)
+        expect(status).toBe(404)
       }
     })
 
     it('should not throw if client components are imported but not used in sitemap', async () => {
-      const { status } = await next.fetch('/client-ref-dependency/sitemap')
+      const { status } = await next.fetch('/client-ref-dependency/sitemap.xml')
       expect(status).toBe(200)
     })
 
     it('should support alternate.languages in sitemap', async () => {
-      const xml = await (await next.fetch('/lang/sitemap')).text()
+      const xml = await (await next.fetch('/lang/sitemap.xml')).text()
 
       expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml')
       expect(xml).toContain(
@@ -105,19 +112,19 @@ describe('app dir - metadata dynamic routes', () => {
         expect(appPathsManifest).toMatchObject({
           // static routes
           '/twitter-image/route': 'app/twitter-image/route.js',
-          '/sitemap/route': 'app/sitemap/route.js',
+          '/sitemap.xml/route': 'app/sitemap.xml/route.js',
 
           // dynamic
           '/gsp/sitemap/[__metadata_id__]/route':
             'app/gsp/sitemap/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route.js',
         })
       })
 
       it('should generate static paths of dynamic sitemap in production', async () => {
         const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
-          (id) => `.next/server/app/gsp/sitemap/${id}.meta`
+          (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
         )
         const promises = sitemapPaths.map(async (filePath) => {
           expect(await next.hasFile(filePath)).toBe(true)
@@ -183,9 +190,7 @@ describe('app dir - metadata dynamic routes', () => {
         const entryKeys = Object.keys(appPathsManifest)
         // Only has one route for twitter-image with catch-all routes in dev
         expect(entryKeys).not.toContain('/twitter-image')
-        expect(entryKeys).toContain(
-          '/twitter-image/[[...__metadata_id__]]/route'
-        )
+        expect(entryKeys).toContain('/twitter-image/route')
       }
 
       // edge runtime
@@ -316,7 +321,7 @@ describe('app dir - metadata dynamic routes', () => {
   if (isNextStart) {
     describe('route segment config', () => {
       it('should generate dynamic route if dynamic config is force-dynamic', async () => {
-        const dynamicRoute = '/route-config/sitemap'
+        const dynamicRoute = '/route-config/sitemap.xml'
 
         expect(
           await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
@@ -453,7 +458,7 @@ describe('app dir - metadata dynamic routes', () => {
     it('should include default og font files in file trace', async () => {
       const fileTrace = JSON.parse(
         await next.readFile(
-          '.next/server/app/metadata-base/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
+          '.next/server/app/metadata-base/unset/opengraph-image2/[__metadata_id__]/route.js.nft.json'
         )
       )
 
@@ -462,6 +467,16 @@ describe('app dir - metadata dynamic routes', () => {
         filePath.includes('/noto-sans-v27-latin-regular.ttf')
       )
       expect(isTraced).toBe(true)
+    })
+
+    it('should statically optimized single image route', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+      const dynamicRoutes = Object.keys(prerenderManifest.routes)
+      expect(dynamicRoutes).toContain('/opengraph-image')
+      expect(dynamicRoutes).toContain('/opengraph-image-1ow20b')
+      expect(dynamicRoutes).toContain('/apple-icon')
     })
   }
 })

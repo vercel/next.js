@@ -121,15 +121,15 @@ async function createAppRouteCode({
 
   // If this is a metadata route, then we need to use the metadata loader for
   // the route to ensure that the route is generated.
-  const filename = path.parse(resolvedPagePath).name
-  if (isMetadataRoute(name) && filename !== 'route') {
+  const fileBaseName = path.parse(resolvedPagePath).name
+  if (isMetadataRoute(name) && fileBaseName !== 'route') {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
-    const isDynamic = pageExtensions.includes(ext)
+    const isDynamicRouteExtension = pageExtensions.includes(ext)
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
       filePath: resolvedPagePath,
-      isDynamic: isDynamic ? '1' : '0',
+      isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
     })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
@@ -142,7 +142,7 @@ async function createAppRouteCode({
       VAR_USERLAND: resolvedPagePath,
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_DEFINITION_FILENAME: filename,
+      VAR_DEFINITION_FILENAME: fileBaseName,
       VAR_DEFINITION_BUNDLE_PATH: bundlePath,
       VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
       VAR_ORIGINAL_PATHNAME: page,

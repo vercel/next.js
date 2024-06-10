@@ -1924,7 +1924,8 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+        "app dir - metadata dynamic routes should statically optimized single image route"
       ],
       "pending": [],
       "flakey": [],
@@ -4040,10 +4041,9 @@
       "runtimeError": false
     },
     "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-      "passed": [
-        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
-      ],
+      "passed": [],
       "failed": [
+        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
         "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
       ],
       "pending": [],
