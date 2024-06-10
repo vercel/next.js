@@ -127,10 +127,8 @@ async function createAppRouteCode({
     const isDynamicRouteExtension = pageExtensions.includes(ext)
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
-      page,
-      filePath: resolvedPagePath,
       isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
-    })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
+    })}!${resolvedPagePath}?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)

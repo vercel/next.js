@@ -21,10 +21,7 @@ const cacheHeader = {
 }
 
 type MetadataRouteLoaderOptions = {
-  page: string
-  filePath: string
   isDynamicRouteExtension: '1' | '0'
-  isDynamicMultiRoute: '1' | '0'
 }
 
 export function getFilenameAndExtension(resourcePath: string) {
@@ -246,7 +243,8 @@ ${staticGenerationCode}
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { isDynamicRouteExtension, filePath } = this.getOptions()
+    const { isDynamicRouteExtension } = this.getOptions()
+    const filePath = this.resourcePath
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
 
     let code = ''
