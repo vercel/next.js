@@ -15724,6 +15724,15 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
+    },
+    "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata static routes cache should generate different content after replace the static metadata file"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     }
   },
   "rules": {
