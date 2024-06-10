@@ -1,17 +1,17 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import { join } from 'path'
+import { nextTestSetup } from 'e2e-utils'
 
-describe('postcss-config-cjs', () => {
+describe('tailwind-css', () => {
   const { next } = nextTestSetup({
-    files: new FileRef(join(__dirname, 'app')),
+    files: __dirname,
     dependencies: {
-      tailwindcss: '2.2.19',
-      postcss: '8.3.5',
+      autoprefixer: '10.4.19',
+      postcss: '8.4.38',
+      tailwindcss: '3.4.4',
     },
   })
 
-  it('works with postcss.config.cjs files', async () => {
-    let browser = await next.browser('/')
+  it('works when importing tailwind/tailwind.css', async () => {
+    const browser = await next.browser('/')
     try {
       const text = await browser.elementByCss('.text-6xl').text()
       expect(text).toMatch(/Welcome to/)
