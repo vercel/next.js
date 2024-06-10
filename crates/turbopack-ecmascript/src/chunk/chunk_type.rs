@@ -9,8 +9,8 @@ use turbopack_core::{
 
 use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
 
-#[derive(Default)]
 #[turbo_tasks::value]
+#[derive(Default)]
 pub struct EcmascriptChunkType {}
 
 #[turbo_tasks::value_impl]

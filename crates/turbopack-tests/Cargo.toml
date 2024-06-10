@@ -19,6 +19,7 @@ turbopack = { workspace = true }
 anyhow = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true }
+indexmap = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

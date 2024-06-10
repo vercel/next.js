@@ -47,13 +47,14 @@ use turbopack_core::{
         ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ModulePart,
-        ModuleResolveResult, ModuleResolveResultItem, ResolveResult,
+        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ExternalType,
+        ModulePart, ModuleResolveResult, ModuleResolveResultItem, ResolveResult,
     },
     source::Source,
 };
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
+use turbopack_ecmascript::references::external_module::{CachedExternalModule, CachedExternalType};
 use turbopack_json::JsonModuleAsset;
 use turbopack_mdx::MdxModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
@@ -679,7 +680,8 @@ impl AssetContext for ModuleAssetContext {
     ) -> Result<Vc<ModuleResolveResult>> {
         let this = self.await?;
         let transition = this.transition;
-        Ok(result
+
+        let result = result
             .await?
             .map_module(|source| {
                 let reference_type = reference_type.clone();
@@ -695,8 +697,12 @@ impl AssetContext for ModuleAssetContext {
                     })
                 }
             })
-            .await?
-            .into())
+            .await?;
+
+        let result =
+            replace_externals(result, this.module_options_context.await?.import_externals).await?;
+
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
@@ -872,6 +878,41 @@ async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> 
             .collect(),
     }
     .into())
+}
+
+/// Replaces the externals in the result with `ExternalModuleAsset` instances.
+pub async fn replace_externals(
+    mut result: ModuleResolveResult,
+    import_externals: bool,
+) -> Result<ModuleResolveResult> {
+    for item in result.primary.values_mut() {
+        let ModuleResolveResultItem::External(request, ty) = item else {
+            continue;
+        };
+
+        let external_type = match ty {
+            ExternalType::CommonJs => CachedExternalType::CommonJs,
+            ExternalType::EcmaScriptModule => {
+                if import_externals {
+                    CachedExternalType::EcmaScriptViaImport
+                } else {
+                    CachedExternalType::EcmaScriptViaRequire
+                }
+            }
+            ExternalType::Url => {
+                // we don't want to wrap url externals.
+                continue;
+            }
+        };
+
+        let module = CachedExternalModule::new(request.clone(), external_type)
+            .resolve()
+            .await?;
+
+        *item = ModuleResolveResultItem::Module(Vc::upcast(module));
+    }
+
+    Ok(result)
 }
 
 pub fn register() {

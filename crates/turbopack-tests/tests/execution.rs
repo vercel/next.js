@@ -7,6 +7,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
+use indexmap::indexmap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, TurboTasks,
@@ -24,15 +25,14 @@ use turbopack::{
 };
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::{EvaluatableAssetExt, EvaluatableAssets},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
-    context::{AssetContext, ProcessResult},
+    context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{Issue, IssueDescriptionExt},
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
         ExternalType,
@@ -156,6 +156,12 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
     register();
 
+    // Clean up old output files.
+    let output_path = resource.join("output");
+    if output_path.exists() {
+        std::fs::remove_dir_all(&output_path)?;
+    }
+
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
         let resource_str = resource.to_str().unwrap();
@@ -239,7 +245,6 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         ref options,
     } = *prepared_test.await?;
 
-    let jest_runtime_path = tests_path.join("js/jest-runtime.ts".into());
     let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
     let test_path = project_path.join("input/index.js".into());
 
@@ -320,10 +325,24 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     )
     .build();
 
-    let jest_entry_asset = process_path_to_asset(jest_entry_path, asset_context).module();
-    let jest_runtime_asset = FileSource::new(jest_runtime_path);
+    let jest_entry_source = FileSource::new(jest_entry_path);
     let test_source = FileSource::new(test_path);
-    let test_evaluatable = test_source.to_evaluatable(asset_context);
+
+    let test_asset = asset_context
+        .process(
+            Vc::upcast(test_source),
+            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+        )
+        .module();
+
+    let jest_entry_asset = asset_context
+        .process(
+            Vc::upcast(jest_entry_source),
+            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+                "TESTS".into() => test_asset,
+            }))),
+        )
+        .module();
 
     let res = evaluate(
         jest_entry_asset,
@@ -332,10 +351,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         test_source.ident(),
         asset_context,
         Vc::upcast(chunking_context),
-        Some(EvaluatableAssets::many(vec![
-            jest_runtime_asset.to_evaluatable(asset_context),
-            test_evaluatable,
-        ])),
+        None,
         vec![],
         Completion::immutable(),
         should_debug("execution_test"),
@@ -394,15 +410,4 @@ async fn snapshot_issues(
     .context("Unable to handle issues")?;
 
     Ok(Default::default())
-}
-
-#[turbo_tasks::function]
-fn process_path_to_asset(
-    path: Vc<FileSystemPath>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-) -> Vc<ProcessResult> {
-    asset_context.process(
-        Vc::upcast(FileSource::new(path)),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    )
 }

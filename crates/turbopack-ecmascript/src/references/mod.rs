@@ -5,6 +5,7 @@ pub mod constant_condition;
 pub mod constant_value;
 pub mod dynamic_expression;
 pub mod esm;
+pub mod external_module;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
@@ -768,7 +769,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
         let async_module = AsyncModule {
-            placeable: Vc::upcast(module),
             has_top_level_await,
             import_externals,
         }
