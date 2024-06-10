@@ -443,34 +443,6 @@ describe('app dir - metadata dynamic routes', () => {
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
 
-  if (isNextDev) {
-    it('should error if the default export of dynamic image is missing', async () => {
-      const ogImageFilePath = 'app/opengraph-image.tsx'
-      const ogImageFileContent = await next.readFile(ogImageFilePath)
-      const ogImageFileContentWithoutDefaultExport = ogImageFileContent.replace(
-        'export default function',
-        'export function'
-      )
-
-      try {
-        await next.patchFile(
-          ogImageFilePath,
-          ogImageFileContentWithoutDefaultExport
-        )
-        const currentNextCliOutputLength = next.cliOutput.length
-
-        await check(async () => {
-          await next.fetch('/opengraph-image')
-          const output = next.cliOutput.slice(currentNextCliOutputLength)
-          expect(output).toContain(`Default export is missing in`)
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.patchFile(ogImageFilePath, ogImageFileContent)
-      }
-    })
-  }
-
   if (isNextStart) {
     it('should support edge runtime of image routes', async () => {
       const middlewareManifest = JSON.parse(

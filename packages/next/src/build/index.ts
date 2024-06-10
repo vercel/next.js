@@ -156,16 +156,12 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
-import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import { interopDefault } from '../lib/interop-default'
-import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import {
   getTurbopackJsConfig,
@@ -575,11 +571,7 @@ type PageDataCollectionKeys = Exclude<
   'exportPage'
 >
 
-function createStaticWorker(
-  config: NextConfigComplete,
-  incrementalCacheIpcPort?: number,
-  incrementalCacheIpcValidationKey?: string
-): StaticWorker {
+function createStaticWorker(config: NextConfigComplete): StaticWorker {
   let infoPrinted = false
   const timeout = config.staticPageGenerationTimeout || 0
 
@@ -619,13 +611,7 @@ function createStaticWorker(
     },
     numWorkers: getNumberOfWorkers(config),
     forkOptions: {
-      env: {
-        ...process.env,
-        __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
-          ? incrementalCacheIpcPort + ''
-          : undefined,
-        __NEXT_INCREMENTAL_CACHE_IPC_KEY: incrementalCacheIpcValidationKey,
-      },
+      env: process.env,
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -634,8 +620,6 @@ function createStaticWorker(
 
 async function writeFullyStaticExport(
   config: NextConfigComplete,
-  incrementalCacheIpcPort: number | undefined,
-  incrementalCacheIpcValidationKey: string | undefined,
   dir: string,
   enabledDirectories: NextEnabledDirectories,
   configOutDir: string,
@@ -644,16 +628,8 @@ async function writeFullyStaticExport(
   const exportApp = require('../export')
     .default as typeof import('../export').default
 
-  const pagesWorker = createStaticWorker(
-    config,
-    incrementalCacheIpcPort,
-    incrementalCacheIpcValidationKey
-  )
-  const appWorker = createStaticWorker(
-    config,
-    incrementalCacheIpcPort,
-    incrementalCacheIpcValidationKey
-  )
+  const pagesWorker = createStaticWorker(config)
+  const appWorker = createStaticWorker(config)
 
   await exportApp(
     dir,
@@ -1745,62 +1721,8 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      let incrementalCacheIpcPort
-      let incrementalCacheIpcValidationKey
-
-      if (config.experimental.staticWorkerRequestDeduping) {
-        let CacheHandler
-        if (cacheHandler) {
-          CacheHandler = interopDefault(
-            await import(formatDynamicImportPath(dir, cacheHandler)).then(
-              (mod) => mod.default || mod
-            )
-          )
-        }
-
-        const cacheInitialization = await initializeIncrementalCache({
-          fs: nodeFs,
-          dev: false,
-          pagesDir: true,
-          appDir: true,
-          fetchCache: true,
-          flushToDisk: ciEnvironment.hasNextSupport
-            ? false
-            : config.experimental.isrFlushToDisk,
-          serverDistDir: path.join(distDir, 'server'),
-          fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-          maxMemoryCacheSize: config.cacheMaxMemorySize,
-          getPrerenderManifest: () => ({
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }),
-          requestHeaders: {},
-          CurCacheHandler: CacheHandler,
-          minimalMode: ciEnvironment.hasNextSupport,
-          allowedRevalidateHeaderKeys:
-            config.experimental.allowedRevalidateHeaderKeys,
-        })
-
-        incrementalCacheIpcPort = cacheInitialization.ipcPort
-        incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
-      }
-
-      const pagesStaticWorkers = createStaticWorker(
-        config,
-
-        incrementalCacheIpcPort,
-        incrementalCacheIpcValidationKey
-      )
-      const appStaticWorkers = appDir
-        ? createStaticWorker(
-            config,
-            incrementalCacheIpcPort,
-            incrementalCacheIpcValidationKey
-          )
-        : undefined
+      const pagesStaticWorkers = createStaticWorker(config)
+      const appStaticWorkers = appDir ? createStaticWorker(config) : undefined
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -3359,8 +3281,6 @@ export default async function build(
       if (config.output === 'export') {
         await writeFullyStaticExport(
           config,
-          incrementalCacheIpcPort,
-          incrementalCacheIpcValidationKey,
           dir,
           enabledDirectories,
           configOutDir,

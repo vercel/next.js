@@ -10,6 +10,7 @@ interface RefreshInactiveParallelSegments {
   updatedTree: FlightRouterState
   updatedCache: CacheNode
   includeNextUrl: boolean
+  canonicalUrl: string
 }
 
 /**
@@ -41,6 +42,7 @@ async function refreshInactiveParallelSegmentsImpl({
   includeNextUrl,
   fetchedSegments,
   rootTree = updatedTree,
+  canonicalUrl,
 }: RefreshInactiveParallelSegments & {
   fetchedSegments: Set<string>
   rootTree: FlightRouterState
@@ -50,7 +52,7 @@ async function refreshInactiveParallelSegmentsImpl({
 
   if (
     refetchPath &&
-    refetchPath !== location.pathname + location.search &&
+    refetchPath !== canonicalUrl &&
     refetchMarker === 'refresh' &&
     // it's possible for the tree to contain multiple segments that contain data at the same URL
     // we keep track of them so we can dedupe the requests
@@ -94,6 +96,7 @@ async function refreshInactiveParallelSegmentsImpl({
       includeNextUrl,
       fetchedSegments,
       rootTree,
+      canonicalUrl,
     })
 
     fetchPromises.push(parallelFetchPromise)

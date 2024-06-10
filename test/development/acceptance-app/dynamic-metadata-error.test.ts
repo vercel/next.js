@@ -4,13 +4,11 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('dynamic = "error" in devmode', () => {
+describe('dynamic metadata error', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-
-  it('should show error overlay when dynamic is forced', async () => {})
 
   it('should error when id is missing in generateImageMetadata', async () => {
     const iconFilePath = 'app/metadata-base/unset/icon.tsx'
@@ -80,6 +78,25 @@ describe('dynamic = "error" in devmode', () => {
       expect(next.cliOutput).toContain(
         `id property is required for every item returned from generateSitemaps`
       )
+    })
+
+    await cleanup()
+  })
+
+  it('should error if the default export of dynamic image is missing', async () => {
+    const ogImageFilePath = 'app/opengraph-image.tsx'
+    const ogImageFileContentWithoutDefaultExport = `
+    // Missing default export
+    export function foo() {}  
+    `
+
+    const { cleanup } = await sandbox(
+      next,
+      new Map([[ogImageFilePath, ogImageFileContentWithoutDefaultExport]]),
+      '/opengraph-image'
+    )
+    await retry(async () => {
+      expect(next.cliOutput).toContain(`Default export is missing in`)
     })
 
     await cleanup()
