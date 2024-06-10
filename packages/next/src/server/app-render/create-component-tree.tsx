@@ -303,9 +303,6 @@ async function createComponentTreeInternal({
       const NotFoundComponent = NotFound
       const ForbiddenComponent = Forbidden
       const RootLayoutComponent = LayoutOrPage
-      const RoolLayoutBoundaryComponent = () => {
-        return
-      }
       return (
         <ForbiddenBoundary
           uiComponent={
