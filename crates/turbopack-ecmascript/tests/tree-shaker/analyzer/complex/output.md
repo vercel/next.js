@@ -30,7 +30,7 @@ console.log(dog);
 ```
 
 - Side effects
-- Reads: `console`, `dog`
+- Reads: `dog`
 
 ## Item 4: Stmt 3, `Normal`
 
@@ -64,7 +64,7 @@ console.log(dog);
 ```
 
 - Side effects
-- Reads: `console`, `dog`
+- Reads: `dog`
 
 ## Item 7: Stmt 6, `Normal`
 
@@ -98,7 +98,7 @@ console.log(dog);
 ```
 
 - Side effects
-- Reads: `console`, `dog`
+- Reads: `dog`
 
 ## Item 10: Stmt 9, `VarDeclarator(0)`
 

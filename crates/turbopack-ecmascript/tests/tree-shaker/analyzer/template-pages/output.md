@@ -266,7 +266,7 @@ export const routeModule = new PagesRouteModule({
 
 - Declares: `routeModule`
 - Reads: `PagesRouteModule`, `RouteKind`, `App`, `Document`, `userland`
-- Write: `routeModule`
+- Write: `routeModule`, `RouteKind`
 
 # Phase 1
 ```mermaid
@@ -974,6 +974,9 @@ const routeModule = new PagesRouteModule({
 export { routeModule } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { RouteKind } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 13
@@ -1351,6 +1354,9 @@ const routeModule = new PagesRouteModule({
     userland
 });
 export { routeModule } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { RouteKind } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 

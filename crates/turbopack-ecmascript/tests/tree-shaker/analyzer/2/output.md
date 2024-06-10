@@ -106,7 +106,7 @@ console.log(foobarCopy);
 ```
 
 - Side effects
-- Reads: `console`, `foobarCopy`
+- Reads: `foobarCopy`
 
 ## Item 11: Stmt 9, `Normal`
 
