@@ -28,7 +28,7 @@ type MetadataRouteLoaderOptions = {
 
 export function getFilenameAndExtension(resourcePath: string) {
   const filename = path.basename(resourcePath)
-  const [name, ext] = filename.split('.', 2)
+  const [name, ext] = filename.split(/\.(.+)/).filter(Boolean)
   return { name, ext }
 }
 
