@@ -1446,7 +1446,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     staticGenerationStore.prerenderState &&
     usedDynamicAPIs(staticGenerationStore.prerenderState) &&
-    staticGenerationStore.prerenderState?.isDebugSkeleton
+    staticGenerationStore.prerenderState?.isDebugDynamicAccesses
   ) {
     warn('The following dynamic usage was detected:')
     for (const access of formatDynamicAPIAccesses(
