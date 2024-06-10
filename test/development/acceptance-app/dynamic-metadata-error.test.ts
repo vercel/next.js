@@ -4,13 +4,11 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('dynamic = "error" in devmode', () => {
+describe('dynamic metadata error', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-
-  it('should show error overlay when dynamic is forced', async () => {})
 
   it('should error when id is missing in generateImageMetadata', async () => {
     const iconFilePath = 'app/metadata-base/unset/icon.tsx'
