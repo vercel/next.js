@@ -7,34 +7,17 @@ on:
   # allow triggering manually as well
   workflow_dispatch:
 
+env:
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_DEPLOY_SLACK_WEBHOOK_URL }}
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  DD_ENV: 'ci'
+
 jobs:
-  test:
-    if: github.repository_owner == 'vercel'
+  setup:
     runs-on: ubuntu-latest
-
-    env:
-      CARGO_PROFILE_RELEASE_LTO: 'true'
-      DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-      DD_ENV: 'ci'
-      NAPI_CLI_VERSION: 2.16.2
-      NEXT_JUNIT_TEST_REPORT: 'true'
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_CONTINUE_ON_ERROR: 1
-      NEXT_TEST_JOB: 1
-      NEXT_TEST_MODE: 'deploy'
-      NODE_LTS_VERSION: 20
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
-      TURBO_REMOTE_ONLY: 'true'
-      TURBO_TEAM: 'vercel'
-      TURBO_VERSION: 1.13.3-canary.2
-      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1, 2]
-
+    if: github.repository_owner == 'vercel'
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,38 +33,63 @@ jobs:
         with:
           fetch-depth: 25
 
-      - name: Setup tests
+      - name: Setup test project
         run: |
           pnpm install
           pnpm run build
-          npm i -g vercel@latest
           node scripts/run-e2e-test-project-reset.mjs
 
-      - name: Run tests
-        run: |
-          docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.41.2-jammy /bin/bash -c "cd /work && \
-          NODE_VERSION=${{ env.NODE_LTS_VERSION }} ./scripts/setup-node.sh && \ 
-          corepack enable > /dev/null && \
-          NEXT_JUNIT_TEST_REPORT=${{ env.NEXT_JUNIT_TEST_REPORT }} \
-          DATADOG_API_KEY=${{ env.DATADOG_API_KEY }} \
-          DD_ENV=${{ env.DD_ENV }} \ 
-          VERCEL_TEST_TOKEN=${{ env.VERCEL_TEST_TOKEN }} \
-          VERCEL_TEST_TEAM=${{ env.VERCEL_TEST_TEAM }} \
-          NEXT_TEST_JOB=${{ env.NEXT_TEST_JOB }} \
-          NEXT_TEST_MODE=${{ env.NEXT_TEST_MODE }} \
-          TEST_TIMINGS_TOKEN=${{ env.TEST_TIMINGS_TOKEN }} \
-          xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/2 -c 1 >> /proc/1/fd/1"
+  test-deploy:
+    name: test deploy
+    needs: setup
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    strategy:
+      fail-fast: true
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5, 6/6]
+    with:
+      afterBuild: NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      skipNativeBuild: 'yes'
+      stepName: 'test-deploy-${{ matrix.group }}'
+      timeout_minutes: 180
+      runs_on_labels: '["ubuntu-latest"]'
 
-      - name: Save test report as artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+  report-test-results-to-datadog:
+    needs: test-deploy
+    if: ${{ always() }}
+
+    runs-on: ubuntu-latest
+    name: report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v4
         with:
-          name: test-reports
-          if-no-files-found: ignore
-          retention-days: 2
-          path: test/test-junit-report
+          pattern: test-reports-*
+          path: test
+          merge-multiple: true
 
-      - name: Upload test report to Datadog
-        continue-on-error: true
+      - name: Upload test report to datadog
         run: |
-          pnpx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs_deploy_e2e --service nextjs ./test/test-junit-report
+          if [ -d ./test/test-junit-report ]; then
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+          fi
+
+  report-failure:
+    name: report failure to slack
+    needs: test-deploy
+    if: needs.test-deploy.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
+              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
