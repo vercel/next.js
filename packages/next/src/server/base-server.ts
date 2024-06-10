@@ -2792,7 +2792,6 @@ export default abstract class Server<
             kind: 'PAGE',
             html: RenderResult.fromStatic(''),
             pageData: {},
-            postponed: undefined,
             headers: undefined,
             status: undefined,
           },
