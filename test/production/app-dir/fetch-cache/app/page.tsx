@@ -17,7 +17,7 @@ const getCachedRandom = unstable_cache(
 export default async function Page() {
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?a=b',
-    { next: { tags: ['thankyounext'] } }
+    { next: { tags: ['thankyounext'], revalidate: 3 } }
   ).then((res) => res.text())
 
   const cachedRandom = getCachedRandom()

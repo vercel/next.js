@@ -16,9 +16,11 @@ describe('fetch-cache', () => {
   let appPort: any
   let cliOuptut = ''
   let nextInstance: any
+  let fetchGetReqIndex = 0
   let revalidateReqIndex = 0
+  let fetchGetShouldError = false
   let fetchCacheServer: http.Server
-  const fetchCacheRequests: Array<{
+  let fetchCacheRequests: Array<{
     url: string
     method: string
     headers: Record<string, string | string[]>
@@ -102,6 +104,10 @@ describe('fetch-cache', () => {
   }
 
   beforeAll(async () => {
+    fetchGetReqIndex = 0
+    revalidateReqIndex = 0
+    fetchCacheRequests = []
+    fetchGetShouldError = false
     fetchCacheServer = http.createServer((req, res) => {
       console.log(`fetch cache request ${req.url} ${req.method}`, req.headers)
       const parsedUrl = new URL(req.url || '/', 'http://n')
@@ -133,6 +139,16 @@ describe('fetch-cache', () => {
       if (key) {
         const type = req.method?.toLowerCase()
         console.log(`got ${type} for ${key}`)
+
+        if (type === 'get') {
+          fetchGetReqIndex += 1
+
+          if (fetchGetShouldError) {
+            res.statusCode = 500
+            res.end('internal server error')
+            return
+          }
+        }
         res.statusCode = type === 'post' ? 200 : 404
         res.end(`${type} for ${key}`)
         return
@@ -205,5 +221,20 @@ describe('fetch-cache', () => {
     })
     expect(cliOuptut).not.toContain('Failed to revalidate')
     expect(cliOuptut).not.toContain('Error')
+  })
+
+  it('should not retry for failed fetch-cache GET', async () => {
+    fetchGetShouldError = true
+    const fetchGetReqIndexStart = fetchGetReqIndex
+
+    try {
+      await fetchViaHTTP(appPort, '/api/revalidate')
+      const res = await fetchViaHTTP(appPort, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('hello world')
+      expect(fetchGetReqIndex).toBe(fetchGetReqIndexStart + 2)
+    } finally {
+      fetchGetShouldError = false
+    }
   })
 })
