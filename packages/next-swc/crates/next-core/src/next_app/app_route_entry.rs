@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -10,7 +10,6 @@ use turbopack_binding::{
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
         },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
         turbopack::ModuleAssetContext,
     },
 };
@@ -121,12 +120,6 @@ pub async fn get_app_route_entry(
             pathname.clone(),
         );
     }
-
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
-    };
 
     Ok(AppEntry {
         pathname,

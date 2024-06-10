@@ -12,7 +12,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EntryChunkGroupResult,
+            },
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -21,7 +24,6 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
-        nodejs::EntryChunkGroupResult,
     },
 };
 

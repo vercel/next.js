@@ -47,7 +47,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAssets,
             },
             file_source::FileSource,
             module::Module,
@@ -56,7 +56,6 @@ use turbopack_binding::{
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        nodejs::EntryChunkGroupResult,
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,

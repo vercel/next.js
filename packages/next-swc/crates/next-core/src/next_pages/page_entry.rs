@@ -20,7 +20,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::utils::StringifyJs,
     },
 };
 
@@ -42,7 +42,7 @@ pub async fn create_page_ssr_entry_module(
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
-) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+) -> Result<Vc<Box<dyn Module>>> {
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
@@ -169,12 +169,6 @@ pub async fn create_page_ssr_entry_module(
             );
         }
     }
-
-    let Some(ssr_module) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
-    };
 
     Ok(ssr_module)
 }
