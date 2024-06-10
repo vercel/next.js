@@ -6343,6 +6343,19 @@ function getPostponedState(request) {
     replaySlots: trackedPostpones.rootSlots
   };
 }
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+  if ("19.0.0-experimental-1df34bdf62-20240605" !== isomorphicReactPackageVersion)
+    throw Error(
+      formatProdErrorMessage(
+        527,
+        isomorphicReactPackageVersion,
+        "19.0.0-experimental-1df34bdf62-20240605"
+      )
+    );
+}
+ensureCorrectIsomorphicReactVersion();
+ensureCorrectIsomorphicReactVersion();
 exports.prerender = function (children, options) {
   return new Promise(function (resolve, reject) {
     var onHeaders = options ? options.onHeaders : void 0,
@@ -6542,4 +6555,4 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-f994737d14-20240522";
+exports.version = "19.0.0-experimental-1df34bdf62-20240605";

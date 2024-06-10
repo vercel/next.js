@@ -306,8 +306,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
-    // Do not append the suffix for the sitemap route
-    } else if !route.ends_with("/sitemap") {
+    } else {
         // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
         let pathname_prefix = split_directory(&route).0.unwrap_or_default();
         suffix = get_metadata_route_suffix(pathname_prefix);
@@ -317,12 +316,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
-
-        let is_static_route = route.starts_with("/robots")
-            || route.starts_with("/manifest")
-            || is_static_metadata_file;
 
         page.0.pop();
 
@@ -337,10 +331,6 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
             )
             .into(),
         ))?;
-
-        if !is_static_route {
-            page.push(PageSegment::OptionalCatchAll("__metadata_id__".into()))?;
-        }
 
         page.push(PageSegment::PageType(PageType::Route))?;
     }
@@ -358,11 +348,11 @@ mod test {
         let cases = vec![
             [
                 "/client/(meme)/more-route/twitter-image",
-                "/client/(meme)/more-route/twitter-image-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image-769mad/route",
             ],
             [
                 "/client/(meme)/more-route/twitter-image2",
-                "/client/(meme)/more-route/twitter-image2-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image2-769mad/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],

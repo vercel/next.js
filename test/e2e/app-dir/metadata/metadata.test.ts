@@ -958,7 +958,7 @@ describe('app dir - metadata', () => {
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
           )
         ).toBe(false)
       })

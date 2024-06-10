@@ -59,6 +59,8 @@ export interface PageStaticInfo {
   ssr?: boolean
   rsc?: RSCModuleType
   generateStaticParams?: boolean
+  generateSitemaps?: boolean
+  generateImageMetadata?: boolean
   middleware?: MiddlewareConfigParsed
   amp?: boolean | 'hybrid'
   extraConfig?: Record<string, any>
@@ -141,8 +143,8 @@ function checkExports(
   ssg: boolean
   runtime?: string
   preferredRegion?: string | string[]
-  generateImageMetadata?: boolean
-  generateSitemaps?: boolean
+  generateImageMetadata: boolean
+  generateSitemaps: boolean
   generateStaticParams: boolean
   extraProperties?: Set<string>
   directives?: Set<string>
@@ -467,20 +469,6 @@ function warnAboutUnsupportedValue(
   warnedUnsupportedValueMap.set(pageFilePath, true)
 }
 
-// Detect if metadata routes is a dynamic route, which containing
-// generateImageMetadata or generateSitemaps as export
-export async function isDynamicMetadataRoute(
-  pageFilePath: string
-): Promise<boolean> {
-  const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (/generateImageMetadata|generateSitemaps/.test(fileContent)) {
-    const swcAST = await parseModule(pageFilePath, fileContent)
-    const exportsInfo = checkExports(swcAST, pageFilePath)
-    return !!(exportsInfo.generateImageMetadata || exportsInfo.generateSitemaps)
-  }
-  return false
-}
-
 /**
  * For a given pageFilePath and nextConfig, if the config supports it, this
  * function will read the file and return the runtime that should be used.
@@ -499,7 +487,7 @@ export async function getPageStaticInfo(params: {
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
-    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const/.test(
+    /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps/.test(
       fileContent
     )
   ) {
@@ -510,6 +498,8 @@ export async function getPageStaticInfo(params: {
       runtime,
       preferredRegion,
       generateStaticParams,
+      generateImageMetadata,
+      generateSitemaps,
       extraProperties,
       directives,
     } = checkExports(swcAST, pageFilePath)
@@ -651,6 +641,8 @@ export async function getPageStaticInfo(params: {
       ssg,
       rsc,
       generateStaticParams,
+      generateImageMetadata,
+      generateSitemaps,
       amp: config.amp || false,
       ...(middlewareConfig && { middleware: middlewareConfig }),
       ...(resolvedRuntime && { runtime: resolvedRuntime }),
@@ -664,6 +656,8 @@ export async function getPageStaticInfo(params: {
     ssg: false,
     rsc: RSC_MODULE_TYPES.server,
     generateStaticParams: false,
+    generateImageMetadata: false,
+    generateSitemaps: false,
     amp: false,
     runtime: undefined,
   }
