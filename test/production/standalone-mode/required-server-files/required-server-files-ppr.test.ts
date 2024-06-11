@@ -11,7 +11,6 @@ import {
   killApp,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
-import { patchServerFile } from './patch-server-file'
 
 describe('required server files app router', () => {
   let next: NextInstance
@@ -81,11 +80,17 @@ describe('required server files app router', () => {
       }
     }
 
-    const testServerFilename = join(next.testDir, 'standalone/server.js')
-    await patchServerFile(testServerFilename, { minimalMode })
+    const testServer = join(next.testDir, 'standalone/server.js')
+    await fs.writeFile(
+      testServer,
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
+    )
     appPort = await findPort()
     server = await initNextServerScript(
-      testServerFilename,
+      testServer,
       /- Local:/,
       {
         ...process.env,

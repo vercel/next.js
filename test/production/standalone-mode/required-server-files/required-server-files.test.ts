@@ -16,7 +16,6 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
-import { patchServerFile } from './patch-server-file'
 
 describe('required server files', () => {
   let next: NextInstance
@@ -116,7 +115,15 @@ describe('required server files', () => {
     stderr = ''
 
     const testServerFilename = join(next.testDir, 'standalone/server.js')
-    await patchServerFile(testServerFilename, { minimalMode })
+    const testServerContent = await fs.readFile(testServerFilename, 'utf8')
+
+    await fs.writeFile(
+      testServerFilename,
+      testServerContent.replace(
+        /(startServer\({\s*)(minimalMode: (true|false),\n {2})?/,
+        `$1minimalMode: ${minimalMode},\n  `
+      )
+    )
 
     appPort = await findPort()
 
