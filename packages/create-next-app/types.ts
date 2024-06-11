@@ -9,6 +9,7 @@ export type CreateNextAppOptions = {
   tailwind?: boolean
   app?: boolean
   srcDir?: boolean
+  turbo?: boolean
   resetPreferences?: boolean
   skipInstall?: boolean
   empty?: boolean
@@ -27,6 +28,7 @@ export type ResolvedCreateNextAppOptions = {
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  turbo: boolean
 }
 
 export type RepoInfo = {

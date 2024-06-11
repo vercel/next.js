@@ -1,5 +1,4 @@
 import { trace } from 'next/dist/trace'
-import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -8,6 +7,7 @@ import {
   run,
   useTempDir,
 } from '../utils'
+import { createNextInstall } from '../../../lib/create-next-install'
 
 const lockFile = 'bun.lockb'
 const files = [...DEFAULT_FILES, lockFile]
@@ -57,7 +57,6 @@ describe.skip('create-next-app with package manager bun', () => {
     })
   })
 
-<<<<<<< HEAD
   it('should use bun for --use bun', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun'
@@ -67,11 +66,13 @@ describe.skip('create-next-app with package manager bun', () => {
           '--ts',
           '--app',
           '--use=bun',
+          '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -86,8 +87,6 @@ describe.skip('create-next-app with package manager bun', () => {
     })
   })
 
-=======
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
   it('should use bun when user-agent is bun', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'user-agent-bun'
@@ -96,19 +95,13 @@ describe.skip('create-next-app with package manager bun', () => {
           projectName,
           '--ts',
           '--app',
-<<<<<<< HEAD
-=======
           '--no-turbo',
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-<<<<<<< HEAD
-=======
         nextInstall.installDir,
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
         {
           cwd,
           env: { npm_config_user_agent: 'bun' },
@@ -117,7 +110,6 @@ describe.skip('create-next-app with package manager bun', () => {
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
-<<<<<<< HEAD
         cwd,
         projectName,
         files,
@@ -130,6 +122,7 @@ describe.skip('create-next-app with package manager bun', () => {
       const projectName = 'use-bun-flag-with-example'
       const res = await run(
         [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
+        nextInstall.installDir,
         { cwd }
       )
 
@@ -147,39 +140,6 @@ describe.skip('create-next-app with package manager bun', () => {
       const projectName = 'use-bun-with-example'
       const res = await run(
         [projectName, '--use=bun', '--example', FULL_EXAMPLE_PATH],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use bun when user-agent is bun with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'user-agent-bun-with-example'
-      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-        cwd,
-        env: { npm_config_user_agent: 'bun' },
-      })
-
-=======
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use bun for --use-bun flag with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-bun-with-example'
-      const res = await run(
-        [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
         nextInstall.installDir,
         { cwd }
       )
@@ -205,7 +165,6 @@ describe.skip('create-next-app with package manager bun', () => {
         }
       )
 
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
         cwd,

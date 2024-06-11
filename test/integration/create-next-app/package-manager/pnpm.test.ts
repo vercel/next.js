@@ -1,5 +1,4 @@
 import { trace } from 'next/dist/trace'
-import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -8,6 +7,7 @@ import {
   run,
   useTempDir,
 } from '../utils'
+import { createNextInstall } from '../../../lib/create-next-install'
 
 const lockFile = 'pnpm-lock.yaml'
 const files = [...DEFAULT_FILES, lockFile]
@@ -58,7 +58,6 @@ describe.skip('create-next-app with package manager pnpm', () => {
     })
   })
 
-<<<<<<< HEAD
   it('should use pnpm for --use pnpm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-pnpm'
@@ -67,12 +66,14 @@ describe.skip('create-next-app with package manager pnpm', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbo',
           '--use=pnpm',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
+        nextInstall.installDir,
         {
           cwd,
         }
@@ -87,8 +88,6 @@ describe.skip('create-next-app with package manager pnpm', () => {
     })
   })
 
-=======
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
   it('should use pnpm when user-agent is pnpm', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'user-agent-pnpm'
@@ -97,19 +96,13 @@ describe.skip('create-next-app with package manager pnpm', () => {
           projectName,
           '--ts',
           '--app',
-<<<<<<< HEAD
-=======
           '--no-turbo',
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-<<<<<<< HEAD
-=======
         nextInstall.installDir,
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
         {
           cwd,
           env: { npm_config_user_agent: 'pnpm' },
@@ -118,7 +111,6 @@ describe.skip('create-next-app with package manager pnpm', () => {
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
-<<<<<<< HEAD
         cwd,
         projectName,
         files,
@@ -131,6 +123,7 @@ describe.skip('create-next-app with package manager pnpm', () => {
       const projectName = 'use-pnpm-flag-with-example'
       const res = await run(
         [projectName, '--use-pnpm', '--example', FULL_EXAMPLE_PATH],
+        nextInstall.installDir,
         { cwd }
       )
 
@@ -148,39 +141,6 @@ describe.skip('create-next-app with package manager pnpm', () => {
       const projectName = 'use-pnpm-with-example'
       const res = await run(
         [projectName, '--use=pnpm', '--example', FULL_EXAMPLE_PATH],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use pnpm when user-agent is pnpm with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'user-agent-pnpm-with-example'
-      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
-        cwd,
-        env: { npm_config_user_agent: 'pnpm' },
-      })
-
-=======
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use pnpm for --use-pnpm flag with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-pnpm-with-example'
-      const res = await run(
-        [projectName, '--use-pnpm', '--example', FULL_EXAMPLE_PATH],
         nextInstall.installDir,
         { cwd }
       )
@@ -206,7 +166,6 @@ describe.skip('create-next-app with package manager pnpm', () => {
         }
       )
 
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({
         cwd,

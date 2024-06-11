@@ -41,6 +41,7 @@ Options:
   --eslint                                 Enable ESLint config. (default)
   --tailwind                               Enable Tailwind CSS config. (default)
   --src-dir                                Initialize inside a "src/" directory.
+  --turbo                                  Enable Turbopack by default for development.
   --import-alias <prefix/*>                Specify import alias to use. (default: "@/*")
   --use <package-manager>                  Specify the package manager to use. (choices: "npm", "pnpm", "yarn", "bun")
   --empty                                  Initialize an empty project.

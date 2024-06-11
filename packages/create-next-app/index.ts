@@ -57,6 +57,7 @@ const ct = {
   importAlias: bold(italic('import alias')),
   javascript: yellow('JavaScript'),
   srcDir: bold('"src/"'),
+  turbopack: red('Turbo') + blue('pack'),
   tailwind: green('Tailwind CSS'),
   typescript: blue('TypeScript'),
 }
@@ -80,6 +81,7 @@ const program = new Command()
   .option('--eslint', `Enable ${ct.eslint} config. ${ct.default}`)
   .option('--tailwind', `Enable ${ct.tailwind} config. ${ct.default}`)
   .option('--src-dir', `Initialize inside a ${ct.srcDir} directory.`)
+  .option('--turbo', `Enable ${ct.turbopack} by default for development.`)
   .option(
     '--import-alias <prefix/*>',
     `Specify ${ct.importAlias} to use. ${gray('(default: "@/*")')}`
@@ -100,88 +102,7 @@ const program = new Command()
     `Reset the preferences saved for ${ct.cna}.`
   )
   .option(
-<<<<<<< HEAD
     '-e, --example <example-name|github-url>',
-=======
-    '--tailwind',
-    `
-
-  Initialize with Tailwind CSS config. (default)
-`
-  )
-  .option(
-    '--eslint',
-    `
-
-  Initialize with eslint config.
-`
-  )
-  .option(
-    '--app',
-    `
-
-  Initialize as an App Router project.
-`
-  )
-  .option(
-    '--src-dir',
-    `
-
-  Initialize inside a \`src/\` directory.
-`
-  )
-  .option(
-    '--turbo',
-    `
-    
-  Enable Turbopack by default for development.
-`
-  )
-  .option(
-    '--import-alias <alias-to-configure>',
-    `
-
-  Specify import alias to use (default "@/*").
-`
-  )
-  .option(
-    '--empty',
-    `
-
-  Initialize an empty project.
-`
-  )
-  .option(
-    '--use-npm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using npm
-`
-  )
-  .option(
-    '--use-pnpm',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using pnpm
-`
-  )
-  .option(
-    '--use-yarn',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Yarn
-`
-  )
-  .option(
-    '--use-bun',
-    `
-
-  Explicitly tell the CLI to bootstrap the application using Bun
-`
-  )
-  .option(
-    '-e, --example [name]|[github-url]',
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
     `
 
   An example to bootstrap the app with. You can use an example name
@@ -226,8 +147,10 @@ const defaults = {
   tailwind: true,
   app: true,
   srcDir: false,
-  importAlias: '@/*',
+  turbo: false,
+  empty: false,
   customizeImportAlias: false,
+  importAlias: '@/*',
 }
 
 async function run(): Promise<void> {
@@ -314,6 +237,7 @@ async function run(): Promise<void> {
       importAlias: opts.importAlias ?? defaults.importAlias,
       skipInstall: Boolean(opts.skipInstall),
       empty: Boolean(opts.empty),
+      turbo: Boolean(opts.turbo),
     }
     await tryCreateNextApp({
       appPath,
@@ -324,35 +248,9 @@ async function run(): Promise<void> {
     return
   }
 
-<<<<<<< HEAD
   const preferences = (conf.get('preferences') ?? {}) as typeof defaults
   const getPrefOrDefault = <T extends keyof typeof defaults>(field: T) =>
     preferences[field] ?? defaults[field]
-=======
-  const example = typeof program.example === 'string' && program.example.trim()
-  const preferences = (conf.get('preferences') || {}) as Record<
-    string,
-    boolean | string
-  >
-  /**
-   * If the user does not provide the necessary flags, prompt them for whether
-   * to use TS or JS.
-   */
-  if (!example) {
-    const defaults: typeof preferences = {
-      typescript: true,
-      eslint: true,
-      tailwind: true,
-      app: true,
-      srcDir: false,
-      importAlias: '@/*',
-      customizeImportAlias: false,
-      empty: false,
-      turbo: false,
-    }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
 
   // We set the missing options to their defaults in CI to skip the prompts.
   if (isCI) {
@@ -367,6 +265,9 @@ async function run(): Promise<void> {
     }
     if (!opts.srcDir && !args.includes('--no-src-dir')) {
       opts.srcDir = getPrefOrDefault('srcDir')
+    }
+    if (!opts.turbo && !args.includes('--no-turbo')) {
+      opts.turbo = getPrefOrDefault('turbo')
     }
     if (!opts.app && !args.includes('--no-app')) {
       opts.app = getPrefOrDefault('app')
@@ -384,6 +285,7 @@ async function run(): Promise<void> {
       importAlias: opts.importAlias,
       skipInstall: Boolean(opts.skipInstall),
       empty: Boolean(opts.empty),
+      turbo: Boolean(opts.turbo),
     }
     await tryCreateNextApp({
       appPath,
@@ -465,10 +367,20 @@ async function run(): Promise<void> {
     const { srcDir } = await _prompt({
       type: 'toggle',
       name: 'srcDir',
-      message: `Would you like to use ${ct.srcDir} directory?`,
+      message: `Would you like your code inside a ${ct.srcDir} directory?`,
     })
     opts.srcDir = srcDir
     preferences.srcDir = srcDir
+  }
+
+  if (!opts.turbo && !args.includes('--no-turbo')) {
+    const { turbo } = await _prompt({
+      type: 'toggle',
+      name: 'turbo',
+      message: `Would you like to enable ${ct.turbopack} for development?`,
+    })
+    opts.turbo = turbo
+    preferences.turbo = turbo
   }
 
   // Matches <prefix>/* except disallowed characters for paths: " or *
@@ -488,7 +400,6 @@ async function run(): Promise<void> {
       )} or ${bold('double quote (")')} ${currentValue}`
     }
 
-<<<<<<< HEAD
     return `${ct.importAlias} must follow the pattern ${bold(
       '<prefix>/*'
     )} ${currentValue}`
@@ -506,7 +417,7 @@ async function run(): Promise<void> {
     const { customizeImportAlias } = await _prompt({
       type: 'toggle',
       name: 'customizeImportAlias',
-      message: `Would you like to customize the default ${ct.importAlias} (${defaults.importAlias})?`,
+      message: `Would you like to customize the ${ct.importAlias} (${defaults.importAlias} by default)?`,
     })
 
     if (customizeImportAlias) {
@@ -518,32 +429,9 @@ async function run(): Promise<void> {
       })
       opts.importAlias = importAlias
       preferences.importAlias = importAlias
-=======
-    if (
-      !process.argv.includes('--src-dir') &&
-      !process.argv.includes('--no-src-dir')
-    ) {
-      if (ciInfo.isCI) {
-        program.srcDir = getPrefOrDefault('srcDir')
-      } else {
-        const styledSrcDir = blue('`src/` directory')
-        const { srcDir } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'srcDir',
-          message: `Would you like your code inside a ${styledSrcDir}?`,
-          initial: getPrefOrDefault('srcDir'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.srcDir = Boolean(srcDir)
-        preferences.srcDir = Boolean(srcDir)
-      }
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
     }
   }
 
-<<<<<<< HEAD
   // Ensure the importAlias is set.
   opts.importAlias ??= defaults.importAlias
 
@@ -556,6 +444,7 @@ async function run(): Promise<void> {
     importAlias: opts.importAlias,
     skipInstall: Boolean(opts.skipInstall),
     empty: Boolean(opts.empty),
+    turbo: Boolean(opts.turbo),
   }
   await tryCreateNextApp({
     appPath,
@@ -577,6 +466,7 @@ async function tryCreateNextApp({
     importAlias,
     skipInstall,
     empty,
+    turbo,
   },
   example,
   conf,
@@ -597,87 +487,6 @@ async function tryCreateNextApp({
       opts,
       args,
       preferences,
-=======
-    if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
-      if (ciInfo.isCI) {
-        program.app = getPrefOrDefault('app')
-      } else {
-        const styledAppDir = blue('App Router')
-        const { appRouter } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'appRouter',
-          message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: getPrefOrDefault('app'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.app = Boolean(appRouter)
-      }
-    }
-
-    if (!program.turbo && !process.argv.includes('--no-turbo')) {
-      if (ciInfo.isCI) {
-        program.turbo = getPrefOrDefault('turbo')
-      } else {
-        const styledTurbo = blue('Turbopack')
-        const { turbo } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
-          initial: getPrefOrDefault('turbo'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        program.turbo = Boolean(turbo)
-        preferences.turbo = Boolean(turbo)
-      }
-    }
-
-    const importAliasPattern = /^[^*"]+\/\*\s*$/
-    if (
-      typeof program.importAlias !== 'string' ||
-      !importAliasPattern.test(program.importAlias)
-    ) {
-      if (ciInfo.isCI) {
-        // We don't use preferences here because the default value is @/* regardless of existing preferences
-        program.importAlias = defaults.importAlias
-      } else if (process.argv.includes('--no-import-alias')) {
-        program.importAlias = defaults.importAlias
-      } else {
-        const styledImportAlias = blue('import alias')
-
-        const { customizeImportAlias } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'customizeImportAlias',
-          message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
-          initial: getPrefOrDefault('customizeImportAlias'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-
-        if (!customizeImportAlias) {
-          // We don't use preferences here because the default value is @/* regardless of existing preferences
-          program.importAlias = defaults.importAlias
-        } else {
-          const { importAlias } = await prompts({
-            onState: onPromptState,
-            type: 'text',
-            name: 'importAlias',
-            message: `What ${styledImportAlias} would you like configured?`,
-            initial: getPrefOrDefault('importAlias'),
-            validate: (value) =>
-              importAliasPattern.test(value)
-                ? true
-                : 'Import alias must follow the pattern <prefix>/*',
-          })
-          program.importAlias = importAlias
-          preferences.importAlias = importAlias
-        }
-      }
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
     }
     console.log(JSON.stringify(dryRunData, null, 2))
     return
@@ -687,7 +496,6 @@ async function tryCreateNextApp({
     await createApp({
       appPath,
       packageManager,
-<<<<<<< HEAD
       example: example !== 'default' ? example : undefined,
       examplePath: opts.examplePath,
       typescript,
@@ -698,19 +506,7 @@ async function tryCreateNextApp({
       importAlias,
       skipInstall,
       empty,
-=======
-      example: example && example !== 'default' ? example : undefined,
-      examplePath: program.examplePath,
-      typescript: program.typescript,
-      tailwind: program.tailwind,
-      eslint: program.eslint,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
-      turbo: program.turbo,
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
+      turbo,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -733,7 +529,6 @@ async function tryCreateNextApp({
     await createApp({
       appPath,
       packageManager,
-<<<<<<< HEAD
       typescript,
       tailwind,
       eslint,
@@ -742,17 +537,7 @@ async function tryCreateNextApp({
       importAlias,
       skipInstall,
       empty,
-=======
-      typescript: program.typescript,
-      eslint: program.eslint,
-      tailwind: program.tailwind,
-      appRouter: program.app,
-      srcDir: program.srcDir,
-      importAlias: program.importAlias,
-      skipInstall: program.skipInstall,
-      empty: program.empty,
-      turbo: program.turbo,
->>>>>>> 62e8c9dd453839a40627a98803ecf1f0e401eacd
+      turbo,
     })
   }
 
