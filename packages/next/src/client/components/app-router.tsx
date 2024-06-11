@@ -369,11 +369,10 @@ function Router({
         let url: URL
         try {
           url = new URL(addBasePath(href), window.location.href)
-        } catch (err) {
-          console.error(
+        } catch (_) {
+          throw new Error(
             `Cannot prefetch '${href}' because it cannot be converted to a URL.`
           )
-          return
         }
 
         // Don't prefetch during development (improves compilation performance)

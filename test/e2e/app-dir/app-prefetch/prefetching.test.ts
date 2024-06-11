@@ -330,19 +330,21 @@ describe('app dir - prefetching', () => {
     })
   })
 
-  describe('should not crash for invalid URLs', () => {
-    it.each([
-      { title: 'passed to Link', path: '/invalid-url/from-link' },
-      {
-        title: 'passed to router.prefetch',
-        path: '/invalid-url/from-router-prefetch',
-      },
-    ])('$title', async ({ path }) => {
-      const browser = await next.browser(path)
+  describe('invalid URLs', () => {
+    it('should not throw when an invalid URL is passed to Link', async () => {
+      const browser = await next.browser('/invalid-url/from-link')
 
       await check(() => browser.hasElementByCssSelector('h1'), true)
-
       expect(await browser.elementByCss('h1').text()).toEqual('Hello, world!')
+    })
+
+    it('should throw when an invalid URL is passed to router.prefetch', async () => {
+      const browser = await next.browser('/invalid-url/from-router-prefetch')
+
+      await check(() => browser.hasElementByCssSelector('h1'), true)
+      expect(await browser.elementByCss('h1').text()).toEqual(
+        'A prefetch threw an error'
+      )
     })
   })
 })
