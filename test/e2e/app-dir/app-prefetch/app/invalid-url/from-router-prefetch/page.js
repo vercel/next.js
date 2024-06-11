@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-export default async function Page() {
+export default function Page() {
   const router = useRouter()
   useEffect(() => {
     router.prefetch(INVALID_URL)

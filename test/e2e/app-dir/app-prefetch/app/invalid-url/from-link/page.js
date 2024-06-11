@@ -4,7 +4,7 @@ import { Delay } from '../delay'
 
 export const dynamic = 'force-dynamic'
 
-export default async function Page() {
+export default function Page() {
   return (
     <>
       <Link href={INVALID_URL}>invalid link</Link>
