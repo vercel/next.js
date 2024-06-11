@@ -580,10 +580,9 @@ impl Viewer {
             };
             match &span {
                 QueueItem::Span(span) => {
-                    let (selected_view_mode, inherit) = self
-                        .span_options
-                        .get(&span.id())
-                        .and_then(|o| o.view_mode)
+                    let (selected_view_mode, inherit) = (!span.is_root())
+                        .then(|| self.span_options.get(&span.id()).and_then(|o| o.view_mode))
+                        .flatten()
                         .unwrap_or_else(|| {
                             (
                                 if span.is_complete() {
@@ -992,7 +991,9 @@ impl Viewer {
                                 }
                             }
                             ViewSpan {
-                                id: span.id().get() as u64,
+                                id: (!span.is_root())
+                                    .then(|| span.id().get() as u64)
+                                    .unwrap_or_default(),
                                 start: entry.start,
                                 width: entry.width,
                                 category: category.to_string(),
