@@ -20,16 +20,14 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    it('should render app with react beta', async () => {
+    it('should render app with react rc', async () => {
       const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-beta/)
+      expect($('body').text()).toMatch(/app: .+-rc/)
     })
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages:/)
-      // TODO: should not match beta once React 19 stable is out
-      expect($('body').text()).toMatch(/beta/)
+      expect($('body').text()).toMatch(/pages: 19.0.0/)
     })
   })
 })

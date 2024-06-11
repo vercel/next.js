@@ -43,7 +43,7 @@ const appElement: HTMLElement | Document | null = document
 
 const encoder = new TextEncoder()
 
-let initialServerDataBuffer: string[] | undefined = undefined
+let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
@@ -56,6 +56,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
+    | [isBinary: 3, responseBase64Partial: string]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -70,7 +71,28 @@ function nextServerDataCallback(
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
+  } else if (seg[0] === 3) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    // Decode the base64 string back to binary data.
+    const binaryString = atob(seg[1])
+    const decodedChunk = new Uint8Array(binaryString.length)
+    for (var i = 0; i < binaryString.length; i++) {
+      decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+
+    if (initialServerDataWriter) {
+      initialServerDataWriter.enqueue(decodedChunk)
+    } else {
+      initialServerDataBuffer.push(decodedChunk)
+    }
   }
+}
+
+function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
+  // If `desiredSize` is null, it means the stream is closed or errored. If it is lower than 0, the stream is still unfinished.
+  return ctr.desiredSize === null || ctr.desiredSize < 0
 }
 
 // There might be race conditions between `nextServerDataRegisterWriter` and
@@ -84,10 +106,18 @@ function nextServerDataCallback(
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(encoder.encode(val))
+      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      ctr.close()
+      if (isStreamErrorOrUnfinished(ctr)) {
+        ctr.error(
+          new Error(
+            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+          )
+        )
+      } else {
+        ctr.close()
+      }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
     }
@@ -105,11 +135,13 @@ const DOMContentLoaded = function () {
   }
   initialServerDataLoaded = true
 }
+
 // It's possible that the DOM is already loaded.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
 } else {
-  DOMContentLoaded()
+  // Delayed in marco task to ensure it's executed later than hydration
+  setTimeout(DOMContentLoaded)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =

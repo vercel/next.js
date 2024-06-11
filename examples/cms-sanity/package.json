@@ -14,23 +14,23 @@
   },
   "dependencies": {
     "@sanity/assist": "^3.0.4",
-    "@sanity/icons": "^2.11.8",
+    "@sanity/icons": "^3.0.0",
     "@sanity/image-url": "^1.0.2",
-    "@sanity/preview-url-secret": "^1.6.13",
-    "@sanity/vision": "^3.42.1",
+    "@sanity/preview-url-secret": "^1.6.7",
+    "@sanity/vision": "^3.44.0",
     "@tailwindcss/typography": "^0.5.13",
-    "@types/node": "^20.12.12",
-    "@types/react": "^18.3.2",
+    "@types/node": "^20.14.1",
+    "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@vercel/speed-insights": "^1.0.10",
+    "@vercel/speed-insights": "^1.0.11",
     "autoprefixer": "^10.4.19",
     "date-fns": "^3.6.0",
-    "next": "latest",
-    "next-sanity": "^9.0.18",
+    "next": "^14.2.3",
+    "next-sanity": "^9.3.10",
     "postcss": "^8.4.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "sanity": "^3.42.1",
+    "sanity": "^3.44.0",
     "sanity-plugin-asset-source-unsplash": "^3.0.1",
     "server-only": "^0.0.1",
     "styled-components": "^6.1.11",
@@ -39,6 +39,6 @@
   },
   "devDependencies": {
     "eslint": "^8.57.0",
-    "eslint-config-next": "latest"
+    "eslint-config-next": "^14.2.3"
   }
 }

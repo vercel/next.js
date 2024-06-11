@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_binding::turbopack::core::{
     chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -21,11 +21,14 @@ impl NextServerComponentModuleReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for NextServerComponentModuleReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "Next.js server component {}",
-            self.asset.ident().to_string().await?
-        )))
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!(
+                "Next.js server component {}",
+                self.asset.ident().to_string().await?
+            )
+            .into(),
+        ))
     }
 }
 

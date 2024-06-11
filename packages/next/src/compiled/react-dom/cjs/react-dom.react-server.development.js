@@ -16,6 +16,8 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react");
 
+var ReactVersion = '19.0.0-rc-6230622a1a-20240610';
+
 var ReactSharedInternalsServer = // $FlowFixMe: It's defined in the one we resolve to.
 React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
@@ -30,32 +32,48 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternalsServer.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternalsServer.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternalsServer.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
@@ -396,5 +414,6 @@ exports.preinit = preinit;
 exports.preinitModule = preinitModule;
 exports.preload = preload;
 exports.preloadModule = preloadModule;
+exports.version = ReactVersion;
   })();
 }
