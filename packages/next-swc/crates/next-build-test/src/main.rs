@@ -2,8 +2,18 @@ use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{main_inner, Strategy};
+use next_core::tracing_presets::{
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
+    TRACING_NEXT_TURBO_TASKS_TARGETS,
+};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::TurboTasks;
-use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
+use turbopack_binding::{
+    turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend},
+    turbopack::trace_utils::{
+        exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+    },
+};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
@@ -25,8 +35,6 @@ impl FromStr for Cmd {
 }
 
 fn main() {
-    tracing_subscriber::fmt::init();
-
     let cmd = std::env::args()
         .nth(1)
         .map(|s| Cmd::from_str(&s))
@@ -69,6 +77,46 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
+                    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+
+                    let _guard = if let Some(mut trace) = trace {
+                        // Trace presets
+                        match trace.as_str() {
+                            "overview" | "1" => {
+                                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
+                            }
+                            "next" => {
+                                trace = TRACING_NEXT_TARGETS.join(",");
+                            }
+                            "turbopack" => {
+                                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+                            }
+                            "turbo-tasks" => {
+                                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+                            }
+                            _ => {}
+                        }
+
+                        let subscriber = Registry::default();
+
+                        let subscriber =
+                            subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+                        let trace_file = "trace.log";
+                        let trace_writer = std::fs::File::create(trace_file).unwrap();
+                        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+                        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+                        let guard = ExitGuard::new(guard).unwrap();
+
+                        subscriber.init();
+
+                        Some(guard)
+                    } else {
+                        tracing_subscriber::fmt::init();
+
+                        None
+                    };
+
                     let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
