@@ -18,7 +18,7 @@ import {
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
-import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
+import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 
 export const enum ExportedPagesFiles {
   HTML = 'HTML',

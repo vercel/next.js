@@ -387,36 +387,61 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+var supportsCreateTask$1 = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask$1 && ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
 var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
+
+var REACT_CONSUMER_TYPE = Symbol.for('react.consumer');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
@@ -779,20 +804,11 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
-function writeTemporaryReference(set, object) {
-  // We always create a new entry regardless if we've already written the same
-  // object. This ensures that we always generate a deterministic encoding of
-  // each slot in the reply for cacheability.
-  var newId = set.length;
-  set.push(object);
-  return newId;
+function writeTemporaryReference(set, reference, object) {
+  set.set(reference, object);
 }
-function readTemporaryReference(set, id) {
-  if (id < 0 || id >= set.length) {
-    throw new Error("The RSC response contained a reference that doesn't exist in the temporary reference set. " + 'Always pass the matching set that was used to create the reply when parsing its response.');
-  }
-
-  return set[id];
+function readTemporaryReference(set, reference) {
+  return set.get(reference);
 }
 
 var ObjectPrototype = Object.prototype;
@@ -811,8 +827,8 @@ function serializeServerReferenceID(id) {
   return '$F' + id.toString(16);
 }
 
-function serializeTemporaryReferenceID(id) {
-  return '$T' + id.toString(16);
+function serializeTemporaryReferenceMarker() {
+  return '$T';
 }
 
 function serializeFormDataReference(id) {
@@ -882,6 +898,8 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
+  var writtenObjects = new WeakMap();
+  var modelRoot = root;
 
   function serializeTypedArray(tag, typedArray) {
     var blob = new Blob([// We should be able to pass the buffer straight through but Node < 18 treat
@@ -1069,11 +1087,21 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
       switch (value.$$typeof) {
         case REACT_ELEMENT_TYPE:
           {
-            if (temporaryReferences === undefined) {
-              throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
+            if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+              // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+              var parentReference = writtenObjects.get(parent);
+
+              if (parentReference !== undefined) {
+                // If the parent has a reference, we can refer to this object indirectly
+                // through the property name inside that parent.
+                var reference = parentReference + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+                writeTemporaryReference(temporaryReferences, reference, value);
+                return serializeTemporaryReferenceMarker();
+              }
             }
 
-            return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+            throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
           }
 
         case REACT_LAZY_TYPE:
@@ -1095,7 +1123,7 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
               // because it ensures a more deterministic encoding.
 
               var lazyId = nextPartId++;
-              var partJSON = JSON.stringify(resolvedModel, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+              var partJSON = serializeModel(resolvedModel, lazyId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
               var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
 
@@ -1114,7 +1142,7 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
                   // While the first promise resolved, its value isn't necessarily what we'll
                   // resolve into because we might suspend again.
                   try {
-                    var _partJSON2 = JSON.stringify(value, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+                    var _partJSON2 = serializeModel(value, _lazyId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
                     var _data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
@@ -1160,7 +1188,7 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         _thenable.then(function (partValue) {
           try {
-            var _partJSON3 = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+            var _partJSON3 = serializeModel(partValue, promiseId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
 
             var _data2 = formData; // eslint-disable-next-line react-internal/safe-string-coercion
@@ -1180,6 +1208,36 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
         reject);
 
         return serializePromiseID(promiseId);
+      }
+
+      var existingReference = writtenObjects.get(value);
+
+      if (existingReference !== undefined) {
+        if (modelRoot === value) {
+          // This is the ID we're currently emitting so we need to write it
+          // once but if we discover it again, we refer to it by id.
+          modelRoot = null;
+        } else {
+          // We've already emitted this as an outlined object, so we can
+          // just refer to that by its existing ID.
+          return existingReference;
+        }
+      } else if (key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference = writtenObjects.get(parent);
+
+        if (_parentReference !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference = _parentReference + ':' + key;
+
+          writtenObjects.set(value, _reference);
+
+          if (temporaryReferences !== undefined) {
+            // Store this object so that the server can refer to it later in responses.
+            writeTemporaryReference(temporaryReferences, _reference, value);
+          }
+        }
       }
 
       if (isArray(value)) {
@@ -1208,25 +1266,27 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
       }
 
       if (value instanceof Map) {
-        var _partJSON4 = JSON.stringify(Array.from(value), resolveToJSON);
+        var mapId = nextPartId++;
+
+        var _partJSON4 = serializeModel(Array.from(value), mapId);
 
         if (formData === null) {
           formData = new FormData();
         }
 
-        var mapId = nextPartId++;
         formData.append(formFieldPrefix + mapId, _partJSON4);
         return serializeMapID(mapId);
       }
 
       if (value instanceof Set) {
-        var _partJSON5 = JSON.stringify(Array.from(value), resolveToJSON);
+        var setId = nextPartId++;
+
+        var _partJSON5 = serializeModel(Array.from(value), setId);
 
         if (formData === null) {
           formData = new FormData();
         }
 
-        var setId = nextPartId++;
         formData.append(formFieldPrefix + setId, _partJSON5);
         return serializeSetID(setId);
       }
@@ -1324,13 +1384,14 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
 
         if (iterator === value) {
           // Iterator, not Iterable
-          var _partJSON6 = JSON.stringify(Array.from(iterator), resolveToJSON);
+          var iteratorId = nextPartId++;
+
+          var _partJSON6 = serializeModel(Array.from(iterator), iteratorId);
 
           if (formData === null) {
             formData = new FormData();
           }
 
-          var iteratorId = nextPartId++;
           formData.append(formFieldPrefix + iteratorId, _partJSON6);
           return serializeIteratorID(iteratorId);
         }
@@ -1358,10 +1419,11 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
       if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
         if (temporaryReferences === undefined) {
           throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
-        } // We can serialize class instances as temporary references.
+        } // We will have written this object to the temporary reference set above
+        // so we can replace it with a marker to refer to this slot later.
 
 
-        return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+        return serializeTemporaryReferenceMarker();
       }
 
       {
@@ -1430,19 +1492,41 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
         return serializeServerReferenceID(_refId);
       }
 
-      if (temporaryReferences === undefined) {
-        throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
+      if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference2 = writtenObjects.get(parent);
+
+        if (_parentReference2 !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference2 = _parentReference2 + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+
+          writeTemporaryReference(temporaryReferences, _reference2, value);
+          return serializeTemporaryReferenceMarker();
+        }
       }
 
-      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+      throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
     }
 
     if (typeof value === 'symbol') {
-      if (temporaryReferences === undefined) {
-        throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
+      if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference3 = writtenObjects.get(parent);
+
+        if (_parentReference3 !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference3 = _parentReference3 + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+
+          writeTemporaryReference(temporaryReferences, _reference3, value);
+          return serializeTemporaryReferenceMarker();
+        }
       }
 
-      return serializeTemporaryReferenceID(writeTemporaryReference(temporaryReferences, value));
+      throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
     }
 
     if (typeof value === 'bigint') {
@@ -1450,10 +1534,25 @@ function processReply(root, formFieldPrefix, temporaryReferences, resolve, rejec
     }
 
     throw new Error("Type " + typeof value + " is not supported as an argument to a Server Function.");
-  } // $FlowFixMe[incompatible-type] it's not going to be undefined because we'll encode it.
+  }
 
+  function serializeModel(model, id) {
+    if (typeof model === 'object' && model !== null) {
+      var reference = serializeByValueID(id);
+      writtenObjects.set(model, reference);
 
-  var json = JSON.stringify(root, resolveToJSON);
+      if (temporaryReferences !== undefined) {
+        // Store this object so that the server can refer to it later in responses.
+        writeTemporaryReference(temporaryReferences, reference, model);
+      }
+    }
+
+    modelRoot = model; // $FlowFixMe[incompatible-return] it's not going to be undefined because we'll encode it.
+
+    return JSON.stringify(model, resolveToJSON);
+  }
+
+  var json = serializeModel(root, 0);
 
   if (formData === null) {
     // If it's a simple data structure, we just use plain JSON.
@@ -1722,6 +1821,120 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   return proxy;
 }
 
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+}
+
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+  }
+
+  if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
+    switch (type.$$typeof) {
+      case REACT_PROVIDER_TYPE:
+        {
+          return null;
+        }
+
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+
+        {
+          return getContextName(context) + '.Provider';
+        }
+
+      case REACT_CONSUMER_TYPE:
+        {
+          var consumer = type;
+          return getContextName(consumer._context) + '.Consumer';
+        }
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+    }
+  }
+
+  return null;
+}
+
 var ROW_ID = 0;
 var ROW_TAG = 1;
 var ROW_LENGTH = 2;
@@ -1864,8 +2077,24 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
     case PENDING:
     case BLOCKED:
     case CYCLIC:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
+      if (chunk.value) {
+        for (var i = 0; i < resolveListeners.length; i++) {
+          chunk.value.push(resolveListeners[i]);
+        }
+      } else {
+        chunk.value = resolveListeners;
+      }
+
+      if (chunk.reason) {
+        if (rejectListeners) {
+          for (var _i = 0; _i < rejectListeners.length; _i++) {
+            chunk.reason.push(rejectListeners[_i]);
+          }
+        }
+      } else {
+        chunk.reason = rejectListeners;
+      }
+
       break;
 
     case ERRORED:
@@ -2022,8 +2251,6 @@ function initializeModelChunk(chunk) {
 
       var blockedChunk = chunk;
       blockedChunk.status = BLOCKED;
-      blockedChunk.value = null;
-      blockedChunk.reason = null;
     } else {
       var resolveListeners = cyclicChunk.value;
       var initializedChunk = chunk;
@@ -2076,7 +2303,46 @@ function nullRefGetter() {
   }
 }
 
-function createElement(type, key, props, owner) // DEV-only
+function getServerComponentTaskName(componentInfo) {
+  return '<' + (componentInfo.name || '...') + '>';
+}
+
+function getTaskName(type) {
+  if (type === REACT_FRAGMENT_TYPE) {
+    return '<>';
+  }
+
+  if (typeof type === 'function') {
+    // This is a function so it must have been a Client Reference that resolved to
+    // a function. We use "use client" to indicate that this is the boundary into
+    // the client. There should only be one for any given owner chain.
+    return '"use client"';
+  }
+
+  if (typeof type === 'object' && type !== null && type.$$typeof === REACT_LAZY_TYPE) {
+    if (type._init === readChunk) {
+      // This is a lazy node created by Flight. It is probably a client reference.
+      // We use the "use client" string to indicate that this is the boundary into
+      // the client. There will only be one for any given owner chain.
+      return '"use client"';
+    } // We don't want to eagerly initialize the initializer in DEV mode so we can't
+    // call it to extract the type so we don't know the type of this component.
+
+
+    return '<...>';
+  }
+
+  try {
+    var name = getComponentNameFromType(type);
+    return name ? '<' + name + '>' : '<...>';
+  } catch (x) {
+    return '<...>';
+  }
+}
+
+function createElement(response, type, key, props, owner, // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   var element;
 
@@ -2104,7 +2370,7 @@ function createElement(type, key, props, owner) // DEV-only
       configurable: false,
       enumerable: false,
       writable: true,
-      value: true // This element has already been validated on the server.
+      value: validated  // Whether the element has already been validated on the server.
 
     }); // debugInfo contains Server Component debug information.
 
@@ -2114,6 +2380,52 @@ function createElement(type, key, props, owner) // DEV-only
       writable: true,
       value: null
     });
+
+    {
+      Object.defineProperty(element, '_debugStack', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: stack
+      });
+      var task = null;
+
+      if (supportsCreateTask && stack !== null) {
+        var createTaskFn = console.createTask.bind(console, getTaskName(type));
+        var callStack = buildFakeCallStack(response, stack, createTaskFn); // This owner should ideally have already been initialized to avoid getting
+        // user stack frames on the stack.
+
+        var ownerTask = owner === null ? null : initializeFakeTask(response, owner);
+
+        if (ownerTask === null) {
+          var rootTask = response._debugRootTask;
+
+          if (rootTask != null) {
+            task = rootTask.run(callStack);
+          } else {
+            task = callStack();
+          }
+        } else {
+          task = ownerTask.run(callStack);
+        }
+      }
+
+      Object.defineProperty(element, '_debugTask', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: task
+      });
+    } // TODO: We should be freezing the element but currently, we might write into
+    // _debugInfo later. We could move it into _store which remains mutable.
+
+
+    if (initializingChunkBlockedModel !== null) {
+      var freeze = Object.freeze.bind(Object, element.props);
+      initializingChunk.then(freeze, freeze);
+    } else {
+      Object.freeze(element.props);
+    }
   }
 
   return element;
@@ -2147,7 +2459,7 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map, path) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
@@ -2164,6 +2476,10 @@ function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
   }
 
   return function (value) {
+    for (var i = 1; i < path.length; i++) {
+      value = value[path[i]];
+    }
+
     parentObject[key] = map(response, value); // If this is the root object for a model reference, where `blocked.value`
     // is a stale `null`, the resolved value can be used directly.
 
@@ -2224,7 +2540,9 @@ function createServerReferenceProxy(response, metaData) {
   return proxy;
 }
 
-function getOutlinedModel(response, id, parentObject, key, map) {
+function getOutlinedModel(response, reference, parentObject, key, map) {
+  var path = reference.split(':');
+  var id = parseInt(path[0], 16);
   var chunk = getChunk(response, id);
 
   switch (chunk.status) {
@@ -2240,7 +2558,13 @@ function getOutlinedModel(response, id, parentObject, key, map) {
 
   switch (chunk.status) {
     case INITIALIZED:
-      var chunkValue = map(response, chunk.value);
+      var value = chunk.value;
+
+      for (var i = 1; i < path.length; i++) {
+        value = value[path[i]];
+      }
+
+      var chunkValue = map(response, value);
 
       if (chunk._debugInfo) {
         // If we have a direct reference to an object that was rendered by a synchronous
@@ -2268,7 +2592,7 @@ function getOutlinedModel(response, id, parentObject, key, map) {
     case BLOCKED:
     case CYCLIC:
       var parentChunk = initializingChunk;
-      chunk.then(createModelResolver(parentChunk, parentObject, key, chunk.status === CYCLIC, response, map), createModelReject(parentChunk));
+      chunk.then(createModelResolver(parentChunk, parentObject, key, chunk.status === CYCLIC, response, map, path), createModelReject(parentChunk));
       return null;
 
     default:
@@ -2357,65 +2681,63 @@ function parseModelString(response, parentObject, key, value) {
       case 'F':
         {
           // Server Reference
-          var _id2 = parseInt(value.slice(2), 16);
-
-          return getOutlinedModel(response, _id2, parentObject, key, createServerReferenceProxy);
+          var ref = value.slice(2);
+          return getOutlinedModel(response, ref, parentObject, key, createServerReferenceProxy);
         }
 
       case 'T':
         {
           // Temporary Reference
-          var _id3 = parseInt(value.slice(2), 16);
-
+          var reference = '$' + value.slice(2);
           var temporaryReferences = response._tempRefs;
 
           if (temporaryReferences == null) {
             throw new Error('Missing a temporary reference set but the RSC response returned a temporary reference. ' + 'Pass a temporaryReference option with the set that was used with the reply.');
           }
 
-          return readTemporaryReference(temporaryReferences, _id3);
+          return readTemporaryReference(temporaryReferences, reference);
         }
 
       case 'Q':
         {
           // Map
-          var _id4 = parseInt(value.slice(2), 16);
+          var _ref = value.slice(2);
 
-          return getOutlinedModel(response, _id4, parentObject, key, createMap);
+          return getOutlinedModel(response, _ref, parentObject, key, createMap);
         }
 
       case 'W':
         {
           // Set
-          var _id5 = parseInt(value.slice(2), 16);
+          var _ref2 = value.slice(2);
 
-          return getOutlinedModel(response, _id5, parentObject, key, createSet);
+          return getOutlinedModel(response, _ref2, parentObject, key, createSet);
         }
 
       case 'B':
         {
           // Blob
           {
-            var _id6 = parseInt(value.slice(2), 16);
+            var _ref3 = value.slice(2);
 
-            return getOutlinedModel(response, _id6, parentObject, key, createBlob);
+            return getOutlinedModel(response, _ref3, parentObject, key, createBlob);
           }
         }
 
       case 'K':
         {
           // FormData
-          var _id7 = parseInt(value.slice(2), 16);
+          var _ref4 = value.slice(2);
 
-          return getOutlinedModel(response, _id7, parentObject, key, createFormData);
+          return getOutlinedModel(response, _ref4, parentObject, key, createFormData);
         }
 
       case 'i':
         {
           // Iterator
-          var _id8 = parseInt(value.slice(2), 16);
+          var _ref5 = value.slice(2);
 
-          return getOutlinedModel(response, _id8, parentObject, key, extractIterator);
+          return getOutlinedModel(response, _ref5, parentObject, key, extractIterator);
         }
 
       case 'I':
@@ -2479,9 +2801,9 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id9 = parseInt(value.slice(1), 16);
+          var _ref6 = value.slice(1);
 
-          return getOutlinedModel(response, _id9, parentObject, key, createModel);
+          return getOutlinedModel(response, _ref6, parentObject, key, createModel);
         }
     }
   }
@@ -2495,7 +2817,7 @@ function parseModelTuple(response, value) {
   if (tuple[0] === REACT_ELEMENT_TYPE) {
     // TODO: Consider having React just directly accept these arrays as elements.
     // Or even change the ReactElement type to be an array.
-    return createElement(tuple[1], tuple[2], tuple[3], tuple[4] );
+    return createElement(response, tuple[1], tuple[2], tuple[3], tuple[4] , tuple[5] , tuple[6] );
   }
 
   return value;
@@ -2505,7 +2827,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences, findSourceMapURL) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -2522,7 +2844,21 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowLength: 0,
     _buffer: [],
     _tempRefs: temporaryReferences
-  }; // Don't inline this call because it causes closure to outline the call above.
+  };
+
+  if (supportsCreateTask) {
+    // Any stacks that appear on the server need to be rooted somehow on the client
+    // so we create a root Task for this response which will be the root owner for any
+    // elements created by the server. We use the "use server" string to indicate that
+    // this is where we enter the server from the client.
+    // TODO: Make this string configurable.
+    response._debugRootTask = console.createTask('"use server"');
+  }
+
+  {
+    response._debugFindSourceMapURL = findSourceMapURL;
+  } // Don't inline this call because it causes closure to outline the call above.
+
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -2895,10 +3231,134 @@ function resolvePostponeDev(response, id, reason, stack) {
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
+} // eslint-disable-next-line react-internal/no-production-logging
+
+
+var supportsCreateTask = !!console.createTask;
+var taskCache = supportsCreateTask ? new WeakMap() : null;
+var fakeFunctionCache = new Map() ;
+
+function createFakeFunction(name, filename, sourceMap, line, col) {
+  // This creates a fake copy of a Server Module. It represents a module that has already
+  // executed on the server but we re-execute a blank copy for its stack frames on the client.
+  var comment = '/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */'; // We generate code where the call is at the line and column of the server executed code.
+  // This allows us to use the original source map as the source map of this fake file to
+  // point to the original source.
+
+  var code;
+
+  if (line <= 1) {
+    code = '_=>' + ' '.repeat(col < 4 ? 0 : col - 4) + '_()\n' + comment + '\n';
+  } else {
+    code = comment + '\n'.repeat(line - 2) + '_=>\n' + ' '.repeat(col < 1 ? 0 : col - 1) + '_()\n';
+  }
+
+  if (sourceMap) {
+    code += '//# sourceMappingURL=' + sourceMap;
+  } else if (filename) {
+    code += '//# sourceURL=' + filename;
+  }
+
+  var fn;
+
+  try {
+    // eslint-disable-next-line no-eval
+    fn = (0, eval)(code);
+  } catch (x) {
+    // If eval fails, such as if in an environment that doesn't support it,
+    // we fallback to creating a function here. It'll still have the right
+    // name but it'll lose line/column number and file name.
+    fn = function (_) {
+      return _();
+    };
+  } // $FlowFixMe[cannot-write]
+
+
+  Object.defineProperty(fn, 'name', {
+    value: name || '(anonymous)'
+  }); // $FlowFixMe[prop-missing]
+
+  fn.displayName = name;
+  return fn;
+} // This matches either of these V8 formats.
+//     at name (filename:0:0)
+//     at filename:0:0
+//     at async filename:0:0
+
+
+var frameRegExp = /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/;
+
+function buildFakeCallStack(response, stack, innerCall) {
+  var frames = stack.split('\n');
+  var callStack = innerCall;
+
+  for (var i = 0; i < frames.length; i++) {
+    var frame = frames[i];
+    var fn = fakeFunctionCache.get(frame);
+
+    if (fn === undefined) {
+      var parsed = frameRegExp.exec(frame);
+
+      if (!parsed) {
+        // We assume the server returns a V8 compatible stack trace.
+        continue;
+      }
+
+      var name = parsed[1] || '';
+      var filename = parsed[2] || parsed[5] || '';
+      var line = +(parsed[3] || parsed[6]);
+      var col = +(parsed[4] || parsed[7]);
+      var sourceMap = response._debugFindSourceMapURL ? response._debugFindSourceMapURL(filename) : null;
+      fn = createFakeFunction(name, filename, sourceMap, line, col); // TODO: This cache should technically live on the response since the _debugFindSourceMapURL
+      // function is an input and can vary by response.
+
+      fakeFunctionCache.set(frame, fn);
+    }
+
+    callStack = fn.bind(null, callStack);
+  }
+
+  return callStack;
+}
+
+function initializeFakeTask(response, debugInfo) {
+  if (taskCache === null || typeof debugInfo.stack !== 'string') {
+    return null;
+  }
+
+  var componentInfo = debugInfo; // Refined
+
+  var stack = debugInfo.stack;
+  var cachedEntry = taskCache.get(componentInfo);
+
+  if (cachedEntry !== undefined) {
+    return cachedEntry;
+  }
+
+  var ownerTask = componentInfo.owner == null ? null : initializeFakeTask(response, componentInfo.owner); // eslint-disable-next-line react-internal/no-production-logging
+
+  var createTaskFn = console.createTask.bind(console, getServerComponentTaskName(componentInfo));
+  var callStack = buildFakeCallStack(response, stack, createTaskFn);
+
+  if (ownerTask === null) {
+    var rootTask = response._debugRootTask;
+
+    if (rootTask != null) {
+      return rootTask.run(callStack);
+    } else {
+      return callStack();
+    }
+  } else {
+    return ownerTask.run(callStack);
+  }
 }
 
 function resolveDebugInfo(response, id, debugInfo) {
+  // render phase so we're not inside a user space stack at this point. If we waited
+  // to initialize it when we need it, we might be inside user code.
 
+
+  initializeFakeTask(response, debugInfo);
   var chunk = getChunk(response, id);
   var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
   chunkDebugInfo.push(debugInfo);
@@ -2907,13 +3367,31 @@ function resolveDebugInfo(response, id, debugInfo) {
 function resolveConsoleEntry(response, value) {
 
   var payload = parseModel(response, value);
-  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
-  // const stackTrace = payload[1];
-  // const owner = payload[2];
-
+  var methodName = payload[0];
+  var stackTrace = payload[1];
+  var owner = payload[2];
   var env = payload[3];
   var args = payload.slice(4);
-  printToConsole(methodName, args, env);
+
+  var callStack = buildFakeCallStack(response, stackTrace, printToConsole.bind(null, methodName, args, env));
+
+  if (owner != null) {
+    var task = initializeFakeTask(response, owner);
+
+    if (task !== null) {
+      task.run(callStack);
+      return;
+    }
+  }
+
+  var rootTask = response._debugRootTask;
+
+  if (rootTask != null) {
+    rootTask.run(callStack);
+    return;
+  }
+
+  callStack();
 }
 
 function mergeBuffer(buffer, lastChunk) {
@@ -2929,8 +3407,8 @@ function mergeBuffer(buffer, lastChunk) {
   var result = new Uint8Array(byteLength);
   var offset = 0; // Copy all the buffers into it.
 
-  for (var _i = 0; _i < l; _i++) {
-    var chunk = buffer[_i];
+  for (var _i2 = 0; _i2 < l; _i2++) {
+    var chunk = buffer[_i2];
     result.set(chunk, offset);
     offset += chunk.byteLength;
   }
@@ -3386,8 +3864,8 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined // TODO: If encodeReply is supported, this should support temporaryReferences
-  );
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined, // TODO: If encodeReply is supported, this should support temporaryReferences
+  options && options.findSourceMapURL ? options.findSourceMapURL : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

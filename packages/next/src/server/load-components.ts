@@ -10,7 +10,7 @@ import type {
   GetServerSideProps,
   GetStaticProps,
 } from '../types'
-import type { RouteModule } from './future/route-modules/route-module'
+import type { RouteModule } from './route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 

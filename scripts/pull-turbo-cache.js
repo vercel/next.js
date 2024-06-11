@@ -17,7 +17,12 @@ const { spawn } = require('child_process')
       }
     )
 
+    child.stderr.on('data', (data) => {
+      process.stderr.write(data)
+    })
+
     child.stdout.on('data', (data) => {
+      process.stdout.write(data)
       turboResult += data.toString()
     })
 

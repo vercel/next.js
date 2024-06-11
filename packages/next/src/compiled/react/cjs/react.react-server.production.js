@@ -88,7 +88,7 @@ function getElementKey(element, index) {
     ? escape("" + element.key)
     : index.toString(36);
 }
-function noop$1() {}
+function noop() {}
 function resolveThenable(thenable) {
   switch (thenable.status) {
     case "fulfilled":
@@ -98,7 +98,7 @@ function resolveThenable(thenable) {
     default:
       switch (
         ("string" === typeof thenable.status
-          ? thenable.then(noop$1, noop$1)
+          ? thenable.then(noop, noop)
           : ((thenable.status = "pending"),
             thenable.then(
               function (fulfilledValue) {
@@ -170,7 +170,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
             (callback = cloneAndReplaceKey(
               callback,
               escapedPrefix +
-                (!callback.key || (children && children.key === callback.key)
+                (null == callback.key ||
+                (children && children.key === callback.key)
                   ? ""
                   : ("" + callback.key).replace(
                       userProvidedKeyEscapeRegex,
@@ -264,36 +265,6 @@ function createCacheRoot() {
 function createCacheNode() {
   return { s: 0, v: void 0, o: null, p: null };
 }
-var reportGlobalError =
-  "function" === typeof reportError
-    ? reportError
-    : function (error) {
-        if (
-          "object" === typeof window &&
-          "function" === typeof window.ErrorEvent
-        ) {
-          var event = new window.ErrorEvent("error", {
-            bubbles: !0,
-            cancelable: !0,
-            message:
-              "object" === typeof error &&
-              null !== error &&
-              "string" === typeof error.message
-                ? String(error.message)
-                : String(error),
-            error: error
-          });
-          if (!window.dispatchEvent(event)) return;
-        } else if (
-          "object" === typeof process &&
-          "function" === typeof process.emit
-        ) {
-          process.emit("uncaughtException", error);
-          return;
-        }
-        console.error(error);
-      };
-function noop() {}
 exports.Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
@@ -440,31 +411,8 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
-exports.startTransition = function (scope) {
-  var prevTransition = ReactSharedInternals.T,
-    callbacks = new Set();
-  ReactSharedInternals.T = { _callbacks: callbacks };
-  var currentTransition = ReactSharedInternals.T;
-  try {
-    var returnValue = scope();
-    "object" === typeof returnValue &&
-      null !== returnValue &&
-      "function" === typeof returnValue.then &&
-      (callbacks.forEach(function (callback) {
-        return callback(currentTransition, returnValue);
-      }),
-      returnValue.then(noop, reportGlobalError));
-  } catch (error) {
-    reportGlobalError(error);
-  } finally {
-    ReactSharedInternals.T = prevTransition;
-  }
-};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
-};
-exports.useActionState = function (action, initialState, permalink) {
-  return ReactSharedInternals.H.useActionState(action, initialState, permalink);
 };
 exports.useCallback = function (callback, deps) {
   return ReactSharedInternals.H.useCallback(callback, deps);
@@ -476,4 +424,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.0.0-beta-04b058868c-20240508";
+exports.version = "19.0.0-rc-6230622a1a-20240610";

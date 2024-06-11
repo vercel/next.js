@@ -12,7 +12,7 @@ import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../future/route-modules/checks'
+import { isAppRouteRouteModule } from '../route-modules/checks'
 
 type RuntimeConfig = {
   configFileName: string

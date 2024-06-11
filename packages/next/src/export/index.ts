@@ -1,7 +1,6 @@
 import type {
   ExportAppResult,
   ExportAppOptions,
-  ExportWorker,
   WorkerRenderOptsPartial,
 } from './types'
 import type { PrerenderManifest } from '../build'
@@ -13,7 +12,6 @@ import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
-import { Worker } from '../lib/worker'
 import { dirname, join, resolve, sep } from 'path'
 import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
@@ -36,7 +34,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type { ExportPathMap } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -57,69 +55,9 @@ import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
-}
-
-type ExportWorkers = {
-  pages: ExportWorker
-  app?: ExportWorker
-  end: () => Promise<void>
-}
-
-function setupWorkers(
-  options: ExportAppOptions,
-  nextConfig: NextConfigComplete
-): ExportWorkers {
-  if (options.exportPageWorker) {
-    return {
-      pages: options.exportPageWorker,
-      app: options.exportAppPageWorker,
-      end: options.endWorker || (() => Promise.resolve()),
-    }
-  }
-
-  const threads = options.threads || nextConfig.experimental.cpus
-  if (!options.silent && !options.buildExport) {
-    Log.info(`Launching ${threads} workers`)
-  }
-
-  const timeout = nextConfig?.staticPageGenerationTimeout || 0
-
-  let infoPrinted = false
-
-  const worker = new Worker(require.resolve('./worker'), {
-    timeout: timeout * 1000,
-    onRestart: (_method, [{ path }], attempts) => {
-      if (attempts >= 3) {
-        throw new ExportError(
-          `Static page generation for ${path} is still timing out after 3 attempts. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
-        )
-      }
-      Log.warn(
-        `Restarted static page generation for ${path} because it took more than ${timeout} seconds`
-      )
-      if (!infoPrinted) {
-        Log.warn(
-          'See more info here https://nextjs.org/docs/messages/static-page-generation-timeout'
-        )
-        infoPrinted = true
-      }
-    },
-    maxRetries: 0,
-    numWorkers: threads,
-    enableWorkerThreads: nextConfig.experimental.workerThreads,
-    exposedMethods: ['default'],
-  }) as Worker & typeof import('./worker')
-
-  return {
-    pages: worker.default,
-    end: async () => {
-      await worker.end()
-    },
-  }
 }
 
 export async function exportAppImpl(
@@ -398,7 +336,7 @@ export async function exportAppImpl(
     domainLocales: i18n?.domains,
     disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     // Exported pages do not currently support dynamic HTML.
-    supportsDynamicHTML: false,
+    supportsDynamicResponse: false,
     crossOrigin: nextConfig.crossOrigin,
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
@@ -419,9 +357,9 @@ export async function exportAppImpl(
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     experimental: {
-      isAppPPREnabled: checkIsAppPPREnabled(nextConfig.experimental.ppr),
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
-      swrDelta: nextConfig.experimental.swrDelta,
+      swrDelta: nextConfig.swrDelta,
+      after: nextConfig.experimental.after ?? false,
     },
   }
 
@@ -572,12 +510,15 @@ export async function exportAppImpl(
     )
   }
 
-  const workers = setupWorkers(options, nextConfig)
-
+  const failedExportAttemptsByPage: Map<string, number> = new Map()
+  const maxAttempts = nextConfig.experimental.staticGenerationRetryCount ?? 1
   const results = await Promise.all(
     filteredPaths.map(async (path) => {
       const pathMap = exportPathMap[path]
-      const exportPage = workers[pathMap._isAppDir ? 'app' : 'pages']
+      const exportPage = pathMap._isAppDir
+        ? options.exportAppPageWorker
+        : options.exportPageWorker
+
       if (!exportPage) {
         throw new Error(
           'Invariant: Undefined export worker for app dir, this is a bug in Next.js.'
@@ -586,43 +527,96 @@ export async function exportAppImpl(
 
       const pageExportSpan = span.traceChild('export-page')
       pageExportSpan.setAttribute('path', path)
+      const { page } = exportPathMap[path]
+      const pageKey = page !== path ? `${page}: ${path}` : path
 
-      const result = await pageExportSpan.traceAsyncFn(async () => {
-        return await exportPage({
-          dir,
-          path,
-          pathMap,
-          distDir,
-          outDir,
-          pagesDataDir,
-          renderOpts,
-          ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
-          trailingSlash: nextConfig.trailingSlash,
-          serverRuntimeConfig,
-          subFolders,
-          buildExport: options.buildExport,
-          optimizeFonts: nextConfig.optimizeFonts as FontConfig,
-          optimizeCss: nextConfig.experimental.optimizeCss,
-          disableOptimizedLoading:
-            nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: pageExportSpan.getId(),
-          httpAgentOptions: nextConfig.httpAgentOptions,
-          debugOutput: options.debugOutput,
-          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-          fetchCache: true,
-          fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          cacheHandler: nextConfig.cacheHandler,
-          enableExperimentalReact: needsExperimentalReact(nextConfig),
-          enabledDirectories,
-        })
-      })
+      let result
 
-      if (nextConfig.experimental.prerenderEarlyExit) {
-        if (result && 'error' in result) {
-          throw new Error(
-            `Export encountered an error on ${path}, exiting due to prerenderEarlyExit: true being set`
-          )
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          result = await pageExportSpan.traceAsyncFn(async () => {
+            return await exportPage({
+              dir,
+              path,
+              pathMap,
+              distDir,
+              outDir,
+              pagesDataDir,
+              renderOpts,
+              ampValidatorPath:
+                nextConfig.experimental.amp?.validator || undefined,
+              trailingSlash: nextConfig.trailingSlash,
+              serverRuntimeConfig,
+              subFolders,
+              buildExport: options.buildExport,
+              optimizeFonts: nextConfig.optimizeFonts as FontConfig,
+              optimizeCss: nextConfig.experimental.optimizeCss,
+              disableOptimizedLoading:
+                nextConfig.experimental.disableOptimizedLoading,
+              parentSpanId: pageExportSpan.getId(),
+              httpAgentOptions: nextConfig.httpAgentOptions,
+              debugOutput: options.debugOutput,
+              cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+              fetchCache: true,
+              fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+              cacheHandler: nextConfig.cacheHandler,
+              enableExperimentalReact: needsExperimentalReact(nextConfig),
+              enabledDirectories,
+            })
+          })
+
+          // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
+          // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
+          if (result && 'error' in result) {
+            throw new ExportError()
+          }
+
+          // If the export succeeds, break out of the retry loop
+          break
+        } catch (err) {
+          // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
+          // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
+          if (!(err instanceof ExportError)) {
+            throw err
+          }
+
+          const currentCount = failedExportAttemptsByPage.get(pageKey) ?? 0
+          failedExportAttemptsByPage.set(pageKey, currentCount + 1)
+
+          // We've reached the maximum number of attempts
+          if (attempt >= maxAttempts - 1) {
+            // Log a message if we've reached the maximum number of attempts.
+            // We only care to do this if maxAttempts was configured.
+            if (maxAttempts > 0) {
+              Log.info(
+                `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+              )
+            }
+            // If prerenderEarlyExit is enabled, we'll exit the build immediately.
+            if (nextConfig.experimental.prerenderEarlyExit) {
+              throw new ExportError(
+                `Export encountered an error on ${pageKey}, exiting the build.`
+              )
+            } else {
+              // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
+            }
+          } else {
+            // Otherwise, we have more attempts to make. Wait before retrying
+            Log.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+            )
+            await new Promise((r) => setTimeout(r, Math.random() * 500))
+          }
         }
+      }
+
+      // if we eventually succeeded, remove the page from the failed attempts map
+      if (
+        failedExportAttemptsByPage.has(pageKey) &&
+        result &&
+        !('error' in result)
+      ) {
+        failedExportAttemptsByPage.delete(pageKey)
       }
 
       if (progress) progress()
@@ -631,8 +625,6 @@ export async function exportAppImpl(
     })
   )
 
-  const errorPaths: string[] = []
-  let renderError = false
   let hadValidationError = false
 
   const collector: ExportAppResult = {
@@ -643,7 +635,7 @@ export async function exportAppImpl(
   }
 
   for (const { result, path } of results) {
-    if (!result) continue
+    if (!result || 'error' in result) continue
 
     const { page } = exportPathMap[path]
 
@@ -654,13 +646,6 @@ export async function exportAppImpl(
           result.turborepoAccessTraceResult
         )
       )
-    }
-
-    // Capture any render errors.
-    if ('error' in result) {
-      renderError = true
-      errorPaths.push(page !== path ? `${page}: ${path}` : path)
-      continue
     }
 
     // Capture any amp validations.
@@ -704,8 +689,6 @@ export async function exportAppImpl(
       collector.byPage.set(page, durations)
     }
   }
-
-  const endWorkerPromise = workers.end()
 
   // Export mode provide static outputs that are not compatible with PPR mode.
   if (!options.buildExport && nextConfig.experimental.ppr) {
@@ -797,9 +780,10 @@ export async function exportAppImpl(
     )
   }
 
-  if (renderError) {
+  if (failedExportAttemptsByPage.size > 0) {
+    const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${errorPaths
+      `Export encountered errors on following paths:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )
@@ -819,7 +803,7 @@ export async function exportAppImpl(
     await telemetry.flush()
   }
 
-  await endWorkerPromise
+  await options.endWorker()
 
   return collector
 }

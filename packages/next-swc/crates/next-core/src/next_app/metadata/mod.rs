@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -50,7 +50,7 @@ fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
 
 fn match_metadata_file<'a>(
     filename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
     metadata: &HashMap<&str, &[&str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
@@ -115,7 +115,7 @@ pub(crate) async fn get_content_type(path: Vc<FileSystemPath>) -> Result<String>
 
 pub fn match_local_metadata_file<'a>(
     basename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
 ) -> Option<MetadataFileMatch<'a>> {
     match_metadata_file(basename, page_extensions, STATIC_LOCAL_METADATA.deref())
 }
@@ -127,7 +127,7 @@ pub struct GlobalMetadataFileMatch<'a> {
 
 pub fn match_global_metadata_file<'a>(
     basename: &'a str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
 ) -> Option<GlobalMetadataFileMatch<'a>> {
     match_metadata_file(basename, page_extensions, STATIC_GLOBAL_METADATA.deref()).map(|m| {
         GlobalMetadataFileMatch {
@@ -183,7 +183,7 @@ fn file_stem(path: &str) -> &str {
 /// /favicon, /manifest, use to match dynamic API routes like app/robots.ts.
 pub fn is_metadata_route_file(
     app_dir_relative_path: &str,
-    page_extensions: &[String],
+    page_extensions: &[RcStr],
     with_extension: bool,
 ) -> bool {
     let (dir, filename) = split_directory(app_dir_relative_path);
@@ -306,8 +306,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
-    // Do not append the suffix for the sitemap route
-    } else if !route.ends_with("/sitemap") {
+    } else {
         // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
         let pathname_prefix = split_directory(&route).0.unwrap_or_default();
         suffix = get_metadata_route_suffix(pathname_prefix);
@@ -317,27 +316,21 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     // /<metadata-route>/route.ts. If it's a metadata file route, we need to
     // append /[id]/route to the page.
     if !route.ends_with("/route") {
-        let is_static_metadata_file = is_static_metadata_route_file(&page.to_string());
         let (base_name, ext) = split_extension(&route);
-
-        let is_static_route = route.starts_with("/robots")
-            || route.starts_with("/manifest")
-            || is_static_metadata_file;
 
         page.0.pop();
 
-        page.push(PageSegment::Static(format!(
-            "{}{}{}",
-            base_name,
-            suffix
-                .map(|suffix| format!("-{suffix}"))
-                .unwrap_or_default(),
-            ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
-        )))?;
-
-        if !is_static_route {
-            page.push(PageSegment::OptionalCatchAll("__metadata_id__".to_string()))?;
-        }
+        page.push(PageSegment::Static(
+            format!(
+                "{}{}{}",
+                base_name,
+                suffix
+                    .map(|suffix| format!("-{suffix}"))
+                    .unwrap_or_default(),
+                ext.map(|ext| format!(".{ext}")).unwrap_or_default(),
+            )
+            .into(),
+        ))?;
 
         page.push(PageSegment::PageType(PageType::Route))?;
     }
@@ -355,11 +348,11 @@ mod test {
         let cases = vec![
             [
                 "/client/(meme)/more-route/twitter-image",
-                "/client/(meme)/more-route/twitter-image-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image-769mad/route",
             ],
             [
                 "/client/(meme)/more-route/twitter-image2",
-                "/client/(meme)/more-route/twitter-image2-769mad/[[...__metadata_id__]]/route",
+                "/client/(meme)/more-route/twitter-image2-769mad/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],

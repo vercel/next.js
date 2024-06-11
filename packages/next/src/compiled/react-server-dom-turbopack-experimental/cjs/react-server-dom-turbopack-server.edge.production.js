@@ -355,10 +355,6 @@ var TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       switch (name) {
         case "$$typeof":
           return target.$$typeof;
-        case "$$id":
-          return target.$$id;
-        case "$$async":
-          return target.$$async;
         case "name":
           return;
         case "displayName":
@@ -388,18 +384,21 @@ var TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
       );
     }
   };
-function createTemporaryReference(id) {
-  id = Object.defineProperties(
+function createTemporaryReference(temporaryReferences, id) {
+  var reference = Object.defineProperties(
     function () {
       throw Error(
         "Attempted to call a temporary Client Reference from the server but it is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."
       );
     },
-    { $$typeof: { value: TEMPORARY_REFERENCE_TAG }, $$id: { value: id } }
+    { $$typeof: { value: TEMPORARY_REFERENCE_TAG } }
   );
-  return new Proxy(id, proxyHandlers);
+  reference = new Proxy(reference, proxyHandlers);
+  temporaryReferences.set(reference, id);
+  return reference;
 }
-var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
+  REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
   REACT_CONTEXT_TYPE = Symbol.for("react.context"),
   REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
@@ -710,7 +709,9 @@ function createRequest(
   bundlerConfig,
   onError,
   identifierPrefix,
-  onPostpone
+  onPostpone,
+  environmentName,
+  temporaryReferences
 ) {
   if (
     null !== ReactSharedInternalsServer.A &&
@@ -718,9 +719,9 @@ function createRequest(
   )
     throw Error("Currently React only supports one RSC renderer at a time.");
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
-  var abortSet = new Set(),
-    pingedTasks = [],
-    cleanupQueue = [];
+  var abortSet = new Set();
+  environmentName = [];
+  var cleanupQueue = [];
   TaintRegistryPendingRequests.add(cleanupQueue);
   var hints = new Set();
   bundlerConfig = {
@@ -735,7 +736,7 @@ function createRequest(
     hints: hints,
     abortListeners: new Set(),
     abortableTasks: abortSet,
-    pingedTasks: pingedTasks,
+    pingedTasks: environmentName,
     completedImportChunks: [],
     completedHintChunks: [],
     completedRegularChunks: [],
@@ -744,6 +745,7 @@ function createRequest(
     writtenClientReferences: new Map(),
     writtenServerReferences: new Map(),
     writtenObjects: new WeakMap(),
+    temporaryReferences: temporaryReferences,
     identifierPrefix: identifierPrefix || "",
     identifierCount: 1,
     taintCleanupQueue: cleanupQueue,
@@ -751,7 +753,7 @@ function createRequest(
     onPostpone: void 0 === onPostpone ? defaultPostponeHandler : onPostpone
   };
   model = createTask(bundlerConfig, model, null, !1, abortSet);
-  pingedTasks.push(model);
+  environmentName.push(model);
   return bundlerConfig;
 }
 var currentRequest = null;
@@ -998,7 +1000,11 @@ function renderFunctionComponent(request, task, key, Component, props) {
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
   Component = Component(props, void 0);
-  if ("object" === typeof Component && null !== Component) {
+  if (
+    "object" === typeof Component &&
+    null !== Component &&
+    Component.$$typeof !== CLIENT_REFERENCE_TAG$1
+  ) {
     if ("function" === typeof Component.then) {
       props = Component;
       if ("fulfilled" === props.status) return props.value;
@@ -1118,7 +1124,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
     null === model ||
     null !== keyPath ||
     implicitSlot ||
-    request.writtenObjects.set(model, id);
+    request.writtenObjects.set(model, serializeByValueID(id));
   var task = {
     id: id,
     status: 0,
@@ -1329,33 +1335,38 @@ function renderModelDestructive(
   if ("object" === typeof value) {
     switch (value.$$typeof) {
       case REACT_ELEMENT_TYPE:
-        parent = request.writtenObjects;
-        parentPropertyName = parent.get(value);
-        if (void 0 !== parentPropertyName) {
-          if (null === task.keyPath && !task.implicitSlot)
+        var writtenObjects = request.writtenObjects;
+        if (null === task.keyPath && !task.implicitSlot) {
+          var existingReference = writtenObjects.get(value);
+          if (void 0 !== existingReference)
             if (modelRoot === value) modelRoot = null;
-            else
-              return -1 === parentPropertyName
-                ? ((request = outlineModel(request, value)),
-                  serializeByValueID(request))
-                : serializeByValueID(parentPropertyName);
-        } else parent.set(value, -1), parent.set(value.props, -2);
-        parent = value.props;
-        parentPropertyName = parent.ref;
+            else return existingReference;
+          else
+            -1 === parentPropertyName.indexOf(":") &&
+              ((parent = writtenObjects.get(parent)),
+              void 0 !== parent &&
+                writtenObjects.set(value, parent + ":" + parentPropertyName));
+        }
+        parentPropertyName = value.props;
+        parent = parentPropertyName.ref;
         return renderElement(
           request,
           task,
           value.type,
           value.key,
-          void 0 !== parentPropertyName ? parentPropertyName : null,
-          parent
+          void 0 !== parent ? parent : null,
+          parentPropertyName
         );
       case REACT_LAZY_TYPE:
         return (
           (task.thenableState = null),
-          (parent = value._init),
-          (value = parent(value._payload)),
+          (parentPropertyName = value._init),
+          (value = parentPropertyName(value._payload)),
           renderModelDestructive(request, task, emptyRoot, "", value)
+        );
+      case REACT_LEGACY_ELEMENT_TYPE:
+        throw Error(
+          'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
         );
     }
     if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
@@ -1365,56 +1376,60 @@ function renderModelDestructive(
         parentPropertyName,
         value
       );
-    parent = TaintRegistryObjects.get(value);
-    void 0 !== parent && throwTaintViolation(parent);
-    parent = request.writtenObjects;
-    parentPropertyName = parent.get(value);
+    if (
+      void 0 !== request.temporaryReferences &&
+      ((writtenObjects = request.temporaryReferences.get(value)),
+      void 0 !== writtenObjects)
+    )
+      return "$T" + writtenObjects;
+    writtenObjects = TaintRegistryObjects.get(value);
+    void 0 !== writtenObjects && throwTaintViolation(writtenObjects);
+    writtenObjects = request.writtenObjects;
+    existingReference = writtenObjects.get(value);
     if ("function" === typeof value.then) {
-      if (void 0 !== parentPropertyName) {
+      if (void 0 !== existingReference) {
         if (null !== task.keyPath || task.implicitSlot)
           return "$@" + serializeThenable(request, task, value).toString(16);
         if (modelRoot === value) modelRoot = null;
-        else return "$@" + parentPropertyName.toString(16);
+        else return existingReference;
       }
-      request = serializeThenable(request, task, value);
-      parent.set(value, request);
-      return "$@" + request.toString(16);
+      request = "$@" + serializeThenable(request, task, value).toString(16);
+      writtenObjects.set(value, request);
+      return request;
     }
-    if (void 0 !== parentPropertyName)
+    if (void 0 !== existingReference)
       if (modelRoot === value) modelRoot = null;
-      else {
-        if (-1 === parentPropertyName)
-          return (
-            (request = outlineModel(request, value)),
-            serializeByValueID(request)
-          );
-        if (-2 !== parentPropertyName)
-          return serializeByValueID(parentPropertyName);
-      }
-    else parent.set(value, -1);
+      else return existingReference;
+    else if (
+      -1 === parentPropertyName.indexOf(":") &&
+      ((existingReference = writtenObjects.get(parent)),
+      void 0 !== existingReference)
+    ) {
+      var propertyName = parentPropertyName;
+      if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
+        switch (parentPropertyName) {
+          case "1":
+            propertyName = "type";
+            break;
+          case "2":
+            propertyName = "key";
+            break;
+          case "3":
+            propertyName = "props";
+        }
+      writtenObjects.set(value, existingReference + ":" + propertyName);
+    }
     if (isArrayImpl(value)) return renderFragment(request, task, value);
-    if (value instanceof Map) {
-      value = Array.from(value);
-      for (task = 0; task < value.length; task++)
-        (parent = value[task][0]),
-          "object" === typeof parent &&
-            null !== parent &&
-            ((parentPropertyName = request.writtenObjects),
-            void 0 === parentPropertyName.get(parent) &&
-              parentPropertyName.set(parent, -1));
-      return "$Q" + outlineModel(request, value).toString(16);
-    }
-    if (value instanceof Set) {
-      value = Array.from(value);
-      for (task = 0; task < value.length; task++)
-        (parent = value[task]),
-          "object" === typeof parent &&
-            null !== parent &&
-            ((parentPropertyName = request.writtenObjects),
-            void 0 === parentPropertyName.get(parent) &&
-              parentPropertyName.set(parent, -1));
-      return "$W" + outlineModel(request, value).toString(16);
-    }
+    if (value instanceof Map)
+      return (
+        (value = Array.from(value)),
+        "$Q" + outlineModel(request, value).toString(16)
+      );
+    if (value instanceof Set)
+      return (
+        (value = Array.from(value)),
+        "$W" + outlineModel(request, value).toString(16)
+      );
     if ("function" === typeof FormData && value instanceof FormData)
       return (
         (value = Array.from(value.entries())),
@@ -1448,29 +1463,35 @@ function renderModelDestructive(
       return serializeTypedArray(request, "V", value);
     if ("function" === typeof Blob && value instanceof Blob)
       return serializeBlob(request, value);
-    if ((parent = getIteratorFn(value)))
+    if ((parentPropertyName = getIteratorFn(value)))
       return (
-        (parent = parent.call(value)),
-        parent === value
-          ? "$i" + outlineModel(request, Array.from(parent)).toString(16)
-          : renderFragment(request, task, Array.from(parent))
+        (parentPropertyName = parentPropertyName.call(value)),
+        parentPropertyName === value
+          ? "$i" +
+            outlineModel(request, Array.from(parentPropertyName)).toString(16)
+          : renderFragment(request, task, Array.from(parentPropertyName))
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
       return serializeReadableStream(request, task, value);
-    parent = value[ASYNC_ITERATOR];
-    if ("function" === typeof parent)
+    parentPropertyName = value[ASYNC_ITERATOR];
+    if ("function" === typeof parentPropertyName)
       return (
         null !== task.keyPath
-          ? ((request = [
+          ? ((value = [
               REACT_ELEMENT_TYPE,
               REACT_FRAGMENT_TYPE,
               task.keyPath,
               { children: value }
             ]),
-            (request = task.implicitSlot ? [request] : request))
-          : ((parent = parent.call(value)),
-            (request = serializeAsyncIterable(request, task, value, parent))),
-        request
+            (value = task.implicitSlot ? [value] : value))
+          : ((parentPropertyName = parentPropertyName.call(value)),
+            (value = serializeAsyncIterable(
+              request,
+              task,
+              value,
+              parentPropertyName
+            ))),
+        value
       );
     request = getPrototypeOf(value);
     if (
@@ -1497,8 +1518,8 @@ function renderModelDestructive(
         emitTextChunk(request, task, value),
         serializeByValueID(task)
       );
-    request = "$" === value[0] ? "$" + value : value;
-    return request;
+    value = "$" === value[0] ? "$" + value : value;
+    return value;
   }
   if ("boolean" === typeof value) return value;
   if ("number" === typeof value)
@@ -1523,22 +1544,32 @@ function renderModelDestructive(
     if (value.$$typeof === SERVER_REFERENCE_TAG)
       return (
         (task = request.writtenServerReferences),
-        (parent = task.get(value)),
-        void 0 !== parent
-          ? (request = "$F" + parent.toString(16))
-          : ((parent = value.$$bound),
-            (parent = {
+        (parentPropertyName = task.get(value)),
+        void 0 !== parentPropertyName
+          ? (value = "$F" + parentPropertyName.toString(16))
+          : ((parentPropertyName = value.$$bound),
+            (parentPropertyName = {
               id: value.$$id,
-              bound: parent ? Promise.resolve(parent) : null
+              bound: parentPropertyName
+                ? Promise.resolve(parentPropertyName)
+                : null
             }),
-            (request = outlineModel(request, parent)),
+            (request = outlineModel(request, parentPropertyName)),
             task.set(value, request),
-            (request = "$F" + request.toString(16))),
-        request
+            (value = "$F" + request.toString(16))),
+        value
       );
-    if (value.$$typeof === TEMPORARY_REFERENCE_TAG) return "$T" + value.$$id;
+    if (
+      void 0 !== request.temporaryReferences &&
+      ((request = request.temporaryReferences.get(value)), void 0 !== request)
+    )
+      return "$T" + request;
     request = TaintRegistryObjects.get(value);
     void 0 !== request && throwTaintViolation(request);
+    if (value.$$typeof === TEMPORARY_REFERENCE_TAG)
+      throw Error(
+        "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
+      );
     if (/^on[A-Z]/.test(parentPropertyName))
       throw Error(
         "Event handlers cannot be passed to Client Component props." +
@@ -1552,25 +1583,25 @@ function renderModelDestructive(
   }
   if ("symbol" === typeof value) {
     task = request.writtenSymbols;
-    var existingId$18 = task.get(value);
-    if (void 0 !== existingId$18) return serializeByValueID(existingId$18);
-    existingId$18 = value.description;
-    if (Symbol.for(existingId$18) !== value)
+    writtenObjects = task.get(value);
+    if (void 0 !== writtenObjects) return serializeByValueID(writtenObjects);
+    writtenObjects = value.description;
+    if (Symbol.for(writtenObjects) !== value)
       throw Error(
         "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
           (value.description + ") cannot be found among global symbols.") +
           describeObjectForErrorMessage(parent, parentPropertyName)
       );
     request.pendingChunks++;
-    parent = request.nextChunkId++;
-    parentPropertyName = encodeReferenceChunk(
+    parentPropertyName = request.nextChunkId++;
+    parent = encodeReferenceChunk(
       request,
-      parent,
-      "$S" + existingId$18
+      parentPropertyName,
+      "$S" + writtenObjects
     );
-    request.completedImportChunks.push(parentPropertyName);
-    task.set(value, parent);
-    return serializeByValueID(parent);
+    request.completedImportChunks.push(parent);
+    task.set(value, parentPropertyName);
+    return serializeByValueID(parentPropertyName);
   }
   if ("bigint" === typeof value)
     return (
@@ -1723,7 +1754,8 @@ function retryTask(request, task) {
       task.keyPath = null;
       task.implicitSlot = !1;
       if ("object" === typeof resolvedModel && null !== resolvedModel)
-        emitChunk(request, task, resolvedModel);
+        request.writtenObjects.set(resolvedModel, serializeByValueID(task.id)),
+          emitChunk(request, task, resolvedModel);
       else {
         var json = stringify(resolvedModel);
         emitModelChunk(request, task.id, json);
@@ -1962,6 +1994,7 @@ function requireModule(metadata) {
       : moduleExports
     : moduleExports[metadata[2]];
 }
+var hasOwnProperty = Object.prototype.hasOwnProperty;
 function Chunk(status, value, reason, response) {
   this.status = status;
   this.value = value;
@@ -1980,6 +2013,7 @@ Chunk.prototype.then = function (resolve, reject) {
       break;
     case "pending":
     case "blocked":
+    case "cyclic":
       resolve &&
         (null === this.value && (this.value = []), this.value.push(resolve));
       reject &&
@@ -2005,7 +2039,7 @@ function triggerErrorOnChunk(chunk, error) {
     null !== listeners && wakeChunk(listeners, error);
   }
 }
-function resolveModelChunk(chunk, value) {
+function resolveModelChunk(chunk, value, id) {
   if ("pending" !== chunk.status)
     (chunk = chunk.reason),
       "C" === value[0]
@@ -2016,6 +2050,7 @@ function resolveModelChunk(chunk, value) {
       rejectListeners = chunk.reason;
     chunk.status = "resolved_model";
     chunk.value = value;
+    chunk.reason = id;
     if (null !== resolveListeners)
       switch ((initializeModelChunk(chunk), chunk.status)) {
         case "fulfilled":
@@ -2023,8 +2058,16 @@ function resolveModelChunk(chunk, value) {
           break;
         case "pending":
         case "blocked":
-          chunk.value = resolveListeners;
-          chunk.reason = rejectListeners;
+        case "cyclic":
+          if (chunk.value)
+            for (value = 0; value < resolveListeners.length; value++)
+              chunk.value.push(resolveListeners[value]);
+          else chunk.value = resolveListeners;
+          if (chunk.reason) {
+            if (rejectListeners)
+              for (value = 0; value < rejectListeners.length; value++)
+                chunk.reason.push(rejectListeners[value]);
+          } else chunk.reason = rejectListeners;
           break;
         case "rejected":
           rejectListeners && wakeChunk(rejectListeners, chunk.reason);
@@ -2035,14 +2078,15 @@ function createResolvedIteratorResultChunk(response, value, done) {
   return new Chunk(
     "resolved_model",
     (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}",
-    null,
+    -1,
     response
   );
 }
 function resolveIteratorResultChunk(chunk, value, done) {
   resolveModelChunk(
     chunk,
-    (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}"
+    (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}",
+    -1
   );
 }
 function loadServerReference$1(
@@ -2073,11 +2117,41 @@ function loadServerReference$1(
       key,
       !1,
       response,
-      createModel
+      createModel,
+      []
     ),
     createModelReject(parentChunk)
   );
   return null;
+}
+function reviveModel(response, parentObj, parentKey, value, reference) {
+  if ("string" === typeof value)
+    return parseModelString(response, parentObj, parentKey, value, reference);
+  if ("object" === typeof value && null !== value)
+    if (
+      (void 0 !== reference &&
+        void 0 !== response._temporaryReferences &&
+        response._temporaryReferences.set(value, reference),
+      Array.isArray(value))
+    )
+      for (var i = 0; i < value.length; i++)
+        value[i] = reviveModel(
+          response,
+          value,
+          "" + i,
+          value[i],
+          void 0 !== reference ? reference + ":" + i : void 0
+        );
+    else
+      for (i in value)
+        hasOwnProperty.call(value, i) &&
+          ((parentObj =
+            void 0 !== reference && -1 === i.indexOf(":")
+              ? reference + ":" + i
+              : void 0),
+          (parentObj = reviveModel(response, value, i, value[i], parentObj)),
+          void 0 !== parentObj ? (value[i] = parentObj) : delete value[i]);
+  return value;
 }
 var initializingChunk = null,
   initializingChunkBlockedModel = null;
@@ -2086,15 +2160,31 @@ function initializeModelChunk(chunk) {
     prevBlocked = initializingChunkBlockedModel;
   initializingChunk = chunk;
   initializingChunkBlockedModel = null;
+  var rootReference = -1 === chunk.reason ? void 0 : chunk.reason.toString(16),
+    resolvedModel = chunk.value;
+  chunk.status = "cyclic";
+  chunk.value = null;
+  chunk.reason = null;
   try {
-    var value = JSON.parse(chunk.value, chunk._response._fromJSON);
-    null !== initializingChunkBlockedModel &&
-    0 < initializingChunkBlockedModel.deps
-      ? ((initializingChunkBlockedModel.value = value),
-        (chunk.status = "blocked"),
-        (chunk.value = null),
-        (chunk.reason = null))
-      : ((chunk.status = "fulfilled"), (chunk.value = value));
+    var rawModel = JSON.parse(resolvedModel),
+      value = reviveModel(
+        chunk._response,
+        { "": rawModel },
+        "",
+        rawModel,
+        rootReference
+      );
+    if (
+      null !== initializingChunkBlockedModel &&
+      0 < initializingChunkBlockedModel.deps
+    )
+      (initializingChunkBlockedModel.value = value), (chunk.status = "blocked");
+    else {
+      var resolveListeners = chunk.value;
+      chunk.status = "fulfilled";
+      chunk.value = value;
+      null !== resolveListeners && wakeChunk(resolveListeners, value);
+    }
   } catch (error) {
     (chunk.status = "rejected"), (chunk.reason = error);
   } finally {
@@ -2114,12 +2204,20 @@ function getChunk(response, id) {
     ((chunk = response._formData.get(response._prefix + id)),
     (chunk =
       null != chunk
-        ? new Chunk("resolved_model", chunk, null, response)
+        ? new Chunk("resolved_model", chunk, id, response)
         : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
-function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
+function createModelResolver(
+  chunk,
+  parentObject,
+  key,
+  cyclic,
+  response,
+  map,
+  path
+) {
   if (initializingChunkBlockedModel) {
     var blocked = initializingChunkBlockedModel;
     cyclic || blocked.deps++;
@@ -2129,6 +2227,7 @@ function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
       value: null
     };
   return function (value) {
+    for (var i = 1; i < path.length; i++) value = value[path[i]];
     parentObject[key] = map(response, value);
     "" === key && null === blocked.value && (blocked.value = parentObject[key]);
     blocked.deps--;
@@ -2145,7 +2244,9 @@ function createModelReject(chunk) {
     return triggerErrorOnChunk(chunk, error);
   };
 }
-function getOutlinedModel(response, id, parentObject, key, map) {
+function getOutlinedModel(response, reference, parentObject, key, map) {
+  reference = reference.split(":");
+  var id = parseInt(reference[0], 16);
   id = getChunk(response, id);
   switch (id.status) {
     case "resolved_model":
@@ -2153,12 +2254,24 @@ function getOutlinedModel(response, id, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      return map(response, id.value);
+      parentObject = id.value;
+      for (key = 1; key < reference.length; key++)
+        parentObject = parentObject[reference[key]];
+      return map(response, parentObject);
     case "pending":
     case "blocked":
+    case "cyclic":
       var parentChunk = initializingChunk;
       id.then(
-        createModelResolver(parentChunk, parentObject, key, !1, response, map),
+        createModelResolver(
+          parentChunk,
+          parentObject,
+          key,
+          "cyclic" === id.status,
+          response,
+          map,
+          reference
+        ),
         createModelReject(parentChunk)
       );
       return null;
@@ -2202,7 +2315,8 @@ function parseTypedArray(
       parentKey,
       !1,
       response,
-      createModel
+      createModel,
+      []
     ),
     createModelReject(bytesPerElement)
   );
@@ -2232,7 +2346,7 @@ function parseReadableStream(response, reference, type) {
   resolveStream(response, reference, type, {
     enqueueModel: function (json) {
       if (null === previousBlockedChunk) {
-        var chunk = new Chunk("resolved_model", json, null, response);
+        var chunk = new Chunk("resolved_model", json, -1, response);
         initializeModelChunk(chunk);
         "fulfilled" === chunk.status
           ? controller.enqueue(chunk.value)
@@ -2247,8 +2361,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$28 = createPendingChunk(response);
-        chunk$28.then(
+        var chunk$30 = createPendingChunk(response);
+        chunk$30.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2256,10 +2370,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$28;
+        previousBlockedChunk = chunk$30;
         chunk.then(function () {
-          previousBlockedChunk === chunk$28 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$28, json);
+          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$30, json, -1);
         });
       }
     },
@@ -2363,7 +2477,7 @@ function parseAsyncIterable(response, reference, iterator) {
   });
   return iterator;
 }
-function parseModelString(response, obj, key, value) {
+function parseModelString(response, obj, key, value, reference) {
   if ("$" === value[0]) {
     switch (value[1]) {
       case "$":
@@ -2372,7 +2486,7 @@ function parseModelString(response, obj, key, value) {
         return (obj = parseInt(value.slice(2), 16)), getChunk(response, obj);
       case "F":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           (value = getOutlinedModel(response, value, obj, key, createModel)),
           loadServerReference$1(
             response,
@@ -2384,15 +2498,22 @@ function parseModelString(response, obj, key, value) {
           )
         );
       case "T":
-        return createTemporaryReference(value.slice(2));
+        if (void 0 === reference || void 0 === response._temporaryReferences)
+          throw Error(
+            "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
+          );
+        return createTemporaryReference(
+          response._temporaryReferences,
+          reference
+        );
       case "Q":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, obj, key, createMap)
         );
       case "W":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, obj, key, createSet)
         );
       case "K":
@@ -2406,7 +2527,7 @@ function parseModelString(response, obj, key, value) {
         return data;
       case "i":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, obj, key, extractIterator)
         );
       case "I":
@@ -2465,29 +2586,24 @@ function parseModelString(response, obj, key, value) {
       case "x":
         return parseAsyncIterable(response, value, !0);
     }
-    value = parseInt(value.slice(1), 16);
+    value = value.slice(1);
     return getOutlinedModel(response, value, obj, key, createModel);
   }
   return value;
 }
-function createResponse(bundlerConfig, formFieldPrefix) {
+function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
   var backingFormData =
-      2 < arguments.length && void 0 !== arguments[2]
-        ? arguments[2]
+      3 < arguments.length && void 0 !== arguments[3]
+        ? arguments[3]
         : new FormData(),
-    chunks = new Map(),
-    response = {
-      _bundlerConfig: bundlerConfig,
-      _prefix: formFieldPrefix,
-      _formData: backingFormData,
-      _chunks: chunks,
-      _fromJSON: function (key, value) {
-        return "string" === typeof value
-          ? parseModelString(response, this, key, value)
-          : value;
-      }
-    };
-  return response;
+    chunks = new Map();
+  return {
+    _bundlerConfig: bundlerConfig,
+    _prefix: formFieldPrefix,
+    _formData: backingFormData,
+    _chunks: chunks,
+    _temporaryReferences: temporaryReferences
+  };
 }
 function close(response) {
   reportGlobalError(response, Error("Connection closed."));
@@ -2508,7 +2624,7 @@ function loadServerReference(bundlerConfig, id, bound) {
     : Promise.resolve(requireModule(serverReference));
 }
 function decodeBoundActionMetaData(body, serverManifest, formFieldPrefix) {
-  body = createResponse(serverManifest, formFieldPrefix, body);
+  body = createResponse(serverManifest, formFieldPrefix, void 0, body);
   close(body);
   body = getChunk(body, 0);
   body.then(function () {});
@@ -2518,6 +2634,9 @@ function decodeBoundActionMetaData(body, serverManifest, formFieldPrefix) {
 exports.createClientModuleProxy = function (moduleId) {
   moduleId = registerClientReferenceImpl({}, moduleId, !1);
   return new Proxy(moduleId, proxyHandlers$1);
+};
+exports.createTemporaryReferenceSet = function () {
+  return new WeakMap();
 };
 exports.decodeAction = function (body, serverManifest) {
   var formData = new FormData(),
@@ -2539,13 +2658,35 @@ exports.decodeAction = function (body, serverManifest) {
         return fn.bind(null, formData);
       });
 };
-exports.decodeReply = function (body, turbopackMap) {
+exports.decodeFormState = function (actionResult, body, serverManifest) {
+  var keyPath = body.get("$ACTION_KEY");
+  if ("string" !== typeof keyPath) return Promise.resolve(null);
+  var metaData = null;
+  body.forEach(function (value, key) {
+    key.startsWith("$ACTION_REF_") &&
+      ((value = "$ACTION_" + key.slice(12) + ":"),
+      (metaData = decodeBoundActionMetaData(body, serverManifest, value)));
+  });
+  if (null === metaData) return Promise.resolve(null);
+  var referenceId = metaData.id;
+  return Promise.resolve(metaData.bound).then(function (bound) {
+    return null === bound
+      ? null
+      : [actionResult, keyPath, referenceId, bound.length - 1];
+  });
+};
+exports.decodeReply = function (body, turbopackMap, options) {
   if ("string" === typeof body) {
     var form = new FormData();
     form.append("0", body);
     body = form;
   }
-  body = createResponse(turbopackMap, "", body);
+  body = createResponse(
+    turbopackMap,
+    "",
+    options ? options.temporaryReferences : void 0,
+    body
+  );
   turbopackMap = getChunk(body, 0);
   close(body);
   return turbopackMap;
@@ -2578,7 +2719,9 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     turbopackMap,
     options ? options.onError : void 0,
     options ? options.identifierPrefix : void 0,
-    options ? options.onPostpone : void 0
+    options ? options.onPostpone : void 0,
+    options ? options.environmentName : void 0,
+    options ? options.temporaryReferences : void 0
   );
   if (options && options.signal) {
     var signal = options.signal;
@@ -2609,7 +2752,10 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
           }
         }
       },
-      cancel: function () {}
+      cancel: function (reason) {
+        request.destination = null;
+        abort(request, reason);
+      }
     },
     { highWaterMark: 0 }
   );
