@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('rsc layers transform', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -10,9 +10,7 @@ describe('rsc layers transform', () => {
 
     expect(json).toEqual({
       textValue: 'text-value',
-      clientReference: isTurbopack
-        ? 'Using client components is not allowed in this environment.'
-        : 'Symbol(react.client.reference)',
+      clientReference: 'Symbol(react.client.reference)',
     })
   })
 
