@@ -12,6 +12,7 @@ use next_api::{
 };
 
 pub async fn main_inner(
+    tt: &TurboTasks<MemoryBackend>,
     strat: Strategy,
     factor: usize,
     limit: usize,
@@ -27,10 +28,23 @@ pub async fn main_inner(
     })?;
 
     let options: ProjectOptions = serde_json::from_reader(&mut file).unwrap();
-    let project = ProjectContainer::new(options);
+
+    if matches!(strat, Strategy::Development) {
+        options.dev = true;
+        options.watch = true;
+    } else {
+        options.dev = false;
+        options.watch = false;
+    }
+
+    let project = tt
+        .run_once(async { Ok(ProjectContainer::new(options)) })
+        .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = project.entrypoints().await?;
+    let entrypoints = tt
+        .run_once(async move { Ok(project.entrypoints().await?) })
+        .await?;
 
     let routes = if let Some(files) = files {
         tracing::info!("builing only the files:");
@@ -51,8 +65,12 @@ pub async fn main_inner(
         Box::new(shuffle(entrypoints.routes.clone().into_iter()))
     };
 
-    let count = render_routes(routes, strat, factor, limit).await;
+    let count = render_routes(tt, routes, strat, factor, limit).await;
     tracing::info!("rendered {} pages", count);
+
+    if matches!(strat, Strategy::Development) {
+        hmr(tt, project).await?;
+    }
 
     Ok(())
 }
@@ -67,6 +85,7 @@ pub enum Strategy {
     Sequential,
     Concurrent,
     Parallel,
+    Development,
 }
 
 impl std::fmt::Display for Strategy {
@@ -75,6 +94,7 @@ impl std::fmt::Display for Strategy {
             Strategy::Sequential => write!(f, "sequential"),
             Strategy::Concurrent => write!(f, "concurrent"),
             Strategy::Parallel => write!(f, "parallel"),
+            Strategy::Development => write!(f, "development"),
         }
     }
 }
@@ -87,6 +107,7 @@ impl FromStr for Strategy {
             "sequential" => Ok(Strategy::Sequential),
             "concurrent" => Ok(Strategy::Concurrent),
             "parallel" => Ok(Strategy::Parallel),
+            "development" => Ok(Strategy::Development),
             _ => Err(anyhow::anyhow!("invalid strategy")),
         }
     }
@@ -101,6 +122,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
+    tt: &TurboTasks<MemoryBackend>,
     routes: impl Iterator<Item = (String, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -113,11 +135,12 @@ pub async fn render_routes(
     );
 
     let stream = tokio_stream::iter(routes)
-        .map(move |(name, route)| {
-            let fut = async move {
-                tracing::info!("{name}");
+        .map(move |(name, route)| async move {
+            tracing::info!("{name}...");
+            let start = Instant::now();
 
-                match route {
+            tt.run_once(async move {
+                Ok(match route {
                     Route::Page {
                         html_endpoint,
                         data_endpoint: _,
@@ -141,17 +164,13 @@ pub async fn render_routes(
                     Route::Conflict => {
                         tracing::info!("WARN: conflict {}", name);
                     }
-                }
+                })
+            })
+            .await?;
 
-                Ok::<_, anyhow::Error>(())
-            };
+            tracing::info!("{name} {:?}", start.elapsed());
 
-            async move {
-                match strategy {
-                    Strategy::Parallel => tokio::task::spawn(fut).await.unwrap(),
-                    _ => fut.await,
-                }
-            }
+            Ok::<_, anyhow::Error>(())
         })
         .take(limit)
         .buffer_unordered(factor)
@@ -160,4 +179,38 @@ pub async fn render_routes(
         .unwrap();
 
     stream.len()
+}
+
+async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
+    tracing::info!("HMR...");
+    let session = TransientInstance::new(());
+    let idents = tt
+        .run_once(async move { Ok(project.hmr_identifiers().await?) })
+        .await?;
+    let start = Instant::now();
+    for ident in idents {
+        let session = session.clone();
+        let start = Instant::now();
+        let task = tt.spawn_root_task(move || {
+            let session = session.clone();
+            async move {
+                let project = project.project();
+                project
+                    .hmr_update(
+                        ident.clone(),
+                        project.hmr_version_state(ident.clone(), session),
+                    )
+                    .await?;
+                Ok(Vc::<()>::cell(()))
+            }
+        });
+        tt.wait_task_completion(task, true).await?;
+        let e = start.elapsed();
+        if e.as_millis() > 10 {
+            tracing::info!("HMR: {:?} {:?}", ident, e);
+        }
+    }
+    tracing::info!("HMR {:?}", start.elapsed());
+
+    Ok(())
 }
