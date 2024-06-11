@@ -264,7 +264,7 @@ impl Fold for OptimizeBarrel {
                     span: DUMMY_SP,
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: format!("__barrel_optimize__?names=__PLACEHOLDER__!=!{}", src)
+                        value: format!("__barrel_optimize__?names=__PLACEHOLDER__!=!{src}")
                             .into(),
                         raw: None,
                     }),
