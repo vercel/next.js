@@ -369,7 +369,17 @@ function Router({
         ) {
           return
         }
-        const url = new URL(addBasePath(href), window.location.href)
+
+        let url: URL
+        try {
+          url = new URL(addBasePath(href), window.location.href)
+        } catch (err) {
+          console.error(
+            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+          )
+          return
+        }
+
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
