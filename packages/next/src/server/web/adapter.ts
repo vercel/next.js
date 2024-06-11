@@ -240,20 +240,22 @@ export async function adapter(
         },
         async () => {
           try {
+            const previewProps = prerenderManifest?.preview || {
+              previewModeId: 'development-id',
+              previewModeEncryptionKey: '',
+              previewModeSigningKey: '',
+            }
+
             return await RequestAsyncStorageWrapper.wrap(
               requestAsyncStorage,
               {
                 req: request,
+                url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {
                     cookiesFromResponse = cookies
                   },
-                  // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
-                  previewProps: prerenderManifest?.preview || {
-                    previewModeId: 'development-id',
-                    previewModeEncryptionKey: '',
-                    previewModeSigningKey: '',
-                  },
+                  previewProps,
                   waitUntil,
                   onClose: closeController
                     ? closeController.onClose.bind(closeController)

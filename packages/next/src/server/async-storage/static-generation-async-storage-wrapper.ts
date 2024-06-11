@@ -4,12 +4,16 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 
-import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+import { createPrerenderState } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export type StaticGenerationContext = {
-  urlPathname: string
+  /**
+   * The page that is being rendered. This relates to the path to the page file.
+   */
+  page: string
   requestEndedState?: { ended?: boolean }
   renderOpts: {
     incrementalCache?: IncrementalCache
@@ -40,7 +44,6 @@ export type StaticGenerationContext = {
     // Pull some properties from RenderOptsPartial so that the docs are also
     // mirrored.
     RenderOptsPartial,
-    | 'originalPathname'
     | 'supportsDynamicResponse'
     | 'isRevalidate'
     | 'nextExport'
@@ -56,7 +59,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { urlPathname, renderOpts, requestEndedState }: StaticGenerationContext,
+    { page, renderOpts, requestEndedState }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -88,8 +91,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
-      urlPathname,
-      pagePath: renderOpts.originalPathname,
+      page,
+      route: normalizeAppPath(page),
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks
