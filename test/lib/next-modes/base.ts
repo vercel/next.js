@@ -306,32 +306,6 @@ export class NextInstance {
           }
         `
           )
-
-          if (
-            testDirFiles.includes('node_modules') &&
-            !testDirFiles.includes('vercel.json')
-          ) {
-            // Tests that include a patched node_modules dir won't automatically be uploaded to Vercel.
-            // We need to ensure node_modules is not excluded from the deploy files, and tweak the
-            // start + build commands to handle copying the patched node modules into the final.
-            // To be extra safe, we only do this if the test directory doesn't already have a custom vercel.json
-            require('console').log(
-              'Detected node_modules in the test directory, writing `vercel.json` and `.vercelignore` to ensure its included.'
-            )
-
-            await fs.writeFile(
-              path.join(this.testDir, 'vercel.json'),
-              JSON.stringify({
-                installCommand:
-                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
-              })
-            )
-
-            await fs.writeFile(
-              path.join(this.testDir, '.vercelignore'),
-              '!node_modules'
-            )
-          }
         }
       })
   }
@@ -397,7 +371,7 @@ export class NextInstance {
   public async stop(): Promise<void> {
     if (this.childProcess) {
       this.isStopping = true
-      const closePromise = once(this.childProcess, 'close')
+
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
@@ -406,12 +380,21 @@ export class NextInstance {
           resolve()
         })
       })
-      this.childProcess.kill('SIGKILL')
-      await closePromise
+
+      const alreadyExited =
+        this.childProcess.exitCode !== null ||
+        this.childProcess.signalCode !== null
+
+      if (!alreadyExited) {
+        const exitPromise = once(this.childProcess, 'exit')
+        this.childProcess.kill('SIGKILL')
+        await exitPromise
+      }
+
       this.childProcess = undefined
-      this.isStopping = false
       require('console').log(`Stopped next server`)
     }
+    this.isStopping = false
   }
 
   public async destroy(): Promise<void> {

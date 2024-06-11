@@ -33,7 +33,7 @@ export function waitForHydration(browser: BrowserInterface): Promise<void> {
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
+  initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
   webDriverOptions: any = undefined
 ) {
