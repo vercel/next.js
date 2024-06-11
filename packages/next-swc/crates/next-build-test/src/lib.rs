@@ -190,6 +190,9 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
         .await?;
     let start = Instant::now();
     for ident in idents {
+        if !ident.ends_with(".js") {
+            continue;
+        }
         let session = session.clone();
         let start = Instant::now();
         let task = tt.spawn_root_task(move || {
