@@ -111,7 +111,7 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => vec![],
+        | ServerContextType::Instrumentation { .. } => vec![],
     };
 
     let mut after_resolve_plugins = match ty {
@@ -124,7 +124,7 @@ pub async fn get_edge_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             vec![
                 Vc::upcast(get_invalid_client_only_resolve_plugin(project_path)),
                 Vc::upcast(get_invalid_styled_jsx_resolve_plugin(project_path)),

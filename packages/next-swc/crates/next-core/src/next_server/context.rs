@@ -99,8 +99,14 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
-    Middleware,
-    Instrumentation,
+    Middleware {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
+    Instrumentation {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
 }
 
 impl ServerContextType {
@@ -216,7 +222,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => vec![],
+        | ServerContextType::Instrumentation { .. } => vec![],
     };
 
     let mut after_resolve_plugins = match ty {
@@ -274,7 +280,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
             after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
@@ -741,20 +747,48 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
+        ServerContextType::Middleware {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        }
+        | ServerContextType::Instrumentation {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
 
-            custom_source_transform_rules.push(get_ecma_transform_rule(
-                Box::new(ClientDisallowedDirectiveTransformer::new(
-                    "next/dist/client/use-client-disallowed.js".to_string(),
-                )),
-                enable_mdx_rs.is_some(),
-                true,
-            ));
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            } else {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDisallowedDirectiveTransformer::new(
+                        "next/dist/client/use-client-disallowed.js".to_string(),
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            }
+
+            foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
+            foreign_next_server_rules.extend(internal_custom_rules);
+
+            // internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+            );
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
@@ -764,7 +798,8 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: internal_custom_rules.clone(),
+                // custom_rules: internal_custom_rules.clone(),
+                custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -772,7 +807,8 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: internal_custom_rules,
+                // custom_rules: internal_custom_rules,
+                custom_rules: foreign_next_server_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {

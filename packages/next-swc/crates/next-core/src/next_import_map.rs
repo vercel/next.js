@@ -577,7 +577,7 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
     }
@@ -605,7 +605,7 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,

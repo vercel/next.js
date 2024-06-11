@@ -879,7 +879,14 @@ impl Project {
     async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        if let Some(app_project) = &*self.app_project().await? {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = *self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 app_project.edge_client_reference_transition(),
@@ -892,14 +899,20 @@ impl Project {
             get_server_module_options_context(
                 self.project_path(),
                 self.execution_context(),
-                Value::new(ServerContextType::Middleware),
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::Edge,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
-                Value::new(ServerContextType::Middleware),
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
@@ -913,16 +926,34 @@ impl Project {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
     ) -> Result<Vc<MiddlewareEndpoint>> {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let ecmascript_client_reference_transition_name = (*self.app_project().await?)
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
         let context = self.middleware_context();
 
-        Ok(MiddlewareEndpoint::new(self, context, source))
+        Ok(MiddlewareEndpoint::new(
+            self,
+            context,
+            source,
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        ))
     }
 
     #[turbo_tasks::function]
     async fn node_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        if let Some(app_project) = &*self.app_project().await? {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = &*self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 app_project.client_reference_transition(),
@@ -935,14 +966,20 @@ impl Project {
             get_server_module_options_context(
                 self.project_path(),
                 self.execution_context(),
-                Value::new(ServerContextType::Instrumentation),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::NodeJs,
             ),
             get_server_resolve_options_context(
                 self.project_path(),
-                Value::new(ServerContextType::Instrumentation),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
@@ -955,7 +992,14 @@ impl Project {
     async fn edge_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
-        if let Some(app_project) = &*self.app_project().await? {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = &*self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
             transitions.push((
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
                 app_project.edge_client_reference_transition(),
@@ -968,14 +1012,20 @@ impl Project {
             get_server_module_options_context(
                 self.project_path(),
                 self.execution_context(),
-                Value::new(ServerContextType::Instrumentation),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 NextRuntime::Edge,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
-                Value::new(ServerContextType::Instrumentation),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
                 self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
@@ -985,18 +1035,30 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn instrumentation_endpoint(
+    async fn instrumentation_endpoint(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         is_edge: bool,
-    ) -> Vc<InstrumentationEndpoint> {
+    ) -> Result<Vc<InstrumentationEndpoint>> {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let ecmascript_client_reference_transition_name = (*self.app_project().await?)
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
         let context = if is_edge {
             self.edge_instrumentation_context()
         } else {
             self.node_instrumentation_context()
         };
 
-        InstrumentationEndpoint::new(self, context, source, is_edge)
+        Ok(InstrumentationEndpoint::new(
+            self,
+            context,
+            source,
+            is_edge,
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        ))
     }
 
     #[turbo_tasks::function]
