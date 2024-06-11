@@ -6,11 +6,6 @@ license = "MPL-2.0"
 edition = "2021"
 autobenches = false
 
-# [[bin]]
-# name = "next-build-test"
-# path = "src/main.rs"
-# bench = false
-
 [lints]
 workspace = true
 

@@ -42,7 +42,7 @@ pub async fn main_inner(
 
     tracing::info!("collecting endpoints");
     let entrypoints = tt
-        .run_once(async move { Ok(project.entrypoints().await?) })
+        .run_once(async move { project.entrypoints().await })
         .await?;
 
     let routes = if let Some(files) = files {
@@ -141,7 +141,7 @@ pub async fn render_routes(
             tt.run_once({
                 let name = name.clone();
                 async move {
-                    Ok(match route {
+                    match route {
                         Route::Page {
                             html_endpoint,
                             data_endpoint: _,
@@ -165,7 +165,8 @@ pub async fn render_routes(
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
                         }
-                    })
+                    }
+                    Ok(())
                 }
             })
             .await?;
@@ -186,7 +187,7 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
-        .run_once(async move { Ok(project.hmr_identifiers().await?) })
+        .run_once(async move { project.hmr_identifiers().await })
         .await?;
     let start = Instant::now();
     for ident in idents {
