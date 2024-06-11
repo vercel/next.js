@@ -159,6 +159,7 @@ import {
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
 import { NextRequestHint } from './web/adapter'
+import { lifecycleAsyncStorage } from '../client/components/lifecycle-async-storage.external'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1736,6 +1737,11 @@ export default abstract class Server<
   }
 
   protected getWaitUntil(): WaitUntil | undefined {
+    const lifecycleStore = lifecycleAsyncStorage.getStore()
+    if (lifecycleStore) {
+      return lifecycleStore.waitUntil
+    }
+
     const builtinRequestContext = getBuiltinRequestContext()
     if (builtinRequestContext) {
       // the platform provided a request context.
