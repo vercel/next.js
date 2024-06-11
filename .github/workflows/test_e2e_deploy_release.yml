@@ -1,9 +1,9 @@
 name: Test E2E (Vercel Deploy), scheduled
 
 on:
-  schedule:
-    # run every day at midnight
-    - cron: '0 0 * * *'
+  # run on every release/prerelease
+  release:
+    types: [published]
   # allow triggering manually as well
   workflow_dispatch:
 
