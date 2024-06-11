@@ -111,7 +111,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       )
     })
 
-    it('should not add trailing slash to relative url that ends with a file extension', () => {
+    it('should not add trailing slash to relative url that matches file pattern', () => {
       expect(resolver('/foo.html')).toBe('https://example.com/foo.html')
       expect(resolver(new URL('/foo.html', metadataBase))).toBe(
         'https://example.com/foo.html'
