@@ -269,7 +269,6 @@ async function exportPageImpl(
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicResponse: false,
-      originalPathname: page,
       experimental: {
         ...input.renderOpts.experimental,
         isRoutePPREnabled,

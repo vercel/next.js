@@ -21,10 +21,10 @@ const cacheHeader = {
 }
 
 type MetadataRouteLoaderOptions = {
-  page: string
+  // Using separate argument to avoid json being parsed and hit error
+  // x-ref: https://github.com/vercel/next.js/pull/62615
   filePath: string
   isDynamicRouteExtension: '1' | '0'
-  isDynamicMultiRoute: '1' | '0'
 }
 
 export function getFilenameAndExtension(resourcePath: string) {
@@ -248,6 +248,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
   async function () {
     const { isDynamicRouteExtension, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
+    this.addDependency(filePath)
 
     let code = ''
     if (isDynamicRouteExtension === '1') {
