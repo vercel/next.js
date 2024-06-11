@@ -38,8 +38,8 @@ const onPromptState = (state: {
 
 const program = new Command(packageJson.name)
   .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
+  .argument('[project-directory]')
+  .usage(`${green('[project-directory]')} [options]`)
   .action((name) => {
     projectPath = name
   })
