@@ -3,8 +3,7 @@ use std::{convert::Infallible, str::FromStr, time::Instant};
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{main_inner, Strategy};
 use turbo_tasks::TurboTasks;
-use turbo_tasks_malloc::TurboMalloc;
-use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
@@ -70,7 +69,6 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
-                    tracing::info!("start");
                     let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();

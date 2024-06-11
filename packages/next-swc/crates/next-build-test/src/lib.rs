@@ -53,13 +53,13 @@ pub async fn main_inner(
 
         // filter out the files that are not in the list
         // we expect this to be small so linear search OK
-        Box::new(
+        Box::new(files.into_iter().filter_map(|f| {
             entrypoints
                 .routes
-                .clone()
-                .into_iter()
-                .filter(move |(name, _)| files.iter().any(|f| f.as_str() == name.as_str())),
-        ) as Box<dyn Iterator<Item = _> + Send + Sync>
+                .iter()
+                .find(|(name, _)| f.as_str() == name.as_str())
+                .map(|(name, route)| (name.clone(), route.clone()))
+        })) as Box<dyn Iterator<Item = _> + Send + Sync>
     } else {
         Box::new(shuffle(entrypoints.routes.clone().into_iter()))
     };
