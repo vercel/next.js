@@ -40,19 +40,39 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = Omit<RenderOpts, 'experimental'> &
-  RequestLifecycleOpts &
+export type WrapperRenderOpts = RequestLifecycleOpts &
   Partial<
     Pick<
       RenderOpts,
-      'ComponentMod' // can be undefined in a route handler
+      | 'ComponentMod'
+      | 'onUpdateCookies'
+      | 'assetPrefix'
+      | 'reactLoadableManifest'
     >
   > & {
     experimental: Pick<RenderOpts['experimental'], 'after'>
+    previewProps?: __ApiPreviewProps
   }
 
 export type RequestContext = {
   req: IncomingMessage | BaseNextRequest | NextRequest
+  /**
+   * The URL of the request. This only specifies the pathname and the search
+   * part of the URL. This is only undefined when generating static paths (ie,
+   * there is no request in progress, nor do we know one).
+   */
+  url: {
+    /**
+     * The pathname of the requested URL.
+     */
+    pathname: string
+
+    /**
+     * The search part of the requested URL. If the request did not provide a
+     * search part, this will be an empty string.
+     */
+    search?: string
+  }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
 }
@@ -72,16 +92,9 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
    */
   wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
-    { req, res, renderOpts }: RequestContext,
+    { req, url, res, renderOpts }: RequestContext,
     callback: (store: RequestStore) => Result
   ): Result {
-    let previewProps: __ApiPreviewProps | undefined = undefined
-
-    if (renderOpts && 'previewProps' in renderOpts) {
-      // TODO: investigate why previewProps isn't on RenderOpts
-      previewProps = (renderOpts as any).previewProps
-    }
-
     const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
 
     function defaultOnUpdateCookies(cookies: string[]) {
@@ -98,6 +111,10 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
     } = {}
 
     const store: RequestStore = {
+      // Rather than just using the whole `url` here, we pull the parts we want
+      // to ensure we don't use parts of the URL that we shouldn't. This also
+      // lets us avoid requiring an empty string for `search` in the type.
+      url: { pathname: url.pathname, search: url.search ?? '' },
       get headers() {
         if (!cache.headers) {
           // Seal the headers object that'll freeze out any methods that could
@@ -154,7 +171,7 @@ export const RequestAsyncStorageWrapper: AsyncStorageWrapper<
       get draftMode() {
         if (!cache.draftMode) {
           cache.draftMode = new DraftModeProvider(
-            previewProps,
+            renderOpts?.previewProps,
             req,
             this.cookies,
             this.mutableCookies
