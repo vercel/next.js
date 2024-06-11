@@ -75,6 +75,7 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
@@ -116,12 +117,13 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
     if (deployRes.exitCode !== 0) {
       throw new Error(
-        `Failed to deploy project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
       )
     }
     // the CLI gives just the deployment URL back when not a TTY
@@ -150,6 +152,7 @@ export class NextDeployInstance extends NextInstance {
       ['logs', this._url, '--output', 'raw', ...vercelFlags],
       {
         env: vercelEnv,
+        reject: false,
       }
     )
     if (logs.exitCode !== 0) {
