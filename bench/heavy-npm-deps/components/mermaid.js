@@ -1,7 +1,7 @@
-"use client";
-import * as Mermaid from "mermaid";
+'use client'
+import * as Mermaid from 'mermaid'
 
-console.log(Mermaid);
+console.log(Mermaid)
 // console.log(Mantine.Button.Group.classes);
 
 export function MermaidComponent() {
@@ -9,5 +9,5 @@ export function MermaidComponent() {
     <>
       <h1>Client Component</h1>
     </>
-  );
+  )
 }
