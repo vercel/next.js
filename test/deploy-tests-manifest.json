@@ -7,7 +7,6 @@
       "test/production/**/*.test.{t,j}s{,x}"
     ],
     "exclude": [
-      "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
       "test/e2e/app-dir/next-after-app/index.test.ts",
       "test/e2e/app-dir/scss/nm-module-nested/nm-module-nested.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
