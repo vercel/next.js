@@ -44,7 +44,7 @@
     "cross-spawn": "7.0.3",
     "fast-glob": "3.3.1",
     "picocolors": "1.0.0",
-    "prettier-plugin-tailwindcss": "0.3.0",
+    "prettier-plugin-tailwindcss": "0.6.2",
     "prompts": "2.4.2",
     "tar": "7.2.0",
     "update-check": "1.5.4",
