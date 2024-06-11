@@ -5,7 +5,7 @@ use std::{
     marker::PhantomData,
 };
 
-use self::counter::{add, flush, get, remove};
+use self::counter::{add, flush, get, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -97,11 +97,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
         let ret = mimalloc::MiMalloc.realloc(ptr, layout, new_size);
         if !ret.is_null() {
             let old_size = layout.size();
-            if old_size < new_size {
-                add(new_size - old_size);
-            } else {
-                remove(old_size - new_size);
-            }
+            update(old_size, new_size);
         }
         ret
     }
@@ -137,11 +133,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
         let ret = std::alloc::System.realloc(ptr, layout, new_size);
         if !ret.is_null() {
             let old_size = layout.size();
-            if old_size < new_size {
-                add(new_size - old_size);
-            } else {
-                remove(old_size - new_size);
-            }
+            update(old_size, new_size);
         }
         ret
     }

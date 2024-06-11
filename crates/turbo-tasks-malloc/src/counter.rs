@@ -49,6 +49,35 @@ impl ThreadLocalCounter {
         }
     }
 
+    fn update(&mut self, old_size: usize, new_size: usize) {
+        self.allocation_counters.deallocations += old_size;
+        self.allocation_counters.deallocation_count += 1;
+        self.allocation_counters.allocations += new_size;
+        self.allocation_counters.allocation_count += 1;
+        match old_size.cmp(&new_size) {
+            std::cmp::Ordering::Equal => {}
+            std::cmp::Ordering::Less => {
+                let size = new_size - old_size;
+                if self.buffer >= size {
+                    self.buffer -= size;
+                } else {
+                    let offset = size - self.buffer + TARGET_BUFFER;
+                    self.buffer = TARGET_BUFFER;
+                    ALLOCATED.fetch_add(offset, Ordering::Relaxed);
+                }
+            }
+            std::cmp::Ordering::Greater => {
+                let size = old_size - new_size;
+                self.buffer += size;
+                if self.buffer > MAX_BUFFER {
+                    let offset = self.buffer - TARGET_BUFFER;
+                    self.buffer = TARGET_BUFFER;
+                    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+                }
+            }
+        }
+    }
+
     fn unload(&mut self) {
         if self.buffer > 0 {
             ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
@@ -91,6 +120,11 @@ pub fn add(size: usize) {
 /// Removes some `size` to the global counter in a thread-local buffered way.
 pub fn remove(size: usize) {
     with_local_counter(|local| local.remove(size));
+}
+
+/// Adds some `size` to the global counter in a thread-local buffered way.
+pub fn update(old_size: usize, new_size: usize) {
+    with_local_counter(|local| local.update(old_size, new_size));
 }
 
 /// Flushes the thread-local buffer to the global counter. This should be called
