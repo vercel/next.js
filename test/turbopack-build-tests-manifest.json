@@ -1,6 +1,17 @@
 {
   "version": 2,
   "suites": {
+    "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
+        "fetch-cache should retry 3 times when revalidate times out",
+        "fetch-cache should not retry for failed fetch-cache GET"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -1924,7 +1935,8 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+        "app dir - metadata dynamic routes should statically optimized single image route"
       ],
       "pending": [],
       "flakey": [],
@@ -4040,10 +4052,9 @@
       "runtimeError": false
     },
     "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-      "passed": [
-        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
-      ],
+      "passed": [],
       "failed": [
+        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
         "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
       ],
       "pending": [],
@@ -15721,6 +15732,15 @@
     "test/production/typescript-basic/typechecking.test.ts": {
       "passed": ["typechecking should typecheck"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata static routes cache should generate different content after replace the static metadata file"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

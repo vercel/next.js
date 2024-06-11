@@ -2068,7 +2068,7 @@ function cache(fn) {
   };
 }
 
-var ReactVersion = '19.0.0-rc-1df34bdf62-20240605';
+var ReactVersion = '19.0.0-rc-6230622a1a-20240610';
 
 var Children = {
   map: mapChildren,
