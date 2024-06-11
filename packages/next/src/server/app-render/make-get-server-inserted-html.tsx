@@ -34,6 +34,7 @@ export function makeGetServerInsertedHTML({
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
   let hasUnflushedPolyfills = polyfills.length !== 0
+  let hasUnflushedTracingMetadata = tracingMetadata?.length !== 0
 
   return async function getServerInsertedHTML() {
     // Loop through all the errors that have been captured but not yet
@@ -76,6 +77,7 @@ export function makeGetServerInsertedHTML({
     // Skip React rendering if we know the content is empty.
     if (
       !hasUnflushedPolyfills &&
+      !hasUnflushedTracingMetadata &&
       errorMetaTags.length === 0 &&
       Array.isArray(serverInsertedHTML) &&
       serverInsertedHTML.length === 0
@@ -93,7 +95,7 @@ export function makeGetServerInsertedHTML({
             })
         }
         {serverInsertedHTML}
-        {tracingMetadata
+        {hasUnflushedTracingMetadata && tracingMetadata
           ? tracingMetadata.map(({ key, value }) => {
               return (
                 <meta
@@ -114,6 +116,7 @@ export function makeGetServerInsertedHTML({
     )
 
     hasUnflushedPolyfills = false
+    hasUnflushedTracingMetadata = false
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will
