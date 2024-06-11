@@ -7,7 +7,6 @@
       "test/production/**/*.test.{t,j}s{,x}"
     ],
     "exclude": [
-      "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
       "test/e2e/app-dir/app-routes/app-custom-routes.test.ts",
       "test/e2e/app-dir/next-after-app/index.test.ts",
       "test/e2e/app-dir/scss/nm-module-nested/nm-module-nested.test.ts",
@@ -32,7 +31,6 @@
       "test/e2e/third-parties/index.test.ts",
       "test/e2e/useselectedlayoutsegment-s-in-pages-router/useselectedlayoutsegment-s-in-pages-router.test.ts",
       "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts",
-      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
       "test/e2e/app-dir/app-routes-client-component/app-routes-client-component.test.ts",
       "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
       "test/e2e/app-dir/mdx/mdx.test.ts",
