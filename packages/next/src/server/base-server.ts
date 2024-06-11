@@ -852,8 +852,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 ...(typeof val === 'string'
                   ? [val]
                   : Array.isArray(val)
-                    ? val
-                    : []),
+                  ? val
+                  : []),
               ]),
             ]
           }
@@ -904,8 +904,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       req.headers['x-forwarded-port'] ??= this.port
         ? this.port.toString()
         : isHttps
-          ? '443'
-          : '80'
+        ? '443'
+        : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
@@ -1674,8 +1674,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         typeof fallbackField === 'string'
           ? 'static'
           : fallbackField === null
-            ? 'blocking'
-            : fallbackField,
+          ? 'blocking'
+          : fallbackField,
     }
   }
 
@@ -2647,10 +2647,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
-            ? 'MISS'
-            : cacheEntry.isStale
-              ? 'STALE'
-              : 'HIT'
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
       )
     }
 
