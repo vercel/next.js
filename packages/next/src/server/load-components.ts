@@ -64,7 +64,7 @@ export type LoadComponentsReturnType<NextModule = any> = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: NextModule
-  routeModule?: RouteModule
+  routeModule: RouteModule
   isAppPath?: boolean
   page: string
 }
