@@ -12,13 +12,13 @@ import {
   type RouteModuleOptions,
 } from '../route-module'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type RequestContext,
-} from '../../async-storage/request-async-storage-wrapper'
+} from '../../async-storage/with-request-store'
 import {
-  StaticGenerationAsyncStorageWrapper,
+  withStaticGenerationStore,
   type StaticGenerationContext,
-} from '../../async-storage/static-generation-async-storage-wrapper'
+} from '../../async-storage/with-static-generation-store'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
@@ -284,11 +284,11 @@ export class AppRouteRouteModule extends RouteModule<
         isAction: getIsServerAction(rawRequest),
       },
       () =>
-        RequestAsyncStorageWrapper.wrap(
+        withRequestStore(
           this.requestAsyncStorage,
           requestContext,
           (requestStore) =>
-            StaticGenerationAsyncStorageWrapper.wrap(
+            withStaticGenerationStore(
               this.staticGenerationAsyncStorage,
               staticGenerationContext,
               (staticGenerationStore) => {
