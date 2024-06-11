@@ -19,12 +19,6 @@ type FileSystemCacheContext = Omit<
 > & {
   fs: CacheFs
   serverDistDir: string
-
-  /**
-   * isAppPPREnabled is true when PPR has been enabled either globally or just for
-   * some pages via the `incremental` option.
-   */
-  isAppPPREnabled: boolean
 }
 
 type TagsManifest = {
@@ -42,7 +36,6 @@ export default class FileSystemCache implements CacheHandler {
   private pagesDir: boolean
   private tagsManifestPath?: string
   private revalidatedTags: string[]
-  private readonly isAppPPREnabled: boolean
   private debug: boolean
 
   constructor(ctx: FileSystemCacheContext) {
@@ -52,7 +45,6 @@ export default class FileSystemCache implements CacheHandler {
     this.appDir = !!ctx._appDir
     this.pagesDir = !!ctx._pagesDir
     this.revalidatedTags = ctx.revalidatedTags
-    this.isAppPPREnabled = ctx.isAppPPREnabled
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize) {
@@ -77,7 +69,10 @@ export default class FileSystemCache implements CacheHandler {
             }
             // rough estimate of size of cache value
             return (
-              value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+              value.html.length +
+              (JSON.stringify(
+                value.kind === 'APP_PAGE' ? value.rscData : value.pageData
+              )?.length || 0)
             )
           },
         })
@@ -94,13 +89,34 @@ export default class FileSystemCache implements CacheHandler {
         'fetch-cache',
         'tags-manifest.json'
       )
-      this.loadTagsManifest()
+
+      this.loadTagsManifestSync()
     }
   }
 
   public resetRequestCache(): void {}
 
-  private loadTagsManifest() {
+  /**
+   * Load the tags manifest from the file system
+   */
+  private async loadTagsManifest() {
+    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
+    try {
+      tagsManifest = JSON.parse(
+        await this.fs.readFile(this.tagsManifestPath, 'utf8')
+      )
+    } catch (err: any) {
+      tagsManifest = { version: 1, items: {} }
+    }
+    if (this.debug) console.log('loadTagsManifest', tagsManifest)
+  }
+
+  /**
+   * As above, but synchronous for use in the constructor. This is to
+   * preserve the existing behaviour when instantiating the cache handler. Although it's
+   * not ideal to block the main thread it's only called once during startup.
+   */
+  private loadTagsManifestSync() {
     if (!this.tagsManifestPath || !this.fs || tagsManifest) return
     try {
       tagsManifest = JSON.parse(
@@ -129,7 +145,7 @@ export default class FileSystemCache implements CacheHandler {
     // we need to ensure the tagsManifest is refreshed
     // since separate workers can be updating it at the same
     // time and we can't flush out of sync data
-    this.loadTagsManifest()
+    await this.loadTagsManifest()
     if (!tagsManifest || !this.tagsManifestPath) {
       return
     }
@@ -156,7 +172,7 @@ export default class FileSystemCache implements CacheHandler {
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx = {}] = args
-    const { tags, softTags, kindHint } = ctx
+    const { tags, softTags, kindHint, isRoutePPREnabled } = ctx
     let data = memoryCache?.get(key)
 
     if (this.debug) {
@@ -225,27 +241,13 @@ export default class FileSystemCache implements CacheHandler {
               if (this.debug) {
                 console.log('tags vs storedTags mismatch', tags, storedTags)
               }
-              await this.set(key, data.value, { tags })
+              await this.set(key, data.value, {
+                tags,
+                isRoutePPREnabled,
+              })
             }
           }
         } else {
-          const pageData = isAppPath
-            ? await this.fs.readFile(
-                this.getFilePath(
-                  `${key}${
-                    this.isAppPPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX
-                  }`,
-                  'app'
-                ),
-                'utf8'
-              )
-            : JSON.parse(
-                await this.fs.readFile(
-                  this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, 'pages'),
-                  'utf8'
-                )
-              )
-
           let meta: RouteMetadata | undefined
 
           if (isAppPath) {
@@ -259,16 +261,42 @@ export default class FileSystemCache implements CacheHandler {
             } catch {}
           }
 
-          data = {
-            lastModified: mtime.getTime(),
-            value: {
-              kind: 'PAGE',
-              html: fileData,
-              pageData,
-              postponed: meta?.postponed,
-              headers: meta?.headers,
-              status: meta?.status,
-            },
+          if (isAppPath) {
+            const rscData = await this.fs.readFile(
+              this.getFilePath(
+                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                'app'
+              )
+            )
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: 'APP_PAGE',
+                html: fileData,
+                rscData,
+                postponed: meta?.postponed,
+                headers: meta?.headers,
+                status: meta?.status,
+              },
+            }
+          } else {
+            const pageData = JSON.parse(
+              await this.fs.readFile(
+                this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, 'pages'),
+                'utf8'
+              )
+            )
+
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: 'PAGE',
+                html: fileData,
+                pageData,
+                headers: meta?.headers,
+                status: meta?.status,
+              },
+            }
           }
         }
 
@@ -280,7 +308,7 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    if (data?.value?.kind === 'PAGE') {
+    if (data?.value?.kind === 'APP_PAGE' || data?.value?.kind === 'PAGE') {
       let cacheTags: undefined | string[]
       const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
@@ -289,7 +317,7 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        this.loadTagsManifest()
+        await this.loadTagsManifest()
 
         const isStale = cacheTags.some((tag) => {
           return (
@@ -309,7 +337,7 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (data && data?.value?.kind === 'FETCH') {
-      this.loadTagsManifest()
+      await this.loadTagsManifest()
 
       const combinedTags = [...(tags || []), ...(softTags || [])]
 
@@ -364,8 +392,8 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    if (data?.kind === 'PAGE') {
-      const isAppPath = typeof data.pageData === 'string'
+    if (data?.kind === 'PAGE' || data?.kind === 'APP_PAGE') {
+      const isAppPath = data.kind === 'APP_PAGE'
       const htmlPath = this.getFilePath(
         `${key}.html`,
         isAppPath ? 'app' : 'pages'
@@ -377,21 +405,21 @@ export default class FileSystemCache implements CacheHandler {
         this.getFilePath(
           `${key}${
             isAppPath
-              ? this.isAppPPREnabled
+              ? ctx.isRoutePPREnabled
                 ? RSC_PREFETCH_SUFFIX
                 : RSC_SUFFIX
               : NEXT_DATA_SUFFIX
           }`,
           isAppPath ? 'app' : 'pages'
         ),
-        isAppPath ? data.pageData : JSON.stringify(data.pageData)
+        isAppPath ? data.rscData : JSON.stringify(data.pageData)
       )
 
-      if (data.headers || data.status) {
+      if (data.headers || data.status || (isAppPath && data.postponed)) {
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
-          postponed: data.postponed,
+          postponed: isAppPath ? data.postponed : undefined,
         }
 
         await this.fs.writeFile(

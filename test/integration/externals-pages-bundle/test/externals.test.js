@@ -32,7 +32,7 @@ describe('default', () => {
           allBundles += output
         }
         expect(allBundles).toContain(
-          '__turbopack_external_require__("external-package", true)'
+          '__turbopack_external_require__("external-package")'
         )
       } else {
         const output = await fs.readFile(

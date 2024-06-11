@@ -10,11 +10,12 @@ import {
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let delayedPostpone
   let rewritePostpone
 
@@ -93,14 +94,17 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
         cwd: next.testDir,
       }
     )
-    appPort = `http://127.0.0.1:${appPort}`
+
+    if (process.platform === 'darwin') {
+      appPort = `http://127.0.0.1:${appPort}`
+    }
   }
 
   beforeAll(async () => {

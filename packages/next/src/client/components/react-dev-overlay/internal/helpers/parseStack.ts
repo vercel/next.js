@@ -16,6 +16,22 @@ export function parseStack(stack: string): StackFrame[] {
     }
   }
 
+  // throw away eval information that stacktrace-parser doesn't support
+  // adapted from https://github.com/stacktracejs/error-stack-parser/blob/9f33c224b5d7b607755eb277f9d51fcdb7287e24/error-stack-parser.js#L59C33-L59C62
+  stack = stack
+    .split('\n')
+    .map((line) => {
+      if (line.includes('(eval ')) {
+        line = line
+          .replace(/eval code/g, 'eval')
+          .replace(/\(eval at [^()]* \(/, '(file://')
+          .replace(/\),.*$/g, ')')
+      }
+
+      return line
+    })
+    .join('\n')
+
   const frames = parse(stack)
   return frames.map((frame) => {
     try {

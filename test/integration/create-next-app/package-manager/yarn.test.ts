@@ -10,6 +10,9 @@ import {
 const lockFile = 'yarn.lock'
 const files = [...DEFAULT_FILES, lockFile]
 
+// Don't install local next build here as yarn will error with:
+// Usage Error: This project is configured to use pnpm
+
 beforeEach(async () => {
   await command('yarn', ['--version'])
     // install yarn if not available
@@ -17,7 +20,7 @@ beforeEach(async () => {
     .catch(() => command('npm', ['i', '-g', 'yarn']))
 })
 
-describe('create-next-app with package manager yarn', () => {
+describe.skip('create-next-app with package manager yarn', () => {
   it('should use yarn for --use-yarn flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-yarn-flag'
@@ -27,11 +30,13 @@ describe('create-next-app with package manager yarn', () => {
           '--ts',
           '--app',
           '--use-yarn',
+          '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
+        'canary',
         {
           cwd,
         }
@@ -45,104 +50,60 @@ describe('create-next-app with package manager yarn', () => {
       })
     })
   })
+})
 
-  it('should use yarn for --use yarn', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-yarn'
-      const res = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--use=yarn',
-          '--no-eslint',
-          '--no-src-dir',
-          '--no-tailwind',
-          '--no-import-alias',
-        ],
-        {
-          cwd,
-        }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
+it('should use yarn when user-agent is yarn', async () => {
+  await useTempDir(async (cwd) => {
+    const projectName = 'user-agent-yarn'
+    const res = await run(
+      [
         projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use yarn when user-agent is yarn', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'user-agent-yarn'
-      const res = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--no-eslint',
-          '--no-src-dir',
-          '--no-tailwind',
-          '--no-import-alias',
-        ],
-        {
-          cwd,
-          env: { npm_config_user_agent: 'yarn' },
-        }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use yarn for --use-yarn flag with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-yarn-flag-with-example'
-      const res = await run(
-        [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use yarn for --use yarn with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'use-yarn-with-example'
-      const res = await run(
-        [projectName, '--use=yarn', '--example', FULL_EXAMPLE_PATH],
-        { cwd }
-      )
-
-      expect(res.exitCode).toBe(0)
-      projectFilesShouldExist({
-        cwd,
-        projectName,
-        files,
-      })
-    })
-  })
-
-  it('should use yarn when user-agent is yarn with example', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'user-agent-yarn-with-example'
-      const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
+        '--ts',
+        '--app',
+        '--no-eslint',
+        '--no-src-dir',
+        '--no-tailwind',
+        '--no-import-alias',
+      ],
+      {
         cwd,
         env: { npm_config_user_agent: 'yarn' },
+      }
+    )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
       })
+    })
+  })
+
+it('should use yarn for --use-yarn flag with example', async () => {
+  await useTempDir(async (cwd) => {
+    const projectName = 'use-yarn-with-example'
+    const res = await run(
+      [projectName, '--use-yarn', '--example', FULL_EXAMPLE_PATH],
+      { cwd }
+    )
+
+    expect(res.exitCode).toBe(0)
+    projectFilesShouldExist({
+      cwd,
+      projectName,
+      files,
+    })
+  })
+})
+
+it('should use yarn when user-agent is yarn with example', async () => {
+  await useTempDir(async (cwd) => {
+    const projectName = 'user-agent-yarn-with-example'
+    const res = await run([projectName, '--example', FULL_EXAMPLE_PATH], {
+      cwd,
+      env: { npm_config_user_agent: 'yarn' },
+    })
 
       expect(res.exitCode).toBe(0)
       projectFilesShouldExist({

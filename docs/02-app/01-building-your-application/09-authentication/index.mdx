@@ -29,7 +29,7 @@ The examples on this page walk through basic username and password auth for educ
 
 ### Sign-up and login functionality
 
-You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/rendering/server-components), [`useFormStatus()`](https://react.dev/reference/react-dom/hooks/useFormStatus), and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
+You can use the [`<form>`](https://react.dev/reference/react-dom/components/form) element with React's [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [`useActionState()`](https://react.dev/reference/react/useActionState) to capture user credentials, validate form fields, and call your Authentication Provider's API or database.
 
 Since Server Actions always execute on the server, they provide a secure environment for handling authentication logic.
 
@@ -200,9 +200,9 @@ export async function signup(state, formData) {
 }
 ```
 
-Back in your `<SignupForm />`, you can use React's `useActionState()` hook to display validation errors to the user:
+Back in your `<SignupForm />`, you can use React's `useActionState()` hook to display validation errors and a pending state while the form is submitting:
 
-```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-36}
+```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-39}
 'use client'
 
 import { useActionState } from 'react'
@@ -239,13 +239,15 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SignupButton />
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-36}
+```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-39}
 'use client'
 
 import { useActionState } from 'react'
@@ -282,49 +284,15 @@ export function SignupForm() {
           </ul>
         </div>
       )}
-      <SignupButton />
+      <button aria-disabled={pending} type="submit">
+        {pending ? 'Submitting...' : 'Sign up'}
+      </button>
     </form>
   )
 }
 ```
 
-You can also use the `useFormStatus()` hook to handle the pending state on form submission:
-
-```tsx filename="app/ui/signup-form.tsx" highlight={6} switcher
-'use client'
-
-import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-
-export function SignupButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button aria-disabled={pending} type="submit">
-      {pending ? 'Submitting...' : 'Sign up'}
-    </button>
-  )
-}
-```
-
-```jsx filename="app/ui/signup-form.js"  highlight={6} switcher
-'use client'
-
-import { useActionState } from 'react'
-import { useFormStatus } from 'react-dom'
-
-export function SignupButton() {
-  const { pending } = useFormStatus()
-
-  return (
-    <button aria-disabled={pending} type="submit">
-      {pending ? 'Submitting...' : 'Sign up'}
-    </button>
-  )
-}
-```
-
-> **Good to know:** `useFormStatus()` must be called from a component that is rendered inside a `<form>`. See the [React Docs](https://react.dev/reference/react-dom/hooks/useFormStatus#usage) for more information.
+> **Good to know:** Alternatively, you can use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to display the pending state.
 
 #### 3. Create a user or check user credentials
 
@@ -499,7 +467,7 @@ The form above has two input fields for capturing the user's email and password.
 You can then call your Authentication Provider's API in the API route to handle authentication:
 
 ```ts filename="pages/api/auth/login.ts" switcher
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import { signIn } from '@/auth'
 
 export default async function handler(
@@ -981,7 +949,7 @@ After implementing session management, you'll need to add authorization logic to
 
 ```ts filename="pages/api/create-session.ts" switcher
 import db from '../../lib/db'
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(
   req: NextApiRequest,

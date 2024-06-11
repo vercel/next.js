@@ -1,55 +1,9 @@
-import { findPort, waitFor } from 'next-test-utils'
-import http from 'http'
+import { waitFor } from 'next-test-utils'
 import { outdent } from 'outdent'
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 
 describe('app-fetch-deduping', () => {
-  if (isNextStart) {
-    describe('during static generation', () => {
-      const { next } = nextTestSetup({ files: __dirname, skipStart: true })
-      let externalServerPort: number
-      let externalServer: http.Server
-      let requests = []
-
-      beforeAll(async () => {
-        externalServerPort = await findPort()
-        externalServer = http.createServer((req, res) => {
-          requests.push(req.url)
-          res.end(`Request ${req.url} received at ${Date.now()}`)
-        })
-
-        await new Promise<void>((resolve, reject) => {
-          externalServer.listen(externalServerPort, () => {
-            resolve()
-          })
-
-          externalServer.once('error', (err) => {
-            reject(err)
-          })
-        })
-      })
-
-      beforeEach(() => {
-        requests = []
-      })
-
-      afterAll(() => externalServer.close())
-
-      it('dedupes requests amongst static workers when experimental.staticWorkerRequestDeduping is enabled', async () => {
-        await next.patchFileFast(
-          'next.config.js',
-          `module.exports = {
-            env: { TEST_SERVER_PORT: "${externalServerPort}" },
-            experimental: {
-              staticWorkerRequestDeduping: true
-            }
-          }`
-        )
-        await next.build()
-        expect(requests.length).toBe(1)
-      })
-    })
-  } else if (isNextDev) {
+  if (isNextDev) {
     describe('during next dev', () => {
       const { next } = nextTestSetup({ files: __dirname })
       function invocation(cliOutput: string): number {

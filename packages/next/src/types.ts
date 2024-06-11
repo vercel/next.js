@@ -142,16 +142,6 @@ export type PageConfig = {
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_includeFiles?: string[]
-  /**
-   * @deprecated this config has been removed in favor of the next.config.js option
-   */
-  // TODO: remove in next minor release (current v13.1.1)
-  unstable_excludeFiles?: string[]
 }
 
 export type {

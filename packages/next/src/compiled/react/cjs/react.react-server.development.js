@@ -38,31 +38,8 @@ var ReactSharedInternals = {
 };
 
 {
-  var currentExtraStackFrame = null;
-
-  ReactSharedInternals.setExtraStackFrame = function (stack) {
-    currentExtraStackFrame = stack;
-  }; // Stack implementation injected by the current renderer.
-
-
+  // Stack implementation injected by the current renderer.
   ReactSharedInternals.getCurrentStack = null;
-
-  ReactSharedInternals.getStackAddendum = function () {
-    var stack = ''; // Add an extra top frame while an element is being validated
-
-    if (currentExtraStackFrame) {
-      stack += currentExtraStackFrame;
-    } // Delegate to the injected renderer-specific implementation
-
-
-    var impl = ReactSharedInternals.getCurrentStack;
-
-    if (impl) {
-      stack += impl() || '';
-    }
-
-    return stack;
-  };
 }
 
 // by calls to these methods by a Babel plugin.
@@ -77,7 +54,7 @@ function warn(format) {
         args[_key - 1] = arguments[_key];
       }
 
-      printWarning('warn', format, args);
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
     }
   }
 }
@@ -88,32 +65,48 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
@@ -341,7 +334,9 @@ var hasOwnProperty = Object.prototype.hasOwnProperty;
 
 var assign = Object.assign;
 
-var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference'); // This function is deprecated. Don't use. Only the renderer knows what a valid type is.
+// TODO: Delete this when enableOwnerStacks ships.
+
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -733,7 +728,8 @@ function describeFunctionComponentFrame(fn) {
 function shouldConstruct(Component) {
   var prototype = Component.prototype;
   return !!(prototype && prototype.isReactComponent);
-}
+} // TODO: Delete this once the key warning no longer uses it. I.e. when enableOwnerStacks ship.
+
 
 function describeUnknownElementTypeFrameInDEV(type) {
 
@@ -891,7 +887,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props) {
+function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
   var ref;
 
   {
@@ -965,7 +961,7 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
       configurable: false,
       enumerable: false,
       writable: true,
-      value: false
+      value: 0
     }); // debugInfo contains Server Component debug information.
 
     Object.defineProperty(element, '_debugInfo', {
@@ -988,9 +984,15 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
+
 function createElement(type, config, children) {
   {
     if (!isValidElementType(type)) {
+      // This is just an optimistic check that provides a better stack trace before
+      // owner stacks. It's really up to the renderer if it's a valid element type.
+      // When owner stacks are enabled, we instead warn in the renderer and it'll
+      // have the stack trace of the JSX element anyway.
+      //
       // This is an invalid element type.
       //
       // We warn in this case but don't throw. We expect the element creation to
@@ -1117,18 +1119,19 @@ function createElement(type, config, children) {
     }
   }
 
-  var element = ReactElement(type, key, ref, undefined, undefined, getOwner(), props);
-
-  if (type === REACT_FRAGMENT_TYPE) {
-    validateFragmentProps(element);
-  }
-
-  return element;
+  return ReactElement(type, key, ref, undefined, undefined, getOwner(), props);
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
+  var clonedElement = ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
   // exists to avoid the `ref` access warning.
   null , undefined, undefined, oldElement._owner, oldElement.props);
+
+  {
+    // The cloned element should inherit the original element's key validation.
+    clonedElement._store.validated = oldElement._store.validated;
+  }
+
+  return clonedElement;
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
@@ -1207,22 +1210,6 @@ function cloneElement(element, config, children) {
 
   return clonedElement;
 }
-
-function getDeclarationErrorAddendum() {
-  {
-    var owner = getOwner();
-
-    if (owner) {
-      var name = getComponentNameFromType(owner.type);
-
-      if (name) {
-        return '\n\nCheck the render method of `' + name + '`.';
-      }
-    }
-
-    return '';
-  }
-}
 /**
  * Ensure that every element either is passed in a static location, in an
  * array with an explicit keys property defined, or in an object literal
@@ -1232,7 +1219,6 @@ function getDeclarationErrorAddendum() {
  * @param {ReactNode} node Statically passed child of any type.
  * @param {*} parentType node's parent's type.
  */
-
 
 function validateChildKeys(node, parentType) {
   {
@@ -1251,7 +1237,7 @@ function validateChildKeys(node, parentType) {
     } else if (isValidElement(node)) {
       // This element was passed in a valid location.
       if (node._store) {
-        node._store.validated = true;
+        node._store.validated = 1;
       }
     } else {
       var iteratorFn = getIteratorFn(node);
@@ -1302,12 +1288,13 @@ var ownerHasKeyUseWarning = {};
  */
 
 function validateExplicitKey(element, parentType) {
+
   {
     if (!element._store || element._store.validated || element.key != null) {
       return;
     }
 
-    element._store.validated = true;
+    element._store.validated = 1;
     var currentComponentErrorInfo = getCurrentComponentErrorInfo(parentType);
 
     if (ownerHasKeyUseWarning[currentComponentErrorInfo]) {
@@ -1333,28 +1320,37 @@ function validateExplicitKey(element, parentType) {
       childOwner = " It was passed a child from " + ownerName + ".";
     }
 
-    setCurrentlyValidatingElement(element);
+    var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
+
+    ReactSharedInternals.getCurrentStack = function () {
+
+      var stack = describeUnknownElementTypeFrameInDEV(element.type); // Delegate to the injected renderer-specific implementation
+
+      if (prevGetCurrentStack) {
+        stack += prevGetCurrentStack() || '';
+      }
+
+      return stack;
+    };
 
     error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
 
-    setCurrentlyValidatingElement(null);
-  }
-}
-
-function setCurrentlyValidatingElement(element) {
-  {
-    if (element) {
-      var stack = describeUnknownElementTypeFrameInDEV(element.type);
-      ReactSharedInternals.setExtraStackFrame(stack);
-    } else {
-      ReactSharedInternals.setExtraStackFrame(null);
-    }
+    ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
   }
 }
 
 function getCurrentComponentErrorInfo(parentType) {
   {
-    var info = getDeclarationErrorAddendum();
+    var info = '';
+    var owner = getOwner();
+
+    if (owner) {
+      var name = getComponentNameFromType(owner.type);
+
+      if (name) {
+        info = '\n\nCheck the render method of `' + name + '`.';
+      }
+    }
 
     if (!info) {
       var parentName = getComponentNameFromType(parentType);
@@ -1365,31 +1361,6 @@ function getCurrentComponentErrorInfo(parentType) {
     }
 
     return info;
-  }
-}
-/**
- * Given a fragment, validate that it can only be provided with fragment props
- * @param {ReactElement} fragment
- */
-
-
-function validateFragmentProps(fragment) {
-  // TODO: Move this to render phase instead of at element creation.
-  {
-    var keys = Object.keys(fragment.props);
-
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-
-      if (key !== 'children' && key !== 'key') {
-        setCurrentlyValidatingElement(fragment);
-
-        error('Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', key);
-
-        setCurrentlyValidatingElement(null);
-        break;
-      }
-    }
   }
 }
 
@@ -1450,7 +1421,7 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
-function noop$1() {}
+function noop() {}
 
 function resolveThenable(thenable) {
   switch (thenable.status) {
@@ -1474,7 +1445,7 @@ function resolveThenable(thenable) {
           // some custom userspace implementation. We treat it as "pending".
           // Attach a dummy listener, to ensure that any lazy initialization can
           // happen. Flight lazily parses JSON when the value is actually awaited.
-          thenable.then(noop$1, noop$1);
+          thenable.then(noop, noop);
         } else {
           // This is an uncached thenable that we haven't seen before.
           // TODO: Detect infinite ping loops caused by uncached promises.
@@ -1575,17 +1546,37 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           // The `if` statement here prevents auto-disabling of the safe
           // coercion ESLint rule, so we must manually disable it below.
           // $FlowFixMe[incompatible-type] Flow incorrectly thinks React.Portal doesn't have a key
-          if (mappedChild.key && (!_child || _child.key !== mappedChild.key)) {
-            checkKeyStringCoercion(mappedChild.key);
+          if (mappedChild.key != null) {
+            if (!_child || _child.key !== mappedChild.key) {
+              checkKeyStringCoercion(mappedChild.key);
+            }
           }
         }
 
-        mappedChild = cloneAndReplaceKey(mappedChild, // Keep both the (mapped) and old keys if they differ, just as
+        var newChild = cloneAndReplaceKey(mappedChild, // Keep both the (mapped) and old keys if they differ, just as
         // traverseAllChildren used to do for objects as children
         escapedPrefix + ( // $FlowFixMe[incompatible-type] Flow incorrectly thinks React.Portal doesn't have a key
-        mappedChild.key && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // $FlowFixMe[unsafe-addition]
+        mappedChild.key != null && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // $FlowFixMe[unsafe-addition]
         '' + mappedChild.key // eslint-disable-line react-internal/safe-string-coercion
         ) + '/' : '') + childKey);
+
+        {
+          // If `child` was an element without a `key`, we need to validate if
+          // it should have had a `key`, before assigning one to `mappedChild`.
+          // $FlowFixMe[incompatible-type] Flow incorrectly thinks React.Portal doesn't have a key
+          if (nameSoFar !== '' && _child != null && isValidElement(_child) && _child.key == null) {
+            // We check truthiness of `child._store.validated` instead of being
+            // inequal to `1` to provide a bit of backward compatibility for any
+            // libraries (like `fbt`) which may be hacking this property.
+            if (_child._store && !_child._store.validated) {
+              // Mark this child as having failed validation, but let the actual
+              // renderer print the warning later.
+              newChild._store.validated = 2;
+            }
+          }
+        }
+
+        mappedChild = newChild;
       }
 
       array.push(mappedChild);
@@ -1797,13 +1788,6 @@ function use(usable) {
   var dispatcher = resolveDispatcher();
   return dispatcher.use(usable);
 }
-function useActionState(action, initialState, permalink) {
-  {
-    var dispatcher = resolveDispatcher(); // $FlowFixMe[not-a-function] This is unstable, thus optional
-
-    return dispatcher.useActionState(action, initialState, permalink);
-  }
-}
 
 function forwardRef(render) {
   {
@@ -1847,6 +1831,9 @@ function forwardRef(render) {
         // This kind of inner function is not used elsewhere so the side effect is okay.
 
         if (!render.name && !render.displayName) {
+          Object.defineProperty(render, 'name', {
+            value: name
+          });
           render.displayName = name;
         }
       }
@@ -1964,6 +1951,9 @@ function memo(type, compare) {
         // This kind of inner function is not used elsewhere so the side effect is okay.
 
         if (!type.name && !type.displayName) {
+          Object.defineProperty(type, 'name', {
+            value: name
+          });
           type.displayName = name;
         }
       }
@@ -2078,87 +2068,7 @@ function cache(fn) {
   };
 }
 
-var reportGlobalError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
-// emulating an uncaught JavaScript error.
-reportError : function (error) {
-  if (typeof window === 'object' && typeof window.ErrorEvent === 'function') {
-    // Browser Polyfill
-    var message = typeof error === 'object' && error !== null && typeof error.message === 'string' ? // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error.message) : // eslint-disable-next-line react-internal/safe-string-coercion
-    String(error);
-    var event = new window.ErrorEvent('error', {
-      bubbles: true,
-      cancelable: true,
-      message: message,
-      error: error
-    });
-    var shouldLog = window.dispatchEvent(event);
-
-    if (!shouldLog) {
-      return;
-    }
-  } else if (typeof process === 'object' && // $FlowFixMe[method-unbinding]
-  typeof process.emit === 'function') {
-    // Node Polyfill
-    process.emit('uncaughtException', error);
-    return;
-  } // eslint-disable-next-line react-internal/no-production-logging
-
-
-  console['error'](error);
-};
-
-function startTransition(scope, options) {
-  var prevTransition = ReactSharedInternals.T; // Each renderer registers a callback to receive the return value of
-  // the scope function. This is used to implement async actions.
-
-  var callbacks = new Set();
-  var transition = {
-    _callbacks: callbacks
-  };
-  ReactSharedInternals.T = transition;
-  var currentTransition = ReactSharedInternals.T;
-
-  {
-    ReactSharedInternals.T._updatedFibers = new Set();
-  }
-
-  {
-    try {
-      var returnValue = scope();
-
-      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
-        callbacks.forEach(function (callback) {
-          return callback(currentTransition, returnValue);
-        });
-        returnValue.then(noop, reportGlobalError);
-      }
-    } catch (error) {
-      reportGlobalError(error);
-    } finally {
-      warnAboutTransitionSubscriptions(prevTransition, currentTransition);
-      ReactSharedInternals.T = prevTransition;
-    }
-  }
-}
-
-function warnAboutTransitionSubscriptions(prevTransition, currentTransition) {
-  {
-    if (prevTransition === null && currentTransition._updatedFibers) {
-      var updatedFibersCount = currentTransition._updatedFibers.size;
-
-      currentTransition._updatedFibers.clear();
-
-      if (updatedFibersCount > 10) {
-        warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
-      }
-    }
-  }
-}
-
-function noop() {}
-
-var ReactVersion = '19.0.0-beta-4508873393-20240430';
+var ReactVersion = '19.0.0-rc-6230622a1a-20240610';
 
 var Children = {
   map: mapChildren,
@@ -2182,9 +2092,7 @@ exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
 exports.memo = memo;
-exports.startTransition = startTransition;
 exports.use = use;
-exports.useActionState = useActionState;
 exports.useCallback = useCallback;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;

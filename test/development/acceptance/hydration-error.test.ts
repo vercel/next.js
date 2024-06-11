@@ -7,10 +7,6 @@ import path from 'path'
 describe('Error overlay for hydration errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
-    },
     skipStart: true,
   })
 

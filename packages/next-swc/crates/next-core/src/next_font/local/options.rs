@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbo::tasks::{trace::TraceRawVcs, Value};
 
 use super::request::{
@@ -17,21 +17,21 @@ use super::request::{
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
-    pub default_style: Option<String>,
+    pub default_style: Option<RcStr>,
     /// The desired css `font-display` property
-    pub display: String,
+    pub display: RcStr,
     pub preload: bool,
     /// A list of manually-provided fallback fonts to be included in the
     /// font-family string as-is.
-    pub fallback: Option<Vec<String>>,
+    pub fallback: Option<Vec<RcStr>>,
     /// The user's desired fallback font
     pub adjust_font_fallback: AdjustFontFallback,
     /// An optional name for a css custom property (css variable) that applies
     /// the font family when used.
-    pub variable: Option<String>,
+    pub variable: Option<RcStr>,
     /// The name of the variable assigned to the results of calling the
     /// `localFont` function. This is used as the font family's base name.
-    pub variable_name: String,
+    pub variable_name: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -42,8 +42,8 @@ impl NextFontLocalOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(Vc::cell((*self.await?.variable_name).to_owned()))
+    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.await?.variable_name.clone()))
     }
 }
 
@@ -54,9 +54,9 @@ impl NextFontLocalOptions {
 )]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
-    pub style: Option<String>,
-    pub path: String,
-    pub ext: String,
+    pub style: Option<RcStr>,
+    pub path: RcStr,
+    pub ext: RcStr,
 }
 
 impl FontDescriptor {
@@ -66,10 +66,10 @@ impl FontDescriptor {
             .rsplit('.')
             .next()
             .context("Extension required")?
-            .to_owned();
+            .into();
 
         Ok(Self {
-            path: src_descriptor.path.to_owned(),
+            path: src_descriptor.path.clone(),
             weight: src_descriptor
                 .weight
                 .as_ref()
@@ -96,8 +96,8 @@ pub(super) enum FontDescriptors {
     Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Hash, TraceRawVcs,
 )]
 pub(super) enum FontWeight {
-    Variable(String, String),
-    Fixed(String),
+    Variable(RcStr, RcStr),
+    Fixed(RcStr),
 }
 
 pub struct ParseFontWeightErr;
@@ -106,9 +106,9 @@ impl FromStr for FontWeight {
 
     fn from_str(weight_str: &str) -> std::result::Result<Self, Self::Err> {
         if let Some((start, end)) = weight_str.split_once(' ') {
-            Ok(FontWeight::Variable(start.to_owned(), end.to_owned()))
+            Ok(FontWeight::Variable(start.into(), end.into()))
         } else {
-            Ok(FontWeight::Fixed(weight_str.to_owned()))
+            Ok(FontWeight::Fixed(weight_str.into()))
         }
     }
 }
@@ -120,7 +120,7 @@ impl Display for FontWeight {
             "{}",
             match self {
                 Self::Variable(start, end) => format!("{} {}", start, end),
-                Self::Fixed(val) => val.to_owned(),
+                Self::Fixed(val) => val.to_string(),
             }
         )
     }
@@ -151,16 +151,16 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
         ),
         SrcRequest::One(path) => {
             FontDescriptors::One(FontDescriptor::from_src_request(&SrcDescriptor {
-                path: path.to_owned(),
-                weight: weight.to_owned(),
-                style: style.to_owned(),
+                path: path.as_str().into(),
+                weight: weight.as_deref().map(RcStr::from),
+                style: style.as_deref().map(RcStr::from),
             })?)
         }
     };
 
     Ok(NextFontLocalOptions {
         fonts,
-        display: display.to_owned(),
+        display: display.as_str().into(),
         preload: preload.to_owned(),
         fallback: fallback.to_owned(),
         adjust_font_fallback: adjust_font_fallback.to_owned(),
@@ -201,19 +201,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.ttf".to_owned(),
+                    path: "./Roboto-Regular.ttf".into(),
                     weight: None,
                     style: None,
-                    ext: "ttf".to_owned(),
+                    ext: "ttf".into(),
                 }),
                 default_style: None,
                 default_weight: None,
-                display: "swap".to_owned(),
+                display: "swap".into(),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".to_owned()
+                variable_name: "myFont".into()
             },
         );
 
@@ -249,26 +249,26 @@ mod tests {
             NextFontLocalOptions {
                 fonts: FontDescriptors::Many(vec![
                     FontDescriptor {
-                        path: "./Roboto-Regular.ttf".to_owned(),
-                        weight: Some(FontWeight::Fixed("400".to_owned())),
-                        style: Some("normal".to_owned()),
-                        ext: "ttf".to_owned(),
+                        path: "./Roboto-Regular.ttf".into(),
+                        weight: Some(FontWeight::Fixed("400".into())),
+                        style: Some("normal".into()),
+                        ext: "ttf".into(),
                     },
                     FontDescriptor {
-                        path: "./Roboto-Italic.ttf".to_owned(),
-                        weight: Some(FontWeight::Fixed("400".to_owned())),
+                        path: "./Roboto-Italic.ttf".into(),
+                        weight: Some(FontWeight::Fixed("400".into())),
                         style: None,
-                        ext: "ttf".to_owned(),
+                        ext: "ttf".into(),
                     }
                 ]),
-                default_weight: Some(FontWeight::Fixed("300".to_owned())),
-                default_style: Some("italic".to_owned()),
-                display: "swap".to_owned(),
+                default_weight: Some(FontWeight::Fixed("300".into())),
+                default_style: Some("italic".into()),
+                display: "swap".into(),
                 preload: true,
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: "myFont".to_owned()
+                variable_name: "myFont".into()
             },
         );
 
@@ -329,19 +329,19 @@ mod tests {
             options_from_request(&request)?,
             NextFontLocalOptions {
                 fonts: FontDescriptors::One(FontDescriptor {
-                    path: "./Roboto-Regular.woff".to_owned(),
-                    weight: Some(FontWeight::Fixed("500".to_owned())),
-                    style: Some("italic".to_owned()),
-                    ext: "woff".to_owned(),
+                    path: "./Roboto-Regular.woff".into(),
+                    weight: Some(FontWeight::Fixed("500".into())),
+                    style: Some("italic".into()),
+                    ext: "woff".into(),
                 }),
-                default_style: Some("italic".to_owned()),
-                default_weight: Some(FontWeight::Fixed("500".to_owned())),
-                display: "optional".to_owned(),
+                default_style: Some("italic".into()),
+                default_weight: Some(FontWeight::Fixed("500".into())),
+                display: "optional".into(),
                 preload: false,
-                fallback: Some(vec!["Fallback".to_owned()]),
+                fallback: Some(vec!["Fallback".into()]),
                 adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
-                variable: Some("myvar".to_owned()),
-                variable_name: "myFont".to_owned()
+                variable: Some("myvar".into()),
+                variable_name: "myFont".into()
             },
         );
 

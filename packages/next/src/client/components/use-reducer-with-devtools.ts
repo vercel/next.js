@@ -103,8 +103,8 @@ function useReducerWithReduxDevtoolsImpl(
     throw new Error('Invariant: Missing ActionQueueContext')
   }
 
-  const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>()
-  const enabledRef = useRef<boolean>()
+  const devtoolsConnectionRef = useRef<ReduxDevToolsInstance>(undefined)
+  const enabledRef = useRef<boolean>(undefined)
 
   useEffect(() => {
     if (devtoolsConnectionRef.current || enabledRef.current === false) {
