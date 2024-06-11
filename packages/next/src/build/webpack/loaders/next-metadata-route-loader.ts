@@ -22,6 +22,8 @@ const cacheHeader = {
 
 type MetadataRouteLoaderOptions = {
   page: string
+  // Using separate argument to avoid json being parsed and hit error
+  // x-ref: https://github.com/vercel/next.js/pull/62615
   filePath: string
   isDynamic: '1' | '0'
 }
@@ -55,8 +57,8 @@ async function getStaticAssetRouteCode(
     fileBaseName === 'favicon'
       ? 'public, max-age=0, must-revalidate'
       : process.env.NODE_ENV !== 'production'
-      ? cacheHeader.none
-      : cacheHeader.longCache
+        ? cacheHeader.none
+        : cacheHeader.longCache
   const code = `\
 /* static asset route */
 import { NextResponse } from 'next/server'
@@ -259,6 +261,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
   async function () {
     const { page, isDynamic, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
+    this.addDependency(filePath)
 
     let code = ''
     if (isDynamic === '1') {
