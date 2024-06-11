@@ -3,10 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev-application": "next dev --turbo",
+    "build-application": "next build",
+    "start-application": "next start"
   },
   "dependencies": {
     "@mantine/core": "^7.10.1",
