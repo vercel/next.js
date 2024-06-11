@@ -57,7 +57,7 @@ fn main() {
                 .nth(5)
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
-            if strat == Strategy::Sequential {
+            if matches!(strat, Strategy::Sequential | Strategy::Development) {
                 factor = 1;
             }
 
@@ -70,6 +70,7 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
+                    tracing::info!("start");
                     let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
@@ -88,24 +89,24 @@ fn main() {
             let canonical_path = std::fs::canonicalize(absolute_dir).unwrap();
 
             let options = ProjectOptions {
-                build_id: "test".to_owned(),
+                build_id: "test".into(),
                 define_env: DefineEnv {
                     client: vec![],
                     edge: vec![],
                     nodejs: vec![],
                 },
                 dev: true,
-                encryption_key: "deadbeef".to_string(),
+                encryption_key: "deadbeef".into(),
                 env: vec![],
-                js_config: include_str!("../jsConfig.json").to_string(),
-                next_config: include_str!("../nextConfig.json").to_string(),
+                js_config: include_str!("../jsConfig.json").into(),
+                next_config: include_str!("../nextConfig.json").into(),
                 preview_props: next_api::project::DraftModeOptions {
-                    preview_mode_encryption_key: "deadbeef".to_string(),
-                    preview_mode_id: "test".to_string(),
-                    preview_mode_signing_key: "deadbeef".to_string(),
+                    preview_mode_encryption_key: "deadbeef".into(),
+                    preview_mode_id: "test".into(),
+                    preview_mode_signing_key: "deadbeef".into(),
                 },
-                project_path: canonical_path.to_string_lossy().to_string(),
-                root_path: "/".to_string(),
+                project_path: canonical_path.to_string_lossy().into(),
+                root_path: "/".into(),
                 watch: false,
             };
 

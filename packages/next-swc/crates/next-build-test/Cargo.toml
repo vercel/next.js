@@ -19,7 +19,6 @@ next-api = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack-binding = { workspace = true, features = [
     "__turbo_tasks",
     "__turbo_tasks_memory",

@@ -2,7 +2,7 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
 use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
@@ -10,6 +10,8 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
+use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
+use turbopack_binding::turbo::tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
     tt: &TurboTasks<MemoryBackend>,
@@ -20,14 +22,11 @@ pub async fn main_inner(
 ) -> Result<()> {
     register();
 
-    let mut file = std::fs::File::open("project_options.json").with_context(|| {
-        let path = std::env::current_dir()
-            .unwrap()
-            .join("project_options.json");
-        format!("loading file at {}", path.display())
-    })?;
+    let path = std::env::current_dir()?.join("project_options.json");
+    let mut file = std::fs::File::open(&path)
+        .with_context(|| format!("loading file at {}", path.display()))?;
 
-    let options: ProjectOptions = serde_json::from_reader(&mut file).unwrap();
+    let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
 
     if matches!(strat, Strategy::Development) {
         options.dev = true;
@@ -59,13 +58,13 @@ pub async fn main_inner(
                 .routes
                 .clone()
                 .into_iter()
-                .filter(move |(name, _)| files.iter().any(|f| f == name)),
+                .filter(move |(name, _)| files.iter().any(|f| f.as_str() == name.as_str())),
         ) as Box<dyn Iterator<Item = _> + Send + Sync>
     } else {
         Box::new(shuffle(entrypoints.routes.clone().into_iter()))
     };
 
-    let count = render_routes(tt, routes, strat, factor, limit).await;
+    let count = render_routes(tt, routes, strat, factor, limit).await?;
     tracing::info!("rendered {} pages", count);
 
     if matches!(strat, Strategy::Development) {
@@ -123,11 +122,11 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 
 pub async fn render_routes(
     tt: &TurboTasks<MemoryBackend>,
-    routes: impl Iterator<Item = (String, Route)>,
+    routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
-) -> usize {
+) -> Result<usize> {
     tracing::info!(
         "rendering routes with {} parallel and strat {}",
         factor,
@@ -139,32 +138,35 @@ pub async fn render_routes(
             tracing::info!("{name}...");
             let start = Instant::now();
 
-            tt.run_once(async move {
-                Ok(match route {
-                    Route::Page {
-                        html_endpoint,
-                        data_endpoint: _,
-                    } => {
-                        html_endpoint.write_to_disk().await?;
-                    }
-                    Route::PageApi { endpoint } => {
-                        endpoint.write_to_disk().await?;
-                    }
-                    Route::AppPage(routes) => {
-                        for route in routes {
-                            route.html_endpoint.write_to_disk().await?;
+            tt.run_once({
+                let name = name.clone();
+                async move {
+                    Ok(match route {
+                        Route::Page {
+                            html_endpoint,
+                            data_endpoint: _,
+                        } => {
+                            html_endpoint.write_to_disk().await?;
                         }
-                    }
-                    Route::AppRoute {
-                        original_name: _,
-                        endpoint,
-                    } => {
-                        endpoint.write_to_disk().await?;
-                    }
-                    Route::Conflict => {
-                        tracing::info!("WARN: conflict {}", name);
-                    }
-                })
+                        Route::PageApi { endpoint } => {
+                            endpoint.write_to_disk().await?;
+                        }
+                        Route::AppPage(routes) => {
+                            for route in routes {
+                                route.html_endpoint.write_to_disk().await?;
+                            }
+                        }
+                        Route::AppRoute {
+                            original_name: _,
+                            endpoint,
+                        } => {
+                            endpoint.write_to_disk().await?;
+                        }
+                        Route::Conflict => {
+                            tracing::info!("WARN: conflict {}", name);
+                        }
+                    })
+                }
             })
             .await?;
 
@@ -175,10 +177,9 @@ pub async fn render_routes(
         .take(limit)
         .buffer_unordered(factor)
         .try_collect::<Vec<_>>()
-        .await
-        .unwrap();
+        .await?;
 
-    stream.len()
+    Ok(stream.len())
 }
 
 async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
