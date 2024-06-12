@@ -79,7 +79,7 @@ jobs:
   report-failure:
     name: report failure to slack
     needs: test-deploy
-    if: ${{ always() && contains(needs.*.result, 'failure') }}
+    if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
     runs-on: ubuntu-latest
     steps:
       - name: send webhook
