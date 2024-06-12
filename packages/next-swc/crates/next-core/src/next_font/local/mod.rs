@@ -15,7 +15,7 @@ use turbopack_binding::{
         resolve::{
             parse::Request,
             plugin::{BeforeResolvePlugin, BeforeResolvePluginCondition},
-            RequestKey, ResolveResult, ResolveResultItem, ResolveResultOption,
+            ResolveResult, ResolveResultItem, ResolveResultOption,
         },
         virtual_source::VirtualSource,
     },
@@ -125,16 +125,10 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             .emit();
 
                             return Ok(ResolveResultOption::some(
-                                ResolveResult::primary_with_key(
-                                    RequestKey::new(font_path.clone()),
-                                    ResolveResultItem::Error(Vc::cell(
-                                        format!(
-                                            "Font file not found: Can't resolve {}'",
-                                            font_path
-                                        )
+                                ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+                                    format!("Font file not found: Can't resolve {}'", font_path)
                                         .into(),
-                                    )),
-                                )
+                                )))
                                 .into(),
                             ));
                         }
