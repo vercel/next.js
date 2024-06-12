@@ -1,3 +1,6 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* import styles for Switch component */
+@import "nextjs-darkmode/css";
