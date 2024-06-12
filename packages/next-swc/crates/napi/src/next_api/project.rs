@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -38,7 +38,11 @@ use turbopack_binding::{
             SOURCE_MAP_PREFIX,
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
-        trace_utils::{exit::ExitHandler, raw_trace::RawTraceLayer, trace_writer::TraceWriter},
+        trace_utils::{
+            exit::{ExitHandler, ExitReceiver},
+            raw_trace::RawTraceLayer,
+            trace_writer::TraceWriter,
+        },
     },
 };
 use url::Url;
@@ -248,6 +252,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 pub struct ProjectInstance {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
     container: Vc<ProjectContainer>,
+    exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
@@ -258,7 +263,7 @@ pub async fn project_new(
     register();
 
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
-    let exit = ExitHandler::listen();
+    let (exit, exit_receiver) = ExitHandler::new_receiver();
 
     if let Some(mut trace) = trace {
         // Trace presets
@@ -323,12 +328,11 @@ pub async fn project_new(
         let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || {
-                serde_json::to_writer(
-                    std::fs::File::create(&stats_path)
-                        .with_context(|| format!("failed to create or open {stats_path:?}"))?,
-                    &task_stats,
-                )
-                .context("failed to serialize or write task statistics")
+                let mut file = std::fs::File::create(&stats_path)
+                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                serde_json::to_writer(&file, &task_stats)
+                    .context("failed to serialize or write task statistics")?;
+                file.flush().context("failed to flush file")
             })
             .await
             .unwrap()
@@ -354,6 +358,7 @@ pub async fn project_new(
         ProjectInstance {
             turbo_tasks,
             container,
+            exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
         },
         100,
     ))
@@ -1108,4 +1113,16 @@ pub async fn project_get_source_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source)
+}
+
+/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
+#[napi]
+pub async fn project_on_exit(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    let exit_receiver = project.exit_receiver.lock().await.take();
+    exit_receiver
+        .expect("`project.onExitSync` must only be called once")
+        .run_exit_handler()
+        .await;
 }
