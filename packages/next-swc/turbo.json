@@ -1,6 +1,7 @@
 {
+  "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
-  "pipeline": {
+  "tasks": {
     "build-native": {
       "inputs": [
         "../../.cargo/**",

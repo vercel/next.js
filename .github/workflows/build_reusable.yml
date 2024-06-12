@@ -62,7 +62,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.0.3
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -159,7 +159,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
