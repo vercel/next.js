@@ -152,6 +152,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
+import { ENCODED_TAGS } from './stream-utils/encodedTags'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3134,6 +3135,17 @@ export default abstract class Server<
       // HTML will be the static shell so all the Dynamic API's will be used
       // during static generation.
       if (isDebugStaticShell || isDebugDynamicAccesses) {
+        // Since we're not resuming the render, we need to at least add the
+        // closing body and html tags to create valid HTML.
+        body.chain(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+              controller.close()
+            },
+          })
+        )
+
         return { type: 'html', body, revalidate: 0 }
       }
 
