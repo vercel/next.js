@@ -15,12 +15,16 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
   const logFile = path.join(logFileDir, 'logs.jsonl')
 
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // `patchFile` and reading runtime logs are not supported in a deployed environment
+    skipDeployment: true,
     env: {
       PERSISTENT_LOG_FILE: logFile,
     },
   })
+
+  if (skipped) return
 
   {
     const originalContents: Record<string, string> = {}

@@ -2,9 +2,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - server components externals', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
+    // This test is skipped when deployed because it relies on manually patched `node_modules`
+    skipDeployment: true,
     files: __dirname,
   })
+
+  if (skipped) return
 
   it('should have externals for those in config.serverExternalPackages', async () => {
     const $ = await next.render$('/')

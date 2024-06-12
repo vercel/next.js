@@ -7,8 +7,11 @@ describe('static-shell-debugging', () => {
     { ppr: true, debugging: false },
     { ppr: false, debugging: false },
   ])('ppr = $ppr, debugging = $debugging', (context) => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      // This test skips deployment because env vars that are doubled underscore prefixed
+      // are not supported. This is also intended to be used in development.
+      skipDeployment: true,
       env: {
         __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: context.debugging
           ? '1'
@@ -16,6 +19,8 @@ describe('static-shell-debugging', () => {
       },
       nextConfig: { experimental: { ppr: context.ppr } },
     })
+
+    if (skipped) return
 
     if (context.debugging && context.ppr) {
       it('should only render the static shell', async () => {
