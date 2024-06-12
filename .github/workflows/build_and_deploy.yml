@@ -84,6 +84,8 @@ jobs:
               - 'arm64'
 
             target: 'x86_64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
               turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
@@ -95,6 +97,8 @@ jobs:
               - 'arm64'
 
             target: 'aarch64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               export CC=$(xcrun -f clang);
               export CXX=$(xcrun -f clang++);
@@ -109,6 +113,8 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
@@ -120,6 +126,8 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
@@ -132,6 +140,8 @@ jobs:
               - 'x64'
 
             target: 'aarch64-pc-windows-msvc'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
@@ -374,6 +384,8 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
+        # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+        # TODO: we should add the relevant envs later to to switch to strict mode
         run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
