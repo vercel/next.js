@@ -150,7 +150,17 @@ export class NextDeployInstance extends NextInstance {
     // Use the vercel logs command to get the CLI output from the build.
     const logs = await execa(
       'vercel',
-      ['logs', this._url, '--output', 'raw', ...vercelFlags],
+      [
+        'logs',
+        this._url,
+        '--output',
+        'raw',
+        // The default # of lines to show in the output is 100, but some of our tests have noisy output,
+        // so bump to 1000
+        '-n',
+        1000,
+        ...vercelFlags,
+      ],
       {
         env: vercelEnv,
         reject: false,
