@@ -28,7 +28,6 @@ use crate::{
     next_shared::resolve::{
         get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        UnsupportedModulesResolvePlugin,
     },
     util::{foreign_code_context_condition, NextRuntime},
 };
@@ -101,44 +100,37 @@ pub async fn get_edge_resolve_options_context(
 
     let ty = ty.into_value();
 
-    let before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = vec![Vc::upcast(ModuleFeatureReportResolvePlugin::new(
+        project_path,
+    ))];
+    if matches!(
+        ty,
         ServerContextType::Pages { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::AppRSC { .. } => {
-            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
-        }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => vec![],
-    };
+            | ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. }
+    ) {
+        before_resolve_plugins.push(Vc::upcast(NextFontLocalResolvePlugin::new(project_path)));
+    }
 
-    let mut after_resolve_plugins = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::AppSSR { .. } => {
-            vec![]
-        }
+    if matches!(
+        ty,
         ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
-            vec![
-                Vc::upcast(get_invalid_client_only_resolve_plugin(project_path)),
-                Vc::upcast(get_invalid_styled_jsx_resolve_plugin(project_path)),
-            ]
-        }
-    };
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::PagesData { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation
+    ) {
+        before_resolve_plugins.push(Vc::upcast(get_invalid_client_only_resolve_plugin(
+            project_path,
+        )));
+        before_resolve_plugins.push(Vc::upcast(get_invalid_styled_jsx_resolve_plugin(
+            project_path,
+        )));
+    }
 
-    let base_plugins = vec![
-        Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-        Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-        Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
-    ];
-
-    after_resolve_plugins.extend_from_slice(&base_plugins);
+    let after_resolve_plugins = vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
+        project_path,
+    ))];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![mode.await?.condition().into()];
