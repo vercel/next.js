@@ -26,7 +26,6 @@
     "exclude": [
       "test/e2e/app-dir/scss/nm-module-nested/nm-module-nested.test.ts",
       "test/e2e/cancel-request/stream-cancel.test.ts",
-      "test/e2e/edge-pages-support/edge-document.test.ts",
       "test/e2e/new-link-behavior/material-ui.test.ts",
       "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",
       "test/e2e/skip-trailing-slash-redirect/index.test.ts",
