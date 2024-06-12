@@ -326,10 +326,10 @@ async function run(): Promise<void> {
     const { app } = await _prompt({
       type: 'toggle',
       name: 'app',
-      message: `Would you like to use ${ct.app}? (recommended)`,
+      message: `Would you like to use the ${ct.app}?`,
     })
-    // don't save the app pref since we recommend it.
     opts.app = app
+    preferences.app = app
   }
 
   if (!opts.typescript && !opts.javascript) {
