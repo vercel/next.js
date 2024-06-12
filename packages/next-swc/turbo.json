@@ -1,6 +1,6 @@
 {
   "extends": ["//"],
-  "tasks": {
+  "pipeline": {
     "build-native": {
       "inputs": [
         "../../.cargo/**",

@@ -14,9 +14,9 @@ import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type WrapperRenderOpts,
-} from '../async-storage/request-async-storage-wrapper'
+} from '../async-storage/with-request-store'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
@@ -246,7 +246,7 @@ export async function adapter(
               previewModeSigningKey: '',
             }
 
-            return await RequestAsyncStorageWrapper.wrap(
+            return await withRequestStore(
               requestAsyncStorage,
               {
                 req: request,
