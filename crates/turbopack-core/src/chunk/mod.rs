@@ -354,6 +354,8 @@ async fn graph_node_to_referenced_nodes(
 
             let module_data = reference
                 .resolve_reference()
+                .resolve()
+                .await?
                 .primary_modules()
                 .await?
                 .into_iter()

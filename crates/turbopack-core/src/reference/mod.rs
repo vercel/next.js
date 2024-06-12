@@ -182,6 +182,8 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .map(|reference| async {
             Ok(reference
                 .resolve_reference()
+                .resolve()
+                .await?
                 .primary_modules()
                 .await?
                 .clone_value())
