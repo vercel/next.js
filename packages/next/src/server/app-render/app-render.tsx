@@ -46,8 +46,8 @@ import {
   createMetadataComponents,
   createMetadataContext,
 } from '../../lib/metadata/metadata'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
+import { withRequestStore } from '../async-storage/with-request-store'
+import { withStaticGenerationStore } from '../async-storage/with-static-generation-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -1504,11 +1504,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const url = parseRelativeUrl(req.url, undefined, false)
 
-  return RequestAsyncStorageWrapper.wrap(
+  return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
     { req, url, res, renderOpts },
     (requestStore) =>
-      StaticGenerationAsyncStorageWrapper.wrap(
+      withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
