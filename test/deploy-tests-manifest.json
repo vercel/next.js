@@ -33,7 +33,6 @@
       "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts",
       "test/e2e/swc-warnings/index.test.ts",
       "test/e2e/third-parties/index.test.ts",
-      "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts",
       "test/e2e/app-dir/app-routes-client-component/app-routes-client-component.test.ts",
       "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
       "test/e2e/app-dir/mdx/mdx.test.ts",
