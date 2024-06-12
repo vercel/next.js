@@ -184,7 +184,7 @@ try {
         function waitForOnData(data) {
           const message = data.toString()
           const compiledRegex =
-            /compiled client and server successfully in (\d*[.]?\d+)\s*(m?s) \((\d+) modules\)/gm
+            /Compiled (?:.+ )?in (\d*[.]?\d+)\s*(m?s)(?: \((\d+) modules\))?/gm
           const matched = compiledRegex.exec(message)
           if (matched) {
             resolve({
