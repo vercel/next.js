@@ -2569,6 +2569,10 @@ async fn resolve_package_internal_with_imports_field(
     .await
 }
 
+async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
+    Ok(*result.resolve().await?.is_unresolveable().await?)
+}
+
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
@@ -2578,9 +2582,9 @@ pub async fn handle_resolve_error(
     severity: Vc<IssueSeverity>,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    Ok(match result.is_unresolveable().await {
+    Ok(match is_unresolveable(result).await {
         Ok(unresolveable) => {
-            if *unresolveable {
+            if unresolveable {
                 ResolvingIssue {
                     severity,
                     file_path: origin_path,

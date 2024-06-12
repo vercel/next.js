@@ -2315,7 +2315,9 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve(origin, request, None, try_to_severity(in_try));
+        let resolved = cjs_resolve(origin, request, None, try_to_severity(in_try))
+            .resolve()
+            .await?;
         let mut values = resolved
             .primary_modules()
             .await?

@@ -221,6 +221,8 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in import_ref
                     .resolve_reference()
+                    .resolve()
+                    .await?
                     .primary_modules()
                     .await?
                     .iter()
@@ -241,6 +243,8 @@ impl CssChunkItem for CssModuleChunkItem {
             {
                 for &module in compose_ref
                     .resolve_reference()
+                    .resolve()
+                    .await?
                     .primary_modules()
                     .await?
                     .iter()
