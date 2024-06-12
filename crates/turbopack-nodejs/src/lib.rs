@@ -5,9 +5,7 @@
 pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;
 
-pub use chunking_context::{
-    EntryChunkGroupResult, NodeJsChunkingContext, NodeJsChunkingContextBuilder,
-};
+pub use chunking_context::{NodeJsChunkingContext, NodeJsChunkingContextBuilder};
 
 pub fn register() {
     turbo_tasks::register();

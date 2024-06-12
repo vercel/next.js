@@ -1,12 +1,15 @@
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets};
+use turbopack_core::{
+    chunk::{ChunkingContext, EvaluatableAssets},
+    module::Module,
+};
 use turbopack_dev_server::source::ContentSourceData;
 
 #[turbo_tasks::value(shared)]
 pub struct NodeRenderingEntry {
     pub runtime_entries: Vc<EvaluatableAssets>,
-    pub module: Vc<Box<dyn EvaluatableAsset>>,
+    pub module: Vc<Box<dyn Module>>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub intermediate_output_path: Vc<FileSystemPath>,
     pub output_root: Vc<FileSystemPath>,

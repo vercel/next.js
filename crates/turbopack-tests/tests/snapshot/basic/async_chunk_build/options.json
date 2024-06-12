@@ -1,4 +1,4 @@
 {
   "minifyType": "NoMinify",
-  "runtime": "Build"
+  "runtime": "NodeJs"
 }

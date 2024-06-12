@@ -21,7 +21,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
@@ -33,7 +33,6 @@ use turbopack_core::{
 };
 
 use crate::{
-    bootstrap::NodeJsBootstrapAsset,
     embed_js::embed_file_path,
     emit, emit_package_json, internal_assets_for_source_mapping,
     pool::{FormattingMode, NodeJsOperation, NodeJsPool},
@@ -122,12 +121,6 @@ pub async fn get_evaluate_pool(
         )
         .module();
 
-    let Some(entry_module) =
-        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
-    else {
-        bail!("Internal module is not evaluatable");
-    };
-
     let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(path).await?) else {
         panic!("can only evaluate from a disk filesystem");
     };
@@ -156,14 +149,8 @@ pub async fn get_evaluate_pool(
         Vc::<EvaluatableAssets>::cell(entries)
     };
 
-    let bootstrap = Vc::upcast(
-        NodeJsBootstrapAsset {
-            path,
-            chunking_context,
-            evaluatable_assets: runtime_entries.with_entry(entry_module),
-        }
-        .cell(),
-    );
+    let bootstrap =
+        chunking_context.root_entry_chunk_group_asset(path, entry_module, runtime_entries);
 
     let output_root: Vc<FileSystemPath> = chunking_context.output_root();
     let emit_package = emit_package_json(output_root);

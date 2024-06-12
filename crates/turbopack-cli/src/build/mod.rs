@@ -14,7 +14,7 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
         EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},

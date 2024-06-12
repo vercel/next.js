@@ -6,8 +6,8 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
-        MinifyType, ModuleId,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
+        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -466,6 +466,17 @@ impl ChunkingContext for BrowserChunkingContext {
         }
         .instrument(span)
         .await
+    }
+
+    #[turbo_tasks::function]
+    fn entry_chunk_group(
+        self: Vc<Self>,
+        _path: Vc<FileSystemPath>,
+        _module: Vc<Box<dyn Module>>,
+        _evaluatable_assets: Vc<EvaluatableAssets>,
+        _availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<EntryChunkGroupResult>> {
+        bail!("Browser chunking context does not support entry chunk groups")
     }
 
     #[turbo_tasks::function]

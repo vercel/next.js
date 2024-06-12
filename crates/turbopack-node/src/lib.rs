@@ -17,16 +17,15 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
     output::{OutputAsset, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
 
-use self::{bootstrap::NodeJsBootstrapAsset, pool::NodeJsPool, source_map::StructuredError};
+use self::{pool::NodeJsPool, source_map::StructuredError};
 
-pub mod bootstrap;
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
@@ -109,7 +108,7 @@ async fn internal_assets_for_source_mapping(
 /// subgraph
 #[turbo_tasks::function]
 pub async fn external_asset_entrypoints(
-    module: Vc<Box<dyn EvaluatableAsset>>,
+    module: Vc<Box<dyn Module>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
@@ -261,17 +260,14 @@ pub async fn get_renderer_pool(
 #[turbo_tasks::function]
 pub async fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    main_entry: Vc<Box<dyn EvaluatableAsset>>,
+    main_entry: Vc<Box<dyn Module>>,
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(
-        NodeJsBootstrapAsset {
-            path: chunking_context.chunk_path(main_entry.ident(), ".js".into()),
-            chunking_context,
-            evaluatable_assets: other_entries.with_entry(main_entry),
-        }
-        .cell(),
-    ))
+    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+        chunking_context.chunk_path(main_entry.ident(), ".js".into()),
+        main_entry,
+        other_entries,
+    )))
 }
 
 #[derive(Clone, Debug)]
