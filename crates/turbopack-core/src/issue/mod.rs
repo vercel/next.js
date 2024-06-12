@@ -1,7 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
 pub mod resolve;
-pub mod unsupported_module;
 
 use std::{
     cmp::{min, Ordering},
