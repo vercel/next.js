@@ -5,14 +5,17 @@ import { readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
 describe('SCSS Support', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // This test is skipped because it is reading files in the `.next` file which
+    // isn't available/necessary in a deployment environment.
+    skipDeployment: true,
     dependencies: {
       sass: '1.54.0',
     },
   })
 
-  // TODO: Figure out this test for dev and Turbopack
+  if (skipped) return // TODO: Figure out this test for dev and Turbopack
   ;(isNextDev ? describe.skip : describe)('Production only', () => {
     describe('CSS Compilation and Prefixing', () => {
       it(`should've compiled and prefixed`, async () => {
