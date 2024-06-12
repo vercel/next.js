@@ -160,7 +160,7 @@ export const installTemplate = async ({
         tailwindConfigFile,
         (await fs.readFile(tailwindConfigFile, "utf8")).replace(
           /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-          "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
+          `./src/$1/**/*.{${mode === "ts" ? "ts,tsx" : "js,jsx"},mdx}`,
         ),
       );
     }
