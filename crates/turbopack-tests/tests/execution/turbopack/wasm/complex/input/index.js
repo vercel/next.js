@@ -1,4 +1,4 @@
-const magicAsyncModule = require("./magic")
+const magicAsyncModule = require("./magic");
 
 describe("complex wasm", () => {
   it("should be possible to use imported memory", async () => {
