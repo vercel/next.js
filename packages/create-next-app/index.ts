@@ -50,16 +50,16 @@ const onPromptState = (state: {
  * Colored Texts
  */
 const ct = {
-  app: red('App Router'),
-  cna: packageJson.name,
+  app: bold(red('App Router')),
+  cna: bold(packageJson.name),
   default: gray('(default)'),
-  eslint: magenta('ESLint'),
+  eslint: bold(magenta('ESLint')),
   importAlias: bold(italic('import alias')),
-  javascript: yellow('JavaScript'),
+  javascript: bold(yellow('JavaScript')),
   srcDir: bold('"src/"'),
-  turbopack: red('Turbo') + blue('pack'),
-  tailwind: green('Tailwind CSS'),
-  typescript: blue('TypeScript'),
+  turbopack: bold(red('Turbo') + blue('pack')),
+  tailwind: bold(green('Tailwind CSS')),
+  typescript: bold(blue('TypeScript')),
 }
 
 const program = new Command()
