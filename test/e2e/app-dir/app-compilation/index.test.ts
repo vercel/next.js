@@ -2,13 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, hasRedbox, waitFor } from 'next-test-utils'
 
 describe('app dir', () => {
-  const {
-    next,
-    isNextDev: isDev,
-    isNextStart,
-  } = nextTestSetup({
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    // This is skipped when deployed because there are no assertions outside of next start/next dev
+    skipDeployment: true,
   })
+
+  if (skipped) return
+
   if (isNextStart) {
     describe('Loading', () => {
       it('should render loading.js in initial html for slow page', async () => {

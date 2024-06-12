@@ -4,9 +4,10 @@ import { check } from 'next-test-utils'
 describe('conflicting-page-segments', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // we skip start because the build will fail and we won't be able to catch it
-    // start is re-triggered but caught in the assertions below
+    // we skip start & deploy because the build will fail and we won't be able to catch it
+    // start is re-triggered but caught in the assertions below.
     skipStart: true,
+    skipDeployment: true,
   })
   it('should throw an error when a route groups causes a conflict with a parallel segment', async () => {
     if (isNextDev) {
