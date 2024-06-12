@@ -30,7 +30,6 @@
       "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",
       "test/e2e/skip-trailing-slash-redirect/index.test.ts",
       "test/e2e/app-dir/app-compilation/index.test.ts",
-      "test/e2e/app-dir/ppr/ppr.test.ts",
       "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts",
       "test/e2e/swc-warnings/index.test.ts",
       "test/e2e/third-parties/index.test.ts",
