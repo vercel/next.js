@@ -208,19 +208,19 @@ try {
 
     results.push(initial)
 
-    file.prepend('// First edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 
     await waitFor(1000)
 
-    file.prepend('// Second edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 
     await waitFor(1000)
 
-    file.prepend('// Third edit')
+    file.replace('Hello', 'Hello!')
 
     results.push(await waitForCompiled())
 
