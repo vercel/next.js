@@ -49,10 +49,20 @@ on:
         required: true
         description: 'name of the step, to be used for the upload artifact unique key '
         type: string
+      timeout_minutes:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 30
+      runs_on_labels:
+        description: 'List of runner labels'
+        required: false
+        type: string
+        default: '["self-hosted", "linux", "x64", "metal"]'
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.0.3
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -69,15 +79,13 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
   build:
-    timeout-minutes: 30
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    runs-on: ${{ fromJson(inputs.runs_on_labels) }}
 
     outputs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
@@ -90,7 +98,12 @@ jobs:
           script: |
             core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
-      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
+
       - run: node -v
       - run: corepack enable
       - run: pwd
@@ -146,7 +159,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
@@ -175,7 +188,7 @@ jobs:
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
-        timeout-minutes: 30
+        timeout-minutes: ${{ inputs.timeout_minutes }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

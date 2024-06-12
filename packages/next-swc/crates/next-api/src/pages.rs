@@ -37,7 +37,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAssets,
             },
             context::AssetContext,
             file_source::FileSource,
@@ -51,10 +51,8 @@ use turbopack_binding::{
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::{
-            chunk::EcmascriptChunkPlaceable, resolve::esm_resolve, EcmascriptModuleAsset,
-        },
-        nodejs::{EntryChunkGroupResult, NodeJsChunkingContext},
+        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
+        nodejs::NodeJsChunkingContext,
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -771,13 +769,6 @@ impl PageEndpoint {
                 // `/_app` and `/_document` never get rendered directly so they don't need to be
                 // wrapped in the route module.
                 let ssr_module = if pathname == "/_app" || pathname == "/_document" {
-                    let Some(ssr_module) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
-                            .await?
-                    else {
-                        bail!("expected an ECMAScript chunk placeable module");
-                    };
-
                     ssr_module
                 } else {
                     create_page_ssr_entry_module(

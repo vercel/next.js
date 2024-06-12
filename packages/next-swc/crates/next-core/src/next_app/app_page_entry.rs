@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
@@ -14,7 +14,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
 };
@@ -81,7 +81,6 @@ pub async fn get_app_page_entry(
         indexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
             // TODO(alexkirsz) Support custom global error.
             "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
         },
@@ -124,12 +123,6 @@ pub async fn get_app_page_entry(
             page,
             next_config,
         );
-    };
-
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {

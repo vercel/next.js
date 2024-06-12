@@ -37,6 +37,7 @@ test-timings.json
 packages/next-swc/crates/**
 bench/nested-deps/**
 bench/nested-deps-app-router/**
+bench/heavy-npm-deps/**
 packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
 test/development/basic/hmr/components/parse-error.js

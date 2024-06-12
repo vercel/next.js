@@ -10,6 +10,23 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AfterContext } from '../../server/after/after-context'
 
 export interface RequestStore {
+  /**
+   * The URL of the request. This only specifies the pathname and the search
+   * part of the URL.
+   */
+  readonly url: {
+    /**
+     * The pathname of the requested URL.
+     */
+    readonly pathname: string
+
+    /**
+     * The search part of the requested URL. If the request did not provide a
+     * search part, this will be an empty string.
+     */
+    readonly search: string
+  }
+
   readonly headers: ReadonlyHeaders
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies

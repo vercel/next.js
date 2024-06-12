@@ -362,14 +362,24 @@ function Router({
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
         // Don't prefetch for bots as they don't navigate.
-        // Don't prefetch during development (improves compilation performance)
-        if (
-          isBot(window.navigator.userAgent) ||
-          process.env.NODE_ENV === 'development'
-        ) {
+        if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), window.location.href)
+
+        let url: URL
+        try {
+          url = new URL(addBasePath(href), window.location.href)
+        } catch (_) {
+          throw new Error(
+            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+          )
+        }
+
+        // Don't prefetch during development (improves compilation performance)
+        if (process.env.NODE_ENV === 'development') {
+          return
+        }
+
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return

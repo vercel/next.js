@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
 import { cyan, green, red, yellow, bold, blue } from 'picocolors'
-import Commander from 'commander'
+import { Command } from 'commander'
 import Conf from 'conf'
 import path from 'path'
 import prompts from 'prompts'
@@ -36,10 +36,10 @@ const onPromptState = (state: {
   }
 }
 
-const program = new Commander.Command(packageJson.name)
+const program = new Command(packageJson.name)
   .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
+  .argument('[project-directory]')
+  .usage(`${green('[project-directory]')} [options]`)
   .action((name) => {
     projectPath = name
   })
@@ -169,6 +169,7 @@ const program = new Commander.Command(packageJson.name)
   )
   .allowUnknownOption()
   .parse(process.argv)
+  .opts()
 
 const packageManager = !!program.useNpm
   ? 'npm'
