@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
@@ -41,27 +41,39 @@ impl AfterResolvePluginCondition {
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
 #[turbo_tasks::value]
-pub struct BeforeResolvePluginCondition {
-    glob: Vc<Glob>,
+pub enum BeforeResolvePluginCondition {
+    Request(Vc<Glob>),
+    Modules(Vc<Vec<RcStr>>),
 }
 
 #[turbo_tasks::value_impl]
 impl BeforeResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn new(glob: Vc<Glob>) -> Vc<Self> {
-        BeforeResolvePluginCondition { glob }.cell()
+    pub fn from_modules(modules: Vc<Vec<RcStr>>) -> Vc<Self> {
+        BeforeResolvePluginCondition::Modules(modules).cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn matches(self: Vc<Self>, request: Vc<Request>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match request.await?.request() {
-            Some(request) => {
-                let this = self.await?;
-                let glob = this.glob.await?;
-                glob.execute(&request)
+    pub fn from_request_glob(glob: Vc<Glob>) -> Vc<Self> {
+        BeforeResolvePluginCondition::Request(glob).cell()
+    }
+}
+
+impl BeforeResolvePluginCondition {
+    pub async fn matches(&self, request: Vc<Request>) -> Result<bool> {
+        Ok(match self {
+            BeforeResolvePluginCondition::Request(glob) => match request.await?.request() {
+                Some(request) => glob.await?.execute(request.as_str()),
+                None => false,
+            },
+            BeforeResolvePluginCondition::Modules(modules) => {
+                if let Request::Module { module, .. } = &*request.await? {
+                    modules.await?.contains(module)
+                } else {
+                    false
+                }
             }
-            None => false,
-        }))
+        })
     }
 }
 
