@@ -23,7 +23,6 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode, module_options::ModuleOptionsContext, ModuleAssetContext,
 };
-use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -41,6 +40,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{debug::should_debug, evaluate::evaluate};
+use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::jest::JestRunResult;
 
@@ -72,7 +72,7 @@ fn register() {
     turbo_tasks_env::register();
     turbo_tasks_fs::register();
     turbopack::register();
-    turbopack_browser::register();
+    turbopack_nodejs::register();
     turbopack_env::register();
     turbopack_ecmascript_plugins::register();
     turbopack_resolve::register();
@@ -314,7 +314,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         Vc::cell("test".into()),
     ));
 
-    let chunking_context = BrowserChunkingContext::builder(
+    let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
         static_root_path,

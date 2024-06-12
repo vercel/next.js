@@ -8,8 +8,8 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
-        MinifyType, ModuleId,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
+        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -18,7 +18,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
+    chunk::EcmascriptChunk,
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -129,12 +129,6 @@ impl NodeJsChunkingContext {
     }
 }
 
-#[turbo_tasks::value]
-pub struct EntryChunkGroupResult {
-    pub asset: Vc<Box<dyn OutputAsset>>,
-    pub availability_info: AvailabilityInfo,
-}
-
 #[turbo_tasks::value_impl]
 impl NodeJsChunkingContext {
     #[turbo_tasks::function]
@@ -145,55 +139,6 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         self.asset_prefix
-    }
-
-    /// Generates an output chunk that:
-    /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS
-    ///   default export.
-    #[turbo_tasks::function]
-    pub async fn entry_chunk_group(
-        self: Vc<Self>,
-        path: Vc<FileSystemPath>,
-        module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Vc<EntryChunkGroupResult>> {
-        let availability_info = availability_info.into_value();
-
-        let MakeChunkGroupResult {
-            chunks,
-            availability_info,
-        } = make_chunk_group(
-            Vc::upcast(self),
-            once(Vc::upcast(module)).chain(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .map(|&asset| Vc::upcast(asset)),
-            ),
-            availability_info,
-        )
-        .await?;
-
-        let other_chunks: Vec<_> = chunks
-            .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
-            .collect();
-
-        let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
-            path,
-            self,
-            Vc::cell(other_chunks),
-            evaluatable_assets,
-            module,
-        ));
-
-        Ok(EntryChunkGroupResult {
-            asset,
-            availability_info,
-        }
-        .cell())
     }
 
     #[turbo_tasks::function]
@@ -338,6 +283,59 @@ impl ChunkingContext for NodeJsChunkingContext {
         }
         .instrument(span)
         .await
+    }
+
+    /// Generates an output chunk that:
+    /// * evaluates the given assets; and
+    /// * exports the result of evaluating the given module as a CommonJS
+    ///   default export.
+    #[turbo_tasks::function]
+    pub async fn entry_chunk_group(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+        module: Vc<Box<dyn Module>>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<EntryChunkGroupResult>> {
+        let availability_info = availability_info.into_value();
+
+        let MakeChunkGroupResult {
+            chunks,
+            availability_info,
+        } = make_chunk_group(
+            Vc::upcast(self),
+            once(module).chain(
+                evaluatable_assets
+                    .await?
+                    .iter()
+                    .map(|&asset| Vc::upcast(asset)),
+            ),
+            availability_info,
+        )
+        .await?;
+
+        let other_chunks: Vec<_> = chunks
+            .iter()
+            .map(|chunk| self.generate_chunk(*chunk))
+            .collect();
+
+        let Some(module) = Vc::try_resolve_downcast(module).await? else {
+            bail!("module must be placeable in an ecmascript chunk");
+        };
+
+        let asset = Vc::upcast(EcmascriptBuildNodeEntryChunk::new(
+            path,
+            self,
+            Vc::cell(other_chunks),
+            evaluatable_assets,
+            module,
+        ));
+
+        Ok(EntryChunkGroupResult {
+            asset,
+            availability_info,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

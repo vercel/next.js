@@ -97,8 +97,8 @@ struct SnapshotOptions {
 #[derive(Debug, Deserialize, Default)]
 enum Runtime {
     #[default]
-    Dev,
-    Build,
+    Browser,
+    NodeJs,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -310,7 +310,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let static_root_path = path.join("static".into());
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
-        Runtime::Dev => Vc::upcast(
+        Runtime::Browser => Vc::upcast(
             BrowserChunkingContext::builder(
                 project_root,
                 path,
@@ -318,12 +318,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 chunk_root_path,
                 static_root_path,
                 env,
-                RuntimeType::Development,
+                options.runtime_type,
             )
-            .runtime_type(options.runtime_type)
             .build(),
         ),
-        Runtime::Build => Vc::upcast(
+        Runtime::NodeJs => Vc::upcast(
             NodeJsChunkingContext::builder(
                 project_root,
                 path,
@@ -331,10 +330,9 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 chunk_root_path,
                 static_root_path,
                 env,
-                RuntimeType::Production,
+                options.runtime_type,
             )
             .minify_type(options.minify_type)
-            .runtime_type(options.runtime_type)
             .build(),
         ),
     };
@@ -357,14 +355,14 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         // TODO: Load runtime entries from snapshots
         match options.runtime {
-            Runtime::Dev => chunking_context.evaluated_chunk_group_assets(
+            Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
                 ecmascript.ident(),
                 runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecmascript)),
                 Value::new(AvailabilityInfo::Root),
             ),
-            Runtime::Build => {
+            Runtime::NodeJs => {
                 Vc::cell(vec![
                     Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
                         .await?

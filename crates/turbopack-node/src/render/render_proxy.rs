@@ -12,7 +12,7 @@ use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -34,7 +34,7 @@ pub async fn render_proxy(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn EvaluatableAsset>>,
+    module: Vc<Box<dyn Module>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
@@ -151,7 +151,7 @@ fn render_stream(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn EvaluatableAsset>>,
+    module: Vc<Box<dyn Module>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
@@ -217,7 +217,7 @@ async fn render_stream_internal(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn EvaluatableAsset>>,
+    module: Vc<Box<dyn Module>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: Vc<FileSystemPath>,
