@@ -283,7 +283,7 @@ jobs:
       # issues with turbo caching
       - name: pull build cache
         if: ${{ matrix.settings.docker }}
-        run: node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        run: npm i -g turbo@${{ env.TURBO_VERSION }} && node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
         if: ${{ matrix.settings.docker }}
