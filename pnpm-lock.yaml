@@ -710,9 +710,6 @@ importers:
       '@types/async-retry':
         specifier: 1.4.2
         version: 1.4.2
-      '@types/ci-info':
-        specifier: 2.0.0
-        version: 2.0.0
       '@types/cross-spawn':
         specifier: 6.0.0
         version: 6.0.0
@@ -735,8 +732,8 @@ importers:
         specifier: 1.3.1
         version: 1.3.1
       ci-info:
-        specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
-        version: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
+        specifier: 4.0.0
+        version: 4.0.0
       commander:
         specifier: 12.1.0
         version: 12.1.0
@@ -9759,6 +9756,11 @@ packages:
 
   /ci-info@3.8.0:
     resolution: {integrity: sha512-eXTggHWSooYhq49F2opQhuHWgzucfF2YgODK4e1566GQs5BIfP30B0oenwBJHfWxAs2fyPB1s7Mg949zLf61Yw==}
+    engines: {node: '>=8'}
+    dev: true
+
+  /ci-info@4.0.0:
+    resolution: {integrity: sha512-TdHqgGf9odd8SXNuxtUBVx8Nv+qZOejE6qyqiy5NtbYYQOeFa6zmHkxlPzmaLxWWHsU6nJmB7AETdVPi+2NBUg==}
     engines: {node: '>=8'}
     dev: true
 
