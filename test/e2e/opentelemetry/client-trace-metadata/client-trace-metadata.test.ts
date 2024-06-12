@@ -37,6 +37,12 @@ describe('clientTraceMetadata', () => {
     expect(firstLoadSpanIdContent).not.toBe(secondLoadSpanIdContent)
   })
 
+  it('should only insert the client trace metadata once', async () => {
+    const html = await next.render('/suspense')
+    const matches = html.match(/meta name="my-test-key-1"/g)
+    expect(matches.length).toBe(1)
+  })
+
   if (isNextDev) {
     describe('next dev only', () => {
       it('should inject propagation data for a statically server-side-rendered page', async () => {

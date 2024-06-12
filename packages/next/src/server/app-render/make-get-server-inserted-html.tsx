@@ -34,7 +34,7 @@ export function makeGetServerInsertedHTML({
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
   let hasUnflushedPolyfills = polyfills.length !== 0
-  let hasUnflushedTracingMetadata = tracingMetadata?.length !== 0
+  let flushedTraceMetadataIndex = 0
 
   return async function getServerInsertedHTML() {
     // Loop through all the errors that have been captured but not yet
@@ -72,12 +72,28 @@ export function makeGetServerInsertedHTML({
       }
     }
 
+    const traceMetaTags = []
+    while (
+      tracingMetadata &&
+      flushedTraceMetadataIndex < tracingMetadata.length
+    ) {
+      const { key, value } = tracingMetadata[flushedTraceMetadataIndex]
+      flushedTraceMetadataIndex++
+      traceMetaTags.push(
+        <meta
+          key={`next-trace-data-${flushedTraceMetadataIndex}`}
+          name={key}
+          content={value}
+        />
+      )
+    }
+
     const serverInsertedHTML = renderServerInsertedHTML()
 
     // Skip React rendering if we know the content is empty.
     if (
       !hasUnflushedPolyfills &&
-      !hasUnflushedTracingMetadata &&
+      traceMetaTags.length === 0 &&
       errorMetaTags.length === 0 &&
       Array.isArray(serverInsertedHTML) &&
       serverInsertedHTML.length === 0
@@ -95,17 +111,7 @@ export function makeGetServerInsertedHTML({
             })
         }
         {serverInsertedHTML}
-        {hasUnflushedTracingMetadata && tracingMetadata
-          ? tracingMetadata.map(({ key, value }) => {
-              return (
-                <meta
-                  key={`next-trace-data-${key}:${value}`}
-                  name={key}
-                  content={value}
-                />
-              )
-            })
-          : null}
+        {traceMetaTags}
         {errorMetaTags}
       </>,
       {
@@ -116,7 +122,6 @@ export function makeGetServerInsertedHTML({
     )
 
     hasUnflushedPolyfills = false
-    hasUnflushedTracingMetadata = false
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will
