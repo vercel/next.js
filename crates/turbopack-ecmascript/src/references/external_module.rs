@@ -3,7 +3,7 @@ use std::{fmt::Display, io::Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileSystem, VirtualFileSystem};
+use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -111,8 +111,9 @@ impl Module for CachedExternalModule {
 #[turbo_tasks::value_impl]
 impl Asset for CachedExternalModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        // should be `NotFound` as this function gets called to detect source changes
+        AssetContent::file(FileContent::NotFound.cell())
     }
 }
 
