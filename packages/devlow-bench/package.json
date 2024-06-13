@@ -2,6 +2,9 @@
   "name": "@vercel/devlow-bench",
   "version": "0.3.0",
   "description": "Benchmarking tool for the developer workflow",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": "dist/cli.js",
