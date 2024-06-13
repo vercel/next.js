@@ -18,7 +18,7 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{
-        ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
+        client_reference_graph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -47,7 +47,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAssets,
             },
             file_source::FileSource,
             module::Module,
@@ -56,7 +56,6 @@ use turbopack_binding::{
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        nodejs::EntryChunkGroupResult,
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
@@ -791,9 +790,8 @@ impl AppEndpoint {
             }
             let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-            let client_reference_graph = ClientReferenceGraph::new(Vc::cell(vec![rsc_entry_asset]));
-            let client_reference_types = client_reference_graph.types();
-            let client_references = client_reference_graph.entry(rsc_entry_asset);
+            let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
+            let client_reference_types = client_references.types();
 
             let ssr_chunking_context = if process_ssr {
                 Some(match runtime {

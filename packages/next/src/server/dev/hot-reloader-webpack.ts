@@ -583,9 +583,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               ])
             )
 
-      this.pagesMapping = webpackConfigSpan
+      this.pagesMapping = await webpackConfigSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
@@ -594,6 +594,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               (i: string | null): i is string => typeof i === 'string'
             ),
             pagesDir: this.pagesDir,
+            appDir: this.appDir,
           })
         )
 
