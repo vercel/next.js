@@ -6,7 +6,6 @@ import {
 // exports.<conditionName>
 export const edgeConditionNames = [
   'edge-light',
-  'workerd',
   // inherits the default conditions
   '...',
 ]
