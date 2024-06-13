@@ -35,7 +35,6 @@ use turbopack_binding::{
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
     },
     turbopack::{
-        browser::BrowserChunkingContext,
         core::{
             changed::content_changed,
             chunk::ChunkingContext,
@@ -565,7 +564,7 @@ impl Project {
         let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
-            BrowserChunkingContext::builder(
+            NodeJsChunkingContext::builder(
                 self.project_path(),
                 node_root,
                 node_root,

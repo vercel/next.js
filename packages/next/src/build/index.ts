@@ -100,11 +100,8 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import {
-  isDynamicMetadataRoute,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createPagesMapping, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -912,15 +909,16 @@ export default async function build(
       }
       NextBuildContext.previewProps = previewProps
 
-      const mappedPages = nextBuildSpan
+      const mappedPages = await nextBuildSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
             pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagesPaths,
             pagesDir,
+            appDir,
           })
         )
       NextBuildContext.mappedPages = mappedPages
@@ -942,60 +940,29 @@ export default async function build(
             })
           )
 
-        mappedAppPages = nextBuildSpan
+        mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
-          .traceFn(() =>
+          .traceAsyncFn(() =>
             createPagesMapping({
               pagePaths: appPaths,
               isDev: false,
               pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
-              pagesDir: pagesDir,
-            })
-          )
-
-        // If the metadata route doesn't contain generating dynamic exports,
-        // we can replace the dynamic catch-all route and use the static route instead.
-        for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
-          if (pageKey.includes('[[...__metadata_id__]]')) {
-            const pageFilePath = getPageFilePath({
-              absolutePagePath: pagePath,
               pagesDir,
               appDir,
-              rootDir,
             })
-
-            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
-            if (!isDynamic) {
-              delete mappedAppPages[pageKey]
-              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
-                pagePath
-            }
-
-            if (
-              pageKey.includes('sitemap/[[...__metadata_id__]]') &&
-              isDynamic
-            ) {
-              delete mappedAppPages[pageKey]
-              mappedAppPages[
-                pageKey.replace(
-                  'sitemap/[[...__metadata_id__]]',
-                  'sitemap/[__metadata_id__]'
-                )
-              ] = pagePath
-            }
-          }
-        }
+          )
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
-      const mappedRootPaths = createPagesMapping({
+      const mappedRootPaths = await createPagesMapping({
         isDev: false,
         pageExtensions: config.pageExtensions,
         pagePaths: rootPaths,
         pagesType: PAGE_TYPES.ROOT,
         pagesDir: pagesDir,
+        appDir,
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
@@ -1222,11 +1189,6 @@ export default async function build(
         path.join(distDir, 'package.json'),
         '{"type": "commonjs"}'
       )
-
-      // We need to write the manifest with rewrites before build
-      await nextBuildSpan
-        .traceChild('write-routes-manifest')
-        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       await writeEdgePartialPrerenderManifest(distDir, {})
 
@@ -2338,8 +2300,13 @@ export default async function build(
           return buildDataRoute(page, buildId)
         })
 
-        await writeManifest(routesManifestPath, routesManifest)
+        // await writeManifest(routesManifestPath, routesManifest)
       }
+
+      // We need to write the manifest with rewrites before build
+      await nextBuildSpan
+        .traceChild('write-routes-manifest')
+        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present

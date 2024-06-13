@@ -143,7 +143,6 @@ export interface RenderOptsPartial {
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
-  originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
@@ -172,10 +171,17 @@ export interface RenderOptsPartial {
   }
   postponed?: string
   /**
-   * When true, only the skeleton of the PPR page will be rendered. This will
-   * also enable other debugging features such as logging.
+   * When true, only the static shell of the page will be rendered. This will
+   * also enable other debugging features such as logging in development.
    */
-  isDebugPPRSkeleton?: boolean
+  isDebugStaticShell?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  isDebugDynamicAccesses?: boolean
   isStaticGeneration?: boolean
 }
 

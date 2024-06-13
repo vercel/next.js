@@ -71,7 +71,7 @@ describe('dynamic metadata error', () => {
     const { cleanup } = await sandbox(
       next,
       new Map([[sitemapFilePath, contentMissingIdProperty]]),
-      '/metadata-base/unset/sitemap/100'
+      '/metadata-base/unset/sitemap/100.xml'
     )
 
     await retry(async () => {

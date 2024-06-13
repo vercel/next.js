@@ -1683,7 +1683,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '19.0.0-experimental-1df34bdf62-20240605';
+var ReactVersion = '19.0.0-experimental-6230622a1a-20240610';
 
 var getPrototypeOf = Object.getPrototypeOf;
 

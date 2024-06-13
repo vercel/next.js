@@ -26,7 +26,6 @@ import React from 'react'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { getPathname } from '../../lib/url'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -49,7 +48,7 @@ export type PrerenderState = {
   /**
    * When true, stack information will also be tracked during dynamic access.
    */
-  readonly isDebugSkeleton: boolean | undefined
+  readonly isDebugDynamicAccesses: boolean | undefined
 
   /**
    * The dynamic accesses that occurred during the render.
@@ -58,10 +57,10 @@ export type PrerenderState = {
 }
 
 export function createPrerenderState(
-  isDebugSkeleton: boolean | undefined
+  isDebugDynamicAccesses: boolean | undefined
 ): PrerenderState {
   return {
-    isDebugSkeleton,
+    isDebugDynamicAccesses,
     dynamicAccesses: [],
   }
 }
@@ -86,11 +85,9 @@ export function markCurrentScopeAsDynamic(
   // or it's static and it should not throw or postpone here.
   if (store.forceDynamic || store.forceStatic) return
 
-  const pathname = getPathname(store.urlPathname)
-
   if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
-      `Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   }
 
@@ -101,7 +98,7 @@ export function markCurrentScopeAsDynamic(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    postponeWithTracking(store.prerenderState, expression, pathname)
+    postponeWithTracking(store.prerenderState, expression, store.route)
   }
 
   store.revalidate = 0
@@ -109,7 +106,7 @@ export function markCurrentScopeAsDynamic(
   if (store.isStaticGeneration) {
     // We aren't prerendering but we are generating a static page. We need to bail out of static generation
     const err = new DynamicServerError(
-      `Route ${pathname} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+      `Route ${store.route} couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
     )
     store.dynamicUsageDescription = expression
     store.dynamicUsageStack = err.stack
@@ -131,14 +128,13 @@ export function trackDynamicDataAccessed(
   store: StaticGenerationStore,
   expression: string
 ): void {
-  const pathname = getPathname(store.urlPathname)
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `Route ${pathname} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
     )
   } else if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
-      `Route ${pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   } else if (
     // We are in a prerender (PPR enabled, during build)
@@ -147,14 +143,14 @@ export function trackDynamicDataAccessed(
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
-    postponeWithTracking(store.prerenderState, expression, pathname)
+    postponeWithTracking(store.prerenderState, expression, store.route)
   } else {
     store.revalidate = 0
 
     if (store.isStaticGeneration) {
       // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
-        `Route ${pathname} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
       )
       store.dynamicUsageDescription = expression
       store.dynamicUsageStack = err.stack
@@ -170,31 +166,33 @@ export function trackDynamicDataAccessed(
 type PostponeProps = {
   reason: string
   prerenderState: PrerenderState
-  pathname: string
+  route: string
 }
 export function Postpone({
   reason,
   prerenderState,
-  pathname,
+  route,
 }: PostponeProps): never {
-  postponeWithTracking(prerenderState, reason, pathname)
+  postponeWithTracking(prerenderState, reason, route)
 }
 
 function postponeWithTracking(
   prerenderState: PrerenderState,
   expression: string,
-  pathname: string
+  route: string
 ): never {
   assertPostpone()
   const reason =
-    `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
+    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
 
   prerenderState.dynamicAccesses.push({
     // When we aren't debugging, we don't need to create another error for the
     // stack trace.
-    stack: prerenderState.isDebugSkeleton ? new Error().stack : undefined,
+    stack: prerenderState.isDebugDynamicAccesses
+      ? new Error().stack
+      : undefined,
     expression,
   })
 
