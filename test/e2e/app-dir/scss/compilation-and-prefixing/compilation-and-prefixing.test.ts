@@ -4,7 +4,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
-
 describe.each([
   { dependencies: { sass: '1.54.0' }, undefined },
   {
@@ -22,7 +21,7 @@ describe.each([
     // isn't available/necessary in a deployment environment.
     skipDeployment: true,
     dependencies,
-    nextConfig
+    nextConfig,
   })
 
   if (skipped) return // TODO: Figure out this test for dev and Turbopack
