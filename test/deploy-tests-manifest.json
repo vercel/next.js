@@ -43,7 +43,6 @@
       "test/e2e/app-dir/actions-navigation/index.test.ts",
       "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
       "test/e2e/app-dir/options-request/options-request.test.ts",
-      "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts",
       "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
       "test/e2e/app-dir/scss/npm-import-nested/npm-import-nested.test.ts",
       "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",
