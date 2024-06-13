@@ -49,7 +49,6 @@
       "test/e2e/new-link-behavior/stitches.test.ts",
       "test/e2e/next-image-forward-ref/index.test.ts",
       "test/e2e/react-compiler/react-compiler.test.ts",
-      "test/e2e/app-dir/actions/app-action.test.ts",
       "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js",
       "test/e2e/app-dir/metadata/metadata.test.ts",
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
