@@ -99,10 +99,10 @@ export function makeGetServerInsertedHTML({
       <>
         {
           /* Insert the polyfills if they haven't been flushed yet. */
-          hasFlushedInitially ? polyfillTags : null
+          hasFlushedInitially ? null : polyfillTags
         }
         {serverInsertedHTML}
-        {hasFlushedInitially ? traceMetaTags : null}
+        {hasFlushedInitially ? null : traceMetaTags}
         {errorMetaTags}
       </>,
       {
@@ -112,7 +112,7 @@ export function makeGetServerInsertedHTML({
       }
     )
 
-    hasFlushedInitially = false
+    hasFlushedInitially = true
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will
