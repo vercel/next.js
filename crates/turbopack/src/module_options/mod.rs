@@ -530,6 +530,7 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx {
                     transforms: mdx_transforms,
                     options: mdx_transform_options,
+                    ecmascript_options: ecmascript_options_vc,
                 })],
             ));
         }
