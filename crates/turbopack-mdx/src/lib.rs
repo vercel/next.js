@@ -92,6 +92,7 @@ pub struct MdxModuleAsset {
     asset_context: Vc<Box<dyn AssetContext>>,
     transforms: Vc<EcmascriptInputTransforms>,
     options: Vc<MdxTransformOptions>,
+    ecmascript_options: Vc<EcmascriptOptions>,
 }
 
 /// MDX components should be treated as normal j|tsx components to analyze
@@ -165,7 +166,7 @@ async fn into_ecmascript_module_asset(
             analyze_types: false,
         }),
         this.transforms,
-        EcmascriptOptions::default().cell(),
+        this.ecmascript_options,
         this.asset_context.compile_time_info(),
     ))
 }
@@ -178,12 +179,14 @@ impl MdxModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<MdxTransformOptions>,
+        ecmascript_options: Vc<EcmascriptOptions>,
     ) -> Vc<Self> {
         Self::cell(MdxModuleAsset {
             source,
             asset_context,
             transforms,
             options,
+            ecmascript_options,
         })
     }
 

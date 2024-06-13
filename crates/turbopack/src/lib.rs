@@ -280,11 +280,13 @@ async fn apply_module_type(
         ModuleType::Mdx {
             transforms,
             options,
+            ecmascript_options,
         } => Vc::upcast(MdxModuleAsset::new(
             source,
             Vc::upcast(module_asset_context),
             *transforms,
             *options,
+            *ecmascript_options,
         )),
         ModuleType::WebAssembly { source_ty } => Vc::upcast(WebAssemblyModuleAsset::new(
             WebAssemblySource::new(source, *source_ty),
@@ -539,9 +541,11 @@ async fn process_default_internal(
                             Some(ModuleType::Mdx {
                                 transforms,
                                 options,
+                                ecmascript_options,
                             }) => Some(ModuleType::Mdx {
                                 transforms: prepend.extend(transforms).extend(*append),
                                 options,
+                                ecmascript_options,
                             }),
                             Some(module_type) => {
                                 ModuleIssue {

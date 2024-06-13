@@ -125,6 +125,7 @@ pub enum ModuleType {
     Mdx {
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<MdxTransformOptions>,
+        ecmascript_options: Vc<EcmascriptOptions>,
     },
     CssGlobal,
     CssModule,
