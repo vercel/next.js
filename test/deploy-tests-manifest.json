@@ -37,7 +37,6 @@
       "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
       "test/e2e/app-dir/mdx/mdx.test.ts",
       "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
-      "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
       "test/e2e/app-dir/third-parties/basic.test.ts",
       "test/e2e/esm-externals/esm-externals.test.ts",
       "test/e2e/app-dir/actions-navigation/index.test.ts",
