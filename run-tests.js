@@ -227,7 +227,12 @@ async function main() {
     }
   }
 
-  console.log('Running tests with concurrency:', options.concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -470,7 +475,8 @@ ${ENDGROUP}`)
         RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
+        TRACE_PLAYWRIGHT:
+          process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
@@ -688,32 +694,6 @@ ${ENDGROUP}`)
           console.log(
             `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
           )
-        }
-      }
-
-      // Emit test output if test failed or if we're continuing tests on error
-      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
-        try {
-          const testsOutput = await fsp.readFile(
-            `${test.file}${RESULTS_EXT}`,
-            'utf8'
-          )
-          const obj = JSON.parse(testsOutput)
-          obj.processEnv = {
-            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
-            HEADLESS: process.env.HEADLESS,
-          }
-          await outputSema.acquire()
-          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
-          console.log(
-            `--test output start--`,
-            JSON.stringify(obj),
-            `--test output end--`
-          )
-          if (ENDGROUP) console.log(ENDGROUP)
-          outputSema.release()
-        } catch (err) {
-          console.log(`Failed to load test output`, err)
         }
       }
 

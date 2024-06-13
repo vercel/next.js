@@ -143,6 +143,7 @@ function wrapRequestStoreForAfterCallbacks(
   requestStore: RequestStore
 ): RequestStore {
   return {
+    url: requestStore.url,
     get headers() {
       return requestStore.headers
     },

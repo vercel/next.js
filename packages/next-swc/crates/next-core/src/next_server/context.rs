@@ -56,7 +56,7 @@ use crate::{
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -136,7 +136,6 @@ pub async fn get_server_resolve_options_context(
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
-    let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
@@ -212,26 +211,29 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
-            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+            vec![
+                Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+                Vc::upcast(module_feature_report_resolve_plugin),
+            ]
         }
         ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => vec![],
+        | ServerContextType::Instrumentation { .. } => {
+            vec![Vc::upcast(module_feature_report_resolve_plugin)]
+        }
     };
 
-    let mut after_resolve_plugins = match ty {
+    let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(next_external_plugin),
@@ -241,24 +243,16 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
-            vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_node_shared_runtime_plugin),
-            ]
+            vec![Vc::upcast(next_node_shared_runtime_plugin)]
         }
         ServerContextType::Instrumentation { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(next_external_plugin),
             ]
@@ -281,8 +275,8 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
