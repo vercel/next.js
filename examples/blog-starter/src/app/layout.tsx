@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <ServerTarget tag="html" lang="en">
       <head>
         <link
           rel="apple-touch-icon"
@@ -61,11 +61,10 @@ export default function RootLayout({
       <body
         className={cn(inter.className, "dark:bg-slate-900 dark:text-slate-400")}
       >
-        <ServerTarget />
         <Core />
         <div className="min-h-screen">{children}</div>
         <Footer />
       </body>
-    </html>
+    </ServerTarget>
   );
 }
