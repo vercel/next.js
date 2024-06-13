@@ -22,3 +22,5 @@ function Suspensey() {
 export default function Page() {
   return <Suspensey />
 }
+
+export const dynamic = 'force-dynamic'
