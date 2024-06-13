@@ -2,7 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 type Data = {
-  name: string
+  text: string
 }
 
 function loggedMethod(originalMethod: any, _context: any) {
@@ -19,7 +19,7 @@ export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  res.status(200).json({ name: new Test().myMethod() })
+  res.status(200).json({ text: new Test().myMethod() })
 }
 
 class Test {
