@@ -1,5 +1,5 @@
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::ecmascript::chunk::EcmascriptChunkPlaceable;
+use turbopack_binding::turbopack::core::module::Module;
 
 use crate::app_segment_config::NextSegmentConfig;
 
@@ -12,7 +12,7 @@ pub struct AppEntry {
     /// the pathname to refer to this entry.
     pub original_name: RcStr,
     /// The RSC module asset for the route or page.
-    pub rsc_entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub rsc_entry: Vc<Box<dyn Module>>,
     /// The source code config for this entry.
     pub config: Vc<NextSegmentConfig>,
 }

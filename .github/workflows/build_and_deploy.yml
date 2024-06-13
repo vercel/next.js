@@ -7,7 +7,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 1.13.3-canary.2
+  TURBO_VERSION: 2.0.3
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -84,9 +84,11 @@ jobs:
               - 'arm64'
 
             target: 'x86_64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -95,13 +97,15 @@ jobs:
               - 'arm64'
 
             target: 'aarch64-apple-darwin'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               export CC=$(xcrun -f clang);
               export CXX=$(xcrun -f clang++);
               SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
               export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -109,10 +113,12 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host:
@@ -120,10 +126,12 @@ jobs:
               - 'windows'
               - 'x64'
 
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
+              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
 
           - host:
@@ -132,10 +140,12 @@ jobs:
               - 'x64'
 
             target: 'aarch64-pc-windows-msvc'
+            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+            # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -279,7 +289,7 @@ jobs:
       # issues with turbo caching
       - name: pull build cache
         if: ${{ matrix.settings.docker }}
-        run: node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        run: npm i -g turbo@${{ env.TURBO_VERSION }} && node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
         if: ${{ matrix.settings.docker }}
@@ -374,7 +384,9 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        run: turbo run build-wasm -vvv --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
+        # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+        # TODO: we should add the relevant envs later to to switch to strict mode
+        run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'

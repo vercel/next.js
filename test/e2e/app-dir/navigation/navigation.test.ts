@@ -176,7 +176,7 @@ describe('app dir - navigation', () => {
         )
       }
 
-      if (isNextStart) {
+      if (isNextStart || isNextDeploy) {
         await browser.waitForIdleNetwork()
         // there should be an RSC call for the prefetch
         expect(hasRscRequest).toBe(true)

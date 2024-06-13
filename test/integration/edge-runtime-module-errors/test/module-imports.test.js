@@ -21,6 +21,7 @@ import {
   expectUnsupportedModuleDevError,
   expectUnsupportedModuleProdError,
   getUnsupportedModuleWarning,
+  getModuleNotFound,
 } from './utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -296,14 +297,29 @@ describe('Edge runtime code with imports', () => {
             stderr: true,
           })
           expect(stderr).toContain(getUnsupportedModuleWarning(moduleName))
-          context.app = await nextStart(
-            context.appDir,
-            context.appPort,
-            appOption
-          )
-          const res = await fetchViaHTTP(context.appPort, url)
+
+          let logs = { stdout: '', stderr: '' }
+          const port = await findPort()
+
+          const options = {
+            onStdout(msg) {
+              logs.output += msg
+              logs.stdout += msg
+            },
+            onStderr(msg) {
+              logs.output += msg
+              logs.stderr += msg
+            },
+          }
+
+          await nextStart(context.appDir, port, options)
+          const res = await fetchViaHTTP(port, url)
           expect(res.status).toBe(200)
-          expectNoError(moduleName)
+
+          expect(logs.output).not.toContain(
+            getUnsupportedModuleWarning(moduleName)
+          )
+          expect(logs.output).not.toContain(getModuleNotFound(moduleName))
         })
       }
     )
