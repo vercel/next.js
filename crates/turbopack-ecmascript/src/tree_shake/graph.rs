@@ -1124,6 +1124,13 @@ impl DepGraph {
             .map(|d| matches!(d, Dependency::Strong))
             .unwrap_or(false)
     }
+
+    pub(crate) fn has_path_connecting(&mut self, from: &ItemId, to: &ItemId) -> bool {
+        let from = self.g.node(from);
+        let to = self.g.node(to);
+
+        has_path_connecting(&self.g.idx_graph, from, to, None)
+    }
 }
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";

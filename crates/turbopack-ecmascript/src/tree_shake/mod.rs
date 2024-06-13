@@ -182,6 +182,21 @@ impl Analyzer<'_> {
                     state
                         .last_writes
                         .retain(|last_write| !self.g.has_strong_dep(item_id, last_write));
+
+                    // Drop all writes which are not reachable from this item.
+                    //
+                    // For
+                    //
+                    // var x = 0
+                    // x = 1
+                    // x = 2
+                    // x += 3
+                    //
+                    // this will drop `x = 1` as not reachable from `x += 3`.
+
+                    state
+                        .last_writes
+                        .retain(|last_write| self.g.has_path_connecting(item_id, last_write));
                 }
 
                 // For each var in READ_VARS:
