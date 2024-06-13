@@ -239,7 +239,7 @@ export function prunePrefetchCache(
 }
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
-// and default to 5 minutes (static) / 30 seconds (dynamic)
+// and default to 5 minutes (static) / 0 seconds (dynamic)
 const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 

@@ -10,10 +10,6 @@ import { getRedboxTotalErrorCount } from 'next-test-utils'
 describe('Error overlay for hydration errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-04b058868c-20240508',
-      'react-dom': '19.0.0-beta-04b058868c-20240508',
-    },
     skipStart: true,
   })
 
@@ -604,40 +600,38 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
-            <RedirectBoundary>
-              <RedirectErrorBoundary router={{...}}>
-                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                    <Page params={{}} searchParams={{}}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                  <Page params={{}} searchParams={{}}>
+                    <div>
                       <div>
                         <div>
                           <div>
-                            <div>
-                              <Mismatch>
-                                <p>
-                                  <span>
-        +                            client
-        -                            server"
+                            <Mismatch>
+                              <p>
+                                <span>
+        +                          client
+        -                          server"
       `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
-            <RedirectBoundary>
-              <RedirectErrorBoundary router={{...}}>
-                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                    <Page params={{}} searchParams={{}}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                  <Page params={{}} searchParams={{}}>
+                    <div>
                       <div>
                         <div>
                           <div>
-                            <div>
-                              <Mismatch>
-                                <p>
-                                  <span>
-        +                            client
-        -                            server"
+                            <Mismatch>
+                              <p>
+                                <span>
+        +                          client
+        -                          server"
       `)
     }
 

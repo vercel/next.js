@@ -15,6 +15,11 @@
       { "type": "user", "pattern": "kyliau" },
       { "type": "user", "pattern": "spanicker" }
     ],
+    "CI approved": [
+      { "type": "user", "pattern": "SukkaW" },
+      { "type": "user", "pattern": "unstubbable" },
+      { "type": "user", "pattern": "vercel-release-bot" }
+    ],
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
       { "type": "user", "pattern": "balazsorban44" },
@@ -48,6 +53,7 @@
     ],
     "created-by: Turbopack team": [
       { "type": "user", "pattern": "bgw" },
+      { "type": "user", "pattern": "arlyon" },
       { "type": "user", "pattern": "ForsakenHarmony" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "kwonoj" },

@@ -231,7 +231,6 @@ async function exportPageImpl(
             distDir,
             dir,
             enabledDirectories,
-            isAppPPREnabled: input.renderOpts.experimental.isAppPPREnabled,
             // skip writing to disk in minimal mode for now, pending some
             // changes to better support it
             flushToDisk: !hasNextSupport,
@@ -269,8 +268,7 @@ async function exportPageImpl(
       disableOptimizedLoading,
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
-      supportsDynamicHTML: false,
-      originalPathname: page,
+      supportsDynamicResponse: false,
       experimental: {
         ...input.renderOpts.experimental,
         isRoutePPREnabled,

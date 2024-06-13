@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 describe('parallel-routes-revalidation', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -411,6 +411,39 @@ describe('parallel-routes-revalidation', () => {
         expect(await browser.elementById('page-now').text()).not.toEqual(
           currentPageTime
         )
+      })
+    })
+
+    it('should not trigger a refresh for the page that is being redirected to', async () => {
+      const rscRequests = []
+      const prefetchRequests = []
+      const browser = await next.browser('/redirect', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              const pathname = new URL(req.url()).pathname
+
+              if (headers['next-router-prefetch']) {
+                prefetchRequests.push(pathname)
+              } else {
+                rscRequests.push(pathname)
+              }
+            }
+          })
+        },
+      })
+
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#root-page')
+      await browser.waitForIdleNetwork()
+
+      await retry(async () => {
+        expect(rscRequests.length).toBe(0)
+
+        if (isNextStart) {
+          expect(prefetchRequests.length).toBe(4)
+        }
       })
     })
   })

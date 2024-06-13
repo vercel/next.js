@@ -100,11 +100,8 @@ import {
 } from '../telemetry/events'
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import {
-  isDynamicMetadataRoute,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
-import { createPagesMapping, getPageFilePath, sortByPageExts } from './entries'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
+import { createPagesMapping, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -159,17 +156,13 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import { initialize as initializeIncrementalCache } from '../server/lib/incremental-cache-server'
-import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import { interopDefault } from '../lib/interop-default'
-import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
-import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
@@ -578,11 +571,7 @@ type PageDataCollectionKeys = Exclude<
   'exportPage'
 >
 
-function createStaticWorker(
-  config: NextConfigComplete,
-  incrementalCacheIpcPort?: number,
-  incrementalCacheIpcValidationKey?: string
-): StaticWorker {
+function createStaticWorker(config: NextConfigComplete): StaticWorker {
   let infoPrinted = false
   const timeout = config.staticPageGenerationTimeout || 0
 
@@ -622,13 +611,7 @@ function createStaticWorker(
     },
     numWorkers: getNumberOfWorkers(config),
     forkOptions: {
-      env: {
-        ...process.env,
-        __NEXT_INCREMENTAL_CACHE_IPC_PORT: incrementalCacheIpcPort
-          ? incrementalCacheIpcPort + ''
-          : undefined,
-        __NEXT_INCREMENTAL_CACHE_IPC_KEY: incrementalCacheIpcValidationKey,
-      },
+      env: process.env,
     },
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
@@ -637,8 +620,6 @@ function createStaticWorker(
 
 async function writeFullyStaticExport(
   config: NextConfigComplete,
-  incrementalCacheIpcPort: number | undefined,
-  incrementalCacheIpcValidationKey: string | undefined,
   dir: string,
   enabledDirectories: NextEnabledDirectories,
   configOutDir: string,
@@ -647,16 +628,8 @@ async function writeFullyStaticExport(
   const exportApp = require('../export')
     .default as typeof import('../export').default
 
-  const pagesWorker = createStaticWorker(
-    config,
-    incrementalCacheIpcPort,
-    incrementalCacheIpcValidationKey
-  )
-  const appWorker = createStaticWorker(
-    config,
-    incrementalCacheIpcPort,
-    incrementalCacheIpcValidationKey
-  )
+  const pagesWorker = createStaticWorker(config)
+  const appWorker = createStaticWorker(config)
 
   await exportApp(
     dir,
@@ -665,7 +638,6 @@ async function writeFullyStaticExport(
       nextConfig: config,
       enabledDirectories,
       silent: true,
-      threads: config.experimental.cpus,
       outdir: path.join(dir, configOutDir),
       // The worker already explicitly binds `this` to each of the
       // exposed methods.
@@ -937,15 +909,16 @@ export default async function build(
       }
       NextBuildContext.previewProps = previewProps
 
-      const mappedPages = nextBuildSpan
+      const mappedPages = await nextBuildSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: false,
             pageExtensions: config.pageExtensions,
             pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagesPaths,
             pagesDir,
+            appDir,
           })
         )
       NextBuildContext.mappedPages = mappedPages
@@ -967,60 +940,29 @@ export default async function build(
             })
           )
 
-        mappedAppPages = nextBuildSpan
+        mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
-          .traceFn(() =>
+          .traceAsyncFn(() =>
             createPagesMapping({
               pagePaths: appPaths,
               isDev: false,
               pagesType: PAGE_TYPES.APP,
               pageExtensions: config.pageExtensions,
-              pagesDir: pagesDir,
-            })
-          )
-
-        // If the metadata route doesn't contain generating dynamic exports,
-        // we can replace the dynamic catch-all route and use the static route instead.
-        for (const [pageKey, pagePath] of Object.entries(mappedAppPages)) {
-          if (pageKey.includes('[[...__metadata_id__]]')) {
-            const pageFilePath = getPageFilePath({
-              absolutePagePath: pagePath,
               pagesDir,
               appDir,
-              rootDir,
             })
-
-            const isDynamic = await isDynamicMetadataRoute(pageFilePath)
-            if (!isDynamic) {
-              delete mappedAppPages[pageKey]
-              mappedAppPages[pageKey.replace('[[...__metadata_id__]]/', '')] =
-                pagePath
-            }
-
-            if (
-              pageKey.includes('sitemap/[[...__metadata_id__]]') &&
-              isDynamic
-            ) {
-              delete mappedAppPages[pageKey]
-              mappedAppPages[
-                pageKey.replace(
-                  'sitemap/[[...__metadata_id__]]',
-                  'sitemap/[__metadata_id__]'
-                )
-              ] = pagePath
-            }
-          }
-        }
+          )
 
         NextBuildContext.mappedAppPages = mappedAppPages
       }
 
-      const mappedRootPaths = createPagesMapping({
+      const mappedRootPaths = await createPagesMapping({
         isDev: false,
         pageExtensions: config.pageExtensions,
         pagePaths: rootPaths,
         pagesType: PAGE_TYPES.ROOT,
         pagesDir: pagesDir,
+        appDir,
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
@@ -1248,11 +1190,6 @@ export default async function build(
         '{"type": "commonjs"}'
       )
 
-      // We need to write the manifest with rewrites before build
-      await nextBuildSpan
-        .traceChild('write-routes-manifest')
-        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
-
       await writeEdgePartialPrerenderManifest(distDir, {})
 
       const outputFileTracingRoot =
@@ -1378,29 +1315,34 @@ export default async function build(
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
-        const project = await bindings.turbo.createProject({
-          projectPath: dir,
-          rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config,
-          jsConfig: await getTurbopackJsConfig(dir, config),
-          watch: false,
-          dev,
-          env: process.env as Record<string, string>,
-          defineEnv: createDefineEnv({
-            isTurbopack: true,
-            clientRouterFilters: NextBuildContext.clientRouterFilters,
-            config,
+        const project = await bindings.turbo.createProject(
+          {
+            projectPath: dir,
+            rootPath: config.experimental.outputFileTracingRoot || dir,
+            nextConfig: config,
+            jsConfig: await getTurbopackJsConfig(dir, config),
+            watch: false,
             dev,
-            distDir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            // TODO: Implement
-            middlewareMatchers: undefined,
-          }),
-          buildId: NextBuildContext.buildId!,
-          encryptionKey: NextBuildContext.encryptionKey!,
-          previewProps: NextBuildContext.previewProps!,
-        })
+            env: process.env as Record<string, string>,
+            defineEnv: createDefineEnv({
+              isTurbopack: true,
+              clientRouterFilters: NextBuildContext.clientRouterFilters,
+              config,
+              dev,
+              distDir,
+              fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+              hasRewrites,
+              // TODO: Implement
+              middlewareMatchers: undefined,
+            }),
+            buildId: NextBuildContext.buildId!,
+            encryptionKey: NextBuildContext.encryptionKey!,
+            previewProps: NextBuildContext.previewProps!,
+          },
+          {
+            memoryLimit: config.experimental.turbo?.memoryLimit,
+          }
+        )
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
         await fs.mkdir(path.join(distDir, 'static', buildId), {
@@ -1758,6 +1700,8 @@ export default async function build(
         ? await readManifest<AppBuildManifest>(appBuildManifestPath)
         : undefined
 
+      const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+
       const appPathRoutes: Record<string, string> = {}
 
       if (appDir) {
@@ -1777,63 +1721,8 @@ export default async function build(
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-      let incrementalCacheIpcPort
-      let incrementalCacheIpcValidationKey
-
-      if (config.experimental.staticWorkerRequestDeduping) {
-        let CacheHandler
-        if (cacheHandler) {
-          CacheHandler = interopDefault(
-            await import(formatDynamicImportPath(dir, cacheHandler)).then(
-              (mod) => mod.default || mod
-            )
-          )
-        }
-
-        const cacheInitialization = await initializeIncrementalCache({
-          fs: nodeFs,
-          dev: false,
-          pagesDir: true,
-          appDir: true,
-          fetchCache: true,
-          flushToDisk: ciEnvironment.hasNextSupport
-            ? false
-            : config.experimental.isrFlushToDisk,
-          serverDistDir: path.join(distDir, 'server'),
-          fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-          maxMemoryCacheSize: config.cacheMaxMemorySize,
-          getPrerenderManifest: () => ({
-            version: -1 as any, // letting us know this doesn't conform to spec
-            routes: {},
-            dynamicRoutes: {},
-            notFoundRoutes: [],
-            preview: null as any, // `preview` is special case read in next-dev-server
-          }),
-          requestHeaders: {},
-          CurCacheHandler: CacheHandler,
-          minimalMode: ciEnvironment.hasNextSupport,
-          allowedRevalidateHeaderKeys:
-            config.experimental.allowedRevalidateHeaderKeys,
-          isAppPPREnabled: checkIsAppPPREnabled(config.experimental.ppr),
-        })
-
-        incrementalCacheIpcPort = cacheInitialization.ipcPort
-        incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
-      }
-
-      const pagesStaticWorkers = createStaticWorker(
-        config,
-
-        incrementalCacheIpcPort,
-        incrementalCacheIpcValidationKey
-      )
-      const appStaticWorkers = appDir
-        ? createStaticWorker(
-            config,
-            incrementalCacheIpcPort,
-            incrementalCacheIpcValidationKey
-          )
-        : undefined
+      const pagesStaticWorkers = createStaticWorker(config)
+      const appStaticWorkers = appDir ? createStaticWorker(config) : undefined
 
       const analysisBegin = process.hrtime()
       const staticCheckSpan = nextBuildSpan.traceChild('static-check')
@@ -2411,8 +2300,13 @@ export default async function build(
           return buildDataRoute(page, buildId)
         })
 
-        await writeManifest(routesManifestPath, routesManifest)
+        // await writeManifest(routesManifestPath, routesManifest)
       }
+
+      // We need to write the manifest with rewrites before build
+      await nextBuildSpan
+        .traceChild('write-routes-manifest')
+        .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
 
       // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
       // Only export the static 404 when there is no /_error present
@@ -2676,7 +2570,6 @@ export default async function build(
             silent: false,
             buildExport: true,
             debugOutput,
-            threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
             statusMessage: 'Generating static pages',
@@ -2789,7 +2682,11 @@ export default async function build(
                 }
 
                 let prefetchDataRoute: string | null | undefined
-                if (experimentalPPR) {
+                // While we may only write the `.rsc` when the route does not
+                // have PPR enabled, we still want to generate the route when
+                // deployed so it doesn't 404. If the app has PPR enabled, we
+                // should add this key.
+                if (!isRouteHandler && isAppPPREnabled) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -2853,12 +2750,19 @@ export default async function build(
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
               const normalizedRoute = normalizePagePath(page)
-              const dataRoute = path.posix.join(
-                `${normalizedRoute}${RSC_SUFFIX}`
-              )
 
-              let prefetchDataRoute: string | null | undefined
-              if (experimentalPPR) {
+              let dataRoute: string | null = null
+              if (!isRouteHandler) {
+                dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+              }
+
+              let prefetchDataRoute: string | undefined
+
+              // While we may only write the `.rsc` when the route does not
+              // have PPR enabled, we still want to generate the route when
+              // deployed so it doesn't 404. If the app has PPR enabled, we
+              // should add this key.
+              if (!isRouteHandler && isAppPPREnabled) {
                 prefetchDataRoute = path.posix.join(
                   `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                 )
@@ -2886,7 +2790,7 @@ export default async function build(
                 fallback: appDynamicParamPaths.has(originalAppPath)
                   ? null
                   : false,
-                dataRouteRegex: isRouteHandler
+                dataRouteRegex: !dataRoute
                   ? null
                   : normalizeRouteRegex(
                       getNamedRouteRegex(
@@ -2895,18 +2799,17 @@ export default async function build(
                       ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
                     ),
                 prefetchDataRoute,
-                prefetchDataRouteRegex:
-                  isRouteHandler || !prefetchDataRoute
-                    ? undefined
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
-                      ),
+                prefetchDataRouteRegex: !prefetchDataRoute
+                  ? undefined
+                  : normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                        false
+                      ).re.source.replace(
+                        /\(\?:\\\/\)\?\$$/,
+                        '\\.prefetch\\.rsc$'
+                      )
+                    ),
               }
             }
           }
@@ -3378,8 +3281,6 @@ export default async function build(
       if (config.output === 'export') {
         await writeFullyStaticExport(
           config,
-          incrementalCacheIpcPort,
-          incrementalCacheIpcValidationKey,
           dir,
           enabledDirectories,
           configOutDir,

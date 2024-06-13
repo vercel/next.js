@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,

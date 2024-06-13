@@ -246,6 +246,67 @@ describe('createAfterContext', () => {
     expect(results).toEqual([undefined])
   })
 
+  it('runs after() callbacks added within an after()', async () => {
+    const waitUntilPromises: Promise<unknown>[] = []
+    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = createAfterContext({
+      waitUntil,
+      onClose,
+      cacheScope: undefined,
+    })
+
+    const requestStore = createMockRequestStore(afterContext)
+    const run = createRun(afterContext, requestStore)
+
+    // ==================================
+
+    const promise1 = new DetachedPromise<string>()
+    const afterCallback1 = jest.fn(async () => {
+      await promise1.promise
+      after(afterCallback2)
+    })
+
+    const promise2 = new DetachedPromise<string>()
+    const afterCallback2 = jest.fn(() => promise2.promise)
+
+    await run(async () => {
+      after(afterCallback1)
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(waitUntil).toHaveBeenCalledTimes(1) // just runCallbacksOnClose
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(afterCallback1).not.toHaveBeenCalled()
+    expect(afterCallback2).not.toHaveBeenCalled()
+
+    // the response is done.
+    onCloseCallback!()
+    await Promise.resolve(null)
+
+    expect(afterCallback1).toHaveBeenCalledTimes(1)
+    expect(afterCallback2).toHaveBeenCalledTimes(0)
+    expect(waitUntil).toHaveBeenCalledTimes(1)
+
+    promise1.resolve('1')
+    await Promise.resolve(null)
+
+    expect(afterCallback1).toHaveBeenCalledTimes(1)
+    expect(afterCallback2).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1)
+    promise2.resolve('2')
+
+    const results = await Promise.all(waitUntilPromises)
+    expect(results).toEqual([
+      undefined, // callbacks all get collected into a big void promise
+    ])
+  })
+
   it('does not hang forever if onClose failed', async () => {
     const waitUntilPromises: Promise<unknown>[] = []
     const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
@@ -402,13 +463,14 @@ describe('createAfterContext', () => {
 
 const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
   const partialStore: Partial<RequestStore> = {
+    url: { pathname: '/', search: '' },
     afterContext: afterContext,
     assetPrefix: '',
     reactLoadableManifest: {},
     draftMode: undefined,
   }
 
-  return new Proxy(partialStore, {
+  return new Proxy(partialStore as RequestStore, {
     get(target, key) {
       if (key in target) {
         return target[key as keyof typeof target]
@@ -417,5 +479,5 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
         `RequestStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
       )
     },
-  }) as RequestStore
+  })
 }

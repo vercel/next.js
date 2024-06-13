@@ -12,7 +12,10 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+            chunk::{
+                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+                EntryChunkGroupResult,
+            },
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -21,7 +24,6 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
-        nodejs::EntryChunkGroupResult,
     },
 };
 
@@ -73,7 +75,7 @@ impl InstrumentationEndpoint {
             self.context,
             self.project.project_path(),
             userland_module,
-            "instrumentation".to_string(),
+            "instrumentation".into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
@@ -126,7 +128,7 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 self.project
                     .node_root()
-                    .join("server/instrumentation.js".to_string()),
+                    .join("server/instrumentation.js".into()),
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation),
@@ -161,7 +163,7 @@ impl InstrumentationEndpoint {
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
                 wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-                name: "instrumentation".to_string(),
+                name: "instrumentation".into(),
                 ..Default::default()
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -169,7 +171,7 @@ impl InstrumentationEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json".to_string()),
+                node_root.join("server/instrumentation/middleware-manifest.json".into()),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -194,6 +196,7 @@ impl Endpoint for InstrumentationEndpoint {
         async move {
             let this = self.await?;
             let output_assets = self.output_assets();
+            let _ = output_assets.resolve().await?;
             this.project
                 .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;

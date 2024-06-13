@@ -1,3 +1,4 @@
+import PromiseQueue from 'next/dist/compiled/p-queue'
 import {
   requestAsyncStorage,
   type RequestStore,
@@ -30,12 +31,16 @@ export class AfterContextImpl implements AfterContext {
 
   private requestStore: RequestStore | undefined
 
-  private afterCallbacks: AfterCallback[] = []
+  private runCallbacksOnClosePromise: Promise<void> | undefined
+  private callbackQueue: PromiseQueue
 
   constructor({ waitUntil, onClose, cacheScope }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
     this.cacheScope = cacheScope
+
+    this.callbackQueue = new PromiseQueue()
+    this.callbackQueue.pause()
   }
 
   public run<T>(requestStore: RequestStore, callback: () => T): T {
@@ -79,10 +84,26 @@ export class AfterContextImpl implements AfterContext {
         'unstable_after: Missing `onClose` implementation'
       )
     }
-    if (this.afterCallbacks.length === 0) {
-      this.waitUntil(this.runCallbacksOnClose())
+
+    // this should only happen once.
+    if (!this.runCallbacksOnClosePromise) {
+      this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
+      this.waitUntil(this.runCallbacksOnClosePromise)
     }
-    this.afterCallbacks.push(callback)
+
+    const wrappedCallback = async () => {
+      try {
+        await callback()
+      } catch (err) {
+        // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+        console.error(
+          'An error occurred in a function passed to `unstable_after()`:',
+          err
+        )
+      }
+    }
+
+    this.callbackQueue.add(wrappedCallback)
   }
 
   private async runCallbacksOnClose() {
@@ -91,24 +112,11 @@ export class AfterContextImpl implements AfterContext {
   }
 
   private async runCallbacks(requestStore: RequestStore): Promise<void> {
-    if (this.afterCallbacks.length === 0) return
+    if (this.callbackQueue.size === 0) return
 
     const runCallbacksImpl = async () => {
-      // TODO(after): we should consider limiting the parallelism here via something like `p-queue`.
-      // (having a queue will also be needed for after-within-after, so this'd solve two problems at once).
-      await Promise.all(
-        this.afterCallbacks.map(async (afterCallback) => {
-          try {
-            await afterCallback()
-          } catch (err) {
-            // TODO(after): this is fine for now, but will need better intergration with our error reporting.
-            console.error(
-              'An error occurred in a function passed to `unstable_after()`:',
-              err
-            )
-          }
-        })
-      )
+      this.callbackQueue.start()
+      return this.callbackQueue.onIdle()
     }
 
     const readonlyRequestStore: RequestStore =
@@ -135,6 +143,7 @@ function wrapRequestStoreForAfterCallbacks(
   requestStore: RequestStore
 ): RequestStore {
   return {
+    url: requestStore.url,
     get headers() {
       return requestStore.headers
     },
@@ -148,19 +157,7 @@ function wrapRequestStoreForAfterCallbacks(
     mutableCookies: new ResponseCookies(new Headers()),
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
-
-    afterContext: {
-      after: () => {
-        throw new Error(
-          'Calling `unstable_after()` from within `unstable_after()` is not supported yet.'
-        )
-      },
-      run: () => {
-        throw new InvariantError(
-          'unstable_after: Cannot call `AfterContext.run()` from within an `unstable_after()` callback'
-        )
-      },
-    },
+    afterContext: requestStore.afterContext,
   }
 }
 

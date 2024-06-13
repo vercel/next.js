@@ -86,6 +86,7 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 >
 > - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 

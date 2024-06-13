@@ -27,10 +27,6 @@ const initialFiles = new Map([
 describe('Error Overlay for server components compiler errors in pages', () => {
   const { next } = nextTestSetup({
     files: {},
-    dependencies: {
-      react: '19.0.0-beta-04b058868c-20240508',
-      'react-dom': '19.0.0-beta-04b058868c-20240508',
-    },
     skipStart: true,
   })
 

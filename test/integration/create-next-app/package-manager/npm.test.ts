@@ -29,6 +29,7 @@ describe.skip('create-next-app with package manager npm', () => {
           '--ts',
           '--app',
           '--use-npm',
+          '--no-turbo',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -48,72 +49,73 @@ describe.skip('create-next-app with package manager npm', () => {
       })
     })
   })
-})
 
-it('should use npm when user-agent is npm', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'user-agent-npm'
-    const res = await run(
-      [
+  it('should use npm when user-agent is npm', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'user-agent-npm'
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-turbo',
+          '--no-eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+        ],
+        nextInstall.installDir,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'npm' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
         projectName,
-        '--ts',
-        '--app',
-        '--no-eslint',
-        '--no-src-dir',
-        '--no-tailwind',
-        '--no-import-alias',
-      ],
-      nextInstall.installDir,
-      {
-        cwd,
-        env: { npm_config_user_agent: 'npm' },
-      }
-    )
-
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
+        files,
+      })
     })
   })
-})
 
-it('should use npm for --use-npm flag with example', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'use-npm-with-example'
-    const res = await run(
-      [projectName, '--use-npm', '--example', FULL_EXAMPLE_PATH],
-      nextInstall.installDir,
-      { cwd }
-    )
+  it('should use npm for --use-npm flag with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-npm-with-example'
+      const res = await run(
+        [projectName, '--use-npm', '--example', FULL_EXAMPLE_PATH],
+        nextInstall.installDir,
+        { cwd }
+      )
 
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files,
+      })
     })
   })
-})
 
-it('should use npm when user-agent is npm with example', async () => {
-  await useTempDir(async (cwd) => {
-    const projectName = 'user-agent-npm-with-example'
-    const res = await run(
-      [projectName, '--example', FULL_EXAMPLE_PATH],
-      nextInstall.installDir,
-      {
+  it('should use npm when user-agent is npm with example', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'user-agent-npm-with-example'
+      const res = await run(
+        [projectName, '--example', FULL_EXAMPLE_PATH],
+        nextInstall.installDir,
+        {
+          cwd,
+          env: { npm_config_user_agent: 'npm' },
+        }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
         cwd,
-        env: { npm_config_user_agent: 'npm' },
-      }
-    )
-
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({
-      cwd,
-      projectName,
-      files,
+        projectName,
+        files,
+      })
     })
   })
 })

@@ -1,4 +1,4 @@
-export function cliLog(/** @type {Record<string, any>} */ data) {
+export function cliLog(/** @type {string | Record<string, any>} */ data) {
   console.log('<test-log>' + JSON.stringify(data) + '</test-log>')
 }
 
