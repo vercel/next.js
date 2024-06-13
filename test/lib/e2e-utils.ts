@@ -280,9 +280,7 @@ export function nextTestSetup(
     },
     get isTurbopack(): boolean {
       return Boolean(
-        isNextDev &&
-          !process.env.TEST_WASM &&
-          (options.turbo ?? shouldRunTurboDevTest())
+        !process.env.TEST_WASM && (options.turbo ?? shouldRunTurboDevTest())
       )
     },
 

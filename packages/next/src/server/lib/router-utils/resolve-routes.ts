@@ -26,9 +26,9 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
-import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -144,10 +144,10 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-          opts.port
-        }${req.url}`
-      : req.url || ''
+        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+            opts.port
+          }${req.url}`
+        : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
@@ -452,9 +452,8 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult = await renderServer?.initialize(
-              renderServerOpts
-            )
+            const serverResult =
+              await renderServer?.initialize(renderServerOpts)
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)

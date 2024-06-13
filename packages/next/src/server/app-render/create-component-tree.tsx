@@ -227,10 +227,7 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(
-      layoutOrPageMod?.revalidate,
-      staticGenerationStore.urlPathname
-    )
+    validateRevalidate(layoutOrPageMod?.revalidate, staticGenerationStore.route)
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
@@ -265,7 +262,7 @@ async function createComponentTreeInternal({
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
-    ? interopDefault(layoutOrPageMod)
+    ? await interopDefault(layoutOrPageMod)
     : undefined
 
   /**
@@ -413,7 +410,7 @@ async function createComponentTreeInternal({
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.ppr
+          !experimental.isRoutePPREnabled
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -537,7 +534,7 @@ async function createComponentTreeInternal({
         <Postpone
           prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
-          pathname={staticGenerationStore.urlPathname}
+          route={staticGenerationStore.route}
         />,
         loadingData,
       ],

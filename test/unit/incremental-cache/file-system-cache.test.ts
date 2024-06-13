@@ -15,9 +15,6 @@ describe('FileSystemCache', () => {
       fs: nodeFs,
       serverDistDir: cacheDir,
       revalidatedTags: [],
-      experimental: {
-        ppr: false,
-      },
     })
 
     const binary = await fs.readFile(
@@ -37,7 +34,7 @@ describe('FileSystemCache', () => {
       {}
     )
 
-    expect((await fsCache.get('icon.png')).value).toEqual({
+    expect((await fsCache.get('icon.png'))?.value).toEqual({
       body: binary,
       headers: {
         'Content-Type': 'image/png',
@@ -57,9 +54,6 @@ describe('FileSystemCache (isrMemory 0)', () => {
     fs: nodeFs,
     serverDistDir: cacheDir,
     revalidatedTags: [],
-    experimental: {
-      ppr: false,
-    },
     maxMemoryCacheSize: 0, // disable memory cache
   })
 
@@ -90,7 +84,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
       kindHint: 'fetch',
     })
 
-    expect(res.value).toEqual({
+    expect(res?.value).toEqual({
       kind: 'FETCH',
       data: {
         headers: {},
@@ -119,7 +113,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
       kindHint: 'fetch',
     })
 
-    expect(res.value).toEqual({
+    expect(res?.value).toEqual({
       kind: 'FETCH',
       data: { headers: {}, body: '1700056381', status: 200, url: '' },
       revalidate: 30,

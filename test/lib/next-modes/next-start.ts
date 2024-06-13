@@ -19,6 +19,7 @@ export class NextStartInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan })
   }
 
@@ -50,7 +51,13 @@ export class NextStartInstance extends NextInstance {
         ...process.env,
         ...this.env,
         NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort || '0',
+        ...(this.forcedPort
+          ? {
+              PORT: this.forcedPort,
+            }
+          : {
+              PORT: '0',
+            }),
         __NEXT_TEST_MODE: 'e2e',
       },
     }
@@ -61,6 +68,7 @@ export class NextStartInstance extends NextInstance {
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
     }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }

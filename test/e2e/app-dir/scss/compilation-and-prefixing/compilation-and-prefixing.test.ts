@@ -4,36 +4,34 @@ import { nextTestSetup } from 'e2e-utils'
 import { readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
-const nextConfig = {
-  productionBrowserSourceMaps: true,
-}
 
 describe.each([
-  { dependencies: { sass: '1.54.0' }, nextConfig },
+  { dependencies: { sass: '1.54.0' }, undefined },
   {
     dependencies: { 'sass-embedded': '1.75.0' },
     nextConfig: {
-      ...nextConfig,
       sassOptions: {
         implementation: 'sass-embedded',
       },
     },
   },
 ])('SCSS Support ($dependencies)', ({ dependencies, nextConfig }) => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    // This test is skipped because it is reading files in the `.next` file which
+    // isn't available/necessary in a deployment environment.
+    skipDeployment: true,
     dependencies,
-    nextConfig,
+    nextConfig
   })
 
-  // TODO: Figure out this test for dev and Turbopack
+  if (skipped) return // TODO: Figure out this test for dev and Turbopack
   ;(isNextDev ? describe.skip : describe)('Production only', () => {
     describe('CSS Compilation and Prefixing', () => {
       it(`should've compiled and prefixed`, async () => {
         const cssFolder = join(next.testDir, '.next/static/css')
 
         const files = await readdir(cssFolder)
-
         const cssFiles = files.filter((f) => /\.css$/.test(f))
 
         expect(cssFiles.length).toBe(1)

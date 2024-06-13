@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
@@ -10,7 +10,6 @@ use turbopack_binding::{
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
         },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
         turbopack::ModuleAssetContext,
     },
 };
@@ -57,14 +56,14 @@ pub async fn get_app_route_entry(
         nodejs_context
     };
 
-    let original_name = page.to_string();
-    let pathname = AppPath::from(page.clone()).to_string();
+    let original_name: RcStr = page.to_string().into();
+    let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     let path = source.ident().path();
 
     const INNER: &str = "INNER_APP_ROUTE";
 
-    let output_type = next_config
+    let output_type: RcStr = next_config
         .await?
         .output
         .as_ref()
@@ -72,21 +71,21 @@ pub async fn get_app_route_entry(
             OutputType::Standalone => "\"standalone\"".to_string(),
             OutputType::Export => "\"export\"".to_string(),
         })
-        .unwrap_or_else(|| "\"\"".to_string());
+        .map(RcStr::from)
+        .unwrap_or_else(|| "\"\"".into());
 
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().clone(),
+            "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
             // TODO(alexkirsz) Is this necessary?
-            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
+            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
             "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
-            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_USERLAND" => INNER.into(),
         },
         indexmap! {
             "nextConfigOutput" => output_type
@@ -103,7 +102,7 @@ pub async fn get_app_route_entry(
         .module();
 
     let inner_assets = indexmap! {
-        INNER.to_string() => userland_module
+        INNER.into() => userland_module
     };
 
     let mut rsc_entry = context
@@ -122,12 +121,6 @@ pub async fn get_app_route_entry(
         );
     }
 
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
-    };
-
     Ok(AppEntry {
         pathname,
         original_name,
@@ -142,7 +135,7 @@ async fn wrap_edge_route(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    pathname: String,
+    pathname: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
 
@@ -150,7 +143,7 @@ async fn wrap_edge_route(
         "edge-app-route.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_USERLAND" => INNER.into(),
         },
         indexmap! {},
         indexmap! {},
@@ -158,7 +151,7 @@ async fn wrap_edge_route(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry
+        INNER.into() => entry
     };
 
     let wrapped = context

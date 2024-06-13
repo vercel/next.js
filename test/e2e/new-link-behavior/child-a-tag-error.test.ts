@@ -17,8 +17,6 @@ describe('New Link Behavior with <a> child', () => {
       },
       dependencies: {
         next: 'latest',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })

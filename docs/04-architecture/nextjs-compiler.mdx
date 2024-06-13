@@ -38,7 +38,7 @@ module.exports = {
 
 For advanced use cases, you can configure individual properties for styled-components compilation.
 
-> Note: `minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
+> Note: `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -57,15 +57,15 @@ module.exports = {
       // Defaults to ["index"].
       meaninglessFileNames?: string[],
       // Enabled by default.
-      cssProp?: boolean,
+      minify?: boolean,
+      // Enabled by default.
+      transpileTemplateLiterals?: boolean,
       // Empty by default.
       namespace?: string,
-      // Not supported yet.
-      minify?: boolean,
-      // Not supported yet.
-      transpileTemplateLiterals?: boolean,
-      // Not supported yet.
+      // Disabled by default.
       pure?: boolean,
+      // Enabled by default.
+      cssProp?: boolean,
     },
   },
 }

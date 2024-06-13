@@ -20,8 +20,6 @@
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "13.5.4",
-    "i": "^0.3.7",
-    "npm": "^10.2.0",
     "typescript": "^5"
   }
 }

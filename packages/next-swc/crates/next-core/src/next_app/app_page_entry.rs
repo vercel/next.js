@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::indexmap;
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
@@ -14,7 +14,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::utils::StringifyJs,
         turbopack::ModuleAssetContext,
     },
 };
@@ -71,25 +71,24 @@ pub async fn get_app_page_entry(
 
     let pages = pages.iter().map(|page| page.to_string()).try_join().await?;
 
-    let original_name = page.to_string();
-    let pathname = AppPath::from(page.clone()).to_string();
+    let original_name: RcStr = page.to_string().into();
+    let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "app-page.js",
         project_root,
         indexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string(),
+            "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_ORIGINAL_PATHNAME" => original_name.clone(),
             // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".to_string(),
+            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
         },
         indexmap! {
             "tree" => loader_tree_code,
-            "pages" => StringifyJs(&pages).to_string(),
-            "__next_app_require__" => "__turbopack_require__".to_string(),
-            "__next_app_load_chunk__" => " __turbopack_load__".to_string(),
+            "pages" => StringifyJs(&pages).to_string().into(),
+            "__next_app_require__" => "__turbopack_require__".into(),
+            "__next_app_load_chunk__" => " __turbopack_load__".into(),
         },
         indexmap! {},
     )
@@ -103,7 +102,9 @@ pub async fn get_app_page_entry(
 
     let file = File::from(result.build());
     let source = VirtualSource::new_with_ident(
-        source.ident().with_query(Vc::cell(query.to_string())),
+        source
+            .ident()
+            .with_query(Vc::cell(query.to_string().into())),
         AssetContent::file(file.into()),
     );
 
@@ -122,12 +123,6 @@ pub async fn get_app_page_entry(
             page,
             next_config,
         );
-    };
-
-    let Some(rsc_entry) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(rsc_entry).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
     };
 
     Ok(AppEntry {
@@ -152,7 +147,6 @@ async fn wrap_edge_page(
     let next_config = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
-    let build_id = "development";
     let dev = true;
 
     // TODO(timneutkens): remove this
@@ -172,16 +166,15 @@ async fn wrap_edge_page(
         "edge-ssr-app.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => page.to_string(),
-            "VAR_BUILD_ID" => build_id.to_string(),
+            "VAR_USERLAND" => INNER.into(),
+            "VAR_PAGE" => page.to_string().into(),
         },
         indexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
-            "nextConfig" => serde_json::to_string(next_config)?,
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string(),
-            "dev" => serde_json::Value::Bool(dev).to_string(),
-            "serverActions" => serde_json::to_string(&server_actions)?
+            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
+            "dev" => serde_json::Value::Bool(dev).to_string().into(),
+            "serverActions" => serde_json::to_string(&server_actions)?.into(),
         },
         indexmap! {
             "incrementalCacheHandler" => None,
@@ -190,7 +183,7 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry
+        INNER.into() => entry
     };
 
     let wrapped = context
@@ -204,6 +197,6 @@ async fn wrap_edge_page(
         context,
         project_root,
         wrapped,
-        AppPath::from(page).to_string(),
+        AppPath::from(page).to_string().into(),
     ))
 }

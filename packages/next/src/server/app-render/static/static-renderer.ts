@@ -4,6 +4,8 @@ import type {
 } from 'react-dom/server.edge'
 import type { Options as PrerenderOptions } from 'react-dom/static.edge'
 
+import type { JSX } from 'react'
+
 type RenderResult = {
   stream: ReadableStream<Uint8Array>
   postponed?: object | null
@@ -18,7 +20,7 @@ class StaticRenderer implements Renderer {
   // this is for tree shaking. Couldn't find a better way to do it for some reason
   private readonly prerender = (process.env.__NEXT_EXPERIMENTAL_REACT
     ? require('react-dom/static.edge').prerender
-    : null) as typeof import('react-dom/static.edge')['prerender']
+    : null) as (typeof import('react-dom/static.edge'))['prerender']
 
   constructor(private readonly options: PrerenderOptions) {}
 
@@ -31,7 +33,7 @@ class StaticRenderer implements Renderer {
 
 class StaticResumeRenderer implements Renderer {
   private readonly resume = require('react-dom/server.edge')
-    .resume as typeof import('react-dom/server.edge')['resume']
+    .resume as (typeof import('react-dom/server.edge'))['resume']
 
   constructor(
     private readonly postponed: object,
@@ -47,7 +49,7 @@ class StaticResumeRenderer implements Renderer {
 
 export class ServerRenderer implements Renderer {
   private readonly renderToReadableStream = require('react-dom/server.edge')
-    .renderToReadableStream as typeof import('react-dom/server.edge')['renderToReadableStream']
+    .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
   constructor(private readonly options: RenderToReadableStreamOptions) {}
 
@@ -111,10 +113,10 @@ export function getDynamicDataPostponedState(): DynamicDataPostponedState {
 
 type Options = {
   /**
-   * Whether or not PPR is enabled. This is used to determine which renderer to
-   * use.
+   * Whether or not PPR is enabled for this page. This is used to determine
+   * which renderer to use.
    */
-  ppr: boolean
+  isRoutePPREnabled: boolean
 
   /**
    * Whether or not this is a static generation render. This is used to
@@ -138,7 +140,7 @@ type Options = {
 }
 
 export function createStaticRenderer({
-  ppr,
+  isRoutePPREnabled,
   isStaticGeneration,
   postponed,
   streamOptions: {
@@ -152,7 +154,7 @@ export function createStaticRenderer({
     formState,
   },
 }: Options): Renderer {
-  if (ppr) {
+  if (isRoutePPREnabled) {
     if (isStaticGeneration) {
       // This is a Prerender
       return new StaticRenderer({

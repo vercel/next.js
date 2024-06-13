@@ -65,6 +65,7 @@ impl NextJsReactServerComponents {
 
 #[async_trait]
 impl CustomTransformer for NextJsReactServerComponents {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "nexT_react_server_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let file_name = if ctx.file_path_str.is_empty() {
             FileName::Anon

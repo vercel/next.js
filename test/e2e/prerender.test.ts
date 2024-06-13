@@ -2075,7 +2075,7 @@ describe('Prerender', () => {
               /webpack-runtime\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/react\/cjs\/react\.production\.js/,
             ],
             notTests: [],
           },
@@ -2086,7 +2086,7 @@ describe('Prerender', () => {
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/react\/cjs\/react\.production\.js/,
               /\/world.txt/,
             ],
             notTests: [
@@ -2101,7 +2101,7 @@ describe('Prerender', () => {
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.min\.js/,
+              /node_modules\/react\/cjs\/react\.production\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
             ],
             notTests: [/\/world.txt/],
@@ -2115,12 +2115,16 @@ describe('Prerender', () => {
           const { version, files } = JSON.parse(contents)
           expect(version).toBe(1)
 
-          console.log(
-            check.tests.map((item) => files.some((file) => item.test(file)))
-          )
-          expect(
-            check.tests.every((item) => files.some((file) => item.test(file)))
-          ).toBe(true)
+          try {
+            expect(check.tests).toEqual(
+              expect.toSatisfyAll((item) =>
+                files.some((file) => item.test(file))
+              )
+            )
+          } catch (error) {
+            error.message += `\n\nFiles:\n${files.join('\n')}`
+            throw error
+          }
 
           if (sep === '/') {
             expect(

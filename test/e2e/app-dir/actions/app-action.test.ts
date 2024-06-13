@@ -19,9 +19,7 @@ describe('app-dir action handling', () => {
     nextTestSetup({
       files: __dirname,
       dependencies: {
-        react: 'latest',
         nanoid: 'latest',
-        'react-dom': 'latest',
         'server-only': 'latest',
       },
     })
@@ -890,13 +888,12 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#redirect-pages').click()
 
       await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from a pages route'
+        )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
       })
-
-      expect(await browser.elementByCss('body').text()).toContain(
-        'Hello from a pages route'
-      )
     })
 
     // TODO: investigate flakey behavior with revalidate
@@ -1309,6 +1306,24 @@ describe('app-dir action handling', () => {
 
       // verify that the cookies were merged correctly
       expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
+    })
+
+    it('should not forward next-action header to a redirected RSC request', async () => {
+      const browser = await next.browser('/redirects/action-redirect')
+
+      await browser.elementById('redirect-with-search-params').click()
+      await retry(async () => {
+        expect(await browser.url()).toMatch(
+          /\/redirects\/action-redirect\/redirect-target\?baz=1/
+        )
+      })
+      // verify that the search params was set correctly
+      expect(await browser.elementByCss('h2').text()).toBe('baz=1')
+
+      // we should not have the next-action header in the redirected request
+      expect(next.cliOutput).not.toContain(
+        'Action header should not be present'
+      )
     })
 
     it.each(['307', '308'])(

@@ -117,7 +117,9 @@ async function loaderTransform(
     filename,
     isServer,
     isPageFile,
-    development: this.mode === 'development',
+    development:
+      this.mode === 'development' ||
+      !!nextConfig.experimental?.allowDevelopmentBuild,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,

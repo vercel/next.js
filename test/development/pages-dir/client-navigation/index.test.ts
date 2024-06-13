@@ -565,7 +565,7 @@ describe('Client Navigation', () => {
     describe('check hydration mis-match', () => {
       it('should not have hydration mis-match for hash link', async () => {
         const browser = await webdriver(next.appPort, '/nav/hash-changes')
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           console.log('log.message', log.message)
@@ -600,36 +600,32 @@ describe('Client Navigation', () => {
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
 
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
           await browser.elementByCss('#via-top-hash').click()
 
-          const scrollPositionAfterTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterTopHash).toBe(0)
 
@@ -672,9 +668,8 @@ describe('Client Navigation', () => {
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
         } finally {
@@ -1672,24 +1667,42 @@ describe.each([[false], [true]])(
         await waitFor(2000)
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script defer />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
 
         await browser.elementByCss('#reverseScriptOrder').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
 
         await browser.elementByCss('#toggleScript').click()
         await waitFor(2000)
 
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(strictNextHead ? 1 : 2)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
       } finally {
         if (browser) {
           await browser.close()
@@ -1704,7 +1717,7 @@ describe.each([[false], [true]])(
 
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let foundStyles = false
         let foundScripts = false
         const logs = []
@@ -1737,7 +1750,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {
@@ -1758,7 +1771,7 @@ describe.each([[false], [true]])(
         browser = await webdriver(next.appPort, '/head-with-json-ld-snippet')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {

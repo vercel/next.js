@@ -6,8 +6,6 @@ describe('app-dir action handling - next export', () => {
     skipStart: true,
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       'server-only': 'latest',
     },
   })

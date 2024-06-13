@@ -41,18 +41,10 @@ describe('fetch failures have good stack traces in edge runtime', () => {
   it('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
     await webdriver(next.url, '/api/unknown-domain-no-await')
 
-    if (process.env.TURBOPACK) {
-      // pages_api_unknown-domain-no-await_d8c7f5.js:14:5
-      await check(
-        () => stripAnsi(next.cliOutput),
-        /pages_api_unknown-domain-no-await_.*?\.js/
-      )
-    } else {
-      // webpack-internal:///(middleware)/./pages/api/unknown-domain-no-await.js:10:5
-      await check(
-        () => stripAnsi(next.cliOutput),
-        /at.+\/pages\/api\/unknown-domain-no-await.js/
-      )
-    }
+    // TODO: turbopack needs to have its source maps picked up by node.js
+    await check(
+      () => stripAnsi(next.cliOutput),
+      /at.+\/pages\/api\/unknown-domain-no-await.js/
+    )
   })
 })

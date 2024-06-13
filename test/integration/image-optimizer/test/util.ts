@@ -17,6 +17,21 @@ import {
 import isAnimated from 'next/dist/compiled/is-animated'
 import type { RequestInit } from 'node-fetch'
 
+type SetupTestsCtx = {
+  appDir: string
+  imagesDir: string
+  nextConfigImages?: Partial<import('next').NextConfig['images']>
+  isDev?: boolean
+}
+
+type RunTestsCtx = SetupTestsCtx & {
+  w: number
+  app?: import('child_process').ChildProcess
+  appDir?: string
+  appPort?: number
+  nextOutput?: string
+}
+
 const largeSize = 1080 // defaults defined in server/config.ts
 const animatedWarnText =
   'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
@@ -53,7 +68,7 @@ export async function serveSlowImage() {
   }
 }
 
-export async function fsToJson(dir, output = {}) {
+export async function fsToJson(dir: string, output = {}) {
   const files = await fs.readdir(dir)
   for (let file of files) {
     const fsPath = join(dir, file)
@@ -77,12 +92,16 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
-export const cleanImagesDir = async (ctx) => {
+export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
   console.warn('Cleaning', ctx.imagesDir)
   await fs.remove(ctx.imagesDir)
 }
 
-async function expectAvifSmallerThanWebp(w, q, appPort) {
+async function expectAvifSmallerThanWebp(
+  w: number,
+  q: number,
+  appPort: number
+) {
   const query = { url: '/mountains.jpg', w, q }
   const res1 = await fetchViaHTTP(appPort, '/_next/image', query, {
     headers: {
@@ -130,10 +149,10 @@ async function fetchWithDuration(
   return { duration, buffer, res }
 }
 
-export function runTests(ctx) {
+export function runTests(ctx: RunTestsCtx) {
   const { isDev, nextConfigImages } = ctx
   const {
-    contentDispositionType = 'inline',
+    contentDispositionType = 'attachment',
     domains = [],
     formats = [],
     minimumCacheTTL = 60,
@@ -149,9 +168,7 @@ export function runTests(ctx) {
 
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${
-        slowImageServer.port
-      }/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
@@ -160,6 +177,13 @@ export function runTests(ctx) {
 
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(500)
+    })
+
+    it('should timeout for upstream image exceeding 7 seconds', async () => {
+      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${8000}`
+      const query = { url, w: ctx.w, q: 100 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(504)
     })
   }
 
@@ -172,6 +196,43 @@ export function runTests(ctx) {
     const query = { w: ctx.w, q: 90, url: '/äöüščří.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
+  })
+
+  it('should maintain icns', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.icns' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/x-icns')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.icns"`
+    )
+    await expectWidth(res, 256)
+  })
+
+  it('should maintain pic/pct', async () => {
+    const query = { w: ctx.w, q: 90, url: '/test.pic' }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/x-pict')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="test.pic"`
+    )
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(ctx.appDir, 'public', 'test.pic'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
   })
 
   it('should maintain animated gif', async () => {
@@ -242,7 +303,7 @@ export function runTests(ctx) {
     expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
-  if (ctx.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
       const query = { w: ctx.w, q: 90, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
@@ -266,7 +327,12 @@ export function runTests(ctx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
-      expect(ctx.nextOutput).not.toContain('The requested resource')
+      expect(ctx.nextOutput).not.toContain(
+        `The requested resource isn't a valid image`
+      )
+      expect(ctx.nextOutput).not.toContain(
+        `valid but image type is not allowed`
+      )
     })
   } else {
     it('should not allow vector svg', async () => {
@@ -299,6 +365,16 @@ export function runTests(ctx) {
 
     it('should not allow svg with uppercase header', async () => {
       const query = { w: ctx.w, q: 65, url: '/api/uppercase.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain(
+        '"url" parameter is valid but image type is not allowed'
+      )
+    })
+
+    it('should not allow svg with wrong header', async () => {
+      const query = { w: ctx.w, q: 65, url: '/api/wrong-header.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -783,8 +859,14 @@ export function runTests(ctx) {
       await cleanImagesDir(ctx)
       const delay = 500
 
+      if (globalThis.isrImgQuality) {
+        globalThis.isrImgQuality++
+      } else {
+        globalThis.isrImgQuality = 40
+      }
+
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`
-      const query = { url, w: ctx.w, q: 39 }
+      const query = { url, w: ctx.w, q: globalThis.isrImgQuality }
       const opts = { headers: { accept: 'image/webp' } }
 
       const one = await fetchWithDuration(
@@ -827,9 +909,9 @@ export function runTests(ctx) {
       const json2 = await fsToJson(ctx.imagesDir)
       expect(json2).toStrictEqual(json1)
 
-      if (ctx.minimumCacheTTL) {
+      if (ctx.nextConfigImages?.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(ctx.minimumCacheTTL * 1000)
+        await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
@@ -905,8 +987,24 @@ export function runTests(ctx) {
     expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
+  it('should fail when url is too long', async () => {
+    const query = { url: `/${'a'.repeat(4000)}`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is too long`)
+  })
+
+  it('should fail when url is protocol relative', async () => {
+    const query = { url: `//example.com`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(
+      `"url" parameter cannot be a protocol-relative URL (//)`
+    )
+  })
+
   it('should fail when internal url is not an image', async () => {
-    const url = `//<h1>not-an-image</h1>`
+    const url = `/api/no-header`
     const query = { url, w: ctx.w, q: 39 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -931,7 +1029,17 @@ export function runTests(ctx) {
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
     await cleanImagesDir(ctx)
 
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    if (globalThis.isrImgQuality) {
+      globalThis.isrImgQuality++
+    } else {
+      globalThis.isrImgQuality = 80
+    }
+
+    const query = {
+      url: '/api/stateful/test.png',
+      w: ctx.w,
+      q: globalThis.isrImgQuality,
+    }
     const opts = { headers: { accept: 'image/webp' } }
 
     const one = await fetchWithDuration(
@@ -973,16 +1081,15 @@ export function runTests(ctx) {
     const json2 = await fsToJson(ctx.imagesDir)
     expect(json2).toStrictEqual(json1)
 
-    if (ctx.minimumCacheTTL) {
+    if (ctx.nextConfigImages?.minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
-      await waitFor(ctx.minimumCacheTTL * 1000)
+      await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
       const [three, four] = await Promise.all([
         fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
         fetchWithDuration(ctx.appPort, '/_next/image', query, opts),
       ])
 
-      expect(three.duration).toBeLessThan(one.duration)
       expect(three.res.status).toBe(200)
       expect(three.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(three.res.headers.get('Content-Type')).toBe('image/webp')
@@ -990,7 +1097,6 @@ export function runTests(ctx) {
         `${contentDispositionType}; filename="test.webp"`
       )
 
-      expect(four.duration).toBeLessThan(one.duration)
       expect(four.res.status).toBe(200)
       expect(four.res.headers.get('X-Nextjs-Cache')).toBe('STALE')
       expect(four.res.headers.get('Content-Type')).toBe('image/webp')
@@ -1032,7 +1138,7 @@ export function runTests(ctx) {
     }
   })
 
-  if (ctx.dangerouslyAllowSVG) {
+  if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should use cached image file when parameters are the same for svg', async () => {
       await cleanImagesDir(ctx)
 
@@ -1303,7 +1409,7 @@ export function runTests(ctx) {
   }
 }
 
-export const setupTests = (ctx) => {
+export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
 
   describe('dev support w/o next.config.js', () => {
@@ -1312,7 +1418,7 @@ export const setupTests = (ctx) => {
       return
     }
     const size = 384 // defaults defined in server/config.ts
-    const curCtx = {
+    const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       isDev: true,
@@ -1345,7 +1451,7 @@ export const setupTests = (ctx) => {
 
   describe('dev support with next.config.js', () => {
     const size = 400
-    const curCtx = {
+    const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       isDev: true,
@@ -1357,7 +1463,7 @@ export const setupTests = (ctx) => {
           'assets.vercel.com',
           'image-optimization-test.vercel.app',
         ],
-        formats: ['image/avif', 'image/webp'],
+        formats: ['image/avif', 'image/webp'] as any,
         deviceSizes: [largeSize],
         imageSizes: [size],
         ...ctx.nextConfigImages,
@@ -1388,91 +1494,89 @@ export const setupTests = (ctx) => {
 
     runTests(curCtx)
   })
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'Production Mode Server support w/o next.config.js',
-    () => {
-      if (ctx.nextConfigImages) {
-        // skip this test because it requires next.config.js
-        return
-      }
-      const size = 384 // defaults defined in server/config.ts
-      const curCtx = {
-        ...ctx,
-        w: size,
-        isDev: false,
-      }
-      beforeAll(async () => {
-        const json = JSON.stringify({
-          experimental: {
-            outputFileTracingRoot: join(__dirname, '../../../..'),
-          },
-        })
-        nextConfig.replace('{ /* replaceme */ }', json)
-        curCtx.nextOutput = ''
-        await nextBuild(curCtx.appDir)
-        await cleanImagesDir(ctx)
-        curCtx.appPort = await findPort()
-        curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-          onStderr(msg) {
-            curCtx.nextOutput += msg
-          },
-          cwd: curCtx.appDir,
-        })
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        if (curCtx.app) await killApp(curCtx.app)
-      })
-
-      runTests(curCtx)
+  ;(process.env.TURBOPACK_DEV || process.env.TURBOPACK_BUILD
+    ? describe.skip
+    : describe)('Production Mode Server support w/o next.config.js', () => {
+    if (ctx.nextConfigImages) {
+      // skip this test because it requires next.config.js
+      return
     }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'Production Mode Server support with next.config.js',
-    () => {
-      const size = 399
-      const curCtx = {
-        ...ctx,
-        w: size,
-        isDev: false,
-        nextConfigImages: {
-          domains: [
-            'localhost',
-            '127.0.0.1',
-            'example.com',
-            'assets.vercel.com',
-            'image-optimization-test.vercel.app',
-          ],
-          formats: ['image/avif', 'image/webp'],
-          deviceSizes: [size, largeSize],
-          ...ctx.nextConfigImages,
+    const size = 384 // defaults defined in server/config.ts
+    const curCtx: RunTestsCtx = {
+      ...ctx,
+      w: size,
+      isDev: false,
+    }
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        experimental: {
+          outputFileTracingRoot: join(__dirname, '../../../..'),
         },
-      }
-      beforeAll(async () => {
-        const json = JSON.stringify({
-          images: curCtx.nextConfigImages,
-          experimental: {
-            outputFileTracingRoot: join(__dirname, '../../../..'),
-          },
-        })
-        curCtx.nextOutput = ''
-        nextConfig.replace('{ /* replaceme */ }', json)
-        await nextBuild(curCtx.appDir)
-        await cleanImagesDir(ctx)
-        curCtx.appPort = await findPort()
-        curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-          onStderr(msg) {
-            curCtx.nextOutput += msg
-          },
-          cwd: curCtx.appDir,
-        })
       })
-      afterAll(async () => {
-        nextConfig.restore()
-        if (curCtx.app) await killApp(curCtx.app)
+      nextConfig.replace('{ /* replaceme */ }', json)
+      curCtx.nextOutput = ''
+      await nextBuild(curCtx.appDir)
+      await cleanImagesDir(ctx)
+      curCtx.appPort = await findPort()
+      curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
+        onStderr(msg) {
+          curCtx.nextOutput += msg
+        },
+        cwd: curCtx.appDir,
       })
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      if (curCtx.app) await killApp(curCtx.app)
+    })
 
-      runTests(curCtx)
+    runTests(curCtx)
+  })
+  ;(process.env.TURBOPACK_DEV || process.env.TURBOPACK_BUILD
+    ? describe.skip
+    : describe)('Production Mode Server support with next.config.js', () => {
+    const size = 399
+    const curCtx: RunTestsCtx = {
+      ...ctx,
+      w: size,
+      isDev: false,
+      nextConfigImages: {
+        domains: [
+          'localhost',
+          '127.0.0.1',
+          'example.com',
+          'assets.vercel.com',
+          'image-optimization-test.vercel.app',
+        ],
+        formats: ['image/avif', 'image/webp'] as any,
+        deviceSizes: [size, largeSize],
+        ...ctx.nextConfigImages,
+      },
     }
-  )
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: curCtx.nextConfigImages,
+        experimental: {
+          outputFileTracingRoot: join(__dirname, '../../../..'),
+        },
+      })
+      curCtx.nextOutput = ''
+      nextConfig.replace('{ /* replaceme */ }', json)
+      await nextBuild(curCtx.appDir)
+      await cleanImagesDir(ctx)
+      curCtx.appPort = await findPort()
+      curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
+        onStderr(msg) {
+          curCtx.nextOutput += msg
+        },
+        cwd: curCtx.appDir,
+      })
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      if (curCtx.app) await killApp(curCtx.app)
+    })
+
+    runTests(curCtx)
+  })
 }

@@ -4,10 +4,6 @@ import path from 'path'
 describe('referencing a client component in an app route', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname)),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
   })
 
   it('responds without error', async () => {

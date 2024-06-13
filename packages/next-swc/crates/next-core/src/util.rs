@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
     swc::core::{
@@ -49,7 +49,7 @@ pub async fn pathname_for_path(
     server_root: Vc<FileSystemPath>,
     server_path: Vc<FileSystemPath>,
     path_ty: PathType,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let server_path_value = &*server_path.await?;
     let path = if let Some(path) = server_root.await?.get_path_to(server_path_value) {
         path
@@ -62,10 +62,10 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".to_string(),
+        (PathType::Data, "") => "/index".into(),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
-        (_, path) => format!("/{}", path),
+        (_, path) => format!("/{}", path).into(),
     };
 
     Ok(Vc::cell(path))
@@ -100,7 +100,7 @@ pub async fn foreign_code_context_condition(
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.to_string()),
+        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
     ));
 
     let result = if transpile_packages.is_empty() {
@@ -195,7 +195,7 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
+        StyledString::Text("Unable to parse config export in source file".into()).cell()
     }
 
     #[turbo_tasks::function]
@@ -214,7 +214,7 @@ impl Issue for NextSourceConfigParsingIssue {
             StyledString::Text(
                 "The exported configuration object in a source file need to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))
@@ -230,7 +230,7 @@ fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsVa
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue {
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
     }
     .cell()
     .emit()
@@ -267,20 +267,20 @@ fn parse_route_matcher_from_js_value(
                     }
                     let r = match route_type.as_deref() {
                         Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
                         Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
                         Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key,
-                            value: route_value,
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
                         }),
-                        Some("host") => {
-                            route_value.map(|route_value| RouteHas::Host { value: route_value })
-                        }
+                        Some("host") => route_value.map(|route_value| RouteHas::Host {
+                            value: route_value.into(),
+                        }),
                         _ => None,
                     };
 
@@ -319,7 +319,7 @@ fn parse_route_matcher_from_js_value(
                             match key.as_str() {
                                 Some("source") => {
                                     if let Some(value) = value.as_str() {
-                                        matcher.original_source = value.to_string();
+                                        matcher.original_source = value.into();
                                     }
                                 }
                                 Some("missing") => {
@@ -397,7 +397,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     detail: StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
@@ -415,7 +415,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                 ident: module.ident(),
                                 detail: StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
-                                        .to_string(),
+                                        .into(),
                                 )
                                 .cell(),
                             }
@@ -449,7 +449,7 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     detail: StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
-                                            .to_string(),
+                                            .into(),
                                     )
                                     .cell(),
                                 }
@@ -536,9 +536,9 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
 pub async fn load_next_js_template(
     path: &str,
     project_path: Vc<FileSystemPath>,
-    replacements: IndexMap<&'static str, String>,
-    injections: IndexMap<&'static str, String>,
-    imports: IndexMap<&'static str, Option<String>>,
+    replacements: IndexMap<&'static str, RcStr>,
+    injections: IndexMap<&'static str, RcStr>,
+    imports: IndexMap<&'static str, Option<RcStr>>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
@@ -591,7 +591,8 @@ pub async fn load_next_js_template(
                     import_request
                 },
             )
-            .context("path should not leave the fs")?,
+            .context("path should not leave the fs")?
+            .into(),
         };
 
         let relative = package_root_value
@@ -803,12 +804,12 @@ pub fn virtual_next_js_template_path(
     file: String,
 ) -> Vc<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}"))
+    get_next_package(project_path).join(format!("{NEXT_TEMPLATE_PATH}/{file}").into())
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
     project_path: Vc<FileSystemPath>,
-    path: String,
+    path: RcStr,
 ) -> Result<T> {
     let file_path = get_next_package(project_path).join(path.clone());
 

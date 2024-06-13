@@ -7,8 +7,6 @@ describe('app dir - css', () => {
     skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
-      react: 'latest',
-      'react-dom': 'latest',
       sass: 'latest',
       '@next/mdx': 'canary',
     },

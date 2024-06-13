@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe.skip('ReactRefreshLogBox app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 

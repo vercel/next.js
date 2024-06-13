@@ -16,7 +16,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
 }
 
 describe('app dir - external dependency', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: 'latest',
@@ -151,7 +151,7 @@ describe('app dir - external dependency', () => {
       await browser.eval(
         `window.getComputedStyle(document.querySelector('p')).fontFamily`
       )
-    ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
+    ).toMatch(/^myFont, "myFont Fallback"$/)
   })
   // TODO: This test depends on `new Worker` which is not supported in Turbopack yet.
   ;(process.env.TURBOPACK ? it.skip : it)(
@@ -279,14 +279,17 @@ describe('app dir - external dependency', () => {
   })
 
   describe('server actions', () => {
-    it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+    it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
       const browser = await next.browser('/optout/action')
       expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
 
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {
         const text = await browser.elementByCss('#dual-pkg-outout p').text()
-        expect(text).toBe('dual-pkg-optout:cjs')
+        // TODO: enable esm externals for app router in turbopack for actions
+        expect(text).toBe(
+          isTurbopack ? 'dual-pkg-optout:cjs' : 'dual-pkg-optout:mjs'
+        )
         return 'success'
       }, /success/)
     })

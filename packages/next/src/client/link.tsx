@@ -146,9 +146,9 @@ function prefetch(
       typeof options.locale !== 'undefined'
         ? options.locale
         : // Otherwise fallback to the router's locale.
-        'locale' in router
-        ? router.locale
-        : undefined
+          'locale' in router
+          ? router.locale
+          : undefined
 
     const prefetchedKey = href + '%' + as + '%' + locale
 
@@ -161,15 +161,21 @@ function prefetch(
     prefetched.add(prefetchedKey)
   }
 
-  const prefetchPromise = isAppRouter
-    ? (router as AppRouterInstance).prefetch(href, appOptions)
-    : (router as NextRouter).prefetch(href, as, options)
+  const doPrefetch = async () => {
+    if (isAppRouter) {
+      // note that `appRouter.prefetch()` is currently sync,
+      // so we have to wrap this call in an async function to be able to catch() errors below.
+      return (router as AppRouterInstance).prefetch(href, appOptions)
+    } else {
+      return (router as NextRouter).prefetch(href, as, options)
+    }
+  }
 
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Promise.resolve(prefetchPromise).catch((err) => {
+  doPrefetch().catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err

@@ -1,6 +1,7 @@
 {
+  "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
-  "pipeline": {
+  "tasks": {
     "build-native": {
       "inputs": [
         "../../.cargo/**",
@@ -34,18 +35,7 @@
       ],
       "outputs": ["native/*.node"]
     },
-    "build-native-no-plugin-woa": {
-      "inputs": [
-        "../../.cargo/**",
-        "crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock",
-        "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain"
-      ],
-      "outputs": ["native/*.node"]
-    },
-    "build-native-no-plugin-woa-release": {
+    "build-native-no-plugin-release": {
       "inputs": [
         "../../.cargo/**",
         "crates/**",

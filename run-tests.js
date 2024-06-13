@@ -227,7 +227,12 @@ async function main() {
     }
   }
 
-  console.log('Running tests with concurrency:', options.concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -405,7 +410,7 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -470,7 +475,8 @@ ${ENDGROUP}`)
         RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
+        TRACE_PLAYWRIGHT:
+          process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
@@ -692,6 +698,7 @@ ${ENDGROUP}`)
       }
 
       // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fsp.readFile(

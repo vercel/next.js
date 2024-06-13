@@ -1,6 +1,6 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
-import { join } from 'path'
+import { join, extname } from 'path'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -63,6 +63,7 @@ import {
   type TopLevelIssuesMap,
   isWellKnownError,
   printNonFatalIssue,
+  normalizeAppMetadataRoutePage,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -72,7 +73,7 @@ import {
 import { TurbopackManifestLoader } from './turbopack/manifest-loader'
 import type { Entrypoints } from './turbopack/types'
 import { findPagePathData } from './on-demand-entry-handler'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
@@ -122,27 +123,36 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const project = await bindings.turbo.createProject({
-    projectPath: dir,
-    rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
-    nextConfig: opts.nextConfig,
-    jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-    watch: true,
-    dev: true,
-    env: process.env as Record<string, string>,
-    defineEnv: createDefineEnv({
-      isTurbopack: true,
-      // TODO: Implement
-      clientRouterFilters: undefined,
-      config: nextConfig,
+  const encryptionKey = await generateEncryptionKeyBase64(true)
+  const project = await bindings.turbo.createProject(
+    {
+      projectPath: dir,
+      rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
+      nextConfig: opts.nextConfig,
+      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      watch: true,
       dev: true,
-      distDir,
-      fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
-      hasRewrites,
-      // TODO: Implement
-      middlewareMatchers: undefined,
-    }),
-  })
+      env: process.env as Record<string, string>,
+      defineEnv: createDefineEnv({
+        isTurbopack: true,
+        // TODO: Implement
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir,
+        fetchCacheKeyPrefix: opts.nextConfig.experimental.fetchCacheKeyPrefix,
+        hasRewrites,
+        // TODO: Implement
+        middlewareMatchers: undefined,
+      }),
+      buildId,
+      encryptionKey,
+      previewProps: opts.fsChecker.prerenderManifest.preview,
+    },
+    {
+      memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
+    }
+  )
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentEntrypoints: Entrypoints = {
@@ -165,7 +175,7 @@ export async function createHotReloaderTurbopack(
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
     distDir,
-    encryptionKey: await generateEncryptionKeyBase64(),
+    encryptionKey,
   })
 
   // Dev specific
@@ -798,9 +808,13 @@ export async function createHotReloaderTurbopack(
       await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
+      const normalizedAppPage = normalizeAppMetadataRoutePage(
+        page,
+        extname(routeDef.filename)
+      )
 
       const route = isInsideAppDir
-        ? currentEntrypoints.app.get(page)
+        ? currentEntrypoints.app.get(normalizedAppPage)
         : currentEntrypoints.page.get(page)
 
       if (!route) {

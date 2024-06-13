@@ -55,6 +55,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_image",
   "__turbopack_node",
   "__turbopack_trace_utils",
+  "__turbopack_trace_server",
 ] }
 
 turbo-tasks = { workspace = true }

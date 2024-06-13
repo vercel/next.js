@@ -7,8 +7,8 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { RouteMatcherManager } from '../future/route-matcher-managers/route-matcher-manager'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -17,7 +17,7 @@ import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
+import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import fs from 'fs'
@@ -50,14 +50,14 @@ import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import { DevRouteMatcherManager } from '../future/route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
+import { DevPagesRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-route-matcher-provider'
+import { DevPagesAPIRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
+import { DevAppPageRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-page-route-matcher-provider'
+import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
+import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -596,11 +596,9 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(pathJoin(
-          this.distDir,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
+        const instrumentationHook = await require(
+          pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
+        )
         await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
@@ -715,7 +713,6 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
-          ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
       } finally {
@@ -751,8 +748,8 @@ export default class DevServer extends Server {
             fallback === 'blocking'
               ? 'blocking'
               : fallback === true
-              ? 'static'
-              : fallback,
+                ? 'static'
+                : fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value

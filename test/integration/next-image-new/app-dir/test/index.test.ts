@@ -180,6 +180,21 @@ function runTests(mode) {
         referrerpolicy: 'no-referrer',
       })
 
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
         await browser.elementById('basic-image').getAttribute('loading')
@@ -216,7 +231,14 @@ function runTests(mode) {
         'lazy'
       )
 
-      const warnings = (await browser.log('browser'))
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
+
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).not.toMatch(
@@ -359,7 +381,7 @@ function runTests(mode) {
     )
 
     if (mode === 'dev') {
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
@@ -635,7 +657,7 @@ function runTests(mode) {
       )
       if (mode === 'dev') {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
@@ -893,6 +915,22 @@ function runTests(mode) {
       )
     })
 
+    it('should show invalid src with leading space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-leading-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-trailing-space')
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
+      )
+    })
+
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
@@ -1026,7 +1064,7 @@ function runTests(mode) {
           return 'done'
         }, 'done')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
@@ -1139,7 +1177,7 @@ function runTests(mode) {
       )
       expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1154,7 +1192,7 @@ function runTests(mode) {
       )
       expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1315,7 +1353,7 @@ function runTests(mode) {
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
@@ -1326,7 +1364,7 @@ function runTests(mode) {
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toContain(
@@ -1345,7 +1383,7 @@ function runTests(mode) {
       it('should not log warnings when image unmounts', async () => {
         browser = await webdriver(appPort, '/should-not-warn-unmount')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toContain(
