@@ -425,7 +425,7 @@ Within those client subtrees, you can still nest Server Components or call Serve
 
 The following pattern is not supported. You cannot import a Server Component into a Client Component:
 
-```tsx filename="app/client-component.tsx" switcher highlight={3,4,17,18}
+```tsx filename="app/client-component.tsx" switcher highlight={3,4,17}
 'use client'
 
 // You cannot import a Server Component into a Client Component.
@@ -442,8 +442,7 @@ export default function ClientComponent({
     <>
       <button onClick={() => setCount(count + 1)}>{count}</button>
 
-      {/* You cannot import a Server Component into a Client Component. */}
-      <ServerComponent />
+      <ServerComponent /> {/* <- Unsupported Pattern */}
     </>
   )
 }
