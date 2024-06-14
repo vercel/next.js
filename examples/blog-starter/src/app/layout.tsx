@@ -3,7 +3,6 @@ import { CMS_NAME, HOME_OG_IMAGE_URL } from "@/lib/constants";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import cn from "classnames";
-import { ServerTarget } from "nextjs-darkmode/server";
 import { Core } from "nextjs-darkmode";
 
 import "./globals.css";
@@ -24,7 +23,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ServerTarget tag="html" lang="en">
+    <html lang="en">
       <head>
         <link
           rel="apple-touch-icon"
@@ -65,6 +64,6 @@ export default function RootLayout({
         <div className="min-h-screen">{children}</div>
         <Footer />
       </body>
-    </ServerTarget>
+    </html>
   );
 }
