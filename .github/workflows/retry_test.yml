@@ -88,4 +88,4 @@ jobs:
               "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
             }
         env:
-          SLACK_DEPLOY_TEST_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_DEPLOY_TEST_WEBHOOK_URL }}
