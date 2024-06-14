@@ -2,13 +2,14 @@ name: retry-tests
 
 on:
   workflow_run:
-    workflows: ['build-and-test']
+    workflows: ['build-and-test', 'test-e2e-deploy-release']
     branches: [canary]
     types:
       - completed
 
 env:
   SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_CANARY_SLACK_WEBHOOK_URL }}
+  SLACK_DEPLOY_TEST_WEBHOOK_URL: ${{ secrets.BROKEN_DEPLOY_SLACK_WEBHOOK_URL }}
 
 permissions:
   actions: write
@@ -31,7 +32,7 @@ jobs:
 
   report-failure:
     name: report failure to slack
-    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 && !github.event.workflow_run.head_repository.fork }}
+    if: ${{ github.event.workflow_run.name == 'build-and-test' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 && !github.event.workflow_run.head_repository.fork }}
     runs-on: ubuntu-latest
     steps:
       - name: send webhook
@@ -48,3 +49,20 @@ jobs:
             }
         env:
           SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
+
+  report-deploy-test-failure:
+    name: report failure to slack
+    if: ${{ github.event.workflow_run.name == 'test-e2e-deploy-release' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.run_attempt >= 3 && !github.event.workflow_run.head_repository.fork }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: send webhook
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
+              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
+              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
+            }
+        env:
+          SLACK_DEPLOY_TEST_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
