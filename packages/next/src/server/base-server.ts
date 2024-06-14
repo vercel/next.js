@@ -1148,7 +1148,6 @@ export default abstract class Server<
             // matching before the dynamic route has been matched
             if (
               !paramsResult.hasValidParams &&
-              pageIsDynamic &&
               !isDynamicRoute(normalizedUrlPath)
             ) {
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
@@ -1157,6 +1156,32 @@ export default abstract class Server<
                 utils.normalizeDynamicRouteParams(matcherParams)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
+              }
+            }
+
+            // if an action request is bypassing a prerender and we
+            // don't have the params in the URL since it was prerendered
+            // and matched during handle: 'filesystem' rather than dynamic route
+            // resolving we need to parse the params from the matched-path.
+            // Note: this is similar to above case but from match-path instead
+            // of from the request URL since a rewrite could cause that to not
+            // match the src pathname
+            if (
+              // we can have a collision with /index and a top-level /[slug]
+              matchedPath !== '/index' &&
+              !paramsResult.hasValidParams &&
+              !isDynamicRoute(matchedPath)
+            ) {
+              let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
+
+              if (matcherParams) {
+                const curParamsResult =
+                  utils.normalizeDynamicRouteParams(matcherParams)
+
+                if (curParamsResult.hasValidParams) {
+                  Object.assign(params, matcherParams)
+                  paramsResult = curParamsResult
+                }
               }
             }
 
@@ -1197,7 +1222,6 @@ export default abstract class Server<
 
             // handle the actual dynamic route name being requested
             if (
-              pageIsDynamic &&
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
               !paramsResult.hasValidParams &&
@@ -1205,30 +1229,6 @@ export default abstract class Server<
                 .hasValidParams
             ) {
               params = utils.defaultRouteMatches
-            }
-
-            // if an action request is bypassing a prerender and we
-            // don't have the params in the URL since it was prerendered
-            // and matched during handle: 'filesystem' rather than dynamic route
-            // resolving we need to parse the params from the matched-path
-            if (
-              // we can have a collision with /index and a top-level /[slug]
-              matchedPath !== '/index' &&
-              pageIsDynamic &&
-              !paramsResult.hasValidParams &&
-              !isDynamicRoute(matchedPath)
-            ) {
-              let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
-
-              if (matcherParams) {
-                const curParamsResult =
-                  utils.normalizeDynamicRouteParams(matcherParams)
-
-                if (curParamsResult.hasValidParams) {
-                  Object.assign(params, matcherParams)
-                  paramsResult = curParamsResult
-                }
-              }
             }
 
             if (params) {
@@ -1248,10 +1248,6 @@ export default abstract class Server<
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
-          console.error('final', {
-            pathname: parsedUrl.pathname,
-            urlPathname: url.pathname,
-          })
           finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
