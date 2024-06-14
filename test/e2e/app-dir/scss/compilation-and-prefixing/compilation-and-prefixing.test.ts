@@ -4,11 +4,16 @@ import { nextTestSetup } from 'e2e-utils'
 import { readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
+const nextConfig = {
+  productionBrowserSourceMaps: true,
+}
+
 describe.each([
-  { dependencies: { sass: '1.54.0' }, undefined },
+  { dependencies: { sass: '1.54.0' }, nextConfig },
   {
     dependencies: { 'sass-embedded': '1.75.0' },
     nextConfig: {
+      ...nextConfig,
       sassOptions: {
         implementation: 'sass-embedded',
       },
