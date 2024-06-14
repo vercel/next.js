@@ -6,9 +6,9 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, Value, Vc};
+use turbo_tasks::{Completion, RcStr, Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent},
+    turbo::tasks_fs::{File, FileContent, FileSystemPath},
     turbopack::{
         core::{
             asset::AssetContent,
@@ -41,6 +41,9 @@ pub struct InstrumentationEndpoint {
     context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     is_edge: bool,
+
+    app_dir: Option<Vc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -51,12 +54,16 @@ impl InstrumentationEndpoint {
         context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         is_edge: bool,
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
             context,
             source,
             is_edge,
+            app_dir,
+            ecmascript_client_reference_transition_name,
         }
         .cell()
     }
@@ -79,7 +86,11 @@ impl InstrumentationEndpoint {
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware),
+            Value::new(ServerContextType::Instrumentation {
+                app_dir: self.app_dir,
+                ecmascript_client_reference_transition_name: self
+                    .ecmascript_client_reference_transition_name,
+            }),
             self.project.next_mode(),
         )
         .resolve_entries(self.context)
@@ -131,7 +142,11 @@ impl InstrumentationEndpoint {
                     .join("server/instrumentation.js".into()),
                 module,
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Instrumentation),
+                    Value::new(ServerContextType::Instrumentation {
+                        app_dir: self.app_dir,
+                        ecmascript_client_reference_transition_name: self
+                            .ecmascript_client_reference_transition_name,
+                    }),
                     self.project.next_mode(),
                 )
                 .resolve_entries(self.context),
