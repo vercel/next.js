@@ -27,8 +27,6 @@ export interface Binding {
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
-  initHeapProfiler?(): ExternalObject<RefCell>
-  teardownHeapProfiler?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
       transform(transformOptions: any): Promise<any>
