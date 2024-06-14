@@ -1,4 +1,4 @@
-name: Test E2E (Vercel Deploy), scheduled
+name: test-e2e-deploy-release
 
 on:
   # run on every release/prerelease
@@ -10,7 +10,6 @@ on:
 env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-  SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_DEPLOY_SLACK_WEBHOOK_URL }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   DD_ENV: 'ci'
 
@@ -45,7 +44,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5, 6/6]
     with:
@@ -75,21 +74,3 @@ jobs:
           if [ -d ./test/test-junit-report ]; then
             DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
-
-  report-failure:
-    name: report failure to slack
-    needs: test-deploy
-    if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: send webhook
-        uses: slackapi/slack-github-action@v1.25.0
-        with:
-          payload: |
-            {
-              "commit_title": ${{ toJSON(github.event.workflow_run.display_title) }},
-              "commit_url": "github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }}",
-              "workflow_run_url": "github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/attempts/${{ github.event.workflow_run.run_attempt }}"
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK_URL }}
