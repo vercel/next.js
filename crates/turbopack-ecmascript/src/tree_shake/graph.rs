@@ -473,14 +473,22 @@ impl DepGraph {
                 continue;
             }
 
-            let count = global_done
+            // The number of nodes that this node is dependent on.
+            let dependant_count = self
+                .g
+                .idx_graph
+                .neighbors_directed(ix as _, petgraph::Direction::Incoming)
+                .count();
+
+            // The number of starting points that can reach to this node.
+            let count_of_startings = global_done
                 .iter()
                 .filter(|&&staring_point| {
                     has_path_connecting(&self.g.idx_graph, staring_point, ix as _, None)
                 })
                 .count();
 
-            if count >= 2 {
+            if dependant_count >= 2 && count_of_startings >= 2 {
                 groups.push((vec![id.clone()], FxHashSet::default()));
                 global_done.insert(ix as u32);
             }

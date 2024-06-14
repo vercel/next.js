@@ -78,11 +78,9 @@ graph TD
 graph TD
     N0["Items: [ItemId(ModuleEvaluation)]"];
     N1["Items: [ItemId(Export((&quot;RouteKind&quot;, #2), &quot;RouteKind&quot;))]"];
-    N2["Items: [ItemId(0, VarDeclarator(0))]"];
-    N3["Items: [ItemId(1, Normal)]"];
-    N0 --> N3;
-    N1 --> N3;
-    N3 --> N2;
+    N2["Items: [ItemId(0, VarDeclarator(0)), ItemId(1, Normal)]"];
+    N0 --> N2;
+    N1 --> N2;
 ```
 # Entrypoints
 
@@ -100,7 +98,7 @@ graph TD
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 "module evaluation";
 
@@ -108,7 +106,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 export { RouteKind };
 
@@ -116,16 +114,6 @@ export { RouteKind };
 ## Part 2
 ```js
 var RouteKind;
-export { RouteKind } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
     RouteKind["PAGES_API"] = "PAGES_API";
@@ -135,12 +123,15 @@ import { RouteKind } from "__TURBOPACK_PART__" assert {
 export { RouteKind } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { RouteKind } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 "module evaluation";
 
@@ -161,7 +152,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 "module evaluation";
 
@@ -169,7 +160,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 1
 ```js
 import { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 export { RouteKind };
 
@@ -177,16 +168,6 @@ export { RouteKind };
 ## Part 2
 ```js
 var RouteKind;
-export { RouteKind } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import { RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
     RouteKind["PAGES_API"] = "PAGES_API";
@@ -196,12 +177,15 @@ import { RouteKind } from "__TURBOPACK_PART__" assert {
 export { RouteKind } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { RouteKind } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: 2
 };
 "module evaluation";
 
