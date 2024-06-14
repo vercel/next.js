@@ -110,8 +110,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRSC { .. }
     ) {
         before_resolve_plugins.push(Vc::upcast(NextFontLocalResolvePlugin::new(project_path)));
-    }
-
+    };
 
     if matches!(
         ty,
