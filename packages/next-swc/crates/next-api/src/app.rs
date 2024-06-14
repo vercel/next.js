@@ -59,7 +59,7 @@ use turbopack_binding::{
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, FullContextTransition},
+            transition::{ContextTransition, FullContextTransition, Transition},
             ModuleAssetContext,
         },
     },
@@ -118,7 +118,7 @@ impl AppProject {
     }
 }
 
-const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -166,7 +166,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
+    pub(crate) fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
         Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.into())
     }
 
@@ -271,14 +271,27 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    pub fn client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+            Vc::upcast(self.client_transition()),
+            self.ssr_transition(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn edge_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+            Vc::upcast(self.client_transition()),
+            self.edge_ssr_transition(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     fn rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.ssr_transition(),
-                )),
+                self.client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -305,10 +318,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.edge_ssr_transition(),
-                )),
+                self.edge_client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -338,10 +348,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.ssr_transition(),
-                )),
+                self.client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -369,10 +376,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.edge_ssr_transition(),
-                )),
+                self.edge_client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
