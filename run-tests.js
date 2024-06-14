@@ -697,6 +697,33 @@ ${ENDGROUP}`)
         }
       }
 
+      // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
+      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
+        try {
+          const testsOutput = await fsp.readFile(
+            `${test.file}${RESULTS_EXT}`,
+            'utf8'
+          )
+          const obj = JSON.parse(testsOutput)
+          obj.processEnv = {
+            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
+            HEADLESS: process.env.HEADLESS,
+          }
+          await outputSema.acquire()
+          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
+          console.log(
+            `--test output start--`,
+            JSON.stringify(obj),
+            `--test output end--`
+          )
+          if (ENDGROUP) console.log(ENDGROUP)
+          outputSema.release()
+        } catch (err) {
+          console.log(`Failed to load test output`, err)
+        }
+      }
+
       sema.release()
       if (dirSema) dirSema.release()
     })

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use lazy_static::lazy_static;
@@ -9,15 +9,14 @@ use turbopack_binding::{
     turbopack::core::{
         diagnostics::DiagnosticExt,
         file_source::FileSource,
-        issue::{
-            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity, IssueStage,
-            OptionStyledString, StyledString,
-        },
+        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
         reference_type::ReferenceType,
         resolve::{
             parse::Request,
-            pattern::Pattern,
-            plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
+            plugin::{
+                AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
+                BeforeResolvePluginCondition,
+            },
             ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
@@ -26,8 +25,6 @@ use turbopack_binding::{
 use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemetry};
 
 lazy_static! {
-    static ref UNSUPPORTED_PACKAGES: HashSet<&'static str> = [].into();
-    static ref UNSUPPORTED_PACKAGE_PATHS: HashSet<(&'static str, &'static str)> = [].into();
     // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
     static ref FEATURE_MODULES: HashMap<&'static str, Vec<&'static str>> = HashMap::from([
         (
@@ -44,69 +41,6 @@ lazy_static! {
         ),
         ("@next", vec!["/font/google", "/font/local"])
     ]);
-}
-
-#[turbo_tasks::value]
-pub(crate) struct UnsupportedModulesResolvePlugin {
-    root: Vc<FileSystemPath>,
-}
-
-#[turbo_tasks::value_impl]
-impl UnsupportedModulesResolvePlugin {
-    #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
-        UnsupportedModulesResolvePlugin { root }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl AfterResolvePlugin for UnsupportedModulesResolvePlugin {
-    #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
-    }
-
-    #[turbo_tasks::function]
-    async fn after_resolve(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        file_path: Vc<FileSystemPath>,
-        _reference_type: Value<ReferenceType>,
-        request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
-        if let Request::Module {
-            module,
-            path,
-            query: _,
-            fragment: _,
-        } = &*request.await?
-        {
-            // Warn if the package is known not to be supported by Turbopack at the moment.
-            if UNSUPPORTED_PACKAGES.contains(module.as_str()) {
-                UnsupportedModuleIssue {
-                    file_path,
-                    package: module.clone(),
-                    package_path: None,
-                }
-                .cell()
-                .emit();
-            }
-
-            if let Pattern::Constant(path) = path {
-                if UNSUPPORTED_PACKAGE_PATHS.contains(&(module, path)) {
-                    UnsupportedModuleIssue {
-                        file_path,
-                        package: module.clone(),
-                        package_path: Some(path.to_owned()),
-                    }
-                    .cell()
-                    .emit();
-                }
-            }
-        }
-
-        Ok(ResolveResultOption::none())
-    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -187,34 +121,34 @@ impl InvalidImportResolvePlugin {
 }
 
 #[turbo_tasks::value_impl]
-impl AfterResolvePlugin for InvalidImportResolvePlugin {
+impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+        BeforeResolvePluginCondition::from_modules(Vc::cell(vec![self.invalid_import.clone()]))
     }
 
     #[turbo_tasks::function]
-    async fn after_resolve(
+    async fn before_resolve(
         &self,
-        _fs_path: Vc<FileSystemPath>,
-        context: Vc<FileSystemPath>,
+        lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
-        request: Vc<Request>,
+        _request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        if let Request::Module { module, .. } = &*request.await? {
-            if module.as_str() == self.invalid_import.as_str() {
-                InvalidImportModuleIssue {
-                    file_path: context,
-                    messages: self.message.clone(),
-                    // styled-jsx specific resolve error have own message
-                    skip_context_message: self.invalid_import == "styled-jsx",
-                }
-                .cell()
-                .emit();
-            }
+        InvalidImportModuleIssue {
+            file_path: lookup_path,
+            messages: self.message.clone(),
+            // styled-jsx specific resolve error has its own message
+            skip_context_message: self.invalid_import == "styled-jsx",
         }
+        .cell()
+        .emit();
 
-        Ok(ResolveResultOption::none())
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+                self.message.join("\n").into(),
+            )))
+            .cell(),
+        ))
     }
 }
 
@@ -359,10 +293,10 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
         let resource_request = format!(
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
             match self.context {
-                ServerContextType::Pages { .. } => "pages",
                 ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
-                _ => "unknown",
+                // Use default pages context for all other contexts.
+                _ => "pages",
             },
             stem
         );
@@ -402,17 +336,21 @@ impl ModuleFeatureReportResolvePlugin {
 }
 
 #[turbo_tasks::value_impl]
-impl AfterResolvePlugin for ModuleFeatureReportResolvePlugin {
+impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
     #[turbo_tasks::function]
-    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        AfterResolvePluginCondition::new(self.root.root(), Glob::new("**".into()))
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
+        BeforeResolvePluginCondition::from_modules(Vc::cell(
+            FEATURE_MODULES
+                .keys()
+                .map(|k| (*k).into())
+                .collect::<Vec<RcStr>>(),
+        ))
     }
 
     #[turbo_tasks::function]
-    async fn after_resolve(
+    async fn before_resolve(
         &self,
-        _fs_path: Vc<FileSystemPath>,
-        _context: Vc<FileSystemPath>,
+        _lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
