@@ -35,26 +35,6 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
-# Making custom_allocator as default feature will break some targets (i.e aarch64-linux), controlling it with
-# build-time cfg instead.
-#
-# [NOTE] this is a workaround to enable downstream features for the own pkgs, since
-# cargo does not support per-target features enablement.
-[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
-turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc"] }
-
-[target.'cfg(all(target_os = "linux", not(any(target_arch = "aarch64", target_arch = "wasm32"))))'.dependencies]
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_malloc",
-  "__turbo_tasks_malloc_custom_allocator",
-] }
-
-[target.'cfg(not(any(target_os = "linux", target_arch = "wasm32")))'.dependencies]
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_malloc",
-  "__turbo_tasks_malloc_custom_allocator",
-] }
-
 # Enable specific tls features per-target.
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
 next-core = { workspace = true, features = ["native-tls"] }
@@ -108,6 +88,8 @@ turbopack-binding = { workspace = true, features = [
   "__feature_mdx_rs",
   "__turbo",
   "__turbo_tasks",
+  "__turbo_tasks_malloc",
+  "__turbo_tasks_malloc_custom_allocator",
   "__turbo_tasks_memory",
   "__turbopack",
   "__turbopack_ecmascript_hmr_protocol",
@@ -121,6 +103,7 @@ turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
   "__swc_core_serde",
   "__feature_mdx_rs",
+  "__turbo_tasks_malloc",
 ] }
 
 # wasi-only dependencies.
