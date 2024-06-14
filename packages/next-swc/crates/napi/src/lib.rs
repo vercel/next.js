@@ -68,7 +68,14 @@ pub mod util;
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);
 
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
+// compile error
+#[cfg(not(any(
+    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
+    target_arch = "wasm32",
+    feature = "__internal_dhat-heap",
+    feature = "__internal_dhat-ad-hoc"
+)))]
 #[global_allocator]
 static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
     turbopack_binding::turbo::malloc::TurboMalloc;
