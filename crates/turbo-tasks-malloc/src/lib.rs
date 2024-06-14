@@ -67,49 +67,24 @@ impl TurboMalloc {
     }
 }
 
-#[cfg(all(
-    feature = "custom_allocator",
-    not(all(target_os = "linux", target_arch = "aarch64"))
-))]
-unsafe impl GlobalAlloc for TurboMalloc {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = mimalloc::MiMalloc.alloc(layout);
-        if !ret.is_null() {
-            add(layout.size());
-        }
-        ret
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        mimalloc::MiMalloc.dealloc(ptr, layout);
-        remove(layout.size());
-    }
-
-    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = mimalloc::MiMalloc.alloc_zeroed(layout);
-        if !ret.is_null() {
-            add(layout.size());
-        }
-        ret
-    }
-
-    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let ret = mimalloc::MiMalloc.realloc(ptr, layout, new_size);
-        if !ret.is_null() {
-            let old_size = layout.size();
-            update(old_size, new_size);
-        }
-        ret
-    }
+/// Get the allocator for this platform that we should wrap with TurboMalloc.
+#[inline]
+fn base_alloc() -> &'static impl GlobalAlloc {
+    #[cfg(all(
+        feature = "custom_allocator",
+        not(any(target_family = "wasm", target_env = "musl"))
+    ))]
+    return &mimalloc::MiMalloc;
+    #[cfg(any(
+        not(feature = "custom_allocator"),
+        any(target_family = "wasm", target_env = "musl")
+    ))]
+    return &std::alloc::System;
 }
 
-#[cfg(any(
-    not(feature = "custom_allocator"),
-    all(target_os = "linux", target_arch = "aarch64")
-))]
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = std::alloc::System.alloc(layout);
+        let ret = base_alloc().alloc(layout);
         if !ret.is_null() {
             add(layout.size());
         }
@@ -117,12 +92,12 @@ unsafe impl GlobalAlloc for TurboMalloc {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        std::alloc::System.dealloc(ptr, layout);
+        base_alloc().dealloc(ptr, layout);
         remove(layout.size());
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = std::alloc::System.alloc_zeroed(layout);
+        let ret = base_alloc().alloc_zeroed(layout);
         if !ret.is_null() {
             add(layout.size());
         }
@@ -130,7 +105,7 @@ unsafe impl GlobalAlloc for TurboMalloc {
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let ret = std::alloc::System.realloc(ptr, layout, new_size);
+        let ret = base_alloc().realloc(ptr, layout, new_size);
         if !ret.is_null() {
             let old_size = layout.size();
             update(old_size, new_size);

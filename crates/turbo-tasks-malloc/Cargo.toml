@@ -1,7 +1,7 @@
 [package]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-description = "TBD"
+description = "A wrapper around mimalloc or the system allocator that tracks allocations"
 license = "MPL-2.0"
 edition = "2021"
 autobenches = false
@@ -9,11 +9,11 @@ autobenches = false
 [lib]
 bench = false
 
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-mimalloc = { version = "0.1.32", features = [], optional = true }
+[target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
+mimalloc = { version = "0.1.42", features = [], optional = true }
 
-[target.'cfg(all(target_os = "linux", not(target_arch = "aarch64")))'.dependencies]
-mimalloc = { version = "0.1.32", features = [
+[target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
+mimalloc = { version = "0.1.42", features = [
   "local_dynamic_tls",
 ], optional = true }
 
