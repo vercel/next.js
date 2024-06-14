@@ -3,6 +3,7 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { createFormActionEncoder } from './action-utils'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -30,17 +31,16 @@ export function useFlightStream<T>(
   }
 
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  let createFromReadableStream
+  let reactServerDOM: any
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-turbopack/client.edge').createFromReadableStream
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    reactServerDOM = require('react-server-dom-turbopack/client.edge')
   } else {
-    createFromReadableStream =
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge').createFromReadableStream
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    reactServerDOM = require('react-server-dom-webpack/client.edge')
   }
+  const { encodeReply, createFromReadableStream } = reactServerDOM
 
   const newResponse = createFromReadableStream(flightStream, {
     ssrManifest: {
@@ -50,6 +50,7 @@ export function useFlightStream<T>(
         : clientReferenceManifest.ssrModuleMapping,
     },
     nonce,
+    encodeFormAction: createFormActionEncoder(encodeReply),
   })
 
   flightResponses.set(flightStream, newResponse)
