@@ -208,8 +208,9 @@ jobs:
               rustup show &&
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,tracing/release_max_level_info &&
+              export CC_aarch64_unknown_linux_gnu=/usr/bin/clang &&
+              export CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu" &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x native/next-swc.*.node &&
               objdump -T native/next-swc.*.node | grep GLIBC_
 
