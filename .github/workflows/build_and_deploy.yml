@@ -163,7 +163,7 @@ jobs:
             #   environment.
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
             build: >-
-              set -e &&
+              set -ex &&
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               rustup show &&
@@ -183,7 +183,7 @@ jobs:
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
-              set -e &&
+              set -ex &&
               apk update &&
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               rustup show &&
@@ -201,7 +201,7 @@ jobs:
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
             build: >-
-              set -e &&
+              set -ex &&
               apt update &&
               apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
@@ -223,7 +223,7 @@ jobs:
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
-              set -e &&
+              set -ex &&
               apk update &&
               apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
