@@ -98,7 +98,7 @@ pub async fn get_edge_resolve_options_context(
     let next_edge_import_map =
         get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
-    let ty = ty.into_value();
+    let ty: ServerContextType = ty.into_value();
 
     let mut before_resolve_plugins = vec![Vc::upcast(ModuleFeatureReportResolvePlugin::new(
         project_path,
@@ -110,7 +110,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRSC { .. }
     ) {
         before_resolve_plugins.push(Vc::upcast(NextFontLocalResolvePlugin::new(project_path)));
-    }
+    };
 
     if matches!(
         ty,
@@ -118,7 +118,7 @@ pub async fn get_edge_resolve_options_context(
             | ServerContextType::AppRoute { .. }
             | ServerContextType::PagesData { .. }
             | ServerContextType::Middleware { .. }
-            | ServerContextType::Instrumentation
+            | ServerContextType::Instrumentation { .. }
     ) {
         before_resolve_plugins.push(Vc::upcast(get_invalid_client_only_resolve_plugin(
             project_path,
