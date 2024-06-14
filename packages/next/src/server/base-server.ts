@@ -1212,6 +1212,8 @@ export default abstract class Server<
             // and matched during handle: 'filesystem' not dynamic route
             // resolving we need to parse the params from the matched-path
             if (
+              // we can have a collision with /index and a top-level /[slug]
+              matchedPath !== '/index' &&
               pageIsDynamic &&
               !paramsResult.hasValidParams &&
               !isDynamicRoute(matchedPath)
@@ -1246,7 +1248,10 @@ export default abstract class Server<
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
-
+          console.error('final', {
+            pathname: parsedUrl.pathname,
+            urlPathname: url.pathname,
+          })
           finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
