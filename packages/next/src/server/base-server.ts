@@ -1209,7 +1209,7 @@ export default abstract class Server<
 
             // if an action request is bypassing a prerender and we
             // don't have the params in the URL since it was prerendered
-            // and matched during handle: 'filesystem' not dynamic route
+            // and matched during handle: 'filesystem' rather than dynamic route
             // resolving we need to parse the params from the matched-path
             if (
               // we can have a collision with /index and a top-level /[slug]
