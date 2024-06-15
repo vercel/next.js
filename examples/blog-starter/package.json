@@ -10,7 +10,7 @@
     "date-fns": "^3.3.1",
     "gray-matter": "^4.0.3",
     "next": "14.1.0",
-    "nextjs-darkmode": "^0.3.0",
+    "nextjs-darkmode": "^1.0.1",
     "react": "^18",
     "react-dom": "^18",
     "remark": "^15.0.1",
