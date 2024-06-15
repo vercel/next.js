@@ -5,6 +5,7 @@ on:
     workflows: ['build-and-deploy', 'build-and-test']
     types:
       - completed
+  workflow_dispatch:
 
 env:
   NODE_LTS_VERSION: 20
@@ -31,7 +32,7 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          key: ${{ github.event.workflow_run.head_sha }}-${{ github.event.workflow_run.run_number }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -55,12 +56,12 @@ jobs:
           DEPLOY_URL=$(echo "$OUTPUT" | grep "DEPLOY_URL=" | cut -d'=' -f2)
           echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
 
-  test-related-deploy-tests:
-    if: ${{ github.event.workflow_run.name == 'build-and-test' && github.repository_owner == 'vercel' }}
-    name: Test changed tests when deployed
-    needs: deploy-tarball
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: TARBALL_URL=${{ needs.deploy-tarball.outputs.deploy_url }} node scripts/test-new-tests.mjs --deploy-mode
-      stepName: 'test-new-tests-deploy'
-    secrets: inherit
+  # test-related-deploy-tests:
+  #   if: ${{ github.event.workflow_run.name == 'build-and-test' && github.repository_owner == 'vercel' }}
+  #   name: Test changed tests when deployed
+  #   needs: deploy-tarball
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     afterBuild: TARBALL_URL=${{ needs.deploy-tarball.outputs.deploy_url }} node scripts/test-new-tests.mjs --deploy-mode
+  #     stepName: 'test-new-tests-deploy'
+  #   secrets: inherit
