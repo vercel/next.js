@@ -2,7 +2,7 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 
-use std::str::FromStr;
+use std::{str::FromStr, time::Instant};
 
 use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
@@ -10,8 +10,11 @@ use next_api::{
     project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, Route},
 };
+use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
+use turbopack_binding::turbo::tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
+    tt: &TurboTasks<MemoryBackend>,
     strat: Strategy,
     factor: usize,
     limit: usize,
@@ -19,18 +22,28 @@ pub async fn main_inner(
 ) -> Result<()> {
     register();
 
-    let mut file = std::fs::File::open("project_options.json").with_context(|| {
-        let path = std::env::current_dir()
-            .unwrap()
-            .join("project_options.json");
-        format!("loading file at {}", path.display())
-    })?;
+    let path = std::env::current_dir()?.join("project_options.json");
+    let mut file = std::fs::File::open(&path)
+        .with_context(|| format!("loading file at {}", path.display()))?;
 
-    let options: ProjectOptions = serde_json::from_reader(&mut file).unwrap();
-    let project = ProjectContainer::new(options);
+    let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+
+    if matches!(strat, Strategy::Development) {
+        options.dev = true;
+        options.watch = true;
+    } else {
+        options.dev = false;
+        options.watch = false;
+    }
+
+    let project = tt
+        .run_once(async { Ok(ProjectContainer::new(options)) })
+        .await?;
 
     tracing::info!("collecting endpoints");
-    let entrypoints = project.entrypoints().await?;
+    let entrypoints = tt
+        .run_once(async move { project.entrypoints().await })
+        .await?;
 
     let routes = if let Some(files) = files {
         tracing::info!("builing only the files:");
@@ -40,19 +53,23 @@ pub async fn main_inner(
 
         // filter out the files that are not in the list
         // we expect this to be small so linear search OK
-        Box::new(
+        Box::new(files.into_iter().filter_map(|f| {
             entrypoints
                 .routes
-                .clone()
-                .into_iter()
-                .filter(move |(name, _)| files.iter().any(|f| f == name)),
-        ) as Box<dyn Iterator<Item = _> + Send + Sync>
+                .iter()
+                .find(|(name, _)| f.as_str() == name.as_str())
+                .map(|(name, route)| (name.clone(), route.clone()))
+        })) as Box<dyn Iterator<Item = _> + Send + Sync>
     } else {
         Box::new(shuffle(entrypoints.routes.clone().into_iter()))
     };
 
-    let count = render_routes(routes, strat, factor, limit).await;
+    let count = render_routes(tt, routes, strat, factor, limit).await?;
     tracing::info!("rendered {} pages", count);
+
+    if matches!(strat, Strategy::Development) {
+        hmr(tt, project).await?;
+    }
 
     Ok(())
 }
@@ -67,6 +84,7 @@ pub enum Strategy {
     Sequential,
     Concurrent,
     Parallel,
+    Development,
 }
 
 impl std::fmt::Display for Strategy {
@@ -75,6 +93,7 @@ impl std::fmt::Display for Strategy {
             Strategy::Sequential => write!(f, "sequential"),
             Strategy::Concurrent => write!(f, "concurrent"),
             Strategy::Parallel => write!(f, "parallel"),
+            Strategy::Development => write!(f, "development"),
         }
     }
 }
@@ -87,6 +106,7 @@ impl FromStr for Strategy {
             "sequential" => Ok(Strategy::Sequential),
             "concurrent" => Ok(Strategy::Concurrent),
             "parallel" => Ok(Strategy::Parallel),
+            "development" => Ok(Strategy::Development),
             _ => Err(anyhow::anyhow!("invalid strategy")),
         }
     }
@@ -101,11 +121,12 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    routes: impl Iterator<Item = (String, Route)>,
+    tt: &TurboTasks<MemoryBackend>,
+    routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
     limit: usize,
-) -> usize {
+) -> Result<usize> {
     tracing::info!(
         "rendering routes with {} parallel and strat {}",
         factor,
@@ -113,51 +134,88 @@ pub async fn render_routes(
     );
 
     let stream = tokio_stream::iter(routes)
-        .map(move |(name, route)| {
-            let fut = async move {
-                tracing::info!("{name}");
+        .map(move |(name, route)| async move {
+            tracing::info!("{name}...");
+            let start = Instant::now();
 
-                match route {
-                    Route::Page {
-                        html_endpoint,
-                        data_endpoint: _,
-                    } => {
-                        html_endpoint.write_to_disk().await?;
-                    }
-                    Route::PageApi { endpoint } => {
-                        endpoint.write_to_disk().await?;
-                    }
-                    Route::AppPage(routes) => {
-                        for route in routes {
-                            route.html_endpoint.write_to_disk().await?;
+            tt.run_once({
+                let name = name.clone();
+                async move {
+                    match route {
+                        Route::Page {
+                            html_endpoint,
+                            data_endpoint: _,
+                        } => {
+                            html_endpoint.write_to_disk().await?;
+                        }
+                        Route::PageApi { endpoint } => {
+                            endpoint.write_to_disk().await?;
+                        }
+                        Route::AppPage(routes) => {
+                            for route in routes {
+                                route.html_endpoint.write_to_disk().await?;
+                            }
+                        }
+                        Route::AppRoute {
+                            original_name: _,
+                            endpoint,
+                        } => {
+                            endpoint.write_to_disk().await?;
+                        }
+                        Route::Conflict => {
+                            tracing::info!("WARN: conflict {}", name);
                         }
                     }
-                    Route::AppRoute {
-                        original_name: _,
-                        endpoint,
-                    } => {
-                        endpoint.write_to_disk().await?;
-                    }
-                    Route::Conflict => {
-                        tracing::info!("WARN: conflict {}", name);
-                    }
+                    Ok(())
                 }
+            })
+            .await?;
 
-                Ok::<_, anyhow::Error>(())
-            };
+            tracing::info!("{name} {:?}", start.elapsed());
 
-            async move {
-                match strategy {
-                    Strategy::Parallel => tokio::task::spawn(fut).await.unwrap(),
-                    _ => fut.await,
-                }
-            }
+            Ok::<_, anyhow::Error>(())
         })
         .take(limit)
         .buffer_unordered(factor)
         .try_collect::<Vec<_>>()
-        .await
-        .unwrap();
+        .await?;
 
-    stream.len()
+    Ok(stream.len())
+}
+
+async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
+    tracing::info!("HMR...");
+    let session = TransientInstance::new(());
+    let idents = tt
+        .run_once(async move { project.hmr_identifiers().await })
+        .await?;
+    let start = Instant::now();
+    for ident in idents {
+        if !ident.ends_with(".js") {
+            continue;
+        }
+        let session = session.clone();
+        let start = Instant::now();
+        let task = tt.spawn_root_task(move || {
+            let session = session.clone();
+            async move {
+                let project = project.project();
+                project
+                    .hmr_update(
+                        ident.clone(),
+                        project.hmr_version_state(ident.clone(), session),
+                    )
+                    .await?;
+                Ok(Vc::<()>::cell(()))
+            }
+        });
+        tt.wait_task_completion(task, true).await?;
+        let e = start.elapsed();
+        if e.as_millis() > 10 {
+            tracing::info!("HMR: {:?} {:?}", ident, e);
+        }
+    }
+    tracing::info!("HMR {:?}", start.elapsed());
+
+    Ok(())
 }
