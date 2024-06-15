@@ -1,0 +1,66 @@
+name: deploy-tarball
+
+on:
+  workflow_run:
+    workflows: ['build-and-deploy', 'build-and-test']
+    types:
+      - completed
+
+env:
+  NODE_LTS_VERSION: 20
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+
+jobs:
+  deploy-tarball:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - run: corepack enable
+
+      - name: Tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v4
+        timeout-minutes: 5
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: next-swc-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/native
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wasm-binaries-*
+          merge-multiple: true
+          path: packages/next-swc/crates/wasm
+
+      - run: npm i -g vercel@latest
+
+      - name: Deploy, capture, and store URL
+        id: deploy_tarball
+        run: |
+          OUTPUT=$(node ./scripts/deploy-tarball.js)
+          echo "$OUTPUT"
+          DEPLOY_URL=$(echo "$OUTPUT" | grep "DEPLOY_URL=" | cut -d'=' -f2)
+          echo "deploy_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+
+  test-related-deploy-tests:
+    if: ${{ github.event.workflow_run.name == 'build-and-test' && github.repository_owner == 'vercel' }}
+    name: Test changed tests when deployed
+    needs: deploy-tarball
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: TARBALL_URL=${{ needs.deploy-tarball.outputs.deploy_url }} node scripts/test-new-tests.mjs --deploy-mode
+      stepName: 'test-new-tests-deploy'
+    secrets: inherit

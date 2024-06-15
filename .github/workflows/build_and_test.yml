@@ -260,26 +260,26 @@ jobs:
 
     secrets: inherit
 
-  test-new-tests-dev:
+  flake-detection-dev:
     name: Test new tests for flakes (dev)
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode
+      afterBuild: node scripts/test-new-tests.mjs --dev-mode --flake-detection
       stepName: 'test-new-tests-dev'
 
     secrets: inherit
 
-  test-new-tests-start:
+  flake-detection-prod:
     name: Test new tests for flakes (prod)
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode
+      afterBuild: node scripts/test-new-tests.mjs --prod-mode --flake-detection
       stepName: 'test-new-tests-start'
 
     secrets: inherit
@@ -459,8 +459,8 @@ jobs:
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
-        'test-new-tests-dev',
-        'test-new-tests-start',
+        'flake-detection-dev',
+        'flake-detection-prod',
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]
