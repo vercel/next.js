@@ -60,7 +60,7 @@ export default function RootLayout({
       <body
         className={cn(inter.className, "dark:bg-slate-900 dark:text-slate-400")}
       >
-        <Core t="background .3s" dp />
+        <Core t="background .5s" />
         <div className="min-h-screen">{children}</div>
         <Footer />
       </body>
