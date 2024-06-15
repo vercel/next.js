@@ -344,8 +344,6 @@
     "vercel"
   ],
   "engines": {
-    "node": ">=18.17.0",
-    "pnpm": "8.15.7"
-  },
-  "packageManager": "pnpm@8.15.7"
+    "node": ">=18.17.0"
+  }
 }
