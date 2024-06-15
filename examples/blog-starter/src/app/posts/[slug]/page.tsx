@@ -9,9 +9,6 @@ import Header from "@/app/_components/header";
 import { PostBody } from "@/app/_components/post-body";
 import { PostHeader } from "@/app/_components/post-header";
 
-// ensure that the page is statically generated
-export const dynamic = "error";
-
 export default async function Post({ params }: Params) {
   const post = getPostBySlug(params.slug);
 

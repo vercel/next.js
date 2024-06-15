@@ -3,7 +3,6 @@ import { HeroPost } from "@/app/_components/hero-post";
 import { Intro } from "@/app/_components/intro";
 import { MoreStories } from "@/app/_components/more-stories";
 import { getAllPosts } from "@/lib/api";
-import { Switch } from "nextjs-darkmode/switch";
 
 export default function Index() {
   const allPosts = getAllPosts();
@@ -15,7 +14,6 @@ export default function Index() {
   return (
     <main>
       <Container>
-        <Switch size={28} className="float-right" />
         <Intro />
         <HeroPost
           title={heroPost.title}
