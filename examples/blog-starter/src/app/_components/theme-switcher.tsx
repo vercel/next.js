@@ -1,16 +1,18 @@
 "use client";
 
+import styles from "./switch.module.css";
 import { useEffect, useState } from "react";
-import { Switch } from "./switch";
 
-const STORAGE_KEY = "nextjs-blog-starter-theme";
-
-export type ColorSchemePreference = "system" | "dark" | "light";
-
-/** to reuse updateDOM function defined inside injected script */
 declare global {
   var updateDOM: () => void;
 }
+
+type ColorSchemePreference = "system" | "dark" | "light";
+
+const STORAGE_KEY = "nextjs-blog-starter-theme";
+const modes: ColorSchemePreference[] = ["system", "dark", "light"];
+
+/** to reuse updateDOM function defined inside injected script */
 
 /** function to be injected in script tag for avoiding FOUC (Flash of Unstyled Content) */
 export const NoFOUCScript = (storageKey: string) => {
@@ -20,7 +22,7 @@ export const NoFOUCScript = (storageKey: string) => {
   /** Modify transition globally to avoid patched transitions */
   const modifyTransition = () => {
     const css = document.createElement("style");
-    css.textContent = `*,*:after,*:before{transition:none !important;}`;
+    css.textContent = "*,*:after,*:before{transition:none !important;}";
     document.head.appendChild(css);
 
     return () => {
@@ -52,9 +54,9 @@ export const NoFOUCScript = (storageKey: string) => {
 let updateDOM: () => void;
 
 /**
- * This component wich applies classes and transitions.
+ * Switch button to quickly toggle user preference.
  */
-export const ThemeSwitcher = () => {
+const Switch = () => {
   const [mode, setMode] = useState<ColorSchemePreference>(
     () =>
       ((typeof localStorage !== "undefined" &&
@@ -76,6 +78,24 @@ export const ThemeSwitcher = () => {
     updateDOM();
   }, [mode]);
 
+  /** toggle mode */
+  const handleModeSwitch = () => {
+    const index = modes.indexOf(mode);
+    setMode(modes[(index + 1) % modes.length]);
+  };
+  return (
+    <button
+      suppressHydrationWarning
+      className={styles.switch}
+      onClick={handleModeSwitch}
+    />
+  );
+};
+
+/**
+ * This component wich applies classes and transitions.
+ */
+export const ThemeSwitcher = () => {
   return (
     <>
       <script
@@ -83,7 +103,7 @@ export const ThemeSwitcher = () => {
           __html: `(${NoFOUCScript.toString()})('${STORAGE_KEY}')`,
         }}
       />
-      <Switch {...{ mode, setMode }} />
+      <Switch />
     </>
   );
 };
