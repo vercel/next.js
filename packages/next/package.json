@@ -112,12 +112,6 @@
     },
     "sass": {
       "optional": true
-    },
-    "@opentelemetry/api": {
-      "optional": true
-    },
-    "@playwright/test": {
-      "optional": true
     }
   },
   "optionalDependencies": {
