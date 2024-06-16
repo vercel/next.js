@@ -14,7 +14,7 @@
   transition: all 0.3s ease-in-out 0s !important;
 }
 
-.system.switch::after {
+[data-mode="system"] .switch::after {
   position: absolute;
   height: 100%;
   width: 100%;
@@ -28,13 +28,13 @@
   content: "A";
 }
 
-.light.switch {
+[data-mode="light"] .switch {
   box-shadow: 0 0 50px 10px yellow;
   background-color: yellow;
   border: 1px solid orangered;
 }
 
-.dark.switch {
+[data-mode="dark"] .switch {
   box-shadow: calc(var(--size) / 4) calc(var(--size) / -4) calc(var(--size) / 8)
     inset #fff;
   border: none;

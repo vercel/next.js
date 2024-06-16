@@ -42,6 +42,7 @@ export const NoFOUCScript = (storageKey: string) => {
     const classList = document.documentElement.classList;
     if (resolvedMode === DARK) classList.add(DARK);
     else classList.remove(DARK);
+    document.documentElement.setAttribute("data-mode", mode);
     restoreTransitions();
   };
   window.updateDOM();

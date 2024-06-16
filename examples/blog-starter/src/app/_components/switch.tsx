@@ -1,7 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import styles from "./switch.module.css";
 import type { ColorSchemePreference } from "./theme-switcher";
-import cn from "classnames";
 
 export const modes: ColorSchemePreference[] = ["system", "dark", "light"];
 
@@ -22,7 +21,7 @@ export const Switch = ({ mode, setMode }: SwitchProps) => {
   return (
     <button
       suppressHydrationWarning
-      className={cn(styles.switch, styles[mode])}
+      className={styles.switch}
       onClick={handleModeSwitch}
     />
   );
