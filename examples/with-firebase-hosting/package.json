@@ -11,7 +11,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
-    "firebase-admin": "^11.1.0",
+    "firebase-admin": "^12.0.0",
     "firebase-functions": "^3.13.1",
     "next": "latest",
     "react": "^18.2.0",
