@@ -6,6 +6,7 @@ members = [
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
   "packages/next-swc/crates/next-api",
+  "packages/next-swc/crates/next-build-test",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
   "packages/next-swc/crates/next-custom-transforms",
