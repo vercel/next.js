@@ -6,112 +6,83 @@ import { Switch } from "./switch";
 const STORAGE_KEY = "nextjs-blog-starter-theme";
 
 export type ColorSchemePreference = "system" | "dark" | "light";
-export type ResolvedScheme = "dark" | "light";
-export interface ThemeState {
-  mode: ColorSchemePreference;
-  systemMode: ResolvedScheme;
-}
 
-export const DARK = "dark";
-export const LIGHT = "light";
-export const SYSTEM = "system";
-
+/** to reuse updateDOM function defined inside injected script */
 declare global {
-  var u: (mode: ColorSchemePreference, systemMode: ResolvedScheme) => void;
-  var m: MediaQueryList;
+  var updateDOM: () => void;
 }
 
-/** function to be injected in script tag for avoiding FOUC */
-export const s = (storageKey: string) => {
-  const [SYSTEM, DARK, LIGHT] = ["system", "dark", "light"] as const;
-  window.u = (mode: ColorSchemePreference, systemMode: ResolvedScheme) => {
+/** function to be injected in script tag for avoiding FOUC (Flash of Unstyled Content) */
+export const NoFOUCScript = (storageKey: string) => {
+  /* can not use outside constants or function as this script will be injected in a different context */
+  const [SYSTEM, DARK, LIGHT] = ["system", "dark", "light"];
+
+  /** Modify transition globally to avoid patched transitions */
+  const modifyTransition = () => {
+    const css = document.createElement("style");
+    css.textContent = `*,*:after,*:before{transition:none !important;}`;
+    document.head.appendChild(css);
+
+    return () => {
+      /* Force restyle */
+      getComputedStyle(document.body);
+      /* Wait for next tick before removing */
+      setTimeout(() => document.head.removeChild(css), 1);
+    };
+  };
+
+  const media = matchMedia(`(prefers-color-scheme: ${DARK})`);
+
+  /** function to add remove dark class */
+  window.updateDOM = () => {
+    const restoreTransitions = modifyTransition();
+    const mode = localStorage.getItem(storageKey) ?? SYSTEM;
+    const systemMode = media.matches ? DARK : LIGHT;
     const resolvedMode = mode === SYSTEM ? systemMode : mode;
-    const el = document.documentElement;
-    if (resolvedMode === DARK) el.classList.add(DARK);
-    else el.classList.remove(DARK);
-    [
-      ["sm", systemMode],
-      ["rm", resolvedMode],
-      ["m", mode],
-    ].forEach(([dataLabel, value]) =>
-      el.setAttribute(`data-${dataLabel}`, value),
-    );
-    // System mode is decided by current system state and need not be stored in localStorage
-    localStorage.setItem(storageKey, mode);
+    const classList = document.documentElement.classList;
+    if (resolvedMode === DARK) classList.add(DARK);
+    else classList.remove(DARK);
+    restoreTransitions();
   };
-  window.m = matchMedia(`(prefers-color-scheme: ${DARK})`);
-  u(
-    (localStorage.getItem(storageKey) ?? SYSTEM) as ColorSchemePreference,
-    m.matches ? DARK : LIGHT,
-  );
+  window.updateDOM();
+  media.addEventListener("change", window.updateDOM);
 };
 
-let media: MediaQueryList,
-  updateDOM: (mode: ColorSchemePreference, systemMode: ResolvedScheme) => void;
-
-/** Modify transition globally to avoid patched transitions */
-const modifyTransition = () => {
-  const css = document.createElement("style");
-  /** split by ';' to prevent CSS injection */
-  css.textContent = `*,*:after,*:before{transition:none !important;}`;
-  document.head.appendChild(css);
-
-  return () => {
-    // Force restyle
-    getComputedStyle(document.body);
-    // Wait for next tick before removing
-    setTimeout(() => document.head.removeChild(css), 1);
-  };
-};
+let updateDOM: () => void;
 
 /**
  * This component wich applies classes and transitions.
  */
 export const ThemeSwitcher = () => {
-  const [themeState, setThemeState] = useState<ThemeState>(() => {
-    if (typeof document === "undefined")
-      return { mode: SYSTEM, systemMode: DARK as ResolvedScheme };
-    const el = document.documentElement;
-    return {
-      mode: (el.getAttribute("data-m") ?? SYSTEM) as ColorSchemePreference,
-      systemMode: el.getAttribute("data-sm") as ResolvedScheme,
-    };
-  });
+  const [mode, setMode] = useState<ColorSchemePreference>(
+    () =>
+      ((typeof localStorage !== "undefined" &&
+        localStorage.getItem(STORAGE_KEY)) ??
+        "system") as ColorSchemePreference,
+  );
 
   useEffect(() => {
     // store global functions to local variables to avoid any interference
-    [media, updateDOM] = [m, u];
-    /** Updating media: prefers-color-scheme*/
-    media.addEventListener("change", () =>
-      setThemeState(
-        (state) =>
-          ({ ...state, s: media.matches ? DARK : LIGHT }) as ThemeState,
-      ),
-    );
+    updateDOM = window.updateDOM;
     /** Sync the tabs */
     addEventListener("storage", (e: StorageEvent): void => {
-      e.key === STORAGE_KEY &&
-        setThemeState((state) => ({
-          ...state,
-          m: e.newValue as ColorSchemePreference,
-        }));
+      e.key === STORAGE_KEY && setMode(e.newValue as ColorSchemePreference);
     });
   }, []);
 
   useEffect(() => {
-    const restoreTransitions = modifyTransition();
-    updateDOM(themeState.mode, themeState.systemMode);
-    restoreTransitions();
-  }, [themeState]);
+    localStorage.setItem(STORAGE_KEY, mode);
+    updateDOM();
+  }, [mode]);
 
   return (
     <>
       <script
         dangerouslySetInnerHTML={{
-          __html: `(${s.toString()})('${STORAGE_KEY}')`,
+          __html: `(${NoFOUCScript.toString()})('${STORAGE_KEY}')`,
         }}
       />
-      <Switch {...{ themeState, setThemeState }} />
+      <Switch {...{ mode, setMode }} />
     </>
   );
 };
