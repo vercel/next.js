@@ -102,9 +102,6 @@
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
-    "@opentelemetry/api": "^1.1.0",
-    "@playwright/test": "^1.41.2",
-    "babel-plugin-react-compiler": "*",
     "react": "19.0.0-rc.0",
     "react-dom": "19.0.0-rc.0",
     "sass": "^1.3.0"
@@ -124,6 +121,9 @@
     }
   },
   "optionalDependencies": {
+    "@opentelemetry/api": "^1.1.0",
+    "@playwright/test": "^1.41.2",
+    "babel-plugin-react-compiler": "*",
     "sharp": "^0.33.4"
   },
   "devDependencies": {
