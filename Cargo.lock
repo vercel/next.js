@@ -5213,9 +5213,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.34.0"
+version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f79aace01c21f25090c75f5f7c6e3901498c062e2c1178c46866ed4e62e80aba"
+checksum = "5d0a5e455ba23fcd687b05ee944ea2c4b026f7de6bb648be3061a434509963e2"
 dependencies = [
  "ahash 0.8.9",
  "anyhow",
@@ -5300,9 +5300,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.95.1"
+version = "0.95.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d15bf0a4cfe25b1a127f739359e898d953ae92559f6a2d2597e373ffee954c14"
+checksum = "2d98a9010ece859955625a9c1a54ac60986063d755acd8e1fd3a6d7a7e96bce1"
 dependencies = [
  "binding_macros",
  "swc",
