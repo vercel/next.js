@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Switch } from "./switch";
 
+const STORAGE_KEY = "nextjs-blog-starter-theme";
+
 export type ColorSchemePreference = "system" | "dark" | "light";
 export type ResolvedScheme = "dark" | "light";
 export interface ThemeState {
@@ -47,25 +49,11 @@ export const s = (storageKey: string) => {
 let media: MediaQueryList,
   updateDOM: (mode: ColorSchemePreference, systemMode: ResolvedScheme) => void;
 
-export interface ThemeSwitcherProps {
-  /** themeTransition: force apply CSS transition property to all the elements during theme switching. E.g., `all .3s`
-   * @defaultValue 'none'
-   */
-  t?: string;
-  /** The nonce value for your Content Security Policy. @defaultValue '' */
-  nonce?: string;
-  /** storageKey @defaultValue 'o' */
-  k?: string;
-}
-
 /** Modify transition globally to avoid patched transitions */
-const modifyTransition = (themeTransition = "none", nonce = "") => {
+const modifyTransition = () => {
   const css = document.createElement("style");
   /** split by ';' to prevent CSS injection */
-  css.textContent = `*,*:after,*:before{transition:${
-    themeTransition.split(";")[0]
-  } !important;}`;
-  nonce && css.setAttribute("nonce", nonce);
+  css.textContent = `*,*:after,*:before{transition:none !important;}`;
   document.head.appendChild(css);
 
   return () => {
@@ -79,7 +67,7 @@ const modifyTransition = (themeTransition = "none", nonce = "") => {
 /**
  * This component wich applies classes and transitions.
  */
-export const ThemeSwitcher = ({ t, nonce, k = "o" }: ThemeSwitcherProps) => {
+export const ThemeSwitcher = () => {
   const [themeState, setThemeState] = useState<ThemeState>(() => {
     if (typeof document === "undefined")
       return { mode: SYSTEM, systemMode: DARK as ResolvedScheme };
@@ -102,25 +90,26 @@ export const ThemeSwitcher = ({ t, nonce, k = "o" }: ThemeSwitcherProps) => {
     );
     /** Sync the tabs */
     addEventListener("storage", (e: StorageEvent): void => {
-      e.key === k &&
+      e.key === STORAGE_KEY &&
         setThemeState((state) => ({
           ...state,
           m: e.newValue as ColorSchemePreference,
         }));
     });
-  }, [k]);
+  }, []);
 
   useEffect(() => {
-    const restoreTransitions = modifyTransition(t, nonce);
+    const restoreTransitions = modifyTransition();
     updateDOM(themeState.mode, themeState.systemMode);
     restoreTransitions();
-  }, [themeState, t, nonce]);
+  }, [themeState]);
 
   return (
     <>
       <script
-        dangerouslySetInnerHTML={{ __html: `(${s.toString()})('${k}')` }}
-        nonce={nonce}
+        dangerouslySetInnerHTML={{
+          __html: `(${s.toString()})('${STORAGE_KEY}')`,
+        }}
       />
       <Switch {...{ themeState, setThemeState }} />
     </>
