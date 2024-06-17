@@ -633,7 +633,7 @@ impl PageEndpoint {
             );
 
             let Some(client_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -659,7 +659,7 @@ impl PageEndpoint {
             .context("expected Next.js client runtime to resolve to a module")?;
 
             let Some(client_main_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -670,8 +670,8 @@ impl PageEndpoint {
                 client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
-                    .with_entry(Vc::upcast(client_main_module))
-                    .with_entry(Vc::upcast(client_module)),
+                    .with_entry(client_main_module)
+                    .with_entry(client_module),
                 Value::new(AvailabilityInfo::Root),
             );
 
