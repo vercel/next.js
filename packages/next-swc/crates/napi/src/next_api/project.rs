@@ -423,6 +423,15 @@ pub async fn project_update(
     Ok(())
 }
 
+#[napi]
+pub async fn project_gc(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    turbo_tasks.backend().run_gc(false, &*turbo_tasks);
+    Ok(())
+}
+
 #[napi(object)]
 #[derive(Default)]
 struct AppPageNapiRoute {
