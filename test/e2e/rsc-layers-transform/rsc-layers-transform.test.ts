@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('rsc layers transform', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -14,9 +14,11 @@ describe('rsc layers transform', () => {
     })
   })
 
-  it('should call instrumentation hook without errors', async () => {
-    const output = next.cliOutput
-    expect(output).toContain('instrumentation:register')
-    expect(output).toContain('instrumentation:text:text-value')
-  })
+  if (!isNextDeploy) {
+    it('should call instrumentation hook without errors', async () => {
+      const output = next.cliOutput
+      expect(output).toContain('instrumentation:register')
+      expect(output).toContain('instrumentation:text:text-value')
+    })
+  }
 })
