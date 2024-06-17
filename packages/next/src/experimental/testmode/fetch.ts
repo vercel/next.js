@@ -95,7 +95,7 @@ export async function handleFetch(
   const { testData, proxyPort } = testInfo
   const proxyRequest = await buildProxyRequest(testData, request)
 
-  const resp = await originalFetch(`http://localhost:${proxyPort}`, {
+  const resp = await originalFetch(`http://127.0.0.1:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
     next: {
