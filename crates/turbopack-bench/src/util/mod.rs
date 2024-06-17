@@ -70,7 +70,7 @@ pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
     .unwrap();
 
     let npm = command("npm")
-        .args(["install", "--prefer-offline", "--loglevel=error"])
+        .args(["install", "--loglevel=error"])
         .current_dir(test_app.path())
         .output()
         .unwrap();

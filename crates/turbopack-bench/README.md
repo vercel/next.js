@@ -29,6 +29,12 @@ and optionally filter the benchmarks run to specific bundlers, such as:
 cargo bench -p turbopack-bench -p turbopack-cli -- "hmr_to_eval/(Turbopack CSR|Vite)"
 ```
 
+or a specific suite:
+
+```sh
+cargo bench -p turbopack-bench -- "bench_hydration/Next\.js canary Turbo RSC"
+```
+
 **Note**: The Turbopack benchmark suite includes a mix of server-side rendered and client-only rendered examples -- these are reflected in "CSR" or "SSR" in the benchmark name. Turbopack supports both, while some other bundlers only support client-rendered examples. Take that into account when comparing CSR results against SSR.
 
 **Hint**: These benchmarks take a long time to complete, since they try to capture at least 10 samples for every scenario. There is a `TURBOPACK_BENCH_PROGRESS=1` env var to show values while the benchmarks are running.

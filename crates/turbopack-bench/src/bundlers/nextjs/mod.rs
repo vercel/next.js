@@ -162,7 +162,7 @@ impl NextJsVersion {
             NextJsVersion::V12 => "^18.2.0",
             NextJsVersion::V13 => "^18.2.0",
             NextJsVersion::V14 => "^18.2.0",
-            NextJsVersion::Canary => "^18.2.0",
+            NextJsVersion::Canary => "rc",
         }
     }
 
