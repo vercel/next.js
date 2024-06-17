@@ -839,6 +839,8 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
+    Item30 --> Item7;
+    Item31 --> Item10;
 ```
 # Phase 3
 ```mermaid
@@ -1201,10 +1203,13 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
+    Item30 --> Item7;
+    Item31 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
     Item8 --> Item7;
+    Item11 -.-> Item31;
 ```
 # Phase 4
 ```mermaid
@@ -1567,10 +1572,13 @@ graph TD
     Item28 -.-> Item5;
     Item28 -.-> Item4;
     Item28 -.-> Item7;
+    Item30 --> Item7;
+    Item31 --> Item10;
     Item7 --> Item6;
     Item7 --> Item5;
     Item8 --> Item4;
     Item8 --> Item7;
+    Item11 -.-> Item31;
     Item29 --> Item1;
     Item29 --> Item2;
     Item29 --> Item3;
@@ -1593,8 +1601,6 @@ graph TD
     Item29 --> Item26;
     Item29 --> Item27;
     Item29 --> Item28;
-    Item30 --> Item7;
-    Item31 --> Item10;
 ```
 # Final
 ```mermaid
@@ -1614,6 +1620,7 @@ graph TD
     N0 --> N7;
     N0 --> N8;
     N0 --> N6;
+    N0 --> N2;
     N1 --> N6;
     N2 --> N8;
     N4 --> N3;
@@ -1667,6 +1674,9 @@ import { IPC } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 "module evaluation";
 import { createConnection } from "node:net";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
@@ -1704,6 +1714,15 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
+export { createConnection } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { improveConsole } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1764,6 +1783,12 @@ function structuredError(e) {
         stack: typeof e.stack === "string" ? parseStackTrace(e.stack) : []
     };
 }
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { structuredError } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1790,6 +1815,15 @@ import { createConnection } from "node:net";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 import { getProperError } from "./error";
 const PORT = process.argv[2];
+export { createConnection } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { PORT } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1942,6 +1976,15 @@ function createIpc(port) {
     };
 }
 const IPC = createIpc(parseInt(PORT, 10));
+export { createConnection } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { createIpc } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1969,6 +2012,9 @@ import { IPC } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
 import { createConnection } from "node:net";
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
@@ -2007,6 +2053,15 @@ improveConsole("timeEnd", "stdout", true);
 improveConsole("timeLog", "stdout", true);
 improveConsole("timeStamp", "stdout", true);
 improveConsole("assert", "stderr", true);
+export { createConnection } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { improveConsole } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -2136,6 +2191,12 @@ function structuredError(e) {
         stack: typeof e.stack === "string" ? parseStackTrace(e.stack) : []
     };
 }
+export { parseStackTrace } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getProperError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { structuredError } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -2303,6 +2364,9 @@ function createIpc(port) {
     };
 }
 const IPC = createIpc(parseInt(PORT, 10));
+export { createConnection } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { createIpc } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };

@@ -45,6 +45,8 @@ graph TD
     Item4["export a"];
     Item5;
     Item5["export b"];
+    Item4 --> Item1;
+    Item5 --> Item2;
 ```
 # Phase 3
 ```mermaid
@@ -57,6 +59,8 @@ graph TD
     Item4["export a"];
     Item5;
     Item5["export b"];
+    Item4 --> Item1;
+    Item5 --> Item2;
 ```
 # Phase 4
 ```mermaid

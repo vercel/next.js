@@ -164,6 +164,8 @@ graph TD
     Item7 --> Item5;
     Item8 --> Item6;
     Item9 --> Item6;
+    Item11 --> Item8;
+    Item12 --> Item9;
 ```
 # Phase 3
 ```mermaid
@@ -204,6 +206,8 @@ graph TD
     Item7 --> Item5;
     Item8 --> Item6;
     Item9 --> Item6;
+    Item11 --> Item8;
+    Item12 --> Item9;
 ```
 # Phase 4
 ```mermaid
@@ -244,14 +248,14 @@ graph TD
     Item7 --> Item5;
     Item8 --> Item6;
     Item9 --> Item6;
+    Item11 --> Item8;
+    Item12 --> Item9;
     Item10 --> Item1;
     Item10 --> Item2;
     Item10 --> Item3;
     Item10 --> Item4;
     Item10 --> Item5;
     Item10 --> Item7;
-    Item11 --> Item8;
-    Item12 --> Item9;
 ```
 # Final
 ```mermaid

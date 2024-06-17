@@ -204,7 +204,9 @@ graph TD
     Item6 --> Item3;
     Item6 -.-> Item4;
     Item7 --> Item6;
+    Item7 --> Item3;
     Item8 --> Item6;
+    Item8 --> Item3;
     Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
@@ -215,6 +217,11 @@ graph TD
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
+    Item15 --> Item8;
+    Item15 --> Item3;
+    Item16 --> Item4;
+    Item17 --> Item12;
+    Item18 --> Item13;
 ```
 # Phase 3
 ```mermaid
@@ -247,7 +254,9 @@ graph TD
     Item6 --> Item3;
     Item6 -.-> Item4;
     Item7 --> Item6;
+    Item7 --> Item3;
     Item8 --> Item6;
+    Item8 --> Item3;
     Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
@@ -258,13 +267,18 @@ graph TD
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
+    Item15 --> Item8;
+    Item15 --> Item3;
+    Item16 --> Item4;
+    Item17 --> Item12;
+    Item18 --> Item13;
     Item11 --> Item2;
     Item11 --> Item8;
     Item12 --> Item11;
     Item12 --> Item8;
     Item13 -.-> Item4;
     Item13 -.-> Item7;
-    Item13 -.-> Item8;
+    Item13 -.-> Item15;
 ```
 # Phase 4
 ```mermaid
@@ -297,7 +311,9 @@ graph TD
     Item6 --> Item3;
     Item6 -.-> Item4;
     Item7 --> Item6;
+    Item7 --> Item3;
     Item8 --> Item6;
+    Item8 --> Item3;
     Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
@@ -308,19 +324,20 @@ graph TD
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
+    Item15 --> Item8;
+    Item15 --> Item3;
+    Item16 --> Item4;
+    Item17 --> Item12;
+    Item18 --> Item13;
     Item11 --> Item2;
     Item11 --> Item8;
     Item12 --> Item11;
     Item12 --> Item8;
     Item13 -.-> Item4;
     Item13 -.-> Item7;
-    Item13 -.-> Item8;
+    Item13 -.-> Item15;
     Item14 --> Item1;
     Item14 --> Item9;
-    Item15 --> Item8;
-    Item16 --> Item4;
-    Item17 --> Item12;
-    Item18 --> Item13;
 ```
 # Final
 ```mermaid
@@ -341,17 +358,20 @@ graph TD
     N0 --> N9;
     N0 --> N6;
     N1 --> N9;
+    N1 --> N5;
     N2 --> N6;
     N3 --> N10;
     N3 --> N9;
     N4 --> N6;
     N4 --> N8;
-    N4 --> N9;
+    N4 --> N1;
     N6 --> N5;
     N7 --> N5;
     N7 --> N6;
     N8 --> N7;
+    N8 --> N5;
     N9 --> N7;
+    N9 --> N5;
     N9 --> N6;
     N9 --> N8;
     N10 --> N9;
@@ -396,12 +416,18 @@ import "__TURBOPACK_PART__" assert {
 import "module";
 import { upper } from "module";
 console.log(foobarCopy);
+export { upper } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 1
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 export { foobar };
 
@@ -419,7 +445,7 @@ export { foo };
 import { internal } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 export { external1 };
@@ -439,8 +465,8 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import { foobar } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
 };
 export { external2 };
 function external2() {
@@ -483,15 +509,15 @@ foobar += bar;
 export { bar } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { foobar } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 8
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 let foobarCopy = foobar;
 export { foobarCopy } from "__TURBOPACK_VAR__" assert {
@@ -501,8 +527,11 @@ export { foobarCopy } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -511,20 +540,20 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 foobar += "foo";
-export { foobar } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 10
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import { upper } from "module";
 function internal() {
     return upper(foobar);
 }
+export { upper } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { internal } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -548,6 +577,9 @@ import "module";
 import { upper } from "module";
 "module evaluation";
 console.log(foobarCopy);
+export { upper } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 # Entrypoints
@@ -574,8 +606,11 @@ console.log(foobarCopy);
 # Modules (prod)
 ## Part 0
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 "module evaluation";
 import "module";
@@ -588,8 +623,11 @@ export { foobarCopy } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 export { foobar };
 
@@ -608,7 +646,7 @@ export { foo } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 export { external1 };
@@ -619,6 +657,9 @@ function internal() {
 function external1() {
     return internal() + foobar;
 }
+export { upper } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { internal } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -656,26 +697,26 @@ foobar += bar;
 export { bar } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { foobar } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 7
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-foobar += "foo";
-export { foobar } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
+foobar += "foo";
 
 ```
 ## Merged (module eval)
 ```js
-import { foobar } from "__TURBOPACK_PART__" assert {
+import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
+};
+import { foobar } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 import "module";
 "module evaluation";

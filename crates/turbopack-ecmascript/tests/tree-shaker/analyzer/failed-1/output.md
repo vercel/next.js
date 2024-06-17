@@ -158,6 +158,9 @@ graph TD
     Item9["export sendMessage"];
     Item10;
     Item10["export connectHMR"];
+    Item8 --> Item4;
+    Item9 --> Item5;
+    Item10 --> Item6;
 ```
 # Phase 3
 ```mermaid
@@ -176,6 +179,9 @@ graph TD
     Item9["export sendMessage"];
     Item10;
     Item10["export connectHMR"];
+    Item8 --> Item4;
+    Item9 --> Item5;
+    Item10 --> Item6;
     Item4 --> Item2;
     Item5 --> Item1;
     Item6 --> Item1;
@@ -199,14 +205,14 @@ graph TD
     Item9["export sendMessage"];
     Item10;
     Item10["export connectHMR"];
+    Item8 --> Item4;
+    Item9 --> Item5;
+    Item10 --> Item6;
     Item4 --> Item2;
     Item5 --> Item1;
     Item6 --> Item1;
     Item6 --> Item2;
     Item6 --> Item3;
-    Item8 --> Item4;
-    Item9 --> Item5;
-    Item10 --> Item6;
 ```
 # Final
 ```mermaid

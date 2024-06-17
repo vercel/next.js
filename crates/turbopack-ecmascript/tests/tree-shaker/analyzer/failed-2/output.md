@@ -389,6 +389,14 @@ graph TD
     Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
+    Item21 --> Item10;
+    Item22 --> Item11;
+    Item23 --> Item12;
+    Item24 --> Item13;
+    Item25 --> Item14;
+    Item26 --> Item16;
+    Item27 --> Item17;
+    Item28 --> Item19;
 ```
 # Phase 3
 ```mermaid
@@ -437,6 +445,14 @@ graph TD
     Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
+    Item21 --> Item10;
+    Item22 --> Item11;
+    Item23 --> Item12;
+    Item24 --> Item13;
+    Item25 --> Item14;
+    Item26 --> Item16;
+    Item27 --> Item17;
+    Item28 --> Item19;
     Item11 --> Item8;
     Item11 --> Item7;
     Item11 --> Item15;
@@ -500,6 +516,14 @@ graph TD
     Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
+    Item21 --> Item10;
+    Item22 --> Item11;
+    Item23 --> Item12;
+    Item24 --> Item13;
+    Item25 --> Item14;
+    Item26 --> Item16;
+    Item27 --> Item17;
+    Item28 --> Item19;
     Item11 --> Item8;
     Item11 --> Item7;
     Item11 --> Item15;
@@ -519,14 +543,6 @@ graph TD
     Item20 --> Item2;
     Item20 --> Item3;
     Item20 --> Item4;
-    Item21 --> Item10;
-    Item22 --> Item11;
-    Item23 --> Item12;
-    Item24 --> Item13;
-    Item25 --> Item14;
-    Item26 --> Item16;
-    Item27 --> Item17;
-    Item28 --> Item19;
 ```
 # Final
 ```mermaid
@@ -641,6 +657,15 @@ function markCurrentScopeAsDynamic(store, expression) {
         }
     }
 }
+export { DynamicServerError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { StaticGenBailoutError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getPathname } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { markCurrentScopeAsDynamic } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -673,6 +698,15 @@ function trackDynamicDataAccessed(store, expression) {
         }
     }
 }
+export { DynamicServerError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { StaticGenBailoutError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getPathname } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { trackDynamicDataAccessed } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -771,10 +805,10 @@ export { createPostponedAbortSignal } from "__TURBOPACK_VAR__" assert {
 ```js
 import React from 'react';
 const hasPostpone = typeof React.unstable_postpone === 'function';
-export { hasPostpone } from "__TURBOPACK_VAR__" assert {
+export { React } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { React } from "__TURBOPACK_VAR__" assert {
+export { hasPostpone } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -912,6 +946,15 @@ function markCurrentScopeAsDynamic(store, expression) {
         }
     }
 }
+export { DynamicServerError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { StaticGenBailoutError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getPathname } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { markCurrentScopeAsDynamic } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -944,6 +987,15 @@ function trackDynamicDataAccessed(store, expression) {
         }
     }
 }
+export { DynamicServerError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { StaticGenBailoutError } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getPathname } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { trackDynamicDataAccessed } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1042,10 +1094,10 @@ export { createPostponedAbortSignal } from "__TURBOPACK_VAR__" assert {
 ```js
 import React from 'react';
 const hasPostpone = typeof React.unstable_postpone === 'function';
-export { hasPostpone } from "__TURBOPACK_VAR__" assert {
+export { React } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { React } from "__TURBOPACK_VAR__" assert {
+export { hasPostpone } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
