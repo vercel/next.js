@@ -26,7 +26,7 @@ pub async fn main_inner(
     let mut file = std::fs::File::open(&path)
         .with_context(|| format!("loading file at {}", path.display()))?;
 
-    let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
+    let mut options: ProjectOptions = serde_json::from_reader(&mut file).unwrap();
 
     if matches!(strat, Strategy::Development) {
         options.dev = true;
@@ -42,7 +42,7 @@ pub async fn main_inner(
 
     tracing::info!("collecting endpoints");
     let entrypoints = tt
-        .run_once(async move { project.entrypoints().await })
+        .run_once(async move { Ok(project.entrypoints().await?) })
         .await?;
 
     let routes = if let Some(files) = files {

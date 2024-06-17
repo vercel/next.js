@@ -43,6 +43,7 @@ turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbop
 turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240614.1" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
 turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240614.1" }
+turbo-tasks-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240614.1", default-features = false }
 
 # General Deps
 

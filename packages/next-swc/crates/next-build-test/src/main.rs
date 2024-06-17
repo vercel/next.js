@@ -1,5 +1,10 @@
+#![feature(future_join)]
+#![feature(min_specialization)]
+#![feature(arbitrary_self_types)]
+
 use std::{convert::Infallible, str::FromStr, time::Instant};
 
+use anyhow::Result;
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{main_inner, Strategy};
 use next_core::tracing_presets::{
