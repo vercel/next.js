@@ -37,7 +37,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
             },
             context::AssetContext,
             file_source::FileSource,
