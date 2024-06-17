@@ -11,7 +11,7 @@ use next_api::{
     route::{Endpoint, Route},
 };
 use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
-use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
 
 pub async fn main_inner(
     tt: &TurboTasks<MemoryBackend>,
@@ -66,6 +66,13 @@ pub async fn main_inner(
 
     let count = render_routes(tt, routes, strat, factor, limit).await?;
     tracing::info!("rendered {} pages", count);
+
+    if count == 0 {
+        tracing::info!("No pages found, these pages exist:");
+        for (route, _) in entrypoints.routes.iter() {
+            tracing::info!("  {}", route);
+        }
+    }
 
     if matches!(strat, Strategy::Development) {
         hmr(tt, project).await?;
@@ -138,6 +145,8 @@ pub async fn render_routes(
             tracing::info!("{name}...");
             let start = Instant::now();
 
+            let memory = TurboMalloc::memory_usage();
+
             tt.run_once({
                 let name = name.clone();
                 async move {
@@ -171,6 +180,18 @@ pub async fn render_routes(
             })
             .await?;
 
+            let memory_after = TurboMalloc::memory_usage();
+            if memory_after > memory {
+                tracing::info!(
+                    "memory usage increased by {} MiB",
+                    (memory_after - memory) / 1024 / 1024
+                );
+            } else {
+                tracing::info!(
+                    "memory usage decreased by {} MiB",
+                    (memory - memory_after) / 1024 / 1024
+                );
+            }
             tracing::info!("{name} {:?}", start.elapsed());
 
             Ok::<_, anyhow::Error>(())
