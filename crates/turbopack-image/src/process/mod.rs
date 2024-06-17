@@ -286,7 +286,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
             (buf, Mime::from_str("image/avif")?)
         }
         _ => bail!(
-            "Ecoding for image format {:?} has not been compiled into the current build",
+            "Encoding for image format {:?} has not been compiled into the current build",
             format
         ),
     })
