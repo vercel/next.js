@@ -175,6 +175,7 @@ pub async fn referenced_modules_and_affecting_sources(
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
+    let mut set = HashSet::new();
     let modules = module
         .references()
         .await?
@@ -192,6 +193,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .await?
         .into_iter()
         .flatten()
+        .filter(|&module| set.insert(module))
         .collect();
     Ok(Vc::cell(modules))
 }
