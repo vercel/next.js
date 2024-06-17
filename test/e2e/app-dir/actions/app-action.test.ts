@@ -24,6 +24,37 @@ describe('app-dir action handling', () => {
       },
     })
 
+  it('should handle action correctly with middleware rewrite', async () => {
+    const browser = await next.browser('/rewrite-to-static-first')
+    const requests: Array<{
+      url: string
+      method: string
+      status: number
+      headers: Record<string, string>
+    }> = []
+
+    browser.on('request', async (req: import('playwright').Request) => {
+      requests.push({
+        url: req.url(),
+        status: await req.response().then((res) => res.status()),
+        method: req.method(),
+        headers: req.headers(),
+      })
+    })
+    await browser.elementByCss('#inc').click()
+
+    await retry(async () => {
+      expect(Number(await browser.elementByCss('#count').text())).toBe(1)
+    })
+
+    const actionRequest = requests.find((req) => {
+      return (
+        req.url.includes('rewrite-to-static-first') && req.method === 'POST'
+      )
+    })
+    expect(actionRequest.status).toBe(200)
+  })
+
   it('should handle basic actions correctly', async () => {
     const browser = await next.browser('/server')
 
@@ -483,40 +514,48 @@ describe('app-dir action handling', () => {
     await check(() => browser.elementByCss('h1').text(), 'Transition is: idle')
   })
 
-  it('should 404 when POSTing an invalid server action', async () => {
-    const cliOutputPosition = next.cliOutput.length
-    const res = await next.fetch('/non-existent-route', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: 'foo=bar',
+  // This is disabled when deployed because the 404 page will be served as a static route
+  // which will not support POST requests, and will return a 405 instead.
+  if (!isNextDeploy) {
+    it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
+      const res = await next.fetch('/non-existent-route', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: 'foo=bar',
+      })
+
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
+      expect(res.status).toBe(404)
     })
+  }
 
-    const cliOutput = next.cliOutput.slice(cliOutputPosition)
+  // This is disabled when deployed because it relies on checking runtime logs,
+  // and only build time logs will be available.
+  if (!isNextDeploy) {
+    it('should log a warning when a server action is not found but an id is provided', async () => {
+      await next.fetch('/server', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'next-action': 'abc123',
+        },
+        body: 'foo=bar',
+      })
 
-    expect(cliOutput).not.toContain('TypeError')
-    expect(cliOutput).not.toContain(
-      'Missing `origin` header from a forwarded Server Actions request'
-    )
-    expect(res.status).toBe(404)
-  })
-
-  it('should log a warning when a server action is not found but an id is provided', async () => {
-    await next.fetch('/server', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        'next-action': 'abc123',
-      },
-      body: 'foo=bar',
+      await check(
+        () => next.cliOutput,
+        /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
+      )
     })
-
-    await check(
-      () => next.cliOutput,
-      /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
-    )
-  })
+  }
 
   it('should be possible to catch network errors', async () => {
     const browser = await next.browser('/catching-error', {
@@ -979,14 +1018,10 @@ describe('app-dir action handling', () => {
       const justPutIt = await browser.elementByCss('#justputit').text()
       await browser.elementByCss('#revalidate-justputit').click()
 
-      // TODO: investigate flakiness when deployed
-      if (!isNextDeploy) {
-        await check(async () => {
-          const newJustPutIt = await browser.elementByCss('#justputit').text()
-          expect(newJustPutIt).not.toBe(justPutIt)
-          return 'success'
-        }, 'success')
-      }
+      await retry(async () => {
+        const newJustPutIt = await browser.elementByCss('#justputit').text()
+        expect(newJustPutIt).not.toBe(justPutIt)
+      })
 
       const newJustPutIt = await browser.elementByCss('#justputit').text()
 
@@ -1179,9 +1214,11 @@ describe('app-dir action handling', () => {
 
     // Submit the action
     await browser.elementById('submit-intercept-action').click()
+    let responseElement = await browser.waitForElementByCss(
+      '#submit-intercept-action-response'
+    )
 
-    // Action log should be in server console
-    await check(() => next.cliOutput, /Action Submitted \(Intercepted\)/)
+    expect(await responseElement.text()).toBe('Action Submitted (Intercepted)')
 
     await browser.refresh()
 
@@ -1194,8 +1231,11 @@ describe('app-dir action handling', () => {
     // Submit the action
     await browser.elementById('submit-page-action').click()
 
-    // Action log should be in server console
-    await check(() => next.cliOutput, /Action Submitted \(Page\)/)
+    responseElement = await browser.waitForElementByCss(
+      '#submit-page-action-response'
+    )
+
+    expect(await responseElement.text()).toBe('Action Submitted (Page)')
   })
 
   describe('encryption', () => {

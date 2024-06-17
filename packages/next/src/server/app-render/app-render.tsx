@@ -1025,7 +1025,11 @@ async function renderToHTMLOrFlightImpl(
           onHeaders,
           maxHeadersLength: 600,
           nonce,
-          bootstrapScripts: [bootstrapScript],
+          // When debugging the static shell, client-side rendering should be
+          // disabled to prevent blanking out the page.
+          bootstrapScripts: renderOpts.isDebugStaticShell
+            ? []
+            : [bootstrapScript],
           formState,
         },
       })
