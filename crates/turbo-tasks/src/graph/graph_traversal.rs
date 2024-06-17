@@ -45,8 +45,8 @@ where
         for edge in root_edges {
             match visit.visit(edge) {
                 VisitControlFlow::Continue(node) => {
-                    let span = visit.span(&node);
                     if let Some((parent_handle, node_ref)) = self.insert(None, GraphNode(node)) {
+                        let span = visit.span(node_ref);
                         futures.push(With::new(visit.edges(node_ref), span, parent_handle));
                     }
                 }
@@ -164,11 +164,11 @@ where
                         for edge in edges {
                             match running.visit.visit(edge) {
                                 VisitControlFlow::Continue(node) => {
-                                    let span = running.visit.span(&node);
                                     if let Some((node_handle, node_ref)) = running
                                         .store
                                         .insert(Some(parent_handle.clone()), GraphNode(node))
                                     {
+                                        let span = running.visit.span(node_ref);
                                         running.futures.push(With::new(
                                             running.visit.edges(node_ref),
                                             span,
