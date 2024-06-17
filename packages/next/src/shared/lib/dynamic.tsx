@@ -40,11 +40,6 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
-  /**
-   * TODO: remove this in next major version v15
-   * @deprecated `suspense` prop is not required anymore
-   */
-  suspense?: boolean
 }
 
 export type LoadableOptions<P = {}> = DynamicOptions<P>

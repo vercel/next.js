@@ -58,6 +58,15 @@ describe('app dir - next/dynamic', () => {
     expect($('h1').text()).toBe('hello')
   })
 
+  it('should render loading by default if loading is specified and loader is slow', async () => {
+    const $ = await next.render$('/default-loading')
+
+    // First render in dev should show loading, production build will resolve the content.
+    expect($('body').text()).toContain(
+      isNextDev ? 'Loading...' : 'This is a dynamically imported component'
+    )
+  })
+
   it('should not render loading by default', async () => {
     const $ = await next.render$('/default')
     expect($('#dynamic-component').text()).not.toContain('loading')
@@ -65,15 +74,15 @@ describe('app dir - next/dynamic', () => {
 
   if (isNextDev) {
     it('should directly raise error when dynamic component error on server', async () => {
-      const pagePath = 'app/default/dynamic-component.js'
+      const pagePath = 'app/default-loading/dynamic-component.js'
       const page = await next.readFile(pagePath)
       await next.patchFile(
         pagePath,
         page.replace('const isDevTest = false', 'const isDevTest = true')
       )
       await retry(async () => {
-        const { status } = await next.fetch('/default')
-        expect(status).toBe(500)
+        const { status } = await next.fetch('/default-loading')
+        expect(status).toBe(200)
       })
     })
   }

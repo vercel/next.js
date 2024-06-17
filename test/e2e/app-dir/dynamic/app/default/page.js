@@ -2,11 +2,15 @@
 
 import dynamic from 'next/dynamic'
 
-const DynamicHeader = dynamic(() => import('./dynamic-component'), {
-  loading: () => <p>Loading...</p>,
+const DynamicHeader = dynamic(() => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(import('./dynamic-component'))
+    }, 1000)
+  })
 })
 
-const ClientWrapper = () => {
+const Page = () => {
   return (
     <div>
       <DynamicHeader />
@@ -14,4 +18,4 @@ const ClientWrapper = () => {
   )
 }
 
-export default ClientWrapper
+export default Page

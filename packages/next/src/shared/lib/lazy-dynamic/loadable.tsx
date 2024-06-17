@@ -48,10 +48,11 @@ function Loadable(options: LoadableOptions) {
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    const isSSR = opts.ssr
-    const Wrap = isSSR ? Fragment : Suspense
-    const wrapProps = isSSR ? {} : { fallback: fallbackElement }
-    const children = isSSR ? (
+    // If it's non-SSR or provided a loading component, wrap it in a suspense boundary
+    const hasSuspenseBoundary = !opts.ssr || !!opts.loading
+    const Wrap = hasSuspenseBoundary ? Suspense : Fragment
+    const wrapProps = hasSuspenseBoundary ? { fallback: fallbackElement } : {}
+    const children = opts.ssr ? (
       <>
         {/* During SSR, we need to preload the CSS from the dynamic component to avoid flash of unstyled content */}
         {typeof window === 'undefined' ? (
