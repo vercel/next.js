@@ -61,6 +61,7 @@ Add an `apple-icon.(jpg|jpeg|png)` image file.
 
 > **Good to know**
 >
+> - By default, app icons are ignored and not displayed, except `favicon.ico`. To enable them, extend the [matcher](/docs/app/building-your-application/routing/middleware#matcher) in the `middleware.js` file.
 > - You can set multiple icons by adding a number suffix to the file name. For example, `icon1.png`, `icon2.png`, etc. Numbered files will sort lexically.
 > - Favicons can only be set in the root `/app` segment. If you need more granularity, you can use [`icon`](#icon).
 > - The appropriate `<link>` tags and attributes such as `rel`, `href`, `type`, and `sizes` are determined by the icon type and metadata of the evaluated file.

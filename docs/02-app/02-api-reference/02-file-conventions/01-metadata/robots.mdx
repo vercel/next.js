@@ -5,6 +5,8 @@ description: API Reference for robots.txt file.
 
 Add or generate a `robots.txt` file that matches the [Robots Exclusion Standard](https://en.wikipedia.org/wiki/Robots.txt#Standard) in the **root** of `app` directory to tell search engine crawlers which URLs they can access on your site.
 
+> **Good to know**: By default, robots file is ignored and not displayed. To enable it, extend the [matcher](/docs/app/building-your-application/routing/middleware#matcher) in the `middleware.js` file.
+
 ## Static `robots.txt`
 
 ```txt filename="app/robots.txt"
