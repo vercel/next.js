@@ -150,7 +150,7 @@ impl NextRuntime {
     pub fn conditions(&self) -> &'static [&'static str] {
         match self {
             NextRuntime::NodeJs => &["node"],
-            NextRuntime::Edge => &["edge-light", "worker"],
+            NextRuntime::Edge => &["edge-light"],
         }
     }
 }
