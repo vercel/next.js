@@ -42,6 +42,8 @@ pub struct Analyzer<'a> {
 
 #[derive(Debug, Default, Clone)]
 struct VarState {
+    declarator: Option<ItemId>,
+
     /// The module items that might trigger side effects on that variable.
     /// We also store if this is a `const` write, so no further change will
     /// happen to this var.
@@ -130,6 +132,13 @@ impl Analyzer<'_> {
                     continue;
                 }
 
+                for id in item.var_decls.iter() {
+                    let state = self.vars.entry(id.clone()).or_default();
+                    if state.declarator.is_none() {
+                        state.declarator = Some(item_id.clone());
+                    }
+                }
+
                 // For each var in READ_VARS:
                 for id in item.read_vars.iter() {
                     // Create a strong dependency to all module items listed in LAST_WRITES for that
@@ -137,8 +146,15 @@ impl Analyzer<'_> {
 
                     // (the writes need to be executed before this read)
                     let state = get_var(&self.vars, id);
-
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
+
+                    if let Some(declarator) = &state.declarator {
+                        if declarator != item_id {
+                            // A read also depends on the declaration.
+                            self.g
+                                .add_strong_deps(item_id, [declarator].iter().copied());
+                        }
+                    }
                 }
 
                 // For each var in WRITE_VARS:
@@ -151,6 +167,13 @@ impl Analyzer<'_> {
 
                     let state = get_var(&self.vars, id);
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
+
+                    if let Some(declarator) = &state.declarator {
+                        if declarator != item_id {
+                            // A write also depends on the declaration.
+                            self.g.add_weak_deps(item_id, [declarator].iter().copied());
+                        }
+                    }
                 }
 
                 if item.side_effects {
@@ -181,7 +204,7 @@ impl Analyzer<'_> {
 
                     state
                         .last_writes
-                        .retain(|last_write| !self.g.has_strong_dep(item_id, last_write));
+                        .retain(|last_write| !self.g.has_dep(item_id, last_write, true));
 
                     // Drop all writes which are not reachable from this item.
                     //
@@ -211,7 +234,7 @@ impl Analyzer<'_> {
 
                     state
                         .last_reads
-                        .retain(|last_read| !self.g.has_strong_dep(item_id, last_read));
+                        .retain(|last_read| !self.g.has_dep(item_id, last_read, true));
                 }
 
                 if item.side_effects {
@@ -307,13 +330,6 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     let part_id = match entrypoints.get(&key) {
         Some(id) => *id,
         None => {
-            // We need to handle `*` reexports specially.
-            if let ModulePart::Export(..) = &*part {
-                if let Some(&part_id) = entrypoints.get(&Key::ModuleEvaluation) {
-                    return Ok(part_id);
-                }
-            }
-
             bail!(
                 "could not find part id for module part {:?} in {:?}",
                 key,
@@ -406,14 +422,9 @@ pub(super) async fn split(
             } = dep_graph.split_module(&items);
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
-            assert_eq!(
-                entrypoints.get(&Key::ModuleEvaluation),
-                Some(&0),
-                "ModuleEvaluation is not the first module"
-            );
 
             for &v in entrypoints.values() {
-                assert!(
+                debug_assert!(
                     v < modules.len() as u32,
                     "Invalid entrypoint '{}' while there are only '{}' modules",
                     v,

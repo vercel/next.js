@@ -223,6 +223,12 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
+    Item14 --> Item9;
+    Item15 --> Item10;
+    Item16 --> Item10;
+    Item17 --> Item10;
+    Item18 --> Item11;
+    Item19 --> Item12;
 ```
 # Phase 3
 ```mermaid
@@ -268,6 +274,12 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
+    Item14 --> Item9;
+    Item15 --> Item10;
+    Item16 --> Item10;
+    Item17 --> Item10;
+    Item18 --> Item11;
+    Item19 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
 ```
@@ -315,6 +327,12 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
+    Item14 --> Item9;
+    Item15 --> Item10;
+    Item16 --> Item10;
+    Item17 --> Item10;
+    Item18 --> Item11;
+    Item19 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
     Item13 --> Item1;
@@ -322,12 +340,6 @@ graph TD
     Item13 --> Item3;
     Item13 --> Item4;
     Item13 --> Item9;
-    Item14 --> Item9;
-    Item15 --> Item10;
-    Item16 --> Item10;
-    Item17 --> Item10;
-    Item18 --> Item11;
-    Item19 --> Item12;
 ```
 # Final
 ```mermaid
@@ -473,6 +485,9 @@ function patchFetch() {
         staticGenerationAsyncStorage
     });
 }
+export { _patchFetch } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { patchFetch } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -546,10 +561,19 @@ const routeModule = new AppRouteRouteModule({
     nextConfigOutput,
     userland
 });
-export { routeModule } from "__TURBOPACK_VAR__" assert {
+export { AppRouteRouteModule } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { RouteKind } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { _patchFetch } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { userland } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { routeModule } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -693,6 +717,9 @@ function patchFetch() {
         staticGenerationAsyncStorage
     });
 }
+export { _patchFetch } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { patchFetch } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -765,10 +792,16 @@ const routeModule = new AppRouteRouteModule({
     nextConfigOutput,
     userland
 });
-export { routeModule } from "__TURBOPACK_VAR__" assert {
+export { AppRouteRouteModule } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { RouteKind } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { userland } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { routeModule } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 

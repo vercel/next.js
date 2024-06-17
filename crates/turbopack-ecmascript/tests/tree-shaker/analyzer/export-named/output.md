@@ -93,6 +93,9 @@ import "./lib";
 ```js
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
+export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Merged (module eval)
@@ -124,6 +127,9 @@ import "./lib";
 ```js
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
+export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Merged (module eval)

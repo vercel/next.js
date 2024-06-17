@@ -61,6 +61,8 @@ graph TD
     Item5["export effects"];
     Item6;
     Item6["export effect"];
+    Item5 --> Item2;
+    Item6 --> Item3;
 ```
 # Phase 3
 ```mermaid
@@ -74,7 +76,10 @@ graph TD
     Item5["export effects"];
     Item6;
     Item6["export effect"];
+    Item5 --> Item2;
+    Item6 --> Item3;
     Item3 --> Item2;
+    Item3 -.-> Item5;
 ```
 # Phase 4
 ```mermaid
@@ -88,10 +93,11 @@ graph TD
     Item5["export effects"];
     Item6;
     Item6["export effect"];
-    Item3 --> Item2;
-    Item4 --> Item1;
     Item5 --> Item2;
     Item6 --> Item3;
+    Item3 --> Item2;
+    Item3 -.-> Item5;
+    Item4 --> Item1;
 ```
 # Final
 ```mermaid
@@ -102,6 +108,7 @@ graph TD
     N3["Items: [ItemId(1, VarDeclarator(0))]"];
     N1 --> N3;
     N2 --> N3;
+    N2 --> N1;
 ```
 # Entrypoints
 
@@ -137,6 +144,9 @@ export { effects };
 ```js
 import { effects } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
 };
 export { effect };
 function effect(name) {

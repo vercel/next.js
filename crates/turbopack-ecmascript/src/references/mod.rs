@@ -581,6 +581,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             },
             import_externals,
         );
+
         import_references.push(r);
     }
 
@@ -2571,10 +2572,7 @@ impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
                 fn to_string(name: &ModuleExportName) -> &JsWord {
-                    match name {
-                        ModuleExportName::Ident(ident) => &ident.sym,
-                        ModuleExportName::Str(str) => &str.value,
-                    }
+                    name.atom()
                 }
                 match spec {
                     ExportSpecifier::Namespace(_) => {
