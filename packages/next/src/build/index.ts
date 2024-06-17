@@ -1452,13 +1452,14 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+        const sema = new Sema(1)
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
               await sema.acquire()
               try {
                 await fn()
+                project.gc()
               } finally {
                 sema.release()
                 progress()
