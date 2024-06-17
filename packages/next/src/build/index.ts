@@ -1459,7 +1459,7 @@ export default async function build(
               await sema.acquire()
               try {
                 await fn()
-                project.gc()
+                await project.gc()
               } finally {
                 sema.release()
                 progress()
