@@ -132,7 +132,7 @@ impl TraceReader {
         let mut buffer = Vec::new();
         let mut index = 0;
 
-        let mut chunk = vec![0; 8 * 1024 * 1024];
+        let mut chunk = vec![0; 64 * 1024 * 1024];
         loop {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {

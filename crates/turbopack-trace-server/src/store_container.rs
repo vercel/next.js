@@ -30,6 +30,9 @@ impl StoreContainer {
     }
 
     pub fn read(&self) -> StoreReadGuard<'_> {
+        if let Ok(guard) = self.store.try_read() {
+            return StoreReadGuard { guard };
+        }
         self.want_to_read.store(true, Ordering::Relaxed);
         let guard = StoreReadGuard {
             guard: self.store.read().unwrap(),
