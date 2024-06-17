@@ -188,7 +188,11 @@ export function renderToInitialFizzStream({
   element,
   streamOptions,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
+  ReactDOMServer: Pick<
+    // TODO: Should be a union with  typeof import('react-dom/server.browser') but .browser is not typed at all.
+    typeof import('react-dom/server.edge'),
+    'renderToReadableStream'
+  >
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {

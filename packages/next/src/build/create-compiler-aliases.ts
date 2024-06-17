@@ -118,6 +118,12 @@ export function createWebpackAliases({
         }
       : undefined),
 
+    'react-dom/server.browser$': isEdgeServer
+      ? // This is masking userspace errors where .browser is imported in the Edge runtime
+        // But we're also making that mistake so maybe it's good to fix for everybody?
+        'react-dom/server.edge'
+      : 'react-dom/server.browser',
+
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
@@ -292,6 +298,8 @@ export function createRSCAliases(
         'react/compiler-runtime$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-compiler-runtime`,
         react$: `next/dist/server/route-modules/app-page/vendored/${layer}/react`,
         'react-dom$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-dom`,
+        // FIXME(NEXT-3539): react-dom/server should be aliased to react-dom/server.react-server
+        // 'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server.react-server.js`,
         'react-server-dom-webpack/server.edge$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-edge`,
         'react-server-dom-webpack/server.node$': `next/dist/server/route-modules/app-page/vendored/${layer}/react-server-dom-webpack-server-node`,
       })
@@ -312,6 +320,8 @@ export function createRSCAliases(
         'next/dist/compiled/react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
         'next/dist/compiled/react-experimental/jsx-dev-runtime$': `next/dist/compiled/react-experimental/jsx-dev-runtime.react-server`,
         'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
+        // FIXME(NEXT-3539): react-dom/server should be aliased to react-dom/server.react-server
+        // 'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server.react-server.js`,
         'next/dist/compiled/react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
         'next/dist/compiled/react-dom-experimental$': `next/dist/compiled/react-dom-experimental/react-dom.react-server`,
       })

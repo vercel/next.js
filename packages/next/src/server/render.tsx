@@ -41,6 +41,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
+// This is actually aliased to `react-dom/server.edge` in Edge Runtime
 import ReactDOMServer from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
