@@ -20,7 +20,7 @@ use swc_core::{
             VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
-        utils::{find_pat_ids, private_ident, quote_ident, IdentExt},
+        utils::{find_pat_ids, private_ident, quote_ident},
     },
 };
 use turbo_tasks::RcStr;
@@ -636,7 +636,7 @@ impl DepGraph {
                                 local.sym =
                                     magic_identifier::mangle(&format!("reexport {}", local.sym))
                                         .into();
-                                local = local.private();
+                                local = local.into_private();
                             }
 
                             exports.push((local.to_id(), exported.clone()));

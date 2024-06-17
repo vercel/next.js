@@ -1,4 +1,4 @@
-use std::{future::Future, sync::Arc};
+use std::{borrow::Cow, future::Future, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::{
@@ -118,13 +118,13 @@ impl GenerateSourceMap for ParseResultSourceMap {
             None
         };
         let input_map = if let Some(map) = original_src_map.as_ref() {
-            map.as_regular_source_map()
+            map.as_regular_source_map().map(Cow::into_owned)
         } else {
             None
         };
         let map = self.files_map.build_source_map_with_config(
             &self.mappings,
-            input_map.as_deref(),
+            input_map,
             InlineSourcesContentConfig {},
         );
         Ok(Vc::cell(Some(SourceMap::new_regular(map).cell())))
