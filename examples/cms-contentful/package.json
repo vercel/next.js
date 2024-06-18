@@ -1,6 +1,5 @@
 {
   "private": true,
-  "name": "cms-contentful",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -24,6 +23,5 @@
     "react-dom": "^18.2.0",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.1.6"
-  },
-  "packageManager": "pnpm@8.15.7+sha256.94fab213df221c55b6956b14a2264c21c6203cca9f0b3b95ff2fe9b84b120390"
+  }
 }
