@@ -94,4 +94,15 @@ describe('app dir - basepath', () => {
       })
     }
   )
+
+  it('should handle redirects with absolute, basePath not matched external URL', async () => {
+    const browser = await next.browser('/base/actions-redirect')
+
+    await browser.elementByCss('#redirect-external').click()
+
+    await retry(async () => {
+      expect(await browser.url()).toBe(`${next.url}/external`)
+      expect(await browser.elementByCss('h1').text()).toBe('Example Domain')
+    })
+  })
 })
