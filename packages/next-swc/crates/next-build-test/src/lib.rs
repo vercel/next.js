@@ -78,6 +78,17 @@ pub async fn main_inner(
         hmr(tt, project).await?;
     }
 
+    let start = Instant::now();
+    let memory = TurboMalloc::memory_usage();
+    tt.backend().gc_all_tasks();
+    let memory_after = TurboMalloc::memory_usage();
+    tracing::info!(
+        "GC all {:?}, freed {} MB, {} MB remaining",
+        start.elapsed(),
+        (memory - memory_after) / 1024 / 1024,
+        memory_after / 1024 / 1024
+    );
+
     Ok(())
 }
 
