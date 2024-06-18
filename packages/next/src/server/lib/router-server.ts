@@ -435,7 +435,10 @@ export async function initialize(opts: {
           return await invokeRender(
             url.parse('/405', true),
             '/405',
-            handleIndex
+            handleIndex,
+            {
+              invokeStatus: 405,
+            }
           )
         }
 
