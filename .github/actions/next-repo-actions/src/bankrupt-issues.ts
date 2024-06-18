@@ -6,19 +6,19 @@ async function main() {
 
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
   const { owner, repo } = context.repo
-  const created = getInput('created')
-  const year = created.slice(0, 4)
+  const createdQuery = getInput('created')
+  const dateRange = createdQuery.split('..').join(' to ')
   const body = `
 
-We are in the process of closing issues dating back to ${year} to improve our focus on the most relevant and actionable problems.
+We are in the process of closing issues dating from ${dateRange} to improve our focus on the most relevant and actionable problems.
 
 **_Why are we doing this?_**
 
 Stale issues often lack recent updates and clear reproductions, making them difficult to address effectively. Our objective is to prioritize the most upvoted and actionable issues that have up-to-date reproductions, enabling us to resolve bugs more efficiently.
 
-**_Why ${year} issues?_**
+**_Why these issues?_**
 
-Issues from ${year} are likely to be outdated and less relevant to the current state of the codebase. By closing these older stale issues, we can better focus our efforts on more recent and relevant problems, ensuring a more effective and streamlined workflow.
+Issues dating from ${dateRange} are likely to be outdated and less relevant to the current state of the codebase. By closing these older stale issues, we can better focus our efforts on more recent and relevant problems, ensuring a more effective and streamlined workflow.
 
 If your issue is still relevant, please reopen it using our [bug report template](https://github.com/vercel/next.js/issues/new?assignees=&labels=bug&projects=&template=1.bug_report.yml). Be sure to include any important context from the original issue in your new report.
 
@@ -30,13 +30,13 @@ The Next.js Team
 
   let issues: number[] = []
 
-  info(`created = ${created}`)
-  info(`year = ${year}`)
+  info(`created = ${createdQuery}`)
+  info(`date range = ${dateRange}`)
   info(`body = ${body}`)
 
   // try {
   //   const { data } = await octokit.rest.search.issuesAndPullRequests({
-  //     q: `repo:${owner}/${repo} is:issue is:open created:${created}`,
+  //     q: `repo:${owner}/${repo} is:issue is:open created:${createdQuery}`,
   //   })
 
   //   issues = data.items.map((issue) => issue.number)
