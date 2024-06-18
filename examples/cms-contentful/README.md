@@ -247,6 +247,8 @@ Once saved, you will need to redeploy your application to ensure Protection Bypa
 
 After redeploying, select one of the posts you've created and you will see **Open Live Preview** in the sidebar. Click on it!
 
+![Open live preview](https://github.com/vercel/next.js/assets/29663600/7b2edc77-be7d-49e9-9f08-3f5425591e86)
+
 You will now be able to use the Live Preview editor to publish and edit your content.
 
 ### Using Draft Mode manually
