@@ -685,6 +685,7 @@ pub async fn get_server_module_options_context(
                     ),
                 ],
                 custom_rules: next_server_rules,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..module_options_context
             }
         }
