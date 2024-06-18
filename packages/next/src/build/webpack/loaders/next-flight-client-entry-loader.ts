@@ -65,5 +65,6 @@ export default function transformSource(
     type: RSC_MODULE_TYPES.client,
   }
 
-  return code
+  const suffix = isServer ? 'export const __esm = 1;' : ''
+  return code + '\n' + suffix
 }
