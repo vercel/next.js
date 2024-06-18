@@ -1,8 +1,7 @@
-// Incorporate Contentful's Live Preview feature into your Next.js app by using their
-// draft handler. This handler will enable draft mode and redirect to the previewed
-// post.
-
+// Use Contentful's route handler for Live Preview and Draft Mode
 export { enableDraftHandler as GET } from "@contentful/vercel-nextjs-toolkit/app-router";
+
+// Use your own route handler for Draft Mode
 
 // import { draftMode } from "next/headers";
 // import { redirect } from "next/navigation";
