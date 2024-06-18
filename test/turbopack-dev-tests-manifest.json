@@ -6136,10 +6136,10 @@
     "passed": [
       "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
-    "failed": [
+    "failed": [],
+    "pending": [
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
