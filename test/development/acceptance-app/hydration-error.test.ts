@@ -720,16 +720,28 @@ describe('Error overlay for hydration errors', () => {
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
-    // FIXME
-    expect(description).toContain(
-      "TypeError: Cannot read properties of undefined (reading 'replace')"
-    )
+    expect(description).toEqual(outdent`
+      In HTML, <script> cannot be a child of <html>.
+      This will cause a hydration error.
+    `)
 
-    // const pseudoHtml = await session.getRedboxComponentStack()
-    // expect(pseudoHtml).toEqual(outdent`
-    //   <script>
-    //   ^^^^^^^^
-    // `)
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          <Layout>
+            <html>
+            ^^^^^^
+              <Script>
+                <script>
+                ^^^^^^^^
+      `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        <script>
+        ^^^^^^^^
+      `)
+    }
     await cleanup()
   })
 
