@@ -76,7 +76,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
-import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
+import { withStaticGenerationStore } from '../server/async-storage/with-static-generation-store'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -1381,12 +1381,11 @@ export async function buildAppStaticPaths({
     minimalMode: ciEnvironment.hasNextSupport,
   })
 
-  return StaticGenerationAsyncStorageWrapper.wrap(
+  return withStaticGenerationStore(
     ComponentMod.staticGenerationAsyncStorage,
     {
-      urlPathname: page,
+      page,
       renderOpts: {
-        originalPathname: page,
         incrementalCache,
         supportsDynamicResponse: true,
         isRevalidate: false,
@@ -2277,8 +2276,8 @@ export function isWebpackDefaultLayer(
   return layer === null || layer === undefined
 }
 
-export function isWebpackAppLayer(
+export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }

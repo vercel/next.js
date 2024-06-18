@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 import { browserConfigWithFixedTime, fastForwardTo } from './test-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
+import path from 'path'
 
 describe('app dir client cache semantics (experimental staleTimes)', () => {
   describe('dynamic: 0', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+    const { next, isNextDev, isNextDeploy } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0 } },
       },
@@ -221,28 +222,30 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
-    describe('telemetry', () => {
-      it('should send staleTimes feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_CLI_SESSION_STARTED'
-        )
+    if (!isNextDeploy) {
+      describe('telemetry', () => {
+        it('should send staleTimes feature usage event', async () => {
+          const events = findAllTelemetryEvents(
+            next.cliOutput,
+            'NEXT_CLI_SESSION_STARTED'
+          )
 
-        expect(events).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              staticStaleTime: null,
-              dynamicStaleTime: 0,
-            }),
-          ])
-        )
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                staticStaleTime: null,
+                dynamicStaleTime: 0,
+              }),
+            ])
+          )
+        })
       })
-    })
+    }
   })
 
   describe('static: 180', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: __dirname,
+    const { next, isNextDev, isNextDeploy } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { static: 180 } },
       },
@@ -340,27 +343,29 @@ describe('app dir client cache semantics (experimental staleTimes)', () => {
       })
     })
 
-    describe('telemetry', () => {
-      it('should send staleTimes feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_CLI_SESSION_STARTED'
-        )
-        expect(events).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              staticStaleTime: 180,
-              dynamicStaleTime: null,
-            }),
-          ])
-        )
+    if (!isNextDeploy) {
+      describe('telemetry', () => {
+        it('should send staleTimes feature usage event', async () => {
+          const events = findAllTelemetryEvents(
+            next.cliOutput,
+            'NEXT_CLI_SESSION_STARTED'
+          )
+          expect(events).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                staticStaleTime: 180,
+                dynamicStaleTime: null,
+              }),
+            ])
+          )
+        })
       })
-    })
+    }
   })
 
   describe('dynamic: 0, static: 0', () => {
     const { next } = nextTestSetup({
-      files: __dirname,
+      files: path.join(__dirname, 'fixtures', 'regular'),
       nextConfig: {
         experimental: { staleTimes: { dynamic: 0, static: 0 } },
       },

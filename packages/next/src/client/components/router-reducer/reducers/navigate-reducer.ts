@@ -167,7 +167,7 @@ function navigateReducer_noPPR(
           updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
@@ -258,6 +258,9 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           } else if (applied) {
             mutable.cache = cache
+            // If we applied the cache, we update the "current cache" value so any other
+            // segments in the FlightDataPath will be able to reference the updated cache.
+            currentCache = cache
           }
 
           currentTree = newTree
@@ -352,7 +355,7 @@ function navigateReducer_PPR(
           updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this
@@ -522,6 +525,9 @@ function navigateReducer_PPR(
               mutable.cache = cache
             } else if (applied) {
               mutable.cache = cache
+              // If we applied the cache, we update the "current cache" value so any other
+              // segments in the FlightDataPath will be able to reference the updated cache.
+              currentCache = cache
             }
           }
 

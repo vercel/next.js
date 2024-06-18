@@ -129,7 +129,6 @@ import {
 } from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
 import { ActionPathnameNormalizer } from './normalizers/request/action'
@@ -152,6 +151,7 @@ import {
   getBuiltinRequestContext,
   type WaitUntil,
 } from './after/builtin-request-context'
+import { ENCODED_TAGS } from './stream-utils/encodedTags'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -675,7 +675,7 @@ export default abstract class Server<
         // Ignore if its a middleware request when we aren't on edge.
         if (
           process.env.NEXT_RUNTIME !== 'edge' &&
-          req.headers['x-middleware-invoke']
+          getRequestMeta(req, 'middlewareInvoke')
         ) {
           return false
         }
@@ -987,7 +987,7 @@ export default abstract class Server<
       const useMatchedPathHeader =
         this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
 
-      // TODO: merge handling with x-invoke-path
+      // TODO: merge handling with invokePath
       if (useMatchedPathHeader) {
         try {
           if (this.enabledDirectories.app) {
@@ -1148,7 +1148,6 @@ export default abstract class Server<
             // matching before the dynamic route has been matched
             if (
               !paramsResult.hasValidParams &&
-              pageIsDynamic &&
               !isDynamicRoute(normalizedUrlPath)
             ) {
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
@@ -1157,6 +1156,32 @@ export default abstract class Server<
                 utils.normalizeDynamicRouteParams(matcherParams)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
+              }
+            }
+
+            // if an action request is bypassing a prerender and we
+            // don't have the params in the URL since it was prerendered
+            // and matched during handle: 'filesystem' rather than dynamic route
+            // resolving we need to parse the params from the matched-path.
+            // Note: this is similar to above case but from match-path instead
+            // of from the request URL since a rewrite could cause that to not
+            // match the src pathname
+            if (
+              // we can have a collision with /index and a top-level /[slug]
+              matchedPath !== '/index' &&
+              !paramsResult.hasValidParams &&
+              !isDynamicRoute(matchedPath)
+            ) {
+              let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
+
+              if (matcherParams) {
+                const curParamsResult =
+                  utils.normalizeDynamicRouteParams(matcherParams)
+
+                if (curParamsResult.hasValidParams) {
+                  Object.assign(params, matcherParams)
+                  paramsResult = curParamsResult
+                }
               }
             }
 
@@ -1197,7 +1222,6 @@ export default abstract class Server<
 
             // handle the actual dynamic route name being requested
             if (
-              pageIsDynamic &&
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
               !paramsResult.hasValidParams &&
@@ -1224,7 +1248,6 @@ export default abstract class Server<
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
-
           finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
@@ -1286,35 +1309,26 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // when x-invoke-path is specified we can short short circuit resolving
+      // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
-      const invokePath = req.headers['x-invoke-path'] as string
+      const invokePath = getRequestMeta(req, 'invokePath')
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         invokePath
 
       if (useInvokePath) {
-        if (req.headers['x-invoke-status']) {
-          const invokeQuery = req.headers['x-invoke-query']
+        const invokeStatus = getRequestMeta(req, 'invokeStatus')
+        if (invokeStatus) {
+          const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
-          if (typeof invokeQuery === 'string') {
-            Object.assign(
-              parsedUrl.query,
-              JSON.parse(decodeURIComponent(invokeQuery))
-            )
+          if (invokeQuery) {
+            Object.assign(parsedUrl.query, invokeQuery)
           }
 
-          res.statusCode = Number(req.headers['x-invoke-status'])
-          let err: Error | null = null
-
-          if (typeof req.headers['x-invoke-error'] === 'string') {
-            const invokeError = JSON.parse(
-              req.headers['x-invoke-error'] || '{}'
-            )
-            err = new Error(invokeError.message)
-          }
+          res.statusCode = invokeStatus
+          let err: Error | null = getRequestMeta(req, 'invokeError') || null
 
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
@@ -1351,13 +1365,10 @@ export default abstract class Server<
             delete parsedUrl.query[key]
           }
         }
-        const invokeQuery = req.headers['x-invoke-query']
+        const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
-        if (typeof invokeQuery === 'string') {
-          Object.assign(
-            parsedUrl.query,
-            JSON.parse(decodeURIComponent(invokeQuery))
-          )
+        if (invokeQuery) {
+          Object.assign(parsedUrl.query, invokeQuery)
         }
 
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
@@ -1369,7 +1380,7 @@ export default abstract class Server<
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        req.headers['x-middleware-invoke']
+        getRequestMeta(req, 'middlewareInvoke')
       ) {
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
@@ -1793,31 +1804,6 @@ export default abstract class Server<
     )
   }
 
-  protected stripInternalHeaders(req: ServerRequest): void {
-    // Skip stripping internal headers in test mode while the header stripping
-    // has been explicitly disabled. This allows tests to verify internal
-    // routing behavior.
-    if (
-      process.env.__NEXT_TEST_MODE &&
-      process.env.__NEXT_NO_STRIP_INTERNAL_HEADERS === '1'
-    ) {
-      return
-    }
-
-    // Strip the internal headers from both the request and the original
-    // request.
-    stripInternalHeaders(req.headers)
-
-    if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
-    ) {
-      stripInternalHeaders(req.originalRequest.headers)
-    }
-  }
-
   protected pathCouldBeIntercepted(resolvedPathname: string): boolean {
     return (
       isInterceptionRouteAppPath(resolvedPathname) ||
@@ -1869,9 +1855,6 @@ export default abstract class Server<
       pathname = '/404'
     }
     const is404Page = pathname === '/404'
-
-    // Strip the internal headers.
-    this.stripInternalHeaders(req)
 
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath === true
@@ -2016,29 +1999,38 @@ export default abstract class Server<
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
-    // If this is a request that's rendering an app page that support's PPR,
-    // then if we're in development mode (or using the experimental test
-    // proxy) and the query parameter is set, then we should render the
-    // skeleton. We assume that if the page _could_ support it, we should
-    // show the skeleton in development. Ideally we would check the appConfig
-    // to see if this page has it enabled or not, but that would require
-    // plumbing the appConfig through to the server during development.
-    const isDebugPPRSkeleton =
-      query.__nextppronly &&
-      couldSupportPPR &&
-      (this.renderOpts.dev || this.experimentalTestProxy)
-        ? true
-        : false
+    // When enabled, this will allow the use of the `?__nextppronly` query to
+    // enable debugging of the static shell.
+    const hasDebugStaticShellQuery =
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
+      typeof query.__nextppronly !== 'undefined' &&
+      couldSupportPPR
 
     // This page supports PPR if it has `experimentalPPR` set to `true` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
       couldSupportPPR &&
+      // In production, we'd expect to see the `experimentalPPR` flag set in the
+      // prerender manifest.
       ((
         prerenderManifest.routes[pathname] ??
         prerenderManifest.dynamicRoutes[pathname]
       )?.experimentalPPR === true ||
-        isDebugPPRSkeleton)
+        // Ideally we'd want to check the appConfig to see if this page has PPR
+        // enabled or not, but that would require plumbing the appConfig through
+        // to the server during development. We assume that the page supports it
+        // but only during development.
+        (hasDebugStaticShellQuery &&
+          (this.renderOpts.dev === true ||
+            this.experimentalTestProxy === true)))
+
+    const isDebugStaticShell: boolean =
+      hasDebugStaticShellQuery && isRoutePPREnabled
+
+    // We should enable debugging dynamic accesses when the static shell
+    // debugging has been enabled and we're also in development mode.
+    const isDebugDynamicAccesses =
+      isDebugStaticShell && this.renderOpts.dev === true
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2276,13 +2268,16 @@ export default abstract class Server<
     // TODO: investigate, this is not safe across multiple concurrent requests
     incrementalCache?.resetRequestCache()
 
-    type Renderer = (context: {
+    type RendererContext = {
       /**
        * The postponed data for this render. This is only provided when resuming
        * a render that has been postponed.
        */
       postponed: string | undefined
-    }) => Promise<ResponseCacheEntry | null>
+    }
+    type Renderer = (
+      context: RendererContext
+    ) => Promise<ResponseCacheEntry | null>
 
     const doRender: Renderer = async ({ postponed }) => {
       // In development, we always want to generate dynamic HTML.
@@ -2328,7 +2323,6 @@ export default abstract class Server<
               // it is not a dynamic RSC request then it is a revalidation
               // request.
               isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
-              originalPathname: components.ComponentMod.originalPathname,
               serverActions: this.nextConfig.experimental.serverActions,
             }
           : {}),
@@ -2362,13 +2356,14 @@ export default abstract class Server<
         onClose: res.onClose.bind(res),
       }
 
-      if (isDebugPPRSkeleton) {
+      if (isDebugStaticShell || isDebugDynamicAccesses) {
         supportsDynamicResponse = false
         renderOpts.nextExport = true
         renderOpts.supportsDynamicResponse = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
-        renderOpts.isDebugPPRSkeleton = true
+        renderOpts.isDebugStaticShell = isDebugStaticShell
+        renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2396,7 +2391,6 @@ export default abstract class Server<
               experimental: {
                 after: renderOpts.experimental.after,
               },
-              originalPathname: components.ComponentMod.originalPathname,
               supportsDynamicResponse,
               incrementalCache,
               isRevalidate: isSSG,
@@ -2758,17 +2752,36 @@ export default abstract class Server<
         }
       }
 
-      const result = await doRender({
+      const context: RendererContext = {
         // Only requests that aren't revalidating can be resumed. If we have the
         // minimal postponed data, then we should resume the render with it.
         postponed:
           !isOnDemandRevalidate && !isRevalidating && minimalPostponed
             ? minimalPostponed
             : undefined,
-      })
-      if (!result) {
-        return null
       }
+
+      // When we're in minimal mode, if we're trying to debug the static shell,
+      // we should just return nothing instead of resuming the dynamic render.
+      if (
+        (isDebugStaticShell || isDebugDynamicAccesses) &&
+        typeof context.postponed !== 'undefined'
+      ) {
+        return {
+          revalidate: 1,
+          value: {
+            kind: 'PAGE',
+            html: RenderResult.fromStatic(''),
+            pageData: {},
+            headers: undefined,
+            status: undefined,
+          },
+        }
+      }
+
+      // Perform the render.
+      const result = await doRender(context)
+      if (!result) return null
 
       return {
         ...result,
@@ -2860,9 +2873,8 @@ export default abstract class Server<
       typeof cacheEntry.revalidate !== 'undefined' &&
       (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
     ) {
-      // If this is a preview mode request, we shouldn't cache it. We also don't
-      // cache 404 pages.
-      if (isPreviewMode || (is404Page && !isNextDataRequest)) {
+      // If this is a preview mode request, we shouldn't cache it
+      if (isPreviewMode) {
         revalidate = 0
       }
 
@@ -2872,6 +2884,18 @@ export default abstract class Server<
         if (!res.getHeader('Cache-Control')) {
           revalidate = 0
         }
+      }
+
+      // If we are rendering the 404 page we derive the cache-control
+      // revalidate period from the value that trigged the not found
+      // to be rendered. So if `getStaticProps` returns
+      // { notFound: true, revalidate 60 } the revalidate period should
+      // be 60 but if a static asset 404s directly it should have a revalidate
+      // period of 0 so that it doesn't get cached unexpectedly by a CDN
+      else if (is404Page) {
+        const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
+        revalidate =
+          typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
       }
 
       // If the cache entry has a revalidate value that's a number, use it.
@@ -2921,6 +2945,12 @@ export default abstract class Server<
     }
 
     if (!cachedData) {
+      // add revalidate metadata before rendering 404 page
+      // so that we can use this as source of truth for the
+      // cache-control header instead of what the 404 page returns
+      // for the revalidate value
+      addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
+
       if (cacheEntry.revalidate) {
         res.setHeader(
           'Cache-Control',
@@ -2939,7 +2969,6 @@ export default abstract class Server<
       if (this.renderOpts.dev) {
         query.__nextNotFoundSrcPage = pathname
       }
-
       await this.render404(req, res, { pathname, query }, false)
       return null
     } else if (cachedData.kind === 'REDIRECT') {
@@ -3083,9 +3112,22 @@ export default abstract class Server<
         }
       }
 
-      // If we're debugging the skeleton, we should just serve the HTML without
-      // resuming the render. The returned HTML will be the static shell.
-      if (isDebugPPRSkeleton) {
+      // If we're debugging the static shell or the dynamic API accesses, we
+      // should just serve the HTML without resuming the render. The returned
+      // HTML will be the static shell so all the Dynamic API's will be used
+      // during static generation.
+      if (isDebugStaticShell || isDebugDynamicAccesses) {
+        // Since we're not resuming the render, we need to at least add the
+        // closing body and html tags to create valid HTML.
+        body.chain(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+              controller.close()
+            },
+          })
+        )
+
         return { type: 'html', body, revalidate: 0 }
       }
 
@@ -3253,7 +3295,7 @@ export default abstract class Server<
       for await (const match of this.matchers.matchAll(pathname, options)) {
         // when a specific invoke-output is meant to be matched
         // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = ctx.req.headers['x-invoke-output']
+        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&

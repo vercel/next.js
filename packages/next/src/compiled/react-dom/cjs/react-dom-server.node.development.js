@@ -20,9 +20,17 @@ var crypto = require('crypto');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '19.0.0-rc-f994737d14-20240522';
+var reactDOMPackageVersion = '19.0.0-rc-6230622a1a-20240610';
 
 var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+// -----------------------------------------------------------------------------
+
+var disableDefaultPropsExceptForClasses = true; // -----------------------------------------------------------------------------
+// Enables DOM-server to stream its instruction set as data-attributes
+// (handled with an MutationObserver) instead of inline-scripts
+
+var enableFizzExternalRuntime = false;
 
 // by calls to these methods by a Babel plugin.
 //
@@ -36,7 +44,7 @@ function warn(format) {
         args[_key - 1] = arguments[_key];
       }
 
-      printWarning('warn', format, args);
+      printWarning('warn', format, args, new Error('react-stack-top-frame'));
     }
   }
 }
@@ -47,42 +55,50 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
-
-// -----------------------------------------------------------------------------
-
-var disableDefaultPropsExceptForClasses = true; // -----------------------------------------------------------------------------
-// Enables DOM-server to stream its instruction set as data-attributes
-// (handled with an MutationObserver) instead of inline-scripts
-
-var enableFizzExternalRuntime = false;
 
 var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_PORTAL_TYPE = Symbol.for('react.portal');
@@ -1980,7 +1996,7 @@ function sanitizeURL(url) {
 // Run `yarn generate-inline-fizz-runtime` to generate.
 var clientRenderBoundary = '$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};';
 var completeBoundary = '$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};';
-var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(r,t,w){for(var u=$RC,n=$RM,p=new Map,q=document,g,b,h=q.querySelectorAll("link[data-precedence],style[data-precedence]"),v=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?v.push(b):("LINK"===b.tagName&&n.set(b.getAttribute("href"),b),p.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var f=w[b++];if(!f){k=!1;b=0;continue}var c=!1,m=0;var d=f[m++];if(a=n.get(d)){var e=a._p;c=!0}else{a=q.createElement("link");a.href=d;a.rel="stylesheet";for(a.dataset.precedence=\nl=f[m++];e=f[m++];)a.setAttribute(e,f[m++]);e=a._p=new Promise(function(x,y){a.onload=x;a.onerror=y});n.set(d,a)}d=a.getAttribute("media");!e||"l"===e.s||d&&!matchMedia(d).matches||h.push(e);if(c)continue}else{a=v[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=p.get(l)||g;c===g&&(g=a);p.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=q.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(u.bind(null,r,t,""),u.bind(null,r,t,"Resource failed to load"))};';
+var completeBoundaryWithStyles = '$RM=new Map;\n$RR=function(t,u,y){function v(n){this._p=null;n()}for(var w=$RC,p=$RM,q=new Map,r=document,g,b,h=r.querySelectorAll("link[data-precedence],style[data-precedence]"),x=[],k=0;b=h[k++];)"not all"===b.getAttribute("media")?x.push(b):("LINK"===b.tagName&&p.set(b.getAttribute("href"),b),q.set(b.dataset.precedence,g=b));b=0;h=[];var l,a;for(k=!0;;){if(k){var e=y[b++];if(!e){k=!1;b=0;continue}var c=!1,m=0;var d=e[m++];if(a=p.get(d)){var f=a._p;c=!0}else{a=r.createElement("link");a.href=\nd;a.rel="stylesheet";for(a.dataset.precedence=l=e[m++];f=e[m++];)a.setAttribute(f,e[m++]);f=a._p=new Promise(function(n,z){a.onload=v.bind(a,n);a.onerror=v.bind(a,z)});p.set(d,a)}d=a.getAttribute("media");!f||d&&!matchMedia(d).matches||h.push(f);if(c)continue}else{a=x[b++];if(!a)break;l=a.getAttribute("data-precedence");a.removeAttribute("media")}c=q.get(l)||g;c===g&&(g=a);q.set(l,a);c?c.parentNode.insertBefore(a,c.nextSibling):(c=r.head,c.insertBefore(a,c.firstChild))}Promise.all(h).then(w.bind(null,\nt,u,""),w.bind(null,t,u,"Resource failed to load"))};';
 var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};';
 var formReplaying = 'addEventListener("submit",function(a){if(!a.defaultPrevented){var c=a.target,d=a.submitter,e=c.action,b=d;if(d){var f=d.getAttribute("formAction");null!=f&&(e=f,b=null)}"javascript:throw new Error(\'React form unexpectedly submitted.\')"===e&&(a.preventDefault(),b?(a=document.createElement("input"),a.name=b.name,a.value=b.value,b.parentNode.insertBefore(a,b),b=new FormData(c),a.parentNode.removeChild(a)):b=new FormData(c),a=c.ownerDocument||c,(a.$$reactFormReplay=a.$$reactFormReplay||[]).push(c,d,b))}});';
 
@@ -9007,7 +9023,12 @@ function createRequest(children, resumableState, renderState, rootFormatContext,
     onShellError: onShellError === undefined ? noop : onShellError,
     onFatalError: onFatalError === undefined ? noop : onFatalError,
     formState: formState === undefined ? null : formState
-  }; // This segment represents the root fallback.
+  };
+
+  {
+    request.didWarnForKey = null;
+  } // This segment represents the root fallback.
+
 
   var rootSegment = createPendingSegment(request, 0, null, rootFormatContext, // Root segments are never embedded in Text on either edge
   false, false); // There is no parent so conceptually, we're unblocked to flush this segment.
@@ -9157,7 +9178,8 @@ function getCurrentStackInDEV() {
   {
     if (currentTaskInDEV === null || currentTaskInDEV.componentStack === null) {
       return '';
-    }
+    } // TODO: Support owner based stacks for logs during SSR.
+
 
     return getStackByComponentStackNode(currentTaskInDEV.componentStack);
   }
@@ -9189,6 +9211,18 @@ function createClassComponentStack(task, type) {
     parent: task.componentStack,
     type: type
   };
+}
+
+function createComponentStackFromType(task, type) {
+  if (typeof type === 'string') {
+    return createBuiltInComponentStack(task, type);
+  }
+
+  if (shouldConstruct(type)) {
+    return createClassComponentStack(task, type);
+  }
+
+  return createFunctionComponentStack(task, type);
 } // While we track component stacks in prod all the time we only produce a reified stack in dev and
 // during prerender in Prod. The reason for this is that the stack is useful for prerender where the timeliness
 // of the request is less critical than the observability of the execution. For renders and resumes however we
@@ -10365,6 +10399,46 @@ function replayFragment(request, task, children, childIndex) {
   }
 }
 
+function warnForMissingKey(request, task, child) {
+  {
+    if (child === null || typeof child !== 'object' || child.$$typeof !== REACT_ELEMENT_TYPE && child.$$typeof !== REACT_PORTAL_TYPE) {
+      return;
+    }
+
+    if (!child._store || (child._store.validated || child.key != null) && child._store.validated !== 2) {
+      return;
+    }
+
+    if (typeof child._store !== 'object') {
+      throw new Error('React Component in warnForMissingKey should have a _store. ' + 'This error is likely caused by a bug in React. Please file an issue.');
+    } // $FlowFixMe[cannot-write] unable to narrow type from mixed to writable object
+
+
+    child._store.validated = 1;
+    var didWarnForKey = request.didWarnForKey;
+
+    if (didWarnForKey == null) {
+      didWarnForKey = request.didWarnForKey = new WeakSet();
+    }
+
+    var parentStackFrame = task.componentStack;
+
+    if (parentStackFrame === null || didWarnForKey.has(parentStackFrame)) {
+      // We already warned for other children in this parent.
+      return;
+    }
+
+    didWarnForKey.add(parentStackFrame); // We create a fake component stack for the child to log the stack trace from.
+
+    var stackFrame = createComponentStackFromType(task, child.type);
+    task.componentStack = stackFrame;
+
+    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', '', '');
+
+    task.componentStack = stackFrame.parent;
+  }
+}
+
 function renderChildrenArray(request, task, children, childIndex) {
   var prevKeyPath = task.keyPath;
 
@@ -10413,6 +10487,11 @@ function renderChildrenArray(request, task, children, childIndex) {
 
   for (var _i = 0; _i < totalChildren; _i++) {
     var _node = children[_i];
+
+    {
+      warnForMissingKey(request, task, _node);
+    }
+
     task.treeContext = pushTreeContext(prevTreeContext, totalChildren, _i); // We need to use the non-destructive form so that we can safely pop back
     // up and render the sibling if something suspends.
 
@@ -11647,6 +11726,16 @@ function getRenderState(request) {
   return request.renderState;
 }
 
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+
+  if (isomorphicReactPackageVersion !== reactDOMPackageVersion) {
+    throw new Error('Incompatible React versions: The "react" and "react-dom" packages must ' + 'have the exact same version. Instead got:\n' + ("  - react:      " + isomorphicReactPackageVersion + "\n") + ("  - react-dom:  " + reactDOMPackageVersion + "\n") + 'Learn more: https://react.dev/warnings/version-mismatch');
+  }
+}
+
+ensureCorrectIsomorphicReactVersion();
+
 function createDrainHandler(destination, request) {
   return function () {
     return startFlowing(request, destination);
@@ -11691,6 +11780,6 @@ function renderToPipeableStream(children, options) {
 }
 
 exports.renderToPipeableStream = renderToPipeableStream;
-exports.version = ReactVersion;
+exports.version = reactDOMPackageVersion;
   })();
 }
