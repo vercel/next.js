@@ -2,6 +2,11 @@ name: 'Bankrupt issues'
 
 on:
   workflow_dispatch:
+    inputs:
+      created:
+        description: 'github created range'
+        required: true
+        type: string
 
 jobs:
   bankrupt:
