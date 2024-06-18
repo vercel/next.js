@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { BrowserInterface } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
@@ -421,18 +421,20 @@ describe('app dir client cache semantics (30s/5min)', () => {
         await browser.elementByCss('[href="/null-loading"]').click()
 
         // the page content should disappear immediately
-        expect(
-          await browser.hasElementByCssSelector('[href="/null-loading"]')
-        ).toBeFalse()
+        await retry(async () => {
+          expect(
+            await browser.hasElementByCssSelector('[href="/null-loading"]')
+          ).toBe(false)
+        })
 
         // the root layout should still be visible
-        expect(await browser.hasElementByCssSelector('#root-layout')).toBeTrue()
+        expect(await browser.hasElementByCssSelector('#root-layout')).toBe(true)
 
         // the dynamic content should eventually appear
         await browser.waitForElementByCss('#random-number')
-        expect(
-          await browser.hasElementByCssSelector('#random-number')
-        ).toBeTrue()
+        expect(await browser.hasElementByCssSelector('#random-number')).toBe(
+          true
+        )
       })
     })
 

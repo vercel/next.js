@@ -1,5 +1,5 @@
 ---
-title: unstable_after (Experimental)
+title: unstable_after (experimental)
 description: API Reference for the unstable_after function.
 ---
 
@@ -68,7 +68,7 @@ export default function Layout({ children }) {
 
 The use case for `unstable_after()` is to process secondary tasks without blocking the primary response. It's similar to using the platform's [`waitUntil()`](https://vercel.com/docs/functions/functions-api-reference) or removing `await` from a promise, but with the following differences:
 
-- **[`waitUntil()`]**: accepts promise and enqueues a task to be executed during the lifecycle of the request, whereas `unstable_after()` accepts a callback that will be executed **after** the response is finished.
+- **`waitUntil()`**: accepts a promise and enqueues a task to be executed during the lifecycle of the request, whereas `unstable_after()` accepts a callback that will be executed **after** the response is finished.
 - **Removing `await`**: starts executing during the response, which uses resources. It's also not reliable in serverless environments as the function stops computation immediately after the response is sent, potentially interrupting the task.
 
 We recommend using `unstable_after()` as it has been designed to consider other Next.js APIs and contexts.

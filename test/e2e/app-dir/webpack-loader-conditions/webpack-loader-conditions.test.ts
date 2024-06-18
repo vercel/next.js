@@ -1,11 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-conditions', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
+    // This test is skipped because it's only expected to run in turbopack, which isn't enabled for builds
+    skipDeployment: true,
   })
 
-  if (!isTurbopack) {
+  if (!isTurbopack || skipped) {
     it('should only run the test in turbopack', () => {})
     return
   }
