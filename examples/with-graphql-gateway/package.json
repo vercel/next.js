@@ -9,10 +9,14 @@
     "build:mesh": "mesh build"
   },
   "dependencies": {
+<<<<<< snyk-fix-27d2f5359db54f2a7c8753ef3572e1b4
     "@graphql-mesh/cli": "0.82.25",
+======
+    "@graphql-mesh/cli": "0.82.35",
+>>>>>> canary
     "@graphql-mesh/config": "0.35.1",
     "@graphql-mesh/new-openapi": "0.4.10",
-    "@graphql-mesh/runtime": "0.34.9",
+    "@graphql-mesh/runtime": "0.46.16",
     "@graphql-yoga/node": "latest",
     "graphql": "16.3.0",
     "next": "latest",
