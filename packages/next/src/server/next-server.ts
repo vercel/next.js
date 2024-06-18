@@ -1133,7 +1133,7 @@ export default class NextNodeServer extends BaseServer {
           'originalResponse' in _res ? _res.originalResponse : _res
 
         const reqStart = Date.now()
-        const isMiddlewareRequest = req.headers['x-middleware-invoke']
+        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
           // we don't log for non-route requests
@@ -1643,14 +1643,14 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
   ) => {
-    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke')
 
     if (!isMiddlewareInvoke) {
       return false
     }
 
     const handleFinished = () => {
-      res.setHeader('x-middleware-invoke', '1')
+      addRequestMeta(req, 'middlewareInvoke', true)
       res.body('').send()
       return true
     }
@@ -1677,9 +1677,6 @@ export default class NextNodeServer extends BaseServer {
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
     let bubblingResult = false
-
-    // Strip the internal headers.
-    this.stripInternalHeaders(req)
 
     try {
       await this.ensureMiddleware(req.url)
