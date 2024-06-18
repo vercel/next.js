@@ -370,12 +370,6 @@ pub async fn get_next_edge_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    // https://github.com/vercel/next.js/blob/e1c0f63520d7fc39ce0eab60333d311c90610414/packages/next/src/build/create-compiler-aliases.ts#L121-L125
-    import_map.insert_exact_alias(
-        "react-dom/server.browser",
-        request_to_import_mapping(project_path, "react-dom/server.edge"),
-    );
-
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 
     // Alias next/dist imports to next/dist/esm assets
