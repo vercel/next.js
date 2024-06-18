@@ -129,7 +129,6 @@ import {
 } from './web/spec-extension/adapters/next-request'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { stripInternalHeaders } from './internal-utils'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { PostponedPathnameNormalizer } from './normalizers/request/postponed'
 import { ActionPathnameNormalizer } from './normalizers/request/action'
@@ -676,7 +675,7 @@ export default abstract class Server<
         // Ignore if its a middleware request when we aren't on edge.
         if (
           process.env.NEXT_RUNTIME !== 'edge' &&
-          req.headers['x-middleware-invoke']
+          getRequestMeta(req, 'middlewareInvoke')
         ) {
           return false
         }
@@ -988,7 +987,7 @@ export default abstract class Server<
       const useMatchedPathHeader =
         this.minimalMode && typeof req.headers['x-matched-path'] === 'string'
 
-      // TODO: merge handling with x-invoke-path
+      // TODO: merge handling with invokePath
       if (useMatchedPathHeader) {
         try {
           if (this.enabledDirectories.app) {
@@ -1310,35 +1309,26 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      // when x-invoke-path is specified we can short short circuit resolving
+      // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
-      const invokePath = req.headers['x-invoke-path'] as string
+      const invokePath = getRequestMeta(req, 'invokePath')
       const useInvokePath =
         !useMatchedPathHeader &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         invokePath
 
       if (useInvokePath) {
-        if (req.headers['x-invoke-status']) {
-          const invokeQuery = req.headers['x-invoke-query']
+        const invokeStatus = getRequestMeta(req, 'invokeStatus')
+        if (invokeStatus) {
+          const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
-          if (typeof invokeQuery === 'string') {
-            Object.assign(
-              parsedUrl.query,
-              JSON.parse(decodeURIComponent(invokeQuery))
-            )
+          if (invokeQuery) {
+            Object.assign(parsedUrl.query, invokeQuery)
           }
 
-          res.statusCode = Number(req.headers['x-invoke-status'])
-          let err: Error | null = null
-
-          if (typeof req.headers['x-invoke-error'] === 'string') {
-            const invokeError = JSON.parse(
-              req.headers['x-invoke-error'] || '{}'
-            )
-            err = new Error(invokeError.message)
-          }
+          res.statusCode = invokeStatus
+          let err: Error | null = getRequestMeta(req, 'invokeError') || null
 
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
@@ -1375,13 +1365,10 @@ export default abstract class Server<
             delete parsedUrl.query[key]
           }
         }
-        const invokeQuery = req.headers['x-invoke-query']
+        const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
-        if (typeof invokeQuery === 'string') {
-          Object.assign(
-            parsedUrl.query,
-            JSON.parse(decodeURIComponent(invokeQuery))
-          )
+        if (invokeQuery) {
+          Object.assign(parsedUrl.query, invokeQuery)
         }
 
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
@@ -1393,7 +1380,7 @@ export default abstract class Server<
 
       if (
         process.env.NEXT_RUNTIME !== 'edge' &&
-        req.headers['x-middleware-invoke']
+        getRequestMeta(req, 'middlewareInvoke')
       ) {
         finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
@@ -1817,31 +1804,6 @@ export default abstract class Server<
     )
   }
 
-  protected stripInternalHeaders(req: ServerRequest): void {
-    // Skip stripping internal headers in test mode while the header stripping
-    // has been explicitly disabled. This allows tests to verify internal
-    // routing behavior.
-    if (
-      process.env.__NEXT_TEST_MODE &&
-      process.env.__NEXT_NO_STRIP_INTERNAL_HEADERS === '1'
-    ) {
-      return
-    }
-
-    // Strip the internal headers from both the request and the original
-    // request.
-    stripInternalHeaders(req.headers)
-
-    if (
-      // The type check here ensures that `req` is correctly typed, and the
-      // environment variable check provides dead code elimination.
-      process.env.NEXT_RUNTIME !== 'edge' &&
-      isNodeNextRequest(req)
-    ) {
-      stripInternalHeaders(req.originalRequest.headers)
-    }
-  }
-
   protected pathCouldBeIntercepted(resolvedPathname: string): boolean {
     return (
       isInterceptionRouteAppPath(resolvedPathname) ||
@@ -1893,9 +1855,6 @@ export default abstract class Server<
       pathname = '/404'
     }
     const is404Page = pathname === '/404'
-
-    // Strip the internal headers.
-    this.stripInternalHeaders(req)
 
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath === true
@@ -3336,7 +3295,7 @@ export default abstract class Server<
       for await (const match of this.matchers.matchAll(pathname, options)) {
         // when a specific invoke-output is meant to be matched
         // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = ctx.req.headers['x-invoke-output']
+        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
