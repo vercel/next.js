@@ -36,7 +36,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -46,7 +45,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -62,7 +60,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -78,7 +75,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                           loading: null,
                           parallelRoutes: new Map(),
                         },
@@ -112,7 +108,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -128,7 +123,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -145,7 +139,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                           loading: null,
                           parallelRoutes: new Map(),
                         },
@@ -154,7 +147,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                         'about',
                         {
                           lazyData: null,
-                          lazyDataResolved: false,
                           head: null,
                           layerAssets: null,
                           prefetchLayerAssets: null,

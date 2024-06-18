@@ -37,7 +37,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -47,7 +46,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -63,7 +61,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -79,7 +76,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                           loading: null,
                           parallelRoutes: new Map(),
                         },
@@ -119,7 +115,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
 
     const expectedCache: CacheNode = {
       lazyData: null,
-      lazyDataResolved: false,
       head: null,
       layerAssets: null,
       prefetchLayerAssets: null,
@@ -133,7 +128,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               'linking',
               {
                 lazyData: null,
-                lazyDataResolved: false,
                 head: null,
                 layerAssets: null,
                 prefetchLayerAssets: null,
@@ -155,7 +149,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                         },
                       ],
                     ]),

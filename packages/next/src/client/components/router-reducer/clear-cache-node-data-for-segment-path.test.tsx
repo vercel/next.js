@@ -21,7 +21,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
       loading: null,
     }
     const existingCache: CacheNode = {
@@ -32,7 +31,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -44,7 +42,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                lazyDataResolved: false,
                 head: null,
                 layerAssets: null,
                 prefetchLayerAssets: null,
@@ -65,7 +62,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                           prefetchLayerAssets: null,
                           prefetchHead: null,
                           parallelRoutes: new Map(),
-                          lazyDataResolved: false,
                           loading: null,
                         },
                       ],
@@ -86,7 +82,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
         "head": null,
         "layerAssets": null,
         "lazyData": null,
-        "lazyDataResolved": false,
         "loading": null,
         "parallelRoutes": Map {
           "children" => Map {
@@ -94,7 +89,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
               "head": null,
               "layerAssets": null,
               "lazyData": null,
-              "lazyDataResolved": false,
               "loading": null,
               "parallelRoutes": Map {
                 "children" => Map {
@@ -102,7 +96,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                     "head": null,
                     "layerAssets": null,
                     "lazyData": null,
-                    "lazyDataResolved": false,
                     "loading": null,
                     "parallelRoutes": Map {},
                     "prefetchHead": null,
@@ -125,7 +118,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
               "head": null,
               "layerAssets": null,
               "lazyData": null,
-              "lazyDataResolved": false,
               "loading": null,
               "parallelRoutes": Map {},
               "prefetchHead": null,

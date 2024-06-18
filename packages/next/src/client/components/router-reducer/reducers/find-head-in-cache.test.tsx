@@ -33,7 +33,6 @@ describe('findHeadInCache', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -49,7 +48,6 @@ describe('findHeadInCache', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -59,7 +57,6 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           lazyData: null,
-                          lazyDataResolved: false,
                           head: null,
                           layerAssets: null,
                           prefetchLayerAssets: null,
@@ -76,7 +73,6 @@ describe('findHeadInCache', () => {
                                     rsc: null,
                                     prefetchRsc: null,
                                     prefetchHead: null,
-                                    lazyDataResolved: false,
                                     loading: null,
                                     parallelRoutes: new Map(),
                                     head: (
