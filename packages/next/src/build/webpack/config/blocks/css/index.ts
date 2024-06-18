@@ -612,6 +612,17 @@ export const css = curry(async function css(
           // If this warning were to trigger, it'd be unactionable by the user,
           // but likely not valid -- so we disable it.
           ignoreOrder: true,
+          insert: function (linkTag: HTMLLinkElement) {
+            if (typeof _N_E_STYLE_LOAD === 'function') {
+              const { href, onload, onerror } = linkTag
+              _N_E_STYLE_LOAD(new URL(href).pathname).then(
+                () => onload?.call(linkTag, { type: 'load' } as Event),
+                () => onerror?.call(linkTag, {} as Event)
+              )
+            } else {
+              document.head.appendChild(linkTag)
+            }
+          },
         })
       )
     )

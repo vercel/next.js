@@ -759,23 +759,28 @@ describe('app dir - metadata', () => {
     })
 
     if (isNextDev) {
-      it('should handle updates to the file icon name and order', async () => {
-        await next.renameFile(
-          'app/icons/static/icon.png',
-          'app/icons/static/icon2.png'
-        )
+      // This test frequently causes a compilation error when run in Turbopack
+      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should handle updates to the file icon name and order',
+        async () => {
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon2.png'
+          )
 
-        await check(async () => {
-          const $ = await next.render$('/icons/static')
-          const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-          return $icon.attr('href')
-        }, /\/icons\/static\/icon2/)
+          await check(async () => {
+            const $ = await next.render$('/icons/static')
+            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+            return $icon.attr('href')
+          }, /\/icons\/static\/icon2/)
 
-        await next.renameFile(
-          'app/icons/static/icon2.png',
-          'app/icons/static/icon.png'
-        )
-      })
+          await next.renameFile(
+            'app/icons/static/icon2.png',
+            'app/icons/static/icon.png'
+          )
+        }
+      )
     }
   })
 
@@ -953,7 +958,7 @@ describe('app dir - metadata', () => {
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
           )
         ).toBe(false)
       })

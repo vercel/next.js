@@ -33,7 +33,7 @@ Caching behavior changes depending on whether the route is statically or dynamic
 
 ## Request Memoization
 
-React extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
+Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
 <Image
   alt="Deduplicated Fetch Requests"
@@ -536,9 +536,42 @@ See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-se
 
 For [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) (e.g. `app/blog/[slug]/page.js`), paths provided by `generateStaticParams` are cached in the Full Route Cache at build time. At request time, Next.js will also cache paths that weren't known at build time the first time they're visited.
 
-You can disable caching at request time by using `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+To statically render all paths at build time, supply the full list of paths to `generateStaticParams`:
 
-See the [`generateStaticParams` API reference](/docs/app/api-reference/functions/generate-static-params).
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  // Render the first 10 posts at build time
+  return posts.slice(0, 10).map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time):
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  return []
+}
+```
+
+> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
 
 ### React `cache` function
 

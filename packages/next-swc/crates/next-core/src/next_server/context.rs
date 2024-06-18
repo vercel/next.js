@@ -2,7 +2,7 @@ use std::iter::once;
 
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_binding::{
     turbo::{
@@ -18,7 +18,10 @@ use turbopack_binding::{
             free_var_references,
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
-        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer,
+            client_disallowed::ClientDisallowedDirectiveTransformer,
+        },
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -53,7 +56,7 @@ use crate::{
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            NextNodeSharedRuntimeResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -89,15 +92,21 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
         client_transition: Option<Vc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: Vc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<String>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
-    Middleware,
-    Instrumentation,
+    Middleware {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
+    Instrumentation {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
 }
 
 impl ServerContextType {
@@ -108,6 +117,7 @@ impl ServerContextType {
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
                 | ServerContextType::Middleware { .. }
+                | ServerContextType::Instrumentation { .. }
         )
     }
 }
@@ -126,7 +136,6 @@ pub async fn get_server_resolve_options_context(
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
-    let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
     let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
@@ -139,9 +148,9 @@ pub async fn get_server_resolve_options_context(
     );
 
     // Always load these predefined packages as external.
-    let mut external_packages: Vec<String> = load_next_js_templateon(
+    let mut external_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/server-external-packages.json".to_string(),
+        "dist/lib/server-external-packages.json".into(),
     )
     .await?;
 
@@ -174,16 +183,17 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
         NextRuntime::NodeJs
             .conditions()
             .iter()
-            .map(ToString::to_string),
+            .map(ToString::to_string)
+            .map(RcStr::from),
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".to_string());
+        custom_conditions.push("react-server".into());
     };
 
     let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
@@ -201,26 +211,29 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let before_resolve_plugins = match ty {
+    let mut before_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
-            vec![Vc::upcast(NextFontLocalResolvePlugin::new(project_path))]
+            vec![
+                Vc::upcast(NextFontLocalResolvePlugin::new(project_path)),
+                Vc::upcast(module_feature_report_resolve_plugin),
+            ]
         }
         ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => vec![],
+        | ServerContextType::Instrumentation { .. } => {
+            vec![Vc::upcast(module_feature_report_resolve_plugin)]
+        }
     };
 
-    let mut after_resolve_plugins = match ty {
+    let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::PagesData { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(external_cjs_modules_plugin),
                 Vc::upcast(next_external_plugin),
@@ -230,24 +243,16 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
         ServerContextType::Middleware { .. } => {
-            vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
-                Vc::upcast(next_node_shared_runtime_plugin),
-            ]
+            vec![Vc::upcast(next_node_shared_runtime_plugin)]
         }
         ServerContextType::Instrumentation { .. } => {
             vec![
-                Vc::upcast(module_feature_report_resolve_plugin),
-                Vc::upcast(unsupported_modules_resolve_plugin),
                 Vc::upcast(next_node_shared_runtime_plugin),
                 Vc::upcast(next_external_plugin),
             ]
@@ -269,9 +274,9 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
-            after_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
-            after_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
+        | ServerContextType::Instrumentation { .. } => {
+            before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+            before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
         ServerContextType::AppSSR { .. } => {
             //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
@@ -305,17 +310,17 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });
@@ -402,8 +407,14 @@ pub async fn get_server_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
-    let mut conditions = vec![mode.await?.condition().to_string()];
-    conditions.extend(next_runtime.conditions().iter().map(ToString::to_string));
+    let mut conditions = vec![mode.await?.condition().into()];
+    conditions.extend(
+        next_runtime
+            .conditions()
+            .iter()
+            .map(ToString::to_string)
+            .map(RcStr::from),
+    );
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -416,7 +427,7 @@ pub async fn get_server_module_options_context(
         conditions
             .iter()
             .cloned()
-            .chain(once("foreign".to_string()))
+            .chain(once("foreign".into()))
             .collect(),
     )
     .await?;
@@ -730,12 +741,45 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+        ServerContextType::Middleware {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        }
+        | ServerContextType::Instrumentation {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        } => {
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
+
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            } else {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDisallowedDirectiveTransformer::new(
+                        "next/dist/client/use-client-disallowed.js".to_string(),
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            }
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+            );
+
+            internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);
@@ -809,7 +853,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
@@ -820,8 +864,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         project_path,
         node_root,
         client_root,
-        node_root.join("server/chunks/ssr".to_string()),
-        client_root.join("static/media".to_string()),
+        node_root.join("server/chunks/ssr".into()),
+        client_root.join("static/media".into()),
         environment,
         next_mode.runtime_type(),
     )
@@ -845,8 +889,8 @@ pub async fn get_server_chunking_context(
         project_path,
         node_root,
         node_root,
-        node_root.join("server/chunks".to_string()),
-        node_root.join("server/assets".to_string()),
+        node_root.join("server/chunks".into()),
+        node_root.join("server/assets".into()),
         environment,
         next_mode.runtime_type(),
     )

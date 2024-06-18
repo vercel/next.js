@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{rope::RopeBuilder, FileContent},
     turbopack::{
@@ -17,8 +17,8 @@ use turbopack_binding::{
 
 use super::module::BlurPlaceholderMode;
 
-fn modifier() -> Vc<String> {
-    Vc::cell("structured image object".to_string())
+fn modifier() -> Vc<RcStr> {
+    Vc::cell("structured image object".into())
 }
 
 #[turbo_tasks::function]
@@ -45,7 +45,7 @@ impl Source for StructuredImageFileSource {
         self.image
             .ident()
             .with_modifier(modifier())
-            .rename_as("*.mjs".to_string())
+            .rename_as("*.mjs".into())
     }
 }
 

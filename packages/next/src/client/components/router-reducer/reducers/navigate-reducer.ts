@@ -167,15 +167,15 @@ function navigateReducer_noPPR(
           updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -4
+          -5
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -258,6 +258,9 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           } else if (applied) {
             mutable.cache = cache
+            // If we applied the cache, we update the "current cache" value so any other
+            // segments in the FlightDataPath will be able to reference the updated cache.
+            currentCache = cache
           }
 
           currentTree = newTree
@@ -352,7 +355,7 @@ function navigateReducer_PPR(
           updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this
@@ -361,10 +364,10 @@ function navigateReducer_PPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -4
+          -5
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -403,18 +406,20 @@ function navigateReducer_PPR(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 3
+            flightDataPath.length === 4
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
+            const layerAssets = flightDataPath[3]
 
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head
+              head,
+              layerAssets
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched
@@ -520,6 +525,9 @@ function navigateReducer_PPR(
               mutable.cache = cache
             } else if (applied) {
               mutable.cache = cache
+              // If we applied the cache, we update the "current cache" value so any other
+              // segments in the FlightDataPath will be able to reference the updated cache.
+              currentCache = cache
             }
           }
 

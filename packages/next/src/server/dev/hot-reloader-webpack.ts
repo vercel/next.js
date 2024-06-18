@@ -4,7 +4,7 @@ import type { Duplex } from 'stream'
 import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
@@ -71,7 +71,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../../lib/is-internal-component'
-import { RouteKind } from '../future/route-kind'
+import { RouteKind } from '../route-kind'
 import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
@@ -583,9 +583,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               ])
             )
 
-      this.pagesMapping = webpackConfigSpan
+      this.pagesMapping = await webpackConfigSpan
         .traceChild('create-pages-mapping')
-        .traceFn(() =>
+        .traceAsyncFn(() =>
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
@@ -594,6 +594,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               (i: string | null): i is string => typeof i === 'string'
             ),
             pagesDir: this.pagesDir,
+            appDir: this.appDir,
           })
         )
 

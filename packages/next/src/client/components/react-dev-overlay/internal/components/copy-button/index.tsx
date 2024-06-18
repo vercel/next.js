@@ -1,46 +1,108 @@
-import { useState } from 'react'
+import * as React from 'react'
 
-enum CopyState {
-  Initial = 0,
-  Copied = 1,
-  Error = 2,
-}
+type CopyState =
+  | {
+      state: 'initial'
+    }
+  | {
+      state: 'error'
+      error: unknown
+    }
+  | { state: 'success' }
 
 export function CopyButton({
-  label,
+  actionLabel,
   successLabel,
   content,
   ...props
-}: React.HTMLProps<HTMLSpanElement> & {
-  label: string
+}: React.HTMLProps<HTMLButtonElement> & {
+  actionLabel: string
   successLabel: string
   content: string
 }) {
-  const [copied, setCopied] = useState(CopyState.Initial)
-  const isDisabled = copied === CopyState.Error
-  const title = isDisabled ? '' : copied ? successLabel : label
-  return (
-    <span
-      {...props}
-      title={title}
-      aria-label={title}
-      aria-disabled={isDisabled}
-      role="button"
-      onClick={() => {
-        if (isDisabled) return
+  const [copyState, dispatch, isPending] = React.useActionState(
+    (
+      state: CopyState,
+      action: 'reset' | 'copy'
+    ): CopyState | Promise<CopyState> => {
+      if (action === 'reset') {
+        return { state: 'initial' }
+      }
+      if (action === 'copy') {
         if (!navigator.clipboard) {
-          setCopied(CopyState.Error)
-          return
+          return {
+            state: 'error',
+            error: new Error(
+              'Copy to clipboard is not supported in this browser'
+            ),
+          }
         }
-        navigator.clipboard.writeText(content).then(() => {
-          if (copied) return
-          setCopied(CopyState.Copied)
-          setTimeout(() => setCopied(CopyState.Initial), 2000)
-        })
+        return navigator.clipboard.writeText(content).then(
+          () => {
+            return { state: 'success' }
+          },
+          (error) => {
+            return { state: 'error', error }
+          }
+        )
+      }
+      return state
+    },
+    {
+      state: 'initial',
+    }
+  )
+
+  const error = copyState.state === 'error' ? copyState.error : null
+  React.useEffect(() => {
+    if (error !== null) {
+      // Additional console.error to get the stack.
+      console.error(error)
+    }
+  }, [error])
+  React.useEffect(() => {
+    if (copyState.state === 'success') {
+      const timeoutId = setTimeout(() => {
+        dispatch('reset')
+      }, 2000)
+
+      return () => {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [
+    isPending,
+    copyState.state,
+    // TODO: `dispatch` from `useActionState` is not reactive.
+    // Remove from dependencies once https://github.com/facebook/react/pull/29665 is released.
+    dispatch,
+  ])
+  const isDisabled = isPending
+  const label = copyState.state === 'success' ? successLabel : actionLabel
+  const title = label
+  const icon =
+    copyState.state === 'success' ? <CopySuccessIcon /> : <CopyIcon />
+
+  return (
+    <button
+      {...props}
+      type="button"
+      title={title}
+      aria-label={label}
+      aria-disabled={isDisabled}
+      data-nextjs-data-runtime-error-copy-stack
+      className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState.state}`}
+      onClick={() => {
+        if (!isDisabled) {
+          React.startTransition(() => {
+            dispatch('copy')
+          })
+        }
       }}
     >
-      {copied ? <CopySuccessIcon /> : <CopyIcon />}
-    </span>
+      {icon}
+      {copyState.state === 'error' ? ` ${copyState.error}` : null}
+    </button>
   )
 }
 
@@ -71,7 +133,6 @@ function CopySuccessIcon() {
       width="16"
       stroke="currentColor"
       fill="currentColor"
-      data-nextjs-data-runtime-error-copy-stack-success
     >
       <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
     </svg>

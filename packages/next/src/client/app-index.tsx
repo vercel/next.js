@@ -43,7 +43,7 @@ const appElement: HTMLElement | Document | null = document
 
 const encoder = new TextEncoder()
 
-let initialServerDataBuffer: string[] | undefined = undefined
+let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
@@ -56,6 +56,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
+    | [isBinary: 3, responseBase64Partial: string]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -70,6 +71,22 @@ function nextServerDataCallback(
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
+  } else if (seg[0] === 3) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    // Decode the base64 string back to binary data.
+    const binaryString = atob(seg[1])
+    const decodedChunk = new Uint8Array(binaryString.length)
+    for (var i = 0; i < binaryString.length; i++) {
+      decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+
+    if (initialServerDataWriter) {
+      initialServerDataWriter.enqueue(decodedChunk)
+    } else {
+      initialServerDataBuffer.push(decodedChunk)
+    }
   }
 }
 
@@ -89,7 +106,7 @@ function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(encoder.encode(val))
+      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
       if (isStreamErrorOrUnfinished(ctr)) {

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::{
     font_fallback::{FontFallback, FontFallbacks},
@@ -9,7 +9,7 @@ use super::{
 
 /// Builds `@font-face` stylesheet definition for a given FontFallback
 #[turbo_tasks::function]
-pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> Result<Vc<String>> {
+pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> Result<Vc<RcStr>> {
     let mut res = "".to_owned();
     for fallback_vc in &*fallbacks.await? {
         if let FontFallback::Automatic(fallback) = &*fallback_vc.await? {
@@ -44,13 +44,13 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
         }
     }
 
-    Ok(Vc::cell(res))
+    Ok(Vc::cell(res.into()))
 }
 
 #[turbo_tasks::function]
 pub(super) async fn build_font_class_rules(
     css_properties: Vc<FontCssProperties>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let css_properties = &*css_properties.await?;
     let font_family_string = &*css_properties.font_family.await?;
 
@@ -88,7 +88,7 @@ pub(super) async fn build_font_class_rules(
         ))
     }
 
-    Ok(Vc::cell(rules))
+    Ok(Vc::cell(rules.into()))
 }
 
 fn format_fixed_percentage(value: f64) -> String {

@@ -4,7 +4,7 @@ import type {
   FlightSegmentPath,
   Segment,
 } from './types'
-import React from 'react'
+import type React from 'react'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -136,7 +136,7 @@ export async function walkTreeWithFlightRouterState({
 
     if (shouldSkipComponentTree) {
       // Send only the router state
-      return [[overriddenSegment, routerState, null, null]]
+      return [[overriddenSegment, routerState, null, null, null]]
     } else {
       // Create component tree using the slice of the loaderTree
       const { seedData } = await createComponentTree(
@@ -166,14 +166,10 @@ export async function walkTreeWithFlightRouterState({
         injectedJS: new Set(injectedJS),
         injectedFontPreloadTags: new Set(injectedFontPreloadTags),
       })
-      const head = (
-        <>
-          {layerAssets}
-          {rscPayloadHead}
-        </>
-      )
 
-      return [[overriddenSegment, routerState, seedData, head]]
+      return [
+        [overriddenSegment, routerState, seedData, rscPayloadHead, layerAssets],
+      ]
     }
   }
 

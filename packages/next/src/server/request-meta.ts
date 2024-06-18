@@ -4,7 +4,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
-import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
@@ -94,6 +94,11 @@ export interface RequestMeta {
     cacheEntry: any,
     requestMeta: any
   ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
 }
 
 /**

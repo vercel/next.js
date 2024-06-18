@@ -56,7 +56,7 @@ importers:
         specifier: ^4.4.4
         version: 4.9.5
 
-  actions/next-repo-info:
+  actions/next-repo-actions:
     dependencies:
       '@actions/core':
         specifier: ^1.10.1
@@ -67,6 +67,9 @@ importers:
       '@slack/web-api':
         specifier: ^7.0.4
         version: 7.0.4
+      slack-block-builder:
+        specifier: ^2.8.0
+        version: 2.8.0
     devDependencies:
       '@vercel/ncc':
         specifier: ^0.38.1
@@ -174,7 +177,7 @@ packages:
   /@actions/core@1.10.1:
     resolution: {integrity: sha512-3lBR9EDAY+iYIpTnTIXmWcNbX3T2kCkAEQGIQx4NVQ0575nk2k3GRZDTPQG+vVtS2izSLmINlxXf0uLtnrTP+g==}
     dependencies:
-      '@actions/http-client': 2.1.0
+      '@actions/http-client': 2.2.0
       uuid: 8.3.2
     dev: false
 
@@ -1191,6 +1194,10 @@ packages:
 
   /signal-exit@3.0.7:
     resolution: {integrity: sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ==}
+    dev: false
+
+  /slack-block-builder@2.8.0:
+    resolution: {integrity: sha512-iisM+j99iKRuQFVfdWo0FiszDAl3r8Snq704oZH6C0RbDqvoVQStiptt6Y7kc6RX/5hSAqTqjhgvZ/di8cvaIA==}
     dev: false
 
   /space-separated-tokens@1.1.5:

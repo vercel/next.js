@@ -1,6 +1,17 @@
 {
   "version": 2,
   "suites": {
+    "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
+        "fetch-cache should retry 3 times when revalidate times out",
+        "fetch-cache should not retry for failed fetch-cache GET"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -1924,7 +1935,8 @@
         "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
         "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
+        "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
+        "app dir - metadata dynamic routes should statically optimized single image route"
       ],
       "pending": [],
       "flakey": [],
@@ -2118,6 +2130,19 @@
         "app dir - next config should support importing webpack in next.config"
       ],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts": {
+      "passed": [
+        "next-dynamic-css app dir should have correct order of styles between global and css modules",
+        "next-dynamic-css should have correct order of global styles between layout and pages",
+        "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+      ],
+      "failed": [
+        "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2410,6 +2435,15 @@
       "failed": [
         "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
+      "passed": [],
+      "failed": [
+        "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
       ],
       "pending": [],
       "flakey": [],
@@ -4018,10 +4052,9 @@
       "runtimeError": false
     },
     "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-      "passed": [
-        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
-      ],
+      "passed": [],
       "failed": [
+        "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved",
         "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
       ],
       "pending": [],
@@ -8176,15 +8209,15 @@
         "Edge runtime code with imports Edge API importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Edge API importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware dynamically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
+        "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime"
       ],
       "failed": [
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
+        "Edge runtime code with imports Edge API statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
         "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
@@ -8458,11 +8491,12 @@
         "Next Lint don't create .eslintrc file if package.json has eslintConfig field",
         "Next Lint file flag can selectively lint only a single file",
         "Next Lint file flag can selectively lints multiple files",
+        "Next Lint format flag \"compact\" creates a file respecting the chosen format",
+        "Next Lint format flag \"json\" creates a file respecting the chosen format",
         "Next Lint format flag supports additional user-defined formats",
         "Next Lint lint files with cjs and mjs file extension",
         "Next Lint max warnings flag does not error when warnings do not exceed threshold",
         "Next Lint max warnings flag errors when warnings exceed threshold",
-        "Next Lint output flag create a file respecting the chosen format",
         "Next Lint quiet flag suppresses warnings and only reports errors",
         "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
         "Next Lint should generate next-env.d.ts before lint command",
@@ -15698,6 +15732,15 @@
     "test/production/typescript-basic/typechecking.test.ts": {
       "passed": ["typechecking should typecheck"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata static routes cache should generate different content after replace the static metadata file"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

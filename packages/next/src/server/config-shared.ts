@@ -148,6 +148,11 @@ export interface ExperimentalTurboOptions {
    * Use swc_css instead of lightningcss for turbopakc
    */
   useSwcCss?: boolean
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
@@ -432,11 +437,6 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
-
-  /**
-   * Uses an IPC server to dedupe build-time requests to the cache handler
-   */
-  staticWorkerRequestDeduping?: boolean
 
   useWasmBinary?: boolean
 

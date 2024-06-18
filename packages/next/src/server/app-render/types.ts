@@ -4,7 +4,7 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -104,6 +104,7 @@ export type FlightDataPath =
       /* treePatch */ FlightRouterState,
       /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
       /* head */ React.ReactNode | null,
+      /* layerAssets (imported styles/scripts) */ React.ReactNode | null,
     ]
 
 /**
@@ -142,7 +143,6 @@ export interface RenderOptsPartial {
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
-  originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
@@ -161,11 +161,6 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   experimental: {
     /**
-     * When true, some routes support partial prerendering (PPR).
-     */
-    isAppPPREnabled: boolean
-
-    /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
@@ -176,10 +171,17 @@ export interface RenderOptsPartial {
   }
   postponed?: string
   /**
-   * When true, only the skeleton of the PPR page will be rendered. This will
-   * also enable other debugging features such as logging.
+   * When true, only the static shell of the page will be rendered. This will
+   * also enable other debugging features such as logging in development.
    */
-  isDebugPPRSkeleton?: boolean
+  isDebugStaticShell?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  isDebugDynamicAccesses?: boolean
   isStaticGeneration?: boolean
 }
 

@@ -34,7 +34,8 @@ import { ReadonlyURLSearchParams } from './navigation.react-server'
  *
  * Read more: [Next.js Docs: `useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)
  */
-function useSearchParams(): ReadonlyURLSearchParams {
+// Client components API
+export function useSearchParams(): ReadonlyURLSearchParams {
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -78,13 +79,15 @@ function useSearchParams(): ReadonlyURLSearchParams {
  *
  * Read more: [Next.js Docs: `usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname)
  */
-function usePathname(): string {
+// Client components API
+export function usePathname(): string {
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   return useContext(PathnameContext) as string
 }
 
-import {
+// Client components API
+export {
   ServerInsertedHTMLContext,
   useServerInsertedHTML,
 } from '../../shared/lib/server-inserted-html.shared-runtime'
@@ -107,7 +110,8 @@ import {
  *
  * Read more: [Next.js Docs: `useRouter`](https://nextjs.org/docs/app/api-reference/functions/use-router)
  */
-function useRouter(): AppRouterInstance {
+// Client components API
+export function useRouter(): AppRouterInstance {
   const router = useContext(AppRouterContext)
   if (router === null) {
     throw new Error('invariant expected app router to be mounted')
@@ -137,12 +141,14 @@ interface Params {
  *
  * Read more: [Next.js Docs: `useParams`](https://nextjs.org/docs/app/api-reference/functions/use-params)
  */
-function useParams<T extends Params = Params>(): T {
+// Client components API
+export function useParams<T extends Params = Params>(): T {
   return useContext(PathParamsContext) as T
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */
-function getSelectedLayoutSegmentPath(
+// Client components API
+export function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
   first = true,
@@ -201,7 +207,8 @@ function getSelectedLayoutSegmentPath(
  *
  * Read more: [Next.js Docs: `useSelectedLayoutSegments`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segments)
  */
-function useSelectedLayoutSegments(
+// Client components API
+export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
   const context = useContext(LayoutRouterContext)
@@ -229,7 +236,8 @@ function useSelectedLayoutSegments(
  *
  * Read more: [Next.js Docs: `useSelectedLayoutSegment`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment)
  */
-function useSelectedLayoutSegment(
+// Client components API
+export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
@@ -248,18 +256,6 @@ function useSelectedLayoutSegment(
   return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
     ? null
     : selectedLayoutSegment
-}
-
-// Client components APIs
-export {
-  useSearchParams,
-  usePathname,
-  useSelectedLayoutSegment,
-  useSelectedLayoutSegments,
-  useParams,
-  useRouter,
-  useServerInsertedHTML,
-  ServerInsertedHTMLContext,
 }
 
 // Shared components APIs

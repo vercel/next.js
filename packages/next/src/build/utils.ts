@@ -20,8 +20,8 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { WebpackLayerName } from '../lib/constants'
-import type { AppPageModule } from '../server/future/route-modules/app-page/module'
-import type { RouteModule } from '../server/future/route-modules/route-module'
+import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type { RouteModule } from '../server/route-modules/route-module'
 import type { LoaderTree } from '../server/lib/app-dir-module'
 import type { NextComponentType } from '../shared/lib/utils'
 
@@ -76,18 +76,18 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
-import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
+import { withStaticGenerationStore } from '../server/async-storage/with-static-generation-store'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { RouteKind } from '../server/future/route-kind'
-import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
+import { RouteKind } from '../server/route-kind'
+import { isAppRouteRouteModule } from '../server/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
-import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -1379,15 +1379,13 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
-    isAppPPREnabled: false,
   })
 
-  return StaticGenerationAsyncStorageWrapper.wrap(
+  return withStaticGenerationStore(
     ComponentMod.staticGenerationAsyncStorage,
     {
-      urlPathname: page,
+      page,
       renderOpts: {
-        originalPathname: page,
         incrementalCache,
         supportsDynamicResponse: true,
         isRevalidate: false,
@@ -2278,8 +2276,8 @@ export function isWebpackDefaultLayer(
   return layer === null || layer === undefined
 }
 
-export function isWebpackAppLayer(
+export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.app.includes(layer as any))
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }
