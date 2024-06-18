@@ -280,7 +280,7 @@ async function createComponentTreeInternal({
   if (hasSlotKey && rootLayoutAtThisLevel && LayoutOrPage) {
     Component = (componentProps: { params: Params }) => {
       const NotFoundComponent = NotFound
-      const RootLayoutComponent = LayoutOrPage!
+      const RootLayoutComponent = LayoutOrPage
       return (
         <NotFoundBoundary
           notFound={
