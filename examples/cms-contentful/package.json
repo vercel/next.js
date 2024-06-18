@@ -1,5 +1,6 @@
 {
   "private": true,
+  "name": "cms-contentful",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -9,6 +10,7 @@
   "dependencies": {
     "@contentful/rich-text-react-renderer": "^15.17.1",
     "@contentful/rich-text-types": "^16.2.1",
+    "@contentful/vercel-nextjs-toolkit": "1.3.2",
     "@tailwindcss/typography": "0.5.9",
     "@types/node": "^20.5.0",
     "@types/react": "^18.2.20",
@@ -22,5 +24,6 @@
     "react-dom": "^18.2.0",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.1.6"
-  }
+  },
+  "packageManager": "pnpm@8.15.7+sha256.94fab213df221c55b6956b14a2264c21c6203cca9f0b3b95ff2fe9b84b120390"
 }
