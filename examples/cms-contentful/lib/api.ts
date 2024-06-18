@@ -10,7 +10,6 @@ const POST_GRAPHQL_FIELDS = `
     picture {
       url
     }
-    twitter
   }
   excerpt
   content {
@@ -53,7 +52,6 @@ function extractPost(fetchResponse: any): any {
 }
 
 function extractPostEntries(fetchResponse: any): any[] {
-  console.log("fetchResponse", fetchResponse);
   return fetchResponse?.data?.postCollection?.items;
 }
 
