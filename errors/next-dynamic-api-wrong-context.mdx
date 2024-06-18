@@ -14,19 +14,17 @@ Make sure that all Dynamic API calls happen in a request scope.
 
 Example:
 
-```diff
-// app/page.ts
+```diff filename="app/page.ts"
 import { cookies } from 'next/headers'
 
-- const cookieStore  = cookies()
+- const cookieStore = cookies()
 export default function Page() {
 + const cookieStore = cookies()
   return ...
 }
 ```
 
-```diff
-// app/foo/route.ts
+```diff filename="app/foo/route.ts"
 import { headers } from 'next/headers'
 
 - const headersList = headers()
