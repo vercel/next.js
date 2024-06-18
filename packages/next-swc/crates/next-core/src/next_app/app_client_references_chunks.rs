@@ -163,16 +163,17 @@ pub async fn get_app_client_references_chunks(
                     .try_flat_join()
                     .await?;
                 let ssr_chunk_group = if !ssr_modules.is_empty() {
-                    let ssr_entry_module = IncludeModulesModule::new(
-                        base_ident.with_modifier(client_modules_ssr_modifier()),
-                        ssr_modules,
-                    );
-                    let _span = tracing::info_span!(
-                        "server side rendering",
-                        layout_segment = display(&server_component_path),
-                    )
-                    .entered();
                     ssr_chunking_context.map(|ssr_chunking_context| {
+                        let _span = tracing::info_span!(
+                            "server side rendering",
+                            layout_segment = display(&server_component_path),
+                        )
+                        .entered();
+
+                        let ssr_entry_module = IncludeModulesModule::new(
+                            base_ident.with_modifier(client_modules_ssr_modifier()),
+                            ssr_modules,
+                        );
                         ssr_chunking_context.chunk_group(
                             Vc::upcast(ssr_entry_module),
                             Value::new(current_ssr_availability_info),
@@ -201,16 +202,16 @@ pub async fn get_app_client_references_chunks(
                     .try_join()
                     .await?;
                 let client_chunk_group = if !client_modules.is_empty() {
-                    let client_entry_module = IncludeModulesModule::new(
-                        base_ident.with_modifier(client_modules_modifier()),
-                        client_modules,
-                    );
-
                     let _span = tracing::info_span!(
                         "client side rendering",
                         layout_segment = display(&server_component_path),
                     )
                     .entered();
+
+                    let client_entry_module = IncludeModulesModule::new(
+                        base_ident.with_modifier(client_modules_modifier()),
+                        client_modules,
+                    );
                     Some(client_chunking_context.chunk_group(
                         Vc::upcast(client_entry_module),
                         Value::new(current_client_availability_info),
