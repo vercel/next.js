@@ -676,6 +676,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       config: this.config,
       buildId: this.buildId,
       encryptionKey: this.encryptionKey,
+      appDir: this.appDir,
       pagesDir: this.pagesDir,
       rewrites: {
         beforeFiles: [],
