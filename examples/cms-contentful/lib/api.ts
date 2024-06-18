@@ -10,6 +10,7 @@ const POST_GRAPHQL_FIELDS = `
     picture {
       url
     }
+    twitter
   }
   excerpt
   content {
@@ -52,6 +53,7 @@ function extractPost(fetchResponse: any): any {
 }
 
 function extractPostEntries(fetchResponse: any): any[] {
+  console.log("fetchResponse", fetchResponse);
   return fetchResponse?.data?.postCollection?.items;
 }
 
@@ -72,7 +74,7 @@ export async function getPreviewPostBySlug(slug: string | null): Promise<any> {
 export async function getAllPosts(isDraftMode: boolean): Promise<any[]> {
   const entries = await fetchGraphQL(
     `query {
-      postCollection(where: { slug_exists: true }, order: date_DESC, preview: ${
+      postCollection(where: { slug_exists: true }, order: date_DESC, limit: 10, preview: ${
         isDraftMode ? "true" : "false"
       }) {
         items {
