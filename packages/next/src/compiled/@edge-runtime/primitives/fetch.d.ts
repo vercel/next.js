@@ -24,4 +24,4 @@ declare const FileConstructor: typeof File
 declare const FormDataConstructor: typeof FormData
 declare const WebSocketConstructor: typeof WebSocket
 
-export { FileConstructor as File, FormDataConstructor as FormData, Headers, Request, RequestInfo, RequestInit, Response, WebSocketConstructor as WebSocket, fetchImplementation as fetch };
+export { FileConstructor as File, FormDataConstructor as FormData, Headers, Request, type RequestInfo, type RequestInit, Response, WebSocketConstructor as WebSocket, fetchImplementation as fetch };

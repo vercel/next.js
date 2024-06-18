@@ -28,7 +28,7 @@ export = defineRule({
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        const pathname = convertToCorrectSeparator(context.getFilename())
+        const pathname = convertToCorrectSeparator(context.filename)
 
         const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
 
@@ -57,7 +57,7 @@ export = defineRule({
           return
         }
 
-        const document = context.getFilename().split('pages', 2)[1]
+        const document = context.filename.split('pages', 2)[1]
         if (document && path.parse(document).name.startsWith('_document')) {
           return
         }

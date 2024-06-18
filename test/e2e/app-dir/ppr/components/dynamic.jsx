@@ -8,8 +8,8 @@ export function Dynamic({ fallback }) {
   let signedIn
   let active
   if (dynamic) {
-    signedIn = cookies().has('session') ? true : false
-    active = cookies().has('delay') ? true : false
+    signedIn = cookies().has('session')
+    active = cookies().has('delay')
     if (active) {
       use(new Promise((resolve) => setTimeout(resolve, 1000)))
     }

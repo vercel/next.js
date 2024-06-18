@@ -1,3 +1,5 @@
+//@ts-check
+
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
@@ -5,6 +7,7 @@ const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
+// @ts-expect-error
 const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -20,10 +23,13 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('test-pattern')
   .boolean('timings')
   .boolean('write-timings')
+  .number('retries')
   .boolean('debug')
   .string('g')
   .alias('g', 'group')
   .number('c')
+  .boolean('related')
+  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -79,6 +85,7 @@ const testFilters = {
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
+  traceFn: (fn) => fn(mockTrace()),
   traceChild: () => mockTrace(),
 })
 
@@ -185,8 +192,6 @@ async function getTestTimings() {
 }
 
 async function main() {
-  let numRetries = DEFAULT_NUM_RETRIES
-
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
@@ -198,8 +203,10 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
+    related: argv.related ?? false,
+    retries: argv.retries ?? DEFAULT_NUM_RETRIES,
   }
-
+  let numRetries = options.retries
   const hideOutput = !options.debug
 
   let filterTestsBy
@@ -220,22 +227,39 @@ async function main() {
     }
   }
 
-  console.log('Running tests with concurrency:', options.concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
-  let tests = argv._.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/)).map(
-    (file) => ({
-      file,
-      excludedCases: [],
-    })
-  )
+  let tests = argv._.filter((arg) =>
+    arg.toString().match(/\.test\.(js|ts|tsx)/)
+  ).map((file) => ({ file: file.toString(), excludedCases: [] }))
   let prevTimings
 
   if (tests.length === 0) {
+    /** @type {RegExp | undefined} */
     let testPatternRegex
 
-    if (options.testPattern) {
+    if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
+    }
+
+    if (options.related) {
+      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
+      const tests = await getRelatedTests()
+      if (tests.length)
+        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
+
+      if (testPatternRegex) {
+        console.log('Running related tests:', testPatternRegex.toString())
+      } else {
+        console.log('No matching related tests, exiting.')
+        process.exit(0)
+      }
     }
 
     tests = (
@@ -311,12 +335,13 @@ async function main() {
       return true
     })
 
-  if (options.group) {
+  if (options.group && typeof options.group === 'string') {
     const groupParts = options.group.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
 
     if (prevTimings) {
+      /** @type {TestFile[][]} */
       const groups = [[]]
       const groupTimes = [0]
 
@@ -356,9 +381,12 @@ async function main() {
     }
   }
 
+  if (!tests) {
+    tests = []
+  }
+
   if (tests.length === 0) {
     console.log('No tests found for', options.type, 'exiting..')
-    return cleanUpAndExit(1)
   }
 
   console.log(`${GROUP}Running tests:
@@ -382,7 +410,7 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -447,7 +475,8 @@ ${ENDGROUP}`)
         RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
+        TRACE_PLAYWRIGHT:
+          process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
@@ -460,6 +489,7 @@ ${ENDGROUP}`)
         // Format the output of junit report to include the test name
         // For the debugging purpose to compare actual run list to the generated reports
         // [NOTE]: This won't affect if junit reporter is not enabled
+        // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
         JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
         // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
         // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -505,6 +535,8 @@ ${ENDGROUP}`)
           ...process.env,
           ...env,
         },
+        // See: https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
+        shell: process.platform === 'win32',
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
@@ -550,6 +582,7 @@ ${ENDGROUP}`)
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+          // @ts-expect-error
           err.output = outputChunks
             .map(({ chunk }) => chunk.toString())
             .join('')
@@ -665,6 +698,7 @@ ${ENDGROUP}`)
       }
 
       // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fsp.readFile(

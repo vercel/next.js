@@ -8,7 +8,7 @@ import type {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt from '../shared/lib/mitt'
@@ -27,7 +27,6 @@ import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import type { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer' // TODO: remove in the next major version
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -46,7 +45,7 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
 
@@ -179,9 +178,8 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const {
-        ReactDevOverlay,
-      } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
+        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -605,12 +603,6 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
-  // TODO: remove in the next major version
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-  }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -914,9 +906,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const {
-      getServerError,
-    } = require('next/dist/compiled/@next/react-dev-overlay/dist/client')
+    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
+      require('./components/react-dev-overlay/pages/client').getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -934,7 +925,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source)
+          throw getServerError(error, initialErr!.source!)
         })
       }
       // We replaced the server-side error with a client-side error, and should

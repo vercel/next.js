@@ -1,3 +1,4 @@
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
@@ -12,6 +13,36 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
+
+type SourceType = 'auto' | 'commonjs' | 'module'
+export function getAssumedSourceType(
+  mod: webpack.Module,
+  sourceType: SourceType
+): SourceType {
+  const buildInfo = getModuleBuildInfo(mod)
+  const detectedClientEntryType = buildInfo?.rsc?.clientEntryType
+  const clientRefs = buildInfo?.rsc?.clientRefs || []
+
+  // It's tricky to detect the type of a client boundary, but we should always
+  // use the `module` type when we can, to support `export *` and `export from`
+  // syntax in other modules that import this client boundary.
+  let assumedSourceType = sourceType
+  if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
+    if (
+      clientRefs.length === 0 ||
+      (clientRefs.length === 1 && clientRefs[0] === '')
+    ) {
+      // If there's zero export detected in the client boundary, and it's the
+      // `auto` type, we can safely assume it's a CJS module because it doesn't
+      // have ESM exports.
+      assumedSourceType = 'commonjs'
+    } else if (!clientRefs.includes('*')) {
+      // Otherwise, we assume it's an ESM module.
+      assumedSourceType = 'module'
+    }
+  }
+  return assumedSourceType
+}
 
 export default function transformSource(
   this: any,
@@ -50,28 +81,11 @@ export default function transformSource(
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const sourceType = this._module?.parser?.sourceType
-    const detectedClientEntryType = buildInfo.rsc.clientEntryType
+    const assumedSourceType = getAssumedSourceType(
+      this._module,
+      this._module?.parser?.sourceType
+    )
     const clientRefs = buildInfo.rsc.clientRefs!
-
-    // It's tricky to detect the type of a client boundary, but we should always
-    // use the `module` type when we can, to support `export *` and `export from`
-    // syntax in other modules that import this client boundary.
-    let assumedSourceType = sourceType
-    if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
-      if (
-        clientRefs.length === 0 ||
-        (clientRefs.length === 1 && clientRefs[0] === '')
-      ) {
-        // If there's zero export detected in the client boundary, and it's the
-        // `auto` type, we can safely assume it's a CJS module because it doesn't
-        // have ESM exports.
-        assumedSourceType = 'commonjs'
-      } else if (!clientRefs.includes('*')) {
-        // Otherwise, we assume it's an ESM module.
-        assumedSourceType = 'module'
-      }
-    }
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
@@ -85,23 +99,15 @@ export default function transformSource(
 
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
-const proxy = createProxy(String.raw\`${resourceKey}\`)
-
-// Accessing the __esModule property and exporting $$typeof are required here.
-// The __esModule getter forces the proxy target to create the default export
-// and the $$typeof value is for rendering logic to determine if the module
-// is a client boundary.
-const { __esModule, $$typeof } = proxy;
-const __default__ = proxy.default;
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
           esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
-          esmSource += `
-export { __esModule, $$typeof };
-export default __default__;`
+          esmSource += `\
+export default createProxy(String.raw\`${resourceKey}#default\`);
+`
         } else {
           esmSource += `
 const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
@@ -122,9 +128,9 @@ export { e${cnt++} as ${ref} };`
     }
   }
 
-  this.callback(
-    null,
-    source.replace(RSC_MOD_REF_PROXY_ALIAS, MODULE_PROXY_PATH),
-    sourceMap
+  const replacedSource = source.replace(
+    RSC_MOD_REF_PROXY_ALIAS,
+    MODULE_PROXY_PATH
   )
+  this.callback(null, replacedSource, sourceMap)
 }

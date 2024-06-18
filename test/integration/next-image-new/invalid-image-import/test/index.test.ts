@@ -23,7 +23,7 @@ function runTests({ isDev }) {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
       expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toBe('Failed to compile')
+      expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`
@@ -49,36 +49,42 @@ function runTests({ isDev }) {
 }
 
 describe('Missing Import Image Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      stderr = ''
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        stderr = ''
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      if (app) {
-        await killApp(app)
-      }
-    })
+      afterAll(async () => {
+        if (app) {
+          await killApp(app)
+        }
+      })
 
-    runTests({ isDev: true })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      stderr = ''
-      const result = await nextBuild(appDir, [], { stderr: true })
-      stderr = result.stderr
-    })
-    afterAll(async () => {
-      if (app) {
-        await killApp(app)
-      }
-    })
+      runTests({ isDev: true })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        stderr = ''
+        const result = await nextBuild(appDir, [], { stderr: true })
+        stderr = result.stderr
+      })
+      afterAll(async () => {
+        if (app) {
+          await killApp(app)
+        }
+      })
 
-    runTests({ isDev: false })
-  })
+      runTests({ isDev: false })
+    }
+  )
 })

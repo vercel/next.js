@@ -1,5 +1,5 @@
 // Rules here:
-// 1. Each exported function should still be exported, but as a reference `createActionProxy(...)`.
+// 1. Each exported function should still be exported, but as a reference `registerServerReference(...)`.
 // 2. Actual action functions should be renamed to `$$ACTION_...` and got exported.
 
 async function foo() {

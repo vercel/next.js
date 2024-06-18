@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'

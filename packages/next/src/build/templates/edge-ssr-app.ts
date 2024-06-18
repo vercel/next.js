@@ -11,6 +11,8 @@ import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
+import { createServerModuleMap } from '../../server/app-render/action-utils'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -47,6 +49,17 @@ const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 const interceptionRouteRewrites =
   maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
 
+if (rscManifest && rscServerManifest) {
+  setReferenceManifestsSingleton({
+    clientReferenceManifest: rscManifest,
+    serverActionsManifest: rscServerManifest,
+    serverModuleMap: createServerModuleMap({
+      serverActionsManifest: rscServerManifest,
+      pageName: 'VAR_PAGE',
+    }),
+  })
+}
+
 const render = getRender({
   pagesType: PAGE_TYPES.APP,
   dev,
@@ -65,7 +78,7 @@ const render = getRender({
   serverActions: isServerComponent ? serverActions : undefined,
   subresourceIntegrityManifest,
   config: nextConfig,
-  buildId: 'VAR_BUILD_ID',
+  buildId: process.env.__NEXT_BUILD_ID!,
   nextFontManifest,
   incrementalCacheHandler,
   interceptionRouteRewrites,

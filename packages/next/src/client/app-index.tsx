@@ -1,4 +1,3 @@
-/* global location */
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
@@ -8,19 +7,24 @@ import React, { use } from 'react'
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
 import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
-  if (isNextRouterError(args[0])) {
+  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+  if (
+    process.env.NODE_ENV !== 'production'
+      ? isNextRouterError(args[1])
+      : isNextRouterError(args[0])
+  ) {
     return
   }
   origConsoleError.apply(window.console, args)
@@ -37,14 +41,9 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 
 const appElement: HTMLElement | Document | null = document
 
-const getCacheKey = () => {
-  const { pathname, search } = location
-  return pathname + search
-}
-
 const encoder = new TextEncoder()
 
-let initialServerDataBuffer: string[] | undefined = undefined
+let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
 let initialServerDataWriter: ReadableStreamDefaultController | undefined =
   undefined
 let initialServerDataLoaded = false
@@ -57,6 +56,7 @@ function nextServerDataCallback(
     | [isBootStrap: 0]
     | [isNotBootstrap: 1, responsePartial: string]
     | [isFormState: 2, formState: any]
+    | [isBinary: 3, responseBase64Partial: string]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
@@ -71,7 +71,28 @@ function nextServerDataCallback(
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
+  } else if (seg[0] === 3) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    // Decode the base64 string back to binary data.
+    const binaryString = atob(seg[1])
+    const decodedChunk = new Uint8Array(binaryString.length)
+    for (var i = 0; i < binaryString.length; i++) {
+      decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+
+    if (initialServerDataWriter) {
+      initialServerDataWriter.enqueue(decodedChunk)
+    } else {
+      initialServerDataBuffer.push(decodedChunk)
+    }
   }
+}
+
+function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
+  // If `desiredSize` is null, it means the stream is closed or errored. If it is lower than 0, the stream is still unfinished.
+  return ctr.desiredSize === null || ctr.desiredSize < 0
 }
 
 // There might be race conditions between `nextServerDataRegisterWriter` and
@@ -85,10 +106,18 @@ function nextServerDataCallback(
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(encoder.encode(val))
+      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      ctr.close()
+      if (isStreamErrorOrUnfinished(ctr)) {
+        ctr.error(
+          new Error(
+            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+          )
+        )
+      } else {
+        ctr.close()
+      }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
     }
@@ -106,11 +135,13 @@ const DOMContentLoaded = function () {
   }
   initialServerDataLoaded = true
 }
+
 // It's possible that the DOM is already loaded.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
 } else {
-  DOMContentLoaded()
+  // Delayed in marco task to ensure it's executed later than hydration
+  setTimeout(DOMContentLoaded)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
@@ -118,137 +149,59 @@ const nextServerDataLoadingGlobal = ((self as any).__next_f =
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function createResponseCache() {
-  return new Map<string, any>()
-}
-const rscCache = createResponseCache()
+const readable = new ReadableStream({
+  start(controller) {
+    nextServerDataRegisterWriter(controller)
+  },
+})
 
-function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
-  const response = rscCache.get(cacheKey)
-  if (response) return response
+const initialServerResponse = createFromReadableStream(readable, {
+  callServer,
+})
 
-  const readable = new ReadableStream({
-    start(controller) {
-      nextServerDataRegisterWriter(controller)
-    },
-  })
-
-  const newResponse = createFromReadableStream(readable, {
-    callServer,
-  })
-
-  rscCache.set(cacheKey, newResponse)
-  return newResponse
-}
-
-function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
-  React.useEffect(() => {
-    rscCache.delete(cacheKey)
-  })
-  const response = useInitialServerResponse(cacheKey)
-  const root = use(response)
-  return root
+function ServerRoot(): React.ReactNode {
+  return use(initialServerResponse)
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
-function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
-  // TODO: remove in the next major version
-  if (process.env.__NEXT_ANALYTICS_ID) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      require('./performance-relayer-app')()
-    }, [])
-  }
-
+function Root({ children }: React.PropsWithChildren<{}>) {
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
+      window.__NEXT_HYDRATED_CB?.()
     }, [])
   }
 
-  return children as React.ReactElement
-}
-
-function RSCComponent(props: any): JSX.Element {
-  return <ServerRoot {...props} cacheKey={getCacheKey()} />
+  return children
 }
 
 export function hydrate() {
-  if (process.env.NODE_ENV !== 'production') {
-    const rootLayoutMissingTagsError = (self as any)
-      .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
-      require('./components/react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
-
-    // Don't try to hydrate if root layout is missing required tags, render error instead
-    if (rootLayoutMissingTagsError) {
-      const reactRootElement = document.createElement('div')
-      document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
-        onRecoverableError,
-      })
-
-      reactRoot.render(
-        <GlobalLayoutRouterContext.Provider
-          value={{
-            buildId: 'development',
-            tree: rootLayoutMissingTagsError.tree,
-            changeByServerResponse: () => {},
-            focusAndScrollRef: {
-              apply: false,
-              onlyHashChange: false,
-              hashFragment: null,
-              segmentPaths: [],
-            },
-            nextUrl: null,
-          }}
-        >
-          <HotReload
-            assetPrefix={rootLayoutMissingTagsError.assetPrefix}
-            // initialState={{
-            //   rootLayoutMissingTagsError: {
-            //     missingTags: rootLayoutMissingTagsError.missingTags,
-            //   },
-            // }}
-          />
-        </GlobalLayoutRouterContext.Provider>
-      )
-
-      return
-    }
-  }
-
   const actionQueue = createMutableActionQueue()
 
   const reactEl = (
     <StrictModeIfEnabled>
-      <HeadManagerContext.Provider
-        value={{
-          appDir: true,
-        }}
-      >
+      <HeadManagerContext.Provider value={{ appDir: true }}>
         <ActionQueueContext.Provider value={actionQueue}>
           <Root>
-            <RSCComponent />
+            <ServerRoot />
           </Root>
         </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
 
+  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
+  const hasMissingTags = !!rootLayoutMissingTags?.length
+
   const options = {
     onRecoverableError,
-  }
-  const isError = document.documentElement.id === '__next_error__'
+  } satisfies ReactDOMClient.RootOptions
+  const isError =
+    document.documentElement.id === '__next_error__' || hasMissingTags
 
   if (process.env.NODE_ENV !== 'production') {
     // Patch console.error to collect information about hydration errors
@@ -264,21 +217,33 @@ export function hydrate() {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/internal/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
+        require('./components/react-dev-overlay/app/ReactDevOverlay')
+          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')
           .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
 
-      let errorTree = (
-        <ReactDevOverlay state={INITIAL_OVERLAY_STATE} onReactError={() => {}}>
-          {reactEl}
-        </ReactDevOverlay>
+      const FallbackLayout = hasMissingTags
+        ? ({ children }: { children: React.ReactNode }) => (
+            <html id="__next_error__">
+              <body>{children}</body>
+            </html>
+          )
+        : React.Fragment
+      const errorTree = (
+        <FallbackLayout>
+          <ReactDevOverlay
+            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
+            onReactError={() => {}}
+          >
+            {reactEl}
+          </ReactDevOverlay>
+        </FallbackLayout>
       )
       const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
       const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
@@ -294,7 +259,9 @@ export function hydrate() {
           return
         }
 
-        if (obj.action === 'serverComponentChanges') {
+        if (
+          obj.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+        ) {
           window.location.reload()
         }
       }

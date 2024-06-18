@@ -35,7 +35,11 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
   ],
   'deploy-examples': ['examples/image-component'],
-  cna: ['packages/create-next-app', 'test/integration/create-next-app'],
+  cna: [
+    'packages/create-next-app',
+    'test/integration/create-next-app',
+    'examples/basic-css',
+  ],
   'next-codemod': ['packages/next-codemod'],
   'next-swc': [
     'packages/next-swc',

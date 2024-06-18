@@ -24,6 +24,7 @@ const cwd = process.cwd()
     await Promise.all(
       platforms.map(async (platform) => {
         await publishSema.acquire()
+        let output = ''
 
         try {
           let binaryName = `next-swc.${platform}.node`
@@ -41,7 +42,7 @@ const cwd = process.cwd()
             path.join(nativePackagesDir, platform, 'package.json'),
             JSON.stringify(pkg, null, 2)
           )
-          await execa(
+          const child = execa(
             `npm`,
             [
               `publish`,
@@ -52,14 +53,20 @@ const cwd = process.cwd()
             ],
             { stdio: 'inherit' }
           )
+          const handleData = (type) => (chunk) => {
+            process[type].write(chunk)
+            output += chunk.toString()
+          }
+          child.stdout?.on('data', handleData('stdout'))
+          child.stderr?.on('data', handleData('stderr'))
+          await child
         } catch (err) {
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, platform, err)
 
           if (
-            err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
+            output.includes(
+              'cannot publish over the previously published versions'
             )
           ) {
             console.error('Ignoring already published error', platform, err)

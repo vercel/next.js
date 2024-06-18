@@ -54,12 +54,12 @@ We have a list of **[good first issues](https://github.com/vercel/next.js/labels
 
 A list of the original co-authors of Next.js that helped bring this amazing framework to life!
 
-- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens))
-- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa))
-- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg))
-- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda))
-- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen))
-- Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable))
+- Tim Neutkens ([@timneutkens](https://x.com/timneutkens))
+- Naoyuki Kanezawa ([@nkzawa](https://x.com/nkzawa))
+- Guillermo Rauch ([@rauchg](https://x.com/rauchg))
+- Arunoda Susiripala ([@arunoda](https://x.com/arunoda))
+- Tony Kovanen ([@tonykovanen](https://x.com/tonykovanen))
+- Dan Zajdband ([@impronunciable](https://x.com/impronunciable))
 
 ---
 

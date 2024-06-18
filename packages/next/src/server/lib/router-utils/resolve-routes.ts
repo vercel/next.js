@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
-import type { Redirect } from '../../../../types'
+import type { Redirect } from '../../../types'
 import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
@@ -26,9 +26,9 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
-import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -136,7 +136,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -144,10 +144,10 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-          opts.port
-        }${req.url}`
-      : req.url || ''
+        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+            opts.port
+          }${req.url}`
+        : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
@@ -452,23 +452,15 @@ export function getResolveRoutes(
               await ensureMiddleware(req.url)
             }
 
-            const serverResult = await renderServer?.initialize(
-              renderServerOpts
-            )
+            const serverResult =
+              await renderServer?.initialize(renderServerOpts)
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
-            const invokeHeaders: typeof req.headers = {
-              'x-invoke-path': '',
-              'x-invoke-query': '',
-              'x-invoke-output': '',
-              'x-middleware-invoke': '1',
-            }
-            Object.assign(req.headers, invokeHeaders)
-
-            debug('invoking middleware', req.url, invokeHeaders)
+            addRequestMeta(req, 'middlewareInvoke', true)
+            debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
@@ -573,9 +565,6 @@ export function getResolveRoutes(
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
-                  'x-middleware-invoke',
-                  'x-invoke-path',
-                  'x-invoke-query',
                 ].includes(key)
               ) {
                 continue

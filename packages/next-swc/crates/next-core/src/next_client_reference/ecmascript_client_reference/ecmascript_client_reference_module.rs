@@ -1,5 +1,6 @@
+#![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
@@ -9,10 +10,10 @@ use turbopack_binding::turbopack::{
     ecmascript::chunk::EcmascriptChunkPlaceable,
 };
 
-/// An [`EcmascriptClientReferenceModule`] is a marker module, used by the
-/// [`EcmascriptClientReferenceProxyModule`] to indicate which client reference
+/// An [EcmascriptClientReferenceModule] is a marker module, used by the
+/// [super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule] to indicate which client reference
 /// should appear in the client reference manifest.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct EcmascriptClientReferenceModule {
     pub server_ident: Vc<AssetIdent>,
     pub client_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -21,7 +22,7 @@ pub struct EcmascriptClientReferenceModule {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptClientReferenceModule {
-    /// Create a new [`EcmascriptClientReferenceModule`].
+    /// Create a new [EcmascriptClientReferenceModule].
     ///
     /// # Arguments
     ///
@@ -45,8 +46,8 @@ impl EcmascriptClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn ecmascript_client_reference_modifier() -> Vc<String> {
-    Vc::cell("ecmascript client reference".to_string())
+fn ecmascript_client_reference_modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript client reference".into())
 }
 
 #[turbo_tasks::value_impl]

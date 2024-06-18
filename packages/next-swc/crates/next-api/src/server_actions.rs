@@ -4,12 +4,12 @@ use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
-    util::{get_asset_prefix_from_pathname, NextRuntime},
+    util::NextRuntime,
 };
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
     swc::core::{common::comments::Comments, ecma::ast::Program},
@@ -17,7 +17,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::{Asset, AssetContent},
-            chunk::{ChunkItemExt, ChunkableModule, EvaluatableAsset},
+            chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
             context::AssetContext,
             module::Module,
             output::OutputAsset,
@@ -29,9 +29,8 @@ use turbopack_binding::{
             virtual_source::VirtualSource,
         },
         ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            parse::ParseResult,
-            EcmascriptModuleAsset, EcmascriptModuleAssetType,
+            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
+            EcmascriptModuleAssetType,
         },
     },
 };
@@ -48,15 +47,14 @@ pub(crate) async fn create_server_actions_manifest(
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    pathname: &str,
     page_name: &str,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name.to_string(), actions, asset_context);
+        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
@@ -65,8 +63,7 @@ pub(crate) async fn create_server_actions_manifest(
         .as_chunk_item(Vc::upcast(chunking_context))
         .id()
         .to_string();
-    let manifest =
-        build_manifest(node_root, pathname, page_name, runtime, actions, loader_id).await?;
+    let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
     Ok((evaluable, manifest))
 }
 
@@ -79,7 +76,7 @@ pub(crate) async fn create_server_actions_manifest(
 #[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: String,
+    page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
@@ -95,7 +92,7 @@ async fn build_server_actions_loader(
         let index = import_map.len();
         let module_name = import_map
             .entry(*module)
-            .or_insert_with(|| format!("ACTIONS_MODULE{index}"));
+            .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
         writeln!(
             contents,
             "  '{hash_id}': (...args) => Promise.resolve(require('{module_name}')).then(mod => \
@@ -104,7 +101,8 @@ async fn build_server_actions_loader(
     }
     write!(contents, "}});")?;
 
-    let output_path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js"));
+    let output_path =
+        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
@@ -128,19 +126,19 @@ async fn build_server_actions_loader(
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
-    pathname: &str,
     page_name: &str,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
-    loader_id: Vc<String>,
+    loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
-    let manifest_path = node_root.join(format!(
-        "server/app{manifest_path_prefix}/page/server-reference-manifest.json",
-    ));
+    let manifest_path_prefix = page_name;
+    let manifest_path = node_root
+        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
+
+    let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
     let loader_id_value = loader_id.await?;
@@ -150,12 +148,12 @@ async fn build_manifest(
     };
 
     for (hash_id, (layer, _name, _module)) in actions_value {
-        let entry = mapping.entry(hash_id.clone()).or_default();
+        let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
-            format!("app{page_name}"),
-            ActionManifestWorkerEntry::String(loader_id_value.clone_value()),
+            &key,
+            ActionManifestWorkerEntry::String(loader_id_value.as_str()),
         );
-        entry.layer.insert(format!("app{page_name}"), *layer);
+        entry.layer.insert(&key, *layer);
     }
 
     Ok(Vc::upcast(VirtualOutputAsset::new(
@@ -165,11 +163,11 @@ async fn build_manifest(
 }
 
 #[turbo_tasks::function]
-fn action_modifier() -> Vc<String> {
-    Vc::cell("action".to_string())
+fn action_modifier() -> Vc<RcStr> {
+    Vc::cell("action".into())
 }
 
-/// Traverses the entire module graph starting from [module], looking for magic
+/// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
@@ -258,13 +256,13 @@ async fn to_rsc_context(
 }
 
 /// Our graph traversal visitor, which finds the primary modules directly
-/// referenced by [parent].
+/// referenced by parent.
 async fn get_referenced_modules(
     (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
 ) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
     primary_referenced_modules(module)
         .await
-        .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
+        .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
 
 /// Parses the Server Actions comment for all exported action function names.
@@ -291,7 +289,7 @@ pub fn parse_server_actions<C: Comments>(
     })
 }
 
-/// Inspects the comments inside [module] looking for the magic actions comment.
+/// Inspects the comments inside [Module] looking for the magic actions comment.
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
@@ -318,7 +316,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     Ok(Vc::cell(Some(Vc::cell(actions))))
 }
 
-/// Converts our cached [parsed_actions] call into a data type suitable for
+/// Converts our cached [parse_actions] call into a data type suitable for
 /// collecting into a flat-mapped [IndexMap].
 async fn parse_actions_filter_map(
     (layer, module): (ActionLayer, Vc<Box<dyn Module>>),

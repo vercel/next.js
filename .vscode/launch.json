@@ -9,11 +9,20 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "dev", "test/e2e/app-dir/app"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "dev",
+        "test/e2e/app-dir/app"
+      ],
       "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {
@@ -21,11 +30,20 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "build", "test/e2e/app-dir/app"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "build",
+        "test/e2e/app-dir/app"
+      ],
       "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {
@@ -33,11 +51,20 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "dev", "examples/hello-world"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "dev",
+        "examples/hello-world"
+      ],
       "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {
@@ -45,8 +72,16 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "build", "examples/hello-world"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "build",
+        "examples/hello-world"
+      ],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "skipFiles": ["<node_internals>/**"],
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
@@ -57,11 +92,20 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "start", "examples/hello-world"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "packages/next/dist/bin/next",
+        "start",
+        "examples/hello-world"
+      ],
       "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {
@@ -69,11 +113,16 @@
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["debug", "dev", "${fileDirname}"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
       "skipFiles": ["<node_internals>/**"],
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/../../../*": "${workspaceFolder}/packages/next/*",
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+      },
       "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {

@@ -1,15 +1,17 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::react_server_components::*;
-use swc_core::{
-    common::FileName,
-    ecma::{ast::Program, visit::VisitWith},
-};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, TransformContext},
-    turbopack::module_options::ModuleRule,
+use turbopack_binding::{
+    swc::core::{
+        common::FileName,
+        ecma::{ast::Program, visit::VisitWith},
+    },
+    turbopack::{
+        ecmascript::{CustomTransformer, TransformContext},
+        turbopack::module_options::ModuleRule,
+    },
 };
 
 use super::get_ecma_transform_rule;
@@ -35,7 +37,7 @@ pub async fn get_next_react_server_components_transform_rule(
     is_react_server_layer: bool,
     app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,
@@ -63,6 +65,7 @@ impl NextJsReactServerComponents {
 
 #[async_trait]
 impl CustomTransformer for NextJsReactServerComponents {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_react_server_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let file_name = if ctx.file_path_str.is_empty() {
             FileName::Anon

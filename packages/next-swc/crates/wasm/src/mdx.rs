@@ -10,7 +10,9 @@ pub fn mdx_compile_sync(value: JsString, opts: JsValue) -> Result<JsValue, JsVal
 
     compile(value.as_str(), &option)
         .map(|v| serde_wasm_bindgen::to_value(&v).expect("Should able to convert to JsValue"))
-        .map_err(|v| serde_wasm_bindgen::to_value(&v).expect("Should able to convert to JsValue"))
+        .map_err(|v| {
+            serde_wasm_bindgen::to_value(&v.to_string()).expect("Should able to convert to JsValue")
+        })
 }
 
 #[wasm_bindgen(js_name = "mdxCompile")]

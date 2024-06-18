@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -8,21 +8,39 @@ import {
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
+import type { ClientTraceDataEntry } from '../lib/trace/tracer'
+
+export function getTracedMetadata(
+  traceData: ClientTraceDataEntry[],
+  clientTraceMetadata: string[] | undefined
+): ClientTraceDataEntry[] | undefined {
+  if (!clientTraceMetadata) return undefined
+  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
+}
 
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
-  hasPostponed,
+  serverCapturedErrors,
+  tracingMetadata,
+  basePath,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
-  hasPostponed: boolean
+  tracingMetadata: ClientTraceDataEntry[] | undefined
+  serverCapturedErrors: Error[]
+  basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
-  // If the render had postponed, then we have already flushed the polyfills.
-  let polyfillsFlushed = hasPostponed
+  // flag for static content that only needs to be flushed once
+  let hasFlushedInitially = false
 
-  return async function getServerInsertedHTML(serverCapturedErrors: Error[]) {
+  const polyfillTags = polyfills.map((polyfill) => {
+    return <script key={polyfill.src} {...polyfill} />
+  })
+
+  return async function getServerInsertedHTML() {
     // Loop through all the errors that have been captured but not yet
     // flushed.
     const errorMetaTags = []
@@ -38,13 +56,17 @@ export function makeGetServerInsertedHTML({
           ) : null
         )
       } else if (isRedirectError(error)) {
-        const redirectUrl = getURLFromRedirectError(error)
+        const redirectUrl = addPathPrefix(
+          getURLFromRedirectError(error),
+          basePath
+        )
         const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
           statusCode === RedirectStatusCode.PermanentRedirect ? true : false
         if (redirectUrl) {
           errorMetaTags.push(
             <meta
+              id="__next-page-redirect"
               httpEquiv="refresh"
               content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
               key={error.digest}
@@ -54,24 +76,47 @@ export function makeGetServerInsertedHTML({
       }
     }
 
-    const stream = await renderToReadableStream(
-      <>
-        {/* Insert the polyfills if they haven't been flushed yet. */}
-        {!polyfillsFlushed &&
-          polyfills?.map((polyfill) => {
-            return <script key={polyfill.src} {...polyfill} />
-          })}
-        {renderServerInsertedHTML()}
-        {errorMetaTags}
-      </>
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
     )
 
-    // Mark polyfills as flushed so they don't get flushed again.
-    if (!polyfillsFlushed) polyfillsFlushed = true
+    const serverInsertedHTML = renderServerInsertedHTML()
 
-    // Wait for the stream to be ready.
-    await stream.allReady
+    // Skip React rendering if we know the content is empty.
+    if (
+      polyfillTags.length === 0 &&
+      traceMetaTags.length === 0 &&
+      errorMetaTags.length === 0 &&
+      Array.isArray(serverInsertedHTML) &&
+      serverInsertedHTML.length === 0
+    ) {
+      return ''
+    }
 
+    const stream = await renderToReadableStream(
+      <>
+        {
+          /* Insert the polyfills if they haven't been flushed yet. */
+          hasFlushedInitially ? null : polyfillTags
+        }
+        {serverInsertedHTML}
+        {hasFlushedInitially ? null : traceMetaTags}
+        {errorMetaTags}
+      </>,
+      {
+        // Larger chunk because this isn't sent over the network.
+        // Let's set it to 1MB.
+        progressiveChunkSize: 1024 * 1024,
+      }
+    )
+
+    hasFlushedInitially = true
+
+    // There's no need to wait for the stream to be ready
+    // e.g. calling `await stream.allReady` because `streamToString` will
+    // wait and decode the stream progressively with better parallelism.
     return streamToString(stream)
   }
 }

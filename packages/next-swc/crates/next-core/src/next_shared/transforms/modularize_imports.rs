@@ -4,16 +4,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
-    swc::custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    swc::{
+        core::{
+            common::util::take::Take,
+            ecma::{
+                ast::{Module, Program},
+                visit::FoldWith,
+            },
+        },
+        custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    },
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
@@ -93,6 +95,7 @@ impl ModularizeImportsTransformer {
 
 #[async_trait]
 impl CustomTransformer for ModularizeImportsTransformer {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut modularize_imports(

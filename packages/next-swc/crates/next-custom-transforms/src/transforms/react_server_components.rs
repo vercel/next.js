@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::ecma::visit::VisitWith;
+use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -44,7 +44,8 @@ pub struct Options {
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
-/// server component. [NOTE] Turbopack uses ClientDirectiveTransformer for the
+/// server component.
+/// **NOTE** Turbopack uses ClientDirectiveTransformer for the
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
@@ -149,7 +150,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             props: vec![ObjectPatProp::Assign(AssignPatProp {
                                 span: DUMMY_SP,
-                                key: proxy_ident,
+                                key: proxy_ident.into(),
                                 value: None,
                             })],
                             optional: false,
@@ -169,11 +170,12 @@ impl<C: Comments> ReactServerComponents<C> {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
                         span: DUMMY_SP,
-                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                        left: MemberExpr {
                             span: DUMMY_SP,
                             obj: Box::new(Expr::Ident(quote_ident!("module"))),
                             prop: MemberProp::Ident(quote_ident!("exports")),
-                        }))),
+                        }
+                        .into(),
                         op: op!("="),
                         right: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
@@ -255,9 +257,9 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                     .unwrap_or_default();
 
                 let msg = if !is_app_dir {
-                    format!("You're importing a component that needs {}. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
+                    format!("You're importing a component that needs \"{}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
                 } else {
-                    format!("You're importing a component that needs {}. That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs \"{}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
                 };
                 (msg, span)
             }
@@ -265,7 +267,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 let msg = if source == "Component" {
                     "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
                 } else {
-                    format!("You're importing a component that needs {}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs `{}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n", source)
                 };
 
                 (msg,span)
@@ -470,9 +472,9 @@ struct ReactServerComponentValidator {
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
+    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<JsWord>,
-    invalid_server_react_apis: Vec<JsWord>,
-    invalid_server_react_dom_apis: Vec<JsWord>,
+    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
 }
 
@@ -483,42 +485,93 @@ impl ReactServerComponentValidator {
             filepath: filename,
             app_dir,
             directive_import_collection: None,
+            // react -> [apis]
+            // react-dom -> [apis]
+            // next/navigation -> [apis]
+            invalid_server_lib_apis_mapping: [
+                (
+                    "react",
+                    vec![
+                        "Component",
+                        "createContext",
+                        "createFactory",
+                        "PureComponent",
+                        "useDeferredValue",
+                        "useEffect",
+                        "useImperativeHandle",
+                        "useInsertionEffect",
+                        "useLayoutEffect",
+                        "useReducer",
+                        "useRef",
+                        "useState",
+                        "useSyncExternalStore",
+                        "useTransition",
+                        "useOptimistic",
+                        "useActionState",
+                    ],
+                ),
+                (
+                    "react-dom",
+                    vec![
+                        "flushSync",
+                        "unstable_batchedUpdates",
+                        "useFormStatus",
+                        "useFormState",
+                    ],
+                ),
+                (
+                    "next/navigation",
+                    vec![
+                        "useSearchParams",
+                        "usePathname",
+                        "useSelectedLayoutSegment",
+                        "useSelectedLayoutSegments",
+                        "useParams",
+                        "useRouter",
+                        "useServerInsertedHTML",
+                        "ServerInsertedHTMLContext",
+                    ],
+                ),
+            ]
+            .into(),
+
             invalid_server_imports: vec![
                 JsWord::from("client-only"),
                 JsWord::from("react-dom/client"),
                 JsWord::from("react-dom/server"),
                 JsWord::from("next/router"),
             ],
+
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
-            invalid_server_react_dom_apis: vec![
-                JsWord::from("findDOMNode"),
-                JsWord::from("flushSync"),
-                JsWord::from("unstable_batchedUpdates"),
-                JsWord::from("useFormStatus"),
-                JsWord::from("useFormState"),
-            ],
-            invalid_server_react_apis: vec![
-                JsWord::from("Component"),
-                JsWord::from("createContext"),
-                JsWord::from("createFactory"),
-                JsWord::from("PureComponent"),
-                JsWord::from("useDeferredValue"),
-                JsWord::from("useEffect"),
-                JsWord::from("useImperativeHandle"),
-                JsWord::from("useInsertionEffect"),
-                JsWord::from("useLayoutEffect"),
-                JsWord::from("useReducer"),
-                JsWord::from("useRef"),
-                JsWord::from("useState"),
-                JsWord::from("useSyncExternalStore"),
-                JsWord::from("useTransition"),
-                JsWord::from("useOptimistic"),
-            ],
+
+            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
         }
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
         Regex::new(r"node_modules[\\/]").unwrap().is_match(filepath)
+    }
+
+    // Asserts the server lib apis
+    // e.g.
+    // assert_invalid_server_lib_apis("react", import)
+    // assert_invalid_server_lib_apis("react-dom", import)
+    fn assert_invalid_server_lib_apis(&self, import_source: String, import: &ModuleImports) {
+        // keys of invalid_server_lib_apis_mapping
+        let invalid_apis = self
+            .invalid_server_lib_apis_mapping
+            .get(import_source.as_str());
+        if let Some(invalid_apis) = invalid_apis {
+            for specifier in &import.specifiers {
+                if invalid_apis.contains(&specifier.0.as_str()) {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextRscErrReactApi((specifier.0.to_string(), specifier.1)),
+                    );
+                }
+            }
+        }
     }
 
     fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
@@ -528,41 +581,16 @@ impl ReactServerComponentValidator {
         }
         for import in imports {
             let source = import.source.0.clone();
+            let source_str = source.to_string();
             if self.invalid_server_imports.contains(&source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
-                    RSCErrorKind::NextRscErrServerImport((source.to_string(), import.source.1)),
+                    RSCErrorKind::NextRscErrServerImport((source_str.clone(), import.source.1)),
                 );
             }
-            if source == *"react" {
-                for specifier in &import.specifiers {
-                    if self.invalid_server_react_apis.contains(&specifier.0) {
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrReactApi((
-                                specifier.0.to_string(),
-                                specifier.1,
-                            )),
-                        );
-                    }
-                }
-            }
-            if source == *"react-dom" {
-                for specifier in &import.specifiers {
-                    if self.invalid_server_react_dom_apis.contains(&specifier.0) {
-                        report_error(
-                            &self.app_dir,
-                            &self.filepath,
-                            RSCErrorKind::NextRscErrReactApi((
-                                specifier.0.to_string(),
-                                specifier.1,
-                            )),
-                        );
-                    }
-                }
-            }
+
+            self.assert_invalid_server_lib_apis(source_str, import);
         }
 
         self.assert_invalid_api(module, false);
@@ -576,6 +604,7 @@ impl ReactServerComponentValidator {
         let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
+
         if is_error_file {
             if let Some(app_dir) = &self.app_dir {
                 if let Some(app_dir) = app_dir.to_str() {
@@ -602,13 +631,30 @@ impl ReactServerComponentValidator {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            if self.invalid_client_imports.contains(&source) {
+            let source = &import.source.0;
+
+            if self.invalid_client_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
                     RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
                 );
+            }
+
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            if let Some(invalid_apis) = invalid_apis {
+                for specifier in &import.specifiers {
+                    if invalid_apis.contains(&specifier.0.as_str()) {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrClientImport((
+                                specifier.0.to_string(),
+                                specifier.1,
+                            )),
+                        );
+                    }
+                }
             }
         }
     }
@@ -726,6 +772,14 @@ impl ReactServerComponentValidator {
 
 impl Visit for ReactServerComponentValidator {
     noop_visit_type!();
+
+    // coerce parsed script to run validation for the context, which is still
+    // required even if file is empty
+    fn visit_script(&mut self, script: &swc_core::ecma::ast::Script) {
+        if script.body.is_empty() {
+            self.visit_module(&Module::dummy());
+        }
+    }
 
     fn visit_module(&mut self, module: &Module) {
         let (is_client_entry, is_action_file, imports, export_names) =

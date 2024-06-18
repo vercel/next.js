@@ -1,11 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::fonts::*;
-use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-    turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use turbopack_binding::{
+    swc::core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
+    turbopack::{
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
+        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+    },
 };
 
 use super::module_rule_match_js_no_url;
@@ -38,6 +40,7 @@ struct NextJsFont {
 
 #[async_trait]
 impl CustomTransformer for NextJsFont {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_font", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let mut next_font = next_font_loaders(Config {
             font_loaders: self.font_loaders.clone(),

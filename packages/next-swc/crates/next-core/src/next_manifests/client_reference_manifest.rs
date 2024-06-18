@@ -1,15 +1,15 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_binding::turbopack::{
     core::{
         asset::AssetContent,
-        chunk::{ChunkItemExt, ChunkableModule, ModuleId as TurbopackModuleId},
+        chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId as TurbopackModuleId},
         output::OutputAsset,
         virtual_output::VirtualOutputAsset,
     },
-    ecmascript::{chunk::EcmascriptChunkingContext, utils::StringifyJs},
+    ecmascript::utils::StringifyJs,
 };
 
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
@@ -26,11 +26,11 @@ impl ClientReferenceManifest {
     pub async fn build_output(
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
-        entry_name: String,
+        entry_name: RcStr,
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
-        client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        ssr_chunking_context: Option<Vc<Box<dyn EcmascriptChunkingContext>>>,
+        client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+        ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
         runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
@@ -39,7 +39,7 @@ impl ClientReferenceManifest {
             .computed_asset_prefix()
             .await?
             .as_ref()
-            .map(|p| p.to_owned())
+            .map(|p| p.clone())
             .unwrap_or_default();
 
         entry_manifest.module_loading.cross_origin = next_config
@@ -90,6 +90,7 @@ impl ClientReferenceManifest {
                         // It's possible that a chunk also emits CSS files, that will
                         // be handled separatedly.
                         .filter(|path| path.ends_with(".js"))
+                        .map(RcStr::from)
                         .collect::<Vec<_>>()
                 } else {
                     Vec::new()
@@ -97,7 +98,7 @@ impl ClientReferenceManifest {
                 entry_manifest.client_modules.module_exports.insert(
                     get_client_reference_module_key(&server_path, "*"),
                     ManifestNodeEntry {
-                        name: "*".to_string(),
+                        name: "*".into(),
                         id: (&*client_module_id).into(),
                         chunks: client_chunks_paths,
                         // TODO(WEB-434)
@@ -134,15 +135,16 @@ impl ClientReferenceManifest {
                             .iter()
                             .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
                             .map(ToString::to_string)
+                            .map(RcStr::from)
                             .collect::<Vec<_>>()
                     } else {
                         Vec::new()
                     };
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
-                        "*".to_string(),
+                        "*".into(),
                         ManifestNodeEntry {
-                            name: "*".to_string(),
+                            name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
                             // TODO(WEB-434)
@@ -180,7 +182,7 @@ impl ClientReferenceManifest {
 
             let server_component_name = server_component
                 .server_path()
-                .with_extension("".to_string())
+                .with_extension("".into())
                 .to_string()
                 .await?;
 
@@ -196,7 +198,7 @@ impl ClientReferenceManifest {
 
             for chunk_path in client_chunks_paths {
                 if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
-                    let path = path.to_string();
+                    let path = path.into();
                     if chunk_path.extension_ref() == Some("css") {
                         entry_css_files.insert(path);
                     } else {
@@ -208,17 +210,24 @@ impl ClientReferenceManifest {
 
         let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
 
+        // We put normalized path for the each entry key and the manifest output path,
+        // to conform next.js's load client reference manifest behavior:
+        // https://github.com/vercel/next.js/blob/2f9d718695e4c90be13c3bf0f3647643533071bf/packages/next/src/server/load-components.ts#L162-L164
+        // note this only applies to the manifests, assets are placed to the original
+        // path still (same as webpack does)
+        let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(Vc::upcast(VirtualOutputAsset::new(
-            node_root.join(format!(
-                "server/app/{entry_name}_client-reference-manifest.js",
-            )),
+            node_root.join(
+                format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
+                    .into(),
+            ),
             AssetContent::file(
                 File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
                         globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
                     "#,
-                    entry_name = StringifyJs(&entry_name),
+                    entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json
                 })
                 .into(),
@@ -237,10 +246,10 @@ impl From<&TurbopackModuleId> for ModuleId {
 }
 
 /// See next.js/packages/next/src/lib/client-reference.ts
-pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> String {
+pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> RcStr {
     if export_name == "*" {
-        server_path.to_string()
+        server_path.into()
     } else {
-        format!("{}#{}", server_path, export_name)
+        format!("{}#{}", server_path, export_name).into()
     }
 }

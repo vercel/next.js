@@ -4,7 +4,7 @@ import { getSocketUrl } from './get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
-  const webSocketRef = useRef<WebSocket>()
+  const webSocketRef = useRef<WebSocket>(undefined)
 
   useEffect(() => {
     if (webSocketRef.current) {
@@ -33,7 +33,10 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
   return sendMessage
 }
 
-export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
+export function useTurbopack(
+  sendMessage: ReturnType<typeof useSendMessage>,
+  onUpdateError: (err: unknown) => void
+) {
   const turbopackState = useRef<{
     init: boolean
     queue: Array<TurbopackMsgToBrowser> | undefined
@@ -78,9 +81,10 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
           current.queue = undefined
         },
         sendMessage,
+        onUpdateError,
       })
     })
-  }, [sendMessage])
+  }, [sendMessage, onUpdateError])
 
   return processTurbopackMessage
 }

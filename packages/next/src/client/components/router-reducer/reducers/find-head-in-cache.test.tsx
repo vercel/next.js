@@ -29,6 +29,11 @@ describe('findHeadInCache', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
+      head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -39,6 +44,11 @@ describe('findHeadInCache', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
+                head: null,
+                layerAssets: null,
+                prefetchLayerAssets: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -47,6 +57,11 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           lazyData: null,
+                          head: null,
+                          layerAssets: null,
+                          prefetchLayerAssets: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -57,12 +72,16 @@ describe('findHeadInCache', () => {
                                     lazyData: null,
                                     rsc: null,
                                     prefetchRsc: null,
+                                    prefetchHead: null,
+                                    loading: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
                                         <title>About page!</title>
                                       </>
                                     ),
+                                    layerAssets: null,
+                                    prefetchLayerAssets: null,
                                   },
                                 ],
                               ]),

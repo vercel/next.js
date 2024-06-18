@@ -52,7 +52,7 @@ export function initNextServerScript(
       'node',
       [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
-        env,
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -191,6 +191,12 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+
+  /**
+   * If true, this enables the linting step in the build process. If false or
+   * undefined, it adds a `--no-lint` flag to the build command.
+   */
+  lint?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -413,7 +419,7 @@ export function runNextCommandDev(
   })
 }
 
-// Launch the app in dev mode.
+// Launch the app in development mode.
 export function launchApp(
   dir: string,
   port: string | number,
@@ -428,12 +434,11 @@ export function launchApp(
       dir,
       '-p',
       port as string,
+      '--hostname',
+      '::',
     ].filter(Boolean),
     undefined,
-    {
-      ...options,
-      turbo: useTurbo,
-    }
+    { ...options, turbo: useTurbo }
   )
 }
 
@@ -442,6 +447,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  // If the build hasn't requested it to be linted explicitly, disable linting
+  // if it's not already disabled.
+  if (!opts.lint && !args.includes('--no-lint')) {
+    args.push('--no-lint')
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -453,15 +464,30 @@ export function nextLint(
   return runNextCommand(['lint', dir, ...args], opts)
 }
 
+export function nextTest(
+  dir: string,
+  args: string[] = [],
+  opts: NextOptions = {}
+) {
+  return runNextCommand(['experimental-test', dir, ...args], {
+    ...opts,
+    env: {
+      JEST_WORKER_ID: undefined, // Playwright complains about being executed by Jest
+      ...opts.env,
+    },
+  })
+}
+
 export function nextStart(
   dir: string,
   port: string | number,
   opts: NextDevOptions = {}
 ) {
-  return runNextCommandDev(['start', '-p', port as string, dir], undefined, {
-    ...opts,
-    nextStart: true,
-  })
+  return runNextCommandDev(
+    ['start', '-p', port as string, '--hostname', '::', dir],
+    undefined,
+    { ...opts, nextStart: true }
+  )
 }
 
 export function buildTS(
@@ -529,6 +555,9 @@ export async function killApp(
   instance?: ChildProcess,
   signal: NodeJS.Signals | number = 'SIGKILL'
 ) {
+  if (!instance) {
+    return
+  }
   if (
     instance?.pid &&
     instance.exitCode === null &&
@@ -538,6 +567,23 @@ export async function killApp(
     await killProcess(instance.pid, signal)
     await exitPromise
   }
+}
+
+async function startListen(server: http.Server, port?: number) {
+  const listenerPromise = new Promise((resolve) => {
+    server['__socketSet'] = new Set()
+    const listener = server.listen(port, () => {
+      resolve(null)
+    })
+
+    listener.on('connection', function (socket) {
+      server['__socketSet'].add(socket)
+      socket.on('close', () => {
+        server['__socketSet'].delete(socket)
+      })
+    })
+  })
+  await listenerPromise
 }
 
 export async function startApp(app: NextServer) {
@@ -553,15 +599,31 @@ export async function startApp(app: NextServer) {
   const server = http.createServer(handler)
   server['__app'] = app
 
-  await promisify(server.listen).apply(server)
+  await startListen(server)
 
   return server
 }
 
-export async function stopApp(server: http.Server) {
+export async function stopApp(server: http.Server | undefined) {
+  if (!server) {
+    return
+  }
+
   if (server['__app']) {
     await server['__app'].close()
   }
+
+  // Node.js's http::close() prevents new connections from being accepted,
+  // but doesn't close existing connections and if there are any leftover
+  // whole process teardown will wait until it's being closed.
+  // Instead, force close connections since this is teardown fn that we expect
+  // any connections to be closed already.
+  server['__socketSet']?.forEach(function (socket) {
+    if (!socket.closed && !socket.destroyed) {
+      socket.destroy()
+    }
+  })
+
   await promisify(server.close).apply(server)
 }
 
@@ -584,7 +646,7 @@ export async function startStaticServer(
     })
   }
 
-  await promisify(server.listen).call(server, fixedPort)
+  await startListen(server, fixedPort)
   return server
 }
 
@@ -593,7 +655,7 @@ export async function startCleanStaticServer(dir: string) {
   const server = http.createServer(app)
   app.use(express.static(dir, { extensions: ['html'] }))
 
-  await promisify(server.listen).apply(server)
+  await startListen(server)
   return server
 }
 
@@ -747,12 +809,28 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
         .call(document.querySelectorAll('nextjs-portal'))
         .find((p) =>
           p.shadowRoot.querySelector(
-            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+            '#nextjs__container_errors_label, #nextjs__container_errors_label'
           )
         )
     )
   })
   return result
+}
+
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
@@ -774,6 +852,13 @@ export async function getRedboxHeader(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  return parseInt(
+    (await getRedboxHeader(browser)).match(/\d+ of (\d+) error/)?.[1],
+    10
+  )
+}
+
 export async function getRedboxSource(browser: BrowserInterface) {
   return retry(
     () =>
@@ -782,7 +867,7 @@ export async function getRedboxSource(browser: BrowserInterface) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_errors_label'
             )
           )
         const root = portal.shadowRoot
@@ -818,6 +903,27 @@ export async function getRedboxDescription(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__notes'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
 export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
@@ -841,11 +947,11 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.TURBOPACK) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }
@@ -972,9 +1078,12 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runSuite(suiteName, { appDir, env: 'prod' }, options)
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      runSuite(suiteName, { appDir, env: 'prod' }, options)
+    }
+  )
 }
 
 /**
@@ -1017,18 +1126,26 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
+    '[data-nextjs-container-errors-pseudo-html] code',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
+    '[data-nextjs-container-errors-pseudo-html] code'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function toggleCollapseComponentStack(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser
+    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+    .click()
 }
 
 export async function expandCallStack(
@@ -1064,6 +1181,34 @@ export async function getVersionCheckerText(
   )
   const versionCheckerText = await versionCheckerElement.innerText()
   return versionCheckerText.trim()
+}
+
+export function colorToRgb(color) {
+  switch (color) {
+    case 'blue':
+      return 'rgb(0, 0, 255)'
+    case 'red':
+      return 'rgb(255, 0, 0)'
+    case 'green':
+      return 'rgb(0, 128, 0)'
+    case 'yellow':
+      return 'rgb(255, 255, 0)'
+    case 'purple':
+      return 'rgb(128, 0, 128)'
+    case 'black':
+      return 'rgb(0, 0, 0)'
+    default:
+      throw new Error('Unknown color')
+  }
+}
+
+export function getUrlFromBackgroundImage(backgroundImage: string) {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g).map((match) => {
+    // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
+    return match.slice(5, -2)
+  })
+
+  return matches
 }
 
 /**

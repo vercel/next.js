@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::options::{FontDescriptors, NextFontLocalOptions};
 use crate::next_font::{
@@ -15,34 +15,33 @@ pub(super) async fn build_stylesheet(
     options: Vc<NextFontLocalOptions>,
     fallbacks: Vc<FontFallbacks>,
     css_properties: Vc<FontCssProperties>,
-    request_hash: Vc<u32>,
-) -> Result<Vc<String>> {
-    let scoped_font_family = get_scoped_font_family(
-        FontFamilyType::WebFont.cell(),
-        options.font_family(),
-        request_hash,
-    );
+) -> Result<Vc<RcStr>> {
+    let scoped_font_family =
+        get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
 
-    Ok(Vc::cell(formatdoc!(
-        r#"
+    Ok(Vc::cell(
+        formatdoc!(
+            r#"
             {}
             {}
             {}
         "#,
-        *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
-            .await?,
-        (*build_fallback_definition(fallbacks).await?),
-        *build_font_class_rules(css_properties).await?
-    )))
+            *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
+                .await?,
+            (*build_fallback_definition(fallbacks).await?),
+            *build_font_class_rules(css_properties).await?
+        )
+        .into(),
+    ))
 }
 
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     options: Vc<NextFontLocalOptions>,
     has_size_adjust: Vc<bool>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
 
     let mut definitions = String::new();
@@ -87,7 +86,7 @@ pub(super) async fn build_font_face_definitions(
         ));
     }
 
-    Ok(Vc::cell(definitions))
+    Ok(Vc::cell(definitions.into()))
 }
 
 /// Used as e.g. `format('woff')` in `src` properties in `@font-face`

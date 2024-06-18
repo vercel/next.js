@@ -134,12 +134,22 @@ function runTests(mode) {
         {
           imagesizes: '',
           imagesrcset:
+            '/_next/image?url=%2Ftest.gif&w=640&q=75 1x, /_next/image?url=%2Ftest.gif&w=828&q=75 2x',
+        },
+        {
+          imagesizes: '',
+          imagesrcset:
             '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
         },
         {
           imagesizes: '100vw',
           imagesrcset:
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        },
+        {
+          imagesizes: '',
+          imagesrcset:
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
         },
       ])
 
@@ -166,6 +176,9 @@ function runTests(mode) {
       expect(
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
 
       const warnings = (await browser.log())
         .map((log) => log.message)
@@ -177,7 +190,7 @@ function runTests(mode) {
       // should preload with crossorigin
       expect(
         await browser.elementsByCss(
-          'link[rel=preload][as=image][crossorigin=anonymous][imagesrcset*="test.jpg"]'
+          'link[rel=preload][as=image][crossorigin=use-credentials][imagesrcset*="test.gif"]'
         )
       ).toHaveLength(1)
 
@@ -398,7 +411,7 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onError when error occured while loading image', async () => {
+  it('should callback native onError when error occurred while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
 
     await check(
@@ -412,11 +425,11 @@ function runTests(mode) {
     )
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occured'
+      'no error occurred'
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occured while loading img2'
+      'error occurred while loading img2'
     )
   })
 
@@ -915,9 +928,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -934,12 +946,10 @@ function runTests(mode) {
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 
@@ -1472,27 +1482,33 @@ function runTests(mode) {
 }
 
 describe('Image Component Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

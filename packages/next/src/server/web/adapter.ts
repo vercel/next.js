@@ -1,8 +1,8 @@
-import type { NextMiddleware, RequestData, FetchEventResult } from './types'
+import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
-import { fromNodeOutgoingHttpHeaders } from './utils'
+import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
@@ -12,14 +12,18 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
-import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
 import { ensureInstrumentationRegistered } from './globals'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
+import {
+  withRequestStore,
+  type WrapperRenderOpts,
+} from '../async-storage/with-request-store'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
+import { MiddlewareSpan } from '../lib/trace/constants'
+import { CloseController } from './web-on-close'
 
-class NextRequestHint extends NextRequest {
+export class NextRequestHint extends NextRequest {
   sourcePage: string
   fetchMetrics?: FetchEventResult['fetchMetrics']
 
@@ -51,7 +55,7 @@ const headersGetter: TextMapGetter<Headers> = {
 }
 
 export type AdapterOptions = {
-  handler: NextMiddleware
+  handler: (req: NextRequestHint, event: NextFetchEvent) => Promise<Response>
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
@@ -107,27 +111,23 @@ export async function adapter(
   for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
-    if (
-      key !== NEXT_QUERY_PARAM_PREFIX &&
-      key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-    ) {
-      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
+    normalizeNextQueryParam(key, (normalizedKey) => {
       requestUrl.searchParams.delete(normalizedKey)
 
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
       requestUrl.searchParams.delete(key)
-    }
+    })
   }
 
   // Ensure users only see page requests, never data requests.
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq = params.request.headers['x-nextjs-data']
+  const isNextDataRequest = params.request.headers['x-nextjs-data']
 
-  if (isDataReq && requestUrl.pathname === '/index') {
+  if (isNextDataRequest && requestUrl.pathname === '/index') {
     requestUrl.pathname = '/'
   }
 
@@ -169,7 +169,7 @@ export async function adapter(
    * need to know about this property neither use it. We add it for testing
    * purposes.
    */
-  if (isDataReq) {
+  if (isNextDataRequest) {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
@@ -212,24 +212,73 @@ export async function adapter(
     // we only care to make async storage available for middleware
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
+
     if (isMiddleware) {
-      return RequestAsyncStorageWrapper.wrap(
-        requestAsyncStorage,
+      // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
+      // so we have to inject it via DefinePlugin.
+      // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
+      const isAfterEnabled =
+        params.request.nextConfig?.experimental?.after ??
+        !!process.env.__NEXT_AFTER
+
+      let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
+      let closeController: CloseController | undefined = undefined
+
+      if (isAfterEnabled) {
+        waitUntil = event.waitUntil.bind(event)
+        closeController = new CloseController()
+      }
+
+      return getTracer().trace(
+        MiddlewareSpan.execute,
         {
-          req: request,
-          renderOpts: {
-            onUpdateCookies: (cookies) => {
-              cookiesFromResponse = cookies
-            },
-            // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-            previewProps: prerenderManifest?.preview || {
+          spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
+          attributes: {
+            'http.target': request.nextUrl.pathname,
+            'http.method': request.method,
+          },
+        },
+        async () => {
+          try {
+            const previewProps = prerenderManifest?.preview || {
               previewModeId: 'development-id',
               previewModeEncryptionKey: '',
               previewModeSigningKey: '',
-            },
-          },
-        },
-        () => params.handler(request, event)
+            }
+
+            return await withRequestStore(
+              requestAsyncStorage,
+              {
+                req: request,
+                url: request.nextUrl,
+                renderOpts: {
+                  onUpdateCookies: (cookies) => {
+                    cookiesFromResponse = cookies
+                  },
+                  previewProps,
+                  waitUntil,
+                  onClose: closeController
+                    ? closeController.onClose.bind(closeController)
+                    : undefined,
+                  experimental: {
+                    after: isAfterEnabled,
+                  },
+                },
+              },
+              () => params.handler(request, event)
+            )
+          } finally {
+            // middleware cannot stream, so we can consider the response closed
+            // as soon as the handler returns.
+            if (closeController) {
+              // we can delay running it until a bit later --
+              // if it's needed, we'll have a `waitUntil` lock anyway.
+              setTimeout(() => {
+                closeController!.dispatchClose()
+              }, 0)
+            }
+          }
+        }
       )
     }
     return params.handler(request, event)
@@ -276,7 +325,7 @@ export async function adapter(
     )
 
     if (
-      isDataReq &&
+      isNextDataRequest &&
       // if the rewrite is external and external rewrite
       // resolving config is enabled don't add this header
       // so the upstream app can set it instead
@@ -320,7 +369,7 @@ export async function adapter(
      * it may end up with CORS error. Instead we map to an internal header so
      * the client knows the destination.
      */
-    if (isDataReq) {
+    if (isNextDataRequest) {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',

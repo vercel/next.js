@@ -1,3 +1,9 @@
+import Link from 'next/link'
+
 export default function Page() {
-  return 'hello world'
+  return (
+    <>
+      <Link href={'/link'}>/link</Link>
+    </>
+  )
 }

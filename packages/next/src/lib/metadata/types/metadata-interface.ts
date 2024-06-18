@@ -1,5 +1,6 @@
 import type {
   AlternateURLs,
+  Languages,
   ResolvedAlternateURLs,
 } from './alternative-urls-types'
 import type {
@@ -580,6 +581,9 @@ type SitemapFile = Array<{
     | 'yearly'
     | 'never'
   priority?: number
+  alternates?: {
+    languages?: Languages<string>
+  }
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>

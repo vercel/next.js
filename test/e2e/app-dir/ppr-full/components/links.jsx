@@ -1,8 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
 
-const links = [
+export const links = [
   { href: '/', tag: 'pre-generated' },
+  { href: '/metadata', tag: 'pre-generated' },
   { href: '/nested/a', tag: 'pre-generated' },
   { href: '/nested/b', tag: 'on-demand' },
   { href: '/nested/c', tag: 'on-demand' },
