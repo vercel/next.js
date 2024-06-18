@@ -7,7 +7,10 @@ use turbo_tasks_fs::File;
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
-        chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+        chunk::{
+            AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+            EvaluatableAsset,
+        },
         code_builder::CodeBuilder,
         context::AssetContext,
         ident::AssetIdent,
@@ -65,7 +68,7 @@ impl EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn proxy_module(&self) -> Result<Vc<EcmascriptModuleAsset>> {
+    async fn proxy_module(&self) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
         let mut code = CodeBuilder::default();
 
         let server_module_path = &*self.server_module_ident.path().to_string().await?;
@@ -156,7 +159,7 @@ impl EcmascriptClientReferenceProxyModule {
             .module();
 
         let Some(proxy_module) =
-            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(proxy_module).await?
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(proxy_module).await?
         else {
             bail!("proxy asset is not an ecmascript module");
         };
