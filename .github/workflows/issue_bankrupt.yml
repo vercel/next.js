@@ -2,9 +2,14 @@ name: 'Bankrupt issues'
 
 on:
   workflow_dispatch:
+    inputs:
+      created:
+        description: 'github created range'
+        required: true
+        type: string
 
 jobs:
-  run:
+  bankrupt:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
