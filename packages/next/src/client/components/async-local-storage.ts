@@ -29,7 +29,8 @@ class FakeAsyncLocalStorage<Store extends {}>
   }
 }
 
-const maybeGlobalAsyncLocalStorage = globalThis && (globalThis as any).AsyncLocalStorage
+const maybeGlobalAsyncLocalStorage =
+  globalThis && (globalThis as any).AsyncLocalStorage
 
 export function createAsyncLocalStorage<
   Store extends {},
