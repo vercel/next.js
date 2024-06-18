@@ -3,17 +3,12 @@ import { check, retry } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 
 describe('app dir - basepath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
