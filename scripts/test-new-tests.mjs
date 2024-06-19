@@ -7,8 +7,7 @@ import yargs from 'yargs'
 async function main() {
   let argv = await yargs(process.argv.slice(2))
     .boolean('--dev-mode')
-    .string('g')
-    .alias('g', 'group').argv
+    .string('group').argv
 
   let testMode = argv['--dev-mode'] ? 'dev' : 'start'
   const rawGroup = argv['group']
@@ -137,7 +136,7 @@ async function main() {
       if (
         smallestGroup &&
         fileGroups[i] &&
-        fileGroups[i].length < smallestGroup?.length
+        fileGroups[i].length < smallestGroup.length
       ) {
         smallestGroup = fileGroups[i]
         smallestGroupIdx = i
