@@ -36,7 +36,10 @@ pub async fn get_browser_runtime_code(
         asset_context,
         match chunk_loading {
             ChunkLoading::Edge => "dev/runtime/edge/runtime-backend-edge.ts".into(),
-            ChunkLoading::NodeJs => "dev/runtime/nodejs/runtime-backend-nodejs.ts".into(),
+            // This case should never be hit.
+            ChunkLoading::NodeJs => {
+                panic!("Node.js runtime is not supported in the browser runtime!")
+            }
             ChunkLoading::Dom => "dev/runtime/dom/runtime-backend-dom.ts".into(),
         },
     );
