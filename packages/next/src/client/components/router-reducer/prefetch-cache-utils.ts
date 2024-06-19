@@ -110,12 +110,7 @@ export function getOrCreatePrefetchCacheEntry({
     buildId,
     nextUrl,
     prefetchCache,
-    kind:
-      kind ||
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      (process.env.NODE_ENV === 'development'
-        ? PrefetchKind.AUTO
-        : PrefetchKind.TEMPORARY),
+    kind: kind || PrefetchKind.TEMPORARY,
   })
 }
 
@@ -168,7 +163,7 @@ export function createPrefetchCacheEntryForInitialLoad({
     data: Promise.resolve(data),
     kind,
     prefetchTime: Date.now(),
-    lastUsedTime: null,
+    lastUsedTime: Date.now(),
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
   }
@@ -243,31 +238,38 @@ export function prunePrefetchCache(
   }
 }
 
-const FIVE_MINUTES = 5 * 60 * 1000
-const THIRTY_SECONDS = 30 * 1000
+// These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
+// and default to 5 minutes (static) / 0 seconds (dynamic)
+const DYNAMIC_STALETIME_MS =
+  Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
+
+const STATIC_STALETIME_MS =
+  Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME) * 1000
 
 function getPrefetchEntryCacheStatus({
   kind,
   prefetchTime,
   lastUsedTime,
 }: PrefetchCacheEntry): PrefetchCacheEntryStatus {
-  // if the cache entry was prefetched or read less than 30s ago, then we want to re-use it
-  if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
+  // We will re-use the cache entry data for up to the `dynamic` staletime window.
+  if (Date.now() < (lastUsedTime ?? prefetchTime) + DYNAMIC_STALETIME_MS) {
     return lastUsedTime
       ? PrefetchCacheEntryStatus.reusable
       : PrefetchCacheEntryStatus.fresh
   }
 
-  // if the cache entry was prefetched less than 5 mins ago, then we want to re-use only the loading state
+  // For "auto" prefetching, we'll re-use only the loading boundary for up to `static` staletime window.
+  // A stale entry will only re-use the `loading` boundary, not the full data.
+  // This will trigger a "lazy fetch" for the full data.
   if (kind === 'auto') {
-    if (Date.now() < prefetchTime + FIVE_MINUTES) {
+    if (Date.now() < prefetchTime + STATIC_STALETIME_MS) {
       return PrefetchCacheEntryStatus.stale
     }
   }
 
-  // if the cache entry was prefetched less than 5 mins ago and was a "full" prefetch, then we want to re-use it "full
+  // for "full" prefetching, we'll re-use the cache entry data for up to `static` staletime window.
   if (kind === 'full') {
-    if (Date.now() < prefetchTime + FIVE_MINUTES) {
+    if (Date.now() < prefetchTime + STATIC_STALETIME_MS) {
       return PrefetchCacheEntryStatus.reusable
     }
   }

@@ -9,7 +9,7 @@ use super::get_ecma_transform_rule;
 use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfig};
 
 pub async fn get_emotion_transform_rule(next_config: Vc<NextConfig>) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let module_rule = next_config
         .await?
         .compiler

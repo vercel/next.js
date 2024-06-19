@@ -8,15 +8,10 @@ import MoreStories from "./more-stories";
 import Onboarding from "./onboarding";
 import PortableText from "./portable-text";
 
+import type { HeroQueryResult, SettingsQueryResult } from "@/sanity.types";
 import * as demo from "@/sanity/lib/demo";
 import { sanityFetch } from "@/sanity/lib/fetch";
-import {
-  HeroQueryResponse,
-  Post,
-  SettingsQueryResponse,
-  heroQuery,
-  settingsQuery,
-} from "@/sanity/lib/queries";
+import { heroQuery, settingsQuery } from "@/sanity/lib/queries";
 
 function Intro(props: { title: string | null | undefined; description: any }) {
   const title = props.title || demo.title;
@@ -46,7 +41,7 @@ function HeroPost({
   date,
   author,
 }: Pick<
-  Post,
+  Exclude<HeroQueryResult, null>,
   "title" | "coverImage" | "date" | "excerpt" | "author" | "slug"
 >) {
   return (
@@ -80,10 +75,10 @@ function HeroPost({
 
 export default async function Page() {
   const [settings, heroPost] = await Promise.all([
-    sanityFetch<SettingsQueryResponse>({
+    sanityFetch<SettingsQueryResult>({
       query: settingsQuery,
     }),
-    sanityFetch<HeroQueryResponse>({ query: heroQuery }),
+    sanityFetch<HeroQueryResult>({ query: heroQuery }),
   ]);
 
   return (

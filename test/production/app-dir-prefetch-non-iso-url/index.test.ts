@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import { BrowserInterface } from '../../lib/browsers/base'
 import webdriver from 'next-webdriver'

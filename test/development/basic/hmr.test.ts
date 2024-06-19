@@ -13,7 +13,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { outdent } from 'outdent'
 
 describe.each([[''], ['/docs']])(
@@ -32,15 +32,22 @@ describe.each([[''], ['/docs']])(
     afterAll(() => next.destroy())
 
     it('should show hydration error correctly', async () => {
-      const browser = await webdriver(next.url, basePath + '/hydration-error')
-      await check(async () => {
+      const browser = await webdriver(next.url, basePath + '/hydration-error', {
+        pushErrorAsConsoleLog: true,
+      })
+      await retry(async () => {
         const logs = await browser.log()
-        return logs.some((log) =>
-          log.message.includes('messages/react-hydration-error')
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
+              source: 'error',
+            },
+          ])
         )
-          ? 'success'
-          : JSON.stringify(logs, null, 2)
-      }, 'success')
+      })
     })
 
     it('should have correct router.isReady for auto-export page', async () => {
@@ -224,9 +231,8 @@ describe.each([[''], ['/docs']])(
             try {
               // Check whether the this page has reloaded or not.
               await check(async () => {
-                const editedPTag = await browser.elementByCss(
-                  '.hmr-style-page p'
-                )
+                const editedPTag =
+                  await browser.elementByCss('.hmr-style-page p')
                 return editedPTag.getComputedCss('font-size')
               }, /200px/)
             } finally {
@@ -319,9 +325,8 @@ describe.each([[''], ['/docs']])(
               basePath + '/hmr/style-dynamic-component'
             )
             // Check whether the this page has reloaded or not.
-            const editedDiv = await secondBrowser.elementByCss(
-              '#dynamic-component'
-            )
+            const editedDiv =
+              await secondBrowser.elementByCss('#dynamic-component')
             const editedClientClassName = await editedDiv.getAttribute('class')
             const editedFontSize = await editedDiv.getComputedCss('font-size')
             const browserHtml = await secondBrowser.eval(

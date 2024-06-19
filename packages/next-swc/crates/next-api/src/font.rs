@@ -1,6 +1,6 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileSystemPath},
     turbopack::core::{
@@ -34,27 +34,25 @@ pub(crate) async fn create_font_manifest(
             .collect();
 
     let path = if app_dir {
-        node_root.join(format!(
-            "server/app{manifest_path_prefix}/next-font-manifest.json",
-        ))
+        node_root.join(format!("server/app{manifest_path_prefix}/next-font-manifest.json",).into())
     } else {
-        node_root.join(format!(
-            "server/pages{manifest_path_prefix}/next-font-manifest.json"
-        ))
+        node_root.join(format!("server/pages{manifest_path_prefix}/next-font-manifest.json").into())
     };
 
     let has_fonts = !font_paths.is_empty();
     let using_size_adjust = font_paths.iter().any(|path| path.contains("-s"));
+
     let font_paths = font_paths
         .into_iter()
         .filter(|path| path.contains(".p."))
+        .map(RcStr::from)
         .collect::<Vec<_>>();
 
     let next_font_manifest = if !has_fonts {
         Default::default()
     } else if app_dir {
         let dir_str = dir.to_string().await?;
-        let page_path = format!("{}{}", dir_str, original_name);
+        let page_path = format!("{}{}", dir_str, original_name).into();
 
         NextFontManifest {
             app: [(page_path, font_paths)].into_iter().collect(),
@@ -63,7 +61,7 @@ pub(crate) async fn create_font_manifest(
         }
     } else {
         NextFontManifest {
-            pages: [(pathname.to_string(), font_paths)].into_iter().collect(),
+            pages: [(pathname.into(), font_paths)].into_iter().collect(),
             pages_using_size_adjust: using_size_adjust,
             ..Default::default()
         }

@@ -16,13 +16,10 @@ workspace = true
 anyhow = { workspace = true, features = ["backtrace"] }
 futures = { workspace = true }
 indexmap = { workspace = true }
-indoc = { workspace = true }
 next-core = { workspace = true }
-once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 shadow-rs = { workspace = true }
-tokio = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_memory",
   "__turbo_tasks_env",
@@ -37,7 +34,6 @@ turbopack-binding = { workspace = true, features = [
 ] }
 turbo-tasks = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 
 [build-dependencies]
 # It is not a mistake this dependency is specified in dep / build-dep both.

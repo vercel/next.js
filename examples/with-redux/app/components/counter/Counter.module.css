@@ -69,7 +69,9 @@
   left: 0;
   top: 0;
   opacity: 0;
-  transition: width 1s linear, opacity 0.5s ease 1s;
+  transition:
+    width 1s linear,
+    opacity 0.5s ease 1s;
 }
 
 .asyncButton:active:after {

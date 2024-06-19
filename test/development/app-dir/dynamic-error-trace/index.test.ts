@@ -1,4 +1,4 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxCallStack,
   hasRedbox,
@@ -7,9 +7,8 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-createNextDescribe(
-  'app dir - dynamic error trace',
-  {
+describe('app dir - dynamic error trace', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: 'latest',
@@ -25,18 +24,18 @@ createNextDescribe(
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
     skipDeployment: true,
-  },
-  ({ next }) => {
-    it('should show the error trace', async () => {
-      const browser = await next.browser('/')
-      await hasRedbox(browser)
-      await expandCallStack(browser)
-      const callStack = await getRedboxCallStack(browser)
+  })
+  if (skipped) return
 
-      expect(callStack).toContain('node_modules/headers-lib/index.mjs')
+  it('should show the error trace', async () => {
+    const browser = await next.browser('/')
+    await hasRedbox(browser)
+    await expandCallStack(browser)
+    const callStack = await getRedboxCallStack(browser)
 
-      const source = await getRedboxSource(browser)
-      expect(source).toContain('app/lib.js')
-    })
-  }
-)
+    expect(callStack).toContain('node_modules/headers-lib/index.mjs')
+
+    const source = await getRedboxSource(browser)
+    expect(source).toContain('app/lib.js')
+  })
+})

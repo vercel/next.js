@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -64,6 +60,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:1:1
         Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            | ^
+          2 | module.exports = dns
 
         https://nextjs.org/docs/messages/module-not-found
 

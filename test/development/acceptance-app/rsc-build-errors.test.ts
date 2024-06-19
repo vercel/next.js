@@ -7,10 +7,6 @@ import { outdent } from 'outdent'
 describe('Error overlay - RSC build errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -262,6 +258,7 @@ describe('Error overlay - RSC build errors', () => {
     'useSyncExternalStore',
     'useTransition',
     'useOptimistic',
+    'useActionState',
   ]
   for (const api of invalidReactServerApis) {
     it(`should error when ${api} from react is used in server component`, async () => {
@@ -276,7 +273,7 @@ describe('Error overlay - RSC build errors', () => {
         // `Component` has a custom error message
         api === 'Component'
           ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+          : `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
 
       await cleanup()
@@ -284,7 +281,6 @@ describe('Error overlay - RSC build errors', () => {
   }
 
   const invalidReactDomServerApis = [
-    'findDOMNode',
     'flushSync',
     'unstable_batchedUpdates',
     'useFormStatus',
@@ -300,7 +296,7 @@ describe('Error overlay - RSC build errors', () => {
 
       expect(await session.hasRedbox()).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components`
+        `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
 
       await cleanup()
@@ -326,7 +322,7 @@ describe('Error overlay - RSC build errors', () => {
 
     expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
     )
 
     await cleanup()

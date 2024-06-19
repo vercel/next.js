@@ -156,16 +156,26 @@ function navigateReducer_noPPR(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
+
+      // Track if the navigation was only an update to the hash fragment
+      mutable.onlyHashChange =
+        !!hash &&
+        state.canonicalUrl.split('#', 1)[0] ===
+          updatedCanonicalUrl.split('#', 1)[0]
+
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -4
+          -5
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -176,7 +186,7 @@ function navigateReducer_noPPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          url.pathname
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -187,7 +197,7 @@ function navigateReducer_noPPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            url.pathname
+            href
           )
         }
 
@@ -201,12 +211,15 @@ function navigateReducer_noPPR(
 
           if (
             prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+            !mutable.onlyHashChange &&
             !isFirstRead
           ) {
             // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
             // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
             // while copying over the `loading` for the segment that contains the page data.
             // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+
+            // We skip this branch if only the hash fragment has changed, as we don't want to trigger a lazy fetch in that case
             applied = triggerLazyFetchForLeafSegments(
               cache,
               currentCache,
@@ -245,6 +258,9 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           } else if (applied) {
             mutable.cache = cache
+            // If we applied the cache, we update the "current cache" value so any other
+            // segments in the FlightDataPath will be able to reference the updated cache.
+            currentCache = cache
           }
 
           currentTree = newTree
@@ -263,9 +279,7 @@ function navigateReducer_noPPR(
       }
 
       mutable.patchedTree = currentTree
-      mutable.canonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
+      mutable.canonicalUrl = updatedCanonicalUrl
       mutable.pendingPush = pendingPush
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash
@@ -330,8 +344,18 @@ function navigateReducer_PPR(
         return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
+
+      // Track if the navigation was only an update to the hash fragment
+      mutable.onlyHashChange =
+        !!hash &&
+        state.canonicalUrl.split('#', 1)[0] ===
+          updatedCanonicalUrl.split('#', 1)[0]
+
       let currentTree = state.tree
-      const currentCache = state.cache
+      let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this
@@ -340,10 +364,10 @@ function navigateReducer_PPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -4
+          -5
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -354,7 +378,7 @@ function navigateReducer_PPR(
           flightSegmentPathWithLeadingEmpty,
           currentTree,
           treePatch,
-          url.pathname
+          href
         )
 
         // If the tree patch can't be applied to the current tree then we use the tree at time of prefetch
@@ -365,7 +389,7 @@ function navigateReducer_PPR(
             flightSegmentPathWithLeadingEmpty,
             treeAtTimeOfPrefetch,
             treePatch,
-            url.pathname
+            href
           )
         }
 
@@ -382,18 +406,20 @@ function navigateReducer_PPR(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 3
+            flightDataPath.length === 4
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
+            const layerAssets = flightDataPath[3]
 
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head
+              head,
+              layerAssets
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched
@@ -452,12 +478,15 @@ function navigateReducer_PPR(
 
             if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
+              !mutable.onlyHashChange &&
               !isFirstRead
             ) {
               // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
               // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
               // while copying over the `loading` for the segment that contains the page data.
               // We only do this on subsequent reads, as otherwise there'd be no loading data to re-use.
+
+              // We skip this branch if only the hash fragment has changed, as we don't want to trigger a lazy fetch in that case
               applied = triggerLazyFetchForLeafSegments(
                 cache,
                 currentCache,
@@ -496,6 +525,9 @@ function navigateReducer_PPR(
               mutable.cache = cache
             } else if (applied) {
               mutable.cache = cache
+              // If we applied the cache, we update the "current cache" value so any other
+              // segments in the FlightDataPath will be able to reference the updated cache.
+              currentCache = cache
             }
           }
 
@@ -515,9 +547,7 @@ function navigateReducer_PPR(
       }
 
       mutable.patchedTree = currentTree
-      mutable.canonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
+      mutable.canonicalUrl = updatedCanonicalUrl
       mutable.pendingPush = pendingPush
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash

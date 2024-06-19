@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import { usePathname } from './navigation'
 import { isNextRouterError } from './is-next-router-error'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 const styles = {
   error: {
@@ -50,17 +51,12 @@ interface ErrorBoundaryHandlerState {
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  if (typeof (fetch as any).__nextGetStaticStore === 'function') {
-    const store:
-      | undefined
-      | import('./static-generation-async-storage.external').StaticGenerationStore =
-      (fetch as any).__nextGetStaticStore()?.getStore()
-
-    if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
-      throw error
-    }
+  const store = staticGenerationAsyncStorage.getStore()
+  if (store?.isRevalidate || store?.isStaticGeneration) {
+    console.error(error)
+    throw error
   }
+
   return null
 }
 

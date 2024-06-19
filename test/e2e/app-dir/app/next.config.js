@@ -1,9 +1,13 @@
+/**
+ * @type import('next').NextConfig
+ */
 module.exports = {
   experimental: {
     clientRouterFilterRedirects: true,
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
+    flyingShuttle: Boolean(process.env.FLYING_SHUTTLE),
   },
   // output: 'standalone',
   rewrites: async () => {

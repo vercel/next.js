@@ -33,6 +33,8 @@ type EventCliSessionStarted = {
   turboFlag: boolean
   appDir: boolean | null
   pagesDir: boolean | null
+  staticStaleTime: number | null
+  dynamicStaleTime: number | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -79,6 +81,8 @@ export function eventCliSession(
     | 'nextConfigOutput'
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
+    | 'staticStaleTime'
+    | 'dynamicStaleTime'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -120,6 +124,8 @@ export function eventCliSession(
     turboFlag: event.turboFlag || false,
     appDir: event.appDir,
     pagesDir: event.pagesDir,
+    staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
+    dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

@@ -80,7 +80,7 @@ export function applyRouterStatePatchToTree(
   flightSegmentPath: FlightSegmentPath,
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState,
-  pathname: string
+  path: string
 ): FlightRouterState | null {
   const [segment, parallelRoutes, url, refetch, isRootLayout] =
     flightRouterState
@@ -92,6 +92,8 @@ export function applyRouterStatePatchToTree(
       treePatch,
       flightSegmentPath
     )
+
+    addRefreshMarkerToActiveParallelSegments(tree, path)
 
     return tree
   }
@@ -117,7 +119,7 @@ export function applyRouterStatePatchToTree(
       flightSegmentPath.slice(2),
       parallelRoutes[parallelRouteKey],
       treePatch,
-      pathname
+      path
     )
 
     if (parallelRoutePatch === null) {
@@ -140,7 +142,7 @@ export function applyRouterStatePatchToTree(
     tree[4] = true
   }
 
-  addRefreshMarkerToActiveParallelSegments(tree, pathname)
+  addRefreshMarkerToActiveParallelSegments(tree, path)
 
   return tree
 }

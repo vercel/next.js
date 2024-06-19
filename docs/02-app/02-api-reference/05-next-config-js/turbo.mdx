@@ -1,5 +1,5 @@
 ---
-title: turbo (Experimental)
+title: turbo (experimental)
 nav_title: turbo
 description: Configure Next.js with Turbopack-specific options
 ---
@@ -28,30 +28,13 @@ module.exports = {
   experimental: {
     turbo: {
       rules: {
-        // Option format
-        '*.md': [
-          {
-            loader: '@mdx-js/loader',
-            options: {
-              format: 'md',
-            },
-          },
-        ],
-        // Option-less format
-        '*.mdx': ['@mdx-js/loader'],
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
       },
     },
   },
-}
-```
-
-Using the configuration above, you can use transformed code in your app:
-
-```js
-import MyDoc from './my-doc.mdx'
-
-export default function Home() {
-  return <MyDoc />
 }
 ```
 
@@ -62,49 +45,12 @@ export default function Home() {
 The following loaders have been tested to work with Turbopack's webpack loader implementation:
 
 - [`babel-loader`](https://www.npmjs.com/package/babel-loader)
-- [`@mdx-js/loader`](https://www.npmjs.com/package/@mdx-js/loader)
 - [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
 - [`svg-inline-loader`](https://www.npmjs.com/package/svg-inline-loader)
 - [`yaml-loader`](https://www.npmjs.com/package/yaml-loader)
 - [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
 - [`raw-loader`](https://www.npmjs.com/package/raw-loader)
-
-### Custom loaders
-
-If you need to pass something like the result of importing an external package as a loader option, it's possible to wrap the webpack loader with your own, specifying options there. **This is an interim solution and should not be necessary in the future.**
-
-This loader wraps `@mdx-js/loader` and configures the `rehypePrism` rehype plugin:
-
-```js filename="my-mdx-loader.js"
-const mdxLoader = require('@mdx-js/loader')
-const rehypePrism = require('@mapbox/rehype-prism')
-
-module.exports = function (code) {
-  const prevGetOptions = this.getOptions.bind(this)
-  this.getOptions = function getOptions(...args) {
-    return {
-      ...prevGetOptions(...args),
-      rehypePlugins: [rehypePrism],
-    }
-  }
-
-  mdxLoader.call(this, code)
-}
-```
-
-Then, configure Next.js to load the wrapper loader:
-
-```js filename="next.config.js"
-module.exports = {
-  experimental: {
-    turbo: {
-      rules: {
-        '*.mdx': ['./my-mdx-loader'],
-      },
-    },
-  },
-}
-```
+- [`sass-loader`](https://www.npmjs.com/package/sass-loader)
 
 ## Resolve aliases
 

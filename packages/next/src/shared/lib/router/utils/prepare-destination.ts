@@ -11,7 +11,7 @@ import { parseUrl } from './parse-url'
 import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
-} from '../../../../server/future/helpers/interception-routes'
+} from '../../../../server/lib/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 

@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     steps:
       - uses: actions/cache/restore@v3
@@ -84,7 +84,7 @@ jobs:
 
       - name: Run test/development
         run: |
-          NEXT_TEST_MODE=dev TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type development
+          NEXT_TEST_MODE=dev TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type development
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
 

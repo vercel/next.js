@@ -21,6 +21,7 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   location: Location | null
   initialHead: ReactNode
+  initialLayerAssets: ReactNode
   couldBeIntercepted?: boolean
 }
 
@@ -32,6 +33,7 @@ export function createInitialRouterState({
   initialParallelRoutes,
   location,
   initialHead,
+  initialLayerAssets,
   couldBeIntercepted,
 }: InitialRouterStateParameters) {
   const isServer = !location
@@ -42,14 +44,23 @@ export function createInitialRouterState({
     rsc: rsc,
     prefetchRsc: null,
     head: null,
+    layerAssets: initialLayerAssets,
+    prefetchLayerAssets: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    lazyDataResolved: false,
     loading: initialSeedData[3],
   }
 
-  addRefreshMarkerToActiveParallelSegments(initialTree, initialCanonicalUrl)
+  const canonicalUrl =
+    // location.href is read as the initial value for canonicalUrl in the browser
+    // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
+    location
+      ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
+        createHrefFromUrl(location)
+      : initialCanonicalUrl
+
+  addRefreshMarkerToActiveParallelSegments(initialTree, canonicalUrl)
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
@@ -60,7 +71,8 @@ export function createInitialRouterState({
       undefined,
       initialTree,
       initialSeedData,
-      initialHead
+      initialHead,
+      initialLayerAssets
     )
   }
 
@@ -82,13 +94,7 @@ export function createInitialRouterState({
       hashFragment: null,
       segmentPaths: [],
     },
-    canonicalUrl:
-      // location.href is read as the initial value for canonicalUrl in the browser
-      // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-      location
-        ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-          createHrefFromUrl(location)
-        : initialCanonicalUrl,
+    canonicalUrl,
     nextUrl:
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
@@ -99,9 +105,14 @@ export function createInitialRouterState({
     // Seed the prefetch cache with this page's data.
     // This is to prevent needlessly re-prefetching a page that is already reusable,
     // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
-    const url = new URL(location.pathname, location.origin)
+    const url = new URL(
+      `${location.pathname}${location.search}`,
+      location.origin
+    )
 
-    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    const initialFlightData: FlightData = [
+      ['', initialTree, null, null, initialLayerAssets],
+    ]
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,

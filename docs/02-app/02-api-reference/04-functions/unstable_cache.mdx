@@ -1,5 +1,5 @@
 ---
-title: unstable_cache
+title: unstable_cache (experimental)
 description: API Reference for the unstable_cache function.
 ---
 
@@ -21,7 +21,9 @@ export default async function Component({ userID }) {
 ```
 
 > **Good to know**:
-> Accessing dynamic data sources such as `headers` or `cookies` inside a cache scope is not supported. If you need this data inside a cached function use `headers` outside of the cached function and pass the required dynamic data in as an argument.
+>
+> - Accessing dynamic data sources such as `headers` or `cookies` inside a cache scope is not supported. If you need this data inside a cached function use `headers` outside of the cached function and pass the required dynamic data in as an argument.
+> - This API uses Next.js' built-in [Data Cache](/docs/app/building-your-application/caching#data-cache) to persist the result across requests and deployments.
 
 > **Warning**: This API is unstable and may change in the future. We will provide migration documentation and codemods, if needed, as this API stabilizes.
 

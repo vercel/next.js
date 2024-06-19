@@ -1,5 +1,5 @@
 import spawn from 'cross-spawn'
-import { Span } from 'next/src/trace'
+import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { getTurbopackFlag } from '../turbo'
 import stripAnsi from 'strip-ansi'
@@ -12,6 +12,7 @@ export class NextDevInstance extends NextInstance {
   }
 
   public async setup(parentSpan: Span) {
+    super.setup(parentSpan)
     await super.createTestDir({ parentSpan })
   }
 

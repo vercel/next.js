@@ -257,9 +257,9 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                     .unwrap_or_default();
 
                 let msg = if !is_app_dir {
-                    format!("You're importing a component that needs {}. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
+                    format!("You're importing a component that needs \"{}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n", source)
                 } else {
-                    format!("You're importing a component that needs {}. That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs \"{}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
                 };
                 (msg, span)
             }
@@ -267,7 +267,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 let msg = if source == "Component" {
                     "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
                 } else {
-                    format!("You're importing a component that needs {}. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n", source)
+                    format!("You're importing a component that needs `{}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n", source)
                 };
 
                 (msg,span)
@@ -472,8 +472,9 @@ struct ReactServerComponentValidator {
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
-    invalid_client_imports: Vec<JsWord>,
     invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    invalid_client_imports: Vec<JsWord>,
+    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, Vec<ModuleImports>, Vec<String>)>,
 }
 
@@ -506,12 +507,12 @@ impl ReactServerComponentValidator {
                         "useSyncExternalStore",
                         "useTransition",
                         "useOptimistic",
+                        "useActionState",
                     ],
                 ),
                 (
                     "react-dom",
                     vec![
-                        "findDOMNode",
                         "flushSync",
                         "unstable_batchedUpdates",
                         "useFormStatus",
@@ -540,7 +541,10 @@ impl ReactServerComponentValidator {
                 JsWord::from("react-dom/server"),
                 JsWord::from("next/router"),
             ],
+
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
+
+            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
         }
     }
 
@@ -627,13 +631,30 @@ impl ReactServerComponentValidator {
             return;
         }
         for import in imports {
-            let source = import.source.0.clone();
-            if self.invalid_client_imports.contains(&source) {
+            let source = &import.source.0;
+
+            if self.invalid_client_imports.contains(source) {
                 report_error(
                     &self.app_dir,
                     &self.filepath,
                     RSCErrorKind::NextRscErrClientImport((source.to_string(), import.source.1)),
                 );
+            }
+
+            let invalid_apis = self.invalid_client_lib_apis_mapping.get(source.as_str());
+            if let Some(invalid_apis) = invalid_apis {
+                for specifier in &import.specifiers {
+                    if invalid_apis.contains(&specifier.0.as_str()) {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrClientImport((
+                                specifier.0.to_string(),
+                                specifier.1,
+                            )),
+                        );
+                    }
+                }
             }
         }
     }

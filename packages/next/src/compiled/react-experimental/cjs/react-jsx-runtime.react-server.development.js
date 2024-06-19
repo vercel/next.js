@@ -16,11 +16,25 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react-experimental");
 
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+// -----------------------------------------------------------------------------
+
+var enableScopeAPI = false; // Experimental Create Event Handle API.
+var enableTransitionTracing = false; // No known bugs, but needs performance testing
+
+var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+var enableRefAsProp = true;
+
+var enableRenderableContext = true; // Enables the `initialValue` option for `useDeferredValue`
+// stuff. Intended to enable React core members to more easily debug scheduling
+// issues in DEV builds.
+
+var enableDebugTracing = false;
+
+var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
 var REACT_PORTAL_TYPE = Symbol.for('react.portal');
 var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
@@ -35,7 +49,6 @@ var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
-var REACT_CACHE_TYPE = Symbol.for('react.cache');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -52,7 +65,12 @@ function getIteratorFn(maybeIterable) {
   return null;
 }
 
-var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+var ReactSharedInternalsServer = // $FlowFixMe: It's defined in the one we resolve to.
+React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+
+if (!ReactSharedInternalsServer) {
+  throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
+}
 
 function error(format) {
   {
@@ -61,58 +79,52 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+var supportsCreateTask = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask && ReactSharedInternalsServer.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternalsServer.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
-
-// -----------------------------------------------------------------------------
-
-var enableScopeAPI = false; // Experimental Create Event Handle API.
-var enableTransitionTracing = false; // No known bugs, but needs performance testing
-
-var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
-var enableRenderableContext = false;
-// Ready for next major.
-//
-// Alias __NEXT_MAJOR__ to true for easier skimming.
-// -----------------------------------------------------------------------------
-
-var __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
-// as a normal prop instead of stripping it from the props object.
-// Passes `ref` as a normal prop instead of stripping it from the props object
-// during element creation.
-
-var enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
-// stuff. Intended to enable React core members to more easily debug scheduling
-// issues in DEV builds.
-
-var enableDebugTracing = false;
 
 function getWrappedName(outerType, innerType, wrapperName) {
   var displayName = outerType.displayName;
@@ -170,11 +182,6 @@ function getComponentNameFromType(type) {
     case REACT_SUSPENSE_LIST_TYPE:
       return 'SuspenseList';
 
-    case REACT_CACHE_TYPE:
-      {
-        return 'Cache';
-      }
-
   }
 
   if (typeof type === 'object') {
@@ -187,20 +194,20 @@ function getComponentNameFromType(type) {
     switch (type.$$typeof) {
       case REACT_PROVIDER_TYPE:
         {
-          var provider = type;
-          return getContextName(provider._context) + '.Provider';
+          return null;
         }
 
       case REACT_CONTEXT_TYPE:
         var context = type;
 
         {
-          return getContextName(context) + '.Consumer';
+          return getContextName(context) + '.Provider';
         }
 
       case REACT_CONSUMER_TYPE:
         {
-          return null;
+          var consumer = type;
+          return getContextName(consumer._context) + '.Consumer';
         }
 
       case REACT_FORWARD_REF_TYPE:
@@ -235,8 +242,6 @@ function getComponentNameFromType(type) {
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
-
-var assign = Object.assign;
 
 /*
  * The `'' + value` pattern (used in perf-sensitive code) throws for Symbol
@@ -306,19 +311,21 @@ function checkKeyStringCoercion(value) {
   }
 }
 
-var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference'); // This function is deprecated. Don't use. Only the renderer knows what a valid type is.
+// TODO: Delete this when enableOwnerStacks ships.
+
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
   } // Note: typeof might be other than 'symbol' or 'number' (e.g. if it's a polyfill).
 
 
-  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || type === REACT_CACHE_TYPE || enableTransitionTracing ) {
+  if (type === REACT_FRAGMENT_TYPE || type === REACT_PROFILER_TYPE || enableDebugTracing  || type === REACT_STRICT_MODE_TYPE || type === REACT_SUSPENSE_TYPE || type === REACT_SUSPENSE_LIST_TYPE || enableLegacyHidden  || type === REACT_OFFSCREEN_TYPE || enableScopeAPI  || enableTransitionTracing ) {
     return true;
   }
 
   if (typeof type === 'object' && type !== null) {
-    if (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_PROVIDER_TYPE || enableRenderableContext  || type.$$typeof === REACT_FORWARD_REF_TYPE || // This needs to include all possible module reference object
+    if (type.$$typeof === REACT_LAZY_TYPE || type.$$typeof === REACT_MEMO_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || !enableRenderableContext  || type.$$typeof === REACT_CONSUMER_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE || // This needs to include all possible module reference object
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
@@ -336,436 +343,53 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-// Helpers to patch console.logs to avoid logging during side-effect free
-// replaying on render function. This currently only patches the object
-// lazily which won't cover if the log function was extracted eagerly.
-// We could also eagerly patch the method.
-var disabledDepth = 0;
-var prevLog;
-var prevInfo;
-var prevWarn;
-var prevError;
-var prevGroup;
-var prevGroupCollapsed;
-var prevGroupEnd;
-
-function disabledLog() {}
-
-disabledLog.__reactDisabledLog = true;
-function disableLogs() {
-  {
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      prevLog = console.log;
-      prevInfo = console.info;
-      prevWarn = console.warn;
-      prevError = console.error;
-      prevGroup = console.group;
-      prevGroupCollapsed = console.groupCollapsed;
-      prevGroupEnd = console.groupEnd; // https://github.com/facebook/react/issues/19099
-
-      var props = {
-        configurable: true,
-        enumerable: true,
-        value: disabledLog,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        info: props,
-        log: props,
-        warn: props,
-        error: props,
-        group: props,
-        groupCollapsed: props,
-        groupEnd: props
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    disabledDepth++;
-  }
-}
-function reenableLogs() {
-  {
-    disabledDepth--;
-
-    if (disabledDepth === 0) {
-      /* eslint-disable react-internal/no-production-logging */
-      var props = {
-        configurable: true,
-        enumerable: true,
-        writable: true
-      }; // $FlowFixMe[cannot-write] Flow thinks console is immutable.
-
-      Object.defineProperties(console, {
-        log: assign({}, props, {
-          value: prevLog
-        }),
-        info: assign({}, props, {
-          value: prevInfo
-        }),
-        warn: assign({}, props, {
-          value: prevWarn
-        }),
-        error: assign({}, props, {
-          value: prevError
-        }),
-        group: assign({}, props, {
-          value: prevGroup
-        }),
-        groupCollapsed: assign({}, props, {
-          value: prevGroupCollapsed
-        }),
-        groupEnd: assign({}, props, {
-          value: prevGroupEnd
-        })
-      });
-      /* eslint-enable react-internal/no-production-logging */
-    }
-
-    if (disabledDepth < 0) {
-      error('disabledDepth fell below zero. ' + 'This is a bug in React. Please file an issue.');
-    }
-  }
-}
-
-var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
-var prefix;
-function describeBuiltInComponentFrame(name, ownerFn) {
-  {
-    if (prefix === undefined) {
-      // Extract the VM specific prefix used by each line.
-      try {
-        throw Error();
-      } catch (x) {
-        var match = x.stack.trim().match(/\n( *(at )?)/);
-        prefix = match && match[1] || '';
-      }
-    } // We use the prefix to ensure our stacks line up with native stack frames.
-
-
-    return '\n' + prefix + name;
-  }
-}
-var reentry = false;
-var componentFrameCache;
-
 {
   var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
-  componentFrameCache = new PossiblyWeakMap();
+  new PossiblyWeakMap();
 }
-/**
- * Leverages native browser/VM stack frames to get proper details (e.g.
- * filename, line + col number) for a single component in a component stack. We
- * do this by:
- *   (1) throwing and catching an error in the function - this will be our
- *       control error.
- *   (2) calling the component which will eventually throw an error that we'll
- *       catch - this will be our sample error.
- *   (3) diffing the control and sample error stacks to find the stack frame
- *       which represents our component.
- */
 
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
+var createTask = // eslint-disable-next-line react-internal/no-production-logging
+console.createTask ? // eslint-disable-next-line react-internal/no-production-logging
+console.createTask : function () {
+  return null;
+};
 
-function describeNativeComponentFrame(fn, construct) {
-  // If something asked for a stack inside a fake render, it should get ignored.
-  if (!fn || reentry) {
-    return '';
+function getTaskName(type) {
+  if (type === REACT_FRAGMENT_TYPE) {
+    return '<>';
   }
 
-  {
-    var frame = componentFrameCache.get(fn);
-
-    if (frame !== undefined) {
-      return frame;
-    }
-  }
-
-  reentry = true;
-  var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
-
-  Error.prepareStackTrace = undefined;
-  var previousDispatcher;
-
-  {
-    previousDispatcher = ReactCurrentDispatcher.current; // Set the dispatcher in DEV because this might be call in the render function
-    // for warnings.
-
-    ReactCurrentDispatcher.current = null;
-    disableLogs();
-  }
-  /**
-   * Finding a common stack frame between sample and control errors can be
-   * tricky given the different types and levels of stack trace truncation from
-   * different JS VMs. So instead we'll attempt to control what that common
-   * frame should be through this object method:
-   * Having both the sample and control errors be in the function under the
-   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
-   * `displayName` properties of the function ensures that a stack
-   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
-   * it for both control and sample stacks.
-   */
-
-
-  var RunInRootFrame = {
-    DetermineComponentFrameRoot: function () {
-      var control;
-
-      try {
-        // This should throw.
-        if (construct) {
-          // Something should be setting the props in the constructor.
-          var Fake = function () {
-            throw Error();
-          }; // $FlowFixMe[prop-missing]
-
-
-          Object.defineProperty(Fake.prototype, 'props', {
-            set: function () {
-              // We use a throwing setter instead of frozen or non-writable props
-              // because that won't throw in a non-strict mode function.
-              throw Error();
-            }
-          });
-
-          if (typeof Reflect === 'object' && Reflect.construct) {
-            // We construct a different control for this case to include any extra
-            // frames added by the construct call.
-            try {
-              Reflect.construct(Fake, []);
-            } catch (x) {
-              control = x;
-            }
-
-            Reflect.construct(fn, [], Fake);
-          } else {
-            try {
-              Fake.call();
-            } catch (x) {
-              control = x;
-            } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-            fn.call(Fake.prototype);
-          }
-        } else {
-          try {
-            throw Error();
-          } catch (x) {
-            control = x;
-          } // TODO(luna): This will currently only throw if the function component
-          // tries to access React/ReactDOM/props. We should probably make this throw
-          // in simple components too
-
-
-          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-          // component, which we don't yet support. Attach a noop catch handler to
-          // silence the error.
-          // TODO: Implement component stacks for async client components?
-
-          if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch(function () {});
-          }
-        }
-      } catch (sample) {
-        // This is inlined manually because closure doesn't do it for us.
-        if (sample && control && typeof sample.stack === 'string') {
-          return [sample.stack, control.stack];
-        }
-      }
-
-      return [null, null];
-    }
-  }; // $FlowFixMe[prop-missing]
-
-  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
-  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
-
-  if (namePropDescriptor && namePropDescriptor.configurable) {
-    // V8 utilizes a function's `name` property when generating a stack trace.
-    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
-    // is set to `false`.
-    // $FlowFixMe[cannot-write]
-    'name', {
-      value: 'DetermineComponentFrameRoot'
-    });
+  if (typeof type === 'object' && type !== null && type.$$typeof === REACT_LAZY_TYPE) {
+    // We don't want to eagerly initialize the initializer in DEV mode so we can't
+    // call it to extract the type so we don't know the type of this component.
+    return '<...>';
   }
 
   try {
-    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
-        sampleStack = _RunInRootFrame$Deter[0],
-        controlStack = _RunInRootFrame$Deter[1];
+    var name = getComponentNameFromType(type);
+    return name ? '<' + name + '>' : '<...>';
+  } catch (x) {
+    return '<...>';
+  }
+}
 
-    if (sampleStack && controlStack) {
-      // This extracts the first frame from the sample that isn't also in the control.
-      // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sampleStack.split('\n');
-      var controlLines = controlStack.split('\n');
-      var s = 0;
-      var c = 0;
-
-      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
-        s++;
-      }
-
-      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
-        c++;
-      } // We couldn't find our intentionally injected common root frame, attempt
-      // to find another common root frame by search from the bottom of the
-      // control stack...
-
-
-      if (s === sampleLines.length || c === controlLines.length) {
-        s = sampleLines.length - 1;
-        c = controlLines.length - 1;
-
-        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-          // We expect at least one stack frame to be shared.
-          // Typically this will be the root most one. However, stack frames may be
-          // cut off due to maximum stack limits. In this case, one maybe cut off
-          // earlier than the other. We assume that the sample is longer or the same
-          // and there for cut off earlier. So we should find the root most frame in
-          // the sample somewhere in the control.
-          c--;
-        }
-      }
-
-      for (; s >= 1 && c >= 0; s--, c--) {
-        // Next we find the first one that isn't the same which should be the
-        // frame that called our sample function and the control.
-        if (sampleLines[s] !== controlLines[c]) {
-          // In V8, the first line is describing the message but other VMs don't.
-          // If we're about to return the first line, and the control is also on the same
-          // line, that's a pretty good indicator that our sample threw at same line as
-          // the control. I.e. before we entered the sample frame. So we ignore this result.
-          // This can happen if you passed a class to function component, or non-function.
-          if (s !== 1 || c !== 1) {
-            do {
-              s--;
-              c--; // We may still have similar intermediate frames from the construct call.
-              // The next one that isn't the same should be our match though.
-
-              if (c < 0 || sampleLines[s] !== controlLines[c]) {
-                // V8 adds a "new" prefix for native classes. Let's remove it to make it prettier.
-                var _frame = '\n' + sampleLines[s].replace(' at new ', ' at '); // If our component frame is labeled "<anonymous>"
-                // but we have a user-provided "displayName"
-                // splice it in to make the stack more readable.
-
-
-                if (fn.displayName && _frame.includes('<anonymous>')) {
-                  _frame = _frame.replace('<anonymous>', fn.displayName);
-                }
-
-                if (true) {
-                  if (typeof fn === 'function') {
-                    componentFrameCache.set(fn, _frame);
-                  }
-                } // Return the line we found.
-
-
-                return _frame;
-              }
-            } while (s >= 1 && c >= 0);
-          }
-
-          break;
-        }
-      }
-    }
-  } finally {
-    reentry = false;
-
-    {
-      ReactCurrentDispatcher.current = previousDispatcher;
-      reenableLogs();
-    }
-
-    Error.prepareStackTrace = previousPrepareStackTrace;
-  } // Fallback to just using the name if we couldn't make it throw.
-
-
-  var name = fn ? fn.displayName || fn.name : '';
-  var syntheticFrame = name ? describeBuiltInComponentFrame(name) : '';
-
+function getOwner() {
   {
-    if (typeof fn === 'function') {
-      componentFrameCache.set(fn, syntheticFrame);
+    var dispatcher = ReactSharedInternalsServer.A;
+
+    if (dispatcher === null) {
+      return null;
     }
-  }
 
-  return syntheticFrame;
-}
-function describeFunctionComponentFrame(fn, ownerFn) {
-  {
-    return describeNativeComponentFrame(fn, false);
+    return dispatcher.getOwner();
   }
 }
 
-function shouldConstruct(Component) {
-  var prototype = Component.prototype;
-  return !!(prototype && prototype.isReactComponent);
-}
-
-function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
-
-  if (type == null) {
-    return '';
-  }
-
-  if (typeof type === 'function') {
-    {
-      return describeNativeComponentFrame(type, shouldConstruct(type));
-    }
-  }
-
-  if (typeof type === 'string') {
-    return describeBuiltInComponentFrame(type);
-  }
-
-  switch (type) {
-    case REACT_SUSPENSE_TYPE:
-      return describeBuiltInComponentFrame('Suspense');
-
-    case REACT_SUSPENSE_LIST_TYPE:
-      return describeBuiltInComponentFrame('SuspenseList');
-  }
-
-  if (typeof type === 'object') {
-    switch (type.$$typeof) {
-      case REACT_FORWARD_REF_TYPE:
-        return describeFunctionComponentFrame(type.render);
-
-      case REACT_MEMO_TYPE:
-        // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, ownerFn);
-
-      case REACT_LAZY_TYPE:
-        {
-          var lazyComponent = type;
-          var payload = lazyComponent._payload;
-          var init = lazyComponent._init;
-
-          try {
-            // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), ownerFn);
-          } catch (x) {}
-        }
-    }
-  }
-
-  return '';
-}
-
-var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
-var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 var specialPropKeyWarningShown;
-var didWarnAboutStringRefs;
 var didWarnAboutElementRef;
 
 {
-  didWarnAboutStringRefs = {};
   didWarnAboutElementRef = {};
 }
 
@@ -797,27 +421,13 @@ function hasValidKey(config) {
   return config.key !== undefined;
 }
 
-function warnIfStringRefCannotBeAutoConverted(config, self) {
-  {
-    if (typeof config.ref === 'string' && ReactCurrentOwner.current && self && ReactCurrentOwner.current.stateNode !== self) {
-      var componentName = getComponentNameFromType(ReactCurrentOwner.current.type);
-
-      if (!didWarnAboutStringRefs[componentName]) {
-        error('Component "%s" contains the string ref "%s". ' + 'Support for string refs will be removed in a future major release. ' + 'This case cannot be automatically converted to an arrow function. ' + 'We ask you to manually fix this case by using useRef() or createRef() instead. ' + 'Learn more about using refs safely here: ' + 'https://reactjs.org/link/strict-mode-string-ref', getComponentNameFromType(ReactCurrentOwner.current.type), config.ref);
-
-        didWarnAboutStringRefs[componentName] = true;
-      }
-    }
-  }
-}
-
 function defineKeyPropWarningGetter(props, displayName) {
   {
     var warnAboutAccessingKey = function () {
       if (!specialPropKeyWarningShown) {
         specialPropKeyWarningShown = true;
 
-        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
+        error('%s: `key` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://react.dev/link/special-props)', displayName);
       }
     };
 
@@ -836,7 +446,7 @@ function elementRefGetterWithDeprecationWarning() {
     if (!didWarnAboutElementRef[componentName]) {
       didWarnAboutElementRef[componentName] = true;
 
-      error('Accessing element.ref is no longer supported. ref is now a ' + 'regular prop. It will be removed from the JSX Element ' + 'type in a future release.');
+      error('Accessing element.ref was removed in React 19. ref is now a ' + 'regular prop. It will be removed from the JSX Element ' + 'type in a future release.');
     } // An undefined `element.ref` is coerced to `null` for
     // backwards compatibility.
 
@@ -848,7 +458,7 @@ function elementRefGetterWithDeprecationWarning() {
 /**
  * Factory method to create a new React element. This no longer adheres to
  * the class pattern, so do not use new to call it. Also, instanceof check
- * will not work. Instead test $$typeof field against Symbol.for('react.element') to check
+ * will not work. Instead test $$typeof field against Symbol.for('react.transitional.element') to check
  * if something is a React Element.
  *
  * @param {*} type
@@ -867,7 +477,7 @@ function elementRefGetterWithDeprecationWarning() {
  */
 
 
-function ReactElement(type, key, _ref, self, source, owner, props) {
+function ReactElement(type, key, _ref, self, source, owner, props, debugStack, debugTask) {
   var ref;
 
   {
@@ -941,7 +551,7 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
       configurable: false,
       enumerable: false,
       writable: true,
-      value: false
+      value: 0
     }); // debugInfo contains Server Component debug information.
 
     Object.defineProperty(element, '_debugInfo', {
@@ -950,6 +560,21 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
       writable: true,
       value: null
     });
+
+    {
+      Object.defineProperty(element, '_debugStack', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: debugStack
+      });
+      Object.defineProperty(element, '_debugTask', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: debugTask
+      });
+    }
 
     if (Object.freeze) {
       Object.freeze(element.props);
@@ -974,13 +599,13 @@ function ReactElement(type, key, _ref, self, source, owner, props) {
 function jsxProdSignatureRunningInDevWithDynamicChildren(type, config, maybeKey, source, self) {
   {
     var isStaticChildren = false;
-    return jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self);
+    return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self, Error('react-stack-top-frame') , createTask(getTaskName(type)) );
   }
 }
 function jsxProdSignatureRunningInDevWithStaticChildren(type, config, maybeKey, source, self) {
   {
     var isStaticChildren = true;
-    return jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self);
+    return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self, Error('react-stack-top-frame') , createTask(getTaskName(type)) );
   }
 }
 var didWarnAboutKeySpread = {};
@@ -992,6 +617,10 @@ var didWarnAboutKeySpread = {};
  */
 
 function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
+  return jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self, Error('react-stack-top-frame') , createTask(getTaskName(type)) );
+}
+
+function jsxDEVImpl(type, config, maybeKey, isStaticChildren, source, self, debugStack, debugTask) {
   {
     if (!isValidElementType(type)) {
       // This is an invalid element type.
@@ -1031,7 +660,7 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
         if (isStaticChildren) {
           if (isArray(children)) {
             for (var i = 0; i < children.length; i++) {
-              validateChildKeys(children[i], type);
+              validateChildKeys(children[i]);
             }
 
             if (Object.freeze) {
@@ -1041,7 +670,7 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
             error('React.jsx: Static children should always be an array. ' + 'You are likely explicitly calling React.jsxs or React.jsxDEV. ' + 'Use the Babel transform instead.');
           }
         } else {
-          validateChildKeys(children, type);
+          validateChildKeys(children);
         }
       }
     } // Warn about key spread regardless of whether the type is valid.
@@ -1063,9 +692,6 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
       }
     }
 
-    var propName; // Reserved names are extracted
-
-    var props = {};
     var key = null;
     var ref = null; // Currently, key can be spread in as a prop. This causes a potential
     // issue if key is also explicitly declared (ie. <div {...props} key="Hi" />
@@ -1090,26 +716,33 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
       key = '' + config.key;
     }
 
-    if (hasValidRef(config)) {
+    if (hasValidRef(config)) ;
 
-      warnIfStringRefCannotBeAutoConverted(config, self);
-    } // Remaining properties are added to a new props object
+    var props;
 
+    if (!('key' in config)) {
+      // If key was not spread in, we can reuse the original props object. This
+      // only works for `jsx`, not `createElement`, because `jsx` is a compiler
+      // target and the compiler always passes a new object. For `createElement`,
+      // we can't assume a new object is passed every time because it can be
+      // called manually.
+      //
+      // Spreading key is a warning in dev. In a future release, we will not
+      // remove a spread key from the props object. (But we'll still warn.) We'll
+      // always pass the object straight through.
+      props = config;
+    } else {
+      // We need to remove reserved props (key, prop, ref). Create a fresh props
+      // object and copy over all the non-reserved props. We don't use `delete`
+      // because in V8 it will deopt the object to dictionary mode.
+      props = {};
 
-    for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && (enableRefAsProp )) {
-        props[propName] = config[propName];
-      }
-    } // Resolve default props
-
-
-    if (type && type.defaultProps) {
-      var defaultProps = type.defaultProps;
-
-      for (propName in defaultProps) {
-        if (props[propName] === undefined) {
-          props[propName] = defaultProps[propName];
+      for (var propName in config) {
+        // Skip over reserved prop names
+        if (propName !== 'key' && (enableRefAsProp )) {
+          {
+            props[propName] = config[propName];
+          }
         }
       }
     }
@@ -1122,27 +755,7 @@ function jsxDEV$1(type, config, maybeKey, isStaticChildren, source, self) {
       }
     }
 
-    var element = ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
-
-    if (type === REACT_FRAGMENT_TYPE) {
-      validateFragmentProps(element);
-    }
-
-    return element;
-  }
-}
-
-function getDeclarationErrorAddendum() {
-  {
-    if (ReactCurrentOwner.current) {
-      var name = getComponentNameFromType(ReactCurrentOwner.current.type);
-
-      if (name) {
-        return '\n\nCheck the render method of `' + name + '`.';
-      }
-    }
-
-    return '';
+    return ReactElement(type, key, ref, self, source, getOwner(), props, debugStack, debugTask);
   }
 }
 /**
@@ -1155,25 +768,16 @@ function getDeclarationErrorAddendum() {
  * @param {*} parentType node's parent's type.
  */
 
-
 function validateChildKeys(node, parentType) {
   {
     if (typeof node !== 'object' || !node) {
       return;
     }
 
-    if (node.$$typeof === REACT_CLIENT_REFERENCE) ; else if (isArray(node)) {
-      for (var i = 0; i < node.length; i++) {
-        var child = node[i];
-
-        if (isValidElement(child)) {
-          validateExplicitKey(child, parentType);
-        }
-      }
-    } else if (isValidElement(node)) {
+    if (node.$$typeof === REACT_CLIENT_REFERENCE) ; else if (isArray(node)) ; else if (isValidElement(node)) {
       // This element was passed in a valid location.
       if (node._store) {
-        node._store.validated = true;
+        node._store.validated = 1;
       }
     } else {
       var iteratorFn = getIteratorFn(node);
@@ -1183,11 +787,10 @@ function validateChildKeys(node, parentType) {
         // but now we print a separate warning for them later.
         if (iteratorFn !== node.entries) {
           var iterator = iteratorFn.call(node);
-          var step;
 
-          while (!(step = iterator.next()).done) {
-            if (isValidElement(step.value)) {
-              validateExplicitKey(step.value, parentType);
+          if (iterator !== node) {
+
+            while (!(iterator.next()).done) {
             }
           }
         }
@@ -1206,103 +809,6 @@ function validateChildKeys(node, parentType) {
 
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
-}
-var ownerHasKeyUseWarning = {};
-/**
- * Warn if the element doesn't have an explicit key assigned to it.
- * This element is in an array. The array could grow and shrink or be
- * reordered. All children that haven't already been validated are required to
- * have a "key" property assigned to it. Error statuses are cached so a warning
- * will only be shown once.
- *
- * @internal
- * @param {ReactElement} element Element that requires a key.
- * @param {*} parentType element's parent's type.
- */
-
-function validateExplicitKey(element, parentType) {
-  {
-    if (!element._store || element._store.validated || element.key != null) {
-      return;
-    }
-
-    element._store.validated = true;
-    var currentComponentErrorInfo = getCurrentComponentErrorInfo(parentType);
-
-    if (ownerHasKeyUseWarning[currentComponentErrorInfo]) {
-      return;
-    }
-
-    ownerHasKeyUseWarning[currentComponentErrorInfo] = true; // Usually the current owner is the offender, but if it accepts children as a
-    // property, it may be the creator of the child that's responsible for
-    // assigning it a key.
-
-    var childOwner = '';
-
-    if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
-      // Give the component that originally created this child.
-      childOwner = " It was passed a child from " + getComponentNameFromType(element._owner.type) + ".";
-    }
-
-    setCurrentlyValidatingElement(element);
-
-    error('Each child in a list should have a unique "key" prop.' + '%s%s See https://reactjs.org/link/warning-keys for more information.', currentComponentErrorInfo, childOwner);
-
-    setCurrentlyValidatingElement(null);
-  }
-}
-
-function setCurrentlyValidatingElement(element) {
-  {
-    if (element) {
-      var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
-      ReactDebugCurrentFrame.setExtraStackFrame(stack);
-    } else {
-      ReactDebugCurrentFrame.setExtraStackFrame(null);
-    }
-  }
-}
-
-function getCurrentComponentErrorInfo(parentType) {
-  {
-    var info = getDeclarationErrorAddendum();
-
-    if (!info) {
-      var parentName = getComponentNameFromType(parentType);
-
-      if (parentName) {
-        info = "\n\nCheck the top-level render call using <" + parentName + ">.";
-      }
-    }
-
-    return info;
-  }
-}
-/**
- * Given a fragment, validate that it can only be provided with fragment props
- * @param {ReactElement} fragment
- */
-
-
-function validateFragmentProps(fragment) {
-  // TODO: Move this to render phase instead of at element creation.
-  {
-    var keys = Object.keys(fragment.props);
-
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-
-      if (key !== 'children' && key !== 'key') {
-        setCurrentlyValidatingElement(fragment);
-
-        error('Invalid prop `%s` supplied to `React.Fragment`. ' + 'React.Fragment can only have `key` and `children` props.', key);
-
-        setCurrentlyValidatingElement(null);
-        break;
-      }
-    }
-  }
 }
 
 var jsx = jsxProdSignatureRunningInDevWithDynamicChildren ; // we may want to special case jsxs internally to take advantage of static children.

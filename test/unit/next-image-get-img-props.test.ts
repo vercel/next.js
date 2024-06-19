@@ -254,4 +254,27 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+  it('should override src', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      overrideSrc: '/override.png',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/override.png'],
+    ])
+  })
 })

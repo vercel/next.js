@@ -33,6 +33,7 @@ import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -48,12 +49,18 @@ interface WebServerOptions extends Options {
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: PrerenderManifest | undefined
+    prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
 
-export default class NextWebServer extends BaseServer<WebServerOptions> {
+type WebRouteHandler = RouteHandler<WebNextRequest, WebNextResponse>
+
+export default class NextWebServer extends BaseServer<
+  WebServerOptions,
+  WebNextRequest,
+  WebNextResponse
+> {
   constructor(options: WebServerOptions) {
     super(options)
 
@@ -86,8 +93,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      // PPR is not supported in the edge runtime.
-      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -112,8 +117,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
-      [this.serverOptions.webServerConfig
-        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
+      [this.serverOptions.webServerConfig.pathname]:
+        `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
 
@@ -151,7 +156,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected handleCatchallRenderRequest: RouteHandler = async (
+  protected handleCatchallRenderRequest: WebRouteHandler = async (
     req,
     res,
     parsedUrl
@@ -284,8 +289,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         options.result.contentType
           ? options.result.contentType
           : options.type === 'json'
-          ? 'application/json'
-          : 'text/html; charset=utf-8'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
       )
     }
 

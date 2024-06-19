@@ -1,11 +1,13 @@
 #![feature(future_join)]
 #![feature(arbitrary_self_types)]
+#![feature(impl_trait_in_assoc_type)]
 
 mod app;
 mod dynamic_imports;
 pub mod entrypoints;
 mod font;
 mod instrumentation;
+mod loadable_manifest;
 mod middleware;
 mod pages;
 pub mod paths;

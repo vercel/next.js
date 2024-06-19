@@ -21,6 +21,7 @@ anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
 next-custom-transforms = { workspace = true }
 serde_json = "1"
+tracing = { version = "0.1.37" }
 wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
 wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.9", default-features = false, features = ["js"] }

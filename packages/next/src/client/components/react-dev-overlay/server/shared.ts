@@ -1,6 +1,11 @@
 import type { StackFrame } from 'stacktrace-parser'
 import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import isInternal, {
+  nextInternalsRe,
+  reactNodeModulesRe,
+  reactVendoredRe,
+} from '../../../../shared/lib/is-internal'
 
 export type SourcePackage = 'react' | 'next'
 
@@ -11,27 +16,7 @@ export interface OriginalStackFrameResponse {
   sourcePackage?: SourcePackage | null
 }
 
-/** React that's compiled with `next`. Used by App Router. */
-const reactVendoredRe =
-  /[\\/]next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-(webpack|turbopack)|scheduler)[\\/]/
-
-/** React the user installed. Used by Pages Router, or user imports in App Router. */
-const reactNodeModulesRe = /node_modules[\\/](react|react-dom|scheduler)[\\/]/
-
-const nextInternalsRe =
-  /(node_modules[\\/]next[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$|(edge-runtime-webpack|webpack-runtime)\.js$)/
-
 const nextMethodRe = /(^__webpack_.*|node_modules[\\/]next[\\/])/
-
-function isInternal(file: string | null) {
-  if (!file) return false
-
-  return (
-    nextInternalsRe.test(file) ||
-    reactVendoredRe.test(file) ||
-    reactNodeModulesRe.test(file)
-  )
-}
 
 /** Given a frame, it parses which package it belongs to. */
 export function findSourcePackage({
@@ -58,17 +43,13 @@ export function findSourcePackage({
 
 /**
  * It looks up the code frame of the traced source.
- * @note It ignores node_modules or Next.js/React internals, as these can often be huge budnled files.
+ * @note It ignores Next.js/React internals, as these can often be huge bundled files.
  */
 export function getOriginalCodeFrame(
   frame: StackFrame,
   source: string | null
 ): string | null | undefined {
-  if (
-    !source ||
-    frame.file?.includes('node_modules') ||
-    isInternal(frame.file)
-  ) {
+  if (!source || isInternal(frame.file)) {
     return null
   }
 

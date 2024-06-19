@@ -44,22 +44,28 @@ describe('app dir - with output export (next start)', () => {
         )
       })
 
-      it('should warn during next start with output standalone', async () => {
-        nextConfig.replace(`output: 'export'`, `output: 'standalone'`)
-        const { code } = await nextBuild(appDir)
-        expect(code).toBe(0)
-        const port = await findPort()
-        let stderr = ''
-        app = await nextStart(appDir, port, {
-          onStderr(msg: string) {
-            stderr += msg || ''
-          },
-        })
-        await check(() => stderr, /⚠/i)
-        expect(stderr).toContain(
-          `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
-        )
-      })
+      // TODO: Move this test to test/production to run in isolation.
+      ;(process.env.TURBOPACK_BUILD ? it.skip : it)(
+        'should warn during next start with output standalone',
+        async () => {
+          nextConfig.replace(`output: 'export'`, `output: 'standalone'`)
+          const { code } = await nextBuild(appDir)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(0)
+          const port = await findPort()
+          let stderr = ''
+          app = await nextStart(appDir, port, {
+            onStderr(msg: string) {
+              stderr += msg || ''
+            },
+          })
+          await check(() => stderr, /⚠/i)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain(
+            `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+          )
+        }
+      )
     }
   )
 })

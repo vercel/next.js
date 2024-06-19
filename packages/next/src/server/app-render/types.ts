@@ -1,14 +1,16 @@
 import type { LoadComponentsReturnType } from '../load-components'
-import type { ServerRuntime, SizeLimit } from '../../../types'
+import type { ServerRuntime, SizeLimit } from '../../types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { SwrDelta } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
+import type { RequestLifecycleOpts } from '../base-server'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -56,7 +58,7 @@ export type FlightRouterState = [
    *   It uses the "url" property above to determine where to fetch from.
    */
   refresh?: 'refetch' | 'refresh' | null,
-  isRootLayout?: boolean
+  isRootLayout?: boolean,
 ]
 
 /**
@@ -72,7 +74,7 @@ export type FlightSegmentPath =
       segment: Segment,
       parallelRouterKey: string,
       segment: Segment,
-      parallelRouterKey: string
+      parallelRouterKey: string,
     ]
 
 /**
@@ -88,7 +90,7 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   node: React.ReactNode | null,
-  loading: LoadingModuleData
+  loading: LoadingModuleData,
 ]
 
 export type FlightDataPath =
@@ -101,7 +103,8 @@ export type FlightDataPath =
       /* segment of the rendered slice: */ Segment,
       /* treePatch */ FlightRouterState,
       /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null
+      /* head */ React.ReactNode | null,
+      /* layerAssets (imported styles/scripts) */ React.ReactNode | null,
     ]
 
 /**
@@ -126,21 +129,20 @@ export interface RenderOptsPartial {
   buildId: string
   basePath: string
   trailingSlash: boolean
-  clientReferenceManifest?: ClientReferenceManifest
-  supportsDynamicHTML: boolean
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
+  supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
-  nextFontManifest?: NextFontManifest
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   appDirDevErrorLogger?: (err: any) => Promise<void>
-  originalPathname?: string
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
@@ -158,18 +160,31 @@ export interface RenderOptsPartial {
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   experimental: {
-    ppr: boolean
-    missingSuspenseWithCSRBailout: boolean
+    /**
+     * When true, it indicates that the current page supports partial
+     * prerendering.
+     */
+    isRoutePPREnabled?: boolean
     swrDelta: SwrDelta | undefined
+    clientTraceMetadata: string[] | undefined
+    after: boolean
   }
   postponed?: string
   /**
-   * When true, only the skeleton of the PPR page will be rendered. This will
-   * also enable other debugging features such as logging.
+   * When true, only the static shell of the page will be rendered. This will
+   * also enable other debugging features such as logging in development.
    */
-  isDebugPPRSkeleton?: boolean
+  isDebugStaticShell?: boolean
+
+  /**
+   * When true, the page will be rendered using the static rendering to detect
+   * any dynamic API's that would have stopped the page from being fully
+   * statically generated.
+   */
+  isDebugDynamicAccesses?: boolean
   isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
-  RenderOptsPartial
+  RenderOptsPartial &
+  RequestLifecycleOpts

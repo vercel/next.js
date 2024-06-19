@@ -1,7 +1,7 @@
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { check, findPort, hasRedbox } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { createNext } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -48,9 +48,10 @@ describe.skip('Project Directory Renaming', () => {
       // should still HMR correctly
       await next.patchFile(
         'pages/index.js',
-        (
-          await next.readFile('pages/index.js')
-        ).replace('hello world', 'hello again')
+        (await next.readFile('pages/index.js')).replace(
+          'hello world',
+          'hello again'
+        )
       )
       await check(async () => {
         if (!(await browser.eval('!!window.next'))) {
@@ -61,9 +62,10 @@ describe.skip('Project Directory Renaming', () => {
     } finally {
       await next.patchFile(
         'pages/index.js',
-        (
-          await next.readFile('pages/index.js')
-        ).replace('hello again', 'hello world')
+        (await next.readFile('pages/index.js')).replace(
+          'hello again',
+          'hello world'
+        )
       )
     }
   })

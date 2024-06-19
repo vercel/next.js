@@ -4,11 +4,13 @@ import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
-  checkNodeDebugType,
-  getDebugPort,
+  getNodeDebugType,
+  getParsedDebugAddress,
   getMaxOldSpaceSize,
-  getNodeOptionsWithoutInspect,
+  getParsedNodeOptionsWithoutInspect,
   printAndExit,
+  formatNodeOptions,
+  formatDebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -200,13 +202,6 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
-  // TODO: remove in the next major version
-  if (config.analyticsId) {
-    Log.warn(
-      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
-    )
-  }
-
   const devServerOptions: StartServerOptions = {
     dir,
     port,
@@ -232,23 +227,25 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
-      let nodeDebugType = checkNodeDebugType()
+      const nodeOptions = getParsedNodeOptionsWithoutInspect()
+      const nodeDebugType = getNodeDebugType()
 
-      const maxOldSpaceSize = getMaxOldSpaceSize()
-
+      let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
         const totalMem = os.totalmem()
         const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
-        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
-          totalMemInMB * 0.5
-        )}`
+        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
+
+        nodeOptions['max-old-space-size'] = maxOldSpaceSize
+
+        // Ensure the max_old_space_size is not also set.
+        delete nodeOptions['max_old_space_size']
       }
 
       if (nodeDebugType) {
-        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
-          getDebugPort() + 1
-        }`
+        const address = getParsedDebugAddress()
+        address.port = address.port + 1
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
       }
 
       child = fork(startServerPath, {
@@ -260,7 +257,7 @@ const nextDev = async (
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS,
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       })
 

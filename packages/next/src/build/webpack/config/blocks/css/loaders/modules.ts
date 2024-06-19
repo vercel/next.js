@@ -40,6 +40,7 @@ export function getCssModuleLoader(
           exportOnlyLocals: ctx.isServer,
         },
         targets: ctx.supportedBrowsers,
+        postcss,
       },
     })
   } else {

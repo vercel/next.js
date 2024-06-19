@@ -1,6 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
@@ -16,8 +16,6 @@ describe('transpile packages', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './npm')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
         sass: 'latest',
       },
       packageJson: {

@@ -61,10 +61,11 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Gumlet](#gumlet)
 - [ImageEngine](#imageengine)
 - [Imgix](#imgix)
-- [Thumbor](#thumbor)
+- [PixelBin](#pixelbin)
 - [Sanity](#sanity)
 - [Sirv](#sirv)
 - [Supabase](#supabase)
+- [Thumbor](#thumbor)
 
 ### Akamai
 
@@ -100,7 +101,7 @@ export default function cloudinaryLoader({ src, width, quality }) {
 ### Cloudflare
 
 ```js
-// Docs: https://developers.cloudflare.com/images/url-format
+// Docs: https://developers.cloudflare.com/images/transform-images
 export default function cloudflareLoader({ src, width, quality }) {
   const params = [`width=${width}`, `quality=${quality || 75}`, 'format=auto']
   return `https://example.com/cdn-cgi/image/${params.join(',')}/${src}`
@@ -172,13 +173,16 @@ export default function imgixLoader({ src, width, quality }) {
 }
 ```
 
-### Thumbor
+### PixelBin
 
 ```js
-// Docs: https://thumbor.readthedocs.io/en/latest/
-export default function thumborLoader({ src, width, quality }) {
-  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
-  return `https://example.com${params.join('/')}${src}`
+// Doc (Resize): https://www.pixelbin.io/docs/transformations/basic/resize/#width-w
+// Doc (Optimise): https://www.pixelbin.io/docs/optimizations/quality/#image-quality-when-delivering
+// Doc (Auto Format Delivery): https://www.pixelbin.io/docs/optimizations/format/#automatic-format-selection-with-f_auto-url-parameter
+export default function pixelBinLoader({ src, width, quality }) {
+  const name = '<your-cloud-name>'
+  const opt = `t.resize(w:${width})~t.compress(q:${quality || 75})`
+  return `https://cdn.pixelbin.io/v2/${name}/${opt}/${src}?f_auto=true`
 }
 ```
 
@@ -223,5 +227,15 @@ export default function supabaseLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+}
+```
+
+### Thumbor
+
+```js
+// Docs: https://thumbor.readthedocs.io/en/latest/
+export default function thumborLoader({ src, width, quality }) {
+  const params = [`${width}x0`, `filters:quality(${quality || 75})`]
+  return `https://example.com${params.join('/')}${src}`
 }
 ```

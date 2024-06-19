@@ -36,21 +36,21 @@ pub async fn get_next_pages_transforms_rule(
             ModuleRuleCondition::all(vec![
                 ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
                 ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
-                    pages_dir.join("api".to_string()).await?,
+                    pages_dir.join("api".into()).await?,
                 )),
                 ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.js".to_string()).await?,
+                        pages_dir.join("_document.js".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.jsx".to_string()).await?,
+                        pages_dir.join("_document.jsx".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.ts".to_string()).await?,
+                        pages_dir.join("_document.ts".into()).await?,
                     ),
                     ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.tsx".to_string()).await?,
+                        pages_dir.join("_document.tsx".into()).await?,
                     ),
                 ])),
             ]),
@@ -70,6 +70,7 @@ struct NextJsStripPageExports {
 
 #[async_trait]
 impl CustomTransformer for NextJsStripPageExports {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_strip_page_exports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
         let eliminated_packages = Default::default();

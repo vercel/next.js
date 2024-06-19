@@ -1,5 +1,6 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 // Keep the key in memory as it should never change during the lifetime of the server in
 // both development and production.
@@ -116,8 +117,8 @@ export function setReferenceManifestsSingleton({
   serverActionsManifest,
   serverModuleMap,
 }: {
-  clientReferenceManifest: ClientReferenceManifest
-  serverActionsManifest: ActionManifest
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+  serverActionsManifest: DeepReadonly<ActionManifest>
   serverModuleMap: {
     [id: string]: {
       id: string
@@ -160,8 +161,8 @@ export function getClientReferenceManifestSingleton() {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
-    clientReferenceManifest: ClientReferenceManifest
-    serverActionsManifest: ActionManifest
+    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+    serverActionsManifest: DeepReadonly<ActionManifest>
   }
 
   if (!serverActionsManifestSingleton) {
@@ -181,8 +182,8 @@ export async function getActionEncryptionKey() {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
-    clientReferenceManifest: ClientReferenceManifest
-    serverActionsManifest: ActionManifest
+    clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+    serverActionsManifest: DeepReadonly<ActionManifest>
   }
 
   if (!serverActionsManifestSingleton) {

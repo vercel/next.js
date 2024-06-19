@@ -14,7 +14,7 @@ pub async fn get_styled_jsx_transform_rule(
     next_config: Vc<NextConfig>,
     target_browsers: Vc<RuntimeVersions>,
 ) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let use_swc_css = *next_config.use_swc_css().await?;
     let versions = *target_browsers.await?;
 

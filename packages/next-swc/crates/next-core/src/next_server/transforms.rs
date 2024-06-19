@@ -33,7 +33,7 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
-    let mdx_rs = *next_config.mdx_rs().await?;
+    let mdx_rs = next_config.mdx_rs().await?.is_some();
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
@@ -50,7 +50,9 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let (is_server_components, pages_dir) = match context_ty {
+    let mut is_app_dir = false;
+
+    let is_server_components = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
@@ -58,7 +60,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::PagesData { pages_dir } => {
             if !foreign_code {
@@ -75,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
@@ -84,8 +86,9 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
+            is_app_dir = true;
 
-            (false, None)
+            false
         }
         ServerContextType::AppRSC {
             client_transition, ..
@@ -100,17 +103,20 @@ pub async fn get_next_server_transforms_rules(
                     client_transition,
                 ));
             }
-            (true, None)
+            is_app_dir = true;
+
+            true
         }
-        ServerContextType::AppRoute { .. } => (false, None),
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
-            (false, None)
+        ServerContextType::AppRoute { .. } => {
+            is_app_dir = true;
+            false
         }
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
     if !foreign_code {
         rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
+            get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
                 .await?,
         );
 

@@ -2,7 +2,7 @@ import url from 'url'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 describe.each([[''], ['/docs']])(
@@ -85,7 +85,7 @@ describe.each([[''], ['/docs']])(
       let browser
       try {
         browser = await webdriver(next.url, path)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
 
         browserLogs.forEach((log) => {
           if (log.message.includes('Next.js auto-prefetches automatically')) {

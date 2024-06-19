@@ -54,3 +54,9 @@ These features are currently not supported:
   - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
 - [`experimental.urlImports`](/docs/app/api-reference/next-config-js/urlImports)
   - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
+
+## Generating Trace Files
+
+Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbo` command, this will generate a `.next/trace.log` file.
+
+When reporting issues related to Turbopack performance and memory usage, please include the trace file in your [GitHub](https://github.com/vercel/next.js) issue.
