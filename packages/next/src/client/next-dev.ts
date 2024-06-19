@@ -4,8 +4,6 @@ import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 import { pageBootrap } from './page-bootstrap'
 
-import './setup-hydration-warning'
-
 window.next = {
   version,
   // router is initialized later so it has to be live-binded
