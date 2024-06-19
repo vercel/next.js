@@ -23,8 +23,10 @@ pub async fn get_browser_runtime_code(
 
     let shared_runtime_utils_code =
         embed_static_code(asset_context, "shared/runtime-utils.ts".into());
-    let runtime_base_code =
-        embed_static_code(asset_context, "dev/runtime/base/runtime-base.ts".into());
+    let runtime_base_code = embed_static_code(
+        asset_context,
+        "browser/dev/runtime/base/runtime-base.ts".into(),
+    );
 
     let chunk_loading = &*asset_context
         .compile_time_info()
@@ -35,12 +37,12 @@ pub async fn get_browser_runtime_code(
     let runtime_backend_code = embed_static_code(
         asset_context,
         match chunk_loading {
-            ChunkLoading::Edge => "dev/runtime/edge/runtime-backend-edge.ts".into(),
+            ChunkLoading::Edge => "browser/dev/runtime/edge/runtime-backend-edge.ts".into(),
             // This case should never be hit.
             ChunkLoading::NodeJs => {
                 panic!("Node.js runtime is not supported in the browser runtime!")
             }
-            ChunkLoading::Dom => "dev/runtime/dom/runtime-backend-dom.ts".into(),
+            ChunkLoading::Dom => "browser/dev/runtime/dom/runtime-backend-dom.ts".into(),
         },
     );
 

@@ -8,7 +8,7 @@
 
 /* eslint-disable @next/next/no-assign-module-variable */
 
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../../shared/runtime-utils.ts" />
 /// <reference path="./globals.d.ts" />
 /// <reference path="./protocol.d.ts" />
 /// <reference path="./extensions.d.ts" />
