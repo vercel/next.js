@@ -3,6 +3,7 @@ import { info, setFailed } from '@actions/core'
 
 async function main() {
   if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
+  if (!process.env.CREATED) throw new TypeError('CREATED not set')
 
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
   const { owner, repo } = context.repo
