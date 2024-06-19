@@ -10,7 +10,6 @@
     "check:dev-client": "tsc -p src/dev/client",
     "check:dev-runtime-base": "tsc -p src/dev/runtime/base",
     "check:dev-runtime-dom": "tsc -p src/dev/runtime/dom",
-    "check:dev-runtime-nodejs": "tsc -p src/dev/runtime/nodejs",
     "check:dev-runtime-edge": "tsc -p src/dev/runtime/edge"
   },
   "exports": {
