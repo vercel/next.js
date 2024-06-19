@@ -48,12 +48,11 @@ describe('esm-externals', () => {
         : 'Hello World+World+World'
       : 'Hello World+World+Alternative'
 
-    const expectedText =
-      url === '/client'
+    const expectedText = isTurbopack
+      ? 'Hello World+World+World'
+      : url === '/client'
         ? 'Hello World+World+World'
-        : isTurbopack
-          ? 'Hello World+World+World'
-          : 'Hello World+World+Alternative'
+        : 'Hello World+World+Alternative'
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)
