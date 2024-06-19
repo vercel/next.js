@@ -617,6 +617,8 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
+                // TODO(kdy1): Use ModuleFragments after fixing a bug.
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 custom_rules: next_server_rules,
                 ..module_options_context
             }
