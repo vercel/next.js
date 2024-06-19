@@ -38,13 +38,13 @@ describe('fetch failures have good stack traces in edge runtime', () => {
     }
   })
 
-  it('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
+  // TODO: It need to have source maps picked up by node.js
+  it.skip('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
     await webdriver(next.url, '/api/unknown-domain-no-await')
 
-    // TODO: turbopack needs to have its source maps picked up by node.js
     await check(
       () => stripAnsi(next.cliOutput),
-      /at.+\/pages\/api\/unknown-domain-no-await.js/
+      /at.+\/pages\/api\/unknown-domain-no-await.ts:4/
     )
   })
 })

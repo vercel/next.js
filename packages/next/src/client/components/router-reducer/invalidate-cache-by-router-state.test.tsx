@@ -15,7 +15,6 @@ describe('invalidateCacheByRouterState', () => {
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -25,7 +24,6 @@ describe('invalidateCacheByRouterState', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -41,7 +39,6 @@ describe('invalidateCacheByRouterState', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -57,7 +54,6 @@ describe('invalidateCacheByRouterState', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                           loading: null,
                           parallelRoutes: new Map(),
                         },
@@ -102,7 +98,6 @@ describe('invalidateCacheByRouterState', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([['children', new Map()]]),
     }

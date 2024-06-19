@@ -3,13 +3,12 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "next": "19.0.0-rc-1df34bdf62-20240605",
-    "react": "19.0.0-rc-1df34bdf62-20240605",
-    "react-dom": "19.0.0-rc-1df34bdf62-20240605"
+    "next": "latest",
+    "react": "19.0.0-rc-6230622a1a-20240610",
+    "react-dom": "19.0.0-rc-6230622a1a-20240610"
   },
   "engines": {
-    "node": ">=18.17.0",
-    "pnpm": "8.15.7"
+    "node": ">=18.17.0"
   },
   "packageManager": "pnpm@8.15.7"
 }

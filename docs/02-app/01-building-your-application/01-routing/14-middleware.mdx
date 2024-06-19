@@ -309,7 +309,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-middleware1', 'hello')
 
-  // You can also set request headers in NextResponse.rewrite
+  // You can also set request headers in NextResponse.next
   const response = NextResponse.next({
     request: {
       // New request headers
@@ -331,7 +331,7 @@ export function middleware(request) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-middleware1', 'hello')
 
-  // You can also set request headers in NextResponse.rewrite
+  // You can also set request headers in NextResponse.next
   const response = NextResponse.next({
     request: {
       // New request headers
