@@ -2,7 +2,7 @@
 import fs from 'fs/promises'
 import execa from 'execa'
 import path from 'path'
-import yargs from 'yargs/yargs'
+import yargs from 'yargs'
 
 async function main() {
   let argv = await yargs(process.argv.slice(2))
@@ -129,20 +129,23 @@ async function main() {
     let smallestGroupIdx = 0
 
     // get the smallest group time to add current one to
-    for (let i = 1; i < groupTotal; i++) {
+    for (let i = 0; i < groupTotal; i++) {
       if (!fileGroups[i]) {
         fileGroups[i] = []
       }
 
-      if (fileGroups[i] && fileGroups[i].length < smallestGroup.length) {
+      if (
+        smallestGroup &&
+        fileGroups[i] &&
+        fileGroups[i].length < smallestGroup?.length
+      ) {
         smallestGroup = fileGroups[i]
         smallestGroupIdx = i
       }
     }
     fileGroups[smallestGroupIdx].push(test)
   }
-  console.log({ fileGroups, currentGroup, groupTotal })
-  currentTests = fileGroups[currentGroup] || []
+  currentTests = fileGroups[currentGroup - 1] || []
 
   if (currentTests.length === 0) {
     console.log(`No added/changed tests detected`)
