@@ -46,39 +46,39 @@ The Next.js Team
     })
 
     info(`issues = ${issues}`)
-    info(`${issues.length} issues found!`)
+    info(`${issues.length} issues found! Attempting to close these issues...`)
 
-    // issues.forEach(async (issue_number) => {
-    //   // assign the issue to samcx
-    //   await octokit.rest.issues.addAssignees({
-    //     owner,
-    //     repo,
-    //     issue_number,
-    //     assignees: ['samcx'],
-    //   })
+    issues.forEach(async (issue_number) => {
+      // assign the issue to samcx
+      await octokit.rest.issues.addAssignees({
+        owner,
+        repo,
+        issue_number,
+        assignees: ['samcx'],
+      })
 
-    //   // add a comment
-    //   await octokit.rest.issues.createComment({
-    //     owner,
-    //     repo,
-    //     issue_number,
-    //     body,
-    //   })
+      // add a comment
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number,
+        body,
+      })
 
-    //   // close the issue
-    //   await octokit.rest.issues.update({
-    //     owner,
-    //     repo,
-    //     issue_number,
-    //     state: 'closed',
-    //   })
-    // })
+      // close the issue
+      await octokit.rest.issues.update({
+        owner,
+        repo,
+        issue_number,
+        state: 'closed',
+      })
+    })
 
-    info(`${issues.length} issues closed.`)
+    info(`Those ${issues.length} issues have been successfully closed.`)
 
     const blocks = BlockCollection([
       Section({
-        text: `We just bankrupted *${issues.length}* issues from ${dateRange}.\n_Note: This :github2: <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|workflow> is ran manually with an inputed created query (e.g., ${createdQuery})._`,
+        text: `We just bankrupted *${issues.length}* issues from ${dateRange}.\n_Note: This :github2: <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|workflow> is ran manually with an inputed created query. To see which issues were closed, check the latest workflow <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|run>._`,
       }),
     ])
 
