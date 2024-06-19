@@ -134,6 +134,8 @@ async function getBarrelMapping(
           wildcard: isWildcard,
         },
         jsc: {
+          // This will improve the performance of the loader by avoiding the compatibility transforms.
+          target: 'esnext',
           parser: {
             syntax: isTypeScript ? 'typescript' : 'ecmascript',
             [isTypeScript ? 'tsx' : 'jsx']: true,
