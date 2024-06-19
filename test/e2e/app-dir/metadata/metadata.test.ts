@@ -551,31 +551,6 @@ describe('app dir - metadata', () => {
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
-
-    if (isNextDev) {
-      // This test frequently causes a compilation error when run in Turbopack
-      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
-      ;(process.env.TURBOPACK ? it.skip : it)(
-        'should handle updates to the file icon name and order',
-        async () => {
-          await next.renameFile(
-            'app/icons/static/icon.png',
-            'app/icons/static/icon2.png'
-          )
-
-          await check(async () => {
-            const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-            return $icon.attr('href')
-          }, /\/icons\/static\/icon2/)
-
-          await next.renameFile(
-            'app/icons/static/icon2.png',
-            'app/icons/static/icon.png'
-          )
-        }
-      )
-    }
   })
 
   describe('twitter', () => {
@@ -812,5 +787,32 @@ describe('app dir - metadata', () => {
     const ogHtml = await next.render('/blog/opengraph-image')
     expect(iconHtml).toContain('pages-icon-page')
     expect(ogHtml).toContain('pages-opengraph-image-page')
+  })
+
+  describe('hmr', () => {
+    if (isNextDev) {
+      // This test frequently causes a compilation error when run in Turbopack
+      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should handle updates to the file icon name and order',
+        async () => {
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon2.png'
+          )
+
+          await check(async () => {
+            const $ = await next.render$('/icons/static')
+            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+            return $icon.attr('href')
+          }, /\/icons\/static\/icon2/)
+
+          await next.renameFile(
+            'app/icons/static/icon2.png',
+            'app/icons/static/icon.png'
+          )
+        }
+      )
+    }
   })
 })
