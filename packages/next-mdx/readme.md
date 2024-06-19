@@ -18,33 +18,39 @@ yarn add @next/mdx @mdx-js/loader @mdx-js/react
 
 ## Usage
 
-Create a `next.config.js` in your project
+Create a `next.config.mjs` in your project
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')()
-module.exports = withMDX()
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX()
+export default withMDX()
 ```
 
 Optionally you can provide [MDX plugins](https://mdxjs.com/advanced/plugins#plugins):
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')({
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX({
   options: {
     remarkPlugins: [],
     rehypePlugins: [],
   },
 })
-module.exports = withMDX()
+export default withMDX()
 ```
 
 Optionally you can add your custom Next.js configuration as parameter
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')()
-module.exports = withMDX({
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX()
+export default withMDX({
   webpack(config, options) {
     return config
   },
@@ -55,11 +61,13 @@ By default MDX will only match and compile MDX files with the `.mdx` extension.
 However, it can also be optionally configured to handle markdown files with the `.md` extension, as shown below:
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')({
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX({
   extension: /\.(md|mdx)$/,
 })
-module.exports = withMDX()
+export default withMDX()
 ```
 
 In addition, MDX can be customized with compiler options, see the [mdx documentation](https://mdxjs.com/packages/mdx/#compilefile-options) for details on supported options.
@@ -69,11 +77,13 @@ In addition, MDX can be customized with compiler options, see the [mdx documenta
 Define the `pageExtensions` option to have Next.js handle `.md` and `.mdx` files in the `pages` directory as pages:
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')({
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX({
   extension: /\.mdx?$/,
 })
-module.exports = withMDX({
+export default withMDX({
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
 })
 ```
@@ -116,16 +126,15 @@ export function useMDXComponents(components) {
 }
 ```
 
-Create a `next.config.js` in your project
+Create a `next.config.mjs` in your project
 
 ```js
-// next.config.js
-const withMDX = require('@next/mdx')({
+// next.config.mjs
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX({
   // Optionally provide remark and rehype plugins
   options: {
-    // If you use remark-gfm, you'll need to use next.config.mjs
-    // as the package is ESM only
-    // https://github.com/remarkjs/remark-gfm#install
     remarkPlugins: [],
     rehypePlugins: [],
     // If you use `MDXProvider`, uncomment the following line.
@@ -142,7 +151,7 @@ const nextConfig = {
 }
 
 // Merge MDX config with Next.js config
-module.exports = withMDX(nextConfig)
+export default withMDX(nextConfig)
 ```
 
 ## TypeScript

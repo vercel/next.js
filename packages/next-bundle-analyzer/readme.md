@@ -14,23 +14,26 @@ or
 yarn add @next/bundle-analyzer
 ```
 
-Note: if installing as a `devDependency` make sure to wrap the require in a `process.env` check as `next.config.js` is loaded during `next start` as well.
+Note: if installing as a `devDependency` make sure to wrap the require in a `process.env` check as `next.config.mjs` is loaded during `next start` as well.
 
 ### Usage with environment variables
 
-Create a next.config.js (and make sure you have next-bundle-analyzer set up)
+Create a next.config.mjs (and make sure you have next-bundle-analyzer set up)
 
 ```js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
+import NextBundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = NextBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
 })
-module.exports = withBundleAnalyzer({})
+export default withBundleAnalyzer({})
 ```
 
 Or configuration as a function:
 
 ```js
-module.exports = (phase, defaultConfig) => {
+export default (phase, { defaultConfig }) => {
   return withBundleAnalyzer(defaultConfig)
 }
 ```
@@ -49,11 +52,14 @@ When enabled three HTML files (client.html, edge.html and nodejs.html) will be o
 To disable automatically opening the report in your default browser, set `openAnalyzer` to false:
 
 ```js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
+import NextBundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = NextBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
   openAnalyzer: false,
 })
-module.exports = withBundleAnalyzer({})
+
+export default withBundleAnalyzer({})
 ```
 
 ### Usage with next-compose-plugins
@@ -61,12 +67,14 @@ module.exports = withBundleAnalyzer({})
 From version 2.0.0 of next-compose-plugins you need to call bundle-analyzer in this way to work
 
 ```js
-const withPlugins = require('next-compose-plugins')
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
+import withPlugins from 'next-compose-plugins'
+import NextBundleAnalyzer from '@next/bundle-analyzer'
+
+const withBundleAnalyzer = NextBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 })
 
-module.exports = withPlugins([
+export default withPlugins([
   [withBundleAnalyzer],
   // your other plugins here
 ])

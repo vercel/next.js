@@ -9,25 +9,27 @@ description: Extend the default page extensions used by Next.js when resolving p
 
 By default, Next.js accepts files with the following extensions: `.tsx`, `.ts`, `.jsx`, `.js`. This can be modified to allow other extensions like markdown (`.md`, `.mdx`).
 
-```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+```js filename="next.config.mjs"
+import nextMDX from '@next/mdx'
+
+const withMDX = nextMDX()
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
 }
 
-module.exports = withMDX(nextConfig)
+export default withMDX(nextConfig)
 ```
 
 </AppOnly>
 
 <PagesOnly>
 
-You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside `next.config.js`, add the `pageExtensions` config:
+You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside `next.config.mjs`, add the `pageExtensions` config:
 
-```js filename="next.config.js"
-module.exports = {
+```js filename="next.config.mjs"
+export default {
   pageExtensions: ['mdx', 'md', 'jsx', 'js', 'tsx', 'ts'],
 }
 ```
@@ -44,10 +46,10 @@ For example, if you reconfigure `.ts` page extensions to `.page.ts`, you would n
 
 ## Including non-page files in the `pages` directory
 
-You can colocate test files or other files used by components in the `pages` directory. Inside `next.config.js`, add the `pageExtensions` config:
+You can colocate test files or other files used by components in the `pages` directory. Inside `next.config.mjs`, add the `pageExtensions` config:
 
-```js filename="next.config.js"
-module.exports = {
+```js filename="next.config.mjs"
+export default {
   pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
 }
 ```
