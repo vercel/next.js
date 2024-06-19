@@ -292,7 +292,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --dev-mode -g ${{ matrix.group }}
-      stepName: 'test-new-tests-dev'
+      stepName: 'test-new-tests-dev-${{matrix.group}}'
 
     secrets: inherit
 
@@ -309,7 +309,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --prod-mode -g ${{ matrix.group }}
-      stepName: 'test-new-tests-start'
+      stepName: 'test-new-tests-start-${{matrix.group}}'
 
     secrets: inherit
 

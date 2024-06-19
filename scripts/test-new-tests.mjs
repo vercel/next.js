@@ -136,6 +136,7 @@ async function main() {
     }
     fileGroups[smallestGroupIdx].push(test)
   }
+  console.log({ fileGroups, currentGroup, groupTotal })
   currentTests = fileGroups[currentGroup] || []
 
   if (currentTests.length === 0) {
