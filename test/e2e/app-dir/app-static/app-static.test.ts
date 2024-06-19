@@ -82,14 +82,17 @@ describe('app-dir static/dynamic handling', () => {
     expect(echoedHeaders.headers.traceparent).toEqual('C')
   })
 
-  it('should warn for too many cache tags', async () => {
-    const res = await next.fetch('/too-many-cache-tags')
-    expect(res.status).toBe(200)
-    await retry(() => {
-      expect(next.cliOutput).toContain('exceeded max tag count for')
-      expect(next.cliOutput).toContain('tag-65')
+  // Runtime logs aren't queryable in deploy mode
+  if (!isNextDeploy) {
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
-  })
+  }
 
   if (isNextDeploy) {
     describe('new tags have been specified on subsequent fetch', () => {
@@ -115,7 +118,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revlidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 

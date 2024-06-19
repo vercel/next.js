@@ -47,7 +47,7 @@ function patchCacheScopeSupportIntoReact() {
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 function patchFetch() {
-  return _patchFetch({ staticGenerationAsyncStorage })
+  return _patchFetch({ staticGenerationAsyncStorage, requestAsyncStorage })
 }
 
 export {

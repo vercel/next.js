@@ -140,7 +140,6 @@ async function createAppRouteCode({
     const isDynamicRouteExtension = pageExtensions.includes(ext)
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
-      page,
       filePath: resolvedPagePath,
       isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
     })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
@@ -158,7 +157,6 @@ async function createAppRouteCode({
       VAR_DEFINITION_FILENAME: fileBaseName,
       VAR_DEFINITION_BUNDLE_PATH: bundlePath,
       VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
@@ -817,7 +815,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
       VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
-      VAR_ORIGINAL_PATHNAME: page,
     },
     {
       tree: treeCodeResult.treeCode,

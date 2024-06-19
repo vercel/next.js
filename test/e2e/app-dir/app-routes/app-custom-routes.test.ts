@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -679,18 +679,19 @@ describe('app-custom-routes', () => {
     })
   }
 
-  describe('no response returned', () => {
-    it('should print an error when no response is returned', async () => {
-      await next.fetch(basePath + '/no-response', { method: 'POST' })
-
-      await check(() => {
-        expect(next.cliOutput).toMatch(
-          /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
-        )
-        return 'yes'
-      }, 'yes')
+  // This test is skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
+  if (!isNextDeploy) {
+    describe('no response returned', () => {
+      it('should print an error when no response is returned', async () => {
+        await next.fetch(basePath + '/no-response', { method: 'POST' })
+        await retry(() => {
+          expect(next.cliOutput).toMatch(
+            /No response is returned from route handler '.+\/route\.ts'\. Ensure you return a `Response` or a `NextResponse` in all branches of your handler\./
+          )
+        })
+      })
     })
-  })
+  }
 
   describe('no bundle error', () => {
     it('should not print bundling warning about React', async () => {

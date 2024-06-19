@@ -10,18 +10,17 @@ autobenches = false
 workspace = true
 
 [dependencies]
-next-core = { workspace = true, features = ["rustls-tls"] }
 next-api = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-turbo-tasks-malloc = { workspace = true, default-features = false }
 turbopack-binding = { workspace = true, features = [
     "__turbo_tasks",
     "__turbo_tasks_memory",
     "__turbo_tasks_env",
     "__turbo_tasks_fs",
     "__turbo_tasks_memory",
+    "__turbo_tasks_malloc",
     "__turbopack",
     "__turbopack_nodejs",
     "__turbopack_core",
@@ -39,9 +38,12 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 futures-util = "0.3.30"
 
+# Enable specific tls features per-target.
+[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
+next-core = { workspace = true, features = ["native-tls"] }
+
+[target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
+next-core = { workspace = true, features = ["rustls-tls"] }
+
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
-
-[dev-dependencies]
-iai-callgrind = "0.10.2"
-tempdir = "0.3.7"

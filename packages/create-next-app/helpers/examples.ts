@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { x } from 'tar'
-import { Readable } from 'stream'
-import { pipeline } from 'stream/promises'
 
 export type RepoInfo = {
   username: string
