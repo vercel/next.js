@@ -49,7 +49,7 @@ The Next.js Team
       issues.push({ title: issue.title, number: issue.number, url: issue.url })
     )
 
-    info(`issues = ${issues}`)
+    info(`issues = ${JSON.stringify(issues)}`)
     info(`${issues.length} issues found! Attempting to close these issues...`)
 
     issues.forEach(async (issue) => {
