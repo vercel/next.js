@@ -1,106 +1,21 @@
 // @ts-check
-import fs from 'fs/promises'
 import execa from 'execa'
-import path from 'path'
+import getChangedTests from './get-changed-tests.mjs'
 
 async function main() {
-  let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
+  const testMode = process.argv.includes('--dev-mode')
+    ? 'dev'
+    : process.argv.includes('--deploy-mode')
+      ? 'deploy'
+      : 'start'
+  const isFlakeDetection = process.argv.includes('--flake-detection')
 
-  let eventData = {}
+  const { devTests, prodTests } = await getChangedTests()
 
   /** @type import('execa').Options */
   const EXECA_OPTS = { shell: true }
   /** @type import('execa').Options */
   const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
-
-  try {
-    eventData =
-      JSON.parse(
-        await fs.readFile(process.env.GITHUB_EVENT_PATH || '', 'utf8')
-      )['pull_request'] || {}
-  } catch (_) {}
-
-  // detect changed test files
-  const branchName =
-    eventData?.head?.ref ||
-    process.env.GITHUB_REF_NAME ||
-    (await execa('git rev-parse --abbrev-ref HEAD', EXECA_OPTS)).stdout
-
-  const remoteUrl =
-    eventData?.head?.repo?.full_name ||
-    process.env.GITHUB_REPOSITORY ||
-    (await execa('git remote get-url origin', EXECA_OPTS)).stdout
-
-  const isCanary =
-    branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
-
-  if (isCanary) {
-    console.error(`Skipping flake detection for canary`)
-    return
-  }
-
-  try {
-    await execa('git remote set-branches --add origin canary', EXECA_OPTS_STDIO)
-    await execa('git fetch origin canary --depth=20', EXECA_OPTS_STDIO)
-  } catch (err) {
-    console.error(await execa('git remote -v', EXECA_OPTS_STDIO))
-    console.error(`Failed to fetch origin/canary`, err)
-  }
-
-  const changesResult = await execa(
-    `git diff origin/canary --name-only`,
-    EXECA_OPTS
-  ).catch((err) => {
-    console.error(err)
-    return { stdout: '', stderr: '' }
-  })
-  console.error(
-    {
-      branchName,
-      remoteUrl,
-      isCanary,
-      testMode,
-    },
-    `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`
-  )
-  const changedFiles = changesResult.stdout.split('\n')
-
-  // run each test 3 times in each test mode (if E2E) with no-retrying
-  // and if any fail it's flakey
-  const devTests = []
-  const prodTests = []
-
-  for (let file of changedFiles) {
-    // normalize slashes
-    file = file.replace(/\\/g, '/')
-    const fileExists = await fs
-      .access(path.join(process.cwd(), file), fs.constants.F_OK)
-      .then(() => true)
-      .catch(() => false)
-
-    if (fileExists && file.match(/^test\/.*?\.test\.(js|ts|tsx)$/)) {
-      if (file.startsWith('test/e2e/')) {
-        devTests.push(file)
-        prodTests.push(file)
-      } else if (file.startsWith('test/prod')) {
-        prodTests.push(file)
-      } else if (file.startsWith('test/development')) {
-        devTests.push(file)
-      }
-    }
-  }
-
-  console.log(
-    'Detected tests:',
-    JSON.stringify(
-      {
-        devTests,
-        prodTests,
-      },
-      null,
-      2
-    )
-  )
 
   const currentTests = testMode === 'dev' ? devTests : prodTests
 
@@ -109,15 +24,31 @@ async function main() {
     return
   }
 
-  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
+  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1']
 
-  for (let i = 0; i < 3; i++) {
+  // when checking for flakes, run the tests with 0 retries
+  // since we handle the retry logic below
+  if (isFlakeDetection) {
+    RUN_TESTS_ARGS.push('--retries', '0')
+  }
+
+  // when checking for flakes, run the entire test suite 3 times
+  const attempts = isFlakeDetection ? 3 : 1
+
+  if (process.env.TARBALL_URL) {
+    console.log(
+      `Running tests provided Next tarball: ${process.env.TARBALL_URL}`
+    )
+  }
+
+  for (let i = 0; i < attempts; i++) {
     console.log(`\n\nRun ${i + 1} for ${testMode} tests`)
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
         NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: process.env.TARBALL_URL,
       },
     })
   }

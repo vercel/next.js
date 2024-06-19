@@ -404,52 +404,6 @@ jobs:
           name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
 
-  deployTarball:
-    if: ${{ needs.build.outputs.isRelease != 'true' }}
-    name: Deploy tarball
-    runs-on: ubuntu-latest
-    needs:
-      - build
-      - build-wasm
-      - build-native
-    env:
-      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
-          check-latest: true
-      - run: corepack enable
-
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/cache@v4
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: next-swc-binaries-*
-          merge-multiple: true
-          path: packages/next-swc/native
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: wasm-binaries-*
-          merge-multiple: true
-          path: packages/next-swc/crates/wasm
-
-      - run: npm i -g vercel@latest
-
-      - run: node ./scripts/deploy-tarball.js
-
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release

@@ -146,7 +146,8 @@ async function main() {
   await child
 
   const deployUrl = deployOutput.trim()
-  console.log(`\n\nNext.js tarball: ${deployUrl.trim()}/next.tgz`)
+  console.log('\n\n')
+  console.log(`TARBALL_URL=${deployUrl.trim()}/next.tgz`)
 }
 
 main().catch((err) => {
