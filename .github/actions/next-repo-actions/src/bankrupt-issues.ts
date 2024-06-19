@@ -1,12 +1,13 @@
 import { context, getOctokit } from '@actions/github'
-import { getInput, info, setFailed } from '@actions/core'
+import { info, setFailed } from '@actions/core'
 
 async function main() {
   if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
+  if (!process.env.CREATED) throw new TypeError('CREATED not set')
 
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
   const { owner, repo } = context.repo
-  const createdQuery = getInput('created')
+  const createdQuery = process.env.CREATED
   const dateRange = createdQuery.split('..').join(' to ')
   const body = `
 
