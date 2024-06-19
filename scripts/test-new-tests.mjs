@@ -5,6 +5,16 @@ import path from 'path'
 
 async function main() {
   let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
+  const groupIndex = process.argv.indexOf('-g')
+  const rawGroup = groupIndex > -1 ? process.argv[groupIndex] : null
+  let currentGroup = 1
+  let groupTotal = 1
+
+  if (rawGroup) {
+    ;[currentGroup, groupTotal] = rawGroup
+      .split('/')
+      .map((item) => Number(item))
+  }
 
   let eventData = {}
 
@@ -102,7 +112,31 @@ async function main() {
     )
   )
 
-  const currentTests = testMode === 'dev' ? devTests : prodTests
+  let currentTests = testMode === 'dev' ? devTests : prodTests
+
+  /**
+    @type {Array<string[]>}
+  */
+  const fileGroups = []
+
+  for (const test of currentTests) {
+    let smallestGroup = fileGroups[0]
+    let smallestGroupIdx = 0
+
+    // get the smallest group time to add current one to
+    for (let i = 1; i < groupTotal; i++) {
+      if (!fileGroups[i]) {
+        fileGroups[i] = []
+      }
+
+      if (fileGroups[i] && fileGroups[i].length < smallestGroup.length) {
+        smallestGroup = fileGroups[i]
+        smallestGroupIdx = i
+      }
+    }
+    fileGroups[smallestGroupIdx].push(test)
+  }
+  currentTests = fileGroups[currentGroup] || []
 
   if (currentTests.length === 0) {
     console.log(`No added/changed tests detected`)

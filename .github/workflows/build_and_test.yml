@@ -284,9 +284,14 @@ jobs:
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode
+      afterBuild: node scripts/test-new-tests.mjs --dev-mode -g ${{ matrix.group }}
       stepName: 'test-new-tests-dev'
 
     secrets: inherit
@@ -296,9 +301,14 @@ jobs:
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode
+      afterBuild: node scripts/test-new-tests.mjs --prod-mode -g ${{ matrix.group }}
       stepName: 'test-new-tests-start'
 
     secrets: inherit
