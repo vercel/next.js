@@ -11,7 +11,7 @@
     "check:dev-runtime-base": "tsc -p src/dev/runtime/base",
     "check:dev-runtime-dom": "tsc -p src/dev/runtime/dom",
     "check:dev-runtime-nodejs": "tsc -p src/dev/runtime/nodejs",
-    "check:dev-runtime-none": "tsc -p src/dev/runtime/none"
+    "check:dev-runtime-edge": "tsc -p src/dev/runtime/edge"
   },
   "exports": {
     ".": "./src/main.js",

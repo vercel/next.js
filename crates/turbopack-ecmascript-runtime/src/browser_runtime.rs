@@ -35,7 +35,7 @@ pub async fn get_browser_runtime_code(
     let runtime_backend_code = embed_static_code(
         asset_context,
         match chunk_loading {
-            ChunkLoading::Edge => "dev/runtime/none/runtime-backend-none.ts".into(),
+            ChunkLoading::Edge => "dev/runtime/edge/runtime-backend-edge.ts".into(),
             ChunkLoading::NodeJs => "dev/runtime/nodejs/runtime-backend-nodejs.ts".into(),
             ChunkLoading::Dom => "dev/runtime/dom/runtime-backend-dom.ts".into(),
         },
