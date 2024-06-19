@@ -20,7 +20,7 @@ async function main() {
   const dateRange = createdQuery.split('..').join(' to ')
   const body = `
 
-We are in the process of closing issues dating from ${dateRange} to improve our focus on the most relevant and actionable problems.
+We are in the process of closing issues dating from **${dateRange}** to improve our focus on the most relevant and actionable problems.
 
 **_Why are we doing this?_**
 
@@ -28,7 +28,7 @@ Stale issues often lack recent updates and clear reproductions, making them diff
 
 **_Why these issues?_**
 
-Issues dating from ${dateRange} are likely to be outdated and less relevant to the current state of the codebase. By closing these older stale issues, we can better focus our efforts on more recent and relevant problems, ensuring a more effective and streamlined workflow.
+Issues dating from **${dateRange}** are likely to be outdated and less relevant to the current state of the codebase. By closing these older stale issues, we can better focus our efforts on more recent and relevant problems, ensuring a more effective and streamlined workflow.
 
 If your issue is still relevant, please reopen it using our [bug report template](https://github.com/vercel/next.js/issues/new?assignees=&labels=bug&projects=&template=1.bug_report.yml). Be sure to include any important context from the original issue in your new report.
 
