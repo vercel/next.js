@@ -240,6 +240,7 @@ export function createRSCRendererAliases(bundledReactChannel: string) {
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/client.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.node`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
   }
@@ -274,11 +275,6 @@ export function createRSCAliases(
     'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     'react-dom/server.node$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
-    'react-server-dom-webpack/client.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.node`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
     ...createRSCRendererAliases(bundledReactChannel),
   }
 
