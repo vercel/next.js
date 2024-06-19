@@ -1,11 +1,16 @@
-import { context, getOctokit } from '@actions/github'
 import { info, setFailed } from '@actions/core'
+import { context, getOctokit } from '@actions/github'
+import { WebClient } from '@slack/web-api'
+import { BlockCollection, Section } from 'slack-block-builder'
 
 async function main() {
   if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
   if (!process.env.CREATED) throw new TypeError('CREATED not set')
+  if (!process.env.SLACK_TOKEN) throw new TypeError('SLACK_TOKEN not set')
 
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
+  const slackClient = new WebClient(process.env.SLACK_TOKEN)
+
   const { owner, repo } = context.repo
   const createdQuery = process.env.CREATED
   const dateRange = createdQuery.split('..').join(' to ')
@@ -31,50 +36,61 @@ The Next.js Team
 
   let issues: number[] = []
 
-  info(`created = ${createdQuery}`)
-  info(`date range = ${dateRange}`)
-  info(`body = ${body}`)
+  try {
+    const { data } = await octokit.rest.search.issuesAndPullRequests({
+      q: `repo:${owner}/${repo} is:issue is:open created:${createdQuery}`,
+    })
 
-  // try {
-  //   const { data } = await octokit.rest.search.issuesAndPullRequests({
-  //     q: `repo:${owner}/${repo} is:issue is:open created:${createdQuery}`,
-  //   })
+    issues = data.items.map((issue) => {
+      return issue.number
+    })
 
-  //   issues = data.items.map((issue) => issue.number)
+    info(`issues = ${issues}`)
+    info(`${issues.length} issues found!`)
 
-  //   info(`issues = ${issues}`)
-  //   info(`${issues.length} issues found!`)
+    // issues.forEach(async (issue_number) => {
+    //   // assign the issue to samcx
+    //   await octokit.rest.issues.addAssignees({
+    //     owner,
+    //     repo,
+    //     issue_number,
+    //     assignees: ['samcx'],
+    //   })
 
-  //   issues.forEach(async (issue_number) => {
-  //     // assign the issue to samcx
-  //     await octokit.rest.issues.addAssignees({
-  //       owner,
-  //       repo,
-  //       issue_number,
-  //       assignees: ['samcx'],
-  //     })
+    //   // add a comment
+    //   await octokit.rest.issues.createComment({
+    //     owner,
+    //     repo,
+    //     issue_number,
+    //     body,
+    //   })
 
-  //     // add a comment
-  //     await octokit.rest.issues.createComment({
-  //       owner,
-  //       repo,
-  //       issue_number,
-  //       body,
-  //     })
+    //   // close the issue
+    //   await octokit.rest.issues.update({
+    //     owner,
+    //     repo,
+    //     issue_number,
+    //     state: 'closed',
+    //   })
+    // })
 
-  //     // close the issue
-  //     await octokit.rest.issues.update({
-  //       owner,
-  //       repo,
-  //       issue_number,
-  //       state: 'closed',
-  //     })
-  //   })
+    info(`${issues.length} issues closed.`)
 
-  //   info(`${issues.length} issues closed.`)
-  // } catch (error) {
-  //   setFailed(error)
-  // }
+    const blocks = BlockCollection([
+      Section({
+        text: `We just bankrupted *${issues.length}* issues from ${dateRange}.\n_Note: This :github2: <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|workflow> is ran manually with an inputed created query (e.g., ${createdQuery})._`,
+      }),
+    ])
+
+    await slackClient.chat.postMessage({
+      blocks,
+      channel: '#coord-next-triage',
+      icon_emoji: ':github:',
+      username: 'GitHub Notifier',
+    })
+  } catch (error) {
+    setFailed(error)
+  }
 }
 
 main()
