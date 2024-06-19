@@ -30,7 +30,7 @@ describe('Error overlay for hydration errors', () => {
       ])
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
@@ -59,7 +59,7 @@ describe('Error overlay for hydration errors', () => {
     `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
 

@@ -83,7 +83,7 @@ describe('Error overlay for hydration errors', () => {
     `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
 
@@ -336,7 +336,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
@@ -396,7 +396,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
@@ -451,7 +451,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -523,7 +523,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     await cleanup()
   })
@@ -569,7 +569,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
