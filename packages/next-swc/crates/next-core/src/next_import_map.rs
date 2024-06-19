@@ -352,7 +352,7 @@ pub async fn get_next_server_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
 
     insert_next_server_special_aliases(
@@ -440,7 +440,9 @@ pub async fn get_next_edge_import_map(
     match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {}
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. } => {}
         ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. } => {
@@ -453,7 +455,6 @@ pub async fn get_next_edge_import_map(
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {}
     }
 
     insert_next_server_special_aliases(
@@ -472,6 +473,7 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
+        | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -481,7 +483,6 @@ pub async fn get_next_edge_import_map(
                 execution_context,
             );
         }
-        _ => {}
     }
 
     Ok(import_map.cell())
@@ -583,10 +584,9 @@ async fn insert_next_server_special_aliases(
 
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Middleware => {
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
             rsc_aliases(import_map, project_path, ty, runtime, next_config).await?;
         }
-        ServerContextType::Instrumentation => {}
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
@@ -612,7 +612,7 @@ async fn insert_next_server_special_aliases(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
@@ -657,19 +657,29 @@ async fn rsc_aliases(
     let taint = *next_config.enable_taint().await?;
     let react_channel = if ppr || taint { "-experimental" } else { "" };
 
-    let mut alias = indexmap! {
-        "react" => format!("next/dist/compiled/react{react_channel}"),
-        "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
-        "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
-        "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
-        "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
-        "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
-        "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
-        "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
-        "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
-        "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
-        "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
-        "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+    let mut alias = IndexMap::new();
+    if matches!(
+        ty,
+        ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+    ) {
+        alias.extend(indexmap! {
+            "react" => format!("next/dist/compiled/react{react_channel}"),
+            "react-dom" => format!("next/dist/compiled/react-dom{react_channel}"),
+            "react/jsx-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-runtime"),
+            "react/jsx-dev-runtime" => format!("next/dist/compiled/react{react_channel}/jsx-dev-runtime"),
+            "react/compiler-runtime" => format!("next/dist/compiled/react{react_channel}/compiler-runtime"),
+            "react-dom/client" => format!("next/dist/compiled/react-dom{react_channel}/client"),
+            "react-dom/static" => format!("next/dist/compiled/react-dom-experimental/static"),
+            "react-dom/static.edge" => format!("next/dist/compiled/react-dom-experimental/static.edge"),
+            "react-dom/static.browser" => format!("next/dist/compiled/react-dom-experimental/static.browser"),
+            "react-dom/server" => format!("next/dist/compiled/react-dom{react_channel}/server"),
+            "react-dom/server.edge" => format!("next/dist/compiled/react-dom{react_channel}/server.edge"),
+            "react-dom/server.browser" => format!("next/dist/compiled/react-dom{react_channel}/server.browser"),
+        });
+    }
+    alias.extend(indexmap! {
         "react-server-dom-webpack/client" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client"),
         "react-server-dom-webpack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-webpack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
@@ -678,7 +688,7 @@ async fn rsc_aliases(
         "react-server-dom-turbopack/client.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/client.edge"),
         "react-server-dom-turbopack/server.edge" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.edge"),
         "react-server-dom-turbopack/server.node" => format!("next/dist/compiled/react-server-dom-turbopack{react_channel}/server.node"),
-    };
+    });
 
     if runtime == NextRuntime::NodeJs {
         match ty {
@@ -691,9 +701,12 @@ async fn rsc_aliases(
                     "react-dom" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-dom"),
                     "react-server-dom-webpack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
                     "react-server-dom-turbopack/client.edge" => format!("next/dist/server/route-modules/app-page/vendored/ssr/react-server-dom-turbopack-client-edge"),
-                })
+                });
             }
-            ServerContextType::AppRSC { .. } | ServerContextType::AppRoute { .. } => {
+            ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation { .. } => {
                 alias.extend(indexmap! {
                     "react/jsx-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-runtime"),
                     "react/jsx-dev-runtime" => format!("next/dist/server/route-modules/app-page/vendored/rsc/react-jsx-dev-runtime"),
@@ -708,7 +721,7 @@ async fn rsc_aliases(
 
                     // Needed to make `react-dom/server` work.
                     "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
-                })
+                });
             }
             _ => {}
         }

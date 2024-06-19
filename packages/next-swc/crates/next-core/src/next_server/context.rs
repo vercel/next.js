@@ -18,7 +18,10 @@ use turbopack_binding::{
             free_var_references,
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
-        ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
+        ecmascript_plugin::transform::directives::{
+            client::ClientDirectiveTransformer,
+            client_disallowed::ClientDisallowedDirectiveTransformer,
+        },
         node::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -96,8 +99,14 @@ pub enum ServerContextType {
         app_dir: Vc<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     },
-    Middleware,
-    Instrumentation,
+    Middleware {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
+    Instrumentation {
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    },
 }
 
 impl ServerContextType {
@@ -108,6 +117,7 @@ impl ServerContextType {
                 | ServerContextType::AppRoute { .. }
                 | ServerContextType::PagesApi { .. }
                 | ServerContextType::Middleware { .. }
+                | ServerContextType::Instrumentation { .. }
         )
     }
 }
@@ -164,14 +174,15 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpile_packages.contains(item));
 
+    let ty = ty.into_value();
+
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        // app-ssr can't have esm externals as that would make the module async on the server only
+        *next_config.import_externals().await? && !matches!(ty, ServerContextType::AppSSR { .. }),
     );
-    let ty = ty.into_value();
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
@@ -214,7 +225,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             vec![Vc::upcast(module_feature_report_resolve_plugin)]
         }
     };
@@ -264,7 +275,7 @@ pub async fn get_server_resolve_options_context(
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation => {
+        | ServerContextType::Instrumentation { .. } => {
             before_resolve_plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
             before_resolve_plugins.push(Vc::upcast(invalid_styled_jsx_client_only_resolve_plugin));
         }
@@ -731,12 +742,45 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+        ServerContextType::Middleware {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        }
+        | ServerContextType::Instrumentation {
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        } => {
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
+
+            if let Some(ecmascript_client_reference_transition_name) =
+                ecmascript_client_reference_transition_name
+            {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            } else {
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDisallowedDirectiveTransformer::new(
+                        "next/dist/client/use-client-disallowed.js".to_string(),
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
+            }
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
+            );
+
+            internal_custom_rules.extend(custom_source_transform_rules.iter().cloned());
 
             next_server_rules.extend(custom_source_transform_rules);
             next_server_rules.extend(source_transform_rules);

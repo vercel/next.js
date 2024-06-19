@@ -40,8 +40,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
-import React from 'react'
-import type { JSX } from 'react'
+import React, { type JSX } from 'react'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -1317,6 +1317,7 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
+
       let stream = await renderToInitialFizzStream({
         element: content,
       })
