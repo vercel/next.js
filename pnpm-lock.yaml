@@ -729,8 +729,8 @@ importers:
         specifier: 4.0.2
         version: 4.0.2
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.1
+        version: 0.38.1
       async-retry:
         specifier: 1.3.1
         version: 1.3.1
@@ -7954,6 +7954,11 @@ packages:
 
   /@vercel/ncc@0.34.0:
     resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
+    hasBin: true
+    dev: true
+
+  /@vercel/ncc@0.38.1:
+    resolution: {integrity: sha512-IBBb+iI2NLu4VQn3Vwldyi2QwaXt5+hTyh58ggAMoCGE6DJmPvwL3KPBWcJl1m9LYPChBLE980Jw+CS4Wokqxw==}
     hasBin: true
     dev: true
 
