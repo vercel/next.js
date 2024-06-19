@@ -18,8 +18,7 @@ jobs:
 
       - name: 'Bankrupt issues & send notification to Slack'
         uses: ./.github/actions/next-repo-actions/dist/bankrupt/index.js
-        with:
-          created: ${{ github.event.inputs.created }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+          CREATED: ${{ github.event.inputs.created }}
