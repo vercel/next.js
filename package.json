@@ -114,6 +114,7 @@
     "@types/trusted-types": "2.0.3",
     "@typescript-eslint/eslint-plugin": "6.14.0",
     "@typescript-eslint/parser": "6.14.0",
+    "@vercel/devlow-bench": "0.3.1",
     "@vercel/fetch": "6.1.1",
     "@vercel/og": "0.6.2",
     "abort-controller": "3.0.0",

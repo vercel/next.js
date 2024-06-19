@@ -22,8 +22,8 @@ describe('react version', () => {
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
-      serverFavoringBrowser: 'worker',
-      serverFavoringEdge: 'worker',
+      serverFavoringBrowser: 'browser',
+      serverFavoringEdge: 'edge-light',
     })
   })
 
@@ -34,8 +34,8 @@ describe('react version', () => {
     expect(JSON.parse(json)).toEqual({
       server: {
         react: 'default',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
       client: {
         react: 'default',
@@ -59,8 +59,8 @@ describe('react version', () => {
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
-      serverFavoringBrowser: 'worker',
-      serverFavoringEdge: 'worker',
+      serverFavoringBrowser: 'browser',
+      serverFavoringEdge: 'edge-light',
     })
   })
 
@@ -96,8 +96,8 @@ describe('react version', () => {
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
-      serverFavoringBrowser: 'worker',
-      serverFavoringEdge: 'worker',
+      serverFavoringBrowser: 'browser',
+      serverFavoringEdge: 'edge-light',
     })
   })
 
@@ -111,8 +111,8 @@ describe('react version', () => {
     expect(JSON.parse(json)).toEqual({
       server: {
         react: 'react-server',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
       client: {
         react: 'default',
@@ -121,8 +121,8 @@ describe('react version', () => {
       },
       action: {
         react: 'react-server',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
     })
   })
@@ -141,8 +141,8 @@ describe('react version', () => {
     }
     expect(middlewareHeaders).toEqual({
       react: 'react-server',
-      serverFavoringBrowser: 'worker',
-      serverFavoringEdge: 'worker',
+      serverFavoringBrowser: 'browser',
+      serverFavoringEdge: 'edge-light',
     })
   })
 
@@ -188,8 +188,8 @@ describe('react version', () => {
     expect({ middlewareHeaders, data }).toEqual({
       middlewareHeaders: {
         react: 'react-server',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
       data: {
         react: 'react-server',
@@ -215,13 +215,13 @@ describe('react version', () => {
     expect({ middlewareHeaders, data }).toEqual({
       middlewareHeaders: {
         react: 'react-server',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
       data: {
         react: 'react-server',
-        serverFavoringBrowser: 'worker',
-        serverFavoringEdge: 'worker',
+        serverFavoringBrowser: 'browser',
+        serverFavoringEdge: 'edge-light',
       },
     })
   })

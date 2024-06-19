@@ -64,7 +64,6 @@ describe('createInitialRouterState', () => {
       layerAssets: null,
       prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -89,7 +88,6 @@ describe('createInitialRouterState', () => {
                           layerAssets: null,
                           prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                         },
                       ],
                     ]),
@@ -102,7 +100,6 @@ describe('createInitialRouterState', () => {
                 layerAssets: null,
                 prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
               },
             ],

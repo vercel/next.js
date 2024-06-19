@@ -188,7 +188,6 @@ export function createEmptyCacheNode(): CacheNode {
     prefetchLayerAssets: null,
     prefetchHead: null,
     parallelRoutes: new Map(),
-    lazyDataResolved: false,
     loading: null,
   }
 }
