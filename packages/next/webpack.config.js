@@ -56,6 +56,7 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
+    'react-server-dom-webpack/client.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.node`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
   }

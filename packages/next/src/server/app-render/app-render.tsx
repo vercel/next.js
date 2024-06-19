@@ -117,6 +117,7 @@ import { isNodeNextRequest } from '../base-http/helpers'
 import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
+import type { Readable } from 'stream'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -315,7 +316,7 @@ async function generateFlight(
   const {
     componentMod: {
       tree: loaderTree,
-      renderToReadableStream,
+      renderToStream,
       createDynamicallyTrackedSearchParams,
     },
     getDynamicParamFromSegment,
@@ -362,18 +363,35 @@ async function generateFlight(
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = renderToReadableStream(
+  const flightReadableStream = renderToStream(
     options
       ? [options.actionResult, buildIdFlightDataPair]
       : buildIdFlightDataPair,
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
+      // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
       nonce: ctx.nonce,
     }
   )
 
-  return new FlightRenderResult(flightReadableStream)
+  let resultStream: Readable | ReadableStream<Uint8Array>
+  if (
+    process.env.NEXT_RUNTIME === 'nodejs' &&
+    !(flightReadableStream instanceof ReadableStream)
+  ) {
+    const { PassThrough } =
+      require('node:stream') as typeof import('node:stream')
+    resultStream = flightReadableStream.pipe(new PassThrough())
+  } else if (!(flightReadableStream instanceof ReadableStream)) {
+    throw new Error(
+      'Invariant. Stream is not a ReadableStream in non-Node.js runtime.'
+    )
+  } else {
+    resultStream = flightReadableStream
+  }
+
+  return new FlightRenderResult(resultStream)
 }
 
 type RenderToStreamResult = {
@@ -598,13 +616,13 @@ function ReactServerEntrypoint<T>({
   clientReferenceManifest,
   nonce,
 }: {
-  reactServerStream: BinaryStreamOf<T>
+  reactServerStream: Readable | BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   nonce?: string
 }): T {
   preinitScripts()
-  const response = useFlightStream(
+  const response = useFlightStream<T>(
     reactServerStream,
     clientReferenceManifest,
     nonce
@@ -954,17 +972,29 @@ async function renderToHTMLOrFlightImpl(
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
-      const serverStream = ComponentMod.renderToReadableStream(
+      const serverStream = ComponentMod.renderToStream(
         <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
+          // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
           nonce,
         }
       )
 
-      // We are going to consume this render both for SSR and for inlining the flight data
-      let [renderStream, dataStream] = serverStream.tee()
+      let renderStream, dataStream
+
+      if (
+        process.env.NEXT_RUNTIME === 'nodejs' &&
+        !(serverStream instanceof ReadableStream)
+      ) {
+        const { teeReadable } = require('../stream-utils')
+        ;[renderStream, dataStream] = teeReadable(serverStream)
+      } else {
+        // We are going to consume this render both for SSR and for inlining the flight data
+        // @ts-ignore
+        ;[renderStream, dataStream] = serverStream.tee()
+      }
 
       const children = (
         <HeadManagerContext.Provider
@@ -1037,19 +1067,6 @@ async function renderToHTMLOrFlightImpl(
       try {
         let { stream, postponed, resumed } = await renderer.render(children)
 
-        if (
-          process.env.NEXT_RUNTIME === 'nodejs' &&
-          !(stream instanceof ReadableStream)
-        ) {
-          const { Readable } = require('node:stream')
-          stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
-        }
-
-        // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-        if (!(stream instanceof ReadableStream)) {
-          throw new Error("Invariant: stream isn't a ReadableStream")
-        }
-
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
           /**
@@ -1085,6 +1102,7 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
+              // @ts-ignore
               stream: await continueDynamicPrerender(stream, {
                 getServerInsertedHTML,
               }),
@@ -1092,7 +1110,20 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const [original, flightSpy] = dataStream.tee()
+            let original, flightSpy
+
+            if (
+              process.env.NEXT_RUNTIME === 'nodejs' &&
+              !(dataStream instanceof ReadableStream)
+            ) {
+              const { teeReadable } = require('../stream-utils')
+              ;[original, flightSpy] = teeReadable(dataStream)
+            } else {
+              // We are going to consume this render both for SSR and for inlining the flight data
+              // @ts-ignore
+              ;[original, flightSpy] = dataStream.tee()
+            }
+
             dataStream = original
 
             await flightRenderComplete(flightSpy)
@@ -1115,6 +1146,7 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
+                // @ts-ignore
                 stream: await continueDynamicPrerender(stream, {
                   getServerInsertedHTML,
                 }),
@@ -1148,7 +1180,14 @@ async function renderToHTMLOrFlightImpl(
 
                 // We don't actually want to render anything so we just pass a stream
                 // that never resolves. The resume call is going to abort immediately anyway
-                const foreverStream = new ReadableStream<Uint8Array>()
+                let foreverStream
+
+                if (process.env.NEXT_RUNTIME === 'nodejs') {
+                  const { Readable } = require('node:stream')
+                  foreverStream = new Readable()
+                } else {
+                  foreverStream = new ReadableStream<Uint8Array>()
+                }
 
                 const resumeChildren = (
                   <HeadManagerContext.Provider
@@ -1171,21 +1210,24 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
 
-                // FIXME: shouldn't need this when chainStreams supports ReadableStream | Readable
-                if (!(resumeStream instanceof ReadableStream)) {
-                  throw new Error("Invariant: stream wasn't a ReadableStream")
-                }
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(stream, resumeStream)
+                renderedHTMLStream = chainStreams(
+                  // @ts-ignore
+                  stream,
+                  resumeStream
+                )
               }
+
+              let inlinedDataStream = createInlinedDataReadableStream(
+                dataStream,
+                nonce,
+                formState
+              )
 
               return {
                 stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
-                    nonce,
-                    formState
-                  ),
+                  // @ts-ignore
+                  inlinedDataStream,
                   getServerInsertedHTML,
                 }),
               }
@@ -1193,15 +1235,17 @@ async function renderToHTMLOrFlightImpl(
           }
         } else if (renderOpts.postponed) {
           // This is a continuation of either an Incomplete or Dynamic Data Prerender.
-          const inlinedDataStream = createInlinedDataReadableStream(
+          let inlinedDataStream = createInlinedDataReadableStream(
             dataStream,
             nonce,
             formState
           )
+
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
               stream: await continueDynamicHTMLResume(stream, {
+                // @ts-ignore
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
@@ -1210,6 +1254,7 @@ async function renderToHTMLOrFlightImpl(
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
               stream: await continueDynamicDataResume(stream, {
+                // @ts-ignore
                 inlinedDataStream,
               }),
             }
@@ -1308,20 +1353,35 @@ async function renderToHTMLOrFlightImpl(
           nonce
         )
 
-        const errorServerStream = ComponentMod.renderToReadableStream(
+        const errorServerStream = ComponentMod.renderToStream(
           <ReactServerError tree={tree} ctx={ctx} errorType={errorType} />,
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,
+            // @ts-expect-error This `renderToStream` wraps the `renderToReadableStream` or `renderToPipeableStream` from `react-server-dom-webpack` which doesn't specify a `nonce` prop on either options object. Leaving it in in case some other method is being used here.
             nonce,
           }
         )
+
+        let resultStream2: Readable | ReadableStream<Uint8Array>
+        if (
+          process.env.NEXT_RUNTIME === 'nodejs' &&
+          !(errorServerStream instanceof ReadableStream)
+        ) {
+          const { PassThrough } =
+            require('node:stream') as typeof import('node:stream')
+          resultStream2 = errorServerStream.pipe(new PassThrough())
+        } else if (!(errorServerStream instanceof ReadableStream)) {
+          throw new Error('Invariant. Stream is not ReadableStream')
+        } else {
+          resultStream2 = errorServerStream
+        }
 
         try {
           let fizzStream = await renderToInitialFizzStream({
             element: (
               <ReactServerEntrypoint
-                reactServerStream={errorServerStream}
+                reactServerStream={resultStream2}
                 preinitScripts={errorPreinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 nonce={nonce}
@@ -1334,22 +1394,6 @@ async function renderToHTMLOrFlightImpl(
               formState,
             },
           })
-
-          if (
-            process.env.NEXT_RUNTIME === 'nodejs' &&
-            !(fizzStream instanceof ReadableStream)
-          ) {
-            const { Readable } = require('node:stream')
-
-            fizzStream = Readable.toWeb(
-              fizzStream
-            ) as ReadableStream<Uint8Array>
-          }
-
-          // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
-          if (!(fizzStream instanceof ReadableStream)) {
-            throw new Error("Invariant: stream isn't a ReadableStream")
-          }
 
           return {
             // Returning the error that was thrown so it can be used to handle
@@ -1369,8 +1413,8 @@ async function renderToHTMLOrFlightImpl(
                 polyfills,
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
+                tracingMetadata: undefined,
                 basePath: renderOpts.basePath,
-                tracingMetadata: tracingMetadata,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,

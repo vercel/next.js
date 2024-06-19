@@ -328,7 +328,7 @@ function createDeferredSuffixStream(
 
 // Merge two streams into one. Ensure the final transform stream is closed
 // when both are finished.
-function createMergedTransformStream(
+export function createMergedTransformStream(
   stream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
   let pull: Promise<void> | null = null
