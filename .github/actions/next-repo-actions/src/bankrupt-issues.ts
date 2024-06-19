@@ -3,6 +3,8 @@ import { context, getOctokit } from '@actions/github'
 import { WebClient } from '@slack/web-api'
 import { BlockCollection, Section } from 'slack-block-builder'
 
+type Issue = { title: string; number: number; url: string }
+
 async function main() {
   if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
   if (!process.env.CREATED) throw new TypeError('CREATED not set')
@@ -11,7 +13,9 @@ async function main() {
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
   const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
+  const { runId } = context
   const { owner, repo } = context.repo
+  const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}`
   const createdQuery = process.env.CREATED
   const dateRange = createdQuery.split('..').join(' to ')
   const body = `
@@ -34,7 +38,7 @@ Best regards,
 The Next.js Team
   `
 
-  let issues: number[] = []
+  let issues: Issue[] = []
 
   try {
     const { data } = await octokit.rest.search.issuesAndPullRequests({
@@ -42,18 +46,18 @@ The Next.js Team
     })
 
     issues = data.items.map((issue) => {
-      return issue.number
+      return { title: issue.title, number: issue.number, url: issue.url }
     })
 
     info(`issues = ${issues}`)
     info(`${issues.length} issues found! Attempting to close these issues...`)
 
-    issues.forEach(async (issue_number) => {
+    issues.forEach(async (issue) => {
       // assign the issue to samcx
       await octokit.rest.issues.addAssignees({
         owner,
         repo,
-        issue_number,
+        issue_number: issue.number,
         assignees: ['samcx'],
       })
 
@@ -61,7 +65,7 @@ The Next.js Team
       await octokit.rest.issues.createComment({
         owner,
         repo,
-        issue_number,
+        issue_number: issue.number,
         body,
       })
 
@@ -69,7 +73,7 @@ The Next.js Team
       await octokit.rest.issues.update({
         owner,
         repo,
-        issue_number,
+        issue_number: issue.number,
         state: 'closed',
       })
     })
@@ -78,7 +82,7 @@ The Next.js Team
 
     const blocks = BlockCollection([
       Section({
-        text: `We just bankrupted *${issues.length}* issues from ${dateRange}.\n_Note: This :github2: <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|workflow> is ran manually with an inputed created query. To see which issues were closed, check the latest workflow <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|run>._`,
+        text: `We just bankrupted *${issues.length}* issues from ${dateRange}.\n_Note: This :github2: <https://github.com/vercel/next.js/actions/workflows/issue_bankrupt.yml|workflow> is ran manually with an inputed created query. To see which issues were closed, check the latest <${runUrl}|workflow run>._`,
       }),
     ])
 
