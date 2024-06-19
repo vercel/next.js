@@ -38,16 +38,16 @@ Best regards,
 The Next.js Team
   `
 
-  let issues: Issue[] = []
+  const issues: Issue[] = []
 
   try {
     const { data } = await octokit.rest.search.issuesAndPullRequests({
       q: `repo:${owner}/${repo} is:issue is:open created:${createdQuery}`,
     })
 
-    issues = data.items.map((issue) => {
-      return { title: issue.title, number: issue.number, url: issue.url }
-    })
+    data.items.forEach((issue) =>
+      issues.push({ title: issue.title, number: issue.number, url: issue.url })
+    )
 
     info(`issues = ${issues}`)
     info(`${issues.length} issues found! Attempting to close these issues...`)
