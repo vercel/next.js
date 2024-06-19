@@ -180,6 +180,7 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
+        // app-ssr can't have esm externals as that would make the module async on the server only
         *next_config.import_externals().await? && !matches!(ty, ServerContextType::AppSSR { .. }),
     );
 
