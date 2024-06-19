@@ -16,7 +16,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
 }
 
 describe('app dir - external dependency', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: 'latest',
@@ -286,10 +286,7 @@ describe('app dir - external dependency', () => {
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {
         const text = await browser.elementByCss('#dual-pkg-outout p').text()
-        // TODO: enable esm externals for app router in turbopack for actions
-        expect(text).toBe(
-          isTurbopack ? 'dual-pkg-optout:cjs' : 'dual-pkg-optout:mjs'
-        )
+        expect(text).toBe('dual-pkg-optout:mjs')
         return 'success'
       }, /success/)
     })
