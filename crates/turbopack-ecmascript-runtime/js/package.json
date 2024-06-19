@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "check": "run-p check:*",
-    "check:build": "tsc -p src/build",
+    "check:nodejs": "tsc -p src/nodejs",
     "check:dev-client": "tsc -p src/dev/client",
     "check:dev-runtime-base": "tsc -p src/dev/runtime/base",
     "check:dev-runtime-dom": "tsc -p src/dev/runtime/dom",
