@@ -2,9 +2,10 @@
 import fs from 'fs/promises'
 import execa from 'execa'
 import path from 'path'
+import yargs from 'yargs/yargs'
 
 async function main() {
-  let argv = await require('yargs/yargs')(process.argv.slice(2))
+  let argv = await yargs(process.argv.slice(2))
     .boolean('--dev-mode')
     .string('g')
     .alias('g', 'group').argv
