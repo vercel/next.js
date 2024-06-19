@@ -3070,6 +3070,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "swc_core",
+ "swc_transform_common",
  "tracing",
  "turbopack-binding",
  "walkdir",
