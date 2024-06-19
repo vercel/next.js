@@ -4,9 +4,13 @@ import execa from 'execa'
 import path from 'path'
 
 async function main() {
-  let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
-  const groupIndex = process.argv.indexOf('--group')
-  const rawGroup = groupIndex > -1 ? process.argv[groupIndex] : null
+  let argv = await require('yargs/yargs')(process.argv.slice(2))
+    .boolean('--dev-mode')
+    .string('g')
+    .alias('g', 'group').argv
+
+  let testMode = argv['--dev-mode'] ? 'dev' : 'start'
+  const rawGroup = argv['group']
   let currentGroup = 1
   let groupTotal = 1
 
