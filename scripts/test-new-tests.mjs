@@ -5,7 +5,7 @@ import path from 'path'
 
 async function main() {
   let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
-  const groupIndex = process.argv.indexOf('-g')
+  const groupIndex = process.argv.indexOf('--group')
   const rawGroup = groupIndex > -1 ? process.argv[groupIndex] : null
   let currentGroup = 1
   let groupTotal = 1
