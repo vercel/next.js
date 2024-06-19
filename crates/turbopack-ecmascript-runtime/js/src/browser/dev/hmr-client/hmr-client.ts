@@ -1,4 +1,4 @@
-/// <reference path="../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime-types.d.ts" />
 /// <reference path="../runtime/base/globals.d.ts" />
 /// <reference path="../runtime/base/protocol.d.ts" />
 /// <reference path="../runtime/base/extensions.d.ts" />

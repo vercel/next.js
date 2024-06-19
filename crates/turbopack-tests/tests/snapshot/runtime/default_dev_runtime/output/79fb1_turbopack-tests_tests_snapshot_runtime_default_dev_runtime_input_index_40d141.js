@@ -341,7 +341,7 @@ relativeURL.prototype = URL.prototype;
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
- */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="../../../shared/runtime-utils.ts" />
+ */ /* eslint-disable @next/next/no-assign-module-variable */ /// <reference path="../../../../shared/runtime-utils.ts" />
 /// <reference path="./globals.d.ts" />
 /// <reference path="./protocol.d.ts" />
 /// <reference path="./extensions.d.ts" />
@@ -1354,7 +1354,7 @@ globalThis.TURBOPACK_CHUNK_LISTS = {
  *
  * It will be appended to the base development runtime code.
  */ /// <reference path="../base/runtime-base.ts" />
-/// <reference path="../../../shared/require-type.d.ts" />
+/// <reference path="../../../../shared/require-type.d.ts" />
 let BACKEND;
 function augmentContext(context) {
     return context;

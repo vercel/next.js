@@ -5,7 +5,7 @@
  * This interface will be implemented by runtime backends.
  */
 
-/// <reference path="../../../shared/require-type.d.ts" />
+/// <reference path="../../../../shared/require-type.d.ts" />
 
 declare var BACKEND: RuntimeBackend;
 declare var _eval: (code: EcmascriptModuleEntry) => any;

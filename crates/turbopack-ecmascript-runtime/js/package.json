@@ -7,10 +7,10 @@
   "scripts": {
     "check": "run-p check:*",
     "check:nodejs": "tsc -p src/nodejs",
-    "check:dev-client": "tsc -p src/dev/client",
-    "check:dev-runtime-base": "tsc -p src/dev/runtime/base",
-    "check:dev-runtime-dom": "tsc -p src/dev/runtime/dom",
-    "check:dev-runtime-edge": "tsc -p src/dev/runtime/edge"
+    "check:browser-dev-client": "tsc -p src/browser/dev/hmr-client",
+    "check:browser-dev-runtime-base": "tsc -p src/browser/dev/runtime/base",
+    "check:browser-dev-runtime-dom": "tsc -p src/browser/dev/runtime/dom",
+    "check:browser-dev-runtime-edge": "tsc -p src/browser/dev/runtime/edge"
   },
   "exports": {
     ".": "./src/main.js",
