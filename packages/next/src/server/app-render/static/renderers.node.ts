@@ -6,7 +6,6 @@ import type { Options as PrerenderToNodeStreamOptions } from 'react-dom/static.n
 import type { RenderResult, Renderer } from './renderers'
 import { PassThrough } from 'node:stream'
 import type { PostponedState } from 'react-dom/types'
-import { DetachedPromise } from '../../../lib/detached-promise'
 import type { JSX } from 'react'
 
 export class ServerRenderer implements Renderer {
@@ -16,29 +15,17 @@ export class ServerRenderer implements Renderer {
   constructor(private readonly options: RenderToPipeableStreamOptions) {}
 
   public async render(children: JSX.Element): Promise<RenderResult> {
-    const { resolve, reject, promise } = new DetachedPromise<void>()
-    const onShellReady: RenderToPipeableStreamOptions['onShellReady'] = () => {
-      resolve()
-    }
-    const onShellError: RenderToPipeableStreamOptions['onShellError'] = (
-      error
-    ) => {
-      reject(error)
-    }
-    const stream = this.renderToPipeableStream(children, {
-      ...this.options,
-      onShellReady,
-      onShellError,
+    return new Promise((resolve, reject) => {
+      const { pipe } = this.renderToPipeableStream(children, {
+        ...this.options,
+        onShellReady() {
+          resolve({ stream: pipe(new PassThrough()) })
+        },
+        onShellError(error) {
+          reject(error)
+        },
+      })
     })
-    // Create the passthrough stream that'll be used to pipe the React stream
-    // into the final response.
-    const passthrough = new PassThrough()
-
-    await promise
-
-    stream.pipe(passthrough)
-
-    return { stream: passthrough }
   }
 }
 
@@ -68,30 +55,16 @@ export class StaticResumeRenderer implements Renderer {
   ) {}
 
   public async render(children: JSX.Element): Promise<RenderResult> {
-    const { resolve, reject, promise } = new DetachedPromise<void>()
-    const onShellReady: RenderToPipeableStreamOptions['onShellReady'] = () => {
-      resolve()
-    }
-    const onShellError: RenderToPipeableStreamOptions['onShellError'] = (
-      error
-    ) => {
-      reject(error)
-    }
-
-    const stream = this.resumeToPipeableStream(children, this.postponed, {
-      ...this.options,
-      onShellReady,
-      onShellError,
+    return new Promise((resolve, reject) => {
+      const { pipe } = this.resumeToPipeableStream(children, this.postponed, {
+        ...this.options,
+        onShellReady() {
+          resolve({ stream: pipe(new PassThrough()), resumed: true })
+        },
+        onShellError(error) {
+          reject(error)
+        },
+      })
     })
-
-    // Create the passthrough stream that'll be used to pipe the React stream
-    // into the final response.
-    const passthrough = new PassThrough()
-
-    await promise
-
-    stream.pipe(passthrough)
-
-    return { stream: passthrough, resumed: true }
   }
 }
