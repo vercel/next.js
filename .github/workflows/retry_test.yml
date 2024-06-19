@@ -21,7 +21,7 @@ jobs:
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&
         github.repository == 'vercel/next.js' &&
-        github.event.workflow_run.run_attempt < 3)
+        github.event.workflow_run.run_attempt < 3
       }}
     runs-on: ubuntu-latest
     steps:

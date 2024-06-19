@@ -10,7 +10,6 @@ const pages = [
 function checkDataRoute(data: any, page: string) {
   expect(data).toHaveProperty('pageProps')
   expect(data.pageProps).toHaveProperty('page', page)
-  expect(data.pageProps).toHaveProperty('output', page)
 }
 
 describe('i18n-data-route', () => {

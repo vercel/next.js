@@ -236,7 +236,7 @@ export default async function sitemap({
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -258,7 +258,7 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
