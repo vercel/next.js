@@ -43,11 +43,13 @@ describe('esm-externals', () => {
   // App dir
   describe.each(['/server', '/client'])('app dir url %s', (url) => {
     const expectedHtml = isTurbopack
-      ? 'Hello World+World+World'
+      ? url === '/client'
+        ? 'Hello Wrong+Wrong+Alternative'
+        : 'Hello World+World+World'
       : 'Hello World+World+Alternative'
 
     const expectedText =
-      url !== '/server'
+      url === '/client'
         ? 'Hello World+World+World'
         : isTurbopack
           ? 'Hello World+World+World'
