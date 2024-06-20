@@ -1581,73 +1581,7 @@ export default async function build(
       traceMemoryUsage('Starting build', nextBuildSpan)
 
       if (!isGenerateMode) {
-        if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
-          let durationInSeconds = 0
-
-          const serverBuildPromise = webpackBuild(useBuildWorker, [
-            'server',
-          ]).then((res) => {
-            traceMemoryUsage('Finished server compilation', nextBuildSpan)
-            buildTraceContext = res.buildTraceContext
-            durationInSeconds += res.duration
-
-            if (collectServerBuildTracesInParallel) {
-              const buildTraceWorker = new Worker(
-                require.resolve('./collect-build-traces'),
-                {
-                  numWorkers: 1,
-                  exposedMethods: ['collectBuildTraces'],
-                }
-              ) as Worker & typeof import('./collect-build-traces')
-
-              buildTracesPromise = buildTraceWorker
-                .collectBuildTraces({
-                  dir,
-                  config,
-                  distDir,
-                  // Serialize Map as this is sent to the worker.
-                  edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
-                  staticPages: [],
-                  hasSsrAmpPages: false,
-                  buildTraceContext,
-                  outputFileTracingRoot,
-                  isFlyingShuttle: !!config.experimental.flyingShuttle,
-                })
-                .catch((err) => {
-                  console.error(err)
-                  process.exit(1)
-                })
-            }
-          })
-          if (!runServerAndEdgeInParallel) {
-            await serverBuildPromise
-          }
-
-          const edgeBuildPromise = webpackBuild(useBuildWorker, [
-            'edge-server',
-          ]).then((res) => {
-            durationInSeconds += res.duration
-            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
-          })
-          if (runServerAndEdgeInParallel) {
-            await serverBuildPromise
-          }
-          await edgeBuildPromise
-
-          await webpackBuild(useBuildWorker, ['client']).then((res) => {
-            durationInSeconds += res.duration
-            traceMemoryUsage('Finished client compilation', nextBuildSpan)
-          })
-
-          Log.event('Compiled successfully')
-
-          telemetry.record(
-            eventBuildCompleted(pagesPaths, {
-              durationInSeconds,
-              totalAppPagesCount,
-            })
-          )
-        } else {
+        if (turboNextBuild) {
           const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
@@ -1661,6 +1595,95 @@ export default async function build(
               totalAppPagesCount,
             })
           )
+        } else {
+          if (
+            runServerAndEdgeInParallel ||
+            collectServerBuildTracesInParallel
+          ) {
+            let durationInSeconds = 0
+
+            const serverBuildPromise = webpackBuild(useBuildWorker, [
+              'server',
+            ]).then((res) => {
+              traceMemoryUsage('Finished server compilation', nextBuildSpan)
+              buildTraceContext = res.buildTraceContext
+              durationInSeconds += res.duration
+
+              if (collectServerBuildTracesInParallel) {
+                const buildTraceWorker = new Worker(
+                  require.resolve('./collect-build-traces'),
+                  {
+                    numWorkers: 1,
+                    exposedMethods: ['collectBuildTraces'],
+                  }
+                ) as Worker & typeof import('./collect-build-traces')
+
+                buildTracesPromise = buildTraceWorker
+                  .collectBuildTraces({
+                    dir,
+                    config,
+                    distDir,
+                    // Serialize Map as this is sent to the worker.
+                    edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
+                    staticPages: [],
+                    hasSsrAmpPages: false,
+                    buildTraceContext,
+                    outputFileTracingRoot,
+                    isFlyingShuttle: !!config.experimental.flyingShuttle,
+                  })
+                  .catch((err) => {
+                    console.error(err)
+                    process.exit(1)
+                  })
+              }
+            })
+            if (!runServerAndEdgeInParallel) {
+              await serverBuildPromise
+            }
+
+            const edgeBuildPromise = webpackBuild(useBuildWorker, [
+              'edge-server',
+            ]).then((res) => {
+              durationInSeconds += res.duration
+              traceMemoryUsage(
+                'Finished edge-server compilation',
+                nextBuildSpan
+              )
+            })
+            if (runServerAndEdgeInParallel) {
+              await serverBuildPromise
+            }
+            await edgeBuildPromise
+
+            await webpackBuild(useBuildWorker, ['client']).then((res) => {
+              durationInSeconds += res.duration
+              traceMemoryUsage('Finished client compilation', nextBuildSpan)
+            })
+
+            Log.event('Compiled successfully')
+
+            telemetry.record(
+              eventBuildCompleted(pagesPaths, {
+                durationInSeconds,
+                totalAppPagesCount,
+              })
+            )
+          } else {
+            const { duration: compilerDuration, ...rest } = await webpackBuild(
+              useBuildWorker,
+              null
+            )
+            traceMemoryUsage('Finished build', nextBuildSpan)
+
+            buildTraceContext = rest.buildTraceContext
+
+            telemetry.record(
+              eventBuildCompleted(pagesPaths, {
+                durationInSeconds: compilerDuration,
+                totalAppPagesCount,
+              })
+            )
+          }
         }
       }
 
