@@ -569,11 +569,11 @@ export async function generateStaticParams() {
 }
 ```
 
-```jsx filename="app/changelog/[slug]/page.js" switcher
+> **Good to know:** You must return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
 export const dynamic = 'force-static'
 ```
-
-> **Good to know:** You must return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
 
 To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
 

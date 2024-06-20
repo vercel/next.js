@@ -226,11 +226,11 @@ export async function generateStaticParams() {
 }
 ```
 
-```jsx filename="app/changelog/[slug]/page.js" switcher
+> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
 export const dynamic = 'force-static'
 ```
-
-> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
 
 ### Disable rendering for unspecified paths
 
