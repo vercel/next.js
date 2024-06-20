@@ -4,7 +4,7 @@ import { getSocketUrl } from './get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
-  const webSocketRef = useRef<WebSocket>()
+  const webSocketRef = useRef<WebSocket>(undefined)
 
   useEffect(() => {
     if (webSocketRef.current) {

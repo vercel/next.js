@@ -345,8 +345,10 @@
   },
   "packages/next/src/lib/metadata/resolve-metadata.test.ts": {
     "passed": [
+      "accumulateMetadata alternate should support URL alternate canonical with search params",
       "accumulateMetadata alternate should support alternate descriptors",
       "accumulateMetadata alternate should support string alternate",
+      "accumulateMetadata alternate should support string alternate canonical with search params",
       "accumulateMetadata icon should resolve icons.apple",
       "accumulateMetadata icon should resolve icons.icon correctly",
       "accumulateMetadata itunes should resolve relative url starting with ./ with pathname for itunes.appArgument",
@@ -426,6 +428,22 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/after/after-context.test.ts": {
+    "passed": [
+      "createAfterContext does not hang forever if onClose failed",
+      "createAfterContext runs after() callbacks added within an after()",
+      "createAfterContext runs after() callbacks from a run() callback that resolves",
+      "createAfterContext runs after() callbacks from a run() callback that streams",
+      "createAfterContext runs after() callbacks from a run() callback that throws",
+      "createAfterContext runs all after() callbacks even if some of them threw",
+      "createAfterContext throws from after() if onClose is not provided",
+      "createAfterContext throws from after() if waitUntil is not provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/app-render/csrf-protection.test.ts": {
     "passed": [
       "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
@@ -445,6 +463,17 @@
     "passed": [
       "flightRouterStateSchema should not validate an incorrect flight router state",
       "flightRouterStateSchema should validate a correct flight router state"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/base-http/web.test.ts": {
+    "passed": [
+      "WebNextResponse onClose doesn't track onClose unless enabled",
+      "WebNextResponse onClose stream body",
+      "WebNextResponse onClose string body"
     ],
     "failed": [],
     "pending": [],
@@ -481,7 +510,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/helpers/i18n-provider.test.ts": {
+  "packages/next/src/server/lib/i18n-provider.test.ts": {
     "passed": [
       "I18NProvider analyze for pathname / and defaultLocale en",
       "I18NProvider analyze for pathname /another/page and defaultLocale en",
@@ -502,7 +531,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/helpers/interception-routes.test.ts": {
+  "packages/next/src/server/lib/interception-routes.test.ts": {
     "passed": [
       "Interception Route helper extractInterceptionRouteInformation should check the segment length",
       "Interception Route helper extractInterceptionRouteInformation should extract correct information",
@@ -515,7 +544,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/absolute-filename-normalizer.test.ts": {
+  "packages/next/src/server/normalizers/absolute-filename-normalizer.test.ts": {
     "passed": [
       "AbsoluteFilenameNormalizer normalizes '<root>/app/basic/(grouped)/endpoint/nested/route.ts' to '/basic/(grouped)/endpoint/nested/route'",
       "AbsoluteFilenameNormalizer normalizes '<root>/pages/basic/endpoint/index.ts' to '/basic/endpoint'",
@@ -526,7 +555,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/base-path.test.ts": {
+  "packages/next/src/server/normalizers/request/base-path.test.ts": {
     "passed": [
       "BasePathPathnameNormalizer should throw when provided with a basePath of \"/\"",
       "BasePathPathnameNormalizer should throw when provided with a blank basePath"
@@ -536,7 +565,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/next-data.test.ts": {
+  "packages/next/src/server/normalizers/request/next-data.test.ts": {
     "passed": [
       "NextDataPathnameNormalizer constructor should error when no buildID is provided",
       "NextDataPathnameNormalizer match should return false if the pathname does not start with the prefix",
@@ -551,7 +580,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/postponed.test.ts": {
+  "packages/next/src/server/normalizers/request/postponed.test.ts": {
     "passed": [
       "PostponedPathnameNormalizer match should match",
       "PostponedPathnameNormalizer match should not match for other pathnames",
@@ -564,7 +593,19 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/prefix.test.ts": {
+  "packages/next/src/server/normalizers/request/prefetch-rsc.test.ts": {
+    "passed": [
+      "PrefetchRSCPathnameNormalizer should match the prefetch rsc pathname",
+      "PrefetchRSCPathnameNormalizer should normalize the prefetch rsc index pathname",
+      "PrefetchRSCPathnameNormalizer should normalize the prefetch rsc pathname",
+      "PrefetchRSCPathnameNormalizer should not match the prefetch rsc pathname with a different suffix"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/normalizers/request/prefix.test.ts": {
     "passed": [
       "PrefixPathnameNormalizer match should return false if the pathname does not start with the prefix",
       "PrefixPathnameNormalizer match should return true if the pathname starts with the prefix",
@@ -577,7 +618,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/suffix.test.ts": {
+  "packages/next/src/server/normalizers/request/suffix.test.ts": {
     "passed": [
       "SuffixPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
       "SuffixPathnameNormalizer match should return true if it matches",
@@ -589,7 +630,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-managers/default-route-matcher-manager.test.ts": {
+  "packages/next/src/server/route-matcher-managers/default-route-matcher-manager.test.ts": {
     "passed": [
       "DefaultRouteMatcherManager calls the locale route matcher when one is provided",
       "DefaultRouteMatcherManager can handle locale aware matchers for /en-US/some/path and locale en-US",
@@ -604,7 +645,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/app-page-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/app-page-route-matcher-provider.test.ts": {
     "passed": [
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /",
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /about",
@@ -617,7 +658,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/app-route-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/app-route-route-matcher-provider.test.ts": {
     "passed": [
       "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /",
       "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /users",
@@ -629,7 +670,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
     "passed": [
       "DevAppPageRouteMatcher filename matching matches the '/(marketing)/about/page' route specified with the provided files",
       "DevAppPageRouteMatcher filename matching matches the '/page' route specified with the provided files",
@@ -641,7 +682,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
     "passed": [
       "DevAppRouteRouteMatcher filename matching matches the '/route' route specified with the provided files",
       "DevAppRouteRouteMatcher filename matching matches the '/some/other/route' route specified with the provided files",
@@ -652,7 +693,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-pages-api-route-matcher-provider.test.ts": {
     "passed": [
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api' route specified with the provided files",
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other' route specified with the provided files",
@@ -664,7 +705,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-pages-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-pages-route-matcher-provider.test.ts": {
     "passed": [
       "DevPagesRouteMatcherProvider filename matching matches the '/' route specified with the provided files",
       "DevPagesRouteMatcherProvider filename matching matches the '/some/api/route' route specified with the provided files",
@@ -677,7 +718,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.test.ts": {
     "passed": [
       "CachedFileReader will only scan the filesystem a minimal amount of times",
       "CachedFileReader will send an error back only to the correct reader"
@@ -687,7 +728,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/pages-api-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/pages-api-route-matcher-provider.test.ts": {
     "passed": [
       "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api",
       "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api/users",
@@ -699,7 +740,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/pages-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/pages-route-matcher-provider.test.ts": {
     "passed": [
       "PagesRouteMatcherProvider locale matching locale has the match for /",
       "PagesRouteMatcherProvider locale matching locale has the match for /404",
@@ -1457,7 +1498,8 @@
   "test/development/acceptance/server-component-compiler-errors-in-pages.test.ts": {
     "passed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
-      "Error Overlay for server components compiler errors in pages importing 'server-only' in pages"
+      "Error Overlay for server components compiler errors in pages importing 'server-only' in pages",
+      "Error Overlay for server components compiler errors in pages importing unstable_after from 'next/server' in pages"
     ],
     "failed": [],
     "pending": [],
@@ -2525,6 +2567,7 @@
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
       "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
       "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should 404 when POSTing an invalid server action",
       "app-dir action handling should be possible to catch network errors",
@@ -2631,9 +2674,9 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
+  "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts": {
     "passed": [
-      "app dir client cache semantics should renew the 30s cache once the data is revalidated"
+      "app dir client cache semantics (30s/5min) should renew the 30s cache once the data is revalidated"
     ],
     "failed": [],
     "pending": [],
@@ -2745,6 +2788,7 @@
       "app-dir edge SSR should resolve client component without error",
       "app-dir edge SSR should resolve module without error in edge runtime",
       "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
+      "app-dir edge SSR should treat process as object without polyfill in edge runtime",
       "app-dir edge SSR should warn about the re-export of a pages runtime/preferredRegion config"
     ],
     "failed": [],
@@ -3296,6 +3340,7 @@
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
       "app dir - basic next/script should pass `nonce`",
+      "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic next/script should support next/script and render in correct order",
@@ -3494,6 +3539,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
+    "passed": [
+      "css-client-side-nav-parallel-routes should apply styles after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-order/css-order.test.ts": {
     "passed": [
       "css-order turbo should load correct styles navigating big-interleaved-a -> big-interleaved-b",
@@ -3633,7 +3687,7 @@
       "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
       "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
-      "app dir - dynamic css should preload css of dynamic component during SSR"
+      "app dir - dynamic css should preload all chunks of dynamic component during SSR"
     ],
     "failed": [],
     "pending": [],
@@ -3706,6 +3760,26 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ecmascript-features/turbopack/ecmascript-features-turbopack.test.ts": {
+    "passed": [
+      "ecmascript-features turbopack should work using browser",
+      "ecmascript-features turbopack should work using cheerio"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ecmascript-features/webpack/ecmascript-features-webpack.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "ecmascript-features webpack should work using browser",
+      "ecmascript-features webpack should work using cheerio"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4076,6 +4150,7 @@
     "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
+      "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
       "app dir - metadata dynamic routes should error when id is missing in generateImageMetadata",
       "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
@@ -4083,19 +4158,18 @@
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
       "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
+      "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
+      "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
+      "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+      "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
       "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
-      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes",
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
-      "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
-      "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
-      "app dir - metadata dynamic routes sitemap social image routes should support generate multi sitemaps with generateSitemaps",
-      "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
-      "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes"
+      "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -4236,6 +4310,7 @@
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+      "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
       "app dir - navigation navigating to a page with async metadata should render the final state of the page with correct metadata",
       "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
@@ -4279,6 +4354,54 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/next-after-app/index.test.ts": {
+    "passed": [
+      "unstable_after() in edge runtime does not allow modifying cookies in a callback",
+      "unstable_after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+      "unstable_after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+      "unstable_after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+      "unstable_after() in edge runtime invalid usages errors at compile time when used in a client module",
+      "unstable_after() in edge runtime invalid usages errors at compile time with dynamic = \"error\"",
+      "unstable_after() in edge runtime invalid usages errors at compile time with dynamic = \"force-static\"",
+      "unstable_after() in edge runtime only runs callbacks after the response is fully sent",
+      "unstable_after() in edge runtime runs callbacks from nested unstable_after calls",
+      "unstable_after() in edge runtime runs in dynamic pages",
+      "unstable_after() in edge runtime runs in dynamic route handlers",
+      "unstable_after() in edge runtime runs in generateMetadata()",
+      "unstable_after() in edge runtime runs in middleware",
+      "unstable_after() in edge runtime runs in server actions",
+      "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
+      "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+      "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
+      "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
+      "unstable_after() in nodejs runtime invalid usages errors at compile time when used in a client module",
+      "unstable_after() in nodejs runtime invalid usages errors at compile time with dynamic = \"error\"",
+      "unstable_after() in nodejs runtime invalid usages errors at compile time with dynamic = \"force-static\"",
+      "unstable_after() in nodejs runtime only runs callbacks after the response is fully sent",
+      "unstable_after() in nodejs runtime runs callbacks from nested unstable_after calls",
+      "unstable_after() in nodejs runtime runs in dynamic pages",
+      "unstable_after() in nodejs runtime runs in dynamic route handlers",
+      "unstable_after() in nodejs runtime runs in generateMetadata()",
+      "unstable_after() in nodejs runtime runs in middleware",
+      "unstable_after() in nodejs runtime runs in server actions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-after-pages/index.test.ts": {
+    "passed": [
+      "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
+      "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
+      "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
+      "unstable_after() - pages runs in middleware"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/next-config/index.test.ts": {
     "passed": [
       "app dir - next config should support importing webpack in next.config"
@@ -4290,6 +4413,7 @@
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app dir - next-font import values should have correct values at /",
@@ -4297,9 +4421,7 @@
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
-    "failed": [
-      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4410,6 +4532,19 @@
     "passed": [
       "app dir - not-found - group route with default runtime should use the not-found page under group routes",
       "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/options-request/options-request.test.ts": {
+    "passed": [
+      "options-request should 404 for an OPTIONS request to a non-existent route",
+      "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
+      "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
+      "options-request should return a 400 status code when invoking /app-page with an OPTIONS request",
+      "options-request should return a 400 status code when invoking /pages-page with an OPTIONS request"
     ],
     "failed": [],
     "pending": [],
@@ -4825,6 +4960,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/prefetch-searchparam/prefetch-searchparam.test.ts": {
+    "passed": [
+      "prefetch-searchparam should set prefetch cache properly on different search params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/prefetching-not-found/prefetching-not-found.test.ts": {
     "passed": [
       "prefetching-not-found should correctly navigate to/from a global 404 page when following links with prefetch=auto"
@@ -4961,6 +5105,8 @@
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
     "passed": [
+      "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
+      "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
@@ -4998,8 +5144,7 @@
     "failed": [],
     "pending": [
       "app dir - rsc basics should not use bundled react for pages with app",
-      "app dir - rsc basics should support partial hydration with inlined server data in browser",
-      "app dir - rsc basics should support webpack loader rules"
+      "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5989,11 +6134,12 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -6772,15 +6918,8 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer client packages in middleware should error when import server packages in middleware",
+      "module layer with server-only in server targets should render installed react version for middleware",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
@@ -6878,26 +7017,26 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app Fallback fontfaces google Fraunces",
-      "next/font app Fallback fontfaces google Indie flower",
-      "next/font app Fallback fontfaces local Fraunces",
-      "next/font app Fallback fontfaces local Indie flower",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app computed styles page using fallback fonts",
-      "next/font app computed styles page using variables",
-      "next/font app computed styles page with fonts",
-      "next/font app import values Variable font without weight range",
-      "next/font app import values page with font",
-      "next/font app import values page with local fonts",
-      "next/font app preload font without preloadable subsets",
-      "next/font app preload font without size adjust",
-      "next/font app preload google fonts with multiple weights/styles",
-      "next/font app preload page with fonts",
-      "next/font app preload page with local fonts",
-      "next/font app preload page without fonts",
-      "next/font app should use production cache control for fonts"
+      "next/font Fallback fontfaces google Fraunces",
+      "next/font Fallback fontfaces google Indie flower",
+      "next/font Fallback fontfaces local Fraunces",
+      "next/font Fallback fontfaces local Indie flower",
+      "next/font Fallback fontfaces local Roboto multiple weights and styles",
+      "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font computed styles page using fallback fonts",
+      "next/font computed styles page using variables",
+      "next/font computed styles page with fonts",
+      "next/font import values Variable font without weight range",
+      "next/font import values page with font",
+      "next/font import values page with local fonts",
+      "next/font preload font without preloadable subsets",
+      "next/font preload font without size adjust",
+      "next/font preload google fonts with multiple weights/styles",
+      "next/font preload page with fonts",
+      "next/font preload page with local fonts",
+      "next/font preload page without fonts",
+      "next/font should use production cache control for fonts"
     ],
     "failed": [],
     "pending": [],
@@ -6968,7 +7107,9 @@
   "test/e2e/next-script/index.test.ts": {
     "passed": [
       "beforeInteractive in document Head Script is injected server-side",
-      "beforeInteractive in document body Script is injected server-side"
+      "beforeInteractive in document body Script is injected server-side",
+      "empty strategy in document Head Script is injected server-side",
+      "empty strategy in document body Script is injected server-side"
     ],
     "failed": [],
     "pending": [
@@ -7028,7 +7169,20 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/opentelemetry/instrumentation-pages-app-only.test.ts": {
+  "test/e2e/opentelemetry/client-trace-metadata/client-trace-metadata.test.ts": {
+    "passed": [
+      "clientTraceMetadata hard loading a dynamic page twice should yield different dynamic trace data",
+      "clientTraceMetadata next dev only should inject propagation data for a statically server-side-rendered page",
+      "clientTraceMetadata next dev only soft navigating to a dynamic page should not transform previous propagation data",
+      "clientTraceMetadata next dev only soft navigating to a static page should not transform previous propagation data",
+      "clientTraceMetadata should inject propagation data for a dynamically server-side-rendered page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/opentelemetry/instrumentation/instrumentation-pages-app-only.test.ts": {
     "passed": [
       "instrumentation app should start and serve correctly",
       "instrumentation app src/ should start and serve correctly",
@@ -7040,7 +7194,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/opentelemetry/opentelemetry.test.ts": {
+  "test/e2e/opentelemetry/instrumentation/opentelemetry.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -7201,6 +7355,16 @@
     "passed": [
       "Requests not effected when middleware used should proxy GET request ",
       "Requests not effected when middleware used should proxy POST request with body"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/react-compiler/react-compiler.test.ts": {
+    "passed": [
+      "react-compiler default should render",
+      "react-compiler default should show an experimental warning"
     ],
     "failed": [],
     "pending": [],
@@ -8614,7 +8778,9 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/examples.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "create-next-app --example should create if --example value is default",
       "create-next-app --example should create on valid Next.js example name",
       "create-next-app --example should create with GitHub URL",
@@ -8625,103 +8791,107 @@
       "create-next-app --example should not create if --example flag value is invalid",
       "create-next-app --example should use --example-path over the GitHub URL"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/package-manager/bun.test.ts": {
-    "passed": [
-      "create-next-app with package manager bun should use bun for --use-bun flag",
-      "should use bun for --use-bun flag with example",
-      "should use bun when user-agent is bun",
-      "should use bun when user-agent is bun with example"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "create-next-app with package manager bun should use bun for --use-bun flag",
+      "create-next-app with package manager bun should use bun for --use-bun flag with example",
+      "create-next-app with package manager bun should use bun when user-agent is bun",
+      "create-next-app with package manager bun should use bun when user-agent is bun with example"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/package-manager/npm.test.ts": {
-    "passed": [
-      "create-next-app with package manager npm should use npm for --use-npm flag",
-      "should use npm for --use-npm flag with example",
-      "should use npm when user-agent is npm",
-      "should use npm when user-agent is npm with example"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "create-next-app with package manager npm should use npm for --use-npm flag",
+      "create-next-app with package manager npm should use npm for --use-npm flag with example",
+      "create-next-app with package manager npm should use npm when user-agent is npm",
+      "create-next-app with package manager npm should use npm when user-agent is npm with example"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/package-manager/pnpm.test.ts": {
-    "passed": [
-      "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
-      "should use pnpm for --use-pnpm flag with example",
-      "should use pnpm when user-agent is pnpm",
-      "should use pnpm when user-agent is pnpm with example"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag",
+      "create-next-app with package manager pnpm should use pnpm for --use-pnpm flag with example",
+      "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm",
+      "create-next-app with package manager pnpm should use pnpm when user-agent is pnpm with example"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/package-manager/yarn.test.ts": {
-    "passed": [
-      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
-      "should use yarn for --use-yarn flag with example",
-      "should use yarn when user-agent is yarn",
-      "should use yarn when user-agent is yarn with example"
-    ],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
+      "create-next-app with package manager yarn should use yarn when user-agent is yarn",
+      "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/prompts.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "create-next-app prompts should prompt user for choice if --import-alias is absent",
       "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "create-next-app --app (App Router) should create JavaScript project with --js flag",
       "create-next-app --app (App Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --app (App Router) should create TypeScript project with --ts flag",
-      "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag"
+      "create-next-app --app (App Router) should create an empty TailwindCSS project with --empty flag",
+      "create-next-app --app (App Router) should create an empty project with --empty flag",
+      "create-next-app --app (App Router) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --app (App Router) should enable turbopack dev with --turbo flag"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/pages.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
       "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
       "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
-      "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
+      "create-next-app --no-app (Pages Router) should create an empty TailwindCSS project with --empty flag",
+      "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
+      "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbo flag"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10339,11 +10509,12 @@
       "Next Lint don't create .eslintrc file if package.json has eslintConfig field",
       "Next Lint file flag can selectively lint only a single file",
       "Next Lint file flag can selectively lints multiple files",
+      "Next Lint format flag \"compact\" creates a file respecting the chosen format",
+      "Next Lint format flag \"json\" creates a file respecting the chosen format",
       "Next Lint format flag supports additional user-defined formats",
       "Next Lint lint files with cjs and mjs file extension",
       "Next Lint max warnings flag does not error when warnings do not exceed threshold",
       "Next Lint max warnings flag errors when warnings exceed threshold",
-      "Next Lint output flag create a file respecting the chosen format",
       "Next Lint quiet flag suppresses warnings and only reports errors",
       "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
       "Next Lint should generate next-env.d.ts before lint command",
@@ -12754,135 +12925,139 @@
   },
   "test/integration/image-optimizer/test/content-disposition-type.test.ts": {
     "passed": [
-      "with contentDispositionType attachment dev support with next.config.js should automatically detect image type when content-type is octet-stream",
-      "with contentDispositionType attachment dev support with next.config.js should compress avif smaller than webp at q=100",
-      "with contentDispositionType attachment dev support with next.config.js should compress avif smaller than webp at q=50",
-      "with contentDispositionType attachment dev support with next.config.js should compress avif smaller than webp at q=75",
-      "with contentDispositionType attachment dev support with next.config.js should downlevel avif format to jpeg for old Safari",
-      "with contentDispositionType attachment dev support with next.config.js should downlevel webp format to jpeg for old Safari",
-      "with contentDispositionType attachment dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with contentDispositionType attachment dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with contentDispositionType attachment dev support with next.config.js should error if the image file does not exist",
-      "with contentDispositionType attachment dev support with next.config.js should error if the resource isn't a valid image",
-      "with contentDispositionType attachment dev support with next.config.js should fail when domain is not defined in next.config.js",
-      "with contentDispositionType attachment dev support with next.config.js should fail when internal url is not an image",
-      "with contentDispositionType attachment dev support with next.config.js should fail when q is greater than 100",
-      "with contentDispositionType attachment dev support with next.config.js should fail when q is less than 1",
-      "with contentDispositionType attachment dev support with next.config.js should fail when q is missing",
-      "with contentDispositionType attachment dev support with next.config.js should fail when q is not a number",
-      "with contentDispositionType attachment dev support with next.config.js should fail when url fails to load an image",
-      "with contentDispositionType attachment dev support with next.config.js should fail when url has file protocol",
-      "with contentDispositionType attachment dev support with next.config.js should fail when url has ftp protocol",
-      "with contentDispositionType attachment dev support with next.config.js should fail when url is missing",
-      "with contentDispositionType attachment dev support with next.config.js should fail when url is too long",
-      "with contentDispositionType attachment dev support with next.config.js should fail when w is 0",
-      "with contentDispositionType attachment dev support with next.config.js should fail when w is less than 0",
-      "with contentDispositionType attachment dev support with next.config.js should fail when w is missing",
-      "with contentDispositionType attachment dev support with next.config.js should fail when w is not a number",
-      "with contentDispositionType attachment dev support with next.config.js should fail when width is not in next.config.js",
-      "with contentDispositionType attachment dev support with next.config.js should handle concurrent requests",
-      "with contentDispositionType attachment dev support with next.config.js should handle non-ascii characters in image url",
-      "with contentDispositionType attachment dev support with next.config.js should maintain animated gif",
-      "with contentDispositionType attachment dev support with next.config.js should maintain animated png",
-      "with contentDispositionType attachment dev support with next.config.js should maintain animated png 2",
-      "with contentDispositionType attachment dev support with next.config.js should maintain animated webp",
-      "with contentDispositionType attachment dev support with next.config.js should maintain bmp",
-      "with contentDispositionType attachment dev support with next.config.js should maintain icns",
-      "with contentDispositionType attachment dev support with next.config.js should maintain ico format",
-      "with contentDispositionType attachment dev support with next.config.js should maintain jpg format for old Safari",
-      "with contentDispositionType attachment dev support with next.config.js should maintain pic/pct",
-      "with contentDispositionType attachment dev support with next.config.js should maintain png format for old Safari",
-      "with contentDispositionType attachment dev support with next.config.js should normalize invalid status codes",
-      "with contentDispositionType attachment dev support with next.config.js should not allow svg with application header",
-      "with contentDispositionType attachment dev support with next.config.js should not allow svg with comma header",
-      "with contentDispositionType attachment dev support with next.config.js should not allow svg with uppercase header",
-      "with contentDispositionType attachment dev support with next.config.js should not allow svg with wrong header",
-      "with contentDispositionType attachment dev support with next.config.js should not allow vector svg",
-      "with contentDispositionType attachment dev support with next.config.js should not resize if requested width is larger than original source image",
-      "with contentDispositionType attachment dev support with next.config.js should resize absolute url from localhost",
-      "with contentDispositionType attachment dev support with next.config.js should resize avif",
-      "with contentDispositionType attachment dev support with next.config.js should resize avif and maintain format",
-      "with contentDispositionType attachment dev support with next.config.js should resize gif (not animated)",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url and new Chrome accept header as avif",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url and old Chrome accept header as webp",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url and png accept header",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url and webp Firefox accept header",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as gif",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as png",
-      "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as tiff",
-      "with contentDispositionType attachment dev support with next.config.js should resize tiff",
-      "with contentDispositionType attachment dev support with next.config.js should return home page",
-      "with contentDispositionType attachment dev support with next.config.js should set 304 status without body when etag matches if-none-match",
-      "with contentDispositionType attachment dev support with next.config.js should set cache-control to immutable for static images",
-      "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-      "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+      "with contentDispositionType inline dev support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=100",
+      "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=50",
+      "with contentDispositionType inline dev support with next.config.js should compress avif smaller than webp at q=75",
+      "with contentDispositionType inline dev support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with contentDispositionType inline dev support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with contentDispositionType inline dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with contentDispositionType inline dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with contentDispositionType inline dev support with next.config.js should error if the image file does not exist",
+      "with contentDispositionType inline dev support with next.config.js should error if the resource isn't a valid image",
+      "with contentDispositionType inline dev support with next.config.js should fail when domain is not defined in next.config.js",
+      "with contentDispositionType inline dev support with next.config.js should fail when internal url is not an image",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is greater than 100",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is less than 1",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is missing",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is not a number",
+      "with contentDispositionType inline dev support with next.config.js should fail when url fails to load an image",
+      "with contentDispositionType inline dev support with next.config.js should fail when url has file protocol",
+      "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
+      "with contentDispositionType inline dev support with next.config.js should fail when url is missing",
+      "with contentDispositionType inline dev support with next.config.js should fail when url is protocol relative",
+      "with contentDispositionType inline dev support with next.config.js should fail when url is too long",
+      "with contentDispositionType inline dev support with next.config.js should fail when w is 0",
+      "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
+      "with contentDispositionType inline dev support with next.config.js should fail when w is missing",
+      "with contentDispositionType inline dev support with next.config.js should fail when w is not a number",
+      "with contentDispositionType inline dev support with next.config.js should fail when width is not in next.config.js",
+      "with contentDispositionType inline dev support with next.config.js should handle concurrent requests",
+      "with contentDispositionType inline dev support with next.config.js should handle non-ascii characters in image url",
+      "with contentDispositionType inline dev support with next.config.js should maintain animated gif",
+      "with contentDispositionType inline dev support with next.config.js should maintain animated png",
+      "with contentDispositionType inline dev support with next.config.js should maintain animated png 2",
+      "with contentDispositionType inline dev support with next.config.js should maintain animated webp",
+      "with contentDispositionType inline dev support with next.config.js should maintain bmp",
+      "with contentDispositionType inline dev support with next.config.js should maintain icns",
+      "with contentDispositionType inline dev support with next.config.js should maintain ico format",
+      "with contentDispositionType inline dev support with next.config.js should maintain jpg format for old Safari",
+      "with contentDispositionType inline dev support with next.config.js should maintain pic/pct",
+      "with contentDispositionType inline dev support with next.config.js should maintain png format for old Safari",
+      "with contentDispositionType inline dev support with next.config.js should normalize invalid status codes",
+      "with contentDispositionType inline dev support with next.config.js should not allow svg with application header",
+      "with contentDispositionType inline dev support with next.config.js should not allow svg with comma header",
+      "with contentDispositionType inline dev support with next.config.js should not allow svg with uppercase header",
+      "with contentDispositionType inline dev support with next.config.js should not allow svg with wrong header",
+      "with contentDispositionType inline dev support with next.config.js should not allow vector svg",
+      "with contentDispositionType inline dev support with next.config.js should not resize if requested width is larger than original source image",
+      "with contentDispositionType inline dev support with next.config.js should resize absolute url from localhost",
+      "with contentDispositionType inline dev support with next.config.js should resize avif",
+      "with contentDispositionType inline dev support with next.config.js should resize avif and maintain format",
+      "with contentDispositionType inline dev support with next.config.js should resize gif (not animated)",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url and png accept header",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url and webp Firefox accept header",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url with invalid accept header as gif",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url with invalid accept header as png",
+      "with contentDispositionType inline dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with contentDispositionType inline dev support with next.config.js should resize tiff",
+      "with contentDispositionType inline dev support with next.config.js should return home page",
+      "with contentDispositionType inline dev support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with contentDispositionType inline dev support with next.config.js should set cache-control to immutable for static images",
+      "with contentDispositionType inline dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with contentDispositionType inline dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with contentDispositionType inline dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with contentDispositionType inline dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
     "failed": [],
     "pending": [
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should error if the image file does not exist",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should error if the resource isn't a valid image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when internal url is not an image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when q is greater than 100",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when q is less than 1",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when q is missing",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when q is not a number",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when url fails to load an image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when url has file protocol",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when url has ftp protocol",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when url is missing",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when url is too long",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when w is 0",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when w is less than 0",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when w is missing",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when w is not a number",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when width is not in next.config.js",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should handle concurrent requests",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should handle non-ascii characters in image url",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated gif",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png 2",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated webp",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain bmp",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain icns",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain ico format",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain jpg format for old Safari",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain pic/pct",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain png format for old Safari",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should normalize invalid status codes",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with application header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with comma header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with uppercase header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with wrong header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow vector svg",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize absolute url from localhost",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize avif",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize avif and maintain format",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize gif (not animated)",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and png accept header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should resize tiff",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should return home page",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should set cache-control to immutable for static images",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+      "with contentDispositionType inline Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is missing",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not a number",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is missing",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is protocol relative",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url is too long",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is 0",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is missing",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not a number",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should handle concurrent requests",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain animated gif",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain animated png",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain animated png 2",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain animated webp",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain bmp",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain icns",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain ico format",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain pic/pct",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not allow svg with application header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not allow svg with wrong header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not allow vector svg",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize avif",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize avif and maintain format",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize gif (not animated)",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should resize tiff",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should return home page",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
     "flakey": [],
     "runtimeError": false
@@ -12909,6 +13084,7 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is missing",
+      "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is protocol relative",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
@@ -12945,6 +13121,7 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should return home page",
       "with dangerouslyAllowSVG config dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with dangerouslyAllowSVG config dev support with next.config.js should set cache-control to immutable for static images",
+      "with dangerouslyAllowSVG config dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif",
@@ -12972,6 +13149,7 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is missing",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is protocol relative",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url is too long",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is 0",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -13008,6 +13186,7 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should return home page",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif",
@@ -13073,6 +13252,7 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is missing",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is protocol relative",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
@@ -13113,6 +13293,7 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set cache-control to immutable for static images",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cached image file when parameters are the same for animated gif"
@@ -13139,6 +13320,7 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is missing",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is protocol relative",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url is too long",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is 0",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -13179,6 +13361,7 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
@@ -13203,6 +13386,7 @@
       "with latest sharp dev support w/o next.config.js should fail when url has file protocol",
       "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support w/o next.config.js should fail when url is missing",
+      "with latest sharp dev support w/o next.config.js should fail when url is protocol relative",
       "with latest sharp dev support w/o next.config.js should fail when url is too long",
       "with latest sharp dev support w/o next.config.js should fail when w is 0",
       "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
@@ -13260,6 +13444,7 @@
       "with latest sharp dev support with next.config.js should fail when url has file protocol",
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support with next.config.js should fail when url is missing",
+      "with latest sharp dev support with next.config.js should fail when url is protocol relative",
       "with latest sharp dev support with next.config.js should fail when url is too long",
       "with latest sharp dev support with next.config.js should fail when w is 0",
       "with latest sharp dev support with next.config.js should fail when w is less than 0",
@@ -13300,6 +13485,7 @@
       "with latest sharp dev support with next.config.js should return home page",
       "with latest sharp dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support with next.config.js should set cache-control to immutable for static images",
+      "with latest sharp dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp dev support with next.config.js should use cached image file when parameters are the same for animated gif"
@@ -13321,6 +13507,7 @@
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url has file protocol",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
+      "with latest sharp Production Mode Server support w/o next.config.js should fail when url is protocol relative",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
@@ -13378,6 +13565,7 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when url has file protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is missing",
+      "with latest sharp Production Mode Server support with next.config.js should fail when url is protocol relative",
       "with latest sharp Production Mode Server support with next.config.js should fail when url is too long",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is 0",
       "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
@@ -13418,6 +13606,7 @@
       "with latest sharp Production Mode Server support with next.config.js should return home page",
       "with latest sharp Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with latest sharp Production Mode Server support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with latest sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with latest sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
@@ -13426,22 +13615,20 @@
     "runtimeError": false
   },
   "test/integration/import-assertion/test/index.test.js": {
-    "passed": [
-      "import-assertion dev should handle json assertions",
+    "passed": ["import-assertion dev should handle json assertions"],
+    "failed": [],
+    "pending": [
       "production mode import-assertion prod should handle json assertions"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/import-attributes/test/index.test.js": {
-    "passed": [
-      "import-attributes dev should handle json attributes",
+    "passed": ["import-attributes dev should handle json attributes"],
+    "failed": [],
+    "pending": [
       "production mode import-attributes prod should handle json attributes"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14291,6 +14478,8 @@
       "Image Component Default Tests development mode should show error when width prop on fill image",
       "Image Component Default Tests development mode should show invalid src error",
       "Image Component Default Tests development mode should show invalid src error when protocol-relative",
+      "Image Component Default Tests development mode should show invalid src with leading space",
+      "Image Component Default Tests development mode should show invalid src with trailing space",
       "Image Component Default Tests development mode should show missing alt error",
       "Image Component Default Tests development mode should show missing src error",
       "Image Component Default Tests development mode should update the image on src change",
@@ -14508,6 +14697,8 @@
       "Image Component Default Tests development mode should show error when width prop on fill image",
       "Image Component Default Tests development mode should show invalid src error",
       "Image Component Default Tests development mode should show invalid src error when protocol-relative",
+      "Image Component Default Tests development mode should show invalid src with leading space",
+      "Image Component Default Tests development mode should show invalid src with trailing space",
       "Image Component Default Tests development mode should show missing alt error",
       "Image Component Default Tests development mode should show missing src error",
       "Image Component Default Tests development mode should update the image on src change",
@@ -15551,6 +15742,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/root-catchall-cache/test/index.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Root Catch-all Cache production mode should cache / correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/root-optional-revalidate/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -15713,14 +15913,14 @@
   },
   "test/integration/router-rerender/test/index.test.js": {
     "passed": [
-      "router rerender development mode with middleware should not trigger unncessary rerenders when middleware is used"
+      "router rerender development mode with middleware should not trigger unnecessary rerenders when middleware is used"
     ],
     "failed": [],
     "pending": [
-      "router rerender development mode with rewrites should not trigger unncessary rerenders when rewrites are used",
+      "router rerender development mode with rewrites should not trigger unnecessary rerenders when rewrites are used",
       "router rerender development mode with rewrites should rerender with the correct query parameter if present with rewrites",
-      "router rerender production mode with middleware should not trigger unncessary rerenders when middleware is used",
-      "router rerender production mode with rewrites should not trigger unncessary rerenders when rewrites are used",
+      "router rerender production mode with middleware should not trigger unnecessary rerenders when middleware is used",
+      "router rerender production mode with rewrites should not trigger unnecessary rerenders when rewrites are used",
       "router rerender production mode with rewrites should rerender with the correct query parameter if present with rewrites"
     ],
     "flakey": [],

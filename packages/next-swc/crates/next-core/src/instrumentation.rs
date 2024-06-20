@@ -1,8 +1,8 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 #[turbo_tasks::function]
-pub async fn instrumentation_files(page_extensions: Vc<Vec<String>>) -> Result<Vc<Vec<String>>> {
+pub async fn instrumentation_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
     let extensions = page_extensions.await?;
     let files = ["instrumentation.", "src/instrumentation."]
         .into_iter()
@@ -10,6 +10,7 @@ pub async fn instrumentation_files(page_extensions: Vc<Vec<String>>) -> Result<V
             extensions
                 .iter()
                 .map(move |ext| String::from(f) + ext.as_str())
+                .map(RcStr::from)
         })
         .collect();
     Ok(Vc::cell(files))

@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
@@ -59,28 +59,28 @@ struct CustomRoutes {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
-    pub config_file: Option<String>,
-    pub config_file_name: String,
+    pub config_file: Option<RcStr>,
+    pub config_file_name: RcStr,
 
     /// In-memory cache size in bytes.
     ///
     /// If `cache_max_memory_size: 0` disables in-memory caching.
     pub cache_max_memory_size: Option<f64>,
     /// custom path to a cache handler to use
-    pub cache_handler: Option<String>,
+    pub cache_handler: Option<RcStr>,
 
     pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
-    pub page_extensions: Vec<String>,
+    pub page_extensions: Vec<RcStr>,
     pub react_strict_mode: Option<bool>,
-    pub transpile_packages: Option<Vec<String>>,
+    pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
-    pub dist_dir: Option<String>,
+    pub dist_dir: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
-    pub asset_prefix: Option<String>,
-    pub base_path: Option<String>,
+    pub asset_prefix: Option<RcStr>,
+    pub base_path: Option<RcStr>,
     pub skip_middleware_url_normalize: Option<bool>,
     pub skip_trailing_slash_redirect: Option<bool>,
     pub i18n: Option<I18NConfig>,
@@ -98,7 +98,7 @@ pub struct NextConfig {
     /// build.
     ///
     /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
-    pub server_external_packages: Option<Vec<String>>,
+    pub server_external_packages: Option<Vec<RcStr>>,
 
     #[serde(rename = "_originalRedirects")]
     pub original_redirects: Option<Vec<Redirect>>,
@@ -223,30 +223,30 @@ pub enum OutputType {
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum RouteHas {
     Header {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Cookie {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Query {
-        key: String,
+        key: RcStr,
         #[serde(skip_serializing_if = "Option::is_none")]
-        value: Option<String>,
+        value: Option<RcStr>,
     },
     Host {
-        value: String,
+        value: RcStr,
     },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct HeaderValue {
-    pub key: String,
-    pub value: String,
+    pub key: RcStr,
+    pub value: RcStr,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -413,9 +413,9 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalTurboConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<IndexMap<String, RuleConfigItemOrShortcut>>,
-    pub resolve_alias: Option<IndexMap<String, JsonValue>>,
-    pub resolve_extensions: Option<Vec<String>>,
+    pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
+    pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
 }
 
@@ -424,7 +424,7 @@ pub struct ExperimentalTurboConfig {
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
-    pub rename_as: Option<String>,
+    pub rename_as: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -438,14 +438,14 @@ pub enum RuleConfigItemOrShortcut {
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
-    Conditional(IndexMap<String, RuleConfigItem>),
+    Conditional(IndexMap<RcStr, RuleConfigItem>),
     Boolean(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum LoaderItem {
-    LoaderName(String),
+    LoaderName(RcStr),
     LoaderOptions(WebpackLoaderItem),
 }
 
@@ -473,7 +473,7 @@ pub struct ReactCompilerOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compilation_mode: Option<ReactCompilerMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub panic_threshold: Option<String>,
+    pub panic_threshold: Option<RcStr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -489,26 +489,26 @@ pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub allowed_revalidate_header_keys: Option<Vec<RcStr>>,
     pub client_router_filter: Option<bool>,
     /// decimal for percent for possible false positives e.g. 0.01 for 10%
     /// potential false matches lower percent increases size of the filter
     pub client_router_filter_allowed_rate: Option<f64>,
     pub client_router_filter_redirects: Option<bool>,
-    pub fetch_cache_key_prefix: Option<String>,
+    pub fetch_cache_key_prefix: Option<RcStr>,
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
     pub strict_next_head: Option<bool>,
-    pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    pub swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
     pub turbo: Option<ExperimentalTurboConfig>,
     pub turbotrace: Option<serde_json::Value>,
     pub external_middleware_rewrites_resolve: Option<bool>,
     pub scroll_restoration: Option<bool>,
     pub use_deployment_id: Option<bool>,
     pub use_deployment_id_server_actions: Option<bool>,
-    pub deployment_id: Option<String>,
+    pub deployment_id: Option<RcStr>,
     pub manual_client_base_path: Option<bool>,
     pub optimistic_client_cache: Option<bool>,
     pub middleware_prefetch: Option<MiddlewarePrefetchType>,
@@ -516,7 +516,7 @@ pub struct ExperimentalConfig {
     /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
-    pub web_vitals_attribution: Option<Vec<String>>,
+    pub web_vitals_attribution: Option<Vec<RcStr>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
@@ -526,6 +526,7 @@ pub struct ExperimentalConfig {
     // ---
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
+    after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
     case_sensitive_routes: Option<bool>,
@@ -553,10 +554,10 @@ pub struct ExperimentalConfig {
     optimize_server_react: Option<bool>,
     /// Automatically apply the "modularize_imports" optimization to imports of
     /// the specified packages.
-    optimize_package_imports: Option<Vec<String>>,
-    output_file_tracing_ignores: Option<Vec<String>>,
+    optimize_package_imports: Option<Vec<RcStr>>,
+    output_file_tracing_ignores: Option<Vec<RcStr>>,
     output_file_tracing_includes: Option<serde_json::Value>,
-    output_file_tracing_root: Option<String>,
+    output_file_tracing_root: Option<RcStr>,
     /// Using this feature will enable the `react@experimental` for the `app`
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
@@ -759,7 +760,7 @@ impl RemoveConsoleConfig {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolveExtensions(Option<Vec<String>>);
+pub struct ResolveExtensions(Option<Vec<RcStr>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
@@ -767,7 +768,7 @@ pub struct OptionalMdxTransformOptions(Option<Vc<MdxTransformOptions>>);
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
-    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: NextConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
@@ -780,7 +781,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?
                 .server_external_packages
@@ -801,12 +802,12 @@ impl NextConfig {
             .iter()
             .map(|(k, v)| {
                 (
-                    k.clone(),
+                    k.as_str().into(),
                     if let JsonValue::String(s) = v {
                         // A string value is kept, calling `to_string` would wrap in to quotes.
-                        s.clone()
+                        s.as_str().into()
                     } else {
-                        v.to_string()
+                        v.to_string().into()
                     },
                 )
             })
@@ -821,12 +822,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn page_extensions(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn page_extensions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(self.await?.page_extensions.clone()))
     }
 
     #[turbo_tasks::function]
-    pub async fn transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?.transpile_packages.clone().unwrap_or_default(),
         ))
@@ -835,7 +836,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         self: Vc<Self>,
-        active_conditions: Vec<String>,
+        active_conditions: Vec<RcStr>,
     ) -> Result<Vc<OptionWebpackRules>> {
         let this = self.await?;
         let Some(turbo_rules) = this
@@ -873,7 +874,7 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<String>,
+                active_conditions: &HashSet<RcStr>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
@@ -899,7 +900,7 @@ impl NextConfig {
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
                     rules.insert(
-                        ext.to_string(),
+                        ext.clone(),
                         LoaderRuleItem {
                             loaders: transform_loaders(loaders),
                             rename_as: None,
@@ -911,7 +912,7 @@ impl NextConfig {
                         find_rule(rule, &active_conditions)
                     {
                         rules.insert(
-                            ext.to_string(),
+                            ext.clone(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
                                 rename_as: rename_as.clone(),
@@ -979,8 +980,7 @@ impl NextConfig {
                     provider_import_source: Some(
                         options
                             .provider_import_source
-                            .as_ref()
-                            .map(|s| s.to_string())
+                            .clone()
                             .unwrap_or(mdx_import_source_file()),
                     ),
                     ..options.clone()
@@ -1040,18 +1040,21 @@ impl NextConfig {
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.
     /// Otherwise, the basePath is used.
     #[turbo_tasks::function]
-    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<String>>> {
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
         let this = self.await?;
 
-        Ok(Vc::cell(Some(format!(
-            "{}/_next/",
-            if let Some(asset_prefix) = &this.asset_prefix {
-                asset_prefix
-            } else {
-                this.base_path.as_ref().map_or("", |b| b.as_str())
-            }
-            .trim_end_matches('/')
-        ))))
+        Ok(Vc::cell(Some(
+            format!(
+                "{}/_next/",
+                if let Some(asset_prefix) = &this.asset_prefix {
+                    asset_prefix
+                } else {
+                    this.base_path.as_ref().map_or("", |b| b.as_str())
+                }
+                .trim_end_matches('/')
+            )
+            .into(),
+        )))
     }
 
     #[turbo_tasks::function]
@@ -1089,7 +1092,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
             self.await?
                 .experimental
@@ -1112,7 +1115,7 @@ pub struct JsConfig {
 #[turbo_tasks::value_impl]
 impl JsConfig {
     #[turbo_tasks::function]
-    pub async fn from_string(string: Vc<String>) -> Result<Vc<Self>> {
+    pub async fn from_string(string: Vc<RcStr>) -> Result<Vc<Self>> {
         let string = string.await?;
         let config: JsConfig = serde_json::from_str(&string)
             .with_context(|| format!("failed to parse next.config.js: {}", string))?;
@@ -1131,9 +1134,9 @@ impl JsConfig {
 #[turbo_tasks::value]
 struct OutdatedConfigIssue {
     path: Vc<FileSystemPath>,
-    old_name: String,
-    new_name: String,
-    description: String,
+    old_name: RcStr,
+    new_name: RcStr,
+    description: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -1157,7 +1160,7 @@ impl Issue for OutdatedConfigIssue {
     fn title(&self) -> Vc<StyledString> {
         StyledString::Line(vec![
             StyledString::Code(self.old_name.clone()),
-            StyledString::Text(" has been replaced by ".to_string()),
+            StyledString::Text(" has been replaced by ".into()),
             StyledString::Code(self.new_name.clone()),
         ])
         .cell()
@@ -1165,8 +1168,6 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.to_string()).cell(),
-        ))
+        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
     }
 }

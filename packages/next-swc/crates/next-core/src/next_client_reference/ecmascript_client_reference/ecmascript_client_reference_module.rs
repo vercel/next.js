@@ -1,6 +1,6 @@
 #![allow(rustdoc::private_intra_doc_links)]
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
@@ -46,8 +46,8 @@ impl EcmascriptClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn ecmascript_client_reference_modifier() -> Vc<String> {
-    Vc::cell("ecmascript client reference".to_string())
+fn ecmascript_client_reference_modifier() -> Vc<RcStr> {
+    Vc::cell("ecmascript client reference".into())
 }
 
 #[turbo_tasks::value_impl]

@@ -9,7 +9,10 @@ describe('app dir - search params keys', () => {
   it('should keep the React router instance the same when changing the search params', async () => {
     const browser = await next.browser('/')
 
-    const searchParams = browser.waitForElementByCss('#search-params').text()
+    const searchParams = await browser
+      .waitForElementByCss('#search-params')
+      .text()
+
     await browser.elementByCss('#increment').click()
     await browser.elementByCss('#increment').click()
 

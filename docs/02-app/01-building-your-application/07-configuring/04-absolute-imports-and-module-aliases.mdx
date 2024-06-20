@@ -135,8 +135,7 @@ export default function HomePage() {
 
 Each of the `"paths"` are relative to the `baseUrl` location. For example:
 
-```json
-// tsconfig.json or jsconfig.json
+```json filename="tsconfig.json or jsconfig.json"
 {
   "compilerOptions": {
     "baseUrl": "src/",
@@ -148,8 +147,22 @@ Each of the `"paths"` are relative to the `baseUrl` location. For example:
 }
 ```
 
-```jsx
-// pages/index.js
+```tsx filename="app/page.tsx" switcher
+import Button from '@/components/button'
+import '@/styles/styles.css'
+import Helper from 'utils/helper'
+
+export default function HomePage() {
+  return (
+    <Helper>
+      <h1>Hello World</h1>
+      <Button />
+    </Helper>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
 import Button from '@/components/button'
 import '@/styles/styles.css'
 import Helper from 'utils/helper'

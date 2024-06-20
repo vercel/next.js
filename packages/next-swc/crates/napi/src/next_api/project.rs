@@ -18,14 +18,14 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use rand::Rng;
+use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{
-    prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
-};
-use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks_fs::{FileContent, FileSystem},
+        tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
         tasks_memory::MemoryBackend,
     },
     turbopack::{
@@ -56,6 +56,10 @@ use super::{
 };
 use crate::register;
 
+/// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
+/// threshold high.
+const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+
 #[napi(object)]
 #[derive(Clone, Debug)]
 pub struct NapiEnvVar {
@@ -73,9 +77,9 @@ pub struct NapiDraftModeOptions {
 impl From<NapiDraftModeOptions> for DraftModeOptions {
     fn from(val: NapiDraftModeOptions) -> Self {
         DraftModeOptions {
-            preview_mode_id: val.preview_mode_id,
-            preview_mode_encryption_key: val.preview_mode_encryption_key,
-            preview_mode_signing_key: val.preview_mode_signing_key,
+            preview_mode_id: val.preview_mode_id.into(),
+            preview_mode_encryption_key: val.preview_mode_encryption_key.into(),
+            preview_mode_signing_key: val.preview_mode_signing_key.into(),
         }
     }
 }
@@ -182,20 +186,20 @@ pub struct NapiTurboEngineOptions {
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.into(),
+            project_path: val.project_path.into(),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
+            next_config: val.next_config.into(),
+            js_config: val.js_config.into(),
             env: val
                 .env
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             define_env: val.define_env.into(),
             dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
+            encryption_key: val.encryption_key.into(),
+            build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
         }
     }
@@ -204,18 +208,20 @@ impl From<NapiProjectOptions> for ProjectOptions {
 impl From<NapiPartialProjectOptions> for PartialProjectOptions {
     fn from(val: NapiPartialProjectOptions) -> Self {
         PartialProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.map(From::from),
+            project_path: val.project_path.map(From::from),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
-            env: val
-                .env
-                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            next_config: val.next_config.map(From::from),
+            js_config: val.js_config.map(From::from),
+            env: val.env.map(|env| {
+                env.into_iter()
+                    .map(|var| (var.name.into(), var.value.into()))
+                    .collect()
+            }),
             define_env: val.define_env.map(|env| env.into()),
             dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
+            encryption_key: val.encryption_key.map(From::from),
+            build_id: val.build_id.map(From::from),
             preview_props: val.preview_props.map(|props| props.into()),
         }
     }
@@ -227,17 +233,17 @@ impl From<NapiDefineEnv> for DefineEnv {
             client: val
                 .client
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             edge: val
                 .edge
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             nodejs: val
                 .nodejs
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
         }
     }
@@ -328,6 +334,12 @@ pub async fn project_new(
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    turbo_tasks.spawn_once_task(async move {
+        benchmark_file_io(container.project().node_root())
+            .await
+            .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
+    });
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
@@ -336,6 +348,61 @@ pub async fn project_new(
         },
         100,
     ))
+}
+
+/// A very simple and low-overhead, but potentially noisy benchmark to detect
+/// very slow disk IO. Warns the user (via `println!`) if the benchmark takes
+/// more than `SLOW_FILESYSTEM_THRESHOLD`.
+///
+/// This idea is copied from Bun:
+/// - https://x.com/jarredsumner/status/1637549427677364224
+/// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
+#[tracing::instrument]
+async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
+    let temp_path =
+        directory.join(format!("tmp_file_io_benchmark_{:x}", rand::random::<u128>()).into());
+
+    // try to get the real file path on disk so that we can use it with tokio
+    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
+        .await?
+        .context(anyhow!(
+            "expected node_root to be a DiskFileSystem, cannot benchmark"
+        ))?
+        .await?;
+    let temp_path = fs.to_sys_path(temp_path).await?;
+
+    let mut random_buffer = [0u8; 512];
+    rand::thread_rng().fill(&mut random_buffer[..]);
+
+    // perform IO directly with tokio (skipping `tokio_tasks_fs`) to avoid the
+    // additional noise/overhead of tasks caching, invalidation, file locks,
+    // etc.
+    let start = Instant::now();
+    async move {
+        for _ in 0..3 {
+            // create a new empty file
+            let mut file = tokio::fs::File::create(&temp_path).await?;
+            file.write_all(&random_buffer).await?;
+            file.sync_all().await?;
+            drop(file);
+
+            // remove the file
+            tokio::fs::remove_file(&temp_path).await?;
+        }
+        anyhow::Ok(())
+    }
+    .instrument(tracing::info_span!("benchmark file IO (measurement)"))
+    .await?;
+
+    if Instant::now().duration_since(start) > SLOW_FILESYSTEM_THRESHOLD {
+        println!(
+            "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
+             folder. If you have an antivirus enabled, consider excluding your project directory.",
+            fs.to_sys_path(directory).await?.to_string_lossy(),
+        );
+    }
+
+    Ok(Completion::new())
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
@@ -557,7 +624,11 @@ pub fn project_entrypoints_subscribe(
                         .routes
                         .iter()
                         .map(|(pathname, route)| {
-                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
+                            NapiRoute::from_route(
+                                pathname.clone().into(),
+                                route.clone(),
+                                &turbo_tasks,
+                            )
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints
@@ -603,7 +674,7 @@ struct HmrUpdateWithIssues {
 #[turbo_tasks::function]
 async fn hmr_update(
     project: Vc<Project>,
-    identifier: String,
+    identifier: RcStr,
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);
@@ -634,7 +705,7 @@ pub fn project_hmr_events(
             let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = outer_identifier.clone();
+                let identifier: RcStr = outer_identifier.clone().into();
                 let session = session.clone();
                 async move {
                     let project = project.project().resolve().await?;
@@ -706,7 +777,7 @@ struct HmrIdentifiers {
 
 #[turbo_tasks::value(serialization = "none")]
 struct HmrIdentifiersWithIssues {
-    identifiers: ReadRef<Vec<String>>,
+    identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
@@ -900,7 +971,9 @@ pub async fn project_trace_source(
                         (
                             path,
                             match module {
-                                Some(module) => Some(urlencoding::decode(&module.1)?.into_owned()),
+                                Some(module) => {
+                                    Some(urlencoding::decode(&module.1)?.into_owned().into())
+                                }
                                 None => None,
                             },
                         )
@@ -925,13 +998,13 @@ pub async fn project_trace_source(
                 .container
                 .project()
                 .node_root()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.into());
 
             let client_path = project
                 .container
                 .project()
                 .client_relative_path()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.into());
 
             let mut map_result = project
                 .container
@@ -986,7 +1059,7 @@ pub async fn project_trace_source(
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: name,
+                method_name: name.as_ref().map(ToString::to_string),
                 line,
                 column,
                 is_server: frame.is_server,
@@ -1012,7 +1085,7 @@ pub async fn project_get_source_for_asset(
                 .project_path()
                 .fs()
                 .root()
-                .join(file_path.to_string())
+                .join(file_path.clone().into())
                 .read()
                 .await?;
 

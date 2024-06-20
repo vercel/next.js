@@ -270,16 +270,6 @@ function assignDefaults(
     )
   }
 
-  if (
-    result.experimental?.ppr &&
-    !process.env.__NEXT_VERSION!.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE
-  ) {
-    throw new Error(
-      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
-    )
-  }
-
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
@@ -510,6 +500,13 @@ function assignDefaults(
     result,
     'removeConsole',
     'compiler.removeConsole',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'swrDelta',
+    'swrDelta',
     configFileName,
     silent
   )

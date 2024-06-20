@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use next_core::emit_client_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, State, TryFlatJoinIterExt,
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, State, TryFlatJoinIterExt,
     TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -124,7 +124,7 @@ impl VersionedContentMap {
     pub async fn get_source_map(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-        section: Option<String>,
+        section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
         if let Some(generate_source_map) =
             Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.get_asset(path)).await?
@@ -169,7 +169,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<String>>> {
+    pub async fn keys_in_path(&self, root: Vc<FileSystemPath>) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = self.map_path_to_op.get();
             map.keys().copied().collect::<Vec<_>>()
@@ -177,7 +177,7 @@ impl VersionedContentMap {
         let root = &root.await?;
         let keys = keys
             .into_iter()
-            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(|p| p.to_string())) })
+            .map(|path| async move { Ok(root.get_path_to(&*path.await?).map(RcStr::from)) })
             .try_flat_join()
             .await?;
         Ok(Vc::cell(keys))

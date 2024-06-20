@@ -166,10 +166,10 @@ describe('dynamic-data', () => {
   if (!isNextDev) {
     it('should track dynamic apis when rendering app routes', async () => {
       expect(next.cliOutput).toContain(
-        `Caught Error: Dynamic server usage: Route /routes/url couldn't be rendered statically because it accessed \`request.url\`.`
+        `Caught Error: Dynamic server usage: Route /routes/url couldn't be rendered statically because it used \`request.url\`.`
       )
       expect(next.cliOutput).toContain(
-        `Caught Error: Dynamic server usage: Route /routes/next-url couldn't be rendered statically because it accessed \`nextUrl.toString\`.`
+        `Caught Error: Dynamic server usage: Route /routes/next-url couldn't be rendered statically because it used \`nextUrl.toString\`.`
       )
     })
   }
@@ -244,10 +244,10 @@ describe('dynamic-data with dynamic = "error"', () => {
         'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it accessed `request.formData`.'
+        'Error: Route /routes/form-data/error with `dynamic = "error"` couldn\'t be rendered statically because it used `request.formData`.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it accessed `nextUrl.toString`.'
+        'Error: Route /routes/next-url/error with `dynamic = "error"` couldn\'t be rendered statically because it used `nextUrl.toString`.'
       )
     })
   }

@@ -4,7 +4,7 @@ import {
   INTERCEPTION_ROUTE_MARKERS,
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/future/helpers/interception-routes'
+} from '../server/lib/interception-routes'
 import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)

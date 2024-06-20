@@ -155,6 +155,10 @@ export function getDefineEnv({
              * the runtime they are running with, if it's not using `edge-runtime`
              */
             process.env.NEXT_EDGE_RUNTIME_PROVIDER ?? 'edge-runtime',
+
+          // process should be only { env: {...} } for edge runtime.
+          // For ignore avoid warn on `process.emit` usage but directly omit it.
+          'process.emit': false,
         }),
     'process.turbopack': isTurbopack,
     'process.env.TURBOPACK': isTurbopack,
@@ -170,6 +174,7 @@ export function getDefineEnv({
         : '',
     'process.env.NEXT_MINIMAL': '',
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
+    'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
@@ -177,7 +182,7 @@ export function getDefineEnv({
       config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
-        ? 30 // 30 seconds
+        ? 0
         : config.experimental.staleTimes?.dynamic
     ),
     'process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME': JSON.stringify(

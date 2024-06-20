@@ -647,6 +647,15 @@ export async function ncc_p_limit(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['p-queue'] = 'next/dist/compiled/p-queue'
+export async function ncc_p_queue(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('p-queue')))
+    .ncc({ packageName: 'p-queue', externals })
+    .target('src/compiled/p-queue')
+}
+
+// eslint-disable-next-line camelcase
 externals['raw-body'] = 'next/dist/compiled/raw-body'
 export async function ncc_raw_body(task, opts) {
   await task
@@ -2111,7 +2120,12 @@ export async function ncc_ws(task, opts) {
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('path-to-regexp')))
+    .source(
+      join(
+        dirname(relative(__dirname, require.resolve('path-to-regexp'))),
+        '*.{js,map}'
+      )
+    )
     .target('dist/compiled/path-to-regexp')
 }
 
@@ -2171,6 +2185,7 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_napirs_triples',
         'ncc_p_limit',
+        'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
         'ncc_hapi_accept',

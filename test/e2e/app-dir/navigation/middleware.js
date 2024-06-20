@@ -21,4 +21,13 @@ export function middleware(request) {
   if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
     return NextResponse.redirect(new URL('/redirect-dest', request.url))
   }
+
+  if (request.nextUrl.pathname === '/redirect-on-refresh/auth') {
+    const cookie = request.cookies.get('token')
+    if (cookie) {
+      return NextResponse.redirect(
+        new URL('/redirect-on-refresh/dashboard', request.url)
+      )
+    }
+  }
 }

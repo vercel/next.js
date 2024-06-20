@@ -119,7 +119,7 @@ describe('next/dynamic', () => {
           )
 
           if ((global as any).browserName === 'chrome') {
-            const logs = await browser.log('browser')
+            const logs = await browser.log()
 
             logs.forEach((logItem) => {
               expect(logItem.message).not.toMatch(
