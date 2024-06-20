@@ -98,27 +98,13 @@ const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
 function findDOMNode(
   instance: React.ReactInstance | null | undefined
 ): Element | Text | null {
+  // Tree-shake for server bundle
+  if (typeof window === 'undefined') return null
+
   // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
   // We need to lazily reference it.
   const internal_reactDOMfindDOMNode =
     __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
-  // Tree-shake for server bundle
-  if (typeof window === 'undefined') return null
-  // Only apply strict mode warning when not in production
-  if (process.env.NODE_ENV !== 'production') {
-    const originalConsoleError = console.error
-    try {
-      console.error = (...messages) => {
-        // Ignore strict mode warning for the findDomNode call below
-        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
-          originalConsoleError(...messages)
-        }
-      }
-      return internal_reactDOMfindDOMNode(instance)
-    } finally {
-      console.error = originalConsoleError!
-    }
-  }
   return internal_reactDOMfindDOMNode(instance)
 }
 
