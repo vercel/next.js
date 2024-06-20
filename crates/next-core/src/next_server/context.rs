@@ -662,6 +662,7 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
+                tree_shaking_mode: None,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
