@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 
 const errorMessage =
   'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
 
 async function testDev(browser, errorRegex) {
-  expect(await hasRedbox(browser)).toBe(true)
+  await assertHasRedbox(browser)
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 
