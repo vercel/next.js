@@ -817,8 +817,8 @@ export default async function build(
         expFeatureInfo,
       })
 
-      void recordFrameworkVersion(process.env.__NEXT_VERSION as string)
-      void updateBuildDiagnostics({
+      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
+      await updateBuildDiagnostics({
         buildStage: 'start',
       })
 
@@ -1589,7 +1589,7 @@ export default async function build(
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
-      updateBuildDiagnostics({
+      await updateBuildDiagnostics({
         buildStage: 'compile',
         buildOptions: {
           useBuildWorker: String(useBuildWorker),
@@ -1616,7 +1616,7 @@ export default async function build(
           ) {
             let durationInSeconds = 0
 
-            updateBuildDiagnostics({
+            await updateBuildDiagnostics({
               buildStage: 'compile-server',
             })
 
@@ -1657,7 +1657,7 @@ export default async function build(
             })
             if (!runServerAndEdgeInParallel) {
               await serverBuildPromise
-              updateBuildDiagnostics({
+              await updateBuildDiagnostics({
                 buildStage: 'webpack-compile-edge-server',
               })
             }
@@ -1673,13 +1673,13 @@ export default async function build(
             })
             if (runServerAndEdgeInParallel) {
               await serverBuildPromise
-              updateBuildDiagnostics({
+              await updateBuildDiagnostics({
                 buildStage: 'webpack-compile-edge-server',
               })
             }
             await edgeBuildPromise
 
-            updateBuildDiagnostics({
+            await updateBuildDiagnostics({
               buildStage: 'webpack-compile-client',
             })
 
@@ -1717,7 +1717,7 @@ export default async function build(
 
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
-        updateBuildDiagnostics({
+        await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
         await startTypeChecking(typeCheckingOptions)
@@ -2471,7 +2471,7 @@ export default async function build(
       )
       const hasStaticApp404 = hasApp404 && isApp404Static
 
-      updateBuildDiagnostics({
+      await updateBuildDiagnostics({
         buildStage: 'static-generation',
       })
 
