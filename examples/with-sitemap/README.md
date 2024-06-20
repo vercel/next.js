@@ -1,6 +1,6 @@
 # With Sitemap example
 
-This example shows how to generate a `sitemap.xml` file based on the pages in your [Next.js](https://nextjs.org/) app. 
+This example shows how to generate a `sitemap.xml` file based on the pages in your [Next.js](https://nextjs.org/) app.
 
 ## Deploy your own
 
