@@ -45,7 +45,7 @@ While building your application, we recommend using the following features to en
 - **[Composition Patterns](/docs/app/building-your-application/rendering/composition-patterns):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/building-your-application/rendering/composition-patterns#moving-client-components-down-the-tree) to avoid unnecessarily increasing your client-side JavaScript bundle.
 - **[Dynamic Functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions):** Be aware that dynamic functions like [`cookies()`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required)). Ensure dynamic function usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
 
-> **Good to know**: [Partial Prerendering (Experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
+> **Good to know**: [Partial Prerendering (experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
 
 </AppOnly>
 
@@ -141,7 +141,7 @@ Before going to production, you can run `next build` to build your application l
 
 Use the [`@next/bundle-analyzer` plugin](/docs/app/building-your-application/optimizing/package-bundling#analyzing-javascript-bundles) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
 
-Additionally, the following tools can you understand the impact of adding new dependencies to your application:
+Additionally, the following tools can help you understand the impact of adding new dependencies to your application:
 
 - [Import Cost](https://marketplace.visualstudio.com/items?itemName=wix.vscode-import-cost)
 - [Package Phobia](https://packagephobia.com/)

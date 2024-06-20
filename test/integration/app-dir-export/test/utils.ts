@@ -6,13 +6,13 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
+  assertHasRedbox,
   check,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -154,7 +154,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
         expect(`${header}\n${source}`).toContain(expectedErrMsg)

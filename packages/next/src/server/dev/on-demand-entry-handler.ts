@@ -6,7 +6,7 @@ import type {
   FlightRouterState,
 } from '../app-render/types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
@@ -38,7 +38,7 @@ import {
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
+import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'

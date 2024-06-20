@@ -1,11 +1,11 @@
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
-import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { RouteKind } from '../../../../server/future/route-kind'
+import { RouteKind } from '../../../../server/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { PAGE_TYPES } from '../../../../lib/page-types'

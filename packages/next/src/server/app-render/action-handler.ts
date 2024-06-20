@@ -2,7 +2,7 @@ import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-import type { AppPageModule } from '../../server/future/route-modules/app-page/module'
+import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
@@ -239,6 +239,36 @@ async function createForwardedActionResponse(
   return RenderResult.fromStatic('{}')
 }
 
+/**
+ * Returns the parsed redirect URL if we deem that it is hosted by us.
+ *
+ * We handle both relative and absolute redirect URLs.
+ *
+ * In case the redirect URL is not relative to the application we return `null`.
+ */
+function getAppRelativeRedirectUrl(
+  basePath: string,
+  host: Host,
+  redirectUrl: string
+): URL | null {
+  if (redirectUrl.startsWith('/')) {
+    // Make sure we are appending the basePath to relative URLS
+    return new URL(`${basePath}${redirectUrl}`, 'http://n')
+  }
+
+  const parsedRedirectUrl = new URL(redirectUrl)
+
+  if (host?.value !== parsedRedirectUrl.host) {
+    return null
+  }
+
+  // At this point the hosts are the same, just confirm we
+  // are routing to a path underneath the `basePath`
+  return parsedRedirectUrl.pathname.startsWith(basePath)
+    ? parsedRedirectUrl
+    : null
+}
+
 async function createRedirectRenderResult(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -252,14 +282,15 @@ async function createRedirectRenderResult(
   // If we're redirecting to another route of this Next.js application, we'll
   // try to stream the response from the other worker path. When that works,
   // we can save an extra roundtrip and avoid a full page reload.
-  // When the redirect URL starts with a `/`, or to the same host as application,
-  // we treat it as an app-relative redirect.
-  const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
-  const isAppRelativeRedirect =
-    redirectUrl.startsWith('/') ||
-    (originalHost && originalHost.value === parsedRedirectUrl.host)
+  // When the redirect URL starts with a `/` or is to the same host, under the
+  // `basePath` we treat it as an app-relative redirect;
+  const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
+    basePath,
+    originalHost,
+    redirectUrl
+  )
 
-  if (isAppRelativeRedirect) {
+  if (appRelativeRedirectUrl) {
     if (!originalHost) {
       throw new Error(
         'Invariant: Missing `host` header from a forwarded Server Actions request.'
@@ -278,7 +309,7 @@ async function createRedirectRenderResult(
       process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
 
     const fetchUrl = new URL(
-      `${origin}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+      `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
     )
 
     if (staticGenerationStore.revalidatedTags) {

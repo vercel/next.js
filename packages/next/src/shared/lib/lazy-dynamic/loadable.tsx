@@ -15,7 +15,7 @@ function convertModule<P>(
   // Cases:
   // mod: { default: Component }
   // mod: Component
-  // mod: { $$typeof, default: proxy(Component) }
+  // mod: { default: proxy(Component) }
   // mod: proxy(Component)
   const hasDefault = mod && 'default' in mod
   return {

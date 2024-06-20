@@ -184,8 +184,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-rc-f994737d14-20240522",
-      "react-dom": "19.0.0-rc-f994737d14-20240522",
+      react: "19.0.0-rc.0",
+      "react-dom": "19.0.0-rc.0",
       next: version,
     },
     devDependencies: {},

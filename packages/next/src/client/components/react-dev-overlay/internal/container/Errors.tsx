@@ -265,7 +265,7 @@ export function Errors({
                 {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+              <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -323,6 +323,9 @@ export function Errors({
 }
 
 export const styles = css`
+  .nextjs-container-errors-header {
+    position: relative;
+  }
   .nextjs-container-errors-header > h1 {
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
@@ -405,5 +408,11 @@ export const styles = css`
   }
   .nextjs-toast-errors-hide-button:hover {
     opacity: 1;
+  }
+  .nextjs-container-errors-header
+    > .nextjs-container-build-error-version-status {
+    position: absolute;
+    top: 0;
+    right: 0;
   }
 `

@@ -109,6 +109,16 @@ describe('app dir - rsc basics', () => {
     expect($('#return-undefined-layout').html()).toBeEmpty()
   })
 
+  it('should handle named client components imported as page', async () => {
+    const $ = await next.render$('/reexport-named')
+    expect($('#client-title').text()).toBe('Client Title')
+  })
+
+  it('should handle client components imported as namespace', async () => {
+    const $ = await next.render$('/reexport-namespace')
+    expect($('#foo').text()).toBe('Foo')
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await next.render('/', null, {
       headers: {
@@ -605,20 +615,6 @@ describe('app dir - rsc basics', () => {
       'count: 1'
     )
   })
-
-  // Skip as Turbopack doesn't support webpack loaders.
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should support webpack loader rules',
-    async () => {
-      const browser = await next.browser('/loader-rule')
-
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    }
-  )
 
   if (isNextStart) {
     it('should generate edge SSR manifests for Node.js', async () => {

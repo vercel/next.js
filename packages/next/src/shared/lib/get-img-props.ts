@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number

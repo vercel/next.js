@@ -5,10 +5,6 @@ import { check } from 'next-test-utils'
 describe('app-dir action useActionState', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      react: '19.0.0-rc-f994737d14-20240522',
-      'react-dom': '19.0.0-rc-f994737d14-20240522',
-    },
   })
   it('should support submitting form state with JS', async () => {
     const browser = await next.browser('/client/form-state')

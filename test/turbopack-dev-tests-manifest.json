@@ -510,7 +510,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/helpers/i18n-provider.test.ts": {
+  "packages/next/src/server/lib/i18n-provider.test.ts": {
     "passed": [
       "I18NProvider analyze for pathname / and defaultLocale en",
       "I18NProvider analyze for pathname /another/page and defaultLocale en",
@@ -531,7 +531,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/helpers/interception-routes.test.ts": {
+  "packages/next/src/server/lib/interception-routes.test.ts": {
     "passed": [
       "Interception Route helper extractInterceptionRouteInformation should check the segment length",
       "Interception Route helper extractInterceptionRouteInformation should extract correct information",
@@ -544,7 +544,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/absolute-filename-normalizer.test.ts": {
+  "packages/next/src/server/normalizers/absolute-filename-normalizer.test.ts": {
     "passed": [
       "AbsoluteFilenameNormalizer normalizes '<root>/app/basic/(grouped)/endpoint/nested/route.ts' to '/basic/(grouped)/endpoint/nested/route'",
       "AbsoluteFilenameNormalizer normalizes '<root>/pages/basic/endpoint/index.ts' to '/basic/endpoint'",
@@ -555,7 +555,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/base-path.test.ts": {
+  "packages/next/src/server/normalizers/request/base-path.test.ts": {
     "passed": [
       "BasePathPathnameNormalizer should throw when provided with a basePath of \"/\"",
       "BasePathPathnameNormalizer should throw when provided with a blank basePath"
@@ -565,7 +565,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/next-data.test.ts": {
+  "packages/next/src/server/normalizers/request/next-data.test.ts": {
     "passed": [
       "NextDataPathnameNormalizer constructor should error when no buildID is provided",
       "NextDataPathnameNormalizer match should return false if the pathname does not start with the prefix",
@@ -580,7 +580,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/postponed.test.ts": {
+  "packages/next/src/server/normalizers/request/postponed.test.ts": {
     "passed": [
       "PostponedPathnameNormalizer match should match",
       "PostponedPathnameNormalizer match should not match for other pathnames",
@@ -593,7 +593,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/prefetch-rsc.test.ts": {
+  "packages/next/src/server/normalizers/request/prefetch-rsc.test.ts": {
     "passed": [
       "PrefetchRSCPathnameNormalizer should match the prefetch rsc pathname",
       "PrefetchRSCPathnameNormalizer should normalize the prefetch rsc index pathname",
@@ -605,7 +605,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/prefix.test.ts": {
+  "packages/next/src/server/normalizers/request/prefix.test.ts": {
     "passed": [
       "PrefixPathnameNormalizer match should return false if the pathname does not start with the prefix",
       "PrefixPathnameNormalizer match should return true if the pathname starts with the prefix",
@@ -618,7 +618,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/normalizers/request/suffix.test.ts": {
+  "packages/next/src/server/normalizers/request/suffix.test.ts": {
     "passed": [
       "SuffixPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
       "SuffixPathnameNormalizer match should return true if it matches",
@@ -630,7 +630,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-managers/default-route-matcher-manager.test.ts": {
+  "packages/next/src/server/route-matcher-managers/default-route-matcher-manager.test.ts": {
     "passed": [
       "DefaultRouteMatcherManager calls the locale route matcher when one is provided",
       "DefaultRouteMatcherManager can handle locale aware matchers for /en-US/some/path and locale en-US",
@@ -645,7 +645,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/app-page-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/app-page-route-matcher-provider.test.ts": {
     "passed": [
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /",
       "AppPageRouteMatcherProvider manifest matching returns the correct routes for /about",
@@ -658,7 +658,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/app-route-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/app-route-route-matcher-provider.test.ts": {
     "passed": [
       "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /",
       "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /users",
@@ -670,7 +670,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
     "passed": [
       "DevAppPageRouteMatcher filename matching matches the '/(marketing)/about/page' route specified with the provided files",
       "DevAppPageRouteMatcher filename matching matches the '/page' route specified with the provided files",
@@ -682,7 +682,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
     "passed": [
       "DevAppRouteRouteMatcher filename matching matches the '/route' route specified with the provided files",
       "DevAppRouteRouteMatcher filename matching matches the '/some/other/route' route specified with the provided files",
@@ -693,7 +693,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-pages-api-route-matcher-provider.test.ts": {
     "passed": [
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api' route specified with the provided files",
       "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other' route specified with the provided files",
@@ -705,7 +705,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/dev-pages-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/dev-pages-route-matcher-provider.test.ts": {
     "passed": [
       "DevPagesRouteMatcherProvider filename matching matches the '/' route specified with the provided files",
       "DevPagesRouteMatcherProvider filename matching matches the '/some/api/route' route specified with the provided files",
@@ -718,7 +718,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.test.ts": {
+  "packages/next/src/server/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.test.ts": {
     "passed": [
       "CachedFileReader will only scan the filesystem a minimal amount of times",
       "CachedFileReader will send an error back only to the correct reader"
@@ -728,7 +728,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/pages-api-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/pages-api-route-matcher-provider.test.ts": {
     "passed": [
       "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api",
       "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api/users",
@@ -740,7 +740,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/future/route-matcher-providers/pages-route-matcher-provider.test.ts": {
+  "packages/next/src/server/route-matcher-providers/pages-route-matcher-provider.test.ts": {
     "passed": [
       "PagesRouteMatcherProvider locale matching locale has the match for /",
       "PagesRouteMatcherProvider locale matching locale has the match for /404",
@@ -5144,8 +5144,7 @@
     "failed": [],
     "pending": [
       "app dir - rsc basics should not use bundled react for pages with app",
-      "app dir - rsc basics should support partial hydration with inlined server data in browser",
-      "app dir - rsc basics should support webpack loader rules"
+      "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6135,11 +6134,12 @@
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
     "passed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
-      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10509,11 +10509,12 @@
       "Next Lint don't create .eslintrc file if package.json has eslintConfig field",
       "Next Lint file flag can selectively lint only a single file",
       "Next Lint file flag can selectively lints multiple files",
+      "Next Lint format flag \"compact\" creates a file respecting the chosen format",
+      "Next Lint format flag \"json\" creates a file respecting the chosen format",
       "Next Lint format flag supports additional user-defined formats",
       "Next Lint lint files with cjs and mjs file extension",
       "Next Lint max warnings flag does not error when warnings do not exceed threshold",
       "Next Lint max warnings flag errors when warnings exceed threshold",
-      "Next Lint output flag create a file respecting the chosen format",
       "Next Lint quiet flag suppresses warnings and only reports errors",
       "Next Lint should add relative path for dist types in tsconfig.json when app dir exist",
       "Next Lint should generate next-env.d.ts before lint command",

@@ -16,7 +16,7 @@ import {
   RSC_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
-import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 
@@ -95,7 +95,7 @@ export async function exportAppPage(
     // instead of the standard rsc. This is because the standard rsc will
     // contain the dynamic data. We do this if any routes have PPR enabled so
     // that the cache read/write is the same.
-    else if (renderOpts.experimental.isAppPPREnabled) {
+    else if (renderOpts.experimental.isRoutePPREnabled) {
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(

@@ -74,7 +74,7 @@ describe('ReactRefreshRegression', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -283,7 +283,7 @@ describe('ReactRefreshRegression', () => {
     )
     expect(didNotReload).toBe(false)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -326,7 +326,7 @@ describe('ReactRefreshRegression', () => {
 
         let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
         expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
+        await session.assertNoRedbox()
         expect(
           await session.evaluate(
             () => document.querySelector('#__next').textContent
@@ -335,7 +335,7 @@ describe('ReactRefreshRegression', () => {
 
         didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
         expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
+        await session.assertNoRedbox()
         expect(
           await session.evaluate(
             () => document.querySelector('#__next').textContent

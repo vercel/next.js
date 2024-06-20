@@ -63,10 +63,10 @@ export default async function RootLayout() {
 
 ## Route Handlers
 
-`GET` functions in [Route Handlers](/docs/app/api-reference/file-conventions/route) are no longer cached by default. To opt `GET` methods into caching, you can use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config) such as `export dynamic = 'force-static'` in your Route Handler file.
+`GET` functions in [Route Handlers](/docs/app/api-reference/file-conventions/route) are no longer cached by default. To opt `GET` methods into caching, you can use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
-```js filename="app/api/route.js
-export dynamic = 'force-static'
+```js filename="app/api/route.js"
+export const dynamic = 'force-static'
 
 export async function GET() {}
 ```
