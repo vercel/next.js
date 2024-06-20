@@ -1582,9 +1582,7 @@ export default async function build(
 
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          const { duration: compilerDuration, ...rest } = turboNextBuild
-            ? await turbopackBuild()
-            : await webpackBuild(useBuildWorker, null)
+          const { duration: compilerDuration, ...rest } = await turbopackBuild()
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
