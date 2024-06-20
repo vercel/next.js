@@ -251,6 +251,8 @@ After redeploying, select one of the posts you've created and you will see **Ope
 
 You will now be able to use the Live Preview editor to publish and edit your content.
 
+**Note**: When you use Draft Mode in the Vercel Toolbar, the route handler provided by Contentful will not cause any issues or conflicts.
+
 ### Using Draft Mode manually
 
 In your Contentful space, go to **Settings > Content preview** and add a new content preview for development.
