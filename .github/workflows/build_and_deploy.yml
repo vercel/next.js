@@ -3,9 +3,8 @@ name: build-and-deploy
 
 on:
   push:
-    # TODO: Check if CI approved
-    # TODO: Make this conditional on something? Or throw machines/money at the problem.
-    # TODO: Can we merge this with build_and_test?
+    # TODO: Run only on canary pushes but PR syncs.
+    # Requires checking if CI is approved
   workflow_dispatch:
 
 env:
