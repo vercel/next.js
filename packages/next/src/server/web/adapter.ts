@@ -22,6 +22,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { lifecycleAsyncStorage } from '../../client/components/lifecycle-async-storage.external'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -213,13 +214,14 @@ export async function adapter(
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
 
+    const isAfterEnabled =
+      params.request.nextConfig?.experimental?.after ??
+      !!process.env.__NEXT_AFTER
+
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
 
       let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
       let closeController: CloseController | undefined = undefined
@@ -281,6 +283,25 @@ export async function adapter(
         }
       )
     }
+
+    if (isAfterEnabled) {
+      // NOTE:
+      // Currently, `adapter` is expected to return promises passed to `waitUntil`
+      // as part of its result (i.e. a FetchEventResult).
+      // Because of this, we override any outer contexts that might provide a real `waitUntil`,
+      // and provide the `waitUntil` from the NextFetchEvent instead so that we can collect those promises.
+      // This is not ideal, but until we change this calling convention, it's the least surprising thing to do.
+      //
+      // Notably, the only case that currently cares about this ALS is Edge SSR
+      // (i.e. a handler created via `build/webpack/loaders/next-edge-ssr-loader/render.ts`)
+      // Other types of handlers will grab the waitUntil from the passed FetchEvent,
+      // but NextWebServer currently has no interface that'd allow for that.
+      return lifecycleAsyncStorage.run(
+        { waitUntil: event.waitUntil.bind(event) },
+        () => params.handler(request, event)
+      )
+    }
+
     return params.handler(request, event)
   })
 
