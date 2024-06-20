@@ -6958,7 +6958,8 @@
     },
     "test/integration/css-customization/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "CSS Customization production mode Bad CSS Customization Array (1) should fail the build",
         "CSS Customization production mode Bad CSS Customization Array (2) should fail the build",
         "CSS Customization production mode Bad CSS Customization Array (3) should fail the build",
@@ -6980,7 +6981,6 @@
         "CSS Customization production mode Correct CSS Customization custom loader should compile successfully",
         "CSS Customization production mode Correct CSS Customization custom loader should've applied style"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
