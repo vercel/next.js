@@ -1,21 +1,21 @@
 import styles from "../styles.module.css";
 import Link from "next/link";
-import Code from "../components/Code";
+import Code from "./_components/Code";
 
-export default function Index() {
+export default function Home() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1>Redirects with Next.js</h1>
+        <h1 className="text-white">Redirects with Next.js</h1>
         <hr className={styles.hr} />
         <p>
-          The links below are{" "}
+          The links below are{" "}custom
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
             legacyBehavior
           >
             <>
-              custom <Code>redirects</Code>
+               <Code>redirects</Code>
             </>
           </Link>{" "}
           that redirect an incoming request path to a different destination
