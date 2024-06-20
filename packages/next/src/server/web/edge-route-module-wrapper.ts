@@ -148,6 +148,13 @@ export class EdgeRouteModuleWrapper {
         const trackedBody = trackStreamConsumed(res.body, () =>
           _closeController.dispatchClose()
         )
+
+        // make sure that NextRequestHint's awaiter stays open long enough
+        // for `waitUntil`s called late during streaming to get picked up.
+        evt.waitUntil(
+          new Promise<void>((resolve) => _closeController.onClose(resolve))
+        )
+
         res = new Response(trackedBody, {
           status: res.status,
           statusText: res.statusText,

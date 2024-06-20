@@ -380,10 +380,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         return cleanup
       }
 
-      /* eslint-disable jest/no-standalone-expect */
-      const it_failingForEdge = runtimeValue === 'edge' ? it.failing : it
-
-      it_failingForEdge('during render', async () => {
+      it('during render', async () => {
         const cleanup = await setup()
         try {
           const response = await next.fetch('/delay-deep')
@@ -401,27 +398,23 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         }
       })
 
-      it_failingForEdge(
-        'in a route handler that streams a response',
-        async () => {
-          const cleanup = await setup()
-          try {
-            const response = await next.fetch('/route-streaming')
-            expect(response.status).toBe(200)
-            await response.text()
-            await retry(() => {
-              expect(getLogs()).toContainEqual('simulated-invocation :: end')
-            }, 10_000)
+      it('in a route handler that streams a response', async () => {
+        const cleanup = await setup()
+        try {
+          const response = await next.fetch('/route-streaming')
+          expect(response.status).toBe(200)
+          await response.text()
+          await retry(() => {
+            expect(getLogs()).toContainEqual('simulated-invocation :: end')
+          }, 10_000)
 
-            expect(getLogs()).toContainEqual({
-              source: '[route handler] /route-streaming - after',
-            })
-          } finally {
-            await cleanup()
-          }
+          expect(getLogs()).toContainEqual({
+            source: '[route handler] /route-streaming - after',
+          })
+        } finally {
+          await cleanup()
         }
-      )
-      /* eslint-enable jest/no-standalone-expect */
+      })
     })
   }
 

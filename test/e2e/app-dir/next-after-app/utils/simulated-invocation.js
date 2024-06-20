@@ -1,5 +1,5 @@
 import { requestAsyncStorage } from 'next/dist/client/components/request-async-storage.external'
-import { AwaiterOnce } from './awaiter'
+import { AwaiterOnce } from 'next/dist/server/lib/awaiter'
 import { cliLog } from './log'
 
 // replaced in tests

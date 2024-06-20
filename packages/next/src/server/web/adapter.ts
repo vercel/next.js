@@ -422,7 +422,7 @@ export async function adapter(
 
   return {
     response: finalResponse,
-    waitUntil: Promise.all(event[waitUntilSymbol]),
+    waitUntil: event[waitUntilSymbol](),
     fetchMetrics: request.fetchMetrics,
   }
 }

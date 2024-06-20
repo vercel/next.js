@@ -1,4 +1,4 @@
-import { InvariantError } from 'next/dist/shared/lib/invariant-error'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * Provides a `waitUntil` implementation which gathers promises to be awaited later (via {@link AwaiterMulti.awaiting}).

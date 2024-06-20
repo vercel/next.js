@@ -157,17 +157,27 @@ export function getRender({
     request: NextRequestHint,
     event?: NextFetchEvent
   ) {
+    const isAfterEnabled = !!process.env.__NEXT_AFTER
+
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse(
       undefined,
       // tracking onClose adds overhead, so only do it if `experimental.after` is on.
-      !!process.env.__NEXT_AFTER
+      isAfterEnabled
     )
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
 
     if (event?.waitUntil) {
+      if (isAfterEnabled) {
+        // make sure that NextRequestHint's awaiter stays open long enough
+        // for late `waitUntil`s called during streaming to get picked up.
+        event.waitUntil(
+          new Promise<void>((resolve) => extendedRes.onClose(resolve))
+        )
+      }
+
       // TODO(after):
       // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
       // when consumers switch to `unstable_after`.
