@@ -102,6 +102,9 @@ pub fn complete_output(
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
+    if let Some(output) = output.output {
+        js_output.set_named_property("output", env.create_string_from_std(output)?)?;
+    }
     if let Some(map) = output.map {
         js_output.set_named_property("map", env.create_string_from_std(map)?)?;
     }
