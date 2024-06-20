@@ -55,6 +55,13 @@ export function createErrorHandler({
     }
     const digest = err.digest
 
+    // Adding the error source to the error allows telemetry vendors to use console.error()
+    // in order to report user errors in a structured way.
+    Object.defineProperty(err, '_nextjsErrorSource', {
+      value: source,
+      enumerable: false,
+    })
+
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
