@@ -980,7 +980,12 @@ export default class NextNodeServer extends BaseServer<
         })
 
         // If we handled the request, we can return early.
-        if (handled) return true
+        if (handled) {
+          const waitUntil = this.getWaitUntil()
+          waitUntil?.(handled.waitUntil)
+
+          return true
+        }
       }
 
       // If the route was detected as being a Pages API route, then handle
@@ -1930,6 +1935,11 @@ export default class NextNodeServer extends BaseServer<
         params.res.appendHeader(key, value)
       }
     })
+
+    const waitUntil = this.getWaitUntil()
+    if (waitUntil) {
+      waitUntil(result.waitUntil)
+    }
 
     const { originalResponse } = params.res
     if (result.response.body) {
