@@ -370,7 +370,6 @@ describe.each([[''], ['/docs']])(
           try {
             browser = await webdriver(next.url, basePath + '/hmr/nonlatin')
             const timeOrigin = await browser.eval('performance.timeOrigin')
-            console.log('timeOrigin', timeOrigin)
             const editedContent = originalContent.replace(
               '<div>テスト</div>',
               '<h1>テスト</h1>'
