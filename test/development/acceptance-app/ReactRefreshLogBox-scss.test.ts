@@ -33,17 +33,17 @@ describe.skip('ReactRefreshLogBox scss app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     // Syntax error
     await session.patch('index.module.scss', `.button { font-size: :5px; }`)
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatchSnapshot()
 
     // Fix syntax error
     await session.patch('index.module.scss', `.button { font-size: 5px; }`)
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -69,7 +69,7 @@ describe.skip('ReactRefreshLogBox scss app', () => {
     // Checks for selectors that can't be prefixed.
     // Selector "button" is not pure (pure selectors must contain at least one local class or id)
     await session.patch('index.module.scss', `button { font-size: 5px; }`)
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     const source2 = await session.getRedboxSource()
     expect(source2).toMatchSnapshot()
 

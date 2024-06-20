@@ -43,6 +43,8 @@ impl RuntimeEntry {
             None,
             IssueSeverity::Error.cell(),
         )
+        .resolve()
+        .await?
         .primary_modules()
         .await?;
 

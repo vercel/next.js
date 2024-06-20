@@ -44,7 +44,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
@@ -103,7 +103,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
@@ -161,7 +161,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/

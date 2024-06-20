@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxHeader } from 'next-test-utils'
 
 process.env.__TEST_SENTINEL = 'build'
 
@@ -198,7 +198,7 @@ describe('dynamic-data with dynamic = "error"', () => {
     it('displays redbox when `dynamic = "error"` and dynamic data is read in dev', async () => {
       let browser = await next.browser('/cookies?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
         )
@@ -208,7 +208,7 @@ describe('dynamic-data with dynamic = "error"', () => {
 
       browser = await next.browser('/headers?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
         )
@@ -218,7 +218,7 @@ describe('dynamic-data with dynamic = "error"', () => {
 
       browser = await next.browser('/search?foo=foosearch')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
         )
@@ -276,7 +276,7 @@ describe('dynamic-data inside cache scope', () => {
     it('displays redbox when accessing dynamic data inside a cache scope', async () => {
       let browser = await next.browser('/cookies')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
         )
@@ -286,7 +286,7 @@ describe('dynamic-data inside cache scope', () => {
 
       browser = await next.browser('/headers')
       try {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
         )
