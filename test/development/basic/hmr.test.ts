@@ -362,6 +362,39 @@ describe.each([[''], ['/docs']])(
             }
           }
         })
+
+        it('should not full reload when nonlatin characters are used', async () => {
+          let browser = null
+          const pagePath = join('pages', 'hmr', 'nonlatin.js')
+          const originalContent = await next.readFile(pagePath)
+          try {
+            browser = await webdriver(next.url, basePath + '/hmr/nonlatin')
+            const timeOrigin = await browser.eval('performance.timeOrigin')
+            console.log('timeOrigin', timeOrigin)
+            const editedContent = originalContent.replace(
+              '<div>テスト</div>',
+              '<h1>テスト</h1>'
+            )
+
+            // Change the page
+            await next.patchFile(pagePath, editedContent)
+
+            // wait for 5 seconds
+            await waitFor(5000)
+
+            expect(await browser.eval('performance.timeOrigin')).toEqual(
+              timeOrigin
+            )
+          } finally {
+            // Finally is used so that we revert the content back to the original regardless of the test outcome
+            // restore the about page content.
+            await next.patchFile(pagePath, originalContent)
+
+            if (browser) {
+              await browser.close()
+            }
+          }
+        })
       })
     })
 
