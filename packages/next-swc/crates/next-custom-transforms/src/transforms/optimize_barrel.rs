@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use swc_transform_common::output::emit;
 use turbopack_binding::swc::core::{
     common::DUMMY_SP,
-    ecma::{ast::*, utils::private_ident, visit::Fold},
+    ecma::{ast::*, visit::Fold},
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -236,27 +237,10 @@ impl Fold for OptimizeBarrel {
             new_items = vec![];
         } else {
             // Otherwise we export the meta information.
-            new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                span: DUMMY_SP,
-                decl: Decl::Var(Box::new(VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Const,
-                    declare: false,
-                    decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
-                        name: Pat::Ident(BindingIdent {
-                            id: private_ident!("__next_private_export_map__"),
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Lit(Lit::Str(Str {
-                            span: DUMMY_SP,
-                            value: serde_json::to_string(&export_map).unwrap().into(),
-                            raw: None,
-                        })))),
-                        definite: false,
-                    }],
-                })),
-            })));
+            emit(
+                "exportList".into(),
+                serde_json::to_value(&export_map).unwrap(),
+            );
 
             // Push "export *" statements for each wildcard export.
             for src in export_wildcards {
@@ -275,27 +259,10 @@ impl Fold for OptimizeBarrel {
 
             // Push directives.
             if !directives.is_empty() {
-                new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: Decl::Var(Box::new(VarDecl {
-                        span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
-                        declare: false,
-                        decls: vec![VarDeclarator {
-                            span: DUMMY_SP,
-                            name: Pat::Ident(BindingIdent {
-                                id: private_ident!("__next_private_directive_list__"),
-                                type_ann: None,
-                            }),
-                            init: Some(Box::new(Expr::Lit(Lit::Str(Str {
-                                span: DUMMY_SP,
-                                value: serde_json::to_string(&directives).unwrap().into(),
-                                raw: None,
-                            })))),
-                            definite: false,
-                        }],
-                    })),
-                })));
+                emit(
+                    "directives".into(),
+                    serde_json::to_value(&directives).unwrap(),
+                );
             }
         }
 
