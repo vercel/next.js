@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('dynamic-href', () => {
   const {
@@ -20,7 +20,7 @@ describe('dynamic-href', () => {
       const browser = await next.browser('/object')
 
       // Error should show up
-      expect(await hasRedbox(browser)).toBeTrue()
+      await assertHasRedbox(browser)
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
         `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
       )
@@ -48,7 +48,7 @@ describe('dynamic-href', () => {
       const browser = await next.browser('/string')
 
       // Error should show up
-      expect(await hasRedbox(browser)).toBeTrue()
+      await assertHasRedbox(browser)
       expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
         `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
       )

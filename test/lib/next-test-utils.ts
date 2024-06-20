@@ -802,9 +802,36 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+export async function assertHasRedbox(browser: BrowserInterface) {
+  try {
+    await retry(
+      async () => {
+        const hasRedbox = await evaluate(browser, () => {
+          return Boolean(
+            [].slice
+              .call(document.querySelectorAll('nextjs-portal'))
+              .find((p) =>
+                p.shadowRoot.querySelector(
+                  '#nextjs__container_errors_label, #nextjs__container_errors_label'
+                )
+              )
+          )
+        })
+        expect(hasRedbox).toBe(true)
+      },
+      5000,
+      200
+    )
+  } catch (errorCause) {
+    const error = new Error('Expected Redbox but found none')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
+}
+
+export async function assertNoRedbox(browser: BrowserInterface) {
   await waitFor(5000)
-  const result = await evaluate(browser, () => {
+  const hasRedbox = await evaluate(browser, () => {
     return Boolean(
       [].slice
         .call(document.querySelectorAll('nextjs-portal'))
@@ -815,7 +842,12 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
         )
     )
   })
-  return result
+
+  if (hasRedbox) {
+    const error = new Error('Expected no Redbox but found one')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
 }
 
 export async function hasErrorToast(
