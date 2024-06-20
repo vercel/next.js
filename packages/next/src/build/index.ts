@@ -164,7 +164,10 @@ import { nodeFs } from '../server/lib/node-fs-methods'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
-import { updateBuildDiagnostics } from '../diagnostics/build-diagnostics'
+import {
+  recordFrameworkVersion,
+  updateBuildDiagnostics,
+} from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
@@ -842,8 +845,8 @@ export default async function build(
         expFeatureInfo,
       })
 
-      updateBuildDiagnostics({
-        version: process.env.__NEXT_VERSION as string,
+      void recordFrameworkVersion(process.env.__NEXT_VERSION as string)
+      void updateBuildDiagnostics({
         buildStage: 'start',
       })
 

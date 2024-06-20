@@ -6,8 +6,6 @@ const DIAGNOSTICS_DIR = 'diagnostics'
 const DIAGNOSTICS_FILE = 'build-diagnostics.json'
 
 interface BuildDiagnostics {
-  // The exact version of Next.js that was used to build the app.
-  version?: string
   // The current stage of the build process. This should be updated as the
   // build progresses so it's what stage the build was in when an error
   // happened.
@@ -25,6 +23,22 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
+async function getDiagnosticsDir(): Promise<string> {
+  const distDir = traceGlobals.get('distDir')
+  const diagnosticsDir = join(distDir, DIAGNOSTICS_DIR)
+  await mkdir(diagnosticsDir, { recursive: true })
+  return diagnosticsDir
+}
+
+/**
+ * Saves the exact version of Next.js that was used to build the app to a diagnostics file.
+ */
+export async function recordFrameworkVersion(version: string): Promise<void> {
+  const diagnosticsDir = await getDiagnosticsDir()
+  const frameworkVersionFile = join(diagnosticsDir, 'framework.json')
+  await writeFile(frameworkVersionFile, JSON.stringify({ version }))
+}
+
 /**
  * Saves build diagnostics information to a file. This method can be called
  * multiple times during a build to save additional information that can help
@@ -35,10 +49,9 @@ async function fileExists(path: string): Promise<boolean> {
 export async function updateBuildDiagnostics(
   diagnostics: BuildDiagnostics
 ): Promise<void> {
-  const distDir = traceGlobals.get('distDir')
-  const diagnosticsDir = join(distDir, DIAGNOSTICS_DIR)
+  const diagnosticsDir = await getDiagnosticsDir()
   const diagnosticsFile = join(diagnosticsDir, DIAGNOSTICS_FILE)
-  await mkdir(join(distDir, DIAGNOSTICS_DIR), { recursive: true })
+
   let existingDiagnostics: BuildDiagnostics = {}
   if (await fileExists(diagnosticsFile)) {
     existingDiagnostics = JSON.parse(
