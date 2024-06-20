@@ -46,19 +46,21 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ## Example
 
 ```jsx
-import { getUser } from './data';
 import { unstable_cache } from 'next/cache';
 
 
 
 export default async function Page({ params }: { params: { userID: string } }) {
  const getCachedUser = unstable_cache(
-  async () => getUser(params.userID), 
-  [params.userID], // here we add the userID in the keyparts so NextJS can make seperate caches for the different userID's.
-  {
-    tags: ["cached-user-tag"],
-    revalidate: 60,
-  }
+  async () => {
+     
+  return { id: params.userID };
+    },
+    [params.userID], // here we add the userID in the keyParts so NextJS can make separate caches for the different userID's.
+    {
+      tags: ["cached-user-tag"],
+      revalidate: 60,
+    }
 );
   ...
 }
