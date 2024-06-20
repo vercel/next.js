@@ -2,6 +2,7 @@ import glob from 'glob'
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
+import { ChildProcess } from 'child_process'
 import { FileRef, NextInstance, createNext } from 'e2e-utils'
 import {
   retry,
@@ -13,9 +14,9 @@ import {
 
 describe('fetch-cache', () => {
   let next: NextInstance
-  let appPort: any
+  let appPort: number | string
   let cliOuptut = ''
-  let nextInstance: any
+  let nextInstance: ChildProcess
   let fetchGetReqIndex = 0
   let revalidateReqIndex = 0
   let fetchGetShouldError = false
@@ -88,7 +89,7 @@ describe('fetch-cache', () => {
       {
         ...process.env,
         ...fetchCacheEnv,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
