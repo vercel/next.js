@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./switch.module.css";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 declare global {
   var updateDOM: () => void;
@@ -92,17 +92,21 @@ const Switch = () => {
   );
 };
 
+const Script = memo(() => (
+  <script
+    dangerouslySetInnerHTML={{
+      __html: `(${NoFOUCScript.toString()})('${STORAGE_KEY}')`,
+    }}
+  />
+));
+
 /**
  * This component wich applies classes and transitions.
  */
 export const ThemeSwitcher = () => {
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(${NoFOUCScript.toString()})('${STORAGE_KEY}')`,
-        }}
-      />
+      <Script />
       <Switch />
     </>
   );
