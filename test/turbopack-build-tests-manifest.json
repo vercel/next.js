@@ -1016,7 +1016,6 @@
         "app dir - basic server components should serve client component should serve server-side",
         "app dir - basic server components should serve shared component",
         "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
-        "app dir - basic should generate build traces correctly",
         "app dir - basic should handle hash in initial url",
         "app dir - basic should have correct searchParams and params (client)",
         "app dir - basic should have correct searchParams and params (server)",
@@ -1024,7 +1023,6 @@
         "app dir - basic should include layouts when no direct parent layout",
         "app dir - basic should include parent document when no direct parent layout",
         "app dir - basic should match redirects in pages correctly $path",
-        "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
@@ -1043,7 +1041,6 @@
         "app dir - basic should serve from public",
         "app dir - basic should serve nested parent",
         "app dir - basic should serve page as a segment name correctly",
-        "app dir - basic should successfully detect app route during prefetch",
         "app dir - basic should use new root layout when provided",
         "app dir - basic should use text/x-component for flight",
         "app dir - basic should use text/x-component for flight with edge runtime",
@@ -1052,6 +1049,9 @@
         "app dir - basic template component should render the template that is a server component and rerender on navigation"
       ],
       "failed": [
+        "app dir - basic should successfully detect app route during prefetch",
+        "app dir - basic should not apply client router filter on shallow",
+        "app dir - basic should generate build traces correctly",
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should serve polyfills for browsers that do not support modules"
       ],
