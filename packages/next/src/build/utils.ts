@@ -2003,7 +2003,7 @@ export async function copyTracedFiles(
           copiedFiles.add(fileOutputPath)
 
           await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+          const symlink = await checkSymlinkChain(tracedFilePath, dir)
 
           if (symlink) {
             try {
@@ -2014,7 +2014,10 @@ export async function copyTracedFiles(
               }
             }
           } else {
-            await fs.copyFile(tracedFilePath, fileOutputPath)
+            await fs.cp(tracedFilePath, fileOutputPath, {
+              recursive: true,
+              dereference: true,
+            })
           }
         }
 
@@ -2157,6 +2160,33 @@ startServer({
   process.exit(1);
 });`
   )
+}
+
+/**
+ * Checks if the given file symlinks outside of the given directory.
+ *
+ * `dir` must be an absolute path.
+ *
+ * @returns The symlink target pointed by the given file, if it's within the
+ * given directory. Otherwise, returns `null`.
+ */
+async function checkSymlinkChain(tracedFilePath: string, dir: string) {
+  const file = await fs.readlink(tracedFilePath).catch(() => null)
+  let isInDir = true
+
+  let source = tracedFilePath
+  let target = file
+  while (target) {
+    target = path.resolve(path.dirname(source), target)
+    if (!target.startsWith(dir)) {
+      isInDir = false
+      break
+    }
+    source = target
+    target = await fs.readlink(target).catch(() => null)
+  }
+
+  return isInDir ? file : null
 }
 
 export function isReservedPage(page: string) {
