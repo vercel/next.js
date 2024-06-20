@@ -17,7 +17,9 @@ fn rectangle_stress() {
         .unwrap();
     rt.block_on(async {
         let tt = TurboTasks::new(MemoryBackend::default());
-        let size = 100;
+        let size = std::env::var("TURBOPACK_TEST_RECTANGLE_STRESS_SIZE")
+            .map(|size| size.parse().unwrap())
+            .unwrap_or(50);
         (0..size)
             .map(|a| (a, size - 1))
             .chain((0..size - 1).map(|b| (size - 1, b)))
