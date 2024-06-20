@@ -7,7 +7,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@sentry/nextjs": "^7.60.1",
+    "@sentry/nextjs": "^8.10.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
