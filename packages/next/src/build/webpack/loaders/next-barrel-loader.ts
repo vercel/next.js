@@ -184,8 +184,6 @@ async function getBarrelMapping(
     let exportList: [string, string, string][] = output.exportList ?? []
 
     const directiveList = output.directives ?? []
-    console.log('exportList', exportList)
-    console.log('directiveList', directiveList)
 
     // "use client" in barrel files has to be transferred to the target file.
     isClientEntry = directiveList.includes('use client')
@@ -193,7 +191,6 @@ async function getBarrelMapping(
     const wildcardExports = [...code.matchAll(/export \* from "([^"]+)"/g)].map(
       (match) => match[1]
     )
-    console.log('wildcardExports', wildcardExports)
 
     // In the wildcard case, if the value is exported from another file, we
     // redirect to that file (decl[0]). Otherwise, export from the current
