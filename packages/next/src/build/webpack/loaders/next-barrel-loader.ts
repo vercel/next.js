@@ -177,7 +177,7 @@ async function getBarrelMapping(
 
     const { code, output } = await transpileSource(file, source, isWildcard)
 
-    if (!output?.directives?.length) {
+    if (!output?.exportList?.length) {
       return null
     }
 
