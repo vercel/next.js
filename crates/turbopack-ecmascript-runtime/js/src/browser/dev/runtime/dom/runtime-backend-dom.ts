@@ -291,9 +291,13 @@ function _eval({ code, url, map }: EcmascriptModuleEntry): ModuleFactory {
   code += `\n\n//# sourceURL=${encodeURI(
     location.origin + CHUNK_BASE_PATH + url
   )}`;
-  if (map)
+  if (map) {
     code += `\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${btoa(
-      map
+      // btoa doesn't handle nonlatin characters, so escape them as \x sequences
+      // See https://stackoverflow.com/a/26603875
+      unescape(encodeURIComponent(map))
     )}`;
+  }
+
   return eval(code);
 }
