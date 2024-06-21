@@ -6,13 +6,13 @@ import { listFiles } from "@/utils/imagekit";
 import { useRef } from "react";
 import Carousel from "@/components/Carousel";
 
-const AssetDetail = ({
+export default function AssetDetail({
   images,
   currentImageIndex,
 }: {
   images: FileObject[];
   currentImageIndex: number;
-}) => {
+}) {
   const imageWrapper = useRef<HTMLDivElement>(null);
   return (
     <>
@@ -34,9 +34,7 @@ const AssetDetail = ({
       </main>
     </>
   );
-};
-
-export default AssetDetail;
+}
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const images = await listFiles(100, 0, FilterEnum.ALL);

@@ -93,7 +93,6 @@ export default function Home({
                     key={i}
                     urlEndpoint={process.env.NEXT_PUBLIC_URL_ENDPOINT}
                     src={data.url}
-                    // controls
                     width={300}
                   />
                 )}
@@ -110,7 +109,7 @@ export default function Home({
 
 export async function getStaticProps() {
   const allFiles = await listFiles(100, 0, FilterEnum.ALL);
-  const images = await listFiles(100, 0, FilterEnum.PHOTOS);
-  const videos = await listFiles(100, 0, FilterEnum.VIDEOS);
+  const images = allFiles.filter((data) => data.fileType === "image");
+  const videos = allFiles.filter((data) => data.fileType !== "image");
   return { props: { allFiles, images, videos } };
 }
