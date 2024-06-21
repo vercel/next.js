@@ -23,6 +23,7 @@ use next_custom_transforms::transforms::{
 };
 use serde::de::DeserializeOwned;
 use swc_core::ecma::visit::as_folder;
+use testing::NormalizedOutput;
 use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
@@ -483,53 +484,72 @@ fn named_import_transform_fixture(input: PathBuf) {
 #[fixture("tests/fixture/optimize-barrel/normal/**/input.js")]
 fn optimize_barrel_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
+    let output_data = input.parent().unwrap().join("output.json");
+    // TODO(kdy1): Move output testing logic into `test_fixture`.
+    // This requires updating swc_core
+    let (_, data) = swc_transform_common::output::capture(|| {
+        test_fixture(
+            syntax(),
+            &|_tr| {
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
 
-            chain!(
-                resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(json(
-                    r#"
-                        {
-                            "wildcard": false
-                        }
-                    "#
-                ))
-            )
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
+                chain!(
+                    resolver(unresolved_mark, top_level_mark, false),
+                    optimize_barrel(json(
+                        r#"
+                            {
+                                "wildcard": false
+                            }
+                        "#
+                    ))
+                )
+            },
+            &input,
+            &output,
+            Default::default(),
+        );
+    });
+
+    NormalizedOutput::new_raw(serde_json::to_string_pretty(&data).unwrap())
+        .compare_to_file(&output_data)
+        .unwrap();
 }
 
 #[fixture("tests/fixture/optimize-barrel/wildcard/**/input.js")]
 fn optimize_barrel_wildcard_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
+    let output_data = input.parent().unwrap().join("output.json");
 
-            chain!(
-                resolver(unresolved_mark, top_level_mark, false),
-                optimize_barrel(json(
-                    r#"
+    // TODO(kdy1): Move output testing logic into `test_fixture`.
+    // This requires updating swc_core
+    let (_, data) = swc_transform_common::output::capture(|| {
+        test_fixture(
+            syntax(),
+            &|_tr| {
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
+
+                chain!(
+                    resolver(unresolved_mark, top_level_mark, false),
+                    optimize_barrel(json(
+                        r#"
                         {
                             "wildcard": true
                         }
                     "#
-                ))
-            )
-        },
-        &input,
-        &output,
-        Default::default(),
-    );
+                    ))
+                )
+            },
+            &input,
+            &output,
+            Default::default(),
+        );
+    });
+
+    NormalizedOutput::new_raw(serde_json::to_string_pretty(&data).unwrap())
+        .compare_to_file(&output_data)
+        .unwrap();
 }
 
 #[fixture("tests/fixture/optimize_server_react/**/input.js")]
