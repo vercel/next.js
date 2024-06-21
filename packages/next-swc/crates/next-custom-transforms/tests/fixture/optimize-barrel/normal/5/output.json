@@ -1,0 +1,9 @@
+{
+  "exportList": [
+    [
+      "x",
+      "./icons/index.js",
+      "*"
+    ]
+  ]
+}

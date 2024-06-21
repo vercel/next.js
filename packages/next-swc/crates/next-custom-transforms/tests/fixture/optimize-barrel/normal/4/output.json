@@ -1,0 +1,32 @@
+{
+  "directives": [
+    "use client"
+  ],
+  "exportList": [
+    [
+      "x",
+      "foo",
+      "a"
+    ],
+    [
+      "y",
+      "1",
+      "y"
+    ],
+    [
+      "b",
+      "foo",
+      "b"
+    ],
+    [
+      "default",
+      "foo",
+      "default"
+    ],
+    [
+      "z",
+      "bar",
+      "default"
+    ]
+  ]
+}
