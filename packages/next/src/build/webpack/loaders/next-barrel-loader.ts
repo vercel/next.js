@@ -125,7 +125,10 @@ async function getBarrelMapping(
     isWildcard: boolean
   ) {
     const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx')
-    return new Promise<string>((res) =>
+    return new Promise<{
+      code: string
+      output: { [key: string]: any } | undefined
+    }>((res) =>
       transform(source, {
         filename,
         inputSourceMap: undefined,
@@ -144,8 +147,8 @@ async function getBarrelMapping(
             cacheRoot: swcCacheDir,
           },
         },
-      }).then((output) => {
-        res(output.code)
+      }).then(({ code, output }) => {
+        res({ code, output })
       })
     )
   }
@@ -172,32 +175,23 @@ async function getBarrelMapping(
       })
     })
 
-    const output = await transpileSource(file, source, isWildcard)
+    const { code, output } = await transpileSource(file, source, isWildcard)
 
-    const matches = output.match(
-      /^([^]*)export (const|var) __next_private_export_map__ = ('[^']+'|"[^"]+")/
-    )
-    if (!matches) {
+    if (!output?.directives?.length) {
       return null
     }
 
-    const matchedDirectives = output.match(
-      /^([^]*)export (const|var) __next_private_directive_list__ = '([^']+)'/
-    )
-    const directiveList = matchedDirectives
-      ? JSON.parse(matchedDirectives[3])
-      : []
+    const directiveList = output.directives ?? []
+    console.log('directiveList', directiveList)
+
     // "use client" in barrel files has to be transferred to the target file.
     isClientEntry = directiveList.includes('use client')
 
-    let exportList = JSON.parse(matches[3].slice(1, -1)) as [
-      string,
-      string,
-      string,
-    ][]
-    const wildcardExports = [
-      ...output.matchAll(/export \* from "([^"]+)"/g),
-    ].map((match) => match[1])
+    let exportList: [string, string, string][] = output.exportList ?? []
+    console.log('exportList', exportList)
+    const wildcardExports = [...code.matchAll(/export \* from "([^"]+)"/g)].map(
+      (match) => match[1]
+    )
 
     // In the wildcard case, if the value is exported from another file, we
     // redirect to that file (decl[0]). Otherwise, export from the current
