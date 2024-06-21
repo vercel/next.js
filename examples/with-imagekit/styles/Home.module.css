@@ -8,13 +8,13 @@
 .buttonContainer {
   display: flex;
   gap: 1rem;
+  align-items: center;
 }
 
 .button {
   border: none;
-  background: #fff;
+  background-color: #000;
   cursor: pointer;
-  color: #a0a0a0;
   font-size: medium;
 }
 
