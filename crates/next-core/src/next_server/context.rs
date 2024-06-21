@@ -593,7 +593,16 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
+                // TODO(kdy1): Enable tree shaking.
+                // This is disabled because of strange behavior with
+                //
+                // export const runtime = "edge";
+                //
+                // The code above, and the next.js module exporting NextReponse is not tree shaken
+                // but the import resolves as undefined. But it works if the runtime export is
+                // removed or tree shaking is disabled.
+                //
+                // tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
