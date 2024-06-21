@@ -27,6 +27,9 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 
+  // Prevents unintentional hiding of SIGKILLs e.g. for OOMKills
+  process.on('exit', () => process.exit(137))
+
   const {
     debug,
     experimentalDebugMemoryUsage,
