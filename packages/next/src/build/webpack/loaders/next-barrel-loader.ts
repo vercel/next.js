@@ -148,7 +148,7 @@ async function getBarrelMapping(
           },
         },
       }).then(({ code, output }) => {
-        res({ code, output })
+        res({ code, output: JSON.parse(output) })
       })
     )
   }
@@ -177,21 +177,23 @@ async function getBarrelMapping(
 
     const { code, output } = await transpileSource(file, source, isWildcard)
 
-    if (!output?.exportList?.length) {
+    if (!output) {
       return null
     }
 
+    let exportList: [string, string, string][] = output.exportList ?? []
+
     const directiveList = output.directives ?? []
+    console.log('exportList', exportList)
     console.log('directiveList', directiveList)
 
     // "use client" in barrel files has to be transferred to the target file.
     isClientEntry = directiveList.includes('use client')
 
-    let exportList: [string, string, string][] = output.exportList ?? []
-    console.log('exportList', exportList)
     const wildcardExports = [...code.matchAll(/export \* from "([^"]+)"/g)].map(
       (match) => match[1]
     )
+    console.log('wildcardExports', wildcardExports)
 
     // In the wildcard case, if the value is exported from another file, we
     // redirect to that file (decl[0]). Otherwise, export from the current
