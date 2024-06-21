@@ -5213,9 +5213,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "0.34.1"
+version = "0.34.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d0a5e455ba23fcd687b05ee944ea2c4b026f7de6bb648be3061a434509963e2"
+checksum = "add6efe3f1a2fe9108b27fb6ba94998ab5bfd8696d590033003987c82452b8f9"
 dependencies = [
  "ahash 0.8.9",
  "anyhow",
@@ -5300,9 +5300,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.95.2"
+version = "0.95.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d98a9010ece859955625a9c1a54ac60986063d755acd8e1fd3a6d7a7e96bce1"
+checksum = "14c87d2488f08d269b91a516b0b726e11569a9713ee148c3015571b415e1c430"
 dependencies = [
  "binding_macros",
  "swc",
@@ -5400,9 +5400,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_minifier"
-version = "0.117.0"
+version = "0.117.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "514de641204c8754865b70bbd5727c3244fafce08373e0dd496ad87e8919a8c4"
+checksum = "ca3018ef38941e9b5681af7651047cd42af8bcb1635ba1d99eee182aafd84bb3"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -5488,9 +5488,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "0.115.0"
+version = "0.115.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065b55c4d3bf7994a47abd420b9d69c69dd48e602030cbc85557077d5705fb63"
+checksum = "7be1306930c235435a892104c00c2b5e16231043c085d5a10bd3e7537b15659b"
 dependencies = [
  "bitflags 2.5.0",
  "bytecheck",
@@ -5823,9 +5823,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.146.1"
+version = "0.146.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f884c766155c58b98503961612d1caced9d50267fcbf7914d9407d6fc5447efe"
+checksum = "8953dcf07d90ad14d82c79ef48a2e0c510a043c7e6af3aed4ef59277044ba854"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -6059,9 +6059,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_proposal"
-version = "0.174.0"
+version = "0.174.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "150757347a7ff1297f22d611965a4e3354591e17e185e170995261f3b8e84cf7"
+checksum = "5db0e71b7a87c4fcddec835e6717854849ab8bba9c9f6332858f6c8b66c1ad9f"
 dependencies = [
  "either",
  "rustc-hash",
