@@ -2,13 +2,22 @@
 
 import { nextTestSetup } from 'e2e-utils'
 
-describe('unused scss', () => {
-  describe('Body is not hidden when unused in Development', () => {
+describe.each([
+  { dependencies: { sass: '1.54.0' }, nextConfig: undefined },
+  {
+    dependencies: { 'sass-embedded': '1.75.0' },
+    nextConfig: {
+      sassOptions: {
+        implementation: 'sass-embedded',
+      },
+    },
+  },
+])('unused scss', ({ dependencies, nextConfig }) => {
+  describe('Body is not hidden when unused in Development ($dependencies)', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
-      dependencies: {
-        sass: '1.54.0',
-      },
+      dependencies,
+      nextConfig,
     })
 
     ;(isNextDev ? describe : describe.skip)('development only', () => {
@@ -25,9 +34,8 @@ describe('unused scss', () => {
   describe('Body is not hidden when broken in Development', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
-      dependencies: {
-        sass: '1.54.0',
-      },
+      dependencies,
+      nextConfig,
     })
 
     ;(isNextDev ? describe : describe.skip)('development only', () => {

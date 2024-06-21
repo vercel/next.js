@@ -26,7 +26,7 @@ export default function Page({ params }) {
 > **Good to know**
 >
 > - You can use the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option to control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
-> - You must always return [an array from `generateStaticParams`](#all-paths-at-build-time), even if it's empty.
+> - You must return [an empty array from `generateStaticParams`](#all-paths-at-build-time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) in order to revalidate (ISR) [paths at runtime](#all-paths-at-runtime).
 > - During `next dev`, `generateStaticParams` will be called when you navigate to a route.
 > - During `next build`, `generateStaticParams` runs before the corresponding Layouts or Pages are generated.
 > - During revalidation (ISR), `generateStaticParams` will not be called again.
@@ -218,15 +218,19 @@ export async function generateStaticParams() {
 
 #### All paths at runtime
 
-To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time):
+To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic):
 
-```tsx filename="app/blog/[slug]/page.tsx" switcher
+```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
   return []
 }
 ```
 
 > **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
+export const dynamic = 'force-static'
+```
 
 ### Disable rendering for unspecified paths
 

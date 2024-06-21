@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox, retry } from 'next-test-utils'
+import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
 describe('app-dir - errors', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -19,7 +19,7 @@ describe('app-dir - errors', () => {
       if (isNextDev) {
         // TODO: investigate desired behavior here as it is currently
         // minimized by default
-        // expect(await hasRedbox(browser)).toBe(true)
+        // await assertHasRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
         await browser
@@ -47,7 +47,7 @@ describe('app-dir - errors', () => {
           // Digest of the error message should be stable.
         ).not.toBe('')
         // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-        // expect(await hasRedbox(browser)).toBe(true)
+        // await assertHasRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
         await browser
@@ -68,7 +68,7 @@ describe('app-dir - errors', () => {
       await browser.elementByCss('#error-trigger-button').click()
 
       if (isNextDev) {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       } else {
         expect(
@@ -83,7 +83,7 @@ describe('app-dir - errors', () => {
       const browser = await next.browser('/global-error-boundary/server')
 
       if (isNextDev) {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
       } else {
         expect(

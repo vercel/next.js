@@ -538,7 +538,7 @@ For [dynamic segments](/docs/app/building-your-application/routing/dynamic-route
 
 To statically render all paths at build time, supply the full list of paths to `generateStaticParams`:
 
-```tsx filename="app/blog/[slug]/page.tsx" switcher
+```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
 
@@ -550,7 +550,7 @@ export async function generateStaticParams() {
 
 To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
 
-```tsx filename="app/blog/[slug]/page.tsx" switcher
+```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
 
@@ -561,15 +561,19 @@ export async function generateStaticParams() {
 }
 ```
 
-To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time):
+To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic):
 
-```tsx filename="app/blog/[slug]/page.tsx" switcher
+```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
   return []
 }
 ```
 
-> **Good to know:** You must always return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+> **Good to know:** You must return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
+export const dynamic = 'force-static'
+```
 
 To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
 
@@ -579,7 +583,7 @@ The React `cache` function allows you to memoize the return value of a function,
 
 Since `fetch` requests are automatically memoized, you do not need to wrap it in React `cache`. However, you can use `cache` to manually memoize data requests for use cases when the `fetch` API is not suitable. For example, some database clients, CMS clients, or GraphQL clients.
 
-```tsx filename="utils/get-item.ts" switcher
+```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
 import db from '@/lib/db'
 
@@ -589,7 +593,7 @@ export const getItem = cache(async (id: string) => {
 })
 ```
 
-```jsx filename="utils/get-item.js" switcher
+```js filename="utils/get-item.js" switcher
 import { cache } from 'react'
 import db from '@/lib/db'
 

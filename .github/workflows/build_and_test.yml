@@ -152,6 +152,25 @@ jobs:
       stepName: 'rust-doc-check'
     secrets: inherit
 
+  devlow-bench:
+    name: Run devlow benchmarks
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - '--turbopack=false'
+          - '--turbopack=true'
+        selector:
+          - '--scenario=heavy-npm-deps --page=homepage'
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}
+      stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
+    secrets: inherit
+
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['changes', 'build-next', 'build-native']
@@ -265,10 +284,15 @@ jobs:
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode
-      stepName: 'test-new-tests-dev'
+      afterBuild: node scripts/test-new-tests.mjs --dev-mode --group ${{ matrix.group }}
+      stepName: 'test-new-tests-dev-${{matrix.group}}'
 
     secrets: inherit
 
@@ -277,10 +301,15 @@ jobs:
     needs: ['changes', 'build-native', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode
-      stepName: 'test-new-tests-start'
+      afterBuild: node scripts/test-new-tests.mjs --prod-mode --group ${{ matrix.group }}
+      stepName: 'test-new-tests-start-${{matrix.group}}'
 
     secrets: inherit
 

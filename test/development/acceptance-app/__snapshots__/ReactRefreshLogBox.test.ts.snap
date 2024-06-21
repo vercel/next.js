@@ -1,15 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox app default Can't resolve @import in CSS file 1`] = `
-"./app/styles2.css
-Module not found: Can't resolve './boom.css'
-
-https://nextjs.org/docs/messages/module-not-found
-
-Import trace for requested module:
-./app/styles1.css"
-`;
-
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
 "./app/module.js:1:1
 Module not found: Can't resolve 'non-existing-module'
@@ -72,7 +62,7 @@ exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 
 
 exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 6`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 7`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
 "index.js (3:7) @ eval
@@ -96,15 +86,6 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
    8 |       }}>
    9 |         click me
   10 |       </a>"
-`;
-
-exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
-"./app/styles2.css:1:2
-Module not found: Can't resolve './boom.css'
-> 1 | @import "./boom.css"
-    |  ^
-
-https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Import trace when module not found in layout 1`] = `
@@ -164,7 +145,7 @@ exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 5`
 
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`] = `"https://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 8`] = `"https://nextjs.org/"`;
+exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 7`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
 "index.js (3:7) @ <unknown>

@@ -54,6 +54,9 @@ export default function transformSource(
     throw new Error('Expected source to have been transformed to a string.')
   }
 
+  const options = this.getOptions()
+  const { isEdgeServer } = options
+
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(this._module)
@@ -97,21 +100,29 @@ export default function transformSource(
         return
       }
 
+      // `proxy` is the module proxy that we treat the module as a client boundary.
+      // For ESM, we access the property of the module proxy directly for each export.
+      // This is bit hacky that treating using a CJS like module proxy for ESM's exports,
+      // but this will avoid creating nested proxies for each export. It will be improved in the future.
+
+      // Explanation for: await createProxy(...)
+      // We need to await the module proxy creation because it can be async module for SSR layer
+      // due to having async dependencies.
+      // We only apply `the await` for Node.js as only Edge doesn't have external dependencies.
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
+
+const proxy = ${isEdgeServer ? '' : 'await'} createProxy(String.raw\`${resourceKey}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
+          esmSource += `exports[''] = proxy['']\n`
         } else if (ref === 'default') {
-          esmSource += `\
-export default createProxy(String.raw\`${resourceKey}#default\`);
-`
+          esmSource += `export default proxy.default;\n`
         } else {
-          esmSource += `
-const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
-export { e${cnt++} as ${ref} };`
+          esmSource += `const e${cnt} = proxy["${ref}"];\n`
+          esmSource += `export { e${cnt++} as ${ref} };\n`
         }
       }
 
