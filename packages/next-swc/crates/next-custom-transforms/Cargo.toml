@@ -48,5 +48,6 @@ turbopack-binding = { workspace = true, features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }
+testing = { workspace = true }
 
 walkdir = "2.3.2"
