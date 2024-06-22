@@ -75,7 +75,7 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getCloneableBody } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
-import ResponseCache from './response-cache'
+import ResponseCache, { type IncrementalCacheItem } from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
@@ -591,8 +591,15 @@ export default class NextNodeServer extends BaseServer<
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    paramsResult: import('./image-optimizer').ImageParamsResult
-  ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+    paramsResult: import('./image-optimizer').ImageParamsResult,
+    previousCacheEntry?: IncrementalCacheItem
+  ): Promise<{
+    buffer: Buffer
+    contentType: string
+    maxAge: number
+    upstreamEtag: string
+    etag: string
+  }> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
         'invariant: imageOptimizer should not be called in minimal mode'
@@ -632,7 +639,8 @@ export default class NextNodeServer extends BaseServer<
         imageUpstream,
         paramsResult,
         this.nextConfig,
-        this.renderOpts.dev
+        this.renderOpts.dev,
+        previousCacheEntry
       )
     }
   }
@@ -836,7 +844,7 @@ export default class NextNodeServer extends BaseServer<
         nextConfig: this.nextConfig,
       })
 
-      const { getHash, sendResponse, ImageError } =
+      const { sendResponse, ImageError } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
       if (!this.imageResponseCache) {
@@ -869,13 +877,9 @@ export default class NextNodeServer extends BaseServer<
           require('./serve-static') as typeof import('./serve-static')
         const cacheEntry = await this.imageResponseCache.get(
           cacheKey,
-          async () => {
-            const { buffer, contentType, maxAge } = await this.imageOptimizer(
-              req,
-              res,
-              paramsResult
-            )
-            const etag = getHash([buffer])
+          async (_, prevEntry) => {
+            const { buffer, contentType, maxAge, upstreamEtag, etag } =
+              await this.imageOptimizer(req, res, paramsResult, prevEntry)
 
             return {
               value: {
@@ -883,6 +887,7 @@ export default class NextNodeServer extends BaseServer<
                 buffer,
                 etag,
                 extension: getExtension(contentType) as string,
+                upstreamEtag,
               },
               revalidate: maxAge,
             }
@@ -904,6 +909,7 @@ export default class NextNodeServer extends BaseServer<
           paramsResult.href,
           cacheEntry.value.extension,
           cacheEntry.value.buffer,
+          cacheEntry.value.etag,
           paramsResult.isStatic,
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
