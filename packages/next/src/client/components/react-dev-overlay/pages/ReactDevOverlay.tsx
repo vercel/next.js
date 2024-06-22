@@ -77,6 +77,7 @@ export default function ReactDevOverlay({
 
           {displayPrevented ? null : hasBuildError ? (
             <BuildError
+              errors={state.errors}
               message={state.buildError!}
               versionInfo={state.versionInfo}
             />
