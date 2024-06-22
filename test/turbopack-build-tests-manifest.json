@@ -825,7 +825,6 @@
         "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
         "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
         "app-dir static/dynamic handling should have correct prerender-manifest entries",
-        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should have logs from cache-handler",
         "app-dir static/dynamic handling should honor fetch cache correctly",
         "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
@@ -876,6 +875,7 @@
         "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
       ],
       "failed": [
+        "app-dir static/dynamic handling should have deterministic etag across revalidates",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
       "pending": [
@@ -5590,6 +5590,7 @@
         "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
         "Prerender should not throw error for on-demand revalidate for SSR path",
         "Prerender should of formatted build output correctly",
+        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should on-demand revalidate for revalidate: false",
         "Prerender should on-demand revalidate that returns notFound: true",
         "Prerender should only show warning once per page when large amount of page data is returned",
@@ -5615,7 +5616,6 @@
         "Prerender should navigate between pages successfully",
         "Prerender should not error when rewriting to fallback dynamic SSG page",
         "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
-        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should output traces",
         "Prerender should parse query values on mount correctly",
         "Prerender should render correctly for SSG pages that starts with api-docs",
@@ -7251,8 +7251,7 @@
     },
     "test/integration/css-customization/test/index.test.js": {
       "passed": [],
-      "failed": [],
-      "pending": [
+      "failed": [
         "CSS Customization production mode Bad CSS Customization Array (1) should fail the build",
         "CSS Customization production mode Bad CSS Customization Array (2) should fail the build",
         "CSS Customization production mode Bad CSS Customization Array (3) should fail the build",
@@ -7274,6 +7273,7 @@
         "CSS Customization production mode Correct CSS Customization custom loader should compile successfully",
         "CSS Customization production mode Correct CSS Customization custom loader should've applied style"
       ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15552,7 +15552,7 @@
       ],
       "pending": [],
       "flakey": [],
-      "runtimeError": false
+      "runtimeError": true
     },
     "test/production/exported-runtimes-value-validation/index.test.ts": {
       "passed": [
