@@ -19,7 +19,7 @@ describe('Error overlay - error message urls', () => {
       content + '\nexport function getServerSideProps() {}'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const link = await browser.elementByCss('[data-nextjs-terminal] a')
     const text = await link.text()

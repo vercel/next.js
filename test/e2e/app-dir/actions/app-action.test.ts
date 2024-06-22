@@ -1,11 +1,11 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import {
+  assertHasRedbox,
   check,
   retry,
   waitFor,
   getRedboxSource,
-  hasRedbox,
 } from 'next-test-utils'
 import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
@@ -705,7 +705,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )

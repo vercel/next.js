@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import {
-  hasRedbox,
+  assertHasRedbox,
   getRedboxSource,
   getRedboxDescription,
   check,
@@ -27,7 +27,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
     } else if (isNextDev) {
       expect(next.cliOutput).toContain('src/fetcher.js')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       const source = await getRedboxSource(browser)
 
       expect(source).toContain('async function anotherFetcher(...args)')
