@@ -913,7 +913,7 @@ describe.each([[''], ['/docs']])(
           )
 
           await assertHasRedbox(browser)
-          expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
+          expect(await getRedboxHeader(browser)).toMatch('Build Error')
 
           if (process.env.TURBOPACK) {
             expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
@@ -985,7 +985,7 @@ describe.each([[''], ['/docs']])(
           )
 
           await assertHasRedbox(browser)
-          expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
+          expect(await getRedboxHeader(browser)).toMatch('Build Error')
           let redboxSource = await getRedboxSource(browser)
 
           redboxSource = redboxSource.replace(`${next.testDir}`, '.')

@@ -2,6 +2,7 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   check,
+  getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -272,8 +273,9 @@ describe('middleware - development errors', () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
       expect(
-        await browser.elementByCss('#nextjs__container_errors_desc').text()
-      ).toEqual('Failed to compile')
+        // await browser.elementByCss('#nextjs__container_errors_desc').text()
+        await getRedboxDescription(browser)
+      ).toContain(`Expected '{', got '}'`)
       await next.patchFile('middleware.js', `export default function () {}`)
       await assertHasRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
