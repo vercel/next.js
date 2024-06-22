@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { traceGlobals } from '../trace/shared'
 
@@ -12,15 +12,6 @@ interface BuildDiagnostics {
   buildStage?: string
   // Additional debug information about the configuration for the build.
   buildOptions?: Record<string, string>
-}
-
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    const res = await stat(path)
-    return res.isFile()
-  } catch {
-    return false
-  }
 }
 
 async function getDiagnosticsDir(): Promise<string> {
@@ -52,12 +43,9 @@ export async function updateBuildDiagnostics(
   const diagnosticsDir = await getDiagnosticsDir()
   const diagnosticsFile = join(diagnosticsDir, DIAGNOSTICS_FILE)
 
-  let existingDiagnostics: BuildDiagnostics = {}
-  if (await fileExists(diagnosticsFile)) {
-    existingDiagnostics = JSON.parse(
-      await readFile(diagnosticsFile, 'utf8')
-    ) as BuildDiagnostics
-  }
+  const existingDiagnostics: BuildDiagnostics = JSON.parse(
+    await readFile(diagnosticsFile, 'utf8').catch(() => '{}')
+  ) as BuildDiagnostics
   const updatedBuildOptions = {
     ...(existingDiagnostics.buildOptions ?? {}),
     ...(diagnostics.buildOptions ?? {}),
