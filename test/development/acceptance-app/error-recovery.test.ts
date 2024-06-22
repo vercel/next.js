@@ -485,7 +485,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(true), /Failed to compile/)
+    await check(() => session.getRedboxSource(true), /Build Error/)
 
     await cleanup()
   })

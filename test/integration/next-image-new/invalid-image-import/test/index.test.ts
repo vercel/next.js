@@ -4,7 +4,7 @@ import { join } from 'path'
 import {
   assertHasRedbox,
   findPort,
-  getRedboxDescription,
+  getRedboxHeader,
   getRedboxSource,
   killApp,
   launchApp,
@@ -23,9 +23,7 @@ function runTests({ isDev }) {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
       await assertHasRedbox(browser)
-      expect(await getRedboxDescription(browser)).toMatch(
-        'Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
-      )
+      expect(await getRedboxHeader(browser)).toMatch('Build Error')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`
