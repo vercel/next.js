@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use serde::Serialize;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     turbo::{
@@ -20,7 +20,7 @@ use turbopack_binding::{
             source::Source,
             virtual_source::VirtualSource,
         },
-        ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs},
+        ecmascript::utils::StringifyJs,
     },
 };
 
@@ -33,16 +33,16 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
-    pathname: Vc<String>,
+    pathname: Vc<RcStr>,
     reference_type: Value<ReferenceType>,
     project_root: Vc<FileSystemPath>,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
-    next_original_name: Vc<String>,
+    next_original_name: Vc<RcStr>,
     pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
-) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+) -> Result<Vc<Box<dyn Module>>> {
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
@@ -76,12 +76,12 @@ pub async fn create_page_ssr_entry_module(
     let mut replacements = indexmap! {
         "VAR_DEFINITION_PAGE" => definition_page.clone(),
         "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
-        "VAR_USERLAND" => INNER.to_string(),
+        "VAR_USERLAND" => INNER.into(),
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.to_string());
-        replacements.insert("VAR_MODULE_APP", INNER_APP.to_string());
+        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.into());
+        replacements.insert("VAR_MODULE_APP", INNER_APP.into());
     }
 
     // Load the file from the next.js codebase.
@@ -119,12 +119,12 @@ pub async fn create_page_ssr_entry_module(
     }
 
     let mut inner_assets = indexmap! {
-        INNER.to_string() => ssr_module,
+        INNER.into() => ssr_module,
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         inner_assets.insert(
-            INNER_DOCUMENT.to_string(),
+            INNER_DOCUMENT.into(),
             process_global_item(
                 pages_structure.document(),
                 Value::new(reference_type.clone()),
@@ -132,7 +132,7 @@ pub async fn create_page_ssr_entry_module(
             ),
         );
         inner_assets.insert(
-            INNER_APP.to_string(),
+            INNER_APP.into(),
             process_global_item(
                 pages_structure.app(),
                 Value::new(reference_type.clone()),
@@ -165,16 +165,10 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.to_string(),
+                definition_pathname.clone(),
             );
         }
     }
-
-    let Some(ssr_module) =
-        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
-    else {
-        bail!("expected an ECMAScript chunk placeable module");
-    };
 
     Ok(ssr_module)
 }
@@ -197,8 +191,8 @@ async fn wrap_edge_page(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
-    page: String,
-    pathname: String,
+    page: RcStr,
+    pathname: RcStr,
     reference_type: Value<ReferenceType>,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
@@ -212,7 +206,6 @@ async fn wrap_edge_page(
     let next_config = &*next_config.await?;
 
     // TODO(WEB-1824): add build support
-    let build_id = "development";
     let dev = true;
 
     let sri_enabled = !dev
@@ -227,21 +220,20 @@ async fn wrap_edge_page(
         "edge-ssr.js",
         project_root,
         indexmap! {
-            "VAR_USERLAND" => INNER.to_string(),
+            "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => pathname.clone(),
-            "VAR_BUILD_ID" => build_id.to_string(),
-            "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.to_string(),
-            "VAR_MODULE_APP" => INNER_APP.to_string(),
-            "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.to_string(),
+            "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.into(),
+            "VAR_MODULE_APP" => INNER_APP.into(),
+            "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.into(),
         },
         indexmap! {
-            "pagesType" => StringifyJs("pages").to_string(),
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string(),
-            "nextConfig" => serde_json::to_string(next_config)?,
-            "dev" => serde_json::Value::Bool(dev).to_string(),
-            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
-            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".to_string(), "/_error".to_string()))?,
-            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".to_string(), "/500".to_string()))?,
+            "pagesType" => StringifyJs("pages").to_string().into(),
+            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+            "dev" => serde_json::Value::Bool(dev).to_string().into(),
+            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
+            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options("/_error".into(), "/_error".into()))?.into(),
+            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options("/500".into(), "/500".into()))?.into(),
         },
         indexmap! {
             // TODO
@@ -252,10 +244,10 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry,
-        INNER_DOCUMENT.to_string() => process_global_item(pages_structure.document(), reference_type.clone(), context),
-        INNER_APP.to_string() => process_global_item(pages_structure.app(), reference_type.clone(), context),
-        INNER_ERROR.to_string() => process_global_item(pages_structure.error(), reference_type.clone(), context),
+        INNER.into() => entry,
+        INNER_DOCUMENT.into() => process_global_item(pages_structure.document(), reference_type.clone(), context),
+        INNER_APP.into() => process_global_item(pages_structure.app(), reference_type.clone(), context),
+        INNER_ERROR.into() => process_global_item(pages_structure.error(), reference_type.clone(), context),
     };
 
     let wrapped = context
@@ -280,27 +272,27 @@ struct PartialRouteModuleOptions {
 
 #[derive(Serialize)]
 struct RouteDefinition {
-    kind: String,
-    bundle_path: String,
-    filename: String,
+    kind: RcStr,
+    bundle_path: RcStr,
+    filename: RcStr,
     /// Describes the pathname including all internal modifiers such as
     /// intercepting routes, parallel routes and route/page suffixes that are
     /// not part of the pathname.
-    page: String,
+    page: RcStr,
 
     /// The pathname (including dynamic placeholders) for a route to resolve.
-    pathname: String,
+    pathname: RcStr,
 }
 
-fn get_route_module_options(page: String, pathname: String) -> PartialRouteModuleOptions {
+fn get_route_module_options(page: RcStr, pathname: RcStr) -> PartialRouteModuleOptions {
     PartialRouteModuleOptions {
         definition: RouteDefinition {
-            kind: "PAGES".to_string(),
+            kind: "PAGES".into(),
             page,
             pathname,
             // The following aren't used in production.
-            bundle_path: "".to_string(),
-            filename: "".to_string(),
+            bundle_path: "".into(),
+            filename: "".into(),
         },
     }
 }

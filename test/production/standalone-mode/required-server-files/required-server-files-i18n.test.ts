@@ -14,11 +14,12 @@ import {
   waitFor,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
+import { ChildProcess } from 'child_process'
 
 describe('required server files i18n', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let requiredFilesManifest
 
@@ -106,9 +107,10 @@ describe('required server files i18n', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', 'minimalMode: true,port:')
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        'minimalMode: true,port:'
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -116,7 +118,7 @@ describe('required server files i18n', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -126,7 +128,12 @@ describe('required server files i18n', () => {
         },
       }
     )
+
+    if (process.platform === 'darwin') {
+      appPort = `http://127.0.0.1:${appPort}`
+    }
   })
+
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)

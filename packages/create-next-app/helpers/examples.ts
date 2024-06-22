@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import tar from 'tar'
-import { Readable } from 'stream'
-import { pipeline } from 'stream/promises'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { x } from 'tar'
 
 export type RepoInfo = {
   username: string
@@ -103,7 +103,7 @@ export async function downloadAndExtractRepo(
     await downloadTarStream(
       `https://codeload.github.com/${username}/${name}/tar.gz/${branch}`
     ),
-    tar.x({
+    x({
       cwd: root,
       strip: filePath ? filePath.split('/').length + 1 : 1,
       filter: (p) =>
@@ -125,7 +125,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
     await downloadTarStream(
       'https://codeload.github.com/vercel/next.js/tar.gz/canary'
     ),
-    tar.x({
+    x({
       cwd: root,
       strip: 2 + name.split('/').length,
       filter: (p) => p.includes(`next.js-canary/examples/${name}/`),

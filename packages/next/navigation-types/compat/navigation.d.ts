@@ -29,7 +29,7 @@ declare module 'next/navigation' {
     T extends Record<string, string | string[]> = Record<
       string,
       string | string[]
-    >
+    >,
   >(): T | null
 
   /**

@@ -1,11 +1,12 @@
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
     turbopack::{
         browser::BrowserChunkingContext,
         core::{
+            chunk::ChunkingContext,
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
@@ -13,7 +14,6 @@ use turbopack_binding::{
             environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
-        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
         turbopack::resolve_options_context::ResolveOptionsContext,
     },
@@ -22,26 +22,27 @@ use turbopack_binding::{
 use crate::{
     mode::NextMode,
     next_config::NextConfig,
+    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType,
     next_shared::resolve::{
+        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
         ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        UnsupportedModulesResolvePlugin,
     },
     util::{foreign_code_context_condition, NextRuntime},
 };
 
-fn defines(define_env: &IndexMap<String, String>) -> CompileTimeDefines {
+fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
     let mut defines = IndexMap::new();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.to_string()).collect::<Vec<String>>())
+            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
                     Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v),
+                    Ok(serde_json::Value::String(v)) => CompileTimeDefineValue::String(v.into()),
                     _ => CompileTimeDefineValue::JSON(v.clone()),
                 }
             });
@@ -65,9 +66,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "buffer".to_string(),
+            request: "buffer".into(),
             lookup_path: Some(project_path),
-            export: Some("Buffer".to_string()),
+            export: Some("Buffer".into()),
         },
     )
     .cell())
@@ -97,19 +98,52 @@ pub async fn get_edge_resolve_options_context(
     let next_edge_import_map =
         get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
-    let ty = ty.into_value();
+    let ty: ServerContextType = ty.into_value();
+
+    let mut before_resolve_plugins = vec![Vc::upcast(ModuleFeatureReportResolvePlugin::new(
+        project_path,
+    ))];
+    if matches!(
+        ty,
+        ServerContextType::Pages { .. }
+            | ServerContextType::AppSSR { .. }
+            | ServerContextType::AppRSC { .. }
+    ) {
+        before_resolve_plugins.push(Vc::upcast(NextFontLocalResolvePlugin::new(project_path)));
+    };
+
+    if matches!(
+        ty,
+        ServerContextType::AppRSC { .. }
+            | ServerContextType::AppRoute { .. }
+            | ServerContextType::PagesData { .. }
+            | ServerContextType::Middleware { .. }
+            | ServerContextType::Instrumentation { .. }
+    ) {
+        before_resolve_plugins.push(Vc::upcast(get_invalid_client_only_resolve_plugin(
+            project_path,
+        )));
+        before_resolve_plugins.push(Vc::upcast(get_invalid_styled_jsx_resolve_plugin(
+            project_path,
+        )));
+    }
+
+    let after_resolve_plugins = vec![Vc::upcast(NextSharedRuntimeResolvePlugin::new(
+        project_path,
+    ))];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
-    let mut custom_conditions = vec![mode.await?.condition().to_string()];
+    let mut custom_conditions = vec![mode.await?.condition().into()];
     custom_conditions.extend(
         NextRuntime::Edge
             .conditions()
             .iter()
-            .map(ToString::to_string),
+            .map(ToString::to_string)
+            .map(RcStr::from),
     );
 
     if ty.supports_react_server() {
-        custom_conditions.push("react-server".to_string());
+        custom_conditions.push("react-server".into());
     };
 
     let resolve_options_context = ResolveOptionsContext {
@@ -119,11 +153,8 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
-        plugins: vec![
-            Vc::upcast(ModuleFeatureReportResolvePlugin::new(project_path)),
-            Vc::upcast(UnsupportedModulesResolvePlugin::new(project_path)),
-            Vc::upcast(NextSharedRuntimeResolvePlugin::new(project_path)),
-        ],
+        after_resolve_plugins,
+        before_resolve_plugins,
         ..Default::default()
     };
 
@@ -148,18 +179,18 @@ pub async fn get_edge_chunking_context_with_client_assets(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<String>>,
+    asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             client_root,
-            output_root.join("chunks/ssr".to_string()),
-            client_root.join("static/media".to_string()),
+            output_root.join("chunks/ssr".into()),
+            client_root.join("static/media".into()),
             environment,
             next_mode.runtime_type(),
         )
@@ -175,16 +206,16 @@ pub async fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
-) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-    let output_root = node_root.join("server/edge".to_string());
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let output_root = node_root.join("server/edge".into());
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             output_root,
             output_root,
-            output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            output_root.join("chunks".into()),
+            output_root.join("assets".into()),
             environment,
             next_mode.runtime_type(),
         )
@@ -192,7 +223,7 @@ pub async fn get_edge_chunking_context(
         // instead. This special blob url is handled by the custom fetch
         // implementation in the edge sandbox. It will respond with the
         // asset from the output directory.
-        .asset_base_path(Vc::cell(Some("blob:server/edge/".to_string())))
+        .asset_base_path(Vc::cell(Some("blob:server/edge/".into())))
         .minify_type(next_mode.minify_type())
         .build(),
     ))

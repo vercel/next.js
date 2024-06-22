@@ -87,13 +87,8 @@ function getIteratorFn(maybeIterable) {
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   isArrayImpl = Array.isArray,
-  getPrototypeOf = Object.getPrototypeOf;
-function writeTemporaryReference(set, object) {
-  var newId = set.length;
-  set.push(object);
-  return newId;
-}
-var ObjectPrototype = Object.prototype,
+  getPrototypeOf = Object.getPrototypeOf,
+  ObjectPrototype = Object.prototype,
   knownServerReferences = new WeakMap();
 function serializeNumber(number) {
   return Number.isFinite(number)
@@ -114,34 +109,128 @@ function processReply(
   reject
 ) {
   function serializeTypedArray(tag, typedArray) {
-    typedArray = new Blob([typedArray]);
+    typedArray = new Blob([
+      new Uint8Array(
+        typedArray.buffer,
+        typedArray.byteOffset,
+        typedArray.byteLength
+      )
+    ]);
     var blobId = nextPartId++;
     null === formData && (formData = new FormData());
     formData.append(formFieldPrefix + blobId, typedArray);
     return "$" + tag + blobId.toString(16);
+  }
+  function serializeBinaryReader(reader) {
+    function progress(entry) {
+      entry.done
+        ? ((entry = nextPartId++),
+          data.append(formFieldPrefix + entry, new Blob(buffer)),
+          data.append(
+            formFieldPrefix + streamId,
+            '"$o' + entry.toString(16) + '"'
+          ),
+          data.append(formFieldPrefix + streamId, "C"),
+          pendingParts--,
+          0 === pendingParts && resolve(data))
+        : (buffer.push(entry.value),
+          reader.read(new Uint8Array(1024)).then(progress, reject));
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++,
+      buffer = [];
+    reader.read(new Uint8Array(1024)).then(progress, reject);
+    return "$r" + streamId.toString(16);
+  }
+  function serializeReader(reader) {
+    function progress(entry) {
+      if (entry.done)
+        data.append(formFieldPrefix + streamId, "C"),
+          pendingParts--,
+          0 === pendingParts && resolve(data);
+      else
+        try {
+          var partJSON = JSON.stringify(entry.value, resolveToJSON);
+          data.append(formFieldPrefix + streamId, partJSON);
+          reader.read().then(progress, reject);
+        } catch (x) {
+          reject(x);
+        }
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    reader.read().then(progress, reject);
+    return "$R" + streamId.toString(16);
+  }
+  function serializeReadableStream(stream) {
+    try {
+      var binaryReader = stream.getReader({ mode: "byob" });
+    } catch (x) {
+      return serializeReader(stream.getReader());
+    }
+    return serializeBinaryReader(binaryReader);
+  }
+  function serializeAsyncIterable(iterable, iterator) {
+    function progress(entry) {
+      if (entry.done) {
+        if (void 0 === entry.value)
+          data.append(formFieldPrefix + streamId, "C");
+        else
+          try {
+            var partJSON = JSON.stringify(entry.value, resolveToJSON);
+            data.append(formFieldPrefix + streamId, "C" + partJSON);
+          } catch (x) {
+            reject(x);
+            return;
+          }
+        pendingParts--;
+        0 === pendingParts && resolve(data);
+      } else
+        try {
+          var partJSON$22 = JSON.stringify(entry.value, resolveToJSON);
+          data.append(formFieldPrefix + streamId, partJSON$22);
+          iterator.next().then(progress, reject);
+        } catch (x$23) {
+          reject(x$23);
+        }
+    }
+    null === formData && (formData = new FormData());
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    iterable = iterable === iterator;
+    iterator.next().then(progress, reject);
+    return "$" + (iterable ? "x" : "X") + streamId.toString(16);
   }
   function resolveToJSON(key, value) {
     if (null === value) return null;
     if ("object" === typeof value) {
       switch (value.$$typeof) {
         case REACT_ELEMENT_TYPE:
-          if (void 0 === temporaryReferences)
-            throw Error(
-              "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
-            );
-          return (
-            "$T" +
-            writeTemporaryReference(temporaryReferences, value).toString(16)
+          if (void 0 !== temporaryReferences && -1 === key.indexOf(":")) {
+            var parentReference = writtenObjects.get(this);
+            if (void 0 !== parentReference)
+              return (
+                temporaryReferences.set(parentReference + ":" + key, value),
+                "$T"
+              );
+          }
+          throw Error(
+            "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
           );
         case REACT_LAZY_TYPE:
-          key = value._payload;
+          parentReference = value._payload;
           var init = value._init;
           null === formData && (formData = new FormData());
           pendingParts++;
           try {
-            var resolvedModel = init(key),
+            var resolvedModel = init(parentReference),
               lazyId = nextPartId++,
-              partJSON = JSON.stringify(resolvedModel, resolveToJSON);
+              partJSON = serializeModel(resolvedModel, lazyId);
             formData.append(formFieldPrefix + lazyId, partJSON);
             return "$" + lazyId.toString(16);
           } catch (x) {
@@ -151,20 +240,20 @@ function processReply(
               "function" === typeof x.then
             ) {
               pendingParts++;
-              var lazyId$22 = nextPartId++;
-              resolvedModel = function () {
+              var lazyId$24 = nextPartId++;
+              parentReference = function () {
                 try {
-                  var partJSON$23 = JSON.stringify(value, resolveToJSON),
-                    data$24 = formData;
-                  data$24.append(formFieldPrefix + lazyId$22, partJSON$23);
+                  var partJSON$25 = serializeModel(value, lazyId$24),
+                    data$26 = formData;
+                  data$26.append(formFieldPrefix + lazyId$24, partJSON$25);
                   pendingParts--;
-                  0 === pendingParts && resolve(data$24);
+                  0 === pendingParts && resolve(data$26);
                 } catch (reason) {
                   reject(reason);
                 }
               };
-              x.then(resolvedModel, resolvedModel);
-              return "$" + lazyId$22.toString(16);
+              x.then(parentReference, parentReference);
+              return "$" + lazyId$24.toString(16);
             }
             reject(x);
             return null;
@@ -176,52 +265,66 @@ function processReply(
         null === formData && (formData = new FormData());
         pendingParts++;
         var promiseId = nextPartId++;
-        value.then(
-          function (partValue) {
-            try {
-              var partJSON$26 = JSON.stringify(partValue, resolveToJSON);
-              partValue = formData;
-              partValue.append(formFieldPrefix + promiseId, partJSON$26);
-              pendingParts--;
-              0 === pendingParts && resolve(partValue);
-            } catch (reason) {
-              reject(reason);
-            }
-          },
-          function (reason) {
+        value.then(function (partValue) {
+          try {
+            var partJSON$28 = serializeModel(partValue, promiseId);
+            partValue = formData;
+            partValue.append(formFieldPrefix + promiseId, partJSON$28);
+            pendingParts--;
+            0 === pendingParts && resolve(partValue);
+          } catch (reason) {
             reject(reason);
           }
-        );
+        }, reject);
         return "$@" + promiseId.toString(16);
       }
+      parentReference = writtenObjects.get(value);
+      if (void 0 !== parentReference)
+        if (modelRoot === value) modelRoot = null;
+        else return parentReference;
+      else
+        -1 === key.indexOf(":") &&
+          ((parentReference = writtenObjects.get(this)),
+          void 0 !== parentReference &&
+            ((key = parentReference + ":" + key),
+            writtenObjects.set(value, key),
+            void 0 !== temporaryReferences &&
+              temporaryReferences.set(key, value)));
       if (isArrayImpl(value)) return value;
       if (value instanceof FormData) {
         null === formData && (formData = new FormData());
-        var data$28 = formData;
-        resolvedModel = nextPartId++;
-        var prefix = formFieldPrefix + resolvedModel + "_";
+        var data$32 = formData;
+        key = nextPartId++;
+        var prefix = formFieldPrefix + key + "_";
         value.forEach(function (originalValue, originalKey) {
-          data$28.append(prefix + originalKey, originalValue);
+          data$32.append(prefix + originalKey, originalValue);
         });
-        return "$K" + resolvedModel.toString(16);
+        return "$K" + key.toString(16);
       }
       if (value instanceof Map)
         return (
-          (resolvedModel = JSON.stringify(Array.from(value), resolveToJSON)),
+          (key = nextPartId++),
+          (parentReference = serializeModel(Array.from(value), key)),
           null === formData && (formData = new FormData()),
-          (lazyId = nextPartId++),
-          formData.append(formFieldPrefix + lazyId, resolvedModel),
-          "$Q" + lazyId.toString(16)
+          formData.append(formFieldPrefix + key, parentReference),
+          "$Q" + key.toString(16)
         );
       if (value instanceof Set)
         return (
-          (resolvedModel = JSON.stringify(Array.from(value), resolveToJSON)),
+          (key = nextPartId++),
+          (parentReference = serializeModel(Array.from(value), key)),
           null === formData && (formData = new FormData()),
-          (lazyId = nextPartId++),
-          formData.append(formFieldPrefix + lazyId, resolvedModel),
-          "$W" + lazyId.toString(16)
+          formData.append(formFieldPrefix + key, parentReference),
+          "$W" + key.toString(16)
         );
-      if (value instanceof ArrayBuffer) return serializeTypedArray("A", value);
+      if (value instanceof ArrayBuffer)
+        return (
+          (key = new Blob([value])),
+          (parentReference = nextPartId++),
+          null === formData && (formData = new FormData()),
+          formData.append(formFieldPrefix + parentReference, key),
+          "$A" + parentReference.toString(16)
+        );
       if (value instanceof Int8Array) return serializeTypedArray("O", value);
       if (value instanceof Uint8Array) return serializeTypedArray("o", value);
       if (value instanceof Uint8ClampedArray)
@@ -240,74 +343,89 @@ function processReply(
       if ("function" === typeof Blob && value instanceof Blob)
         return (
           null === formData && (formData = new FormData()),
-          (resolvedModel = nextPartId++),
-          formData.append(formFieldPrefix + resolvedModel, value),
-          "$B" + resolvedModel.toString(16)
+          (key = nextPartId++),
+          formData.append(formFieldPrefix + key, value),
+          "$B" + key.toString(16)
         );
-      if ((resolvedModel = getIteratorFn(value)))
+      if ((key = getIteratorFn(value)))
         return (
-          (resolvedModel = resolvedModel.call(value)),
-          resolvedModel === value
-            ? ((resolvedModel = JSON.stringify(
-                Array.from(resolvedModel),
-                resolveToJSON
+          (parentReference = key.call(value)),
+          parentReference === value
+            ? ((key = nextPartId++),
+              (parentReference = serializeModel(
+                Array.from(parentReference),
+                key
               )),
               null === formData && (formData = new FormData()),
-              (lazyId = nextPartId++),
-              formData.append(formFieldPrefix + lazyId, resolvedModel),
-              "$i" + lazyId.toString(16))
-            : Array.from(resolvedModel)
+              formData.append(formFieldPrefix + key, parentReference),
+              "$i" + key.toString(16))
+            : Array.from(parentReference)
         );
-      resolvedModel = getPrototypeOf(value);
       if (
-        resolvedModel !== ObjectPrototype &&
-        (null === resolvedModel || null !== getPrototypeOf(resolvedModel))
+        "function" === typeof ReadableStream &&
+        value instanceof ReadableStream
+      )
+        return serializeReadableStream(value);
+      key = value[ASYNC_ITERATOR];
+      if ("function" === typeof key)
+        return serializeAsyncIterable(value, key.call(value));
+      key = getPrototypeOf(value);
+      if (
+        key !== ObjectPrototype &&
+        (null === key || null !== getPrototypeOf(key))
       ) {
         if (void 0 === temporaryReferences)
           throw Error(
             "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
           );
-        return (
-          "$T" +
-          writeTemporaryReference(temporaryReferences, value).toString(16)
-        );
+        return "$T";
       }
       return value;
     }
     if ("string" === typeof value) {
       if ("Z" === value[value.length - 1] && this[key] instanceof Date)
         return "$D" + value;
-      resolvedModel = "$" === value[0] ? "$" + value : value;
-      return resolvedModel;
+      key = "$" === value[0] ? "$" + value : value;
+      return key;
     }
     if ("boolean" === typeof value) return value;
     if ("number" === typeof value) return serializeNumber(value);
     if ("undefined" === typeof value) return "$undefined";
     if ("function" === typeof value) {
-      resolvedModel = knownServerReferences.get(value);
-      if (void 0 !== resolvedModel)
+      parentReference = knownServerReferences.get(value);
+      if (void 0 !== parentReference)
         return (
-          (resolvedModel = JSON.stringify(resolvedModel, resolveToJSON)),
+          (key = JSON.stringify(parentReference, resolveToJSON)),
           null === formData && (formData = new FormData()),
-          (lazyId = nextPartId++),
-          formData.set(formFieldPrefix + lazyId, resolvedModel),
-          "$F" + lazyId.toString(16)
+          (parentReference = nextPartId++),
+          formData.set(formFieldPrefix + parentReference, key),
+          "$F" + parentReference.toString(16)
         );
-      if (void 0 === temporaryReferences)
-        throw Error(
-          "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
+      if (
+        void 0 !== temporaryReferences &&
+        -1 === key.indexOf(":") &&
+        ((parentReference = writtenObjects.get(this)),
+        void 0 !== parentReference)
+      )
+        return (
+          temporaryReferences.set(parentReference + ":" + key, value), "$T"
         );
-      return (
-        "$T" + writeTemporaryReference(temporaryReferences, value).toString(16)
+      throw Error(
+        "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
       );
     }
     if ("symbol" === typeof value) {
-      if (void 0 === temporaryReferences)
-        throw Error(
-          "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options."
+      if (
+        void 0 !== temporaryReferences &&
+        -1 === key.indexOf(":") &&
+        ((parentReference = writtenObjects.get(this)),
+        void 0 !== parentReference)
+      )
+        return (
+          temporaryReferences.set(parentReference + ":" + key, value), "$T"
         );
-      return (
-        "$T" + writeTemporaryReference(temporaryReferences, value).toString(16)
+      throw Error(
+        "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options."
       );
     }
     if ("bigint" === typeof value) return "$n" + value.toString(10);
@@ -317,10 +435,21 @@ function processReply(
         " is not supported as an argument to a Server Function."
     );
   }
+  function serializeModel(model, id) {
+    "object" === typeof model &&
+      null !== model &&
+      ((id = "$" + id.toString(16)),
+      writtenObjects.set(model, id),
+      void 0 !== temporaryReferences && temporaryReferences.set(id, model));
+    modelRoot = model;
+    return JSON.stringify(model, resolveToJSON);
+  }
   var nextPartId = 1,
     pendingParts = 0,
-    formData = null;
-  root = JSON.stringify(root, resolveToJSON);
+    formData = null,
+    writtenObjects = new WeakMap(),
+    modelRoot = root;
+  root = serializeModel(root, 0);
   null === formData
     ? resolve(root)
     : (formData.set(formFieldPrefix + "0", root),
@@ -393,8 +522,19 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
     case "pending":
     case "blocked":
     case "cyclic":
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
+      if (chunk.value)
+        for (var i = 0; i < resolveListeners.length; i++)
+          chunk.value.push(resolveListeners[i]);
+      else chunk.value = resolveListeners;
+      if (chunk.reason) {
+        if (rejectListeners)
+          for (
+            resolveListeners = 0;
+            resolveListeners < rejectListeners.length;
+            resolveListeners++
+          )
+            chunk.reason.push(rejectListeners[resolveListeners]);
+      } else chunk.reason = rejectListeners;
       break;
     case "rejected":
       rejectListeners && wakeChunk(rejectListeners, chunk.reason);
@@ -464,10 +604,7 @@ function initializeModelChunk(chunk) {
       null !== initializingChunkBlockedModel &&
       0 < initializingChunkBlockedModel.deps
     )
-      (initializingChunkBlockedModel.value = value),
-        (chunk.status = "blocked"),
-        (chunk.value = null),
-        (chunk.reason = null);
+      (initializingChunkBlockedModel.value = value), (chunk.status = "blocked");
     else {
       var resolveListeners = chunk.value;
       chunk.status = "fulfilled";
@@ -514,7 +651,15 @@ function getChunk(response, id) {
   chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
   return chunk;
 }
-function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
+function createModelResolver(
+  chunk,
+  parentObject,
+  key,
+  cyclic,
+  response,
+  map,
+  path
+) {
   if (initializingChunkBlockedModel) {
     var blocked = initializingChunkBlockedModel;
     cyclic || blocked.deps++;
@@ -524,6 +669,7 @@ function createModelResolver(chunk, parentObject, key, cyclic, response, map) {
       value: null
     };
   return function (value) {
+    for (var i = 1; i < path.length; i++) value = value[path[i]];
     parentObject[key] = map(response, value);
     "" === key && null === blocked.value && (blocked.value = parentObject[key]);
     blocked.deps--;
@@ -556,7 +702,9 @@ function createServerReferenceProxy(response, metaData) {
   knownServerReferences.set(proxy, metaData);
   return proxy;
 }
-function getOutlinedModel(response, id, parentObject, key, map) {
+function getOutlinedModel(response, reference, parentObject, key, map) {
+  reference = reference.split(":");
+  var id = parseInt(reference[0], 16);
   id = getChunk(response, id);
   switch (id.status) {
     case "resolved_model":
@@ -567,7 +715,10 @@ function getOutlinedModel(response, id, parentObject, key, map) {
   }
   switch (id.status) {
     case "fulfilled":
-      return map(response, id.value);
+      parentObject = id.value;
+      for (key = 1; key < reference.length; key++)
+        parentObject = parentObject[reference[key]];
+      return map(response, parentObject);
     case "pending":
     case "blocked":
     case "cyclic":
@@ -579,7 +730,8 @@ function getOutlinedModel(response, id, parentObject, key, map) {
           key,
           "cyclic" === id.status,
           response,
-          map
+          map,
+          reference
         ),
         createModelReject(parentChunk)
       );
@@ -629,7 +781,7 @@ function parseModelString(response, parentObject, key, value) {
         return Symbol.for(value.slice(2));
       case "F":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(
             response,
             value,
@@ -639,40 +791,36 @@ function parseModelString(response, parentObject, key, value) {
           )
         );
       case "T":
-        parentObject = parseInt(value.slice(2), 16);
+        parentObject = "$" + value.slice(2);
         response = response._tempRefs;
         if (null == response)
           throw Error(
             "Missing a temporary reference set but the RSC response returned a temporary reference. Pass a temporaryReference option with the set that was used with the reply."
           );
-        if (0 > parentObject || parentObject >= response.length)
-          throw Error(
-            "The RSC response contained a reference that doesn't exist in the temporary reference set. Always pass the matching set that was used to create the reply when parsing its response."
-          );
-        return response[parentObject];
+        return response.get(parentObject);
       case "Q":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createMap)
         );
       case "W":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createSet)
         );
       case "B":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createBlob)
         );
       case "K":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createFormData)
         );
       case "i":
         return (
-          (value = parseInt(value.slice(2), 16)),
+          (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, extractIterator)
         );
       case "I":
@@ -689,7 +837,7 @@ function parseModelString(response, parentObject, key, value) {
         return BigInt(value.slice(2));
       default:
         return (
-          (value = parseInt(value.slice(1), 16)),
+          (value = value.slice(1)),
           getOutlinedModel(response, value, parentObject, key, createModel)
         );
     }
@@ -782,8 +930,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$43 = createPendingChunk(response);
-        chunk$43.then(
+        var chunk$51 = createPendingChunk(response);
+        chunk$51.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -791,10 +939,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$43;
+        previousBlockedChunk = chunk$51;
         chunk.then(function () {
-          previousBlockedChunk === chunk$43 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$43, json);
+          previousBlockedChunk === chunk$51 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$51, json);
         });
       }
     },
@@ -922,8 +1070,8 @@ function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$44 = (i = 0); i$44 < l; i$44++) {
-    var chunk = buffer[i$44];
+  for (var i$52 = (i = 0); i$52 < l; i$52++) {
+    var chunk = buffer[i$52];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }
@@ -1269,7 +1417,7 @@ exports.createServerReference = function (id, callServer) {
   return proxy;
 };
 exports.createTemporaryReferenceSet = function () {
-  return [];
+  return new Map();
 };
 exports.encodeReply = function (value, options) {
   return new Promise(function (resolve, reject) {

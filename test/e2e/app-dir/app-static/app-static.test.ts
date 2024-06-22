@@ -39,6 +39,33 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  it('should use auto no cache when no fetch config', async () => {
+    const res = await next.fetch('/no-config-fetch')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const data = $('#data').text()
+
+    expect(data).toBeTruthy()
+
+    const res2 = await next.fetch('/no-config-fetch')
+    const html2 = await res2.text()
+    const data2 = cheerio.load(html2)('#data').text()
+
+    if (isNextDev) {
+      expect(data).not.toBe(data2)
+    } else {
+      const pageCache = (
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+      ).toLowerCase()
+
+      expect(pageCache).toBeTruthy()
+      expect(pageCache).not.toBe('MISS')
+      expect(data).toBe(data2)
+    }
+  })
+
   it('should still cache even though the `traceparent` header was different', async () => {
     const res = await next.fetch('/strip-header-traceparent')
     expect(res.status).toBe(200)
@@ -55,14 +82,17 @@ describe('app-dir static/dynamic handling', () => {
     expect(echoedHeaders.headers.traceparent).toEqual('C')
   })
 
-  it('should warn for too many cache tags', async () => {
-    const res = await next.fetch('/too-many-cache-tags')
-    expect(res.status).toBe(200)
-    await retry(() => {
-      expect(next.cliOutput).toContain('exceeded max tag count for')
-      expect(next.cliOutput).toContain('tag-65')
+  // Runtime logs aren't queryable in deploy mode
+  if (!isNextDeploy) {
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
-  })
+  }
 
   if (isNextDeploy) {
     describe('new tags have been specified on subsequent fetch', () => {
@@ -88,7 +118,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revlidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -127,6 +157,44 @@ describe('app-dir static/dynamic handling', () => {
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).not.toBe(initData)
       })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/no-fetch-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/no-fetch-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).not.toEqual(initFetchData)
+      })
+    })
+
+    it('force-dynamic should supercede a "default" cache value', async () => {
+      const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
+      const initData = $('#data').text()
+      await retry(async () => {
+        const $2 = await next.render$(
+          '/force-dynamic-fetch-cache/default-cache'
+        )
+        expect($2('#data').text()).toBeTruthy()
+        expect($2('#data').text()).not.toBe(initData)
+      })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/default-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/default-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).not.toEqual(initFetchData)
+      })
     })
 
     it('fetchCache config should supercede dynamic config when force-dynamic is used', async () => {
@@ -141,13 +209,49 @@ describe('app-dir static/dynamic handling', () => {
         expect($2('#data').text()).toBeTruthy()
         expect($2('#data').text()).toBe(initData)
       })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/with-fetch-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/with-fetch-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).toEqual(initFetchData)
+      })
+    })
+
+    it('fetch `cache` should supercede dynamic config when force-dynamic is used', async () => {
+      const $ = await next.render$('/force-dynamic-fetch-cache/force-cache')
+      const initData = $('#data').text()
+      await retry(async () => {
+        const $2 = await next.render$('/force-dynamic-fetch-cache/force-cache')
+        expect($2('#data').text()).toBeTruthy()
+        expect($2('#data').text()).toBe(initData)
+      })
+
+      // Check route handlers as well
+      const initFetchData = await (
+        await next.fetch('/force-dynamic-fetch-cache/force-cache/route')
+      ).json()
+
+      await retry(async () => {
+        const newFetchData = await (
+          await next.fetch('/force-dynamic-fetch-cache/force-cache/route')
+        ).json()
+        expect(newFetchData).toBeTruthy()
+        expect(newFetchData).toEqual(initFetchData)
+      })
     })
 
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should honor force-static with fetch cache: no-store correctly', async () => {
         const res = await next.fetch('/force-static-fetch-no-store')
         expect(res.status).toBe(200)
-        expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        expect(res.headers.get('x-nextjs-cache')?.toLowerCase()).toBe('hit')
       })
     }
   }
@@ -642,6 +746,8 @@ describe('app-dir static/dynamic handling', () => {
         [
           "(new)/custom/page.js",
           "(new)/custom/page_client-reference-manifest.js",
+          "(new)/no-config-fetch/page.js",
+          "(new)/no-config-fetch/page_client-reference-manifest.js",
           "_not-found.html",
           "_not-found.rsc",
           "_not-found/page.js",
@@ -674,6 +780,8 @@ describe('app-dir static/dynamic handling', () => {
           "blog/tim.rsc",
           "blog/tim/first-post.html",
           "blog/tim/first-post.rsc",
+          "default-cache-search-params/page.js",
+          "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
           "dynamic-error/[id]/page.js",
@@ -696,10 +804,18 @@ describe('app-dir static/dynamic handling', () => {
           "force-cache/page_client-reference-manifest.js",
           "force-dynamic-catch-all/[slug]/[[...id]]/page.js",
           "force-dynamic-catch-all/[slug]/[[...id]]/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/default-cache/page.js",
+          "force-dynamic-fetch-cache/default-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/default-cache/route/route.js",
+          "force-dynamic-fetch-cache/force-cache/page.js",
+          "force-dynamic-fetch-cache/force-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/force-cache/route/route.js",
           "force-dynamic-fetch-cache/no-fetch-cache/page.js",
           "force-dynamic-fetch-cache/no-fetch-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/no-fetch-cache/route/route.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page.js",
           "force-dynamic-fetch-cache/with-fetch-cache/page_client-reference-manifest.js",
+          "force-dynamic-fetch-cache/with-fetch-cache/route/route.js",
           "force-dynamic-no-prerender/[id]/page.js",
           "force-dynamic-no-prerender/[id]/page_client-reference-manifest.js",
           "force-dynamic-prerender/[slug]/page.js",
@@ -744,6 +860,8 @@ describe('app-dir static/dynamic handling', () => {
           "isr-error-handling.rsc",
           "isr-error-handling/page.js",
           "isr-error-handling/page_client-reference-manifest.js",
+          "no-config-fetch.html",
+          "no-config-fetch.rsc",
           "no-store/dynamic/page.js",
           "no-store/dynamic/page_client-reference-manifest.js",
           "no-store/static.html",
@@ -833,6 +951,14 @@ describe('app-dir static/dynamic handling', () => {
           "unstable-cache/dynamic-undefined/page_client-reference-manifest.js",
           "unstable-cache/dynamic/page.js",
           "unstable-cache/dynamic/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-cache.html",
+          "unstable-cache/fetch/no-cache.rsc",
+          "unstable-cache/fetch/no-cache/page.js",
+          "unstable-cache/fetch/no-cache/page_client-reference-manifest.js",
+          "unstable-cache/fetch/no-store.html",
+          "unstable-cache/fetch/no-store.rsc",
+          "unstable-cache/fetch/no-store/page.js",
+          "unstable-cache/fetch/no-store/page_client-reference-manifest.js",
           "variable-config-revalidate/revalidate-3.html",
           "variable-config-revalidate/revalidate-3.rsc",
           "variable-config-revalidate/revalidate-3/page.js",
@@ -857,6 +983,8 @@ describe('app-dir static/dynamic handling', () => {
           "variable-revalidate/authorization.rsc",
           "variable-revalidate/authorization/page.js",
           "variable-revalidate/authorization/page_client-reference-manifest.js",
+          "variable-revalidate/authorization/route-cookies/route.js",
+          "variable-revalidate/authorization/route-request/route.js",
           "variable-revalidate/cookie.html",
           "variable-revalidate/cookie.rsc",
           "variable-revalidate/cookie/page.js",
@@ -1233,6 +1361,22 @@ describe('app-dir static/dynamic handling', () => {
             "initialRevalidateSeconds": 3,
             "srcRoute": "/isr-error-handling",
           },
+          "/no-config-fetch": {
+            "dataRoute": "/no-config-fetch.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/no-config-fetch",
+          },
           "/no-store/static": {
             "dataRoute": "/no-store/static.rsc",
             "experimentalBypassFor": [
@@ -1564,6 +1708,38 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialRevalidateSeconds": 50,
             "srcRoute": "/strip-header-traceparent",
+          },
+          "/unstable-cache/fetch/no-cache": {
+            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-cache",
+          },
+          "/unstable-cache/fetch/no-store": {
+            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/unstable-cache/fetch/no-store",
           },
           "/variable-config-revalidate/revalidate-3": {
             "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
@@ -2017,12 +2193,42 @@ describe('app-dir static/dynamic handling', () => {
         expect(cur$('#data-revalidate-and-fetch-cache').text()).toBe(
           prev$('#data-revalidate-and-fetch-cache').text()
         )
+
+        expect(cur$('#data-auto-cache').text()).not.toBe(
+          prev$('data-auto-cache').text()
+        )
       } finally {
         prevHtml = curHtml
         prev$ = cur$
       }
       return 'success'
     }, 'success')
+  })
+
+  it('should cache correctly when accessing search params opts into dynamic rendering', async () => {
+    const res = await next.fetch('/default-cache-search-params')
+    expect(res.status).toBe(200)
+
+    let prevHtml = await res.text()
+    let prev$ = cheerio.load(prevHtml)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/default-cache-search-params')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-default-cache').text()).not.toBe(
+        prev$('#data-default-cache').text()
+      )
+      expect(cur$('#data-request-cache').text()).not.toBe(
+        prev$('#data-request-cache').text()
+      )
+      expect(cur$('#data-cache-auto').text()).not.toBe(
+        prev$('#data-cache-auto').text()
+      )
+    })
   })
 
   it('should cache correctly for fetchCache = force-cache', async () => {
@@ -2465,10 +2671,46 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
+  })
+
+  it('should skip fetch cache when an authorization header is present after dynamic usage', async () => {
+    const initialReq = await next.fetch(
+      '/variable-revalidate/authorization/route-cookies'
+    )
+    const initialJson = await initialReq.json()
+
+    await retry(async () => {
+      const req = await next.fetch(
+        '/variable-revalidate/authorization/route-cookies'
+      )
+      const json = await req.json()
+
+      expect(json).not.toEqual(initialJson)
+    })
+  })
+
+  it('should skip fetch cache when accessing request properties', async () => {
+    const initialReq = await next.fetch(
+      '/variable-revalidate/authorization/route-request'
+    )
+    const initialJson = await initialReq.json()
+
+    await retry(async () => {
+      const req = await next.fetch(
+        '/variable-revalidate/authorization/route-request'
+      )
+      const json = await req.json()
+
+      expect(json).not.toEqual(initialJson)
+    })
   })
 
   it('should not cache correctly with POST method request init', async () => {
@@ -2610,8 +2852,12 @@ describe('app-dir static/dynamic handling', () => {
       const html2 = await res2.text()
       const $2 = cheerio.load(html2)
 
-      expect($2('#layout-data').text()).toBe(layoutData)
-      expect($2('#page-data').text()).toBe(pageData)
+      // this relies on ISR level cache which isn't
+      // applied in dev
+      if (!isNextDev) {
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
       return 'success'
     }, 'success')
   })
@@ -3254,6 +3500,27 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).toEqual(data2)
       expect(data).toEqual('typeof cachedData: undefined')
     })
+
+    it.each(['no-store', 'no-cache'])(
+      'should not error when calling a fetch %s',
+      async (cache) => {
+        const browser = await next.browser(`/unstable-cache/fetch/${cache}`)
+
+        try {
+          const first = await browser.waitForElementByCss('#data').text()
+          expect(first).not.toBe('')
+
+          // Ensure the data is the same after 3 refreshes.
+          for (let i = 0; i < 3; i++) {
+            await browser.refresh()
+            const refreshed = await browser.waitForElementByCss('#data').text()
+            expect(refreshed).toEqual(first)
+          }
+        } finally {
+          await browser.close()
+        }
+      }
+    )
   })
 
   it('should keep querystring on static page', async () => {

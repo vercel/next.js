@@ -18,7 +18,7 @@ describe('app dir - metadata dynamic routes', () => {
     },
   })
 
-  describe('text routes', () => {
+  describe('robots.txt', () => {
     it('should handle robots.[ext] dynamic routes', async () => {
       const res = await next.fetch('/robots.txt')
       const text = await res.text()
@@ -40,7 +40,9 @@ describe('app dir - metadata dynamic routes', () => {
         "
       `)
     })
+  })
 
+  describe('sitemap', () => {
     it('should handle sitemap.[ext] dynamic routes', async () => {
       const res = await next.fetch('/sitemap.xml')
       const text = await res.text()
@@ -49,24 +51,43 @@ describe('app dir - metadata dynamic routes', () => {
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(text).toMatchInlineSnapshot(`
-        "<?xml version="1.0" encoding="UTF-8"?>
-        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        <url>
-        <loc>https://example.com</loc>
-        <lastmod>2021-01-01</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.5</priority>
-        </url>
-        <url>
-        <loc>https://example.com/about</loc>
-        <lastmod>2021-01-01</lastmod>
-        </url>
-        </urlset>
-        "
-      `)
+      "<?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <url>
+      <loc>https://example.com</loc>
+      <lastmod>2021-01-01</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.5</priority>
+      </url>
+      <url>
+      <loc>https://example.com/about</loc>
+      <lastmod>2021-01-01</lastmod>
+      </url>
+      </urlset>
+      "
+    `)
     })
 
-    it('should not throw if client components are imported but not used', async () => {
+    it('should support generate multi sitemaps with generateSitemaps', async () => {
+      const ids = ['child0', 'child1', 'child2', 'child3']
+      function fetchSitemap(id, withExtension) {
+        return next.fetch(`/gsp/sitemap/${id}${withExtension ? `.xml` : ''}`)
+      }
+
+      // Required to have .xml extension for dynamic sitemap
+      for (const id of ids) {
+        const text = await fetchSitemap(id, true).then((res) => res.text())
+        expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
+      }
+
+      // Should 404 when missing .xml extension
+      for (const id of ids) {
+        const { status } = await fetchSitemap(id, false)
+        expect(status).toBe(404)
+      }
+    })
+
+    it('should not throw if client components are imported but not used in sitemap', async () => {
       const { status } = await next.fetch('/client-ref-dependency/sitemap.xml')
       expect(status).toBe(200)
     })
@@ -82,6 +103,35 @@ describe('app dir - metadata dynamic routes', () => {
         `<xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/about" />`
       )
     })
+    if (isNextStart) {
+      it('should optimize routes without multiple generation API as static routes', async () => {
+        const appPathsManifest = JSON.parse(
+          await next.readFile('.next/server/app-paths-manifest.json')
+        )
+
+        expect(appPathsManifest).toMatchObject({
+          // static routes
+          '/twitter-image/route': 'app/twitter-image/route.js',
+          '/sitemap.xml/route': 'app/sitemap.xml/route.js',
+
+          // dynamic
+          '/gsp/sitemap/[__metadata_id__]/route':
+            'app/gsp/sitemap/[__metadata_id__]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[__metadata_id__]/route.js',
+        })
+      })
+
+      it('should generate static paths of dynamic sitemap in production', async () => {
+        const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
+          (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
+        )
+        const promises = sitemapPaths.map(async (filePath) => {
+          expect(await next.hasFile(filePath)).toBe(true)
+        })
+        await Promise.all(promises)
+      })
+    }
   })
 
   describe('social image routes', () => {
@@ -140,9 +190,7 @@ describe('app dir - metadata dynamic routes', () => {
         const entryKeys = Object.keys(appPathsManifest)
         // Only has one route for twitter-image with catch-all routes in dev
         expect(entryKeys).not.toContain('/twitter-image')
-        expect(entryKeys).toContain(
-          '/twitter-image/[[...__metadata_id__]]/route'
-        )
+        expect(entryKeys).toContain('/twitter-image/route')
       }
 
       // edge runtime
@@ -201,22 +249,6 @@ describe('app dir - metadata dynamic routes', () => {
           type: 'image/png',
         },
       ])
-    })
-
-    it('should support generate multi sitemaps with generateSitemaps', async () => {
-      const ids = ['child0', 'child1', 'child2', 'child3']
-      function fetchSitemap(id) {
-        return next
-          .fetch(
-            isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
-          )
-          .then((res) => res.text())
-      }
-
-      for (const id of ids) {
-        const text = await fetchSitemap(id)
-        expect(text).toContain(`<loc>https://example.com/dynamic/${id}</loc>`)
-      }
     })
 
     it('should fill params into dynamic routes url of metadata images', async () => {
@@ -411,120 +443,6 @@ describe('app dir - metadata dynamic routes', () => {
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
 
-  if (isNextDev) {
-    it('should error when id is missing in generateImageMetadata', async () => {
-      const iconFilePath = 'app/metadata-base/unset/icon.tsx'
-      const contentMissingIdProperty = `
-      import { ImageResponse } from 'next/og'
-      export async function generateImageMetadata() {
-        return [
-          {
-            contentType: 'image/png',
-            size: { width: 48, height: 48 },
-            // id: 100,
-          },
-          {
-            contentType: 'image/png',
-            size: { width: 48, height: 48 },
-            id: 101,
-          },
-        ]
-      }
-
-      export default function icon() {
-        return new ImageResponse(<div>icon</div>)
-      }
-      `
-
-      const outputBeforeFetch = next.cliOutput + ''
-
-      await next.patchFile(iconFilePath, contentMissingIdProperty)
-      await next.fetch('/metadata-base/unset/icon/100')
-
-      const outputAfterFetch = next.cliOutput + ''
-      const output = outputAfterFetch.replace(outputBeforeFetch, '')
-
-      try {
-        await check(async () => {
-          expect(output).toContain(
-            `id property is required for every item returned from generateImageMetadata`
-          )
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.deleteFile(iconFilePath)
-        await next.fetch('/metadata-base/unset/icon/100')
-      }
-    })
-
-    it('should error when id is missing in generateSitemaps', async () => {
-      const sitemapFilePath = 'app/metadata-base/unset/sitemap.tsx'
-      const contentMissingIdProperty = `
-      import { MetadataRoute } from 'next'
-
-      export async function generateSitemaps() {
-        return [
-          { },
-        ]
-      }
-
-      export default function sitemap({ id }): MetadataRoute.Sitemap {
-        return [
-          {
-            url: 'https://example.com/',
-            lastModified: '2021-01-01',
-          },
-        ]
-      }`
-
-      const outputBeforeFetch = next.cliOutput + ''
-
-      await next.patchFile(sitemapFilePath, contentMissingIdProperty)
-      await next.fetch('/metadata-base/unset/sitemap.xml/0')
-
-      const outputAfterFetch = next.cliOutput + ''
-      const output = outputAfterFetch.replace(outputBeforeFetch, '')
-
-      try {
-        await check(async () => {
-          expect(output).toContain(
-            `id property is required for every item returned from generateSitemaps`
-          )
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.deleteFile(sitemapFilePath)
-        await next.fetch('/metadata-base/unset/sitemap.xml/0')
-      }
-    })
-
-    it('should error if the default export of dynamic image is missing', async () => {
-      const ogImageFilePath = 'app/opengraph-image.tsx'
-      const ogImageFileContent = await next.readFile(ogImageFilePath)
-      const ogImageFileContentWithoutDefaultExport = ogImageFileContent.replace(
-        'export default function',
-        'export function'
-      )
-
-      try {
-        await next.patchFile(
-          ogImageFilePath,
-          ogImageFileContentWithoutDefaultExport
-        )
-        const currentNextCliOutputLength = next.cliOutput.length
-
-        await check(async () => {
-          await next.fetch('/opengraph-image')
-          const output = next.cliOutput.slice(currentNextCliOutputLength)
-          expect(output).toContain(`Default export is missing in`)
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.patchFile(ogImageFilePath, ogImageFileContent)
-      }
-    })
-  }
-
   if (isNextStart) {
     it('should support edge runtime of image routes', async () => {
       const middlewareManifest = JSON.parse(
@@ -537,38 +455,10 @@ describe('app dir - metadata dynamic routes', () => {
       expect(edgeRoute).toMatch(/\/\(group\)\/twitter-image-\w{6}\/route/)
     })
 
-    it('should optimize routes without multiple generation API as static routes', async () => {
-      const appPathsManifest = JSON.parse(
-        await next.readFile('.next/server/app-paths-manifest.json')
-      )
-
-      expect(appPathsManifest).toMatchObject({
-        // static routes
-        '/twitter-image/route': 'app/twitter-image/route.js',
-        '/sitemap.xml/route': 'app/sitemap.xml/route.js',
-
-        // dynamic
-        '/gsp/sitemap/[__metadata_id__]/route':
-          'app/gsp/sitemap/[__metadata_id__]/route.js',
-        '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
-          'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
-      })
-    })
-
-    it('should generate static paths of dynamic sitemap in production', async () => {
-      const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
-        (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
-      )
-      const promises = sitemapPaths.map(async (filePath) => {
-        expect(await next.hasFile(filePath)).toBe(true)
-      })
-      await Promise.all(promises)
-    })
-
     it('should include default og font files in file trace', async () => {
       const fileTrace = JSON.parse(
         await next.readFile(
-          '.next/server/app/metadata-base/unset/opengraph-image2/[[...__metadata_id__]]/route.js.nft.json'
+          '.next/server/app/metadata-base/unset/opengraph-image2/[__metadata_id__]/route.js.nft.json'
         )
       )
 
@@ -577,6 +467,16 @@ describe('app dir - metadata dynamic routes', () => {
         filePath.includes('/noto-sans-v27-latin-regular.ttf')
       )
       expect(isTraced).toBe(true)
+    })
+
+    it('should statically optimized single image route', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+      const dynamicRoutes = Object.keys(prerenderManifest.routes)
+      expect(dynamicRoutes).toContain('/opengraph-image')
+      expect(dynamicRoutes).toContain('/opengraph-image-1ow20b')
+      expect(dynamicRoutes).toContain('/apple-icon')
     })
   }
 })

@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 import retry from 'async-retry'
 import { red, green, cyan } from 'picocolors'
-import fs from 'fs'
-import path from 'path'
 import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
@@ -35,6 +35,8 @@ export async function createApp({
   srcDir,
   importAlias,
   skipInstall,
+  empty,
+  turbo,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -47,16 +49,12 @@ export async function createApp({
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
+  empty: boolean
+  turbo: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = appRouter
-    ? tailwind
-      ? 'app-tw'
-      : 'app'
-    : tailwind
-    ? 'default-tw'
-    : 'default'
+  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
@@ -120,9 +118,9 @@ export async function createApp({
     }
   }
 
-  const root = path.resolve(appPath)
+  const root = resolve(appPath)
 
-  if (!(await isWriteable(path.dirname(root)))) {
+  if (!(await isWriteable(dirname(root)))) {
     console.error(
       'The application path is not writable, please check folder permissions and try again.'
     )
@@ -132,9 +130,9 @@ export async function createApp({
     process.exit(1)
   }
 
-  const appName = path.basename(root)
+  const appName = basename(root)
 
-  fs.mkdirSync(root, { recursive: true })
+  mkdirSync(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }
@@ -148,7 +146,7 @@ export async function createApp({
 
   process.chdir(root)
 
-  const packageJsonPath = path.join(root, 'package.json')
+  const packageJsonPath = join(root, 'package.json')
   let hasPackageJson = false
 
   if (example) {
@@ -191,24 +189,24 @@ export async function createApp({
       )
     }
     // Copy `.gitignore` if the application did not provide one
-    const ignorePath = path.join(root, '.gitignore')
-    if (!fs.existsSync(ignorePath)) {
-      fs.copyFileSync(
+    const ignorePath = join(root, '.gitignore')
+    if (!existsSync(ignorePath)) {
+      copyFileSync(
         getTemplateFile({ template, mode, file: 'gitignore' }),
         ignorePath
       )
     }
 
     // Copy `next-env.d.ts` to any example that is typescript
-    const tsconfigPath = path.join(root, 'tsconfig.json')
-    if (fs.existsSync(tsconfigPath)) {
-      fs.copyFileSync(
+    const tsconfigPath = join(root, 'tsconfig.json')
+    if (existsSync(tsconfigPath)) {
+      copyFileSync(
         getTemplateFile({ template, mode: 'ts', file: 'next-env.d.ts' }),
-        path.join(root, 'next-env.d.ts')
+        join(root, 'next-env.d.ts')
       )
     }
 
-    hasPackageJson = fs.existsSync(packageJsonPath)
+    hasPackageJson = existsSync(packageJsonPath)
     if (!skipInstall && hasPackageJson) {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
@@ -233,6 +231,7 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
+      turbo,
     })
   }
 
@@ -242,7 +241,7 @@ export async function createApp({
   }
 
   let cdpath: string
-  if (path.join(originalDirectory, appName) === appPath) {
+  if (join(originalDirectory, appName) === appPath) {
     cdpath = appName
   } else {
     cdpath = appPath

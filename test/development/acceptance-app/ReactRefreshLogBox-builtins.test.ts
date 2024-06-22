@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
-    },
     skipStart: true,
   })
 
@@ -49,7 +45,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:1:13
@@ -96,7 +92,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -149,7 +145,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -199,7 +195,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -238,7 +234,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

@@ -185,8 +185,8 @@ export async function writeConfigurationDefaults(
         !('parsedValues' in check
           ? check.parsedValues?.includes(ev)
           : 'parsedValue' in check
-          ? check.parsedValue === ev
-          : check.value === ev)
+            ? check.parsedValue === ev
+            : check.value === ev)
       ) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}

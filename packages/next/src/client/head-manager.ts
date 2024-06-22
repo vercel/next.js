@@ -1,5 +1,7 @@
 import { setAttributesFromProps } from './set-attributes-from-props'
 
+import type { JSX } from 'react'
+
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el: HTMLElement = document.createElement(type)
   setAttributesFromProps(el, props)
@@ -12,8 +14,8 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
       typeof children === 'string'
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+          ? children.join('')
+          : ''
   }
   return el
 }
@@ -188,8 +190,8 @@ export default function initHeadManager(): {
           typeof children === 'string'
             ? children
             : Array.isArray(children)
-            ? children.join('')
-            : ''
+              ? children.join('')
+              : ''
       }
       if (title !== document.title) document.title = title
       ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {

@@ -41,6 +41,7 @@ describe('createInitialRouterState', () => {
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       initialHead: <title>Test</title>,
+      initialLayerAssets: null,
       couldBeIntercepted: false,
     })
 
@@ -52,6 +53,7 @@ describe('createInitialRouterState', () => {
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       initialHead: <title>Test</title>,
+      initialLayerAssets: null,
     })
 
     const expectedCache: CacheNode = {
@@ -59,8 +61,9 @@ describe('createInitialRouterState', () => {
       rsc: children,
       prefetchRsc: null,
       head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -82,8 +85,9 @@ describe('createInitialRouterState', () => {
                           parallelRoutes: new Map(),
                           loading: null,
                           head: <title>Test</title>,
+                          layerAssets: null,
+                          prefetchLayerAssets: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                         },
                       ],
                     ]),
@@ -93,8 +97,9 @@ describe('createInitialRouterState', () => {
                 rsc: null,
                 prefetchRsc: null,
                 head: null,
+                layerAssets: null,
+                prefetchLayerAssets: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
               },
             ],

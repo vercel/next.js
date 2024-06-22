@@ -93,8 +93,6 @@ export default class NextWebServer extends BaseServer<
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      // PPR is not supported in the Edge runtime.
-      isAppPPREnabled: false,
     })
   }
   protected getResponseCache() {
@@ -119,8 +117,8 @@ export default class NextWebServer extends BaseServer<
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
-      [this.serverOptions.webServerConfig
-        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
+      [this.serverOptions.webServerConfig.pathname]:
+        `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
 
@@ -291,8 +289,8 @@ export default class NextWebServer extends BaseServer<
         options.result.contentType
           ? options.result.contentType
           : options.type === 'json'
-          ? 'application/json'
-          : 'text/html; charset=utf-8'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
       )
     }
 

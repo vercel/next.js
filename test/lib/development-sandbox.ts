@@ -5,7 +5,8 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
-  hasRedbox,
+  assertHasRedbox,
+  assertNoRedbox,
   waitFor,
   waitForAndOpenRuntimeError,
   getRedboxDescriptionWarning,
@@ -112,8 +113,11 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox() {
-        return hasRedbox(browser)
+      async assertHasRedbox() {
+        return assertHasRedbox(browser)
+      },
+      async assertNoRedbox() {
+        return assertNoRedbox(browser)
       },
       async waitForAndOpenRuntimeError() {
         return waitForAndOpenRuntimeError(browser)

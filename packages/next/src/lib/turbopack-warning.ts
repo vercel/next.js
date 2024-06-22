@@ -51,7 +51,6 @@ const unsupportedTurbopackNextConfigOptions = [
 
 // The following will need to be supported by `next build --turbo`
 const unsupportedProductionSpecificTurbopackNextConfigOptions = [
-  'outputFileTracing',
   // TODO: Support disabling sourcemaps, currently they're always enabled.
   // 'productionBrowserSourceMaps',
   'reactProductionProfiling',

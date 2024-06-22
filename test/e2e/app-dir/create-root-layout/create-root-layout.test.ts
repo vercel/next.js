@@ -73,10 +73,6 @@ import stripAnsi from 'strip-ansi'
                   path.join(__dirname, 'next.config.js')
                 ),
               },
-              dependencies: {
-                react: '19.0.0-beta-4508873393-20240430',
-                'react-dom': '19.0.0-beta-4508873393-20240430',
-              },
             })
           })
           afterAll(() => next.destroy())
@@ -126,10 +122,6 @@ import stripAnsi from 'strip-ansi'
                 'next.config.js': new FileRef(
                   path.join(__dirname, 'next.config.js')
                 ),
-              },
-              dependencies: {
-                react: '19.0.0-beta-4508873393-20240430',
-                'react-dom': '19.0.0-beta-4508873393-20240430',
               },
             })
           })
@@ -235,10 +227,6 @@ import stripAnsi from 'strip-ansi'
               'next.config.js': new FileRef(
                 path.join(__dirname, 'next.config.js')
               ),
-            },
-            dependencies: {
-              react: '19.0.0-beta-4508873393-20240430',
-              'react-dom': '19.0.0-beta-4508873393-20240430',
             },
           })
 

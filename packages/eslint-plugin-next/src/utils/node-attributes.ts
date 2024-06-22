@@ -36,8 +36,8 @@ export default class NodeAttributes {
           typeof attribute.value.value === 'string'
             ? attribute.value.value
             : typeof attribute.value.expression.value !== 'undefined'
-            ? attribute.value.expression.value
-            : attribute.value.expression.properties
+              ? attribute.value.expression.value
+              : attribute.value.expression.properties
 
         this.attributes[attribute.name.name] = {
           hasValue: true,

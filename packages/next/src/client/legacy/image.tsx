@@ -7,6 +7,7 @@ import React, {
   useContext,
   useMemo,
   useState,
+  type JSX,
 } from 'react'
 import {
   imageConfigDefault,
@@ -257,7 +258,7 @@ export type ImageProps = Omit<
   quality?: SafeNumber
   priority?: boolean
   loading?: LoadingValue
-  lazyRoot?: React.RefObject<HTMLElement> | null
+  lazyRoot?: React.RefObject<HTMLElement | null> | null
   lazyBoundary?: string
   placeholder?: PlaceholderValue
   blurDataURL?: string

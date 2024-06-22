@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    ReadRef, TryJoinIterExt, ValueToString, Vc,
+    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_binding::turbopack::core::{
     module::{Module, Modules},
@@ -66,8 +66,8 @@ struct VisitDynamic;
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 enum VisitDynamicNode {
-    Dynamic(Vc<NextDynamicEntryModule>, ReadRef<String>),
-    Internal(Vc<Box<dyn Module>>, ReadRef<String>),
+    Dynamic(Vc<NextDynamicEntryModule>, ReadRef<RcStr>),
+    Internal(Vc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
 impl Visit<VisitDynamicNode> for VisitDynamic {
@@ -117,10 +117,10 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
     fn span(&mut self, node: &VisitDynamicNode) -> tracing::Span {
         match node {
             VisitDynamicNode::Dynamic(_, name) => {
-                tracing::info_span!("dynamic module", name = **name)
+                tracing::info_span!("dynamic module", name = name.to_string())
             }
             VisitDynamicNode::Internal(_, name) => {
-                tracing::info_span!("module", name = **name)
+                tracing::info_span!("module", name = name.to_string())
             }
         }
     }

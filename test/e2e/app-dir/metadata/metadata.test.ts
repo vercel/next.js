@@ -1,161 +1,20 @@
-import type { BrowserInterface } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import {
+  check,
+  getTitle,
+  createDomMatcher,
+  createMultiHtmlMatcher,
+  createMultiDomMatcher,
+  checkMetaNameContentPair,
+  checkLink,
+} from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
-import cheerio from 'cheerio'
 
 describe('app dir - metadata', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
-
-  const getTitle = (browser: BrowserInterface) =>
-    browser.elementByCss('title').text()
-
-  async function checkMeta(
-    browser: BrowserInterface,
-    queryValue: string,
-    expected: RegExp | string | string[] | undefined | null,
-    queryKey: string = 'property',
-    tag: string = 'meta',
-    domAttributeField: string = 'content'
-  ) {
-    const values = await browser.eval(
-      `[...document.querySelectorAll('${tag}[${queryKey}="${queryValue}"]')].map((el) => el.getAttribute("${domAttributeField}"))`
-    )
-    if (expected instanceof RegExp) {
-      expect(values[0]).toMatch(expected)
-    } else {
-      if (Array.isArray(expected)) {
-        expect(values).toEqual(expected)
-      } else {
-        // If expected is undefined, then it should not exist.
-        // Otherwise, it should exist in the matched values.
-        if (expected === undefined) {
-          expect(values).not.toContain(undefined)
-        } else {
-          expect(values).toContain(expected)
-        }
-      }
-    }
-  }
-
-  function createDomMatcher(browser: BrowserInterface) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param query - query string, e.g. 'name="description"'
-     * @param expectedObject - expected object, e.g. { content: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
-     *
-     * @example
-     * const matchDom = createDomMatcher(browser)
-     * await matchDom('meta', 'name="description"', { content: 'description' })
-     */
-    return async (
-      tag: string,
-      query: string,
-      expectedObject: Record<string, string | null | undefined>
-    ) => {
-      const props = await browser.eval(`
-        const el = document.querySelector('${tag}[${query}]');
-        const res = {}
-        const keys = ${JSON.stringify(Object.keys(expectedObject))}
-        for (const k of keys) {
-          res[k] = el?.getAttribute(k)
-        }
-        res
-      `)
-      expect(props).toEqual(expectedObject)
-    }
-  }
-
-  function createMultiHtmlMatcher($: ReturnType<typeof cheerio.load>) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param queryKey - query key, e.g. 'property'
-     * @param domAttributeField - dom attribute field, e.g. 'content'
-     * @param expected - expected object, e.g. { description: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
-     *
-     * @example
-     *
-     * const $ = await next.render$('html')
-     * const matchHtml = createMultiHtmlMatcher($)
-     * await matchHtml('meta', 'name', 'property', {
-     *   description: 'description',
-     *   og: 'og:description'
-     * })
-     *
-     */
-    return (
-      tag: string,
-      queryKey: string,
-      domAttributeField: string,
-      expected: Record<string, string | string[] | undefined>
-    ) => {
-      const res = {}
-      for (const key of Object.keys(expected)) {
-        const el = $(`${tag}[${queryKey}="${key}"]`)
-        if (el.length > 1) {
-          res[key] = el.toArray().map((el) => el.attribs[domAttributeField])
-        } else {
-          res[key] = el.attr(domAttributeField)
-        }
-      }
-      expect(res).toEqual(expected)
-    }
-  }
-
-  function createMultiDomMatcher(browser: BrowserInterface) {
-    /**
-     * @param tag - tag name, e.g. 'meta'
-     * @param queryKey - query key, e.g. 'property'
-     * @param domAttributeField - dom attribute field, e.g. 'content'
-     * @param expected - expected object, e.g. { description: 'my description' }
-     * @returns {Promise<void>} - promise that resolves when the check is done
-     *
-     * @example
-     * const matchMultiDom = createMultiDomMatcher(browser)
-     * await matchMultiDom('meta', 'property', 'content', {
-     *   description: 'description',
-     *   'og:title': 'title',
-     *   'twitter:title': 'title'
-     * })
-     *
-     */
-    return async (
-      tag: string,
-      queryKey: string,
-      domAttributeField: string,
-      expected: Record<string, string | string[] | undefined | null>
-    ) => {
-      await Promise.all(
-        Object.keys(expected).map(async (key) => {
-          return checkMeta(
-            browser,
-            key,
-            expected[key],
-            queryKey,
-            tag,
-            domAttributeField
-          )
-        })
-      )
-    }
-  }
-
-  const checkMetaNameContentPair = (
-    browser: BrowserInterface,
-    name: string,
-    content: string | string[]
-  ) => checkMeta(browser, name, content, 'name')
-
-  const checkLink = (
-    browser: BrowserInterface,
-    rel: string,
-    content: string | string[]
-  ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
   describe('basic', () => {
     it('should support title and description', async () => {
@@ -369,8 +228,7 @@ describe('app dir - metadata', () => {
     it('should support robots tags', async () => {
       const $ = await next.render$('/robots')
       const matchMultiDom = createMultiHtmlMatcher($)
-
-      await matchMultiDom('meta', 'name', 'content', {
+      matchMultiDom('meta', 'name', 'content', {
         robots: 'noindex, follow, nocache',
         googlebot:
           'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1',
@@ -380,7 +238,7 @@ describe('app dir - metadata', () => {
     it('should support verification tags', async () => {
       const $ = await next.render$('/verification')
       const matchMultiDom = createMultiHtmlMatcher($)
-      await matchMultiDom('meta', 'name', 'content', {
+      matchMultiDom('meta', 'name', 'content', {
         'google-site-verification': 'google',
         y_key: 'yahoo',
         'yandex-verification': 'yandex',
@@ -424,13 +282,13 @@ describe('app dir - metadata', () => {
       expect(await getTitle(browser)).toBe('this is the page title')
     })
 
-    it('should support generateMetadata export', async () => {
-      const browser = await next.browser('/async/slug')
+    it('should support generateMetadata dynamic props', async () => {
+      const browser = await next.browser('/dynamic/slug')
       expect(await getTitle(browser)).toBe('params - slug')
 
       await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-      await browser.loadPage(next.url + '/async/blog?q=xxx')
+      await browser.loadPage(next.url + '/dynamic/blog?q=xxx')
       await check(
         () => browser.elementByCss('p').text(),
         /params - blog query - xxx/
@@ -508,7 +366,7 @@ describe('app dir - metadata', () => {
       const $ = await next.render$('/opengraph/static')
 
       const match = createMultiHtmlMatcher($)
-      await match('meta', 'property', 'content', {
+      match('meta', 'property', 'content', {
         'og:image:width': '114',
         'og:image:height': '114',
         'og:image:type': 'image/png',
@@ -526,7 +384,7 @@ describe('app dir - metadata', () => {
             ),
       })
 
-      await match('meta', 'name', 'content', {
+      match('meta', 'name', 'content', {
         'twitter:image': isNextDev
           ? expect.stringMatching(
               /http:\/\/localhost:\d+\/opengraph\/static\/twitter-image/
@@ -550,12 +408,12 @@ describe('app dir - metadata', () => {
       const $ = await next.render$('/opengraph/static/override')
 
       const match = createMultiHtmlMatcher($)
-      await match('meta', 'property', 'content', {
+      match('meta', 'property', 'content', {
         'og:title': 'no-og-image',
         'og:image': undefined,
       })
 
-      await match('meta', 'name', 'content', {
+      match('meta', 'name', 'content', {
         'twitter:image': undefined,
         'twitter:title': 'no-tw-image',
       })
@@ -564,71 +422,6 @@ describe('app dir - metadata', () => {
       expect($('link[rel="icon"]').attr('href')).toBe(
         'https://custom-icon-1.png'
       )
-    })
-  })
-
-  describe('navigation', () => {
-    it('should render root not-found with default metadata', async () => {
-      const $ = await next.render$('/does-not-exist')
-
-      // Should contain default metadata and noindex tag
-      const matchHtml = createMultiHtmlMatcher($)
-      expect($('meta[charset="utf-8"]').length).toBe(1)
-      await matchHtml('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        robots: 'noindex',
-        // not found metadata
-        description: 'Root not found description',
-      })
-      expect(await $('title').text()).toBe('Root not found')
-    })
-
-    it('should support notFound in generateMetadata', async () => {
-      const res = await next.fetch('/async/not-found')
-      expect(res.status).toBe(404)
-      const html = await res.text()
-      const $ = cheerio.load(html)
-
-      // TODO-APP: support render custom not-found in SSR for generateMetadata.
-      // Check contains root not-found payload in flight response for now.
-      let hasRootNotFoundFlight = false
-      for (const el of $('script').toArray()) {
-        const text = $(el).text()
-        if (text.includes('Local found boundary')) {
-          hasRootNotFoundFlight = true
-        }
-      }
-      expect(hasRootNotFoundFlight).toBe(true)
-
-      // Should contain default metadata and noindex tag
-      const matchHtml = createMultiHtmlMatcher($)
-      expect($('meta[charset="utf-8"]').length).toBe(1)
-      await matchHtml('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        robots: 'noindex',
-      })
-
-      const browser = await next.browser('/async/not-found')
-      expect(await browser.elementByCss('h2').text()).toBe(
-        'Local found boundary'
-      )
-
-      const matchMultiDom = createMultiDomMatcher(browser)
-      await matchMultiDom('meta', 'name', 'content', {
-        viewport: 'width=device-width, initial-scale=1',
-        keywords: 'parent',
-        robots: 'noindex',
-        // not found metadata
-        description: 'Local not found description',
-      })
-      expect(await getTitle(browser)).toBe('Local not found')
-    })
-
-    it('should support redirect in generateMetadata', async () => {
-      const res = await next.fetch('/async/redirect', {
-        redirect: 'manual',
-      })
-      expect(res.status).toBe(307)
     })
   })
 
@@ -758,26 +551,6 @@ describe('app dir - metadata', () => {
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
-
-    if (isNextDev) {
-      it('should handle updates to the file icon name and order', async () => {
-        await next.renameFile(
-          'app/icons/static/icon.png',
-          'app/icons/static/icon2.png'
-        )
-
-        await check(async () => {
-          const $ = await next.render$('/icons/static')
-          const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
-          return $icon.attr('href')
-        }, /\/icons\/static\/icon2/)
-
-        await next.renameFile(
-          'app/icons/static/icon2.png',
-          'app/icons/static/icon.png'
-        )
-      })
-    }
   })
 
   describe('twitter', () => {
@@ -954,7 +727,7 @@ describe('app dir - metadata', () => {
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png/[[...__metadata_id__]]/route.js'
+            '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
           )
         ).toBe(false)
       })
@@ -1016,8 +789,30 @@ describe('app dir - metadata', () => {
     expect(ogHtml).toContain('pages-opengraph-image-page')
   })
 
-  it('should not crash from error thrown during preloading nested generateMetadata', async () => {
-    const res = await next.fetch('/dynamic-meta')
-    expect(res.status).toBe(404)
+  describe('hmr', () => {
+    if (isNextDev) {
+      // This test frequently causes a compilation error when run in Turbopack
+      // which also causes all subsequent tests to fail. Disabled while we investigate to reduce flakes.
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should handle updates to the file icon name and order',
+        async () => {
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon2.png'
+          )
+
+          await check(async () => {
+            const $ = await next.render$('/icons/static')
+            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
+            return $icon.attr('href')
+          }, /\/icons\/static\/icon2/)
+
+          await next.renameFile(
+            'app/icons/static/icon2.png',
+            'app/icons/static/icon.png'
+          )
+        }
+      )
+    }
   })
 })

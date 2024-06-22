@@ -1,6 +1,7 @@
 
-  x You're importing a component that needs flushSync. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  x You're importing a component that needs `flushSync`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:1:1]
@@ -8,9 +9,9 @@
    :          ^^^^^^^^^
    `----
 
-  x You're importing a component that needs unstable_batchedUpdates. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by
-  | default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  x You're importing a component that needs `unstable_batchedUpdates`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:1:1]
@@ -18,8 +19,9 @@
    :                     ^^^^^^^^^^^^^^^^^^^^^^^
    `----
 
-  x You're importing a component that needs useActionState. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  x You're importing a component that needs `useActionState`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:2:1]
@@ -28,8 +30,9 @@
    :          ^^^^^^^^^^^^^^
    `----
 
-  x You're importing a component that needs useFormStatus. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  x You're importing a component that needs `useFormStatus`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:4:1]
@@ -38,8 +41,9 @@
    :          ^^^^^^^^^^^^^
    `----
 
-  x You're importing a component that needs useFormState. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  x You're importing a component that needs `useFormState`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
+  | 
+  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:4:1]

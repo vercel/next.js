@@ -18,6 +18,7 @@ import React, {
   startTransition,
   Suspense,
   useDeferredValue,
+  type JSX,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -97,27 +98,13 @@ const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
 function findDOMNode(
   instance: React.ReactInstance | null | undefined
 ): Element | Text | null {
+  // Tree-shake for server bundle
+  if (typeof window === 'undefined') return null
+
   // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
   // We need to lazily reference it.
   const internal_reactDOMfindDOMNode =
     __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
-  // Tree-shake for server bundle
-  if (typeof window === 'undefined') return null
-  // Only apply strict mode warning when not in production
-  if (process.env.NODE_ENV !== 'production') {
-    const originalConsoleError = console.error
-    try {
-      console.error = (...messages) => {
-        // Ignore strict mode warning for the findDomNode call below
-        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
-          originalConsoleError(...messages)
-        }
-      }
-      return internal_reactDOMfindDOMNode(instance)
-    } finally {
-      console.error = originalConsoleError!
-    }
-  }
   return internal_reactDOMfindDOMNode(instance)
 }
 
@@ -363,9 +350,10 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
       loading: null,
     }
 
@@ -423,35 +411,38 @@ function InnerLayoutRouter({
         refetchTree,
         includeNextUrl ? context.nextUrl : null,
         buildId
-      )
-      childNode.lazyDataResolved = false
-    }
-
-    /**
-     * Flight response data
-     */
-    // When the data has not resolved yet `use` will suspend here.
-    const serverResponse = use(lazyData)
-
-    if (!childNode.lazyDataResolved) {
-      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-      setTimeout(() => {
+      ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({
             previousTree: fullTree,
             serverResponse,
           })
         })
+
+        return serverResponse
       })
-
-      // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
-      // the patch to the tree.
-      childNode.lazyDataResolved = true
-
-      // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-      use(unresolvedThenable) as never
     }
+    // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
+    use(unresolvedThenable) as never
   }
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    childNode.prefetchLayerAssets !== null
+      ? childNode.prefetchLayerAssets
+      : childNode.layerAssets
+
+  const layerAssets = useDeferredValue(
+    childNode.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
 
   // If we get to this point, then we know we have something we can render.
   const subtree = (
@@ -465,6 +456,7 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
+      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )

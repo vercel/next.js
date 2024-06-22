@@ -133,10 +133,12 @@ describe('app-dir with middleware', () => {
 
     const initialRandom1 = await browser.elementById('rsc-cookie-1').text()
     const initialRandom2 = await browser.elementById('rsc-cookie-2').text()
+    const totalCookies = await browser.elementById('total-cookies').text()
 
     // cookies were set in middleware, assert they are present and match the Math.random() pattern
     expect(initialRandom1).toMatch(/Cookie 1: \d+\.\d+/)
     expect(initialRandom2).toMatch(/Cookie 2: \d+\.\d+/)
+    expect(totalCookies).toBe('Total Cookie Length: 2')
 
     await browser.refresh()
 

@@ -309,7 +309,7 @@ export function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-middleware1', 'hello')
 
-  // You can also set request headers in NextResponse.rewrite
+  // You can also set request headers in NextResponse.next
   const response = NextResponse.next({
     request: {
       // New request headers
@@ -331,7 +331,7 @@ export function middleware(request) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-hello-from-middleware1', 'hello')
 
-  // You can also set request headers in NextResponse.rewrite
+  // You can also set request headers in NextResponse.next
   const response = NextResponse.next({
     request: {
       // New request headers
@@ -452,7 +452,7 @@ export const config = {
 You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
 
 ```ts filename="middleware.ts" switcher
-import { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`

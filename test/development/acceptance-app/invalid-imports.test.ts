@@ -8,8 +8,6 @@ describe('Error Overlay invalid imports', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: '19.0.0-beta-4508873393-20240430',
-      'react-dom': '19.0.0-beta-4508873393-20240430',
       'server-only': 'latest',
       'client-only': 'latest',
     },
@@ -65,7 +63,7 @@ describe('Error Overlay invalid imports', () => {
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app
@@ -149,7 +147,7 @@ describe('Error Overlay invalid imports', () => {
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/client-only-package
@@ -231,7 +229,7 @@ describe('Error Overlay invalid imports', () => {
     const content = await next.readFile(file)
     await session.patch(file, "'use client'\n" + content)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/server-only-package

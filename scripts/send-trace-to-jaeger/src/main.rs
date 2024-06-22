@@ -36,7 +36,9 @@ fn send_json_to_zipkin(zipkin_api: &str, value: String) {
         .send()
         .expect("Failed to send request");
 
-    println!("body = {:?}", res.text());
+    if !res.status().is_success() {
+        println!("body = {:?}", res.text());
+    }
 }
 
 // function to append zero to a number until 16 characters
@@ -83,6 +85,15 @@ fn main() {
                         if data["parentId"] != Value::Null {
                             data["parentId"] =
                                 Value::String(pad_zeros(data["parentId"].as_u64().unwrap()));
+                        }
+
+                        if let Some(tags) = data["tags"].as_object_mut() {
+                            for (_, value) in tags.iter_mut() {
+                                if value.is_boolean() {
+                                    let bool_val = value.as_bool().unwrap();
+                                    *value = serde_json::Value::String(bool_val.to_string());
+                                }
+                            }
                         }
 
                         data

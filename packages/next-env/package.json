@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "14.3.0-canary.47",
+  "version": "15.0.0-canary.41",
   "keywords": [
     "react",
     "next",
@@ -23,7 +23,7 @@
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "node ../../scripts/rm.mjs dist",
-    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir dist --esModuleInterop",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "build": "pnpm release && pnpm types",
     "prepublishOnly": "cd ../../ && turbo run build"

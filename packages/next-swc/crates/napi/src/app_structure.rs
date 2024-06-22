@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Result};
+use indexmap::IndexMap;
 use napi::{
     bindgen_prelude::External,
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -11,7 +12,7 @@ use next_core::app_structure::{
     LoaderTree, MetadataItem, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{RcStr, ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
@@ -26,12 +27,8 @@ use turbopack_binding::{
 use crate::register;
 
 #[turbo_tasks::function]
-async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(
-        PROJECT_FILESYSTEM_NAME.to_string(),
-        project_dir.to_string(),
-        vec![],
-    );
+async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
+    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), project_dir, vec![]);
     if watching {
         disk_fs.await?.start_watching_with_invalidation_reason()?;
     }
@@ -41,8 +38,8 @@ async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn Fi
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
-    segment: String,
-    parallel_routes: HashMap<String, ReadRef<LoaderTreeForJs>>,
+    segment: RcStr,
+    parallel_routes: IndexMap<RcStr, ReadRef<LoaderTreeForJs>>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]
@@ -56,13 +53,13 @@ enum EntrypointForJs {
         loader_tree: ReadRef<LoaderTreeForJs>,
     },
     AppRoute {
-        path: String,
+        path: RcStr,
     },
 }
 
 #[turbo_tasks::value(transparent)]
 #[serde(rename_all = "camelCase")]
-struct EntrypointsForJs(HashMap<String, EntrypointForJs>);
+struct EntrypointsForJs(HashMap<RcStr, EntrypointForJs>);
 
 #[turbo_tasks::value(transparent)]
 struct OptionEntrypointsForJs(Option<Vc<EntrypointsForJs>>);
@@ -70,14 +67,14 @@ struct OptionEntrypointsForJs(Option<Vc<EntrypointsForJs>>);
 async fn fs_path_to_path(
     project_path: Vc<FileSystemPath>,
     path: Vc<FileSystemPath>,
-) -> Result<String> {
+) -> Result<RcStr> {
     match project_path.await?.get_path_to(&*path.await?) {
         None => Err(anyhow!(
             "Path {} is not inside of the project path {}",
             path.to_string().await?,
             project_path.to_string().await?
         )),
-        Some(p) => Ok(p.to_string()),
+        Some(p) => Ok(p.into()),
     }
 }
 
@@ -85,21 +82,21 @@ async fn fs_path_to_path(
 #[serde(rename_all = "camelCase")]
 struct ComponentsForJs {
     #[serde(skip_serializing_if = "Option::is_none")]
-    page: Option<String>,
+    page: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    layout: Option<String>,
+    layout: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
+    error: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    loading: Option<String>,
+    loading: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    template: Option<String>,
+    template: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "not-found")]
-    not_found: Option<String>,
+    not_found: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    default: Option<String>,
+    default: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    route: Option<String>,
+    route: Option<RcStr>,
     metadata: MetadataForJs,
 }
 
@@ -133,19 +130,19 @@ struct GlobalMetadataForJs {
 #[serde(tag = "type", rename_all = "camelCase")]
 enum MetadataWithAltItemForJs {
     Static {
-        path: String,
-        alt_path: Option<String>,
+        path: RcStr,
+        alt_path: Option<RcStr>,
     },
     Dynamic {
-        path: String,
+        path: RcStr,
     },
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum MetadataItemForJs {
-    Static { path: String },
-    Dynamic { path: String },
+    Static { path: RcStr },
+    Dynamic { path: RcStr },
 }
 
 async fn prepare_components_for_js(
@@ -165,7 +162,7 @@ async fn prepare_components_for_js(
     } = &*components.await?;
     let mut result = ComponentsForJs::default();
     async fn add(
-        result: &mut Option<String>,
+        result: &mut Option<RcStr>,
         project_path: Vc<FileSystemPath>,
         value: &Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
@@ -304,7 +301,7 @@ async fn prepare_entrypoints_for_js(
         .await?
         .iter()
         .map(|(key, value)| {
-            let key = key.to_string();
+            let key = key.to_string().into();
             async move {
                 let value = match *value {
                     Entrypoint::AppPage { loader_tree, .. } => EntrypointForJs::AppPage {
@@ -329,19 +326,19 @@ async fn prepare_entrypoints_for_js(
 
 #[turbo_tasks::function]
 async fn get_value(
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
+    root_dir: RcStr,
+    project_dir: RcStr,
+    page_extensions: Vec<RcStr>,
     watching: bool,
 ) -> Result<Vc<OptionEntrypointsForJs>> {
     let page_extensions = Vc::cell(page_extensions);
     let fs = project_fs(root_dir.clone(), watching);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/");
-    let project_path = fs.root().join(project_relative);
+    let project_path = fs.root().join(project_relative.into());
 
     let app_dir = find_app_dir(project_path);
 
@@ -372,8 +369,8 @@ pub fn stream_entrypoints(
             let value = serde_json::to_value(value)?;
             Ok(vec![value])
         })?;
-    let root_dir = Arc::new(root_dir);
-    let project_dir = Arc::new(project_dir);
+    let root_dir = RcStr::from(root_dir);
+    let project_dir = RcStr::from(project_dir);
     let page_extensions = Arc::new(page_extensions);
     turbo_tasks.spawn_root_task(move || {
         let func: ThreadsafeFunction<Option<ReadRef<EntrypointsForJs>>> = func.clone();
@@ -382,9 +379,9 @@ pub fn stream_entrypoints(
         let page_extensions: Arc<Vec<String>> = page_extensions.clone();
         Box::pin(async move {
             if let Some(entrypoints) = &*get_value(
-                (*root_dir).clone(),
-                (*project_dir).clone(),
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.clone(),
+                project_dir.clone(),
+                page_extensions.iter().map(|s| s.as_str().into()).collect(),
                 true,
             )
             .await?
@@ -414,9 +411,9 @@ pub async fn get_entrypoints(
     let result = turbo_tasks
         .run_once(async move {
             let value = if let Some(entrypoints) = &*get_value(
-                root_dir,
-                project_dir,
-                page_extensions.iter().map(|s| s.to_string()).collect(),
+                root_dir.into(),
+                project_dir.into(),
+                page_extensions.iter().map(|s| s.as_str().into()).collect(),
                 false,
             )
             .await?

@@ -2,10 +2,9 @@
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 
-import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
-import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
+import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
 import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {

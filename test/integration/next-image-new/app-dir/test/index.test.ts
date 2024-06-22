@@ -3,11 +3,12 @@
 import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -180,6 +181,21 @@ function runTests(mode) {
         referrerpolicy: 'no-referrer',
       })
 
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
         await browser.elementById('basic-image').getAttribute('loading')
@@ -216,7 +232,14 @@ function runTests(mode) {
         'lazy'
       )
 
-      const warnings = (await browser.log('browser'))
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
+
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).not.toMatch(
@@ -359,7 +382,7 @@ function runTests(mode) {
     )
 
     if (mode === 'dev') {
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
@@ -635,7 +658,7 @@ function runTests(mode) {
       )
       if (mode === 'dev') {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
@@ -776,7 +799,7 @@ function runTests(mode) {
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -808,7 +831,7 @@ function runTests(mode) {
       'color:transparent;width:100%;height:auto'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -858,7 +881,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -868,7 +891,7 @@ function runTests(mode) {
     it('should show empty string src error', async () => {
       const browser = await webdriver(appPort, '/empty-string-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -878,7 +901,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -887,16 +910,32 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
+    it('should show invalid src with leading space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-leading-space')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-trailing-space')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
       )
     })
 
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
       )
@@ -905,7 +944,7 @@ function runTests(mode) {
     it('should show error when invalid width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
       )
@@ -914,7 +953,7 @@ function runTests(mode) {
     it('should show error when invalid Infinity width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-Infinity-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
@@ -923,7 +962,7 @@ function runTests(mode) {
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
       )
@@ -932,7 +971,7 @@ function runTests(mode) {
     it('should show missing alt error', async () => {
       const browser = await webdriver(appPort, '/missing-alt')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -942,7 +981,7 @@ function runTests(mode) {
     it('should show error when missing width prop', async () => {
       const browser = await webdriver(appPort, '/missing-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "width" property.`
       )
@@ -951,7 +990,7 @@ function runTests(mode) {
     it('should show error when missing height prop', async () => {
       const browser = await webdriver(appPort, '/missing-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "height" property.`
       )
@@ -960,7 +999,7 @@ function runTests(mode) {
     it('should show error when width prop on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "width" and "fill" properties.`
       )
@@ -969,7 +1008,7 @@ function runTests(mode) {
     it('should show error when CSS position changed on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-position')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
@@ -981,7 +1020,7 @@ function runTests(mode) {
         '/invalid-placeholder-blur-static'
       )
 
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
       )
@@ -993,7 +1032,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
@@ -1005,7 +1044,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Expected server HTML to contain a matching/gm
       )
@@ -1026,10 +1065,10 @@ function runTests(mode) {
           return 'done'
         }, 'done')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
         expect(warnings).toMatch(
           /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
@@ -1044,7 +1083,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
       )
@@ -1067,7 +1106,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
       )
@@ -1079,7 +1118,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has a "loader" property that does not implement width/gm
       )
@@ -1315,7 +1354,7 @@ function runTests(mode) {
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
@@ -1326,7 +1365,7 @@ function runTests(mode) {
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toContain(
@@ -1345,7 +1384,7 @@ function runTests(mode) {
       it('should not log warnings when image unmounts', async () => {
         browser = await webdriver(appPort, '/should-not-warn-unmount')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toContain(

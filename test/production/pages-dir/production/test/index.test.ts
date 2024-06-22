@@ -706,9 +706,7 @@ describe('Production Usage', () => {
         // @ts-expect-error Exists on window
         window.__DATA_BE_GONE = 'true'
       })
-      await browser
-        .waitForElementByCss('#to-nonexistent-page')
-        .click('#to-nonexistent-page')
+      await browser.waitForElementByCss('#to-nonexistent-page').click()
       await browser.waitForElementByCss('.about-page')
 
       const oldData = await browser.eval(`window.__DATA_BE_GONE`)
@@ -1033,12 +1031,9 @@ describe('Production Usage', () => {
   it('should not put backslashes in pages-manifest.json', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
     // See: https://github.com/vercel/next.js/issues/4920
-    const pagesManifest = require(join(
-      next.testDir,
-      '.next',
-      'server',
-      PAGES_MANIFEST
-    ))
+    const pagesManifest = require(
+      join(next.testDir, '.next', 'server', PAGES_MANIFEST)
+    )
 
     for (let key of Object.keys(pagesManifest)) {
       expect(key).not.toMatch(/\\/)
@@ -1085,7 +1080,7 @@ describe('Production Usage', () => {
     let browser
     try {
       browser = await webdriver(next.appPort, '/development-logs')
-      const browserLogs = await browser.log('browser')
+      const browserLogs = await browser.log()
       let found = false
       browserLogs.forEach((log) => {
         if (log.message.includes('Next.js auto-prefetches automatically')) {

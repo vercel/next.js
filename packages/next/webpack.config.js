@@ -8,6 +8,7 @@ const pagesExternals = [
   'react/package.json',
   'react/jsx-runtime',
   'react/jsx-dev-runtime',
+  'react/compiler-runtime',
   'react-dom',
   'react-dom/package.json',
   'react-dom/client',
@@ -36,6 +37,7 @@ function makeAppAliases(reactChannel = '') {
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
+    'react/compiler-runtime$': `next/dist/compiled/react${reactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
@@ -91,21 +93,21 @@ const bundleTypes = {
   app: {
     'app-page': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/app-page/module.js'
+      'dist/esm/server/route-modules/app-page/module.js'
     ),
     'app-route': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/app-route/module.js'
+      'dist/esm/server/route-modules/app-route/module.js'
     ),
   },
   pages: {
     pages: path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/pages/module.js'
+      'dist/esm/server/route-modules/pages/module.js'
     ),
     'pages-api': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/pages-api/module.js'
+      'dist/esm/server/route-modules/pages-api/module.js'
     ),
   },
   server: {
@@ -241,6 +243,8 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
               [`next/dist/compiled/react${bundledReactChannel}/jsx-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/jsx-runtime.react-server`,
               'react/jsx-dev-runtime$': `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
               [`next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/jsx-dev-runtime.react-server`,
+              'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
+              [`next/dist/compiled/react${bundledReactChannel}/compiler-runtime$`]: `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
               'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
               [`next/dist/compiled/react-dom${bundledReactChannel}$`]: `next/dist/compiled/react-dom${bundledReactChannel}/react-dom.react-server`,
             },
