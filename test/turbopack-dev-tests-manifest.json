@@ -308,6 +308,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/diagnostics/build-diagnostics.test.ts": {
+    "passed": [
+      "build-diagnostics records build diagnostics to a file correctly",
+      "build-diagnostics records framework version to framework.json correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/batcher.test.ts": {
     "passed": [
       "Batcher batch should batch multiple calls to the same key",
@@ -3212,6 +3222,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -3296,6 +3307,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -6008,13 +6020,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/with-babel/with-babel.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["with babel with babel should support babel in app dir"],
     "flakey": [],
     "runtimeError": false
   },
