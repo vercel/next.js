@@ -741,8 +741,8 @@ importers:
         specifier: 12.1.0
         version: 12.1.0
       conf:
-        specifier: 13.0.0
-        version: 13.0.0
+        specifier: 13.0.1
+        version: 13.0.1
       cross-spawn:
         specifier: 7.0.3
         version: 7.0.3
@@ -10233,8 +10233,8 @@ packages:
       source-map: 0.6.1
     dev: true
 
-  /conf@13.0.0:
-    resolution: {integrity: sha512-S+xFDZ9UDDNJu+cD42hu4MUaeIslm6EMAE8Gqwh2n31P85zJnkvATWsczyHR22G+8SSa4a9P+sf5dTfz/sSPkg==}
+  /conf@13.0.1:
+    resolution: {integrity: sha512-l9Uwc9eOnz39oADzGO2cSBDi7siv8lwO+31ocQ2nOJijnDiW3pxqm9VV10DPYUO28wW83DjABoUqY1nfHRR2hQ==}
     engines: {node: '>=18'}
     dependencies:
       ajv: 8.16.0
