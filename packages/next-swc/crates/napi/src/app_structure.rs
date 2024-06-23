@@ -94,6 +94,8 @@ struct ComponentsForJs {
     #[serde(skip_serializing_if = "Option::is_none", rename = "not-found")]
     not_found: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    forbidden: Option<RcStr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     default: Option<RcStr>,
     #[serde(skip_serializing_if = "Option::is_none")]
     route: Option<RcStr>,
@@ -156,6 +158,7 @@ async fn prepare_components_for_js(
         loading,
         template,
         not_found,
+        forbidden,
         default,
         route,
         metadata,
@@ -177,6 +180,7 @@ async fn prepare_components_for_js(
     add(&mut result.loading, project_path, loading).await?;
     add(&mut result.template, project_path, template).await?;
     add(&mut result.not_found, project_path, not_found).await?;
+    add(&mut result.forbidden, project_path, forbidden).await?;
     add(&mut result.default, project_path, default).await?;
     add(&mut result.route, project_path, route).await?;
 

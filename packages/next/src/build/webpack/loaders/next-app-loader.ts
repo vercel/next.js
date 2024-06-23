@@ -55,19 +55,32 @@ export type AppLoaderOptions = {
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
+const UI_FILE_TYPES = {
+  'not-found': 'not-found',
+  forbidden: 'forbidden',
+} as const
+
+type UIFileType = keyof typeof UI_FILE_TYPES
+
+const UI_FILE_TYPES_AS_VALUES = Object.keys(UI_FILE_TYPES) as UIFileType[]
+
 const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
   loading: 'loading',
-  'not-found': 'not-found',
+  ...UI_FILE_TYPES,
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultUIErrorPaths: Record<UIFileType, string> = {
+  'not-found': 'next/dist/client/components/not-found-error',
+  forbidden: 'next/dist/client/components/forbidden-error',
+}
+
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
@@ -198,9 +211,13 @@ async function createTreeCodeFromPath(
 
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const hasRootNotFound = await resolver(
-    `${appDirPrefix}/${FILE_TYPES['not-found']}`
+
+  const uiErrorPaths = await Promise.all(
+    UI_FILE_TYPES_AS_VALUES.map((fileType) =>
+      resolver(`${appDirPrefix}/${UI_FILE_TYPES[fileType]}`)
+    )
   )
+
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -352,18 +369,45 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       ) as [ValueOf<typeof FILE_TYPES>, string][]
 
-      // Add default not found error as root not found if not present
-      const hasNotFoundFile = definedFilePaths.some(
-        ([type]) => type === 'not-found'
+      // Mark used ui error files by the route segment
+      function createFileTypeCounters(
+        paths: typeof filePaths,
+        types: UIFileType[]
+      ) {
+        const dictionary = new Map<string, number>()
+        for (const [type] of paths) {
+          const item = dictionary.get(type)
+          if (item) {
+            dictionary.set(type, item + 1)
+          } else {
+            dictionary.set(type, 1)
+          }
+        }
+
+        return types.map((t) => (dictionary.get(t) || 0) >= 1)
+      }
+
+      // Check if ui error files exist for this segment path
+      const fileTypeCounters = createFileTypeCounters(
+        definedFilePaths,
+        UI_FILE_TYPES_AS_VALUES
       )
+
       // If the first layer is a group route, we treat it as root layer
       const isFirstLayerGroupRoute =
         segments.length === 1 &&
         subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
-      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
-        // If you already have a root not found, don't insert default not-found to group routes root
-        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
-          definedFilePaths.push(['not-found', defaultNotFoundPath])
+
+      for (let i = 0; i < UI_FILE_TYPES_AS_VALUES.length; i++) {
+        const fileType = UI_FILE_TYPES_AS_VALUES[i]
+        const hasFileType = fileTypeCounters[i]
+        const hasRootFileType = uiErrorPaths[i]
+
+        if ((isRootLayer || isFirstLayerGroupRoute) && !hasFileType) {
+          // If you already have a root file, don't insert default file to group routes root
+          if (!(hasRootFileType && isFirstLayerGroupRoute)) {
+            definedFilePaths.push([fileType, defaultUIErrorPaths[fileType]])
+          }
         }
       }
 
@@ -408,7 +452,7 @@ async function createTreeCodeFromPath(
       if (isNotFoundRoute && normalizedParallelKey === 'children') {
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
-          defaultNotFoundPath
+          defaultUIErrorPaths['not-found']
 
         const varName = `notFound${nestedCollectedDeclarations.length}`
         nestedCollectedDeclarations.push([varName, notFoundPath])

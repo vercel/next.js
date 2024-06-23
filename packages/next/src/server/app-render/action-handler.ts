@@ -11,7 +11,6 @@ import {
   NEXT_ROUTER_STATE_TREE,
   ACTION,
 } from '../../client/components/app-router-headers'
-import { isNotFoundError } from '../../client/components/not-found'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
@@ -41,6 +40,12 @@ import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
+import {
+  getUIErrorStatusCode,
+  matchUIError,
+  type UIErrorFileType,
+} from '../../shared/lib/ui-error-types'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -367,6 +372,7 @@ const enum HostType {
   XForwardedHost = 'x-forwarded-host',
   Host = 'host',
 }
+
 type Host =
   | {
       type: HostType.XForwardedHost
@@ -423,7 +429,7 @@ export async function handleAction({
 }): Promise<
   | undefined
   | {
-      type: 'not-found'
+      type: UIErrorFileType
     }
   | {
       type: 'done'
@@ -484,6 +490,7 @@ export async function handleAction({
       warn(warning)
     }
   }
+
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
@@ -874,8 +881,12 @@ export async function handleAction({
         type: 'done',
         result: RenderResult.fromStatic(''),
       }
-    } else if (isNotFoundError(err)) {
-      res.statusCode = 404
+      // Any next router error but redirect
+    } else if (isNextRouterError(err)) {
+      const errorType = matchUIError(err)!
+      if (errorType) {
+        res.statusCode = getUIErrorStatusCode(errorType)
+      }
 
       await addRevalidationHeader(res, {
         staticGenerationStore,
@@ -898,12 +909,12 @@ export async function handleAction({
           result: await generateFlight(ctx, {
             skipFlight: false,
             actionResult: promise,
-            asNotFound: true,
+            asNotFound: errorType === 'not-found',
           }),
         }
       }
       return {
-        type: 'not-found',
+        type: errorType,
       }
     }
 

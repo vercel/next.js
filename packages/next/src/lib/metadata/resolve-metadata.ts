@@ -414,6 +414,7 @@ export async function collectMetadata({
   errorMetadataItem: MetadataItems[number]
   props: any
   route: string
+  // TODO(@panteliselef): Handle this
   errorConvention?: 'not-found'
 }) {
   let mod

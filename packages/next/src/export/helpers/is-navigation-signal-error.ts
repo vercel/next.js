@@ -1,5 +1,5 @@
-import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
+import { matchUIError } from '../../shared/lib/ui-error-types'
 
 /**
  * Returns true if the error is a navigation signal error. These errors are
@@ -7,4 +7,4 @@ import { isRedirectError } from '../../client/components/redirect'
  * render.
  */
 export const isNavigationSignalError = (err: unknown) =>
-  isNotFoundError(err) || isRedirectError(err)
+  isRedirectError(err) || !!matchUIError(err)

@@ -1,13 +1,13 @@
-import { isNotFoundError } from '../../../../client/components/not-found'
 import {
   getURLFromRedirectError,
   isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../../../client/components/redirect'
+import { handleRedirectResponse } from '../../helpers/response-handlers'
 import {
-  handleNotFoundResponse,
-  handleRedirectResponse,
-} from '../../helpers/response-handlers'
+  getUIErrorStatusCode,
+  matchUIError,
+} from '../../../../shared/lib/ui-error-types'
 
 export function resolveHandlerError(err: any): Response | false {
   if (isRedirectError(err)) {
@@ -22,9 +22,12 @@ export function resolveHandlerError(err: any): Response | false {
     return handleRedirectResponse(redirect, err.mutableCookies, status)
   }
 
-  if (isNotFoundError(err)) {
-    // This is a not found error! Send the not found response.
-    return handleNotFoundResponse()
+  const uiError = matchUIError(err)
+
+  if (uiError) {
+    return new Response(null, {
+      status: getUIErrorStatusCode(uiError),
+    })
   }
 
   // Return false to indicate that this is not a handled error.

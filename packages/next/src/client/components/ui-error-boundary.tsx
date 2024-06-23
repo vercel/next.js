@@ -1,36 +1,36 @@
 'use client'
 
 import React, { useContext } from 'react'
-import { usePathname } from './navigation'
-import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { usePathname } from './navigation'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
+import type { UIErrorFileType } from '../../shared/lib/ui-error-types'
 
-interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
+interface UIErrorBoundaryProps {
+  uiComponent?: React.ReactNode
+  uiComponentStyles?: React.ReactNode
+  forceTrigger?: boolean
   children: React.ReactNode
-}
-
-interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
   pathname: string
+  matcher: (error: unknown) => boolean
   missingSlots: Set<string>
+  nextError: UIErrorFileType
 }
 
-interface NotFoundErrorBoundaryState {
-  notFoundTriggered: boolean
+interface UIErrorBoundaryState {
+  error?: Error
+  didCatch: boolean
   previousPathname: string
 }
 
-class NotFoundErrorBoundary extends React.Component<
-  NotFoundErrorBoundaryProps,
-  NotFoundErrorBoundaryState
+class UIErrorBoundary extends React.Component<
+  UIErrorBoundaryProps,
+  UIErrorBoundaryState
 > {
-  constructor(props: NotFoundErrorBoundaryProps) {
+  constructor(props: UIErrorBoundaryProps) {
     super(props)
     this.state = {
-      notFoundTriggered: !!props.asNotFound,
+      didCatch: !!props.forceTrigger,
       previousPathname: props.pathname,
     }
   }
@@ -42,7 +42,8 @@ class NotFoundErrorBoundary extends React.Component<
       !this.props.missingSlots.has('children')
     ) {
       let warningMessage =
-        'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
+        `No default component was found for a parallel route rendered on this page. Falling back to nearest ${this.props.nextError} boundary.
+` +
         'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
 
       if (this.props.missingSlots.size > 0) {
@@ -58,48 +59,46 @@ class NotFoundErrorBoundary extends React.Component<
     }
   }
 
-  static getDerivedStateFromError(error: any) {
-    if (isNotFoundError(error)) {
-      return {
-        notFoundTriggered: true,
-      }
-    }
-    // Re-throw if error is not for 404
-    throw error
+  static getDerivedStateFromError(error: any): Partial<UIErrorBoundaryState> {
+    return { didCatch: true, error }
   }
 
   static getDerivedStateFromProps(
-    props: NotFoundErrorBoundaryProps,
-    state: NotFoundErrorBoundaryState
-  ): NotFoundErrorBoundaryState | null {
+    props: UIErrorBoundaryProps,
+    state: UIErrorBoundaryState
+  ): UIErrorBoundaryState | null {
     /**
      * Handles reset of the error boundary when a navigation happens.
      * Ensures the error boundary does not stay enabled when navigating to a new page.
      * Approach of setState in render is safe as it checks the previous pathname and then overrides
      * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.notFoundTriggered) {
+
+    if (props.pathname !== state.previousPathname && state.didCatch) {
       return {
-        notFoundTriggered: false,
+        didCatch: false,
         previousPathname: props.pathname,
       }
     }
     return {
-      notFoundTriggered: state.notFoundTriggered,
+      didCatch: state.didCatch,
       previousPathname: props.pathname,
     }
   }
 
   render() {
-    if (this.state.notFoundTriggered) {
+    if (this.state.didCatch) {
+      if (!this.props.forceTrigger && !this.props.matcher(this.state.error)) {
+        throw this.state.error
+      }
       return (
         <>
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content="not-found" />
+            <meta name="next-error" content={this.props.nextError} />
           )}
-          {this.props.notFoundStyles}
-          {this.props.notFound}
+          {this.props.uiComponentStyles}
+          {this.props.uiComponent}
         </>
       )
     }
@@ -108,24 +107,27 @@ class NotFoundErrorBoundary extends React.Component<
   }
 }
 
-export function NotFoundBoundary({
-  notFound,
-  notFoundStyles,
-  asNotFound,
+export type UIErrorBoundaryWrapperProps = Omit<
+  UIErrorBoundaryProps,
+  'pathname' | 'missingSlots'
+>
+
+export function UIErrorBoundaryWrapper({
+  uiComponent,
   children,
-}: NotFoundBoundaryProps) {
+  ...rest
+}: UIErrorBoundaryWrapperProps) {
   const pathname = usePathname()
   const missingSlots = useContext(MissingSlotContext)
-  return notFound ? (
-    <NotFoundErrorBoundary
+  return uiComponent ? (
+    <UIErrorBoundary
       pathname={pathname}
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
       missingSlots={missingSlots}
+      uiComponent={uiComponent}
+      {...rest}
     >
       {children}
-    </NotFoundErrorBoundary>
+    </UIErrorBoundary>
   ) : (
     <>{children}</>
   )

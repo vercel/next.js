@@ -50,6 +50,8 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub forbidden: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
@@ -66,6 +68,7 @@ impl Components {
             loading: self.loading,
             template: self.template,
             not_found: self.not_found,
+            forbidden: self.forbidden,
             default: None,
             route: None,
             metadata: self.metadata.clone(),
@@ -332,6 +335,7 @@ async fn get_directory_tree_internal(
                             "loading" => components.loading = Some(file),
                             "template" => components.template = Some(file),
                             "not-found" => components.not_found = Some(file),
+                            "forbidden" => components.forbidden = Some(file),
                             "default" => components.default = Some(file),
                             "route" => components.route = Some(file),
                             _ => {}
@@ -832,6 +836,12 @@ async fn directory_tree_to_loader_tree(
     if (is_root_directory || is_root_layout) && components.not_found.is_none() {
         components.not_found = Some(
             get_next_package(app_dir).join("dist/client/components/not-found-error.js".into()),
+        );
+    }
+
+    if (is_root_directory || is_root_layout) && components.forbidden.is_none() {
+        components.forbidden = Some(
+            get_next_package(app_dir).join("dist/client/components/forbidden-error.js".into()),
         );
     }
 

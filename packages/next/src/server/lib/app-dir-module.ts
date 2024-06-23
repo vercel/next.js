@@ -36,7 +36,7 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
 
 export async function getComponentTypeModule(
   loaderTree: LoaderTree,
-  componentType: 'layout' | 'not-found'
+  componentType: 'layout' | 'not-found' | 'forbidden'
 ) {
   const { [componentType]: component } = loaderTree[2]
   if (typeof component !== 'undefined') {
