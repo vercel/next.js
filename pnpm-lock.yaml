@@ -1168,8 +1168,8 @@ importers:
         specifier: 1.7.4
         version: 1.7.4
       conf:
-        specifier: 5.0.0
-        version: 5.0.0
+        specifier: 13.0.1
+        version: 13.0.1
       constants-browserify:
         specifier: 1.0.0
         version: 1.0.0
@@ -10248,19 +10248,6 @@ packages:
       uint8array-extras: 1.1.0
     dev: true
 
-  /conf@5.0.0:
-    resolution: {integrity: sha512-lRNyt+iRD4plYaOSVTxu1zPWpaH0EOxgFIR1l3mpC/DGZ7XzhoGFMKmbl54LAgXcSu6knqWgOwdINkqm58N85A==}
-    engines: {node: '>=8'}
-    dependencies:
-      ajv: 6.12.6
-      dot-prop: 5.3.0
-      env-paths: 2.2.0
-      json-schema-typed: 7.0.3
-      make-dir: 3.1.0
-      pkg-up: 3.1.0
-      write-file-atomic: 3.0.3
-    dev: true
-
   /config-chain@1.1.12:
     resolution: {integrity: sha512-a1eOIcu8+7lUInge4Rpf/n4Krkf3Dd9lqhljRzII1/Zno/kRtUWnznPO3jOKBmTEktkt3fkxisUcivoj0ebzoA==}
     dependencies:
@@ -12158,11 +12145,6 @@ packages:
   /entities@4.5.0:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
     engines: {node: '>=0.12'}
-    dev: true
-
-  /env-paths@2.2.0:
-    resolution: {integrity: sha512-6u0VYSCo/OW6IoD5WCLLy9JUGARbamfSavcNXry/eu8aHVFei6CD3Sw+VGX5alea1i9pgPHW0mbu6Xj0uBh7gA==}
-    engines: {node: '>=6'}
     dev: true
 
   /env-paths@2.2.1:
@@ -16933,10 +16915,6 @@ packages:
 
   /json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
-    dev: true
-
-  /json-schema-typed@7.0.3:
-    resolution: {integrity: sha512-7DE8mpG+/fVw+dTpjbxnx47TaMnDfOI1jwft9g1VybltZCduyRQPJPvc+zzKY9WPHxhPWczyFuYa6I8Mw4iU5A==}
     dev: true
 
   /json-schema-typed@8.0.1:

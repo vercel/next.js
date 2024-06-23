@@ -226,7 +226,7 @@
     "commander": "12.1.0",
     "comment-json": "3.0.3",
     "compression": "1.7.4",
-    "conf": "5.0.0",
+    "conf": "13.0.1",
     "constants-browserify": "1.0.0",
     "content-disposition": "0.5.3",
     "content-type": "1.0.4",
