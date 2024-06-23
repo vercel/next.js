@@ -545,8 +545,6 @@ async function ReactServerError({
     requestId,
   } = ctx
 
-  console.log('ReactServerError', ctx.pagePath, errorType)
-
   const [MetadataTree] = createMetadataComponents({
     tree,
     metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
