@@ -16,7 +16,7 @@ describe('Undefined default export', () => {
       '/specific-path/server'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/specific-path/server/page"'
     )
@@ -40,7 +40,7 @@ describe('Undefined default export', () => {
       '/will-not-found'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    expect(await session.assertHasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/will-not-found/not-found"'
     )
@@ -60,7 +60,7 @@ describe('Undefined default export', () => {
       'export const a = 123'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/server-with-errors/page-export/page"'
     )
@@ -80,7 +80,7 @@ describe('Undefined default export', () => {
       '/server-with-errors/page-export-initial-error'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"'
     )
