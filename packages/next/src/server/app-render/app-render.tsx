@@ -259,6 +259,17 @@ function makeGetDynamicParamFromSegment(
   }
 }
 
+function NonIndex({ ctx }: { ctx: AppRenderContext }) {
+  const is404Page = ctx.pagePath === '/404'
+  const isInvalidStatusCode =
+    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+
+  if (is404Page || isInvalidStatusCode) {
+    return <meta name="robots" content="noindex" />
+  }
+  return null
+}
+
 // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
 async function generateFlight(
   ctx: AppRenderContext,
@@ -306,8 +317,11 @@ async function generateFlight(
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
-          // Adding requestId as react key to make metadata remount for each render
-          <MetadataTree key={requestId} />
+          <>
+            <NonIndex ctx={ctx} />
+            {/* Adding requestId as react key to make metadata remount for each render */}
+            <MetadataTree key={requestId} />
+          </>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -457,9 +471,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         couldBeIntercepted={couldBeIntercepted}
         initialHead={
           <>
-            {ctx.res.statusCode > 400 && (
-              <meta name="robots" content="noindex" />
-            )}
+            <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <MetadataTree key={ctx.requestId} />
           </>
@@ -495,7 +507,6 @@ async function ReactServerError({
     },
     staticGenerationStore: { urlPathname },
     requestId,
-    res,
   } = ctx
 
   const [MetadataTree] = createMetadataComponents({
@@ -511,9 +522,9 @@ async function ReactServerError({
 
   const head = (
     <>
+      <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
-      {res.statusCode >= 400 && <meta name="robots" content="noindex" />}
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -1200,7 +1211,7 @@ async function renderToHTMLOrFlightImpl(
           res.setHeader('Location', redirectUrl)
         }
 
-        const is404 = res.statusCode === 404
+        const is404 = ctx.res.statusCode === 404
         if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
           res.statusCode = 500
         }
