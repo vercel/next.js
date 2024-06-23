@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
@@ -8,7 +8,7 @@ import path from 'path'
 async function matchLogs(browser, includes: string) {
   let found = false
 
-  const browserLogs = await browser.log('browser')
+  const browserLogs = await browser.log()
 
   browserLogs.forEach((log) => {
     if (log.message.includes(includes)) {

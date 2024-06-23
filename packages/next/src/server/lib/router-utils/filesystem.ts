@@ -37,9 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
-import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 
 export type FsOutput = {
   type:
@@ -421,12 +421,22 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      const { basePath } = opts.config
+      const { basePath, assetPrefix } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+      const hasAssetPrefix = pathHasPrefix(itemPath, assetPrefix)
+
+      // Return null if either path doesn't start with basePath or assetPrefix
+      if ((basePath || assetPrefix) && !hasBasePath && !hasAssetPrefix) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Either remove basePath or assetPrefix, not both (due to routes with same name as basePath)
+      if (basePath && hasBasePath) {
+        itemPath = removePathPrefix(itemPath, basePath) || '/'
+      } else if (assetPrefix && hasAssetPrefix) {
+        itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
+      }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
@@ -548,7 +558,7 @@ export async function setupFsCheck(opts: {
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curItemPath)
+          matchedItem = items.has(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008

@@ -1,4 +1,5 @@
 use turbo_tasks::TaskInput;
+use turbopack_binding::turbopack::{core::chunk::MinifyType, ecmascript_runtime::RuntimeType};
 
 /// The mode in which Next.js is running.
 #[turbo_tasks::value(shared)]
@@ -13,6 +14,14 @@ pub enum NextMode {
 impl NextMode {
     /// Returns the NODE_ENV value for the current mode.
     pub fn node_env(&self) -> &'static str {
+        match self {
+            NextMode::Development => "development",
+            NextMode::Build => "production",
+        }
+    }
+
+    /// Returns the exports condition for the current mode.
+    pub fn condition(&self) -> &'static str {
         match self {
             NextMode::Development => "development",
             NextMode::Build => "production",
@@ -38,6 +47,20 @@ impl NextMode {
         match self {
             NextMode::Development => false,
             NextMode::Build => true,
+        }
+    }
+
+    pub fn minify_type(&self) -> MinifyType {
+        match self {
+            NextMode::Development => MinifyType::NoMinify,
+            NextMode::Build => MinifyType::Minify,
+        }
+    }
+
+    pub fn runtime_type(&self) -> RuntimeType {
+        match self {
+            NextMode::Development => RuntimeType::Development,
+            NextMode::Build => RuntimeType::Production,
         }
     }
 }

@@ -44,14 +44,32 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
 // TODO-METADATA: support multi sitemap files
 // convert sitemap data to xml string
 export function resolveSitemap(data: MetadataRoute.Sitemap): string {
+  const hasAlternates = data.some(
+    (item) => Object.keys(item.alternates ?? {}).length > 0
+  )
+
   let content = ''
   content += '<?xml version="1.0" encoding="UTF-8"?>\n'
-  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
+  content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+  if (hasAlternates) {
+    content += ' xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+  } else {
+    content += '>\n'
+  }
   for (const item of data) {
     content += '<url>\n'
     content += `<loc>${item.url}</loc>\n`
 
+    const languages = item.alternates?.languages
+    if (languages && Object.keys(languages).length) {
+      // Since sitemap is separated from the page rendering, there's not metadataBase accessible yet.
+      // we give the default setting that won't effect the languages resolving.
+      for (const language in languages) {
+        content += `<xhtml:link rel="alternate" hreflang="${language}" href="${
+          languages[language as keyof typeof languages]
+        }" />\n`
+      }
+    }
     if (item.lastModified) {
       const serializedDate =
         item.lastModified instanceof Date

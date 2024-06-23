@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -36,24 +36,24 @@ describe('next/font/google fetch error', () => {
       const browser = await webdriver(next.url, '/')
 
       const ascentOverride = await browser.eval(
-        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).ascentOverride'
+        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).ascentOverride'
       )
-      expect(ascentOverride).toBe('90%')
+      expect(ascentOverride).toBe('90.49%')
 
       const descentOverride = await browser.eval(
-        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).descentOverride'
+        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).descentOverride'
       )
-      expect(descentOverride).toBe('22.43%')
+      expect(descentOverride).toBe('22.56%')
 
       const lineGapOverride = await browser.eval(
-        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).lineGapOverride'
+        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).lineGapOverride'
       )
       expect(lineGapOverride).toBe('0%')
 
       const sizeAdjust = await browser.eval(
-        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).sizeAdjust'
+        'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).sizeAdjust'
       )
-      expect(sizeAdjust).toBe('107.64%')
+      expect(sizeAdjust).toBe('107.06%')
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'

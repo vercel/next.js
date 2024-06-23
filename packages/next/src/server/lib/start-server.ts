@@ -17,7 +17,11 @@ import os from 'os'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
+import {
+  RESTART_EXIT_CODE,
+  getFormattedDebugAddress,
+  getNodeDebugType,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
@@ -40,7 +44,6 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
-  isExperimentalTestProxy?: boolean
 }
 
 export async function getRequestHandlers({
@@ -52,8 +55,8 @@ export async function getRequestHandlers({
   minimalMode,
   isNodeDebugging,
   keepAliveTimeout,
-  experimentalTestProxy,
   experimentalHttpsServer,
+  quiet,
 }: {
   dir: string
   port: number
@@ -63,8 +66,8 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
-  experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -75,9 +78,9 @@ export async function getRequestHandlers({
     server,
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
-    experimentalTestProxy,
     experimentalHttpsServer,
     startServerSpan,
+    quiet,
   })
 }
 
@@ -91,12 +94,11 @@ export async function startServer(
     minimalMode,
     allowRetry,
     keepAliveTimeout,
-    isExperimentalTestProxy,
     selfSignedCertificate,
   } = serverOptions
   let { port } = serverOptions
 
-  process.title = 'next-server'
+  process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -213,10 +215,10 @@ export async function startServer(
     }
   })
 
-  const nodeDebugType = checkNodeDebugType()
-
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
+      const nodeDebugType = getNodeDebugType()
+
       const addr = server.address()
       const actualHostname = formatHostname(
         typeof addr === 'object'
@@ -227,8 +229,8 @@ export async function startServer(
         !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
-          ? '[::1]'
-          : formatHostname(hostname)
+            ? '[::1]'
+            : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
@@ -238,15 +240,15 @@ export async function startServer(
       }://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
-        const debugPort = getDebugPort()
+        const formattedDebugAddress = getFormattedDebugAddress()
         Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
         )
       }
 
       // expose the main port to render workers
       process.env.PORT = port + ''
-      process.env.__NEXT_PRIVATE_HOST = `${actualHostname}:${port}`
+      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
@@ -263,6 +265,8 @@ export async function startServer(
         expFeatureInfo,
         maxExperimentalFeatures: 3,
       })
+
+      Log.event(`Starting...`)
 
       try {
         const cleanup = () => {
@@ -302,7 +306,6 @@ export async function startServer(
           minimalMode,
           isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
-          experimentalTestProxy: !!isExperimentalTestProxy,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
@@ -326,7 +329,7 @@ export async function startServer(
 
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
-            ...serverOptions,
+            dir: serverOptions.dir,
             isDev: true,
           })
         }

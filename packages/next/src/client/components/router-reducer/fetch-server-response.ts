@@ -34,7 +34,7 @@ export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined,
   postponed?: boolean,
-  intercepted?: boolean
+  intercepted?: boolean,
 ]
 
 function doMpaNavigation(url: string): FetchServerResponseResult {

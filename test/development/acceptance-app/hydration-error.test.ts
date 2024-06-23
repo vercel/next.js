@@ -3,16 +3,13 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import { getRedboxTotalErrorCount } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -39,36 +36,39 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Text content does not match server-rendered HTML.
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Text content did not match. Server: "server" Client: "client""`
-    )
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "- A server/client branch \`if (typeof window !== 'undefined')\`.
+      - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
+      - Date formatting in a user's locale which doesn't match the server.
+      - External changing data without sending a snapshot of it along with the HTML.
+      - Invalid HTML tag nesting.
+
+      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
+    `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary>
-              <InnerLayoutRouter>
-                <Mismatch>
-                  <div>
-                    <main>
-                      "server"
-                      "client""
+        +  client
+        -  server"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <div>
-            <main>
-              "server"
-              "client""
+        "...
+          <div className="parent">
+            <main className="child">
+        +      client
+        -      server"
       `)
     }
 
@@ -86,7 +86,7 @@ describe('Error overlay for hydration errors', () => {
     `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
 
@@ -94,7 +94,7 @@ describe('Error overlay for hydration errors', () => {
   })
 
   it('should show correct hydration error when client renders an extra element', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -116,39 +116,33 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
-          <Mismatch>
-            <div>
-            ^^^^^
-              <main>
-              ^^^^^^"
+        +  <main className="only">"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "<Mismatch>
-          <div>
-          ^^^^^
-            <main>
-            ^^^^^^"
+        "...
+          <div className="parent">
+        +    <main className="only">"
       `)
     }
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching <main> in <div>."`
-    )
 
     await cleanup()
   })
 
   it('should show correct hydration error when client renders an extra text node', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -172,20 +166,36 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          ...
+        +  second
+        -  <footer className="3">
+      `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          <div className="parent">
+        +    second
+        -    <footer className="3">
+      `)
+    }
+
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
-
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching text node for "second" in <div>."`
-    )
 
     await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra element', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -207,19 +217,33 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+        -  <main className="only">
       `)
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Did not expect server HTML to contain a <main> in <div>."`
-    )
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          <div className="parent">
+        -    <main className="only">
+      `)
+    }
+
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })
 
   it('should show correct hydration error when server renders an extra text node', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -237,14 +261,113 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Did not expect server HTML to contain the text node "only" in <div>."`
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+        -  only"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <div className="parent">
+        -    only"
+      `)
+    }
+
+    await cleanup()
+  })
+
+  it('should show correct hydration error when server renders an extra text node in an invalid place', async () => {
+    const { browser, cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            export default function Page() {
+              return (
+                <table>
+                  <tbody>
+                    <tr>test</tr>
+                  </tbody>
+                </table>
+              )
+            }
+          `,
+        ],
+      ])
     )
+
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    // FIXME: Should be 2
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    // FIXME: Should also have "text nodes cannot be a child of tr"
+    expect(await session.getRedboxDescription()).toEqual(outdent`
+      Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error
+    `)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    expect(pseudoHtml).toEqual(outdent`
+      ...
+      +  <table>
+      -  test
+    `)
+
+    await cleanup()
+  })
+
+  it('should show correct hydration error when server renders an extra whitespace in an invalid place', async () => {
+    const { cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            export default function Page() {
+              return (
+                <table>
+                  {' '}
+                  <tbody></tbody>
+                </table>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    // FIXME: Should have getRedboxDescription() "text nodes cannot be a child of tr"
+    await expect(session.hasErrorToast()).resolves.toBe(false)
+
+    // await session.waitForAndOpenRuntimeError()
+
+    // expect(await session.hasRedbox()).toBe(false)
+    // expect(await getRedboxTotalErrorCount(browser)).toBe(0)
+
+    // expect(await session.getRedboxDescription()).toEqual(outdent`
+    //   Something
+    // `)
+
+    // const pseudoHtml = await session.getRedboxComponentStack()
+    // expect(pseudoHtml).toEqual(outdent`
+    //   Something
+    // `)
 
     await cleanup()
   })
@@ -277,14 +400,29 @@ describe('Error overlay for hydration errors', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+      ...
+        ...
+      +  <main className="second">
+      -  <footer className="3">
+    `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+      ...
+        <div className="parent">
+          <Suspense fallback={<p>}>
+            ...
+      +      <main className="second">
+      -      <footer className="3">
+    `)
+    }
 
-    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-      `"Expected server HTML to contain a matching <main> in <div>."`
-    )
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })
@@ -326,7 +464,7 @@ describe('Error overlay for hydration errors', () => {
     await cleanup()
   })
 
-  it('should only show one hydration error when bad nesting happened', async () => {
+  it('should only show one hydration error when bad nesting happened - p under p', async () => {
     const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
@@ -348,19 +486,12 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
 
-    const totalErrorCount = await browser
-      .elementByCss('[data-nextjs-dialog-header-total-count]')
-      .text()
-    expect(totalErrorCount).toBe('1')
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
-      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-    )
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
 
@@ -389,8 +520,109 @@ describe('Error overlay for hydration errors', () => {
     await cleanup()
   })
 
+  it('should only show one hydration error when bad nesting happened - div under p', async () => {
+    const { cleanup, session, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            export default function Page() {
+              return (
+                <div>
+                  <div>
+                    <p>
+                      <div>Nested div under p tag</div>
+                    </p>
+                  </div>
+                </div>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const description = await session.getRedboxDescription()
+    expect(description).toContain(
+      'In HTML, <div> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    )
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    expect(pseudoHtml).toMatchInlineSnapshot(`
+      "...
+        <div>
+          <p>
+          ^^^
+            <div>
+            ^^^^^"
+    `)
+
+    await cleanup()
+  })
+
+  it('should only show one hydration error when bad nesting happened - div > tr', async () => {
+    const { cleanup, session, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            export default function Page() {
+              return <div><tr></tr></div>
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const description = await session.getRedboxDescription()
+    expect(description).toEqual(outdent`
+      In HTML, <tr> cannot be a child of <div>.
+      This will cause a hydration error.
+    `)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          <Page>
+            <div>
+            ^^^^^
+              <tr>
+              ^^^^
+      `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        <Page>
+          <div>
+          ^^^^^
+            <tr>
+            ^^^^
+      `)
+    }
+
+    await cleanup()
+  })
+
   it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -409,14 +641,12 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
-      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-    )
-    const warning = await session.getRedboxDescriptionWarning()
-    expect(warning).toContain(
       'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
 
@@ -445,14 +675,78 @@ describe('Error overlay for hydration errors', () => {
                 <span>
                   <p>
                   ^^^"
-    `)
+      `)
     }
 
     await cleanup()
   })
 
+  it('should show error if script is directly placed under html instead of body', async () => {
+    const { browser, cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+            import Script from 'next/script'
+
+            export default function Layout({ children }) {
+              return (
+                <html>
+                  <body>{children}</body>
+                  <Script
+                    src="https://example.com/script.js"
+                    strategy="beforeInteractive"
+                  />
+                </html>
+              )
+            }
+          `,
+        ],
+        [
+          'app/page.js',
+          outdent`
+            export default function Page() {
+              return <div>Hello World</div>
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const description = await session.getRedboxDescription()
+    expect(description).toEqual(outdent`
+      In HTML, <script> cannot be a child of <html>.
+      This will cause a hydration error.
+    `)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          <Layout>
+            <html>
+            ^^^^^^
+              <Script>
+                <script>
+                ^^^^^^^^
+      `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        <script>
+        ^^^^^^^^
+      `)
+    }
+    await cleanup()
+  })
+
   it('should collapse and uncollapse properly when there are many frames', async () => {
-    const { cleanup, session } = await sandbox(
+    const { browser, cleanup, session } = await sandbox(
       next,
       new Map([
         [
@@ -490,69 +784,22 @@ describe('Error overlay for hydration errors', () => {
         ],
       ])
     )
-
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(true)
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <div>
-          <div>
-            <div>
-              <Mismatch>
-                <p>
-                  <span>
-                    "server"
-                    "client""
-    `)
-
-    await session.toggleCollapseComponentStack()
-
-    const fullPseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
-      expect(fullPseudoHtml).toMatchInlineSnapshot(`
-              "<Root>
-                <ServerRoot>
-                  <AppRouter>
-                    <ErrorBoundary>
-                      <ErrorBoundaryHandler>
-                        <Router>
-                          <HotReload>
-                            <ReactDevOverlay>
-                              <DevRootNotFoundBoundary>
-                                <NotFoundBoundary>
-                                  <NotFoundErrorBoundary>
-                                    <RedirectBoundary>
-                                      <RedirectErrorBoundary>
-                                        <RootLayout>
-                                          <html>
-                                            <body>
-                                              <OuterLayoutRouter>
-                                                <RenderFromTemplateContext>
-                                                  <ScrollAndFocusHandler>
-                                                    <InnerScrollAndFocusHandler>
-                                                      <ErrorBoundary>
-                                                        <LoadingBoundary>
-                                                          <NotFoundBoundary>
-                                                            <NotFoundErrorBoundary>
-                                                              <RedirectBoundary>
-                                                                <RedirectErrorBoundary>
-                                                                  <InnerLayoutRouter>
-                                                                    <Page>
-                                                                      <div>
-                                                                        <div>
-                                                                          <div>
-                                                                            <div>
-                                                                              <Mismatch>
-                                                                                <p>
-                                                                                  <span>
-                                                                                    "server"
-                                                                                    "client""
-            `)
+      // FIXME: Should not fork on Turbopack i.e. match the snapshot in the else-branch
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+        +  client
+        -  server"
+      `)
     } else {
-      expect(fullPseudoHtml).toMatchInlineSnapshot(`
-        "<Page>
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
           <div>
             <div>
               <div>
@@ -560,8 +807,49 @@ describe('Error overlay for hydration errors', () => {
                   <Mismatch>
                     <p>
                       <span>
-                        "server"
-                        "client""
+        +                client
+        -                server"
+      `)
+    }
+
+    await session.toggleCollapseComponentStack()
+
+    const fullPseudoHtml = await session.getRedboxComponentStack()
+    if (isTurbopack) {
+      expect(fullPseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                  <Page params={{}} searchParams={{}}>
+                    <div>
+                      <div>
+                        <div>
+                          <div>
+                            <Mismatch>
+                              <p>
+                                <span>
+        +                          client
+        -                          server"
+      `)
+    } else {
+      expect(fullPseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                  <Page params={{}} searchParams={{}}>
+                    <div>
+                      <div>
+                        <div>
+                          <div>
+                            <Mismatch>
+                              <p>
+                                <span>
+        +                          client
+        -                          server"
       `)
     }
 

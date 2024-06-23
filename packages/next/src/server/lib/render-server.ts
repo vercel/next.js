@@ -87,6 +87,7 @@ async function initializeImpl(opts: {
   _ipcKey?: string
   bundlerService: DevBundlerService | undefined
   startServerSpan: Span | undefined
+  quiet?: boolean
 }) {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {

@@ -1,7 +1,10 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  type MiddlewareMatcher,
+} from '../../../build/analysis/get-page-static-info'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
@@ -74,7 +77,11 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
-import type { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { ModuleBuildError } from '../../dev/turbopack-utils'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -127,8 +134,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
-class ModuleBuildError extends Error {}
-
 export async function propagateServerField(
   opts: SetupOpts,
   field: PropagateToWorkersField,
@@ -162,6 +167,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir: distDir,
         config: opts.nextConfig,
         buildId: 'development',
+        encryptionKey: await generateEncryptionKeyBase64(),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
@@ -396,6 +402,32 @@ async function startWatcher(opts: SetupOpts) {
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
+        if (isAppPath && isMetadataRoute(pageName)) {
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: {},
+            page: pageName,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+
+          pageName = normalizeMetadataPageToRoute(
+            pageName,
+            !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
+          )
+
+          // pageName = pageName.slice(0, -'/route'.length)
+          // if (pageName.endsWith('/sitemap')) {
+
+          //   if (staticInfo.generateSitemaps) {
+          //     pageName = `${pageName}/[__metadata_id__]`
+          //   } else {
+          //     pageName = `${pageName}.xml`
+          //   }
+          // }
+          // pageName = `${pageName}/route`
+        }
+
         if (
           !isAppPath &&
           pageName.startsWith('/api/') &&
@@ -553,15 +585,15 @@ async function startWatcher(opts: SetupOpts) {
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
-              fetchCacheKeyPrefix: undefined,
+              fetchCacheKeyPrefix:
+                opts.nextConfig.experimental.fetchCacheKeyPrefix,
               hasRewrites,
+              // TODO: Implement
               middlewareMatchers: undefined,
-              previewModeId: undefined,
             }),
           })
         }
@@ -625,19 +657,18 @@ async function startWatcher(opts: SetupOpts) {
               ) {
                 const newDefine = getDefineEnv({
                   isTurbopack: false,
-                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
                   dev: true,
                   distDir,
-                  fetchCacheKeyPrefix: undefined,
+                  fetchCacheKeyPrefix:
+                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
                   hasRewrites,
                   isClient,
                   isEdgeServer,
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
-                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
@@ -929,20 +960,15 @@ async function startWatcher(opts: SetupOpts) {
 
             try {
               originalFrame = await createOriginalStackFrame({
-                line: frame.lineNumber,
-                column: frame.column,
                 source,
                 frame,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
                 errorMessage: err.message,
-                serverCompilation: isEdgeCompiler
-                  ? undefined
-                  : hotReloader.serverStats?.compilation,
-                edgeCompilation: isEdgeCompiler
+                compilation: isEdgeCompiler
                   ? hotReloader.edgeServerStats?.compilation
-                  : undefined,
+                  : hotReloader.serverStats?.compilation,
               })
             } catch {}
           }
@@ -976,15 +1002,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            if (type === 'warning') {
-              Log.warn(errorToLog)
-            } else if (type === 'app-dir') {
-              logAppDirError(errorToLog)
-            } else if (type) {
-              Log.error(`${type}:`, errorToLog)
-            } else {
-              Log.error(errorToLog)
-            }
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -997,17 +1015,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
-        Log.warn(err)
-      } else if (type === 'app-dir') {
-        logAppDirError(err)
-      } else if (type) {
-        Log.error(`${type}:`, err)
-      } else {
-        Log.error(err)
-      }
+      logError(err, type)
     }
   }
 
@@ -1026,6 +1034,23 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    Log.error(err.message)
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 

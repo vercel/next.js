@@ -1,7 +1,7 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { Revalidate } from '../lib/revalidate'
-import type { RouteKind } from '../../server/future/route-kind'
+import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
   get(
@@ -17,6 +17,8 @@ export interface ResponseCacheBase {
        * provided it will test the filesystem to check.
        */
       routeKind?: RouteKind
+
+      isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
 }
@@ -40,12 +42,22 @@ export interface CachedRedirectValue {
   props: Object
 }
 
-interface CachedPageValue {
+export interface CachedAppPageValue {
+  kind: 'APP_PAGE'
+  // this needs to be a RenderResult so since renderResponse
+  // expects that type instead of a string
+  html: RenderResult
+  rscData: Buffer | undefined
+  status: number | undefined
+  postponed: string | undefined
+  headers: OutgoingHttpHeaders | undefined
+}
+
+export interface CachedPageValue {
   kind: 'PAGE'
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
-  postponed: string | undefined
   pageData: Object
   status: number | undefined
   headers: OutgoingHttpHeaders | undefined
@@ -69,21 +81,31 @@ export interface CachedImageValue {
   isStale?: boolean
 }
 
-interface IncrementalCachedPageValue {
+export interface IncrementalCachedAppPageValue {
+  kind: 'APP_PAGE'
+  // this needs to be a string since the cache expects to store
+  // the string value
+  html: string
+  rscData: Buffer | undefined
+  headers: OutgoingHttpHeaders | undefined
+  postponed: string | undefined
+  status: number | undefined
+}
+
+export interface IncrementalCachedPageValue {
   kind: 'PAGE'
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
   pageData: Object
-  postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
   status: number | undefined
 }
 
 export type IncrementalCacheEntry = {
-  curRevalidate?: number | false
+  curRevalidate?: Revalidate
   // milliseconds to revalidate after
-  revalidateAfter: number | false
+  revalidateAfter: Revalidate
   // -1 here dictates a blocking revalidate should be used
   isStale?: boolean | -1
   value: IncrementalCacheValue | null
@@ -92,6 +114,7 @@ export type IncrementalCacheEntry = {
 export type IncrementalCacheValue =
   | CachedRedirectValue
   | IncrementalCachedPageValue
+  | IncrementalCachedAppPageValue
   | CachedImageValue
   | CachedFetchValue
   | CachedRouteValue
@@ -99,6 +122,7 @@ export type IncrementalCacheValue =
 export type ResponseCacheValue =
   | CachedRedirectValue
   | CachedPageValue
+  | CachedAppPageValue
   | CachedImageValue
   | CachedRouteValue
 
@@ -139,11 +163,16 @@ export interface IncrementalCache {
        * determine the kind from the filesystem.
        */
       kindHint?: IncrementalCacheKindHint
+
+      isRoutePPREnabled?: boolean
     }
   ) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: Revalidate }
+    ctx: {
+      revalidate: Revalidate
+      isRoutePPREnabled?: boolean
+    }
   ) => Promise<void>
 }

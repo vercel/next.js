@@ -4,7 +4,7 @@ import os from 'os'
 import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { File, nextBuild, nextLint } from 'next-test-utils'
+import { nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -21,17 +21,9 @@ const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
-const dirInvalidOlderEslintVersion = join(
-  __dirname,
-  '../invalid-eslint-version'
-)
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
-const dirEslintIgnore = join(__dirname, '../eslint-ignore')
-const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
-const dirEslintCache = join(__dirname, '../eslint-cache')
-const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
@@ -209,6 +201,42 @@ describe('Next Lint', () => {
     expect(output).toContain(
       'Error: Comments inside children section of tag should be placed inside braces'
     )
+  })
+
+  test('verify options name and type with auto-generated help output', async () => {
+    const options = [
+      '-d, --dir, <dirs...>',
+      '--file, <files...>',
+      '--ext, [exts...]',
+      '-c, --config, <config>',
+      '--resolve-plugins-relative-to, <rprt>',
+      '--strict',
+      '--rulesdir, <rulesdir...>',
+      '--fix',
+      '--fix-type <fixType>',
+      '--ignore-path <path>',
+      '--no-ignore',
+      '--quiet',
+      '--max-warnings [maxWarnings]',
+      '-o, --output-file, <outputFile>',
+      '-f, --format, <format>',
+      '--no-inline-config',
+      '--report-unused-disable-directives-severity <level>',
+      '--no-cache',
+      '--cache-location, <cacheLocation>',
+      '--cache-strategy, [cacheStrategy]',
+      '--error-on-unmatched-pattern',
+    ]
+    const { stdout, stderr } = await nextLint(dirNoConfig, ['-h'], {
+      stdout: true,
+      stderr: true,
+    })
+
+    const output = stdout + stderr
+
+    for (let option of options) {
+      expect(output).toContain(option)
+    }
   })
 
   test('base directories are linted by default', async () => {
@@ -458,7 +486,7 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -510,7 +538,7 @@ describe('Next Lint', () => {
     }
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "compact" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.txt`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,

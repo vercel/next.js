@@ -83,12 +83,12 @@ async function exportPageImpl(
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
-    // TODO: use this when we've re-enabled app prefetching https://github.com/vercel/next.js/pull/58609
-    // // Check if this is an `app/` prefix request.
-    // _isAppPrefetch: isAppPrefetch = false,
-
     // Check if this should error when dynamic usage is detected.
     _isDynamicError: isDynamicError = false,
+
+    // If this page supports partial prerendering, then we need to pass that to
+    // the renderOpts.
+    _isRoutePPREnabled: isRoutePPREnabled,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -231,8 +231,6 @@ async function exportPageImpl(
             distDir,
             dir,
             enabledDirectories,
-            // PPR is not available for Pages.
-            experimental: { ppr: false },
             // skip writing to disk in minimal mode for now, pending some
             // changes to better support it
             flushToDisk: !hasNextSupport,
@@ -249,7 +247,8 @@ async function exportPageImpl(
         incrementalCache,
         distDir,
         htmlFilepath,
-        fileWriter
+        fileWriter,
+        input.renderOpts.experimental
       )
     }
 
@@ -269,8 +268,13 @@ async function exportPageImpl(
       disableOptimizedLoading,
       fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
-      supportsDynamicHTML: false,
-      originalPathname: page,
+      supportsDynamicResponse: false,
+      experimental: {
+        ...input.renderOpts.experimental,
+        isRoutePPREnabled,
+      },
+      waitUntil: undefined,
+      onClose: undefined,
     }
 
     if (hasNextSupport) {

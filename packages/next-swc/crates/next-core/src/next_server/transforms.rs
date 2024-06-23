@@ -14,8 +14,11 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
+        next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
+        next_page_static_info::get_next_page_static_info_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
+    util::NextRuntime,
 };
 
 /// Returns a list of module rules which apply server-side, Next.js-specific
@@ -25,11 +28,12 @@ pub async fn get_next_server_transforms_rules(
     context_ty: ServerContextType,
     mode: Vc<NextMode>,
     foreign_code: bool,
+    next_runtime: NextRuntime,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
-    let mdx_rs = *next_config.mdx_rs().await?;
+    let mdx_rs = next_config.mdx_rs().await?.is_some();
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
@@ -38,7 +42,17 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
 
-    let (is_server_components, pages_dir) = match context_ty {
+    if !foreign_code {
+        rules.push(get_next_page_static_info_assert_rule(
+            mdx_rs,
+            Some(context_ty),
+            None,
+        ));
+    }
+
+    let mut is_app_dir = false;
+
+    let is_server_components = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
                 rules.push(get_next_disallow_export_all_in_page_rule(
@@ -46,7 +60,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::PagesData { pages_dir } => {
             if !foreign_code {
@@ -63,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.await?,
                 ));
             }
-            (false, Some(pages_dir))
+            false
         }
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
@@ -72,7 +86,9 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
-            (false, None)
+            is_app_dir = true;
+
+            false
         }
         ServerContextType::AppRSC {
             client_transition, ..
@@ -87,17 +103,20 @@ pub async fn get_next_server_transforms_rules(
                     client_transition,
                 ));
             }
-            (true, None)
+            is_app_dir = true;
+
+            true
         }
-        ServerContextType::AppRoute { .. } => (false, None),
-        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
-            (false, None)
+        ServerContextType::AppRoute { .. } => {
+            is_app_dir = true;
+            false
         }
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
     };
 
     if !foreign_code {
         rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, pages_dir, mode, mdx_rs)
+            get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
                 .await?,
         );
 
@@ -111,6 +130,10 @@ pub async fn get_next_server_transforms_rules(
         // optimize_use_state))
 
         rules.push(get_next_image_rule());
+
+        if let NextRuntime::Edge = next_runtime {
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+        }
     }
 
     Ok(rules)

@@ -45,7 +45,7 @@ function runTests(url: string) {
 }
 
 describe('Image Loader Config', () => {
-  describe('dev mode - component', () => {
+  describe('development mode - component', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -55,7 +55,7 @@ describe('Image Loader Config', () => {
     })
     runTests('/')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode - component',
     () => {
       beforeAll(async () => {
@@ -69,7 +69,7 @@ describe('Image Loader Config', () => {
       runTests('/')
     }
   )
-  describe('dev mode - getImageProps', () => {
+  describe('development mode - getImageProps', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -79,7 +79,7 @@ describe('Image Loader Config', () => {
     })
     runTests('/get-img-props')
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode - getImageProps',
     () => {
       beforeAll(async () => {

@@ -21,7 +21,7 @@ export = defineRule({
           return
         }
 
-        const paths = context.getFilename().split('pages')
+        const paths = context.filename.split('pages')
         const page = paths[paths.length - 1]
 
         if (

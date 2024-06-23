@@ -765,12 +765,23 @@ export default class Router implements BaseRouter {
       const { BloomFilter } =
         require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
 
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+      type Filter = ReturnType<
+        import('../../lib/bloom-filter').BloomFilter['export']
+      >
 
-      const dynamicFilterData: typeof staticFilterData = process.env
+      const routerFilterSValue: Filter | false = process.env
+        .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const staticFilterData: Filter | undefined = routerFilterSValue
+        ? routerFilterSValue
+        : undefined
+
+      const routerFilterDValue: Filter | false = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      const dynamicFilterData: Filter | undefined = routerFilterDValue
+        ? routerFilterDValue
+        : undefined
 
       if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
@@ -1867,9 +1878,8 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      const { page: Component, styleSheets } =
+        await this.fetchComponent('/_error')
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,

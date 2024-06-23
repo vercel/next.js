@@ -44,9 +44,9 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_fs",
   "__turbo_tasks_hash",
   "__turbopack",
-  "__turbopack_build",
+  "__turbopack_nodejs",
   "__turbopack_core",
-  "__turbopack_dev",
+  "__turbopack_browser",
   "__turbopack_ecmascript",
   "__turbopack_ecmascript_plugin",
   "__turbopack_ecmascript_runtime",
@@ -55,6 +55,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_image",
   "__turbopack_node",
   "__turbopack_trace_utils",
+  "__turbopack_trace_server",
 ] }
 
 turbo-tasks = { workspace = true }
@@ -74,5 +75,5 @@ image-avif = ["turbopack-binding/__turbopack_image_avif"]
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
   "turbopack-binding/__turbo_tasks_fs_dynamic_embed_contents",
-  "turbopack-binding/__turbopack_dev_dynamic_embed_contents",
+  "turbopack-binding/__turbopack_browser_dynamic_embed_contents",
 ]

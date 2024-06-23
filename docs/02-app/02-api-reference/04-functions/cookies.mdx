@@ -52,8 +52,8 @@ A method that takes a cookie name and returns a `boolean` based on if the cookie
 import { cookies } from 'next/headers'
 
 export default function Page() {
-  const cookiesList = cookies()
-  const hasCookie = cookiesList.has('theme')
+  const cookieStore = cookies()
+  const hasCookie = cookieStore.has('theme')
   return '...'
 }
 ```
@@ -121,7 +121,7 @@ async function delete(data) {
 
 ### `cookies().set(name, value, { maxAge: 0 })`
 
-Setting `maxAge` to 0 will immediately expire a cookie.
+Setting `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a value in seconds.
 
 ```js filename="app/actions.js"
 'use server'
@@ -143,7 +143,7 @@ Setting `expires` to any value in the past will immediately expire a cookie.
 import { cookies } from 'next/headers'
 
 async function delete(data) {
-  const oneDay = 24 * 60 * 60 * 1000
+  const oneDay = 24 * 60 * 60
   cookies().set('name', 'value', { expires: Date.now() - oneDay })
 }
 ```

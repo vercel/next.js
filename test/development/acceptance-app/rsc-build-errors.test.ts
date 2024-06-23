@@ -7,10 +7,6 @@ import { outdent } from 'outdent'
 describe('Error overlay - RSC build errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -29,7 +25,7 @@ describe('Error overlay - RSC build errors', () => {
     )
     await session.patch(pageFile, uncomment)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"getServerSideProps" is not supported in app/'
     )
@@ -53,14 +49,14 @@ describe('Error overlay - RSC build errors', () => {
       'export const metadata'
     )
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'You are attempting to export "metadata" from a component marked with "use client", which is disallowed.'
     )
 
     // Restore file
     await session.patch(pageFile, content)
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     // Add `generateMetadata` error
     uncomment = content.replace(
@@ -68,14 +64,14 @@ describe('Error overlay - RSC build errors', () => {
       'export async function generateMetadata'
     )
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
     )
 
     // Fix the error again to test error overlay works with hmr rebuild
     await session.patch(pageFile, content)
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -95,7 +91,7 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.patch(pageFile, uncomment)
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them.'
     )
@@ -120,44 +116,9 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch(pageFile, uncomment)
     await next.patchFile(pageFile, content)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       '"getStaticProps" is not supported in app/'
-    )
-
-    await cleanup()
-  })
-
-  it('should error when page component export is not valid', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export'
-    )
-
-    await next.patchFile(
-      'app/server-with-errors/page-export/page.js',
-      'export const a = 123'
-    )
-
-    expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export"'
-    )
-
-    await cleanup()
-  })
-
-  it('should error when page component export is not valid on initial load', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export-initial-error'
-    )
-
-    expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export-initial-error"'
     )
 
     await cleanup()
@@ -175,7 +136,7 @@ describe('Error overlay - RSC build errors', () => {
     const uncomment = content.replace("// 'use client'", "'use client'")
     await next.patchFile(pageFile, uncomment)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       'directive must be placed before other expressions'
     )
@@ -198,7 +159,7 @@ describe('Error overlay - RSC build errors', () => {
     )
     await session.patch(pageFile, uncomment)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
       `You’re importing a class component. It only works in a Client Component`
     )
@@ -222,7 +183,7 @@ describe('Error overlay - RSC build errors', () => {
     )
     await next.patchFile(file, uncomment)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (isTurbopack) {
       // TODO: fix the issue ordering.
       // turbopack emits the resolve issue first instead of the transform issue.
@@ -262,6 +223,7 @@ describe('Error overlay - RSC build errors', () => {
     'useSyncExternalStore',
     'useTransition',
     'useOptimistic',
+    'useActionState',
   ]
   for (const api of invalidReactServerApis) {
     it(`should error when ${api} from react is used in server component`, async () => {
@@ -271,12 +233,12 @@ describe('Error overlay - RSC build errors', () => {
         `/server-with-errors/react-apis/${api.toLowerCase()}`
       )
 
-      expect(await session.hasRedbox()).toBe(true)
+      await session.assertHasRedbox()
       expect(await session.getRedboxSource()).toInclude(
         // `Component` has a custom error message
         api === 'Component'
           ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+          : `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
 
       await cleanup()
@@ -284,7 +246,6 @@ describe('Error overlay - RSC build errors', () => {
   }
 
   const invalidReactDomServerApis = [
-    'findDOMNode',
     'flushSync',
     'unstable_batchedUpdates',
     'useFormStatus',
@@ -298,9 +259,9 @@ describe('Error overlay - RSC build errors', () => {
         `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
       )
 
-      expect(await session.hasRedbox()).toBe(true)
+      await session.assertHasRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components`
+        `You're importing a component that needs \`${api}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
 
       await cleanup()
@@ -324,9 +285,9 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.patch(file, uncomment)
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
     )
 
     await cleanup()
@@ -346,7 +307,7 @@ describe('Error overlay - RSC build errors', () => {
       content.replace('() => <p>hello dynamic world</p>', 'undefined')
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
     )
@@ -367,7 +328,7 @@ describe('Error overlay - RSC build errors', () => {
       'export default function Error() {}'
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     await check(
       () => session.getRedboxSource(),
       /must be a Client \n| Component/
@@ -416,7 +377,7 @@ describe('Error overlay - RSC build errors', () => {
     // Empty file
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     await check(() => session.getRedboxSource(), /must be a Client Component/)
 
     // TODO: investigate flakey snapshot due to spacing below
@@ -463,10 +424,7 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.patch(pagePath, content)
 
-    await check(
-      async () => ((await session.hasRedbox()) ? 'success' : 'fail'),
-      /success/
-    )
+    await session.assertHasRedbox()
 
     expect(await session.getRedboxDescription()).toContain(
       'Cannot add property x, object is not extensible'

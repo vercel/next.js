@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import Loadable from './lazy-dynamic/loadable'
 
 import type {
@@ -19,6 +19,7 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
   loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
   loader?: Loader<P>
   loadableGenerated?: LoadableGeneratedOptions
+  modules?: string[]
   ssr?: boolean
 }
 
@@ -34,7 +35,7 @@ export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>
 ): React.ComponentType<P> {
-  const loadableOptions: LoadableOptions<P> = {
+  let loadableOptions: LoadableOptions<P> = {
     // A loading component is not required, so we default it
     loading: ({ error, isLoading, pastDelay }) => {
       if (!pastDelay) return null
@@ -60,5 +61,13 @@ export default function dynamic<P = {}>(
     loadableOptions.loader = dynamicOptions
   }
 
-  return Loadable({ ...loadableOptions, ...options })
+  const mergedOptions = {
+    ...loadableOptions,
+    ...options,
+  }
+
+  return Loadable({
+    ...mergedOptions,
+    modules: mergedOptions.loadableGenerated?.modules,
+  })
 }

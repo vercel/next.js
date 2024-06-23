@@ -30,7 +30,6 @@ export type Feature =
   | 'next/font/google'
   | 'next/font/local'
   | 'swcLoader'
-  | 'swcMinify'
   | 'swcRelay'
   | 'swcStyledComponents'
   | 'swcReactRemoveProperties'
@@ -83,7 +82,6 @@ const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
 // List of build features used in webpack configuration
 const BUILD_FEATURES: Array<Feature> = [
   'swcLoader',
-  'swcMinify',
   'swcRelay',
   'swcStyledComponents',
   'swcReactRemoveProperties',

@@ -22,7 +22,7 @@ let appPort
 
 const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
-  // Don't skip the test case for dev mode (strict mode) once refactoring is finished
+  // Don't skip the test case for development mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
     let browser
     try {
@@ -61,7 +61,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('#onload-div')
       await waitFor(1000)
 
-      const logs = await browser.log('browser')
+      const logs = await browser.log()
       const filteredLogs = logs.filter(
         (log) =>
           !log.message.includes('Failed to load resource') &&
@@ -114,9 +114,18 @@ const runTests = (isDev) => {
       expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
-      expect(
-        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-      ).toBeGreaterThan(0)
+      if (process.env.TURBOPACK) {
+        // Turbopack generates different script names
+        expect(
+          $(
+            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+          ).length
+        ).toBeGreaterThan(0)
+      } else {
+        expect(
+          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+        ).toBeGreaterThan(0)
+      }
     }
 
     test('scriptBeforeInteractive')
@@ -135,9 +144,18 @@ const runTests = (isDev) => {
       expect(script.attr('data-nscript')).toBeDefined()
 
       // Script is inserted before NextScripts
-      expect(
-        $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
-      ).toBeGreaterThan(0)
+      if (process.env.TURBOPACK) {
+        // Turbopack generates different script names
+        expect(
+          $(
+            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+          ).length
+        ).toBeGreaterThan(0)
+      } else {
+        expect(
+          $(`#${id} ~ script[src^="/_next/static/chunks/main"]`).length
+        ).toBeGreaterThan(0)
+      }
     }
 
     test('scriptBeforePageRenderOld')
@@ -315,23 +333,26 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
 
-      const app = nextServer({
-        dir: appDir,
-        dev: false,
-        quiet: true,
+        const app = nextServer({
+          dir: appDir,
+          dev: false,
+          quiet: true,
+        })
+
+        server = await startApp(app)
+        appPort = server.address().port
+      })
+      afterAll(async () => {
+        await stopApp(server)
       })
 
-      server = await startApp(app)
-      appPort = server.address().port
-    })
-    afterAll(async () => {
-      await stopApp(server)
-    })
-
-    runTests(false)
-  })
+      runTests(false)
+    }
+  )
 })

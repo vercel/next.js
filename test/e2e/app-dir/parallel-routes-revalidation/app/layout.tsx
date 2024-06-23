@@ -11,6 +11,9 @@ export default function Root({
 }) {
   return (
     <html>
+      <head>
+        <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+      </head>
       <body>
         {children}
         {dialog}

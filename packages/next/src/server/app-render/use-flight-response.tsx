@@ -2,12 +2,14 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
+const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
 const encoder = new TextEncoder()
@@ -18,7 +20,7 @@ const encoder = new TextEncoder()
  */
 export function useFlightStream<T>(
   flightStream: BinaryStreamOf<T>,
-  clientReferenceManifest: ClientReferenceManifest,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   nonce?: string
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
@@ -95,10 +97,8 @@ export function createInlinedDataReadableStream(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  const decoderOptions = { stream: true }
-
   const flightReader = flightStream.getReader()
+  const decoder = new TextDecoder('utf-8', { fatal: true })
 
   const readable = new ReadableStream({
     type: 'bytes',
@@ -113,15 +113,26 @@ export function createInlinedDataReadableStream(
     async pull(controller) {
       try {
         const { done, value } = await flightReader.read()
-        if (done) {
-          const tail = decoder.decode(value, { stream: false })
-          if (tail.length) {
-            writeFlightDataInstruction(controller, startScriptTag, tail)
+
+        if (value) {
+          try {
+            const decodedString = decoder.decode(value, { stream: !done })
+
+            // The chunk cannot be decoded as valid UTF-8 string as it might
+            // have arbitrary binary data.
+            writeFlightDataInstruction(
+              controller,
+              startScriptTag,
+              decodedString
+            )
+          } catch {
+            // The chunk cannot be decoded as valid UTF-8 string.
+            writeFlightDataInstruction(controller, startScriptTag, value)
           }
+        }
+
+        if (done) {
           controller.close()
-        } else {
-          const chunkAsString = decoder.decode(value, decoderOptions)
-          writeFlightDataInstruction(controller, startScriptTag, chunkAsString)
         }
       } catch (error) {
         // There was a problem in the upstream reader or during decoding or enqueuing
@@ -153,13 +164,28 @@ function writeInitialInstructions(
 function writeFlightDataInstruction(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
-  chunkAsString: string
+  chunk: string | Uint8Array
 ) {
+  let htmlInlinedData: string
+
+  if (typeof chunk === 'string') {
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
+    )
+  } else {
+    // The chunk cannot be embedded as a UTF-8 string in the script tag.
+    // Instead let's inline it in base64.
+    // Credits to Devon Govett (devongovett) for the technique.
+    // https://github.com/devongovett/rsc-html-stream
+    const base64 = btoa(String.fromCodePoint(...chunk))
+    htmlInlinedData = htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+    )
+  }
+
   controller.enqueue(
     encoder.encode(
-      `${scriptStart}self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
-      )})</script>`
+      `${scriptStart}self.__next_f.push(${htmlInlinedData})</script>`
     )
   )
 }

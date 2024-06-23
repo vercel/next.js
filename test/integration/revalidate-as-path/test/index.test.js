@@ -70,22 +70,25 @@ const runTests = () => {
 }
 
 describe('Revalidate asPath Normalizing', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      await nextBuild(appDir)
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        await nextBuild(appDir)
 
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
 
-      app = await nextStart(appDir, appPort, {
-        onStdout(msg) {
-          console.log('got stdout', msg)
-          stdout += msg || ''
-        },
+        app = await nextStart(appDir, appPort, {
+          onStdout(msg) {
+            console.log('got stdout', msg)
+            stdout += msg || ''
+          },
+        })
       })
-    })
-    afterAll(() => killApp(app))
-    runTests()
-  })
+      afterAll(() => killApp(app))
+      runTests()
+    }
+  )
 })

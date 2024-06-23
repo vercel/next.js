@@ -38,6 +38,7 @@ export interface Mutable {
   hashFragment?: string
   shouldScroll?: boolean
   preserveCustomHistoryState?: boolean
+  onlyHashChange?: boolean
 }
 
 export interface ServerActionMutable extends Mutable {

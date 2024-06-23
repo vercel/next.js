@@ -6,7 +6,7 @@ import type {
   ResponseCacheBase,
   IncrementalCacheKindHint,
 } from './types'
-import { RouteKind } from '../future/route-kind'
+import { RouteKind } from '../route-kind'
 
 import { Batcher } from '../../lib/batcher'
 import { scheduleOnNextTick } from '../../lib/scheduler'
@@ -53,6 +53,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
+      isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
@@ -89,7 +90,10 @@ export default class ResponseCache implements ResponseCacheBase {
         let cachedResponse: IncrementalCacheItem = null
         try {
           cachedResponse = !this.minimalMode
-            ? await incrementalCache.get(key, { kindHint })
+            ? await incrementalCache.get(key, {
+                kindHint,
+                isRoutePPREnabled: context.isRoutePPREnabled,
+              })
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
@@ -153,6 +157,7 @@ export default class ResponseCache implements ResponseCacheBase {
             } else {
               await incrementalCache.set(key, resolveValue.value, {
                 revalidate: resolveValue.revalidate,
+                isRoutePPREnabled: context.isRoutePPREnabled,
               })
             }
           }
@@ -167,6 +172,7 @@ export default class ResponseCache implements ResponseCacheBase {
                 Math.max(cachedResponse.revalidate || 3, 3),
                 30
               ),
+              isRoutePPREnabled: context.isRoutePPREnabled,
             })
           }
 
