@@ -43,10 +43,6 @@ describe('Switchable runtime', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
-      dependencies: {
-        react: '19.0.0-rc-f994737d14-20240522',
-        'react-dom': '19.0.0-rc-f994737d14-20240522',
-      },
     })
     context = {
       appPort: next.url,

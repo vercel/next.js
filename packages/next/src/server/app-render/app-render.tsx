@@ -12,7 +12,7 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -42,9 +42,12 @@ import {
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
-import { createMetadataComponents } from '../../lib/metadata/metadata'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
+import {
+  createMetadataComponents,
+  createMetadataContext,
+} from '../../lib/metadata/metadata'
+import { withRequestStore } from '../async-storage/with-request-store'
+import { withStaticGenerationStore } from '../async-storage/with-static-generation-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -67,7 +70,6 @@ import {
 import { getSegmentParam } from './get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
-import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
@@ -99,7 +101,7 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -113,6 +115,7 @@ import {
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
+import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -316,7 +319,7 @@ async function generateFlight(
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    staticGenerationStore: { urlPathname },
+    requestStore: { url },
     query,
     requestId,
     flightRouterState,
@@ -325,9 +328,8 @@ async function generateFlight(
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
-      pathname: urlPathname,
-      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
+      metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
@@ -398,7 +400,7 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   // Generate the flight data and as soon as it can, convert it into a string.
   const promise = generateFlight(ctx)
     .then(async (result) => ({
-      flightData: await result.toUnchunkedString(true),
+      flightData: await result.toUnchunkedBuffer(true),
     }))
     // Otherwise if it errored, return the error.
     .catch((err) => ({ err }))
@@ -439,7 +441,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
       GlobalError,
       createDynamicallyTrackedSearchParams,
     },
-    staticGenerationStore: { urlPathname },
+    requestStore: { url },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -450,9 +452,8 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
+    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
@@ -481,33 +482,31 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
   return (
-    <>
-      {styles}
-      <AppRouter
-        buildId={ctx.renderOpts.buildId}
-        assetPrefix={ctx.assetPrefix}
-        initialCanonicalUrl={urlPathname}
-        // This is the router state tree.
-        initialTree={initialTree}
-        // This is the tree of React nodes that are seeded into the cache
-        initialSeedData={seedData}
-        couldBeIntercepted={couldBeIntercepted}
-        initialHead={
-          <>
-            {typeof ctx.res.statusCode === 'number' &&
-              ctx.res.statusCode > 400 && (
-                <meta name="robots" content="noindex" />
-              )}
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={ctx.requestId} />
-          </>
-        }
-        globalErrorComponent={GlobalError}
-        // This is used to provide debug information (when in development mode)
-        // about which slots were not filled by page components while creating the component tree.
-        missingSlots={missingSlots}
-      />
-    </>
+    <AppRouter
+      buildId={ctx.renderOpts.buildId}
+      assetPrefix={ctx.assetPrefix}
+      initialCanonicalUrl={url.pathname + url.search}
+      // This is the router state tree.
+      initialTree={initialTree}
+      // This is the tree of React nodes that are seeded into the cache
+      initialSeedData={seedData}
+      couldBeIntercepted={couldBeIntercepted}
+      initialHead={
+        <>
+          {typeof ctx.res.statusCode === 'number' &&
+            ctx.res.statusCode > 400 && (
+              <meta name="robots" content="noindex" />
+            )}
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={ctx.requestId} />
+        </>
+      }
+      initialLayerAssets={styles}
+      globalErrorComponent={GlobalError}
+      // This is used to provide debug information (when in development mode)
+      // about which slots were not filled by page components while creating the component tree.
+      missingSlots={missingSlots}
+    />
   )
 }
 
@@ -531,15 +530,14 @@ async function ReactServerError({
       GlobalError,
       createDynamicallyTrackedSearchParams,
     },
-    staticGenerationStore: { urlPathname },
+    requestStore: { url },
     requestId,
     res,
   } = ctx
 
   const [MetadataTree] = createMetadataComponents({
     tree,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
+    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     errorType,
     query,
     getDynamicParamFromSegment,
@@ -581,9 +579,10 @@ async function ReactServerError({
     <AppRouter
       buildId={ctx.renderOpts.buildId}
       assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={urlPathname}
+      initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
+      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
@@ -643,7 +642,7 @@ async function renderToHTMLOrFlightImpl(
     ComponentMod,
     dev,
     nextFontManifest,
-    supportsDynamicHTML,
+    supportsDynamicResponse,
     serverActions,
     appDirDevErrorLogger,
     assetPrefix = '',
@@ -781,7 +780,7 @@ async function renderToHTMLOrFlightImpl(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  const generateStaticHTML = supportsDynamicResponse !== true
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
@@ -800,8 +799,9 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
+  // We read these values from the request object as, in certain cases, base-server
+  // will strip them to opt into different rendering behavior.
   const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
-
   const isPrefetchRSCRequest =
     isRSCRequest &&
     req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
@@ -1024,7 +1024,11 @@ async function renderToHTMLOrFlightImpl(
           onHeaders,
           maxHeadersLength: 600,
           nonce,
-          bootstrapScripts: [bootstrapScript],
+          // When debugging the static shell, client-side rendering should be
+          // disabled to prevent blanking out the page.
+          bootstrapScripts: renderOpts.isDebugStaticShell
+            ? []
+            : [bootstrapScript],
           formState,
         },
       })
@@ -1407,7 +1411,7 @@ async function renderToHTMLOrFlightImpl(
     ])
   }
 
-  addImplicitTags(staticGenerationStore)
+  addImplicitTags(staticGenerationStore, requestStore)
 
   if (staticGenerationStore.tags) {
     metadata.fetchTags = staticGenerationStore.tags.join(',')
@@ -1433,7 +1437,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     staticGenerationStore.prerenderState &&
     usedDynamicAPIs(staticGenerationStore.prerenderState) &&
-    staticGenerationStore.prerenderState?.isDebugSkeleton
+    staticGenerationStore.prerenderState?.isDebugDynamicAccesses
   ) {
     warn('The following dynamic usage was detected:')
     for (const access of formatDynamicAPIAccesses(
@@ -1498,17 +1502,20 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   renderOpts
 ) => {
-  // TODO: this includes query string, should it?
-  const pathname = validateURL(req.url)
+  if (!req.url) {
+    throw new Error('Invalid URL')
+  }
 
-  return RequestAsyncStorageWrapper.wrap(
+  const url = parseRelativeUrl(req.url, undefined, false)
+
+  return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
-    { req, res, renderOpts },
+    { req, url, res, renderOpts },
     (requestStore) =>
-      StaticGenerationAsyncStorageWrapper.wrap(
+      withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
-          urlPathname: pathname,
+          page: renderOpts.routeModule.definition.page,
           renderOpts,
           requestEndedState: { ended: false },
         },

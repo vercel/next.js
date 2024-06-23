@@ -17,9 +17,9 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteMatch } from './route-matches/route-match'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
+import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -59,7 +59,7 @@ import type {
   NextEnabledDirectories,
   BaseRequestHandler,
 } from './base-server'
-import BaseServer, { NoFallbackError, isRSCRequestCheck } from './base-server'
+import BaseServer, { NoFallbackError } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -81,9 +81,9 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
-import { isPagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
+import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import {
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
@@ -96,10 +96,10 @@ import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
+import { RouteModuleLoader } from './lib/module-loader/route-module-loader'
 import { loadManifest } from './load-manifest'
-import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
-import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
+import { lazyRenderAppPage } from './route-modules/app-page/module.render'
+import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -391,7 +391,6 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
-      isAppPPREnabled: this.renderOpts.experimental.isAppPPREnabled,
     })
   }
 
@@ -1122,7 +1121,7 @@ export default class NextNodeServer extends BaseServer<
         const { originalResponse } = normalizedRes
 
         const reqStart = Date.now()
-        const isMiddlewareRequest = req.headers['x-middleware-invoke']
+        const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
           // we don't log for non-route requests
@@ -1130,7 +1129,10 @@ export default class NextNodeServer extends BaseServer<
 
           if (!routeMatch || isMiddlewareRequest) return
 
-          const isRSC = isRSCRequestCheck(normalizedReq)
+          // NOTE: this is only attached after handle has started, this runs
+          // after the response has been sent, so it should have it set.
+          const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
+
           const reqEnd = Date.now()
           const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
@@ -1638,14 +1640,14 @@ export default class NextNodeServer extends BaseServer<
     res,
     parsed
   ) => {
-    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke')
 
     if (!isMiddlewareInvoke) {
       return false
     }
 
     const handleFinished = () => {
-      res.setHeader('x-middleware-invoke', '1')
+      addRequestMeta(req, 'middlewareInvoke', true)
       res.body('').send()
       return true
     }
@@ -1672,9 +1674,6 @@ export default class NextNodeServer extends BaseServer<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
     let bubblingResult = false
-
-    // Strip the internal headers.
-    this.stripInternalHeaders(req)
 
     try {
       await this.ensureMiddleware(req.url)
@@ -1856,7 +1855,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isDataReq = !!query.__nextDataReq
+    const isNextDataRequest = !!query.__nextDataReq
     const initialUrl = new URL(
       getRequestMeta(params.req, 'initURL') || '/',
       'http://n'
@@ -1867,7 +1866,7 @@ export default class NextNodeServer extends BaseServer<
       ...params.params,
     }).toString()
 
-    if (isDataReq) {
+    if (isNextDataRequest) {
       params.req.headers['x-nextjs-data'] = '1'
     }
     initialUrl.search = queryString

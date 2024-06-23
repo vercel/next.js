@@ -8,7 +8,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as Log from './utils/log'
-import { BrowserInterface } from '../../../lib/next-webdriver'
 
 const runtimes = ['nodejs', 'edge']
 
@@ -16,12 +15,16 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
   const logFile = path.join(logFileDir, 'logs.jsonl')
 
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
+    // `patchFile` and reading runtime logs are not supported in a deployed environment
+    skipDeployment: true,
     env: {
       PERSISTENT_LOG_FILE: logFile,
     },
   })
+
+  if (skipped) return
 
   {
     const originalContents: Record<string, string> = {}
@@ -257,7 +260,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const EXPECTED_ERROR =
       /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
-    const browser: BrowserInterface = await next.browser('/123/setting-cookies')
+    const browser = await next.browser('/123/setting-cookies')
     // after() from render
     expect(next.cliOutput).toMatch(EXPECTED_ERROR)
 
@@ -336,7 +339,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           )
 
           try {
-            expect(await session.hasRedbox()).toBe(true)
+            await session.assertHasRedbox()
             expect(await session.getRedboxDescription()).toContain(
               `Route /static with \`dynamic = "${dynamicValue}"\` couldn't be rendered statically because it used \`unstable_after\``
             )
@@ -362,6 +365,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           '/invalid-in-client'
         )
         try {
+          await session.assertHasRedbox()
           expect(await session.getRedboxSource(true)).toMatch(
             /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
           )

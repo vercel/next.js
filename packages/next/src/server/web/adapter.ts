@@ -14,9 +14,9 @@ import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import {
-  RequestAsyncStorageWrapper,
+  withRequestStore,
   type WrapperRenderOpts,
-} from '../async-storage/request-async-storage-wrapper'
+} from '../async-storage/with-request-store'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
@@ -125,9 +125,9 @@ export async function adapter(
   const buildId = requestUrl.buildId
   requestUrl.buildId = ''
 
-  const isDataReq = params.request.headers['x-nextjs-data']
+  const isNextDataRequest = params.request.headers['x-nextjs-data']
 
-  if (isDataReq && requestUrl.pathname === '/index') {
+  if (isNextDataRequest && requestUrl.pathname === '/index') {
     requestUrl.pathname = '/'
   }
 
@@ -169,7 +169,7 @@ export async function adapter(
    * need to know about this property neither use it. We add it for testing
    * purposes.
    */
-  if (isDataReq) {
+  if (isNextDataRequest) {
     Object.defineProperty(request, '__isData', {
       enumerable: false,
       value: true,
@@ -240,20 +240,22 @@ export async function adapter(
         },
         async () => {
           try {
-            return await RequestAsyncStorageWrapper.wrap(
+            const previewProps = prerenderManifest?.preview || {
+              previewModeId: 'development-id',
+              previewModeEncryptionKey: '',
+              previewModeSigningKey: '',
+            }
+
+            return await withRequestStore(
               requestAsyncStorage,
               {
                 req: request,
+                url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {
                     cookiesFromResponse = cookies
                   },
-                  // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
-                  previewProps: prerenderManifest?.preview || {
-                    previewModeId: 'development-id',
-                    previewModeEncryptionKey: '',
-                    previewModeSigningKey: '',
-                  },
+                  previewProps,
                   waitUntil,
                   onClose: closeController
                     ? closeController.onClose.bind(closeController)
@@ -323,7 +325,7 @@ export async function adapter(
     )
 
     if (
-      isDataReq &&
+      isNextDataRequest &&
       // if the rewrite is external and external rewrite
       // resolving config is enabled don't add this header
       // so the upstream app can set it instead
@@ -367,7 +369,7 @@ export async function adapter(
      * it may end up with CORS error. Instead we map to an internal header so
      * the client knows the destination.
      */
-    if (isDataReq) {
+    if (isNextDataRequest) {
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',

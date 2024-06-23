@@ -21,6 +21,7 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   location: Location | null
   initialHead: ReactNode
+  initialLayerAssets: ReactNode
   couldBeIntercepted?: boolean
 }
 
@@ -32,6 +33,7 @@ export function createInitialRouterState({
   initialParallelRoutes,
   location,
   initialHead,
+  initialLayerAssets,
   couldBeIntercepted,
 }: InitialRouterStateParameters) {
   const isServer = !location
@@ -42,10 +44,11 @@ export function createInitialRouterState({
     rsc: rsc,
     prefetchRsc: null,
     head: null,
+    layerAssets: initialLayerAssets,
+    prefetchLayerAssets: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    lazyDataResolved: false,
     loading: initialSeedData[3],
   }
 
@@ -68,7 +71,8 @@ export function createInitialRouterState({
       undefined,
       initialTree,
       initialSeedData,
-      initialHead
+      initialHead,
+      initialLayerAssets
     )
   }
 
@@ -106,7 +110,9 @@ export function createInitialRouterState({
       location.origin
     )
 
-    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    const initialFlightData: FlightData = [
+      ['', initialTree, null, null, initialLayerAssets],
+    ]
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,

@@ -165,6 +165,7 @@ describe('config telemetry', () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
+          lint: true,
         })
         await fs.remove(path.join(appDir, '.eslintrc'))
 
@@ -222,6 +223,7 @@ describe('config telemetry', () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
+          lint: true,
         })
         await fs.remove(nextConfig)
 
@@ -266,6 +268,7 @@ describe('config telemetry', () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
+          lint: true,
         })
         const featureUsageEvents = findAllTelemetryEvents(
           stderr,

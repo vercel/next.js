@@ -434,36 +434,61 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+var supportsCreateTask$1 = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternals.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask$1 && ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
 var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
+
+var REACT_CONSUMER_TYPE = Symbol.for('react.consumer');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
@@ -1843,6 +1868,120 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   return proxy;
 }
 
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+}
+
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+  }
+
+  if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
+    switch (type.$$typeof) {
+      case REACT_PROVIDER_TYPE:
+        {
+          return null;
+        }
+
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+
+        {
+          return getContextName(context) + '.Provider';
+        }
+
+      case REACT_CONSUMER_TYPE:
+        {
+          var consumer = type;
+          return getContextName(consumer._context) + '.Consumer';
+        }
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+    }
+  }
+
+  return null;
+}
+
 var ROW_ID = 0;
 var ROW_TAG = 1;
 var ROW_LENGTH = 2;
@@ -2211,8 +2350,46 @@ function nullRefGetter() {
   }
 }
 
-function createElement(type, key, props, owner, // DEV-only
-stack) // DEV-only
+function getServerComponentTaskName(componentInfo) {
+  return '<' + (componentInfo.name || '...') + '>';
+}
+
+function getTaskName(type) {
+  if (type === REACT_FRAGMENT_TYPE) {
+    return '<>';
+  }
+
+  if (typeof type === 'function') {
+    // This is a function so it must have been a Client Reference that resolved to
+    // a function. We use "use client" to indicate that this is the boundary into
+    // the client. There should only be one for any given owner chain.
+    return '"use client"';
+  }
+
+  if (typeof type === 'object' && type !== null && type.$$typeof === REACT_LAZY_TYPE) {
+    if (type._init === readChunk) {
+      // This is a lazy node created by Flight. It is probably a client reference.
+      // We use the "use client" string to indicate that this is the boundary into
+      // the client. There will only be one for any given owner chain.
+      return '"use client"';
+    } // We don't want to eagerly initialize the initializer in DEV mode so we can't
+    // call it to extract the type so we don't know the type of this component.
+
+
+    return '<...>';
+  }
+
+  try {
+    var name = getComponentNameFromType(type);
+    return name ? '<' + name + '>' : '<...>';
+  } catch (x) {
+    return '<...>';
+  }
+}
+
+function createElement(response, type, key, props, owner, // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   var element;
 
@@ -2240,7 +2417,7 @@ stack) // DEV-only
       configurable: false,
       enumerable: false,
       writable: true,
-      value: true // This element has already been validated on the server.
+      value: validated  // Whether the element has already been validated on the server.
 
     }); // debugInfo contains Server Component debug information.
 
@@ -2256,15 +2433,35 @@ stack) // DEV-only
         configurable: false,
         enumerable: false,
         writable: true,
-        value: {
-          stack: stack
-        }
+        value: stack
       });
+      var task = null;
+
+      if (supportsCreateTask && stack !== null) {
+        var createTaskFn = console.createTask.bind(console, getTaskName(type));
+        var callStack = buildFakeCallStack(response, stack, createTaskFn); // This owner should ideally have already been initialized to avoid getting
+        // user stack frames on the stack.
+
+        var ownerTask = owner === null ? null : initializeFakeTask(response, owner);
+
+        if (ownerTask === null) {
+          var rootTask = response._debugRootTask;
+
+          if (rootTask != null) {
+            task = rootTask.run(callStack);
+          } else {
+            task = callStack();
+          }
+        } else {
+          task = ownerTask.run(callStack);
+        }
+      }
+
       Object.defineProperty(element, '_debugTask', {
         configurable: false,
         enumerable: false,
         writable: true,
-        value: null
+        value: task
       });
     } // TODO: We should be freezing the element but currently, we might write into
     // _debugInfo later. We could move it into _store which remains mutable.
@@ -2667,7 +2864,7 @@ function parseModelTuple(response, value) {
   if (tuple[0] === REACT_ELEMENT_TYPE) {
     // TODO: Consider having React just directly accept these arrays as elements.
     // Or even change the ReactElement type to be an array.
-    return createElement(tuple[1], tuple[2], tuple[3], tuple[4] , tuple[5] );
+    return createElement(response, tuple[1], tuple[2], tuple[3], tuple[4] , tuple[5] , tuple[6] );
   }
 
   return value;
@@ -2677,7 +2874,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences, findSourceMapURL) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -2694,7 +2891,21 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowLength: 0,
     _buffer: [],
     _tempRefs: temporaryReferences
-  }; // Don't inline this call because it causes closure to outline the call above.
+  };
+
+  if (supportsCreateTask) {
+    // Any stacks that appear on the server need to be rooted somehow on the client
+    // so we create a root Task for this response which will be the root owner for any
+    // elements created by the server. We use the "use server" string to indicate that
+    // this is where we enter the server from the client.
+    // TODO: Make this string configurable.
+    response._debugRootTask = console.createTask('"use server"');
+  }
+
+  {
+    response._debugFindSourceMapURL = findSourceMapURL;
+  } // Don't inline this call because it causes closure to outline the call above.
+
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -3067,10 +3278,134 @@ function resolvePostponeDev(response, id, reason, stack) {
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
+} // eslint-disable-next-line react-internal/no-production-logging
+
+
+var supportsCreateTask = !!console.createTask;
+var taskCache = supportsCreateTask ? new WeakMap() : null;
+var fakeFunctionCache = new Map() ;
+
+function createFakeFunction(name, filename, sourceMap, line, col) {
+  // This creates a fake copy of a Server Module. It represents a module that has already
+  // executed on the server but we re-execute a blank copy for its stack frames on the client.
+  var comment = '/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */'; // We generate code where the call is at the line and column of the server executed code.
+  // This allows us to use the original source map as the source map of this fake file to
+  // point to the original source.
+
+  var code;
+
+  if (line <= 1) {
+    code = '_=>' + ' '.repeat(col < 4 ? 0 : col - 4) + '_()\n' + comment + '\n';
+  } else {
+    code = comment + '\n'.repeat(line - 2) + '_=>\n' + ' '.repeat(col < 1 ? 0 : col - 1) + '_()\n';
+  }
+
+  if (sourceMap) {
+    code += '//# sourceMappingURL=' + sourceMap;
+  } else if (filename) {
+    code += '//# sourceURL=' + filename;
+  }
+
+  var fn;
+
+  try {
+    // eslint-disable-next-line no-eval
+    fn = (0, eval)(code);
+  } catch (x) {
+    // If eval fails, such as if in an environment that doesn't support it,
+    // we fallback to creating a function here. It'll still have the right
+    // name but it'll lose line/column number and file name.
+    fn = function (_) {
+      return _();
+    };
+  } // $FlowFixMe[cannot-write]
+
+
+  Object.defineProperty(fn, 'name', {
+    value: name || '(anonymous)'
+  }); // $FlowFixMe[prop-missing]
+
+  fn.displayName = name;
+  return fn;
+} // This matches either of these V8 formats.
+//     at name (filename:0:0)
+//     at filename:0:0
+//     at async filename:0:0
+
+
+var frameRegExp = /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/;
+
+function buildFakeCallStack(response, stack, innerCall) {
+  var frames = stack.split('\n');
+  var callStack = innerCall;
+
+  for (var i = 0; i < frames.length; i++) {
+    var frame = frames[i];
+    var fn = fakeFunctionCache.get(frame);
+
+    if (fn === undefined) {
+      var parsed = frameRegExp.exec(frame);
+
+      if (!parsed) {
+        // We assume the server returns a V8 compatible stack trace.
+        continue;
+      }
+
+      var name = parsed[1] || '';
+      var filename = parsed[2] || parsed[5] || '';
+      var line = +(parsed[3] || parsed[6]);
+      var col = +(parsed[4] || parsed[7]);
+      var sourceMap = response._debugFindSourceMapURL ? response._debugFindSourceMapURL(filename) : null;
+      fn = createFakeFunction(name, filename, sourceMap, line, col); // TODO: This cache should technically live on the response since the _debugFindSourceMapURL
+      // function is an input and can vary by response.
+
+      fakeFunctionCache.set(frame, fn);
+    }
+
+    callStack = fn.bind(null, callStack);
+  }
+
+  return callStack;
+}
+
+function initializeFakeTask(response, debugInfo) {
+  if (taskCache === null || typeof debugInfo.stack !== 'string') {
+    return null;
+  }
+
+  var componentInfo = debugInfo; // Refined
+
+  var stack = debugInfo.stack;
+  var cachedEntry = taskCache.get(componentInfo);
+
+  if (cachedEntry !== undefined) {
+    return cachedEntry;
+  }
+
+  var ownerTask = componentInfo.owner == null ? null : initializeFakeTask(response, componentInfo.owner); // eslint-disable-next-line react-internal/no-production-logging
+
+  var createTaskFn = console.createTask.bind(console, getServerComponentTaskName(componentInfo));
+  var callStack = buildFakeCallStack(response, stack, createTaskFn);
+
+  if (ownerTask === null) {
+    var rootTask = response._debugRootTask;
+
+    if (rootTask != null) {
+      return rootTask.run(callStack);
+    } else {
+      return callStack();
+    }
+  } else {
+    return ownerTask.run(callStack);
+  }
 }
 
 function resolveDebugInfo(response, id, debugInfo) {
+  // render phase so we're not inside a user space stack at this point. If we waited
+  // to initialize it when we need it, we might be inside user code.
 
+
+  initializeFakeTask(response, debugInfo);
   var chunk = getChunk(response, id);
   var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
   chunkDebugInfo.push(debugInfo);
@@ -3079,13 +3414,31 @@ function resolveDebugInfo(response, id, debugInfo) {
 function resolveConsoleEntry(response, value) {
 
   var payload = parseModel(response, value);
-  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
-  // const stackTrace = payload[1];
-  // const owner = payload[2];
-
+  var methodName = payload[0];
+  var stackTrace = payload[1];
+  var owner = payload[2];
   var env = payload[3];
   var args = payload.slice(4);
-  printToConsole(methodName, args, env);
+
+  var callStack = buildFakeCallStack(response, stackTrace, printToConsole.bind(null, methodName, args, env));
+
+  if (owner != null) {
+    var task = initializeFakeTask(response, owner);
+
+    if (task !== null) {
+      task.run(callStack);
+      return;
+    }
+  }
+
+  var rootTask = response._debugRootTask;
+
+  if (rootTask != null) {
+    rootTask.run(callStack);
+    return;
+  }
+
+  callStack();
 }
 
 function mergeBuffer(buffer, lastChunk) {
@@ -3558,8 +3911,8 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined // TODO: If encodeReply is supported, this should support temporaryReferences
-  );
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined, // TODO: If encodeReply is supported, this should support temporaryReferences
+  options && options.findSourceMapURL ? options.findSourceMapURL : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

@@ -4,6 +4,8 @@ describe('missing-suspense-with-csr-bailout', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // This test is skipped when deployed because it's not possible to rename files after deployment.
+    skipDeployment: true,
   })
 
   if (skipped) {

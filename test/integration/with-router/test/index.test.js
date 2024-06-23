@@ -1,9 +1,9 @@
 /* eslint-env jest */
 
 import {
+  assertHasRedbox,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -103,7 +103,7 @@ describe('withRouter SSR', () => {
 
   it('should show an error when trying to use router methods during SSR', async () => {
     const browser = await webdriver(port, '/router-method-ssr')
-    expect(await hasRedbox(browser)).toBe(true)
+    await assertHasRedbox(browser)
     expect(await getRedboxHeader(browser)).toMatch(
       `No router instance found. you should only use "next/router" inside the client side of your app. https://`
     )

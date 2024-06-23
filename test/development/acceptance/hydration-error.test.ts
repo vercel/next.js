@@ -7,10 +7,6 @@ import path from 'path'
 describe('Error overlay for hydration errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: '19.0.0-rc-f994737d14-20240522',
-      'react-dom': '19.0.0-rc-f994737d14-20240522',
-    },
     skipStart: true,
   })
 
@@ -34,7 +30,7 @@ describe('Error overlay for hydration errors', () => {
       ])
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
@@ -63,7 +59,7 @@ describe('Error overlay for hydration errors', () => {
     `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
 

@@ -985,7 +985,11 @@ function renderFunctionComponent(request, task, key, Component, props) {
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
   Component = Component(props, void 0);
-  if ("object" === typeof Component && null !== Component) {
+  if (
+    "object" === typeof Component &&
+    null !== Component &&
+    Component.$$typeof !== CLIENT_REFERENCE_TAG$1
+  ) {
     if ("function" === typeof Component.then) {
       props = Component;
       if ("fulfilled" === props.status) return props.value;

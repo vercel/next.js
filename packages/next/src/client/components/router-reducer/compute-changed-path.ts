@@ -2,7 +2,7 @@ import type {
   FlightRouterState,
   Segment,
 } from '../../../server/app-render/types'
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
