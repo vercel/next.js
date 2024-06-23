@@ -355,7 +355,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+    <html lang="en" className={`${inter.className} ${roboto_mono.className}`}>
       <body>
         <h1>My App</h1>
         <div>{children}</div>
@@ -382,7 +382,7 @@ const roboto_mono = Roboto_Mono({
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} ${roboto_mono.variable}`}>
+    <html lang="en" className={`${inter.className} ${roboto_mono.className}`}>
       <body>
         <h1>My App</h1>
         <div>{children}</div>
