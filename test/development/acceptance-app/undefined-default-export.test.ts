@@ -40,7 +40,7 @@ describe('Undefined default export', () => {
       '/will-not-found'
     )
 
-    expect(await session.assertHasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toInclude(
       'The default export is not a React Component in "/will-not-found/not-found"'
     )
