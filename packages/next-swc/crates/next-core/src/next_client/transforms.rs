@@ -30,15 +30,17 @@ pub async fn get_next_client_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = &next_config.await?.modularize_imports;
+    let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     if let Some(modularize_imports_config) = modularize_imports_config {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
-            *next_config.mdx_rs().await?,
+            enable_mdx_rs,
         ));
     }
 
-    let mdx_rs = *next_config.mdx_rs().await?;
-    rules.push(get_next_font_transform_rule(mdx_rs));
+    rules.push(get_next_font_transform_rule(enable_mdx_rs));
+
+    let mut is_app_dir = false;
 
     match context_ty {
         ClientContextType::Pages { pages_dir } => {
@@ -47,36 +49,39 @@ pub async fn get_next_client_transforms_rules(
                     get_next_pages_transforms_rule(
                         pages_dir,
                         ExportFilter::StripDataExports,
-                        mdx_rs,
+                        enable_mdx_rs,
                     )
                     .await?,
                 );
                 rules.push(get_next_disallow_export_all_in_page_rule(
-                    mdx_rs,
+                    enable_mdx_rs,
                     pages_dir.await?,
                 ));
-                rules.push(get_next_page_config_rule(mdx_rs, pages_dir.await?));
+                rules.push(get_next_page_config_rule(enable_mdx_rs, pages_dir.await?));
             }
         }
         ClientContextType::App { .. } => {
+            is_app_dir = true;
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
-                mdx_rs,
+                enable_mdx_rs,
             ));
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };
 
     if !foreign_code {
-        rules.push(get_next_amp_attr_rule(mdx_rs));
-        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-        rules.push(get_next_pure_rule(mdx_rs));
+        rules.push(get_next_amp_attr_rule(enable_mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(enable_mdx_rs));
+        rules.push(get_next_pure_rule(enable_mdx_rs));
 
-        rules.push(get_next_dynamic_transform_rule(false, false, mode, mdx_rs).await?);
+        rules.push(
+            get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
+        );
 
         rules.push(get_next_image_rule());
         rules.push(get_next_page_static_info_assert_rule(
-            mdx_rs,
+            enable_mdx_rs,
             None,
             Some(context_ty),
         ));

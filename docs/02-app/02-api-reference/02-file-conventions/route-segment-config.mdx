@@ -3,10 +3,11 @@ title: Route Segment Config
 description: Learn about how to configure options for Next.js route segments.
 ---
 
-The Route Segment options allows you to configure the behavior of a [Page](/docs/app/building-your-application/routing/pages-and-layouts), [Layout](/docs/app/building-your-application/routing/pages-and-layouts), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
+The Route Segment options allows you to configure the behavior of a [Page](/docs/app/building-your-application/routing/layouts-and-templates), [Layout](/docs/app/building-your-application/routing/layouts-and-templates), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
 
 | Option                                | Type                                                                                                                      | Default                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| [`experimental_ppr`](#dynamic)        | `'true' \| 'false'`                                                                                                       |
 | [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
 | [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
 | [`revalidate`](#revalidate)           | `false \| 0 \| number`                                                                                                    | `false`                    |
@@ -15,35 +16,21 @@ The Route Segment options allows you to configure the behavior of a [Page](/docs
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
 | [`maxDuration`](#maxduration)         | `number`                                                                                                                  | Set by deployment platform |
 
-```tsx filename="layout.tsx | page.tsx | route.ts" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
-export const maxDuration = 5
-
-export default function MyComponent() {}
-```
-
-```jsx filename="layout.js | page.js | route.js" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
-export const maxDuration = 5
-
-export default function MyComponent() {}
-```
-
-> **Good to know**:
->
-> - The values of the config options currently need be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
-
 ## Options
+
+### `experimental_ppr`
+
+Enable [Partial Prerendering (PPR)](/docs/app/building-your-application/rendering/partial-prerendering) for a layout or page.
+
+```tsx filename="layout.tsx | page.tsx " switcher
+export const experimental_ppr = true
+// true | false
+```
+
+```jsx filename="layout.js | page.js " switcher
+export const experimental_ppr = true
+// true | false
+```
 
 ### `dynamic`
 
@@ -97,6 +84,7 @@ export const dynamicParams = true // true | false,
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
+> - To statically render all paths the first time they're visited, you'll need to return an empty array in `generateStaticParams` or utilize `export const dynamic = 'force-static'`.
 > - When `dynamicParams = true`, the segment uses [Streaming Server Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense).
 > - If the `dynamic = 'error'` and `dynamic = 'force-static'` are used, it'll change the default of `dynamicParams` to `false`.
 
@@ -118,7 +106,10 @@ export const revalidate = false
 - **`0`**: Ensure a layout or page is always [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) even if no dynamic functions or uncached data fetches are discovered. This option changes the default of `fetch` requests that do not set a `cache` option to `'no-store'` but leaves `fetch` requests that opt into `'force-cache'` or use a positive `revalidate` as is.
 - **`number`**: (in seconds) Set the default revalidation frequency of a layout or page to `n` seconds.
 
-> **Good to know**: The `revalidate` option is only available when using the [Node.js Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime). This means using the `revalidate` option with `runtime = 'edge'` will not work.
+> **Good to know**:
+>
+> - The revalidate value needs to be statically analyzable. For example `revalidate = 600` is valid, but `revalidate = 60 * 10` is not.
+> - The revalidate value is not available when using `runtime = 'edge'`.
 
 #### Revalidation Frequency
 
@@ -168,6 +159,8 @@ export const fetchCache = 'auto'
 
 ### `runtime`
 
+We recommend using the Node.js runtime for rendering your application, and the Edge runtime for Middleware (only supported option).
+
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const runtime = 'nodejs'
 // 'nodejs' | 'edge'
@@ -181,7 +174,7 @@ export const runtime = 'nodejs'
 - **`'nodejs'`** (default)
 - **`'edge'`**
 
-Learn more about the [Edge and Node.js runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
+Learn more about the [different runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 
 ### `preferredRegion`
 

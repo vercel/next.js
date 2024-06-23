@@ -10,7 +10,9 @@ export default function Post({ title, children }: PostProps) {
       {children}
       <style jsx>{`
         .main {
-          font: 15px Helvetica, Arial;
+          font:
+            15px Helvetica,
+            Arial;
           border: 1px solid #eee;
           padding: 0 10px;
         }

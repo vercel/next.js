@@ -51,6 +51,12 @@ export function createComponentTree(props: {
   )
 }
 
+function errorMissingDefaultExport(pagePath: string, convention: string) {
+  throw new Error(
+    `The default export is not a React Component in "${pagePath}/${convention}"`
+  )
+}
+
 async function createComponentTreeInternal({
   createSegmentPath,
   loaderTree: tree,
@@ -227,10 +233,7 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(
-      layoutOrPageMod?.revalidate,
-      staticGenerationStore.urlPathname
-    )
+    validateRevalidate(layoutOrPageMod?.revalidate, staticGenerationStore.route)
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
@@ -314,30 +317,22 @@ async function createComponentTreeInternal({
       (isPage || typeof Component !== 'undefined') &&
       !isValidElementType(Component)
     ) {
-      throw new Error(
-        `The default export is not a React Component in page: "${pagePath}"`
-      )
+      errorMissingDefaultExport(pagePath, 'page')
     }
 
     if (
       typeof ErrorComponent !== 'undefined' &&
       !isValidElementType(ErrorComponent)
     ) {
-      throw new Error(
-        `The default export of error is not a React Component in page: ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'error')
     }
 
     if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
-      throw new Error(
-        `The default export of loading is not a React Component in ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'loading')
     }
 
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
-      throw new Error(
-        `The default export of notFound is not a React Component in ${segment}`
-      )
+      errorMissingDefaultExport(pagePath, 'not-found')
     }
   }
 
@@ -413,7 +408,7 @@ async function createComponentTreeInternal({
           // possible during both prefetches and dynamic navigations. But during
           // the beta period, we should be clear about this trade off in our
           // communications.
-          !experimental.ppr
+          !experimental.isRoutePPREnabled
         ) {
           // Don't prefetch this child. This will trigger a lazy fetch by the
           // client router.
@@ -443,7 +438,10 @@ async function createComponentTreeInternal({
               injectedJS: injectedJSWithCurrentLayout,
               injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
               asNotFound,
-              metadataOutlet,
+              // The metadataOutlet is responsible for throwing any errors that were caught during metadata resolution.
+              // We only want to render an outlet once per segment, as otherwise the error will be triggered
+              // multiple times causing an uncaught error.
+              metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
               ctx,
               missingSlots,
             })
@@ -534,7 +532,7 @@ async function createComponentTreeInternal({
         <Postpone
           prerenderState={staticGenerationStore.prerenderState}
           reason='dynamic = "force-dynamic" was used'
-          pathname={staticGenerationStore.urlPathname}
+          route={staticGenerationStore.route}
         />,
         loadingData,
       ],

@@ -125,10 +125,10 @@ export async function sendRenderResult({
       result.contentType
         ? result.contentType
         : type === 'rsc'
-        ? RSC_CONTENT_TYPE_HEADER
-        : type === 'json'
-        ? 'application/json'
-        : 'text/html; charset=utf-8'
+          ? RSC_CONTENT_TYPE_HEADER
+          : type === 'json'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
     )
   }
 

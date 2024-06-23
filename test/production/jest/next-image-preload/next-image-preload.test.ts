@@ -26,9 +26,9 @@ describe('next/jest', () => {
         'jest.config.js': new FileRef(path.join(appDir, 'jest.config.js')),
       },
       dependencies: {
-        jest: '29.6.2',
-        'jest-environment-jsdom': '29.6.2',
-        '@testing-library/react': '14.0.0',
+        jest: '29.7.0',
+        'jest-environment-jsdom': '29.7.0',
+        '@testing-library/react': '15.0.2',
         '@testing-library/jest-dom': '5.17.0',
       },
     })

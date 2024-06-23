@@ -114,7 +114,7 @@ Global styles can be imported into any layout, page, or component inside the `ap
 
 For example, consider a stylesheet named `app/global.css`:
 
-```css
+```css filename="app/global.css"
 body {
   padding: 20px 20px 60px;
   max-width: 680px;
@@ -345,7 +345,7 @@ To maintain a predictable order, we recommend the following:
 - Prefer CSS Modules over global styles.
   - Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
 - Extract shared styles into a separate shared component.
-- If using [Tailwind](/docs/app/building-your-application/styling/tailwind-css), import the stylesheet at the top of the file, preferably in the [Root Layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required).
+- If using [Tailwind](/docs/app/building-your-application/styling/tailwind-css), import the stylesheet at the top of the file, preferably in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
 
 > **Good to know:** CSS ordering behaves differently in development mode, always ensure to check preview deployments to verify the final CSS order in your production build.
 

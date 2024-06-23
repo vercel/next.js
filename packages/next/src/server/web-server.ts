@@ -54,7 +54,13 @@ interface WebServerOptions extends Options {
   }
 }
 
-export default class NextWebServer extends BaseServer<WebServerOptions> {
+type WebRouteHandler = RouteHandler<WebNextRequest, WebNextResponse>
+
+export default class NextWebServer extends BaseServer<
+  WebServerOptions,
+  WebNextRequest,
+  WebNextResponse
+> {
   constructor(options: WebServerOptions) {
     super(options)
 
@@ -87,8 +93,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
-      // PPR is not supported in the edge runtime.
-      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -113,8 +117,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
-      [this.serverOptions.webServerConfig
-        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
+      [this.serverOptions.webServerConfig.pathname]:
+        `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
 
@@ -152,7 +156,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected handleCatchallRenderRequest: RouteHandler = async (
+  protected handleCatchallRenderRequest: WebRouteHandler = async (
     req,
     res,
     parsedUrl
@@ -285,8 +289,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         options.result.contentType
           ? options.result.contentType
           : options.type === 'json'
-          ? 'application/json'
-          : 'text/html; charset=utf-8'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
       )
     }
 

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import {
   OPTIMIZED_FONT_PROVIDERS,
@@ -98,19 +98,19 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
-function hasComponentProps(child: any): child is React.ReactElement {
+function hasComponentProps(child: any): child is React.ReactElement<any> {
   return !!child && !!child.props
 }
 
 function AmpStyles({
   styles,
 }: {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | Iterable<React.ReactNode>
 }) {
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
-  const curStyles: React.ReactElement[] = Array.isArray(styles)
+  const curStyles: React.ReactElement<any>[] = Array.isArray(styles)
     ? (styles as React.ReactElement[])
     : []
   if (
@@ -119,7 +119,7 @@ function AmpStyles({
     // @ts-ignore Property 'props' does not exist on type ReactElement
     Array.isArray(styles.props.children)
   ) {
-    const hasStyles = (el: React.ReactElement) =>
+    const hasStyles = (el: React.ReactElement<any>) =>
       el?.props?.dangerouslySetInnerHTML?.__html
     // @ts-ignore Property 'props' does not exist on type ReactElement
     styles.props.children.forEach((child: React.ReactElement) => {
@@ -285,8 +285,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
                 typeof scriptChildren === 'string'
                   ? scriptChildren
                   : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
+                    ? scriptChildren.join('')
+                    : '',
             }
           } else {
             throw new Error(
@@ -587,8 +587,8 @@ export class Head extends React.Component<HeadProps> {
             typeof children === 'string'
               ? children
               : Array.isArray(children)
-              ? children.join('')
-              : ''
+                ? children.join('')
+                : ''
         }
 
         return (
@@ -682,30 +682,29 @@ export class Head extends React.Component<HeadProps> {
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
-      head.forEach((c) => {
-        let metaTag
-
-        if (this.context.strictNextHead) {
-          metaTag = React.createElement('meta', {
-            name: 'next-head',
-            content: '1',
-          })
-        }
-
+      head.forEach((child) => {
         if (
-          c &&
-          c.type === 'link' &&
-          c.props['rel'] === 'preload' &&
-          c.props['as'] === 'style'
+          child &&
+          child.type === 'link' &&
+          child.props['rel'] === 'preload' &&
+          child.props['as'] === 'style'
         ) {
-          metaTag && cssPreloads.push(metaTag)
-          cssPreloads.push(c)
+          if (this.context.strictNextHead) {
+            cssPreloads.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
+          } else {
+            cssPreloads.push(child)
+          }
         } else {
-          if (c) {
-            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
-              otherHeadElements.push(metaTag)
+          if (child) {
+            if (this.context.strictNextHead) {
+              otherHeadElements.push(
+                React.cloneElement(child, { 'data-next-head': '' })
+              )
+            } else {
+              otherHeadElements.push(child)
             }
-            otherHeadElements.push(c)
           }
         }
       })
@@ -989,6 +988,9 @@ function handleDocumentScriptLoaderItems(
         )
       ) {
         scriptLoaderItems.push(child.props)
+        return
+      } else if (typeof child.props.strategy === 'undefined') {
+        scriptLoaderItems.push({ ...child.props, strategy: 'afterInteractive' })
         return
       }
     }

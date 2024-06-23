@@ -5,12 +5,9 @@ description: Optimize the performance of third-party libraries in your applicati
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-**`@next/third-parties`** is a library that provides a collection of components and utilities that
-improve the performance and developer experience of loading popular third-party libraries in your
-Next.js application.
+**`@next/third-parties`** is a library that provides a collection of components and utilities that improve the performance and developer experience of loading popular third-party libraries in your Next.js application.
 
-All third-party integrations provided by `@next/third-parties` have been optimized for performance
-and ease of use.
+All third-party integrations provided by `@next/third-parties` have been optimized for performance and ease of use.
 
 ## Getting Started
 
@@ -30,14 +27,11 @@ All supported third-party libraries from Google can be imported from `@next/thir
 
 ### Google Tag Manager
 
-The `GoogleTagManager` component can be used to instantiate a [Google Tag
-Manager](https://developers.google.com/tag-platform/tag-manager) container to your
-page. By default, it fetches the original inline script after hydration occurs on the page.
+The `GoogleTagManager` component can be used to instantiate a [Google Tag Manager](https://developers.google.com/tag-platform/tag-manager) container to your page. By default, it fetches the original inline script after hydration occurs on the page.
 
 <AppOnly>
 
-To load Google Tag Manager for all routes, include the component directly in your root layout and
-pass in your GTM container ID:
+To load Google Tag Manager for all routes, include the component directly in your root layout and pass in your GTM container ID:
 
 ```tsx filename="app/layout.tsx" switcher
 import { GoogleTagManager } from '@next/third-parties/google'
@@ -134,7 +128,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -154,7 +148,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -294,7 +288,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>
@@ -314,7 +308,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent('event', 'buttonClicked', { value: 'xyz' })}
       >
         Send Event
       </button>

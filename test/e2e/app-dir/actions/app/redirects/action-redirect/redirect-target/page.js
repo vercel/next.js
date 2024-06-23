@@ -1,8 +1,12 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 
 export default function Page({ searchParams }) {
   const foo = cookies().get('foo')
   const bar = cookies().get('bar')
+  const actionHeader = headers().get('next-action')
+  if (actionHeader) {
+    throw new Error('Action header should not be present')
+  }
   return (
     <div>
       <h1>

@@ -20,6 +20,7 @@ type NextBuildOptions = {
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalUploadTrace?: string
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
@@ -35,7 +36,13 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalAppOnly,
     experimentalTurbo,
     experimentalBuildMode,
+    experimentalUploadTrace,
   } = options
+
+  let traceUploadUrl: string | undefined
+  if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
+    traceUploadUrl = experimentalUploadTrace
+  }
 
   if (!lint) {
     warn('Linting is disabled.')
@@ -77,7 +84,8 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     !mangling,
     experimentalAppOnly,
     !!process.env.TURBOPACK,
-    experimentalBuildMode
+    experimentalBuildMode,
+    traceUploadUrl
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

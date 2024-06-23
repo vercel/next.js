@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
@@ -27,7 +27,7 @@ use crate::{
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
-    category: String,
+    category: RcStr,
     ascent: i32,
     descent: i32,
     line_gap: u32,
@@ -36,11 +36,11 @@ pub(super) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub HashMap<String, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 struct Fallback {
-    pub font_family: String,
+    pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
 }
 
@@ -48,17 +48,14 @@ struct Fallback {
 pub(super) async fn get_font_fallback(
     context: Vc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
-    request_hash: u32,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
-            let metrics_json = load_next_js_templateon(
-                context,
-                "dist/server/capsize-font-metrics.json".to_string(),
-            )
-            .await?;
+            let metrics_json =
+                load_next_js_templateon(context, "dist/server/capsize-font-metrics.json".into())
+                    .await?;
             let fallback = lookup_fallback(
                 &options.font_family,
                 metrics_json,
@@ -70,7 +67,6 @@ pub(super) async fn get_font_fallback(
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback.cell(),
                         options_vc.font_family(),
-                        request_hash,
                     ),
                     local_font_family: Vc::cell(fallback.font_family),
                     adjustment: fallback.adjustment,
@@ -79,13 +75,16 @@ pub(super) async fn get_font_fallback(
                 Err(_) => {
                     NextFontIssue {
                         path: context,
-                        title: StyledString::Text(format!(
-                            "Failed to find font override values for font `{}`",
-                            &options.font_family,
-                        ))
+                        title: StyledString::Text(
+                            format!(
+                                "Failed to find font override values for font `{}`",
+                                &options.font_family,
+                            )
+                            .into(),
+                        )
                         .cell(),
                         description: StyledString::Text(
-                            "Skipping generating a fallback font.".to_owned(),
+                            "Skipping generating a fallback font.".into(),
                         )
                         .cell(),
                         severity: IssueSeverity::Warning.cell(),
@@ -102,7 +101,7 @@ pub(super) async fn get_font_fallback(
 static FALLBACK_FONT_NAME: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?:^\w|[A-Z]|\b\w)").unwrap());
 
 // From https://github.com/vercel/next.js/blob/1628260b88ce3052ac307a1607b6e8470188ab83/packages/next/src/server/font-utils.ts#L101
-fn format_fallback_font_name(font_family: &str) -> String {
+fn format_fallback_font_name(font_family: &str) -> RcStr {
     let mut fallback_name = FALLBACK_FONT_NAME
         .replace(font_family, |caps: &regex::Captures| {
             caps.iter()
@@ -120,7 +119,7 @@ fn format_fallback_font_name(font_family: &str) -> String {
         })
         .to_string();
     fallback_name.retain(|c| !c.is_whitespace());
-    fallback_name
+    fallback_name.into()
 }
 
 fn lookup_fallback(
@@ -210,7 +209,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Inter", font_metrics, true)?,
             Fallback {
-                font_family: "Arial".to_owned(),
+                font_family: "Arial".into(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.901_989_700_374_532,
                     descent: -0.224_836_142_322_097_4,
@@ -256,7 +255,7 @@ mod tests {
         assert_eq!(
             lookup_fallback("Roboto Slab", font_metrics, true)?,
             Fallback {
-                font_family: "Times New Roman".to_owned(),
+                font_family: "Times New Roman".into(),
                 adjustment: Some(FontAdjustment {
                     ascent: 0.885_645_438_273_993_8,
                     descent: -0.229_046_234_036_377_7,

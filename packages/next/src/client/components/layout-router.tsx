@@ -18,6 +18,7 @@ import React, {
   startTransition,
   Suspense,
   useDeferredValue,
+  type JSX,
 } from 'react'
 import ReactDOM from 'react-dom'
 import {
@@ -34,6 +35,7 @@ import { RedirectBoundary } from './redirect-boundary'
 import { NotFoundBoundary } from './not-found-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
+import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -85,31 +87,25 @@ function walkAddRefetch(
   return treeToRecreate
 }
 
+const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
+  ReactDOM as any
+).__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE
+
 // TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
 /**
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
-): ReturnType<typeof ReactDOM.findDOMNode> {
+  instance: React.ReactInstance | null | undefined
+): Element | Text | null {
   // Tree-shake for server bundle
   if (typeof window === 'undefined') return null
-  // Only apply strict mode warning when not in production
-  if (process.env.NODE_ENV !== 'production') {
-    const originalConsoleError = console.error
-    try {
-      console.error = (...messages) => {
-        // Ignore strict mode warning for the findDomNode call below
-        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
-          originalConsoleError(...messages)
-        }
-      }
-      return ReactDOM.findDOMNode(instance)
-    } finally {
-      console.error = originalConsoleError!
-    }
-  }
-  return ReactDOM.findDOMNode(instance)
+
+  // __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode is null during module init.
+  // We need to lazily reference it.
+  const internal_reactDOMfindDOMNode =
+    __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.findDOMNode
+  return internal_reactDOMfindDOMNode(instance)
 }
 
 const rectProperties = [
@@ -354,9 +350,10 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
+      layerAssets: null,
+      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
       loading: null,
     }
 
@@ -408,40 +405,44 @@ function InnerLayoutRouter({
        */
       // TODO-APP: remove ''
       const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        context.nextUrl,
+        includeNextUrl ? context.nextUrl : null,
         buildId
-      )
-      childNode.lazyDataResolved = false
-    }
-
-    /**
-     * Flight response data
-     */
-    // When the data has not resolved yet `use` will suspend here.
-    const serverResponse = use(lazyData)
-
-    if (!childNode.lazyDataResolved) {
-      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-      setTimeout(() => {
+      ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({
             previousTree: fullTree,
             serverResponse,
           })
         })
+
+        return serverResponse
       })
-
-      // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
-      // the patch to the tree.
-      childNode.lazyDataResolved = true
     }
-
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
+    // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
     use(unresolvedThenable) as never
   }
+
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    childNode.prefetchLayerAssets !== null
+      ? childNode.prefetchLayerAssets
+      : childNode.layerAssets
+
+  const layerAssets = useDeferredValue(
+    childNode.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
 
   // If we get to this point, then we know we have something we can render.
   const subtree = (
@@ -455,6 +456,7 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
+      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )

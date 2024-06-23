@@ -146,8 +146,8 @@ export default class PageLoader {
       params.skipInterpolation
         ? asPathname
         : isDynamicRoute(route)
-        ? interpolateAs(hrefPathname, asPathname, query).result
-        : route
+          ? interpolateAs(hrefPathname, asPathname, query).result
+          : route
     )
   }
 

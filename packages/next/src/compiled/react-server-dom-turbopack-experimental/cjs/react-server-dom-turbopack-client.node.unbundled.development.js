@@ -18,6 +18,21 @@ var util = require('util');
 var ReactDOM = require('react-dom');
 var React = require('react');
 
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+
 function createStringDecoder() {
   return new util.TextDecoder();
 }
@@ -196,7 +211,7 @@ chunks, nonce) {
   }
 }
 
-var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+var ReactDOMSharedInternals = ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
 function getCrossOriginString(input) {
   if (typeof input === 'string') {
@@ -207,120 +222,144 @@ function getCrossOriginString(input) {
 }
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
-var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
 function dispatchHint(code, model) {
-  var dispatcher = ReactDOMCurrentDispatcher.current;
+  var dispatcher = ReactDOMSharedInternals.d;
+  /* ReactDOMCurrentDispatcher */
 
-  if (dispatcher) {
-    switch (code) {
-      case 'D':
-        {
-          var refined = refineModel(code, model);
-          var href = refined;
-          dispatcher.prefetchDNS(href);
-          return;
+  switch (code) {
+    case 'D':
+      {
+        var refined = refineModel(code, model);
+        var href = refined;
+        dispatcher.D(
+        /* prefetchDNS */
+        href);
+        return;
+      }
+
+    case 'C':
+      {
+        var _refined = refineModel(code, model);
+
+        if (typeof _refined === 'string') {
+          var _href = _refined;
+          dispatcher.C(
+          /* preconnect */
+          _href);
+        } else {
+          var _href2 = _refined[0];
+          var crossOrigin = _refined[1];
+          dispatcher.C(
+          /* preconnect */
+          _href2, crossOrigin);
         }
 
-      case 'C':
-        {
-          var _refined = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined === 'string') {
-            var _href = _refined;
-            dispatcher.preconnect(_href);
-          } else {
-            var _href2 = _refined[0];
-            var crossOrigin = _refined[1];
-            dispatcher.preconnect(_href2, crossOrigin);
-          }
+    case 'L':
+      {
+        var _refined2 = refineModel(code, model);
 
-          return;
+        var _href3 = _refined2[0];
+        var as = _refined2[1];
+
+        if (_refined2.length === 3) {
+          var options = _refined2[2];
+          dispatcher.L(
+          /* preload */
+          _href3, as, options);
+        } else {
+          dispatcher.L(
+          /* preload */
+          _href3, as);
         }
 
-      case 'L':
-        {
-          var _refined2 = refineModel(code, model);
+        return;
+      }
 
-          var _href3 = _refined2[0];
-          var as = _refined2[1];
+    case 'm':
+      {
+        var _refined3 = refineModel(code, model);
 
-          if (_refined2.length === 3) {
-            var options = _refined2[2];
-            dispatcher.preload(_href3, as, options);
-          } else {
-            dispatcher.preload(_href3, as);
-          }
-
-          return;
+        if (typeof _refined3 === 'string') {
+          var _href4 = _refined3;
+          dispatcher.m(
+          /* preloadModule */
+          _href4);
+        } else {
+          var _href5 = _refined3[0];
+          var _options = _refined3[1];
+          dispatcher.m(
+          /* preloadModule */
+          _href5, _options);
         }
 
-      case 'm':
-        {
-          var _refined3 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined3 === 'string') {
-            var _href4 = _refined3;
-            dispatcher.preloadModule(_href4);
-          } else {
-            var _href5 = _refined3[0];
-            var _options = _refined3[1];
-            dispatcher.preloadModule(_href5, _options);
-          }
+    case 'X':
+      {
+        var _refined4 = refineModel(code, model);
 
-          return;
+        if (typeof _refined4 === 'string') {
+          var _href6 = _refined4;
+          dispatcher.X(
+          /* preinitScript */
+          _href6);
+        } else {
+          var _href7 = _refined4[0];
+          var _options2 = _refined4[1];
+          dispatcher.X(
+          /* preinitScript */
+          _href7, _options2);
         }
 
-      case 'S':
-        {
-          var _refined4 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined4 === 'string') {
-            var _href6 = _refined4;
-            dispatcher.preinitStyle(_href6);
-          } else {
-            var _href7 = _refined4[0];
-            var precedence = _refined4[1] === 0 ? undefined : _refined4[1];
+    case 'S':
+      {
+        var _refined5 = refineModel(code, model);
 
-            var _options2 = _refined4.length === 3 ? _refined4[2] : undefined;
+        if (typeof _refined5 === 'string') {
+          var _href8 = _refined5;
+          dispatcher.S(
+          /* preinitStyle */
+          _href8);
+        } else {
+          var _href9 = _refined5[0];
+          var precedence = _refined5[1] === 0 ? undefined : _refined5[1];
 
-            dispatcher.preinitStyle(_href7, precedence, _options2);
-          }
+          var _options3 = _refined5.length === 3 ? _refined5[2] : undefined;
 
-          return;
+          dispatcher.S(
+          /* preinitStyle */
+          _href9, precedence, _options3);
         }
 
-      case 'X':
-        {
-          var _refined5 = refineModel(code, model);
+        return;
+      }
 
-          if (typeof _refined5 === 'string') {
-            var _href8 = _refined5;
-            dispatcher.preinitScript(_href8);
-          } else {
-            var _href9 = _refined5[0];
-            var _options3 = _refined5[1];
-            dispatcher.preinitScript(_href9, _options3);
-          }
+    case 'M':
+      {
+        var _refined6 = refineModel(code, model);
 
-          return;
+        if (typeof _refined6 === 'string') {
+          var _href10 = _refined6;
+          dispatcher.M(
+          /* preinitModuleScript */
+          _href10);
+        } else {
+          var _href11 = _refined6[0];
+          var _options4 = _refined6[1];
+          dispatcher.M(
+          /* preinitModuleScript */
+          _href11, _options4);
         }
 
-      case 'M':
-        {
-          var _refined6 = refineModel(code, model);
-
-          if (typeof _refined6 === 'string') {
-            var _href10 = _refined6;
-            dispatcher.preinitModuleScript(_href10);
-          } else {
-            var _href11 = _refined6[0];
-            var _options4 = _refined6[1];
-            dispatcher.preinitModuleScript(_href11, _options4);
-          }
-
-          return;
-        }
-    }
+        return;
+      }
   }
 } // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
@@ -329,17 +368,17 @@ function refineModel(code, model) {
   return model;
 }
 function preinitScriptForSSR(href, nonce, crossOrigin) {
-  var dispatcher = ReactDOMCurrentDispatcher.current;
-
-  if (dispatcher) {
-    dispatcher.preinitScript(href, {
-      crossOrigin: getCrossOriginString(crossOrigin),
-      nonce: nonce
-    });
-  }
+  ReactDOMSharedInternals.d
+  /* ReactDOMCurrentDispatcher */
+  .X(
+  /* preinitScript */
+  href, {
+    crossOrigin: getCrossOriginString(crossOrigin),
+    nonce: nonce
+  });
 }
 
-var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+var ReactSharedInternals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
 function error(format) {
   {
@@ -348,42 +387,62 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+var supportsCreateTask$1 = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
-    var stack = ReactDebugCurrentFrame.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask$1 && ReactSharedInternals.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternals.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
 
-// ATTENTION
-// When adding new symbols to this file,
-// Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
-// The Symbol used to tag the ReactElement-like types.
-var REACT_ELEMENT_TYPE = Symbol.for('react.element');
+var REACT_ELEMENT_TYPE = Symbol.for('react.transitional.element') ;
+var REACT_PORTAL_TYPE = Symbol.for('react.portal');
+var REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
+var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
+var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
+
+var REACT_CONSUMER_TYPE = Symbol.for('react.consumer');
+var REACT_CONTEXT_TYPE = Symbol.for('react.context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -405,6 +464,7 @@ function getIteratorFn(maybeIterable) {
 
   return null;
 }
+var ASYNC_ITERATOR = Symbol.asyncIterator;
 
 var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
@@ -744,12 +804,20 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
+function writeTemporaryReference(set, reference, object) {
+  set.set(reference, object);
+}
+function readTemporaryReference(set, reference) {
+  return set.get(reference);
+}
+
 var ObjectPrototype = Object.prototype;
 var knownServerReferences = new WeakMap(); // Serializable values
 // Thenable<ReactServerValue>
-// function serializeByValueID(id: number): string {
-//   return '$' + id.toString(16);
-// }
+
+function serializeByValueID(id) {
+  return '$' + id.toString(16);
+}
 
 function serializePromiseID(id) {
   return '$@' + id.toString(16);
@@ -759,8 +827,8 @@ function serializeServerReferenceID(id) {
   return '$F' + id.toString(16);
 }
 
-function serializeSymbolReference(name) {
-  return '$S' + name;
+function serializeTemporaryReferenceMarker() {
+  return '$T';
 }
 
 function serializeFormDataReference(id) {
@@ -808,6 +876,14 @@ function serializeSetID(id) {
   return '$W' + id.toString(16);
 }
 
+function serializeBlobID(id) {
+  return '$B' + id.toString(16);
+}
+
+function serializeIteratorID(id) {
+  return '$i' + id.toString(16);
+}
+
 function escapeStringValue(value) {
   if (value[0] === '$') {
     // We need to escape $ prefixed strings since we use those to encode
@@ -818,10 +894,174 @@ function escapeStringValue(value) {
   }
 }
 
-function processReply(root, formFieldPrefix, resolve, reject) {
+function processReply(root, formFieldPrefix, temporaryReferences, resolve, reject) {
   var nextPartId = 1;
   var pendingParts = 0;
   var formData = null;
+  var writtenObjects = new WeakMap();
+  var modelRoot = root;
+
+  function serializeTypedArray(tag, typedArray) {
+    var blob = new Blob([// We should be able to pass the buffer straight through but Node < 18 treat
+    // multi-byte array blobs differently so we first convert it to single-byte.
+    new Uint8Array(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength)]);
+    var blobId = nextPartId++;
+
+    if (formData === null) {
+      formData = new FormData();
+    }
+
+    formData.append(formFieldPrefix + blobId, blob);
+    return '$' + tag + blobId.toString(16);
+  }
+
+  function serializeBinaryReader(reader) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+    var buffer = [];
+
+    function progress(entry) {
+      if (entry.done) {
+        var blobId = nextPartId++; // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + blobId, new Blob(buffer)); // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + streamId, '"$o' + blobId.toString(16) + '"'); // eslint-disable-next-line react-internal/safe-string-coercion
+
+        data.append(formFieldPrefix + streamId, 'C'); // Close signal
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        buffer.push(entry.value);
+        reader.read(new Uint8Array(1024)).then(progress, reject);
+      }
+    }
+
+    reader.read(new Uint8Array(1024)).then(progress, reject);
+    return '$r' + streamId.toString(16);
+  }
+
+  function serializeReader(reader) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++;
+
+    function progress(entry) {
+      if (entry.done) {
+        // eslint-disable-next-line react-internal/safe-string-coercion
+        data.append(formFieldPrefix + streamId, 'C'); // Close signal
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        try {
+          // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+          var partJSON = JSON.stringify(entry.value, resolveToJSON); // eslint-disable-next-line react-internal/safe-string-coercion
+
+          data.append(formFieldPrefix + streamId, partJSON);
+          reader.read().then(progress, reject);
+        } catch (x) {
+          reject(x);
+        }
+      }
+    }
+
+    reader.read().then(progress, reject);
+    return '$R' + streamId.toString(16);
+  }
+
+  function serializeReadableStream(stream) {
+    // Detect if this is a BYOB stream. BYOB streams should be able to be read as bytes on the
+    // receiving side. For binary streams, we serialize them as plain Blobs.
+    var binaryReader;
+
+    try {
+      // $FlowFixMe[extra-arg]: This argument is accepted.
+      binaryReader = stream.getReader({
+        mode: 'byob'
+      });
+    } catch (x) {
+      return serializeReader(stream.getReader());
+    }
+
+    return serializeBinaryReader(binaryReader);
+  }
+
+  function serializeAsyncIterable(iterable, iterator) {
+    if (formData === null) {
+      // Upgrade to use FormData to allow us to stream this value.
+      formData = new FormData();
+    }
+
+    var data = formData;
+    pendingParts++;
+    var streamId = nextPartId++; // Generators/Iterators are Iterables but they're also their own iterator
+    // functions. If that's the case, we treat them as single-shot. Otherwise,
+    // we assume that this iterable might be a multi-shot and allow it to be
+    // iterated more than once on the receiving server.
+
+    var isIterator = iterable === iterator; // There's a race condition between when the stream is aborted and when the promise
+    // resolves so we track whether we already aborted it to avoid writing twice.
+
+    function progress(entry) {
+      if (entry.done) {
+        if (entry.value === undefined) {
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          data.append(formFieldPrefix + streamId, 'C'); // Close signal
+        } else {
+          // Unlike streams, the last value may not be undefined. If it's not
+          // we outline it and encode a reference to it in the closing instruction.
+          try {
+            // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+            var partJSON = JSON.stringify(entry.value, resolveToJSON);
+            data.append(formFieldPrefix + streamId, 'C' + partJSON); // Close signal
+          } catch (x) {
+            reject(x);
+            return;
+          }
+        }
+
+        pendingParts--;
+
+        if (pendingParts === 0) {
+          resolve(data);
+        }
+      } else {
+        try {
+          // $FlowFixMe[incompatible-type]: While plain JSON can return undefined we never do here.
+          var _partJSON = JSON.stringify(entry.value, resolveToJSON); // eslint-disable-next-line react-internal/safe-string-coercion
+
+
+          data.append(formFieldPrefix + streamId, _partJSON);
+          iterator.next().then(progress, reject);
+        } catch (x) {
+          reject(x);
+          return;
+        }
+      }
+    }
+
+    iterator.next().then(progress, reject);
+    return '$' + (isIterator ? 'x' : 'X') + streamId.toString(16);
+  }
 
   function resolveToJSON(key, value) {
     var parent = this; // Make sure that `parent[key]` wasn't JSONified before `value` was passed to us
@@ -844,7 +1084,96 @@ function processReply(root, formFieldPrefix, resolve, reject) {
     }
 
     if (typeof value === 'object') {
-      // $FlowFixMe[method-unbinding]
+      switch (value.$$typeof) {
+        case REACT_ELEMENT_TYPE:
+          {
+            if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+              // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+              var parentReference = writtenObjects.get(parent);
+
+              if (parentReference !== undefined) {
+                // If the parent has a reference, we can refer to this object indirectly
+                // through the property name inside that parent.
+                var reference = parentReference + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+                writeTemporaryReference(temporaryReferences, reference, value);
+                return serializeTemporaryReferenceMarker();
+              }
+            }
+
+            throw new Error('React Element cannot be passed to Server Functions from the Client without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
+          }
+
+        case REACT_LAZY_TYPE:
+          {
+            // Resolve lazy as if it wasn't here. In the future this will be encoded as a Promise.
+            var lazy = value;
+            var payload = lazy._payload;
+            var init = lazy._init;
+
+            if (formData === null) {
+              // Upgrade to use FormData to allow us to stream this value.
+              formData = new FormData();
+            }
+
+            pendingParts++;
+
+            try {
+              var resolvedModel = init(payload); // We always outline this as a separate part even though we could inline it
+              // because it ensures a more deterministic encoding.
+
+              var lazyId = nextPartId++;
+              var partJSON = serializeModel(resolvedModel, lazyId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+              var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+              data.append(formFieldPrefix + lazyId, partJSON);
+              return serializeByValueID(lazyId);
+            } catch (x) {
+              if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+                // Suspended
+                pendingParts++;
+
+                var _lazyId = nextPartId++;
+
+                var thenable = x;
+
+                var retry = function () {
+                  // While the first promise resolved, its value isn't necessarily what we'll
+                  // resolve into because we might suspend again.
+                  try {
+                    var _partJSON2 = serializeModel(value, _lazyId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+
+
+                    var _data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+                    _data.append(formFieldPrefix + _lazyId, _partJSON2);
+
+                    pendingParts--;
+
+                    if (pendingParts === 0) {
+                      resolve(_data);
+                    }
+                  } catch (reason) {
+                    reject(reason);
+                  }
+                };
+
+                thenable.then(retry, retry);
+                return serializeByValueID(_lazyId);
+              } else {
+                // In the future we could consider serializing this as an error
+                // that throws on the server instead.
+                reject(x);
+                return null;
+              }
+            } finally {
+              pendingParts--;
+            }
+          }
+      } // $FlowFixMe[method-unbinding]
+
+
       if (typeof value.then === 'function') {
         // We assume that any object with a .then property is a "Thenable" type,
         // or a Promise type. Either of which can be represented by a Promise.
@@ -855,24 +1184,60 @@ function processReply(root, formFieldPrefix, resolve, reject) {
 
         pendingParts++;
         var promiseId = nextPartId++;
-        var thenable = value;
-        thenable.then(function (partValue) {
-          var partJSON = JSON.stringify(partValue, resolveToJSON); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
+        var _thenable = value;
 
-          var data = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+        _thenable.then(function (partValue) {
+          try {
+            var _partJSON3 = serializeModel(partValue, promiseId); // $FlowFixMe[incompatible-type] We know it's not null because we assigned it above.
 
-          data.append(formFieldPrefix + promiseId, partJSON);
-          pendingParts--;
 
-          if (pendingParts === 0) {
-            resolve(data);
+            var _data2 = formData; // eslint-disable-next-line react-internal/safe-string-coercion
+
+            _data2.append(formFieldPrefix + promiseId, _partJSON3);
+
+            pendingParts--;
+
+            if (pendingParts === 0) {
+              resolve(_data2);
+            }
+          } catch (reason) {
+            reject(reason);
           }
-        }, function (reason) {
-          // In the future we could consider serializing this as an error
-          // that throws on the server instead.
-          reject(reason);
-        });
+        }, // In the future we could consider serializing this as an error
+        // that throws on the server instead.
+        reject);
+
         return serializePromiseID(promiseId);
+      }
+
+      var existingReference = writtenObjects.get(value);
+
+      if (existingReference !== undefined) {
+        if (modelRoot === value) {
+          // This is the ID we're currently emitting so we need to write it
+          // once but if we discover it again, we refer to it by id.
+          modelRoot = null;
+        } else {
+          // We've already emitted this as an outlined object, so we can
+          // just refer to that by its existing ID.
+          return existingReference;
+        }
+      } else if (key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference = writtenObjects.get(parent);
+
+        if (_parentReference !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference = _parentReference + ':' + key;
+
+          writtenObjects.set(value, _reference);
+
+          if (temporaryReferences !== undefined) {
+            // Store this object so that the server can refer to it later in responses.
+            writeTemporaryReference(temporaryReferences, _reference, value);
+          }
+        }
       }
 
       if (isArray(value)) {
@@ -887,7 +1252,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           formData = new FormData();
         }
 
-        var data = formData;
+        var _data3 = formData;
         var refId = nextPartId++; // Copy all the form fields with a prefix for this reference.
         // These must come first in the form order because we assume that all the
         // fields are available before this is referenced.
@@ -895,54 +1260,174 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         var prefix = formFieldPrefix + refId + '_'; // $FlowFixMe[prop-missing]: FormData has forEach.
 
         value.forEach(function (originalValue, originalKey) {
-          data.append(prefix + originalKey, originalValue);
+          _data3.append(prefix + originalKey, originalValue);
         });
         return serializeFormDataReference(refId);
       }
 
       if (value instanceof Map) {
-        var partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+        var mapId = nextPartId++;
+
+        var _partJSON4 = serializeModel(Array.from(value), mapId);
 
         if (formData === null) {
           formData = new FormData();
         }
 
-        var mapId = nextPartId++;
-        formData.append(formFieldPrefix + mapId, partJSON);
+        formData.append(formFieldPrefix + mapId, _partJSON4);
         return serializeMapID(mapId);
       }
 
       if (value instanceof Set) {
-        var _partJSON = JSON.stringify(Array.from(value), resolveToJSON);
+        var setId = nextPartId++;
+
+        var _partJSON5 = serializeModel(Array.from(value), setId);
 
         if (formData === null) {
           formData = new FormData();
         }
 
-        var setId = nextPartId++;
-        formData.append(formFieldPrefix + setId, _partJSON);
+        formData.append(formFieldPrefix + setId, _partJSON5);
         return serializeSetID(setId);
+      }
+
+      {
+        if (value instanceof ArrayBuffer) {
+          var blob = new Blob([value]);
+          var blobId = nextPartId++;
+
+          if (formData === null) {
+            formData = new FormData();
+          }
+
+          formData.append(formFieldPrefix + blobId, blob);
+          return '$' + 'A' + blobId.toString(16);
+        }
+
+        if (value instanceof Int8Array) {
+          // char
+          return serializeTypedArray('O', value);
+        }
+
+        if (value instanceof Uint8Array) {
+          // unsigned char
+          return serializeTypedArray('o', value);
+        }
+
+        if (value instanceof Uint8ClampedArray) {
+          // unsigned clamped char
+          return serializeTypedArray('U', value);
+        }
+
+        if (value instanceof Int16Array) {
+          // sort
+          return serializeTypedArray('S', value);
+        }
+
+        if (value instanceof Uint16Array) {
+          // unsigned short
+          return serializeTypedArray('s', value);
+        }
+
+        if (value instanceof Int32Array) {
+          // long
+          return serializeTypedArray('L', value);
+        }
+
+        if (value instanceof Uint32Array) {
+          // unsigned long
+          return serializeTypedArray('l', value);
+        }
+
+        if (value instanceof Float32Array) {
+          // float
+          return serializeTypedArray('G', value);
+        }
+
+        if (value instanceof Float64Array) {
+          // double
+          return serializeTypedArray('g', value);
+        }
+
+        if (value instanceof BigInt64Array) {
+          // number
+          return serializeTypedArray('M', value);
+        }
+
+        if (value instanceof BigUint64Array) {
+          // unsigned number
+          // We use "m" instead of "n" since JSON can start with "null"
+          return serializeTypedArray('m', value);
+        }
+
+        if (value instanceof DataView) {
+          return serializeTypedArray('V', value);
+        } // TODO: Blob is not available in old Node/browsers. Remove the typeof check later.
+
+
+        if (typeof Blob === 'function' && value instanceof Blob) {
+          if (formData === null) {
+            formData = new FormData();
+          }
+
+          var _blobId = nextPartId++;
+
+          formData.append(formFieldPrefix + _blobId, value);
+          return serializeBlobID(_blobId);
+        }
       }
 
       var iteratorFn = getIteratorFn(value);
 
       if (iteratorFn) {
-        return Array.from(value);
+        var iterator = iteratorFn.call(value);
+
+        if (iterator === value) {
+          // Iterator, not Iterable
+          var iteratorId = nextPartId++;
+
+          var _partJSON6 = serializeModel(Array.from(iterator), iteratorId);
+
+          if (formData === null) {
+            formData = new FormData();
+          }
+
+          formData.append(formFieldPrefix + iteratorId, _partJSON6);
+          return serializeIteratorID(iteratorId);
+        }
+
+        return Array.from(iterator);
+      }
+
+      {
+        // TODO: ReadableStream is not available in old Node. Remove the typeof check later.
+        if (typeof ReadableStream === 'function' && value instanceof ReadableStream) {
+          return serializeReadableStream(value);
+        }
+
+        var getAsyncIterator = value[ASYNC_ITERATOR];
+
+        if (typeof getAsyncIterator === 'function') {
+          // We treat AsyncIterables as a Fragment and as such we might need to key them.
+          return serializeAsyncIterable(value, getAsyncIterator.call(value));
+        }
       } // Verify that this is a simple plain object.
 
 
       var proto = getPrototypeOf(value);
 
       if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
-        throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        if (temporaryReferences === undefined) {
+          throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
+        } // We will have written this object to the temporary reference set above
+        // so we can replace it with a marker to refer to this slot later.
+
+
+        return serializeTemporaryReferenceMarker();
       }
 
       {
-        if (value.$$typeof === REACT_ELEMENT_TYPE) {
-          error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === REACT_LAZY_TYPE) {
-          error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
+        if (value.$$typeof === (REACT_CONTEXT_TYPE )) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
@@ -1007,19 +1492,41 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         return serializeServerReferenceID(_refId);
       }
 
+      if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference2 = writtenObjects.get(parent);
+
+        if (_parentReference2 !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference2 = _parentReference2 + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+
+          writeTemporaryReference(temporaryReferences, _reference2, value);
+          return serializeTemporaryReferenceMarker();
+        }
+      }
+
       throw new Error('Client Functions cannot be passed directly to Server Functions. ' + 'Only Functions passed from the Server can be passed back again.');
     }
 
     if (typeof value === 'symbol') {
-      // $FlowFixMe[incompatible-type] `description` might be undefined
-      var name = value.description;
+      if (temporaryReferences !== undefined && key.indexOf(':') === -1) {
+        // TODO: If the property name contains a colon, we don't dedupe. Escape instead.
+        var _parentReference3 = writtenObjects.get(parent);
 
-      if (Symbol.for(name) !== value) {
-        throw new Error('Only global symbols received from Symbol.for(...) can be passed to Server Functions. ' + ("The symbol Symbol.for(" + // $FlowFixMe[incompatible-type] `description` might be undefined
-        value.description + ") cannot be found among global symbols."));
+        if (_parentReference3 !== undefined) {
+          // If the parent has a reference, we can refer to this object indirectly
+          // through the property name inside that parent.
+          var _reference3 = _parentReference3 + ':' + key; // Store this object so that the server can refer to it later in responses.
+
+
+          writeTemporaryReference(temporaryReferences, _reference3, value);
+          return serializeTemporaryReferenceMarker();
+        }
       }
 
-      return serializeSymbolReference(name);
+      throw new Error('Symbols cannot be passed to a Server Function without a ' + 'temporary reference set. Pass a TemporaryReferenceSet to the options.' + (describeObjectForErrorMessage(parent, key) ));
     }
 
     if (typeof value === 'bigint') {
@@ -1027,10 +1534,25 @@ function processReply(root, formFieldPrefix, resolve, reject) {
     }
 
     throw new Error("Type " + typeof value + " is not supported as an argument to a Server Function.");
-  } // $FlowFixMe[incompatible-type] it's not going to be undefined because we'll encode it.
+  }
 
+  function serializeModel(model, id) {
+    if (typeof model === 'object' && model !== null) {
+      var reference = serializeByValueID(id);
+      writtenObjects.set(model, reference);
 
-  var json = JSON.stringify(root, resolveToJSON);
+      if (temporaryReferences !== undefined) {
+        // Store this object so that the server can refer to it later in responses.
+        writeTemporaryReference(temporaryReferences, reference, model);
+      }
+    }
+
+    modelRoot = model; // $FlowFixMe[incompatible-return] it's not going to be undefined because we'll encode it.
+
+    return JSON.stringify(model, resolveToJSON);
+  }
+
+  var json = serializeModel(root, 0);
 
   if (formData === null) {
     // If it's a simple data structure, we just use plain JSON.
@@ -1055,7 +1577,8 @@ function encodeFormData(reference) {
     resolve = res;
     reject = rej;
   });
-  processReply(reference, '', function (body) {
+  processReply(reference, '', undefined, // TODO: This means React Elements can't be used as state in progressive enhancement.
+  function (body) {
     if (typeof body === 'string') {
       var data = new FormData();
       data.append('0', body);
@@ -1298,6 +1821,120 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   return proxy;
 }
 
+function getWrappedName(outerType, innerType, wrapperName) {
+  var displayName = outerType.displayName;
+
+  if (displayName) {
+    return displayName;
+  }
+
+  var functionName = innerType.displayName || innerType.name || '';
+  return functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName;
+} // Keep in sync with react-reconciler/getComponentNameFromFiber
+
+
+function getContextName(type) {
+  return type.displayName || 'Context';
+}
+
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+
+function getComponentNameFromType(type) {
+  if (type == null) {
+    // Host root, text node or just invalid type.
+    return null;
+  }
+
+  if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
+    return type.displayName || type.name || null;
+  }
+
+  if (typeof type === 'string') {
+    return type;
+  }
+
+  switch (type) {
+    case REACT_FRAGMENT_TYPE:
+      return 'Fragment';
+
+    case REACT_PORTAL_TYPE:
+      return 'Portal';
+
+    case REACT_PROFILER_TYPE:
+      return 'Profiler';
+
+    case REACT_STRICT_MODE_TYPE:
+      return 'StrictMode';
+
+    case REACT_SUSPENSE_TYPE:
+      return 'Suspense';
+
+    case REACT_SUSPENSE_LIST_TYPE:
+      return 'SuspenseList';
+
+  }
+
+  if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
+    switch (type.$$typeof) {
+      case REACT_PROVIDER_TYPE:
+        {
+          return null;
+        }
+
+      case REACT_CONTEXT_TYPE:
+        var context = type;
+
+        {
+          return getContextName(context) + '.Provider';
+        }
+
+      case REACT_CONSUMER_TYPE:
+        {
+          var consumer = type;
+          return getContextName(consumer._context) + '.Consumer';
+        }
+
+      case REACT_FORWARD_REF_TYPE:
+        return getWrappedName(type, type.render, 'ForwardRef');
+
+      case REACT_MEMO_TYPE:
+        var outerName = type.displayName || null;
+
+        if (outerName !== null) {
+          return outerName;
+        }
+
+        return getComponentNameFromType(type.type) || 'Memo';
+
+      case REACT_LAZY_TYPE:
+        {
+          var lazyComponent = type;
+          var payload = lazyComponent._payload;
+          var init = lazyComponent._init;
+
+          try {
+            return getComponentNameFromType(init(payload));
+          } catch (x) {
+            return null;
+          }
+        }
+    }
+  }
+
+  return null;
+}
+
 var ROW_ID = 0;
 var ROW_TAG = 1;
 var ROW_LENGTH = 2;
@@ -1367,7 +2004,10 @@ Chunk.prototype.then = function (resolve, reject) {
       break;
 
     default:
-      reject(chunk.reason);
+      if (reject) {
+        reject(chunk.reason);
+      }
+
       break;
   }
 };
@@ -1437,8 +2077,24 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
     case PENDING:
     case BLOCKED:
     case CYCLIC:
-      chunk.value = resolveListeners;
-      chunk.reason = rejectListeners;
+      if (chunk.value) {
+        for (var i = 0; i < resolveListeners.length; i++) {
+          chunk.value.push(resolveListeners[i]);
+        }
+      } else {
+        chunk.value = resolveListeners;
+      }
+
+      if (chunk.reason) {
+        if (rejectListeners) {
+          for (var _i = 0; _i < rejectListeners.length; _i++) {
+            chunk.reason.push(rejectListeners[_i]);
+          }
+        }
+      } else {
+        chunk.reason = rejectListeners;
+      }
+
       break;
 
     case ERRORED:
@@ -1452,7 +2108,15 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
 
 function triggerErrorOnChunk(chunk, error) {
   if (chunk.status !== PENDING && chunk.status !== BLOCKED) {
-    // We already resolved. We didn't expect to see this.
+    {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason; // $FlowFixMe[incompatible-call]: The error method should accept mixed.
+
+      controller.error(error);
+    }
+
     return;
   }
 
@@ -1486,9 +2150,44 @@ function createInitializedBufferChunk(response, value) {
   return new Chunk(INITIALIZED, value, null, response);
 }
 
+function createInitializedIteratorResultChunk(response, value, done) {
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, {
+    done: done,
+    value: value
+  }, null, response);
+}
+
+function createInitializedStreamChunk(response, value, controller) {
+  // We use the reason field to stash the controller since we already have that
+  // field. It's a bit of a hack but efficient.
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(INITIALIZED, value, controller, response);
+}
+
+function createResolvedIteratorResultChunk(response, value, done) {
+  // To reuse code as much code as possible we add the wrapper element as part of the JSON.
+  var iteratorResultJSON = (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + '}'; // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+
+  return new Chunk(RESOLVED_MODEL, iteratorResultJSON, null, response);
+}
+
+function resolveIteratorResultChunk(chunk, value, done) {
+  // To reuse code as much code as possible we add the wrapper element as part of the JSON.
+  var iteratorResultJSON = (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + '}';
+  resolveModelChunk(chunk, iteratorResultJSON);
+}
+
 function resolveModelChunk(chunk, value) {
   if (chunk.status !== PENDING) {
-    // We already resolved. We didn't expect to see this.
+    {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason;
+      controller.enqueueModel(value);
+    }
+
     return;
   }
 
@@ -1552,8 +2251,6 @@ function initializeModelChunk(chunk) {
 
       var blockedChunk = chunk;
       blockedChunk.status = BLOCKED;
-      blockedChunk.value = null;
-      blockedChunk.reason = null;
     } else {
       var resolveListeners = cyclicChunk.value;
       var initializedChunk = chunk;
@@ -1606,7 +2303,47 @@ function nullRefGetter() {
   }
 }
 
-function createElement(type, key, props) {
+function getServerComponentTaskName(componentInfo) {
+  return '<' + (componentInfo.name || '...') + '>';
+}
+
+function getTaskName(type) {
+  if (type === REACT_FRAGMENT_TYPE) {
+    return '<>';
+  }
+
+  if (typeof type === 'function') {
+    // This is a function so it must have been a Client Reference that resolved to
+    // a function. We use "use client" to indicate that this is the boundary into
+    // the client. There should only be one for any given owner chain.
+    return '"use client"';
+  }
+
+  if (typeof type === 'object' && type !== null && type.$$typeof === REACT_LAZY_TYPE) {
+    if (type._init === readChunk) {
+      // This is a lazy node created by Flight. It is probably a client reference.
+      // We use the "use client" string to indicate that this is the boundary into
+      // the client. There will only be one for any given owner chain.
+      return '"use client"';
+    } // We don't want to eagerly initialize the initializer in DEV mode so we can't
+    // call it to extract the type so we don't know the type of this component.
+
+
+    return '<...>';
+  }
+
+  try {
+    var name = getComponentNameFromType(type);
+    return name ? '<' + name + '>' : '<...>';
+  } catch (x) {
+    return '<...>';
+  }
+}
+
+function createElement(response, type, key, props, owner, // DEV-only
+stack, // DEV-only
+validated) // DEV-only
+{
   var element;
 
   {
@@ -1616,7 +2353,7 @@ function createElement(type, key, props) {
       type: type,
       key: key,
       props: props,
-      _owner: null
+      _owner: owner
     };
     Object.defineProperty(element, 'ref', {
       enumerable: false,
@@ -1633,7 +2370,7 @@ function createElement(type, key, props) {
       configurable: false,
       enumerable: false,
       writable: true,
-      value: true // This element has already been validated on the server.
+      value: validated  // Whether the element has already been validated on the server.
 
     }); // debugInfo contains Server Component debug information.
 
@@ -1643,6 +2380,52 @@ function createElement(type, key, props) {
       writable: true,
       value: null
     });
+
+    {
+      Object.defineProperty(element, '_debugStack', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: stack
+      });
+      var task = null;
+
+      if (supportsCreateTask && stack !== null) {
+        var createTaskFn = console.createTask.bind(console, getTaskName(type));
+        var callStack = buildFakeCallStack(response, stack, createTaskFn); // This owner should ideally have already been initialized to avoid getting
+        // user stack frames on the stack.
+
+        var ownerTask = owner === null ? null : initializeFakeTask(response, owner);
+
+        if (ownerTask === null) {
+          var rootTask = response._debugRootTask;
+
+          if (rootTask != null) {
+            task = rootTask.run(callStack);
+          } else {
+            task = callStack();
+          }
+        } else {
+          task = ownerTask.run(callStack);
+        }
+      }
+
+      Object.defineProperty(element, '_debugTask', {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: task
+      });
+    } // TODO: We should be freezing the element but currently, we might write into
+    // _debugInfo later. We could move it into _store which remains mutable.
+
+
+    if (initializingChunkBlockedModel !== null) {
+      var freeze = Object.freeze.bind(Object, element.props);
+      initializingChunk.then(freeze, freeze);
+    } else {
+      Object.freeze(element.props);
+    }
   }
 
   return element;
@@ -1676,7 +2459,7 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key, cyclic) {
+function createModelResolver(chunk, parentObject, key, cyclic, response, map, path) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
@@ -1693,7 +2476,17 @@ function createModelResolver(chunk, parentObject, key, cyclic) {
   }
 
   return function (value) {
-    parentObject[key] = value;
+    for (var i = 1; i < path.length; i++) {
+      value = value[path[i]];
+    }
+
+    parentObject[key] = map(response, value); // If this is the root object for a model reference, where `blocked.value`
+    // is a stale `null`, the resolved value can be used directly.
+
+    if (key === '' && blocked.value === null) {
+      blocked.value = parentObject[key];
+    }
+
     blocked.deps--;
 
     if (blocked.deps === 0) {
@@ -1747,26 +2540,97 @@ function createServerReferenceProxy(response, metaData) {
   return proxy;
 }
 
-function getOutlinedModel(response, id) {
+function getOutlinedModel(response, reference, parentObject, key, map) {
+  var path = reference.split(':');
+  var id = parseInt(path[0], 16);
   var chunk = getChunk(response, id);
 
   switch (chunk.status) {
     case RESOLVED_MODEL:
       initializeModelChunk(chunk);
       break;
+
+    case RESOLVED_MODULE:
+      initializeModuleChunk(chunk);
+      break;
   } // The status might have changed after initialization.
 
 
   switch (chunk.status) {
     case INITIALIZED:
-      {
-        return chunk.value;
+      var value = chunk.value;
+
+      for (var i = 1; i < path.length; i++) {
+        value = value[path[i]];
       }
-    // We always encode it first in the stream so it won't be pending.
+
+      var chunkValue = map(response, value);
+
+      if (chunk._debugInfo) {
+        // If we have a direct reference to an object that was rendered by a synchronous
+        // server component, it might have some debug info about how it was rendered.
+        // We forward this to the underlying object. This might be a React Element or
+        // an Array fragment.
+        // If this was a string / number return value we lose the debug info. We choose
+        // that tradeoff to allow sync server components to return plain values and not
+        // use them as React Nodes necessarily. We could otherwise wrap them in a Lazy.
+        if (typeof chunkValue === 'object' && chunkValue !== null && (Array.isArray(chunkValue) || typeof chunkValue[ASYNC_ITERATOR] === 'function' || chunkValue.$$typeof === REACT_ELEMENT_TYPE) && !chunkValue._debugInfo) {
+          // We should maybe use a unique symbol for arrays but this is a React owned array.
+          // $FlowFixMe[prop-missing]: This should be added to elements.
+          Object.defineProperty(chunkValue, '_debugInfo', {
+            configurable: false,
+            enumerable: false,
+            writable: true,
+            value: chunk._debugInfo
+          });
+        }
+      }
+
+      return chunkValue;
+
+    case PENDING:
+    case BLOCKED:
+    case CYCLIC:
+      var parentChunk = initializingChunk;
+      chunk.then(createModelResolver(parentChunk, parentObject, key, chunk.status === CYCLIC, response, map, path), createModelReject(parentChunk));
+      return null;
 
     default:
       throw chunk.reason;
   }
+}
+
+function createMap(response, model) {
+  return new Map(model);
+}
+
+function createSet(response, model) {
+  return new Set(model);
+}
+
+function createBlob(response, model) {
+  return new Blob(model.slice(1), {
+    type: model[0]
+  });
+}
+
+function createFormData(response, model) {
+  var formData = new FormData();
+
+  for (var i = 0; i < model.length; i++) {
+    formData.append(model[i][0], model[i][1]);
+  }
+
+  return formData;
+}
+
+function extractIterator(response, model) {
+  // $FlowFixMe[incompatible-use]: This uses raw Symbols because we're extracting from a native array.
+  return model[Symbol.iterator]();
+}
+
+function createModel(response, model) {
+  return model;
 }
 
 function parseModelString(response, parentObject, key, value) {
@@ -1817,29 +2681,63 @@ function parseModelString(response, parentObject, key, value) {
       case 'F':
         {
           // Server Reference
-          var _id2 = parseInt(value.slice(2), 16);
+          var ref = value.slice(2);
+          return getOutlinedModel(response, ref, parentObject, key, createServerReferenceProxy);
+        }
 
-          var metadata = getOutlinedModel(response, _id2);
-          return createServerReferenceProxy(response, metadata);
+      case 'T':
+        {
+          // Temporary Reference
+          var reference = '$' + value.slice(2);
+          var temporaryReferences = response._tempRefs;
+
+          if (temporaryReferences == null) {
+            throw new Error('Missing a temporary reference set but the RSC response returned a temporary reference. ' + 'Pass a temporaryReference option with the set that was used with the reply.');
+          }
+
+          return readTemporaryReference(temporaryReferences, reference);
         }
 
       case 'Q':
         {
           // Map
-          var _id3 = parseInt(value.slice(2), 16);
+          var _ref = value.slice(2);
 
-          var data = getOutlinedModel(response, _id3);
-          return new Map(data);
+          return getOutlinedModel(response, _ref, parentObject, key, createMap);
         }
 
       case 'W':
         {
           // Set
-          var _id4 = parseInt(value.slice(2), 16);
+          var _ref2 = value.slice(2);
 
-          var _data = getOutlinedModel(response, _id4);
+          return getOutlinedModel(response, _ref2, parentObject, key, createSet);
+        }
 
-          return new Set(_data);
+      case 'B':
+        {
+          // Blob
+          {
+            var _ref3 = value.slice(2);
+
+            return getOutlinedModel(response, _ref3, parentObject, key, createBlob);
+          }
+        }
+
+      case 'K':
+        {
+          // FormData
+          var _ref4 = value.slice(2);
+
+          return getOutlinedModel(response, _ref4, parentObject, key, createFormData);
+        }
+
+      case 'i':
+        {
+          // Iterator
+          var _ref5 = value.slice(2);
+
+          return getOutlinedModel(response, _ref5, parentObject, key, extractIterator);
         }
 
       case 'I':
@@ -1903,59 +2801,9 @@ function parseModelString(response, parentObject, key, value) {
       default:
         {
           // We assume that anything else is a reference ID.
-          var _id5 = parseInt(value.slice(1), 16);
+          var _ref6 = value.slice(1);
 
-          var _chunk2 = getChunk(response, _id5);
-
-          switch (_chunk2.status) {
-            case RESOLVED_MODEL:
-              initializeModelChunk(_chunk2);
-              break;
-
-            case RESOLVED_MODULE:
-              initializeModuleChunk(_chunk2);
-              break;
-          } // The status might have changed after initialization.
-
-
-          switch (_chunk2.status) {
-            case INITIALIZED:
-              var chunkValue = _chunk2.value;
-
-              if (_chunk2._debugInfo) {
-                // If we have a direct reference to an object that was rendered by a synchronous
-                // server component, it might have some debug info about how it was rendered.
-                // We forward this to the underlying object. This might be a React Element or
-                // an Array fragment.
-                // If this was a string / number return value we lose the debug info. We choose
-                // that tradeoff to allow sync server components to return plain values and not
-                // use them as React Nodes necessarily. We could otherwise wrap them in a Lazy.
-                if (typeof chunkValue === 'object' && chunkValue !== null && (Array.isArray(chunkValue) || chunkValue.$$typeof === REACT_ELEMENT_TYPE) && !chunkValue._debugInfo) {
-                  // We should maybe use a unique symbol for arrays but this is a React owned array.
-                  // $FlowFixMe[prop-missing]: This should be added to elements.
-                  Object.defineProperty(chunkValue, '_debugInfo', {
-                    configurable: false,
-                    enumerable: false,
-                    writable: true,
-                    value: _chunk2._debugInfo
-                  });
-                }
-              }
-
-              return chunkValue;
-
-            case PENDING:
-            case BLOCKED:
-            case CYCLIC:
-              var parentChunk = initializingChunk;
-
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key, _chunk2.status === CYCLIC), createModelReject(parentChunk));
-
-              return null;
-
-            default:
-              throw _chunk2.reason;
-          }
+          return getOutlinedModel(response, _ref6, parentObject, key, createModel);
         }
     }
   }
@@ -1969,7 +2817,7 @@ function parseModelTuple(response, value) {
   if (tuple[0] === REACT_ELEMENT_TYPE) {
     // TODO: Consider having React just directly accept these arrays as elements.
     // Or even change the ReactElement type to be an array.
-    return createElement(tuple[1], tuple[2], tuple[3]);
+    return createElement(response, tuple[1], tuple[2], tuple[3], tuple[4] , tuple[5] , tuple[6] );
   }
 
   return value;
@@ -1979,7 +2827,7 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce, temporaryReferences, findSourceMapURL) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
@@ -1994,8 +2842,23 @@ function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormActi
     _rowID: 0,
     _rowTag: 0,
     _rowLength: 0,
-    _buffer: []
-  }; // Don't inline this call because it causes closure to outline the call above.
+    _buffer: [],
+    _tempRefs: temporaryReferences
+  };
+
+  if (supportsCreateTask) {
+    // Any stacks that appear on the server need to be rooted somehow on the client
+    // so we create a root Task for this response which will be the root owner for any
+    // elements created by the server. We use the "use server" string to indicate that
+    // this is where we enter the server from the client.
+    // TODO: Make this string configurable.
+    response._debugRootTask = console.createTask('"use server"');
+  }
+
+  {
+    response._debugFindSourceMapURL = findSourceMapURL;
+  } // Don't inline this call because it causes closure to outline the call above.
+
 
   response._fromJSON = createFromJSONCallback(response);
   return response;
@@ -2013,14 +2876,39 @@ function resolveModel(response, id, model) {
 }
 
 function resolveText(response, id, text) {
-  var chunks = response._chunks; // We assume that we always reference large strings after they've been
-  // emitted.
+  var chunks = response._chunks;
+
+  {
+    var chunk = chunks.get(id);
+
+    if (chunk && chunk.status !== PENDING) {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason;
+      controller.enqueueValue(text);
+      return;
+    }
+  }
 
   chunks.set(id, createInitializedTextChunk(response, text));
 }
 
 function resolveBuffer(response, id, buffer) {
-  var chunks = response._chunks; // We assume that we always reference buffers after they've been emitted.
+  var chunks = response._chunks;
+
+  {
+    var chunk = chunks.get(id);
+
+    if (chunk && chunk.status !== PENDING) {
+      // If we get more data to an already resolved ID, we assume that it's
+      // a stream chunk since any other row shouldn't have more than one entry.
+      var streamChunk = chunk;
+      var controller = streamChunk.reason;
+      controller.enqueueValue(buffer);
+      return;
+    }
+  }
 
   chunks.set(id, createInitializedBufferChunk(response, buffer));
 }
@@ -2067,6 +2955,245 @@ function resolveModule(response, id, model) {
   }
 }
 
+function resolveStream(response, id, stream, controller) {
+  var chunks = response._chunks;
+  var chunk = chunks.get(id);
+
+  if (!chunk) {
+    chunks.set(id, createInitializedStreamChunk(response, stream, controller));
+    return;
+  }
+
+  if (chunk.status !== PENDING) {
+    // We already resolved. We didn't expect to see this.
+    return;
+  }
+
+  var resolveListeners = chunk.value;
+  var resolvedChunk = chunk;
+  resolvedChunk.status = INITIALIZED;
+  resolvedChunk.value = stream;
+  resolvedChunk.reason = controller;
+
+  if (resolveListeners !== null) {
+    wakeChunk(resolveListeners, chunk.value);
+  }
+}
+
+function startReadableStream(response, id, type) {
+  var controller = null;
+  var stream = new ReadableStream({
+    type: type,
+    start: function (c) {
+      controller = c;
+    }
+  });
+  var previousBlockedChunk = null;
+  var flightController = {
+    enqueueValue: function (value) {
+      if (previousBlockedChunk === null) {
+        controller.enqueue(value);
+      } else {
+        // We're still waiting on a previous chunk so we can't enqueue quite yet.
+        previousBlockedChunk.then(function () {
+          controller.enqueue(value);
+        });
+      }
+    },
+    enqueueModel: function (json) {
+      if (previousBlockedChunk === null) {
+        // If we're not blocked on any other chunks, we can try to eagerly initialize
+        // this as a fast-path to avoid awaiting them.
+        var chunk = createResolvedModelChunk(response, json);
+        initializeModelChunk(chunk);
+        var initializedChunk = chunk;
+
+        if (initializedChunk.status === INITIALIZED) {
+          controller.enqueue(initializedChunk.value);
+        } else {
+          chunk.then(function (v) {
+            return controller.enqueue(v);
+          }, function (e) {
+            return controller.error(e);
+          });
+          previousBlockedChunk = chunk;
+        }
+      } else {
+        // We're still waiting on a previous chunk so we can't enqueue quite yet.
+        var blockedChunk = previousBlockedChunk;
+
+        var _chunk2 = createPendingChunk(response);
+
+        _chunk2.then(function (v) {
+          return controller.enqueue(v);
+        }, function (e) {
+          return controller.error(e);
+        });
+
+        previousBlockedChunk = _chunk2;
+        blockedChunk.then(function () {
+          if (previousBlockedChunk === _chunk2) {
+            // We were still the last chunk so we can now clear the queue and return
+            // to synchronous emitting.
+            previousBlockedChunk = null;
+          }
+
+          resolveModelChunk(_chunk2, json);
+        });
+      }
+    },
+    close: function (json) {
+      if (previousBlockedChunk === null) {
+        controller.close();
+      } else {
+        var blockedChunk = previousBlockedChunk; // We shouldn't get any more enqueues after this so we can set it back to null.
+
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.close();
+        });
+      }
+    },
+    error: function (error) {
+      if (previousBlockedChunk === null) {
+        // $FlowFixMe[incompatible-call]
+        controller.error(error);
+      } else {
+        var blockedChunk = previousBlockedChunk; // We shouldn't get any more enqueues after this so we can set it back to null.
+
+        previousBlockedChunk = null;
+        blockedChunk.then(function () {
+          return controller.error(error);
+        });
+      }
+    }
+  };
+  resolveStream(response, id, stream, flightController);
+}
+
+function asyncIterator() {
+  // Self referencing iterator.
+  return this;
+}
+
+function createIterator(next) {
+  var iterator = {
+    next: next // TODO: Add return/throw as options for aborting.
+
+  }; // TODO: The iterator could inherit the AsyncIterator prototype which is not exposed as
+  // a global but exists as a prototype of an AsyncGenerator. However, it's not needed
+  // to satisfy the iterable protocol.
+
+  iterator[ASYNC_ITERATOR] = asyncIterator;
+  return iterator;
+}
+
+function startAsyncIterable(response, id, iterator) {
+  var buffer = [];
+  var closed = false;
+  var nextWriteIndex = 0;
+  var flightController = {
+    enqueueValue: function (value) {
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createInitializedIteratorResultChunk(response, value, false);
+      } else {
+        var chunk = buffer[nextWriteIndex];
+        var resolveListeners = chunk.value;
+        var rejectListeners = chunk.reason;
+        var initializedChunk = chunk;
+        initializedChunk.status = INITIALIZED;
+        initializedChunk.value = {
+          done: false,
+          value: value
+        };
+
+        if (resolveListeners !== null) {
+          wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners);
+        }
+      }
+
+      nextWriteIndex++;
+    },
+    enqueueModel: function (value) {
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createResolvedIteratorResultChunk(response, value, false);
+      } else {
+        resolveIteratorResultChunk(buffer[nextWriteIndex], value, false);
+      }
+
+      nextWriteIndex++;
+    },
+    close: function (value) {
+      closed = true;
+
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createResolvedIteratorResultChunk(response, value, true);
+      } else {
+        resolveIteratorResultChunk(buffer[nextWriteIndex], value, true);
+      }
+
+      nextWriteIndex++;
+
+      while (nextWriteIndex < buffer.length) {
+        // In generators, any extra reads from the iterator have the value undefined.
+        resolveIteratorResultChunk(buffer[nextWriteIndex++], '"$undefined"', true);
+      }
+    },
+    error: function (error) {
+      closed = true;
+
+      if (nextWriteIndex === buffer.length) {
+        buffer[nextWriteIndex] = createPendingChunk(response);
+      }
+
+      while (nextWriteIndex < buffer.length) {
+        triggerErrorOnChunk(buffer[nextWriteIndex++], error);
+      }
+    }
+  };
+
+  var iterable = _defineProperty({}, ASYNC_ITERATOR, function () {
+    var nextReadIndex = 0;
+    return createIterator(function (arg) {
+      if (arg !== undefined) {
+        throw new Error('Values cannot be passed to next() of AsyncIterables passed to Client Components.');
+      }
+
+      if (nextReadIndex === buffer.length) {
+        if (closed) {
+          // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+          return new Chunk(INITIALIZED, {
+            done: true,
+            value: undefined
+          }, null, response);
+        }
+
+        buffer[nextReadIndex] = createPendingChunk(response);
+      }
+
+      return buffer[nextReadIndex++];
+    });
+  }); // TODO: If it's a single shot iterator we can optimize memory by cleaning up the buffer after
+  // reading through the end, but currently we favor code size over this optimization.
+
+
+  resolveStream(response, id, iterator ? iterable[ASYNC_ITERATOR]() : iterable, flightController);
+}
+
+function stopStream(response, id, row) {
+  var chunks = response._chunks;
+  var chunk = chunks.get(id);
+
+  if (!chunk || chunk.status !== INITIALIZED) {
+    // We didn't expect not to have an existing stream;
+    return;
+  }
+
+  var streamChunk = chunk;
+  var controller = streamChunk.reason;
+  controller.close(row === '' ? '"$undefined"' : row);
+}
+
 function resolveErrorDev(response, id, digest, message, stack) {
 
 
@@ -2104,10 +3231,134 @@ function resolvePostponeDev(response, id, reason, stack) {
 function resolveHint(response, code, model) {
   var hintModel = parseModel(response, model);
   dispatchHint(code, hintModel);
+} // eslint-disable-next-line react-internal/no-production-logging
+
+
+var supportsCreateTask = !!console.createTask;
+var taskCache = supportsCreateTask ? new WeakMap() : null;
+var fakeFunctionCache = new Map() ;
+
+function createFakeFunction(name, filename, sourceMap, line, col) {
+  // This creates a fake copy of a Server Module. It represents a module that has already
+  // executed on the server but we re-execute a blank copy for its stack frames on the client.
+  var comment = '/* This module was rendered by a Server Component. Turn on Source Maps to see the server source. */'; // We generate code where the call is at the line and column of the server executed code.
+  // This allows us to use the original source map as the source map of this fake file to
+  // point to the original source.
+
+  var code;
+
+  if (line <= 1) {
+    code = '_=>' + ' '.repeat(col < 4 ? 0 : col - 4) + '_()\n' + comment + '\n';
+  } else {
+    code = comment + '\n'.repeat(line - 2) + '_=>\n' + ' '.repeat(col < 1 ? 0 : col - 1) + '_()\n';
+  }
+
+  if (sourceMap) {
+    code += '//# sourceMappingURL=' + sourceMap;
+  } else if (filename) {
+    code += '//# sourceURL=' + filename;
+  }
+
+  var fn;
+
+  try {
+    // eslint-disable-next-line no-eval
+    fn = (0, eval)(code);
+  } catch (x) {
+    // If eval fails, such as if in an environment that doesn't support it,
+    // we fallback to creating a function here. It'll still have the right
+    // name but it'll lose line/column number and file name.
+    fn = function (_) {
+      return _();
+    };
+  } // $FlowFixMe[cannot-write]
+
+
+  Object.defineProperty(fn, 'name', {
+    value: name || '(anonymous)'
+  }); // $FlowFixMe[prop-missing]
+
+  fn.displayName = name;
+  return fn;
+} // This matches either of these V8 formats.
+//     at name (filename:0:0)
+//     at filename:0:0
+//     at async filename:0:0
+
+
+var frameRegExp = /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/;
+
+function buildFakeCallStack(response, stack, innerCall) {
+  var frames = stack.split('\n');
+  var callStack = innerCall;
+
+  for (var i = 0; i < frames.length; i++) {
+    var frame = frames[i];
+    var fn = fakeFunctionCache.get(frame);
+
+    if (fn === undefined) {
+      var parsed = frameRegExp.exec(frame);
+
+      if (!parsed) {
+        // We assume the server returns a V8 compatible stack trace.
+        continue;
+      }
+
+      var name = parsed[1] || '';
+      var filename = parsed[2] || parsed[5] || '';
+      var line = +(parsed[3] || parsed[6]);
+      var col = +(parsed[4] || parsed[7]);
+      var sourceMap = response._debugFindSourceMapURL ? response._debugFindSourceMapURL(filename) : null;
+      fn = createFakeFunction(name, filename, sourceMap, line, col); // TODO: This cache should technically live on the response since the _debugFindSourceMapURL
+      // function is an input and can vary by response.
+
+      fakeFunctionCache.set(frame, fn);
+    }
+
+    callStack = fn.bind(null, callStack);
+  }
+
+  return callStack;
+}
+
+function initializeFakeTask(response, debugInfo) {
+  if (taskCache === null || typeof debugInfo.stack !== 'string') {
+    return null;
+  }
+
+  var componentInfo = debugInfo; // Refined
+
+  var stack = debugInfo.stack;
+  var cachedEntry = taskCache.get(componentInfo);
+
+  if (cachedEntry !== undefined) {
+    return cachedEntry;
+  }
+
+  var ownerTask = componentInfo.owner == null ? null : initializeFakeTask(response, componentInfo.owner); // eslint-disable-next-line react-internal/no-production-logging
+
+  var createTaskFn = console.createTask.bind(console, getServerComponentTaskName(componentInfo));
+  var callStack = buildFakeCallStack(response, stack, createTaskFn);
+
+  if (ownerTask === null) {
+    var rootTask = response._debugRootTask;
+
+    if (rootTask != null) {
+      return rootTask.run(callStack);
+    } else {
+      return callStack();
+    }
+  } else {
+    return ownerTask.run(callStack);
+  }
 }
 
 function resolveDebugInfo(response, id, debugInfo) {
+  // render phase so we're not inside a user space stack at this point. If we waited
+  // to initialize it when we need it, we might be inside user code.
 
+
+  initializeFakeTask(response, debugInfo);
   var chunk = getChunk(response, id);
   var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
   chunkDebugInfo.push(debugInfo);
@@ -2116,12 +3367,31 @@ function resolveDebugInfo(response, id, debugInfo) {
 function resolveConsoleEntry(response, value) {
 
   var payload = parseModel(response, value);
-  var methodName = payload[0]; // TODO: Restore the fake stack before logging.
-  // const stackTrace = payload[1];
+  var methodName = payload[0];
+  var stackTrace = payload[1];
+  var owner = payload[2];
+  var env = payload[3];
+  var args = payload.slice(4);
 
-  var env = payload[2];
-  var args = payload.slice(3);
-  printToConsole(methodName, args, env);
+  var callStack = buildFakeCallStack(response, stackTrace, printToConsole.bind(null, methodName, args, env));
+
+  if (owner != null) {
+    var task = initializeFakeTask(response, owner);
+
+    if (task !== null) {
+      task.run(callStack);
+      return;
+    }
+  }
+
+  var rootTask = response._debugRootTask;
+
+  if (rootTask != null) {
+    rootTask.run(callStack);
+    return;
+  }
+
+  callStack();
 }
 
 function mergeBuffer(buffer, lastChunk) {
@@ -2137,8 +3407,8 @@ function mergeBuffer(buffer, lastChunk) {
   var result = new Uint8Array(byteLength);
   var offset = 0; // Copy all the buffers into it.
 
-  for (var _i = 0; _i < l; _i++) {
-    var chunk = buffer[_i];
+  for (var _i2 = 0; _i2 < l; _i2++) {
+    var chunk = buffer[_i2];
     result.set(chunk, offset);
     offset += chunk.byteLength;
   }
@@ -2172,14 +3442,14 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
         return;
 
-      case 67
-      /* "C" */
+      case 79
+      /* "O" */
       :
         resolveTypedArray(response, id, buffer, chunk, Int8Array, 1);
         return;
 
-      case 99
-      /* "c" */
+      case 111
+      /* "o" */
       :
         resolveBuffer(response, id, buffer.length === 0 ? chunk : mergeBuffer(buffer, chunk));
         return;
@@ -2214,20 +3484,20 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveTypedArray(response, id, buffer, chunk, Uint32Array, 4);
         return;
 
-      case 70
-      /* "F" */
+      case 71
+      /* "G" */
       :
         resolveTypedArray(response, id, buffer, chunk, Float32Array, 4);
         return;
 
-      case 100
-      /* "d" */
+      case 103
+      /* "g" */
       :
         resolveTypedArray(response, id, buffer, chunk, Float64Array, 8);
         return;
 
-      case 78
-      /* "N" */
+      case 77
+      /* "M" */
       :
         resolveTypedArray(response, id, buffer, chunk, BigInt64Array, 8);
         return;
@@ -2299,7 +3569,7 @@ function processFullRow(response, id, tag, buffer, chunk) {
     :
       {
         {
-          var debugInfo = JSON.parse(row);
+          var debugInfo = parseModel(response, row);
           resolveDebugInfo(response, id, debugInfo);
           return;
         } // Fallthrough to share the error with Console entries.
@@ -2315,6 +3585,61 @@ function processFullRow(response, id, tag, buffer, chunk) {
           return;
         }
       }
+
+    case 82
+    /* "R" */
+    :
+      {
+        {
+          startReadableStream(response, id, undefined);
+          return;
+        }
+      }
+    // Fallthrough
+
+    case 114
+    /* "r" */
+    :
+      {
+        {
+          startReadableStream(response, id, 'bytes');
+          return;
+        }
+      }
+    // Fallthrough
+
+    case 88
+    /* "X" */
+    :
+      {
+        {
+          startAsyncIterable(response, id, false);
+          return;
+        }
+      }
+    // Fallthrough
+
+    case 120
+    /* "x" */
+    :
+      {
+        {
+          startAsyncIterable(response, id, true);
+          return;
+        }
+      }
+    // Fallthrough
+
+    case 67
+    /* "C" */
+    :
+      {
+        {
+          stopStream(response, id, row);
+          return;
+        }
+      }
+    // Fallthrough
 
     case 80
     /* "P" */
@@ -2378,10 +3703,10 @@ function processBinaryChunk(response, chunk) {
           /* "T" */
           || (resolvedRowTag === 65
           /* "A" */
-          || resolvedRowTag === 67
-          /* "C" */
-          || resolvedRowTag === 99
-          /* "c" */
+          || resolvedRowTag === 79
+          /* "O" */
+          || resolvedRowTag === 111
+          /* "o" */
           || resolvedRowTag === 85
           /* "U" */
           || resolvedRowTag === 83
@@ -2392,12 +3717,12 @@ function processBinaryChunk(response, chunk) {
           /* "L" */
           || resolvedRowTag === 108
           /* "l" */
-          || resolvedRowTag === 70
-          /* "F" */
-          || resolvedRowTag === 100
-          /* "d" */
-          || resolvedRowTag === 78
-          /* "N" */
+          || resolvedRowTag === 71
+          /* "G" */
+          || resolvedRowTag === 103
+          /* "g" */
+          || resolvedRowTag === 77
+          /* "M" */
           || resolvedRowTag === 109
           /* "m" */
           || resolvedRowTag === 86)
@@ -2406,8 +3731,12 @@ function processBinaryChunk(response, chunk) {
               rowTag = resolvedRowTag;
               rowState = ROW_LENGTH;
               i++;
-            } else if (resolvedRowTag > 64 && resolvedRowTag < 91
+            } else if (resolvedRowTag > 64 && resolvedRowTag < 91 ||
           /* "A"-"Z" */
+          resolvedRowTag === 114
+          /* "r" */
+          || resolvedRowTag === 120
+          /* "x" */
           ) {
               rowTag = resolvedRowTag;
               rowState = ROW_CHUNK_BY_NEWLINE;
@@ -2535,7 +3864,8 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined, undefined, // TODO: If encodeReply is supported, this should support temporaryReferences
+  options && options.findSourceMapURL ? options.findSourceMapURL : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

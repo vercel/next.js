@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
 
 export default function Page() {
-  const ref = useRef<HTMLAnchorElement>()
+  const ref = useRef<HTMLAnchorElement>(undefined)
   const [anchorText, setAnchorText] = useState(null)
 
   useEffect(() => {

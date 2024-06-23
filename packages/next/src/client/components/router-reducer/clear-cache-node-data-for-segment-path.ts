@@ -40,9 +40,10 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: null,
+        layerAssets: null,
+        prefetchLayerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading: null,
       })
     }
@@ -57,9 +58,10 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: null,
+        layerAssets: null,
+        prefetchLayerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading: null,
       })
     }
@@ -72,9 +74,10 @@ export function clearCacheNodeDataForSegmentPath(
       rsc: childCacheNode.rsc,
       prefetchRsc: childCacheNode.prefetchRsc,
       head: childCacheNode.head,
+      layerAssets: childCacheNode.layerAssets,
+      prefetchLayerAssets: childCacheNode.prefetchLayerAssets,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-      lazyDataResolved: childCacheNode.lazyDataResolved,
       loading: childCacheNode.loading,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

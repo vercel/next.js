@@ -106,7 +106,10 @@ export function isRedirectError<U extends string>(
     return false
   }
 
-  const [errorCode, type, destination, status] = error.digest.split(';', 4)
+  const digest = error.digest.split(';')
+  const [errorCode, type] = digest
+  const destination = digest.slice(2, -2).join(';')
+  const status = digest.at(-2)
 
   const statusCode = Number(status)
 
@@ -134,7 +137,7 @@ export function getURLFromRedirectError(error: unknown): string | null {
 
   // Slices off the beginning of the digest that contains the code and the
   // separating ';'.
-  return error.digest.split(';', 3)[2]
+  return error.digest.split(';').slice(2, -2).join(';')
 }
 
 export function getRedirectTypeFromError<U extends string>(
@@ -154,5 +157,5 @@ export function getRedirectStatusCodeFromError<U extends string>(
     throw new Error('Not a redirect error')
   }
 
-  return Number(error.digest.split(';', 4)[3])
+  return Number(error.digest.split(';').at(-2))
 }

@@ -59,25 +59,84 @@ export function PseudoHtmlDiff({
   firstContent,
   secondContent,
   hydrationMismatchType,
+  reactOutputComponentDiff,
   ...props
 }: {
   componentStackFrames: ComponentStackFrame[]
   firstContent: string
   secondContent: string
+  reactOutputComponentDiff: string | undefined
   hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
+  const isReactHydrationDiff = !!reactOutputComponentDiff
+
   // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
   const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
-  const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
-  const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
+  const [isHtmlCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
+    const componentStacks: React.ReactNode[] = []
+    // React 19 unified mismatch
+    if (isReactHydrationDiff) {
+      let currentComponentIndex = componentStackFrames.length - 1
+      const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
+      const diffHtmlStack: React.ReactNode[] = []
+      reactComponentDiffLines.forEach((line, index) => {
+        let trimmedLine = line.trim()
+        const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
+        const spaces = ' '.repeat(componentStacks.length * 2)
+
+        if (isDiffLine) {
+          const sign = trimmedLine[0]
+          trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
+          diffHtmlStack.push(
+            <span
+              key={'comp-diff' + index}
+              data-nextjs-container-errors-pseudo-html--diff={
+                sign === '+' ? 'add' : 'remove'
+              }
+            >
+              {sign}
+              {spaces}
+              {trimmedLine}
+              {'\n'}
+            </span>
+          )
+        } else if (currentComponentIndex >= 0) {
+          const isUserLandComponent = trimmedLine.startsWith(
+            '<' + componentStackFrames[currentComponentIndex].component
+          )
+          // If it's matched userland component or it's ... we will keep the component stack in diff
+          if (isUserLandComponent || trimmedLine === '...') {
+            currentComponentIndex--
+            componentStacks.push(
+              <span key={'comp-diff' + index}>
+                {spaces}
+                {trimmedLine}
+                {'\n'}
+              </span>
+            )
+          } else if (!isHtmlCollapsed) {
+            componentStacks.push(
+              <span key={'comp-diff' + index}>
+                {spaces}
+                {trimmedLine}
+                {'\n'}
+              </span>
+            )
+          }
+        }
+      })
+      return componentStacks.concat(diffHtmlStack)
+    }
+
+    const nestedHtmlStack: React.ReactNode[] = []
     const tagNames = isHtmlTagsWarning
       ? // tags could have < or > in the name, so we always remove them to match
         [firstContent.replace(/<|>/g, ''), secondContent.replace(/<|>/g, '')]
       : []
-    const nestedHtmlStack: React.ReactNode[] = []
+
     let lastText = ''
 
     const componentStack = componentStackFrames
@@ -105,10 +164,8 @@ export function PseudoHtmlDiff({
 
     componentStack.forEach((component, index, componentList) => {
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
-      // const prevComponent = componentList[index - 1]
-      // const nextComponent = componentList[index + 1]
-      // When component is the server or client tag name, highlight it
 
+      // When component is the server or client tag name, highlight it
       const isHighlightedTag = isHtmlTagsWarning
         ? index === matchedIndex[0] || index === matchedIndex[1]
         : tagNames.includes(component)
@@ -181,7 +238,6 @@ export function PseudoHtmlDiff({
         }
       }
     })
-
     // Hydration mismatch: text or text-tag
     if (!isHtmlTagsWarning) {
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
@@ -190,22 +246,22 @@ export function PseudoHtmlDiff({
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <span data-nextjs-container-errors-pseudo-html--diff-remove>
+            <span data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `"${firstContent}"\n`}
             </span>
-            <span data-nextjs-container-errors-pseudo-html--diff-add>
+            <span data-nextjs-container-errors-pseudo-html--diff="add">
               {spaces + `"${secondContent}"\n`}
             </span>
           </Fragment>
         )
-      } else {
+      } else if (hydrationMismatchType === 'text-in-tag') {
         // hydration type is "text-in-tag", represent [parent tag, mismatch content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
             <span data-nextjs-container-errors-pseudo-html--tag-adjacent>
               {spaces + `<${secondContent}>\n`}
             </span>
-            <span data-nextjs-container-errors-pseudo-html--diff-remove>
+            <span data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `  "${firstContent}"\n`}
             </span>
           </Fragment>
@@ -223,6 +279,8 @@ export function PseudoHtmlDiff({
     isHtmlTagsWarning,
     hydrationMismatchType,
     MAX_NON_COLLAPSED_FRAMES,
+    isReactHydrationDiff,
+    reactOutputComponentDiff,
   ])
 
   return (

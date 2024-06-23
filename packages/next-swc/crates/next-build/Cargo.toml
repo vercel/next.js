@@ -9,15 +9,10 @@ autobenches = false
 [lib]
 bench = false
 
-[features]
-serializable = []
-profile = []
-
 [lints]
 workspace = true
 
 [dependencies]
-console-subscriber = { workspace = true, optional = true }
 next-core = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
@@ -35,7 +30,6 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_env",
   "__turbopack_node",
 ] }
-turbo-tasks = { workspace = true }
 
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }

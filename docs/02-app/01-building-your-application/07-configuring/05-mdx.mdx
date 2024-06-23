@@ -40,7 +40,7 @@ npm install @next/mdx @mdx-js/loader @mdx-js/react @types/mdx
 
 Update the `next.config.mjs` file at your project's root to configure it to use MDX:
 
-```js filename="next.config.mjs" switcher
+```js filename="next.config.mjs"
 import createMDX from '@next/mdx'
 
 /** @type {import('next').NextConfig} */
@@ -415,7 +415,7 @@ export default function Page() {
 
 <AppOnly>
 
-To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/pages-and-layouts#layouts) with the App Router.
+To share a layout across MDX pages, you can use the [built-in layouts support](/docs/app/building-your-application/routing/layouts-and-templates#layouts) with the App Router.
 
 ```tsx filename="app/mdx-page/layout.tsx" switcher
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
@@ -579,7 +579,7 @@ import BlogPost, { metadata } from '@/content/blog-post.mdx'
 export default function Page() {
   console.log('metadata': metadata)
   //=> { author: 'John Doe' }
-  return <Welcome />
+  return <BlogPost />
 }
 ```
 
@@ -603,7 +603,7 @@ import BlogPost, { metadata } from '@/content/blog-post.mdx'
 export default function Page() {
   console.log('metadata': metadata)
   //=> { author: 'John Doe' }
-  return <Welcome />
+  return <BlogPost />
 }
 ```
 
@@ -756,7 +756,7 @@ The `remark` and `rehype` ecosystem contains plugins for [syntax highlighting](h
 
 When using `@next/mdx` as shown above, you **do not** need to use `remark` or `rehype` directly, as it is handled for you. We're describing it here for a deeper understanding of what the `@next/mdx` package is doing underneath.
 
-## Using the Rust-based MDX compiler (Experimental)
+## Using the Rust-based MDX compiler (experimental)
 
 Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
 
@@ -764,6 +764,20 @@ Next.js supports a new MDX compiler written in Rust. This compiler is still expe
 module.exports = withMDX({
   experimental: {
     mdxRs: true,
+  },
+})
+```
+
+`mdxRs` also accepts an object to configure how to transform mdx files.
+
+```js filename="next.config.js"
+module.exports = withMDX({
+  experimental: {
+    mdxRs: {
+      jsxRuntime?: string            // Custom jsx runtime
+      jsxImportSource?: string       // Custom jsx import source,
+      mdxType?: 'gfm' | 'commonmark' // Configure what kind of mdx syntax will be used to parse & transform
+    },
   },
 })
 ```
