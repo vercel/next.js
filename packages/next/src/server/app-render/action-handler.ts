@@ -385,7 +385,7 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
-type ServerModuleMap = Record<
+export type ServerModuleMap = Record<
   string,
   | {
       id: string
@@ -609,7 +609,7 @@ export async function handleAction({
           // TODO-APP: Add streaming support
           const formData = await req.request.formData()
           if (isFetchAction) {
-            bound = await decodeReply(formData, serverModuleMap)
+            bound = await decodeReply<any[]>(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
@@ -648,9 +648,9 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            bound = await decodeReply<any[]>(formData, serverModuleMap)
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            bound = await decodeReply<any[]>(actionData, serverModuleMap)
           }
         }
       } else if (

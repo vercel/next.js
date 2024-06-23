@@ -31,7 +31,7 @@ import type {
   SizeLimit,
 } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
+import type { ReactReadableStream } from './stream-utils'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesModule } from './route-modules/pages/module'
@@ -83,7 +83,8 @@ import isError from '../lib/is-error'
 import {
   streamToString,
   renderToInitialFizzStream,
-} from './stream-utils/node-web-streams-helper'
+  renderToString,
+} from './stream-utils'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
@@ -104,6 +105,7 @@ import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import type { Readable } from 'node:stream'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -125,12 +127,6 @@ function noRouter() {
   const message =
     'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
   throw new Error(message)
-}
-
-async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
-  await renderStream.allReady
-  return streamToString(renderStream)
 }
 
 class ServerRouter implements NextRouter {
@@ -1241,7 +1237,7 @@ export async function renderToHTMLImpl(
       renderShell: (
         _App: AppType,
         _Component: NextComponentType
-      ) => Promise<ReactReadableStream>
+      ) => Promise<ReactReadableStream | Readable>
     ) {
       const renderPage: RenderPage = async (
         options: ComponentsEnhancer = {}
@@ -1270,7 +1266,9 @@ export async function renderToHTMLImpl(
           enhanceComponents(options, App, Component)
 
         const stream = await renderShell(EnhancedApp, EnhancedComponent)
-        await stream.allReady
+        if ('allReady' in stream) {
+          await stream.allReady
+        }
         const html = await streamToString(stream)
 
         return { html, head }
@@ -1319,10 +1317,26 @@ export async function renderToHTMLImpl(
       EnhancedComponent: NextComponentType
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
-      return await renderToInitialFizzStream({
-        ReactDOMServer: ReactDOMServerEdge,
+
+      let stream = await renderToInitialFizzStream({
         element: content,
       })
+
+      // if (
+      //   process.env.NEXT_RUNTIME === 'nodejs' &&
+      //   !(stream instanceof ReadableStream)
+      // ) {
+      //   const { Readable } = require('node:stream')
+
+      //   stream = Readable.toWeb(stream) as ReadableStream<Uint8Array>
+      // }
+
+      // // TODO (@Ethan-Arrowood): Remove this when stream utilities support both stream types.
+      // if (!(stream instanceof ReadableStream)) {
+      //   throw new Error("Invariant: stream isn't a ReadableStream")
+      // }
+
+      return stream
     }
 
     const hasDocumentGetInitialProps =
@@ -1345,7 +1359,9 @@ export async function renderToHTMLImpl(
         } else {
           documentInitialPropsRes = {}
           const stream = await renderShell(App, Component)
-          await stream.allReady
+          if ('allReady' in stream) {
+            await stream.allReady
+          }
           return streamToString(stream)
         }
       })(),

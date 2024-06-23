@@ -26,7 +26,7 @@
     "testonly-deploy": "cross-env NEXT_TEST_MODE=deploy pnpm testonly",
     "test": "pnpm testheadless",
     "test-turbo": "cross-env TURBOPACK=1 TURBOPACK_DEV=1 TURBOPACK_BUILD=1 pnpm testheadless",
-    "testonly": "jest --runInBand",
+    "testonly": "EXPERIMENTAL_NODE_STREAMS_SUPPORT=1 jest --runInBand",
     "testheadless": "cross-env HEADLESS=true pnpm testonly",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",

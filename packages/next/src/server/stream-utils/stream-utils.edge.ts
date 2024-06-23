@@ -64,6 +64,17 @@ export function chainStreams<T>(
   return readable
 }
 
+export async function renderToString(
+  element: React.ReactElement
+): Promise<string> {
+  const ReactDOMServer =
+    require('react-dom/server.edge') as typeof import('react-dom/server.edge')
+
+  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  await renderStream.allReady
+  return streamToString(renderStream)
+}
+
 export function streamFromString(str: string): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
@@ -184,14 +195,13 @@ function createInsertedHTMLStream(
 }
 
 export function renderToInitialFizzStream({
-  ReactDOMServer,
   element,
   streamOptions,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
   element: React.ReactElement
   streamOptions?: any
 }): Promise<ReactReadableStream> {
+  const ReactDOMServer = require('react-dom/server.edge')
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
@@ -318,7 +328,7 @@ function createDeferredSuffixStream(
 
 // Merge two streams into one. Ensure the final transform stream is closed
 // when both are finished.
-function createMergedTransformStream(
+export function createMergedTransformStream(
   stream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
   let pull: Promise<void> | null = null

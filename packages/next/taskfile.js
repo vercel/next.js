@@ -1654,8 +1654,6 @@ export async function copy_vendor_react(task_) {
       `src/compiled/react-dom${packageSuffix}`
     )
     const itemsToRemove = [
-      'static.js',
-      'static.node.js',
       'static.browser.js',
       'unstable_testing.js',
       'test-utils.js',

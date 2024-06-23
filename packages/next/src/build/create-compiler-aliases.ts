@@ -240,6 +240,7 @@ export function createRSCRendererAliases(bundledReactChannel: string) {
     // react-server-dom-webpack alias
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.edge`,
+    'react-server-dom-webpack/client.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/client.node`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${bundledReactChannel}/server.node`,
   }
@@ -265,12 +266,14 @@ export function createRSCAliases(
     'react/compiler-runtime$': `next/dist/compiled/react${bundledReactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${bundledReactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
+    'react-dom/static$': `next/dist/compiled/react-dom${bundledReactChannel}/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    'react-dom/static.node$': `next/dist/compiled/react-dom-experimental/static.node`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${bundledReactChannel}.js`,
     'react-dom/server.browser$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
+    'react-dom/server.node$': `next/dist/build/webpack/alias/react-dom-server-browser${bundledReactChannel}.js`,
     // react-server-dom-webpack alias
     ...createRSCRendererAliases(bundledReactChannel),
   }

@@ -1,8 +1,9 @@
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { BinaryStreamOf } from './app-render'
+import type { ClientReferenceManifest } from '../../../build/webpack/plugins/flight-manifest-plugin'
+import type { BinaryStreamOf } from '../app-render'
 
-import { htmlEscapeJsonString } from '../htmlescape'
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { htmlEscapeJsonString } from '../../htmlescape'
+import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { Readable } from 'node:stream'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -11,7 +12,10 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
-const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
+const flightResponses = new WeakMap<
+  Readable | BinaryStreamOf<any>,
+  Promise<any>
+>()
 const encoder = new TextEncoder()
 
 /**
@@ -30,19 +34,19 @@ export function useFlightStream<T>(
   }
 
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
-  let createFromReadableStream
+  let createFromStream
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
   if (process.env.TURBOPACK) {
-    createFromReadableStream =
+    createFromStream =
       // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-turbopack/client.edge').createFromReadableStream
   } else {
-    createFromReadableStream =
+    createFromStream =
       // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge').createFromReadableStream
   }
 
-  const newResponse = createFromReadableStream(flightStream, {
+  const newResponse = createFromStream(flightStream, {
     ssrManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime

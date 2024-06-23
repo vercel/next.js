@@ -12,8 +12,8 @@ declare global {
 
 export type ErrorHandler = (
   err: unknown,
-  errorInfo: unknown
-) => string | undefined
+  errorInfo?: unknown
+) => string | undefined | null | void
 
 export const ErrorHandlerSource = {
   serverComponents: 'serverComponents',

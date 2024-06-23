@@ -13,6 +13,8 @@ function getAltProxyForBindingsDEV(
   pkg:
     | 'react-server-dom-turbopack/client.edge'
     | 'react-server-dom-webpack/client.edge'
+    | 'react-server-dom-turbopack/client.node'
+    | 'react-server-dom-webpack/client.node'
 ) {
   if (process.env.NODE_ENV === 'development') {
     const altType = type === 'Turbopack' ? 'Webpack' : 'Turbopack'
@@ -31,23 +33,38 @@ function getAltProxyForBindingsDEV(
   }
 }
 
-let ReactServerDOMTurbopackClientEdge, ReactServerDOMWebpackClientEdge
+let ReactServerDOMTurbopackClientEdge,
+  ReactServerDOMWebpackClientEdge,
+  ReactServerDOMTurbopackClientNode,
+  ReactServerDOMWebpackClientNode
 if (process.env.TURBOPACK) {
   // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMTurbopackClientEdge = require('react-server-dom-turbopack/client.edge')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMTurbopackClientNode = require('react-server-dom-turbopack/client.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMWebpackClientEdge = getAltProxyForBindingsDEV(
       'Turbopack',
       'react-server-dom-turbopack/client.edge'
     )
+    ReactServerDOMWebpackClientNode = getAltProxyForBindingsDEV(
+      'Turbopack',
+      'react-server-dom-turbopack/client.node'
+    )
   }
 } else {
   // eslint-disable-next-line import/no-extraneous-dependencies
   ReactServerDOMWebpackClientEdge = require('react-server-dom-webpack/client.edge')
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMWebpackClientNode = require('react-server-dom-webpack/client.node')
   if (process.env.NODE_ENV === 'development') {
     ReactServerDOMTurbopackClientEdge = getAltProxyForBindingsDEV(
       'Webpack',
       'react-server-dom-webpack/client.edge'
+    )
+    ReactServerDOMTurbopackClientNode = getAltProxyForBindingsDEV(
+      'Webpack',
+      'react-server-dom-webpack/client.node'
     )
   }
 }
@@ -60,5 +77,7 @@ export {
   ReactDOM,
   ReactDOMServerEdge,
   ReactServerDOMTurbopackClientEdge,
+  ReactServerDOMTurbopackClientNode,
   ReactServerDOMWebpackClientEdge,
+  ReactServerDOMWebpackClientNode,
 }

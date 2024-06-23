@@ -169,6 +169,13 @@ pub async fn get_next_client_import_map(
                     "next/dist/compiled/react-dom-experimental/static.browser",
                 ),
             );
+            import_map.insert_exact_alias(
+                "react-dom/static.node",
+                request_to_import_mapping(
+                    app_dir,
+                    "next/dist/compiled/react-dom-experimental/static.node",
+                ),
+            );
             import_map.insert_wildcard_alias(
                 "react-dom/",
                 request_to_import_mapping(
