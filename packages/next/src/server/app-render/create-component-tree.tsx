@@ -1,4 +1,8 @@
-import type { FlightSegmentPath, CacheNodeSeedData } from './types'
+import type {
+  FlightSegmentPath,
+  CacheNodeSeedData,
+  PreloadCallbacks,
+} from './types'
 import React, { type ReactNode } from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
@@ -19,6 +23,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 type ComponentTree = {
   seedData: CacheNodeSeedData
   styles: ReactNode
+  preloadCallbacks: PreloadCallbacks
 }
 
 type Params = {
@@ -41,6 +46,7 @@ export function createComponentTree(props: {
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: (() => void)[]
 }): Promise<ComponentTree> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -64,6 +70,7 @@ async function createComponentTreeInternal({
   metadataOutlet,
   ctx,
   missingSlots,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -77,6 +84,7 @@ async function createComponentTreeInternal({
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  preloadCallbacks: PreloadCallbacks
 }): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -109,6 +117,7 @@ async function createComponentTreeInternal({
   )
 
   const layerAssets = getLayerAssets({
+    preloadCallbacks,
     ctx,
     layoutOrPagePath,
     injectedCSS: injectedCSSWithCurrentLayout,
@@ -446,6 +455,7 @@ async function createComponentTreeInternal({
               metadataOutlet: isChildrenRouteKey ? metadataOutlet : undefined,
               ctx,
               missingSlots,
+              preloadCallbacks,
             })
 
           currentStyles = childComponentStyles
@@ -509,6 +519,7 @@ async function createComponentTreeInternal({
         loadingData,
       ],
       styles: layerAssets,
+      preloadCallbacks,
     }
   }
 
@@ -539,6 +550,7 @@ async function createComponentTreeInternal({
         loadingData,
       ],
       styles: layerAssets,
+      preloadCallbacks,
     }
   }
 
@@ -631,5 +643,6 @@ async function createComponentTreeInternal({
       loadingData,
     ],
     styles: layerAssets,
+    preloadCallbacks,
   }
 }
