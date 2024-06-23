@@ -87,9 +87,8 @@ export async function streamToBuffer(
 ): Promise<Buffer> {
   const buffers: Buffer[] = []
 
-  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
   for await (const chunk of stream) {
-    buffers.push(chunk)
+    buffers.push(Buffer.from(chunk))
   }
 
   return Buffer.concat(buffers)
@@ -101,7 +100,6 @@ export async function streamToString(
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
-  // @ts-expect-error TypeScript gets this wrong (https://nodejs.org/api/webstreams.html#async-iteration)
   for await (const chunk of stream) {
     string += decoder.decode(chunk, { stream: true })
   }
