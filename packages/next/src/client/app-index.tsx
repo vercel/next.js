@@ -10,13 +10,12 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
-import {
-  ActionQueueContext,
-  createMutableActionQueue,
-} from '../shared/lib/router/action-queue'
+import { createMutableActionQueue } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/app-render'
+import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
+import { useReducerWithReduxDevtools } from './components/use-reducer-with-devtools'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -178,20 +177,36 @@ function ServerRoot(): React.ReactNode {
     G: GlobalError,
   } = initialResponse
 
+  const initialRouterState = createInitialRouterState({
+    buildId,
+    initialSeedData,
+    initialCanonicalUrl,
+    initialTree,
+    initialParallelRoutes: new Map(),
+    location: window.location,
+    initialHead,
+    couldBeIntercepted,
+    initialLayerAssets,
+  })
+
+  const actionQueue = createMutableActionQueue(initialRouterState)
+
+  const [reducerState, dispatch, sync] = useReducerWithReduxDevtools(
+    initialRouterState,
+    actionQueue
+  )
+
   return (
     <>
       {initialStyles}
       <AppRouter
-        buildId={buildId}
-        assetPrefix={assetPrefix}
-        initialCanonicalUrl={initialCanonicalUrl}
-        couldBeIntercepted={couldBeIntercepted}
-        initialTree={initialTree}
-        initialSeedData={initialSeedData}
-        missingSlots={missingSlots}
-        initialHead={initialHead}
-        initialLayerAssets={initialLayerAssets}
+        reducerState={reducerState}
+        dispatch={dispatch}
+        sync={sync}
         globalErrorComponent={GlobalError}
+        assetPrefix={assetPrefix}
+        buildId={buildId}
+        missingSlots={missingSlots}
       />
     </>
   )
@@ -214,16 +229,12 @@ function Root({ children }: React.PropsWithChildren<{}>) {
 }
 
 export function hydrate() {
-  const actionQueue = createMutableActionQueue()
-
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
-        <ActionQueueContext.Provider value={actionQueue}>
-          <Root>
-            <ServerRoot />
-          </Root>
-        </ActionQueueContext.Provider>
+        <Root>
+          <ServerRoot />
+        </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
