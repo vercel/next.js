@@ -179,31 +179,25 @@ function ServerRoot(): React.ReactNode {
     p: assetPrefix,
     c: initialCanonicalUrl,
     i: couldBeIntercepted,
-    s: initialStyles,
     t: initialTree,
     d: initialSeedData,
     h: initialHead,
-    l: initialLayerAssets,
     m: missingSlots,
     G: GlobalError,
   } = initialResponse
 
   return (
-    <>
-      {initialStyles}
-      <AppRouter
-        buildId={buildId}
-        assetPrefix={assetPrefix}
-        initialCanonicalUrl={initialCanonicalUrl}
-        couldBeIntercepted={couldBeIntercepted}
-        initialTree={initialTree}
-        initialSeedData={initialSeedData}
-        missingSlots={missingSlots}
-        initialHead={initialHead}
-        initialLayerAssets={initialLayerAssets}
-        globalErrorComponent={GlobalError}
-      />
-    </>
+    <AppRouter
+      buildId={buildId}
+      assetPrefix={assetPrefix}
+      initialCanonicalUrl={initialCanonicalUrl}
+      couldBeIntercepted={couldBeIntercepted}
+      initialTree={initialTree}
+      initialSeedData={initialSeedData}
+      missingSlots={missingSlots}
+      initialHead={initialHead}
+      globalErrorComponent={GlobalError}
+    />
   )
 }
 
