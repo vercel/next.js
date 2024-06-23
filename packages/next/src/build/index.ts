@@ -866,14 +866,19 @@ export default async function build(
         appDir
       )
 
-      const pagesPaths =
-        !appDirOnly && pagesDir
+      const providedPagePaths: string[] = JSON.parse(
+        process.env.NEXT_PROVIDED_PAGE_PATHS || '[]'
+      )
+
+      let pagesPaths =
+        providedPagePaths ||
+        (!appDirOnly && pagesDir
           ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
               recursiveReadDir(pagesDir, {
                 pathnameFilter: validFileMatcher.isPageFile,
               })
             )
-          : []
+          : [])
 
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
@@ -936,18 +941,24 @@ export default async function build(
       let denormalizedAppPages: string[] | undefined
 
       if (appDir) {
-        const appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
-                validFileMatcher.isAppRouterPage(absolutePath) ||
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
-              ignorePartFilter: (part) => part.startsWith('_'),
-            })
-          )
+        const providedAppPaths: string[] = JSON.parse(
+          process.env.NEXT_PROVIDED_APP_PATHS || '[]'
+        )
+
+        let appPaths =
+          providedAppPaths ||
+          (await nextBuildSpan
+            .traceChild('collect-app-paths')
+            .traceAsyncFn(() =>
+              recursiveReadDir(appDir, {
+                pathnameFilter: (absolutePath) =>
+                  validFileMatcher.isAppRouterPage(absolutePath) ||
+                  // For now we only collect the root /not-found page in the app
+                  // directory as the 404 fallback
+                  validFileMatcher.isRootNotFound(absolutePath),
+                ignorePartFilter: (part) => part.startsWith('_'),
+              })
+            ))
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
