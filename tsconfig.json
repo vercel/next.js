@@ -20,6 +20,5 @@
       "test-log": ["./test/lib/test-log"]
     }
   },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"]
 }

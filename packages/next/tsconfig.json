@@ -4,7 +4,6 @@
     "strict": true,
     "stripInternal": true,
     "esModuleInterop": true,
-    "skipDefaultLibCheck": true,
     "verbatimModuleSyntax": true,
     "jsx": "react-jsx",
     "module": "ESNext",
