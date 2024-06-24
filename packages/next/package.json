@@ -299,6 +299,7 @@
     "send": "0.17.1",
     "server-only": "0.0.1",
     "setimmediate": "1.0.5",
+    "sharp": "0.33.4",
     "shell-quote": "1.7.3",
     "source-map": "0.6.1",
     "source-map-loader": "5.0.0",
