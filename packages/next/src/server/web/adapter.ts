@@ -91,8 +91,7 @@ export async function adapter(
   ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
 
-  // TODO-APP: use explicit marker for this
-  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const isEdgeRendering = process.env.NEXT_RUNTIME === 'edge'
   const prerenderManifest: PrerenderManifest | undefined =
     typeof self.__PRERENDER_MANIFEST === 'string'
       ? JSON.parse(self.__PRERENDER_MANIFEST)
@@ -300,7 +299,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
-  if (response && rewrite) {
+  if (response && rewrite && !isEdgeRendering) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
