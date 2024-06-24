@@ -1,11 +1,6 @@
 {
   "version": 2,
   "suites": {
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "pending": [],
-      "failed": ["Provided page/app paths should only build the provided paths"]
-    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -813,6 +808,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -909,6 +905,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -5595,6 +5592,7 @@
         "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
         "Prerender should not throw error for on-demand revalidate for SSR path",
         "Prerender should of formatted build output correctly",
+        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should on-demand revalidate for revalidate: false",
         "Prerender should on-demand revalidate that returns notFound: true",
         "Prerender should only show warning once per page when large amount of page data is returned",
@@ -5620,7 +5618,6 @@
         "Prerender should navigate between pages successfully",
         "Prerender should not error when rewriting to fallback dynamic SSG page",
         "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
-        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should output traces",
         "Prerender should parse query values on mount correctly",
         "Prerender should render correctly for SSG pages that starts with api-docs",
