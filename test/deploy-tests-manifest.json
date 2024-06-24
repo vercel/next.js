@@ -13,11 +13,6 @@
         "app dir - metadata react cache should have same title and page value when navigating"
       ]
     },
-    "test/e2e/app-dir/metadata-navigation/metadata-navigation.test.ts": {
-      "failed": [
-        "app dir - metadata navigation navigation should render root not-found with default metadata"
-      ]
-    },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
     }
