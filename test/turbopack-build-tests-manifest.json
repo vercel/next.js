@@ -1,6 +1,11 @@
 {
   "version": 2,
   "suites": {
+    "test/e2e/app-dir/app/provide-paths.test.ts": {
+      "passed": [],
+      "pending": [],
+      "failed": ["Provided page/app paths should only build the provided paths"]
+    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
