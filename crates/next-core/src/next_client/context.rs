@@ -237,7 +237,6 @@ pub async fn get_client_module_options_context(
     let enable_webpack_loaders =
         webpack_loader_options(project_path, next_config, false, conditions).await?;
 
-    let tree_shaking_mode = *next_config.tree_shaking_mode().await?;
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
@@ -278,7 +277,7 @@ pub async fn get_client_module_options_context(
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
