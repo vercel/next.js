@@ -17,7 +17,7 @@ crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
 postcard = { workspace = true, features = ["alloc", "use-std"] }
 serde = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["signal", "rt"] }
+tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 turbo-tasks-malloc = { workspace = true }

@@ -6,9 +6,10 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::{arguments::Arguments, register};
 use turbopack_trace_utils::{
-    exit::ExitGuard,
+    exit::ExitHandler,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
     tracing_presets::{
@@ -17,16 +18,27 @@ use turbopack_trace_utils::{
 };
 
 #[global_allocator]
-static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
-    use turbo_tasks_malloc::TurboMalloc;
-
     let args = Arguments::parse();
 
-    let trace = std::env::var("TURBOPACK_TRACING").ok();
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .build()
+        .unwrap()
+        .block_on(main_inner(args))
+        .unwrap();
+}
 
-    let _guard = if let Some(mut trace) = trace {
+async fn main_inner(args: Arguments) -> Result<()> {
+    let exit_handler = ExitHandler::listen();
+
+    let trace = std::env::var("TURBOPACK_TRACING").ok();
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" => {
@@ -57,27 +69,12 @@ fn main() {
         let (trace_writer, guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        let guard = ExitGuard::new(guard).unwrap();
+        exit_handler
+            .on_exit(async move { tokio::task::spawn_blocking(|| drop(guard)).await.unwrap() });
 
         subscriber.init();
+    }
 
-        Some(guard)
-    } else {
-        None
-    };
-
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
-        .build()
-        .unwrap()
-        .block_on(main_inner(args))
-        .unwrap();
-}
-
-async fn main_inner(args: Arguments) -> Result<()> {
     register();
 
     match args {
