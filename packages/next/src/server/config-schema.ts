@@ -389,6 +389,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
+            disableTreeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
           })
           .optional(),
