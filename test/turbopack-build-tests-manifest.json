@@ -15997,7 +15997,8 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
-        "required server files app router should send cache tags in minimal mode for ISR"
+        "required server files app router should send cache tags in minimal mode for ISR",
+        "required server files app router › should still render when postponed is corrupted"
       ],
       "pending": [],
       "flakey": [],
