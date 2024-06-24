@@ -29,8 +29,7 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
-import type { Env } from '@next/env'
-import { mkdir, writeFile } from 'fs/promises'
+import { createEnvDefinitions } from '../lib/experimental/typed-env'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -85,34 +84,6 @@ export async function getRequestHandlers({
     startServerSpan,
     quiet,
   })
-}
-
-// TODO: move to some other folder for `TypeScript DX`
-async function createEnvDefinitions(distDir: string, env: Env) {
-  const envKeys = Object.keys(env ?? {})
-    .map((key) => `      ${key}: readonly string`)
-    .join('\n')
-  const definitionStr = `// Type definitions for Next.js environment variables
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-${envKeys}
-    }
-  }
-}
-export {}`
-
-  try {
-    await mkdir(path.join(distDir, 'types'), { recursive: true })
-    await writeFile(
-      path.join(distDir, 'types', 'env.d.ts'),
-      definitionStr,
-      'utf-8'
-    )
-  } catch (error) {
-    Log.error('Failed to write env.d.ts file')
-    console.error(error)
-  }
 }
 
 export async function startServer(
