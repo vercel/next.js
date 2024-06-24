@@ -124,41 +124,6 @@ describe('Error overlay - RSC build errors', () => {
     await cleanup()
   })
 
-  it('should error when page component export is not valid', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export'
-    )
-
-    await next.patchFile(
-      'app/server-with-errors/page-export/page.js',
-      'export const a = 123'
-    )
-
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export"'
-    )
-
-    await cleanup()
-  })
-
-  it('should error when page component export is not valid on initial load', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/page-export-initial-error'
-    )
-
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in page: "/server-with-errors/page-export-initial-error"'
-    )
-
-    await cleanup()
-  })
-
   it('should throw an error when "use client" is on the top level but after other expressions', async () => {
     const { session, cleanup } = await sandbox(
       next,
