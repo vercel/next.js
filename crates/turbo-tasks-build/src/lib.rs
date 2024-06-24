@@ -1,8 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    env::{
-        current_dir, {self},
-    },
+    env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
     path::{PathBuf, MAIN_SEPARATOR as PATH_SEP},
@@ -111,7 +109,7 @@ pub fn generate_register() {
 
                 file_path: &file_path,
                 prefix: &prefix,
-                mod_path: &mod_path,
+                mod_path,
 
                 register: &mut register_code,
                 values: &mut values,
@@ -191,7 +189,7 @@ struct RegisterContext<'a> {
     queue: &'a mut Vec<(String, PathBuf)>,
 
     file_path: &'a PathBuf,
-    mod_path: &'a str,
+    mod_path: String,
     prefix: &'a str,
 
     register: &'a mut String,
@@ -269,7 +267,15 @@ impl<'a> RegisterContext<'a> {
     }
 
     fn process_mod(&mut self, mod_item: ItemMod) -> Result<()> {
-        if mod_item.content.is_none() {
+        if let Some((_, items)) = mod_item.content {
+            let mod_name = mod_item.ident.to_string();
+            let child_mod_path = format!("{}::{}", self.mod_path, mod_name);
+            let parent_mod_path = std::mem::replace(&mut self.mod_path, child_mod_path);
+            for item in items {
+                self.process_item(item)?;
+            }
+            self.mod_path = parent_mod_path;
+        } else {
             let name = mod_item.ident.to_string();
             let parent_path = self.file_path.parent().unwrap();
             let direct = parent_path.join(format!("{name}.rs"));
@@ -391,7 +397,7 @@ impl<'a> RegisterContext<'a> {
     }
 
     fn add_value(&mut self, ident: &Ident) {
-        let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
+        let key: ValueKey = (self.mod_path.clone(), ident.clone());
         let value: ValueEntry = (self.get_global_name(&[ident]), Vec::new());
 
         assert!(
@@ -426,7 +432,7 @@ impl<'a> RegisterContext<'a> {
     }
 
     fn add_value_trait(&mut self, ident: &Ident, trait_ident: &Ident) {
-        let key: ValueKey = (self.mod_path.to_owned(), ident.clone());
+        let key: ValueKey = (self.mod_path.clone(), ident.clone());
 
         let entry = self.values.get_mut(&key);
         if entry.is_none() {
