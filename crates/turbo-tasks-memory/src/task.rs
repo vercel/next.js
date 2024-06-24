@@ -522,19 +522,10 @@ impl Task {
 
     pub(crate) fn get_function_name(&self) -> Option<Cow<'static, str>> {
         if let TaskType::Persistent { ty, .. } = &self.ty {
-            match &***ty {
-                PersistentTaskType::Native(native_fn, _)
-                | PersistentTaskType::ResolveNative(native_fn, _) => {
-                    return Some(Cow::Borrowed(&registry::get_function(*native_fn).name));
-                }
-                PersistentTaskType::ResolveTrait(trait_id, fn_name, _) => {
-                    return Some(
-                        format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
-                    );
-                }
-            }
+            Some(ty.get_name())
+        } else {
+            None
         }
-        None
     }
 
     pub(crate) fn get_description(&self) -> String {
