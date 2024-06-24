@@ -146,8 +146,10 @@ let wasmBindings: any
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
-let swcHeapProfilerFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
+
+type DhatProfiler = { __napiType: 'DhatProfilerGuard' }
+let dhatProfiler: DhatProfiler | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
@@ -181,8 +183,8 @@ export interface Binding {
 
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
-  initHeapProfiler?: any
-  teardownHeapProfiler?: any
+  initDhatProfiler: () => DhatProfiler
+  teardownDhatProfiler: (guard: DhatProfiler) => void
   css: {
     lightning: {
       transform(transformOptions: any): Promise<any>
@@ -1535,11 +1537,11 @@ function loadNative(importPath?: string) {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
-      initHeapProfiler: bindings.initHeapProfiler,
-      teardownHeapProfiler: bindings.teardownHeapProfiler,
+      initDhatProfiler: bindings.initDhatProfiler,
+      teardownDhatProfiler: bindings.teardownDhatProfiler,
       turbo: {
         startTrace: (options = {}, turboTasks: unknown) => {
-          initHeapProfiler()
+          initDhatProfiler()
           return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
@@ -1685,11 +1687,11 @@ export const initCustomTraceSubscriber = (traceFileName?: string): void => {
  * only available by manually building next-swc with specific flags.
  * Calling in release build will not do anything.
  */
-export const initHeapProfiler = () => {
+export const initDhatProfiler = () => {
   try {
-    if (!swcHeapProfilerFlushGuard) {
+    if (dhatProfiler == null) {
       let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler()
+      dhatProfiler = bindings.initDhatProfiler()
     }
   } catch (_) {
     // Suppress exceptions, this fn allows to fail to load native bindings
@@ -1702,22 +1704,16 @@ export const initHeapProfiler = () => {
  * Same as initialization, this is not available in release build of next-swc by default
  * and calling it will not do anything.
  */
-export const teardownHeapProfiler = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcHeapProfilerFlushGuard) {
-          bindings.teardownHeapProfiler(swcHeapProfilerFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
+export const teardownDhatProfiler = () => {
+  try {
+    if (dhatProfiler != null) {
+      let bindings = loadNative()
+      bindings.teardownDhatProfiler(dhatProfiler)
     }
+  } catch (_) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
   }
-})()
+}
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.

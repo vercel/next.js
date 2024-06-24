@@ -54,7 +54,7 @@ use super::{
         TurbopackResult, VcArc,
     },
 };
-use crate::register;
+use crate::{register, util::DhatProfilerGuard};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -261,10 +261,17 @@ pub async fn project_new(
     turbo_engine_options: NapiTurboEngineOptions,
 ) -> napi::Result<External<ProjectInstance>> {
     register();
-
-    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
+    if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || drop(dhat_profiler))
+                .await
+                .unwrap()
+        });
+    }
+
+    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
