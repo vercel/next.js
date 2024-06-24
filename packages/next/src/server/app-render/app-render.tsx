@@ -88,6 +88,7 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
+  DYNAMIC_DATA,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
   type PostponedState,
@@ -1019,64 +1020,40 @@ async function renderToHTMLOrFlightImpl(
         tracingMetadata: tracingMetadata,
       })
 
-      try {
-        // If provided, the postpone state should be parsed as JSON so it can be
-        // provided to React.
-        let postponed: PostponedState | null = null
-        if (renderOpts.postponed && isRoutePPREnabled) {
-          // Try to parse the postponed state. If we're unable to
-          try {
-            postponed = JSON.parse(renderOpts.postponed)
-          } catch {
-            // We couldn't parse the postponed state, so render the dynamic flight
-            // data only. We achieve this by passing the postponed value of `1`.
-            // If we error during this branch, we should fallback to the
-            // original error handling.
-            const result = await createStaticRenderer({
-              // We only hit this branch when PPR is enabled.
-              isRoutePPREnabled: true,
-              // We only hit this branch when we're generating dynamic HTML.
-              isStaticGeneration: false,
-              // If this branch is hit, we couldn't parse the postponed state, so
-              // we should render the dynamic flight data instead.
-              postponed: 1,
-              streamOptions: { onError: htmlRendererErrorHandler, nonce },
-            }).render(children)
+      let postponed: PostponedState | null = null
 
-            // Emit the dynamic data stream as script tags by using the dynamic
-            // HTML resume.
-            const stream = await continueDynamicHTMLResume(result.stream, {
-              inlinedDataStream: createInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
-              ),
-              getServerInsertedHTML,
-            })
-
-            return { stream }
-          }
+      // If provided, the postpone state should be parsed as JSON so it can be
+      // provided to React.
+      if (typeof renderOpts.postponed === 'string') {
+        try {
+          postponed = JSON.parse(renderOpts.postponed)
+        } catch {
+          // If we failed to parse the postponed state, we should default to
+          // performing a dynamic data render.
+          postponed = DYNAMIC_DATA
         }
+      }
 
-        const renderer = createStaticRenderer({
-          isRoutePPREnabled,
-          isStaticGeneration,
-          postponed,
-          streamOptions: {
-            onError: htmlRendererErrorHandler,
-            onHeaders,
-            maxHeadersLength: 600,
-            nonce,
-            // When debugging the static shell, client-side rendering should be
-            // disabled to prevent blanking out the page.
-            bootstrapScripts: renderOpts.isDebugStaticShell
-              ? []
-              : [bootstrapScript],
-            formState,
-          },
-        })
+      const renderer = createStaticRenderer({
+        isRoutePPREnabled,
+        isStaticGeneration,
+        postponed,
+        streamOptions: {
+          onError: htmlRendererErrorHandler,
+          onHeaders,
+          maxHeadersLength: 600,
+          nonce,
+          // When debugging the static shell, client-side rendering should be
+          // disabled to prevent blanking out the page.
+          bootstrapScripts: renderOpts.isDebugStaticShell
+            ? []
+            : [bootstrapScript],
+          formState,
+        },
+      })
 
-        let result = await renderer.render(children)
+      try {
+        const result = await renderer.render(children)
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
@@ -1196,9 +1173,10 @@ async function renderToHTMLOrFlightImpl(
                   </HeadManagerContext.Provider>
                 )
 
-                result = await resumeRenderer.render(resumeChildren)
+                const { stream: resumeStream } =
+                  await resumeRenderer.render(resumeChildren)
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(result.stream, result.stream)
+                renderedHTMLStream = chainStreams(result.stream, resumeStream)
               }
 
               return {
