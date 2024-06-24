@@ -61,6 +61,8 @@ async function webpackBuildWithWorker(
           debug(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
+
+          process.exit(1)
         }
       })
     }
