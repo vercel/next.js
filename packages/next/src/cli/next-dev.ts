@@ -202,12 +202,15 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
+  const distDir = path.join(dir, config.distDir ?? '.next')
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
     hostname: host,
+    distDir,
   }
 
   if (options.turbo) {
@@ -216,7 +219,6 @@ const nextDev = async (
 
   isTurboSession = !!process.env.TURBOPACK
 
-  const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
   setGlobal('distDir', distDir)
 

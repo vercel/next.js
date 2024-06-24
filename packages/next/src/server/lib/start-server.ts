@@ -29,6 +29,8 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
+import type { Env } from '@next/env'
+import { mkdir, writeFile } from 'fs/promises'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -37,6 +39,7 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
+  distDir?: string
   hostname?: string
   allowRetry?: boolean
   customServer?: boolean
@@ -84,12 +87,42 @@ export async function getRequestHandlers({
   })
 }
 
+// TODO: move to some other folder for `TypeScript DX`
+async function createEnvDefinitions(distDir: string, env: Env) {
+  const envKeys = Object.keys(env ?? {})
+    .map((key) => `      ${key}: readonly string`)
+    .join('\n')
+  const definitionStr = `// Type definitions for Next.js environment variables
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      NODE_ENV: readonly 'development' | 'production' | 'test'
+${envKeys}
+    }
+  }
+}
+export {}`
+
+  try {
+    await mkdir(path.join(distDir, 'types'), { recursive: true })
+    await writeFile(
+      path.join(distDir, 'types', 'env.d.ts'),
+      definitionStr,
+      'utf-8'
+    )
+  } catch (error) {
+    Log.error('Failed to write env.d.ts file')
+    console.error(error)
+  }
+}
+
 export async function startServer(
   serverOptions: StartServerOptions
 ): Promise<void> {
   const {
     dir,
     isDev,
+    distDir,
     hostname,
     minimalMode,
     allowRetry,
@@ -253,10 +286,12 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let expFeatureInfo: string[] | undefined
+      let env: Env = {}
       if (isDev) {
         const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
+        env = startServerInfo.env
       }
       logStartInfo({
         networkUrl,
@@ -324,6 +359,10 @@ export async function startServer(
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${Math.round(startServerProcessDuration)}ms`
+
+        if (isDev) {
+          await createEnvDefinitions(distDir!, env)
+        }
 
         Log.event(`Ready in ${formatDurationText}`)
 

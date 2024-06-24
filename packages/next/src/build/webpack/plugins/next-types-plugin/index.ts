@@ -5,7 +5,6 @@ import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { parse } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
-import { loadEnvConfig } from '@next/env'
 
 import { WEBPACK_LAYERS } from '../../../../lib/constants'
 import { denormalizePagePath } from '../../../../shared/lib/page-path/denormalize-page-path'
@@ -504,29 +503,6 @@ declare module 'next/navigation' {
 `
 }
 
-function createEnvDefinitions(dir: string, dev: boolean) {
-  const parsedEnv = loadEnvConfig(
-    dir,
-    dev,
-    { info: () => {}, error: () => {} },
-    false
-  ).combinedEnv
-
-  const envKeys = Object.keys(parsedEnv)
-    .map((key) => `      ${key}: readonly string`)
-    .join('\n')
-
-  return `// Type definitions for Next.js environment variables
-declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-${envKeys}
-    }
-  }
-}
-export {}`
-}
-
 const appTypesBasePath = path.join('types', 'app')
 
 export class NextTypesPlugin {
@@ -765,12 +741,6 @@ export class NextTypesPlugin {
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource
           }
-
-          const envAssetPath = path.join(assetDirRelative, 'types/env.d.ts')
-
-          assets[envAssetPath] = new sources.RawSource(
-            createEnvDefinitions(this.dir, this.dev)
-          ) as unknown as webpack.sources.RawSource
 
           callback()
         }
