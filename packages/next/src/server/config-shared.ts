@@ -339,6 +339,9 @@ export interface ExperimentalConfig {
    */
   typedRoutes?: boolean
 
+  // TODO: Add documentation
+  typedEnv?: boolean
+
   /**
    * Runs the compilations for server and edge in parallel instead of in serial.
    * This will make builds faster if there is enough server and edge functions
@@ -966,6 +969,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    typedEnv: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

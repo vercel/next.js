@@ -290,7 +290,9 @@ export async function startServer(
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
 
-        await createEnvDefinitions(distDir!, startServerInfo.env)
+        if (expFeatureInfo?.includes('typedEnv')) {
+          await createEnvDefinitions(distDir!, startServerInfo.env)
+        }
       }
       logStartInfo({
         networkUrl,
