@@ -4,10 +4,12 @@ use std::{
     fmt::{Display, Write},
     fs::read_dir,
     path::{PathBuf, MAIN_SEPARATOR as PATH_SEP},
+    sync::Arc,
 };
 
 use anyhow::{Context, Result};
 use glob::glob;
+use quote::ToTokens;
 use syn::{
     parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
     ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
@@ -98,9 +100,18 @@ pub fn generate_register() {
 
         let out_file = out_dir.join(filename);
 
-        let mut queue = vec![("".to_string(), entry)];
+        let mut queue = vec![QueueEntry {
+            file_path: entry,
+            mod_path: "".to_string(),
+            attributes: Vec::new(),
+        }];
 
-        while let Some((mod_path, file_path)) = queue.pop() {
+        while let Some(QueueEntry {
+            file_path,
+            mod_path,
+            attributes,
+        }) = queue.pop()
+        {
             println!("cargo:rerun-if-changed={}", file_path.to_string_lossy());
             let src = std::fs::read_to_string(&file_path).unwrap();
 
@@ -110,6 +121,7 @@ pub fn generate_register() {
                 file_path: &file_path,
                 prefix: &prefix,
                 mod_path,
+                attributes,
 
                 register: &mut register_code,
                 values: &mut values,
@@ -120,7 +132,7 @@ pub fn generate_register() {
             {
                 Ok(file) => {
                     for item in file.items {
-                        ctx.process_item(item).unwrap();
+                        ctx.process_item(&item).unwrap();
                     }
                 }
                 Err(err) => println!("{}", err),
@@ -128,16 +140,19 @@ pub fn generate_register() {
         }
 
         let mut values_code = String::new();
-        for ((mod_path, ident), (global_name, trait_idents)) in values {
+        for ((mod_path, ident), entry) in values {
+            for attribute in &entry.attributes {
+                values_code.push_str(attribute);
+            }
             writeln!(
                 values_code,
                 "crate{}::{}({}, #[allow(unused_variables)] |value| {{",
                 mod_path,
                 get_register_value_type_ident(&ident),
-                global_name
+                entry.global_name,
             )
             .unwrap();
-            for trait_ident in trait_idents {
+            for trait_ident in entry.trait_idents {
                 writeln!(
                     values_code,
                     "    crate{}::{}(value);",
@@ -183,13 +198,28 @@ pub fn rerun_if_glob(globs: &str, root: &str) {
 /// (mod_path, type_ident)
 type ValueKey = (String, Ident);
 /// (global_name, trait_register_fns)
-type ValueEntry = (String, Vec<Ident>);
+struct ValueEntry {
+    attributes: Vec<Arc<String>>,
+    global_name: String,
+    trait_idents: Vec<Ident>,
+}
+
+struct QueueEntry {
+    /// The on-disk path to the file representing this module.
+    file_path: PathBuf,
+    /// The `syn::Path`-style representation of the module. Each component is
+    /// separated by `::`.
+    mod_path: String,
+    /// Attributes (`#[cfg(...)]`) applied to the `ItemMod`.
+    attributes: Vec<Arc<String>>,
+}
 
 struct RegisterContext<'a> {
-    queue: &'a mut Vec<(String, PathBuf)>,
+    queue: &'a mut Vec<QueueEntry>,
 
     file_path: &'a PathBuf,
     mod_path: String,
+    attributes: Vec<Arc<String>>,
     prefix: &'a str,
 
     register: &'a mut String,
@@ -197,7 +227,7 @@ struct RegisterContext<'a> {
 }
 
 impl<'a> RegisterContext<'a> {
-    fn process_item(&mut self, item: Item) -> Result<()> {
+    fn process_item(&mut self, item: &Item) -> Result<()> {
         match item {
             Item::Enum(enum_item) => self.process_enum(enum_item),
             Item::Fn(fn_item) => self.process_fn(fn_item),
@@ -210,16 +240,24 @@ impl<'a> RegisterContext<'a> {
         }
     }
 
-    fn process_enum(&mut self, enum_item: ItemEnum) -> Result<()> {
-        if has_attribute(&enum_item.attrs, "value") {
+    fn process_enum(&mut self, item: &ItemEnum) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_enum_inner(item))
+    }
+
+    fn process_enum_inner(&mut self, enum_item: &ItemEnum) -> Result<()> {
+        if has_turbo_attribute(&enum_item.attrs, "value") {
             self.add_value(&enum_item.ident);
             self.add_value_debug_impl(&enum_item.ident);
         }
         Ok(())
     }
 
-    fn process_fn(&mut self, fn_item: ItemFn) -> Result<()> {
-        if has_attribute(&fn_item.attrs, "function") {
+    fn process_fn(&mut self, item: &ItemFn) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_fn_inner(item))
+    }
+
+    fn process_fn_inner(&mut self, fn_item: &ItemFn) -> Result<()> {
+        if has_turbo_attribute(&fn_item.attrs, "function") {
             let ident = &fn_item.sig.ident;
             let type_ident = get_native_function_ident(ident);
 
@@ -228,8 +266,12 @@ impl<'a> RegisterContext<'a> {
         Ok(())
     }
 
-    fn process_impl(&mut self, impl_item: ItemImpl) -> Result<()> {
-        if has_attribute(&impl_item.attrs, "value_impl") {
+    fn process_impl(&mut self, item: &ItemImpl) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_impl_inner(item))
+    }
+
+    fn process_impl_inner(&mut self, impl_item: &ItemImpl) -> Result<()> {
+        if has_turbo_attribute(&impl_item.attrs, "value_impl") {
             let struct_ident = get_type_ident(&impl_item.self_ty).unwrap();
 
             let trait_ident = impl_item
@@ -241,7 +283,7 @@ impl<'a> RegisterContext<'a> {
                 self.add_value_trait(&struct_ident, trait_ident);
             }
 
-            for item in impl_item.items {
+            for item in &impl_item.items {
                 if let syn::ImplItem::Method(method_item) = item {
                     // TODO: if method_item.attrs.iter().any(|a|
                     // is_attribute(a,
@@ -266,46 +308,63 @@ impl<'a> RegisterContext<'a> {
         Ok(())
     }
 
-    fn process_mod(&mut self, mod_item: ItemMod) -> Result<()> {
-        if let Some((_, items)) = mod_item.content {
-            let mod_name = mod_item.ident.to_string();
-            let child_mod_path = format!("{}::{}", self.mod_path, mod_name);
+    fn process_mod(&mut self, item: &ItemMod) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_mod_inner(item))
+    }
+
+    fn process_mod_inner(&mut self, mod_item: &ItemMod) -> Result<()> {
+        let child_mod_name = mod_item.ident.to_string();
+        let child_mod_path = format!("{}::{}", self.mod_path, child_mod_name);
+        if let Some((_, items)) = &mod_item.content {
             let parent_mod_path = std::mem::replace(&mut self.mod_path, child_mod_path);
             for item in items {
                 self.process_item(item)?;
             }
             self.mod_path = parent_mod_path;
         } else {
-            let name = mod_item.ident.to_string();
-            let parent_path = self.file_path.parent().unwrap();
-            let direct = parent_path.join(format!("{name}.rs"));
+            let parent_file_path = self.file_path.parent().unwrap();
+            let direct = parent_file_path.join(format!("{child_mod_name}.rs"));
             if direct.exists() {
-                self.queue
-                    .push((format!("{}::{name}", self.mod_path), direct));
+                self.queue.push(QueueEntry {
+                    file_path: direct,
+                    mod_path: child_mod_path,
+                    attributes: self.attributes.clone(),
+                });
             } else {
-                let nested = parent_path.join(&name).join("mod.rs");
+                let nested = parent_file_path.join(&child_mod_name).join("mod.rs");
                 if nested.exists() {
-                    self.queue
-                        .push((format!("{}::{name}", self.mod_path), nested));
+                    self.queue.push(QueueEntry {
+                        file_path: nested,
+                        mod_path: child_mod_path,
+                        attributes: self.attributes.clone(),
+                    });
                 }
             }
         }
         Ok(())
     }
 
-    fn process_struct(&mut self, struct_item: ItemStruct) -> Result<()> {
-        if has_attribute(&struct_item.attrs, "value") {
+    fn process_struct(&mut self, item: &ItemStruct) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_struct_inner(item))
+    }
+
+    fn process_struct_inner(&mut self, struct_item: &ItemStruct) -> Result<()> {
+        if has_turbo_attribute(&struct_item.attrs, "value") {
             self.add_value(&struct_item.ident);
             self.add_value_debug_impl(&struct_item.ident);
         }
         Ok(())
     }
 
-    fn process_trait(&mut self, trait_item: ItemTrait) -> Result<()> {
+    fn process_trait(&mut self, item: &ItemTrait) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_trait_inner(item))
+    }
+
+    fn process_trait_inner(&mut self, trait_item: &ItemTrait) -> Result<()> {
         if let Some(attr) = trait_item
             .attrs
             .iter()
-            .find(|a| is_attribute(a, "value_trait"))
+            .find(|a| is_turbo_attribute(a, "value_trait"))
         {
             let trait_ident = &trait_item.ident;
 
@@ -343,13 +402,17 @@ impl<'a> RegisterContext<'a> {
         Ok(())
     }
 
-    fn process_macro(&mut self, macro_item: ItemMacro) -> Result<()> {
+    fn process_macro(&mut self, item: &ItemMacro) -> Result<()> {
+        self.with_cfg_attrs(&item.attrs, move |this| this.process_macro_inner(item))
+    }
+
+    fn process_macro_inner(&mut self, macro_item: &ItemMacro) -> Result<()> {
         if macro_item
             .mac
             .path
             .is_ident("__turbo_tasks_internal_primitive")
         {
-            let input = macro_item.mac.tokens;
+            let input = macro_item.mac.tokens.clone();
             let input = syn::parse2::<PrimitiveInput>(input).unwrap();
 
             let ty = input.ty;
@@ -365,7 +428,7 @@ impl<'a> RegisterContext<'a> {
             .path
             .is_ident("__turbo_tasks_internal_generic_type")
         {
-            let input = macro_item.mac.tokens;
+            let input = macro_item.mac.tokens.clone();
             let input = syn::parse2::<GenericTypeInput>(input).unwrap();
 
             let ty = input.ty;
@@ -398,7 +461,11 @@ impl<'a> RegisterContext<'a> {
 
     fn add_value(&mut self, ident: &Ident) {
         let key: ValueKey = (self.mod_path.clone(), ident.clone());
-        let value: ValueEntry = (self.get_global_name(&[ident]), Vec::new());
+        let value = ValueEntry {
+            attributes: self.attributes.clone(),
+            global_name: self.get_global_name(&[ident]),
+            trait_idents: Vec::new(),
+        };
 
         assert!(
             self.values.insert(key, value).is_none(),
@@ -444,7 +511,7 @@ impl<'a> RegisterContext<'a> {
                 self.file_path.display()
             );
         }
-        entry.unwrap().1.push(trait_ident.clone());
+        entry.unwrap().trait_idents.push(trait_ident.clone());
     }
 
     fn register(
@@ -452,6 +519,9 @@ impl<'a> RegisterContext<'a> {
         type_ident: impl Display,
         global_name: impl Display,
     ) -> std::fmt::Result {
+        for attribute in &self.attributes {
+            self.register.push_str(attribute);
+        }
         writeln!(
             self.register,
             "crate{}::{}.register({});",
@@ -503,13 +573,24 @@ impl<'a> RegisterContext<'a> {
             &["value_default"],
         )
     }
+
+    fn with_cfg_attrs<T>(&mut self, attrs: &[Attribute], func: impl FnOnce(&mut Self) -> T) -> T {
+        let orig_len = self.attributes.len();
+        for attr in attrs.iter().filter(|a| is_cfg_attribute(a)) {
+            self.attributes
+                .push(Arc::new(attr.to_token_stream().to_string()));
+        }
+        let ret = func(self);
+        self.attributes.truncate(orig_len);
+        ret
+    }
 }
 
-fn has_attribute(attrs: &[Attribute], name: &str) -> bool {
-    attrs.iter().any(|a| is_attribute(a, name))
+fn has_turbo_attribute(attrs: &[Attribute], name: &str) -> bool {
+    attrs.iter().any(|a| is_turbo_attribute(a, name))
 }
 
-fn is_attribute(attr: &Attribute, name: &str) -> bool {
+fn is_turbo_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
     if path.leading_colon.is_some() {
         return false;
@@ -522,6 +603,12 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
         },
         _ => false,
     }
+}
+
+fn is_cfg_attribute(attr: &Attribute) -> bool {
+    attr.path
+        .get_ident()
+        .is_some_and(|ident| ident == "cfg" || ident == "cfg_attr")
 }
 
 fn parse_attr_args<T>(attr: &Attribute) -> syn::Result<Option<T>>
