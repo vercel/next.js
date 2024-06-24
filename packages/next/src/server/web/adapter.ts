@@ -91,7 +91,8 @@ export async function adapter(
   ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
 
-  const isEdgeRendering = process.env.NEXT_RUNTIME === 'edge'
+  // TODO-APP: use explicit marker for this
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
   const prerenderManifest: PrerenderManifest | undefined =
     typeof self.__PRERENDER_MANIFEST === 'string'
       ? JSON.parse(self.__PRERENDER_MANIFEST)
