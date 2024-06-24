@@ -301,7 +301,7 @@ pub async fn project_new(
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit.on_exit(async move {
-            drop(trace_writer_guard);
+            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
         });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
