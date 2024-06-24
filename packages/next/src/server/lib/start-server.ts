@@ -96,7 +96,6 @@ async function createEnvDefinitions(distDir: string, env: Env) {
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      NODE_ENV: readonly 'development' | 'production' | 'test'
 ${envKeys}
     }
   }
@@ -286,12 +285,12 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let expFeatureInfo: string[] | undefined
-      let env: Env = {}
       if (isDev) {
         const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
-        env = startServerInfo.env
+
+        await createEnvDefinitions(distDir!, startServerInfo.env)
       }
       logStartInfo({
         networkUrl,
@@ -359,10 +358,6 @@ export async function startServer(
           startServerProcessDuration > 2000
             ? `${Math.round(startServerProcessDuration / 100) / 10}s`
             : `${Math.round(startServerProcessDuration)}ms`
-
-        if (isDev) {
-          await createEnvDefinitions(distDir!, env)
-        }
 
         Log.event(`Ready in ${formatDurationText}`)
 

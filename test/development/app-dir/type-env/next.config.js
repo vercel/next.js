@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   env: {
-    foo: 'foo',
+    FROM_NEXT_CONFIG: 'FROM_NEXT_CONFIG',
   },
 }
 
