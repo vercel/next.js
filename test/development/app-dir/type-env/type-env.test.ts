@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 describe('type-env', () => {
   const { next } = nextTestSetup({
@@ -33,22 +34,25 @@ describe('type-env', () => {
     )
   })
 
+  it('should rewrite env types if .env is modified', async () => {
+    expect(await next.hasFile('.env')).toBe(true)
+    await next.patchFile('.env', 'MODIFIED_ENV="MODIFIED_ENV"')
+
+    expect(
+      await check(
+        async () => await next.readFile('.next/types/env.d.ts'),
+        /MODIFIED_ENV/
+      )
+    ).toBe(true)
+
+    expect(await next.readFile('.next/types/env.d.ts')).not.toInclude(
+      'FROM_ENV: readonly string'
+    )
+  })
+
   it('should NOT have env types from .env.production.local', async () => {
     expect(await next.readFile('.next/types/env.d.ts')).not.toInclude(
       'FROM_PROD_ENV_LOCAL: readonly string'
     )
   })
 })
-// expected output:
-// `// Type definitions for Next.js environment variables
-// declare global {
-//   namespace NodeJS {
-//     interface ProcessEnv {
-//       FROM_NEXT_CONFIG: readonly string
-//       FROM_DEV_ENV_LOCAL: readonly string
-//       FROM_ENV_LOCAL: readonly string
-//       FROM_ENV: readonly string
-//     }
-//   }
-// }
-// export {}`

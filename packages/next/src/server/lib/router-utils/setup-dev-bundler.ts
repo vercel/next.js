@@ -82,6 +82,7 @@ import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
 import { ModuleBuildError } from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import { createEnvDefinitions } from '../experimental/typed-env'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -556,10 +557,21 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          // only log changes in router server
-          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
-            Log.info(`Reload env: ${envFilePath}`)
-          })
+          const { parsedEnv } = loadEnvConfig(
+            dir,
+            true,
+            Log,
+            true,
+            (envFilePath) => {
+              Log.info(`Reload env: ${envFilePath}`)
+            }
+          )
+
+          if (nextConfig.experimental.typedEnv) {
+            const env = Object.assign({}, parsedEnv, nextConfig.env)
+            await createEnvDefinitions(distDir, env)
+          }
+
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
