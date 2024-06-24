@@ -6,38 +6,42 @@ describe('type-env', () => {
     files: __dirname,
   })
 
-  it('should have env.d.ts file', async () => {
-    expect(await next.hasFile('.next/types/env.d.ts')).toBe(true)
+  let envDts: string
+
+  beforeAll(async () => {
+    envDts = await next.readFile('.next/types/env.d.ts')
   })
 
   it('should have env types from next config', async () => {
-    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
-      'FROM_NEXT_CONFIG: readonly string'
-    )
+    expect(envDts).toInclude('FROM_NEXT_CONFIG: readonly string')
   })
 
   it('should have env types from .env.development.local', async () => {
-    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
-      'FROM_DEV_ENV_LOCAL: readonly string'
-    )
+    expect(envDts).toInclude('FROM_DEV_ENV_LOCAL: readonly string')
   })
 
   it('should have env types from .env.local', async () => {
-    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
-      'FROM_ENV_LOCAL: readonly string'
-    )
+    expect(envDts).toInclude('FROM_ENV_LOCAL: readonly string')
   })
 
   it('should have env types from .env', async () => {
-    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
-      'FROM_ENV: readonly string'
-    )
+    expect(envDts).toInclude('FROM_ENV: readonly string')
+  })
+
+  it('should NOT have env types from .env.production.local', async () => {
+    expect(envDts).not.toInclude('FROM_PROD_ENV_LOCAL: readonly string')
   })
 
   it('should rewrite env types if .env is modified', async () => {
-    expect(await next.hasFile('.env')).toBe(true)
+    // env.d.ts is written from original .env
+    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
+      'FROM_ENV: readonly string'
+    )
+
+    // modify .env
     await next.patchFile('.env', 'MODIFIED_ENV="MODIFIED_ENV"')
 
+    // env.d.ts should be rewritten
     expect(
       await check(
         async () => await next.readFile('.next/types/env.d.ts'),
@@ -45,14 +49,9 @@ describe('type-env', () => {
       )
     ).toBe(true)
 
+    // original .env content is not in env.d.ts
     expect(await next.readFile('.next/types/env.d.ts')).not.toInclude(
       'FROM_ENV: readonly string'
-    )
-  })
-
-  it('should NOT have env types from .env.production.local', async () => {
-    expect(await next.readFile('.next/types/env.d.ts')).not.toInclude(
-      'FROM_PROD_ENV_LOCAL: readonly string'
     )
   })
 })
