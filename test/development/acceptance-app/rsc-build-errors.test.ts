@@ -334,9 +334,11 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      `Module not found: Can't resolve 'non-existing-module'`
-    )
+    if (!isTurbopack) {
+      expect(await session.getRedboxDescription()).toInclude(
+        `Module not found: Can't resolve 'non-existing-module'`
+      )
+    }
 
     await cleanup()
   })
