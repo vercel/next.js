@@ -54,15 +54,6 @@ async function run() {
     })
 
     if (data.items.length > 0) {
-      data.items.forEach(async (item) => {
-        await octoClient.rest.issues.addLabels({
-          owner,
-          repo,
-          issue_number: item.number,
-          labels: ['linear: next'],
-        })
-      })
-
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
         channel: '#next-info',
