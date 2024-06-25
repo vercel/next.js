@@ -1,4 +1,4 @@
-import type { FileInfo, API } from 'jscodeshift'
+import type { FileInfo, API, ImportDeclaration } from 'jscodeshift'
 
 export default function transformer(file: FileInfo, api: API) {
   const j = api.jscodeshift
@@ -11,9 +11,12 @@ export default function transformer(file: FileInfo, api: API) {
 
   // If the import declaration is found
   if (dynamicImportDeclaration.size() > 0) {
-    const dynamicImportName =
-      dynamicImportDeclaration.get(0).node.specifiers[0].local.name
+    const importDecl: ImportDeclaration = dynamicImportDeclaration.get(0).node
+    const dynamicImportName = importDecl.specifiers?.[0]?.local?.name
 
+    if (!dynamicImportName) {
+      return root.toSource()
+    }
     // Find call expressions where the callee is the imported 'dynamic'
     root
       .find(j.CallExpression, {
@@ -47,7 +50,7 @@ export default function transformer(file: FileInfo, api: API) {
               if (
                 returnStatement &&
                 returnStatement.type === 'ReturnStatement' &&
-                returnStatement.argument.type === 'MemberExpression'
+                returnStatement.argument?.type === 'MemberExpression'
               ) {
                 returnStatement.argument = j.objectExpression([
                   j.property(
