@@ -847,9 +847,6 @@ importers:
       caniuse-lite:
         specifier: 1.0.30001579
         version: 1.0.30001579
-      graceful-fs:
-        specifier: ^4.2.11
-        version: 4.2.11
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -1041,9 +1038,6 @@ importers:
       '@types/glob':
         specifier: 7.1.1
         version: 7.1.1
-      '@types/graceful-fs':
-        specifier: 4.1.9
-        version: 4.1.9
       '@types/jsonwebtoken':
         specifier: 9.0.0
         version: 9.0.0

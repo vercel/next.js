@@ -97,7 +97,6 @@
     "@swc/helpers": "0.5.11",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
-    "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.6"
   },
@@ -184,7 +183,6 @@
     "@types/express-serve-static-core": "4.17.33",
     "@types/fresh": "0.5.0",
     "@types/glob": "7.1.1",
-    "@types/graceful-fs": "4.1.9",
     "@types/jsonwebtoken": "9.0.0",
     "@types/lodash": "4.14.198",
     "@types/lodash.curry": "4.1.6",
