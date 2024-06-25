@@ -771,7 +771,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -833,14 +833,14 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-938cd9a-20240601
+        version: 0.0.0-experimental-696af53-20240625
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -961,16 +961,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1277,7 +1277,7 @@ importers:
         version: 2.4.4(webpack@5.90.0)
       msw:
         specifier: 2.3.0
-        version: 2.3.0
+        version: 2.3.0(typescript@5.4.5)
       nanoid:
         specifier: 3.1.32
         version: 3.1.32
@@ -1364,7 +1364,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.6.0
-        version: 12.6.0(webpack@5.90.0)
+        version: 12.6.0(sass@1.54.0)(webpack@5.90.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -1588,7 +1588,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -8999,8 +8999,8 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /babel-plugin-react-compiler@0.0.0-experimental-938cd9a-20240601:
-    resolution: {integrity: sha512-t+uBHxbfxq2z4j83ZYgOsV0dlSaRgPfhrYB5+CMv6ByXUAv5wm7m7YLFx67fWKrG3eDhq3+KH1OMeFypuDLkUA==}
+  /babel-plugin-react-compiler@0.0.0-experimental-696af53-20240625:
+    resolution: {integrity: sha512-OUDKms8qmcm5bX0D+sJWC1YcKcd7AZ2aJ7eY6gkR+Xr7PDfkXLbqAld4Qs9B0ntjVbUMEtW/PjlQrxDtY4raHg==}
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -18814,7 +18814,7 @@ packages:
       isarray: 1.0.0
     dev: true
 
-  /msw@2.3.0:
+  /msw@2.3.0(typescript@5.4.5):
     resolution: {integrity: sha512-cDr1q/QTMzaWhY8n9lpGhceY209k29UZtdTgJ3P8Bzne3TSMchX2EM/ldvn4ATLOktpCefCU2gcEgzHc31GTPw==}
     engines: {node: '>=18'}
     hasBin: true
@@ -18841,6 +18841,7 @@ packages:
       path-to-regexp: 6.2.1
       strict-event-emitter: 0.5.1
       type-fest: 4.18.3
+      typescript: 5.4.5
       yargs: 17.7.2
     dev: true
 
@@ -23198,7 +23199,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.6.0(webpack@5.90.0):
+  /sass-loader@12.6.0(sass@1.54.0)(webpack@5.90.0):
     resolution: {integrity: sha512-oLTaH0YCtX4cfnJZxKSLAyglED0naiYfNG1iXfU5w1LNZ+ukoA5DtyDIN5zmKVZwYNJP4KRc5Y3hkWga+7tYfA==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23219,6 +23220,7 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
+      sass: 1.54.0
       webpack: 5.90.0(@swc/core@1.5.7)
     dev: true
 
