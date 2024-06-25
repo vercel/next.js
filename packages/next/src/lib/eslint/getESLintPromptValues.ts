@@ -1,7 +1,7 @@
 import findUp from 'next/dist/compiled/find-up'
 
 export const getESLintStrictValue = async (cwd: string) => {
-  const hasTSConfig = !!(await findUp('tsconfig.json'), { cwd })
+  const hasTSConfig = !!(await findUp('tsconfig.json', { cwd }))
 
   return {
     title: 'Strict',

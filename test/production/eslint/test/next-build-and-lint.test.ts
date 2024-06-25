@@ -58,8 +58,8 @@ describe('Next Build', () => {
             parser,
             settings,
           }).toEqual({
-            // parser: require.resolve('@typescript-eslint/parser')
-            parser: expect.stringContaining('@typescript-eslint/parser'),
+            // parser: require.resolve('eslint-config-next')
+            parser: expect.stringContaining('eslint-config-next'),
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
