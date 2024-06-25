@@ -1092,9 +1092,6 @@ importers:
       '@types/ua-parser-js':
         specifier: 0.7.36
         version: 0.7.36
-      '@types/uuid':
-        specifier: 8.3.1
-        version: 8.3.1
       '@types/webpack-sources1':
         specifier: npm:@types/webpack-sources@0.1.5
         version: /@types/webpack-sources@0.1.5
@@ -1280,7 +1277,7 @@ importers:
         version: 2.4.4(webpack@5.90.0)
       msw:
         specifier: 2.3.0
-        version: 2.3.0(typescript@5.4.5)
+        version: 2.3.0
       nanoid:
         specifier: 3.1.32
         version: 3.1.32
@@ -1367,7 +1364,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.6.0
-        version: 12.6.0(sass@1.54.0)(webpack@5.90.0)
+        version: 12.6.0(webpack@5.90.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -1452,9 +1449,6 @@ importers:
       util:
         specifier: 0.12.4
         version: 0.12.4
-      uuid:
-        specifier: 8.3.2
-        version: 8.3.2
       vm-browserify:
         specifier: 1.1.2
         version: 1.1.2
@@ -4208,6 +4202,7 @@ packages:
   /@humanwhocodes/config-array@0.11.14:
     resolution: {integrity: sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==}
     engines: {node: '>=10.10.0'}
+    deprecated: Use @eslint/config-array instead
     dependencies:
       '@humanwhocodes/object-schema': 2.0.2
       debug: 4.3.4
@@ -4237,6 +4232,7 @@ packages:
 
   /@humanwhocodes/object-schema@2.0.2:
     resolution: {integrity: sha512-6EwiSjwWYP7pTckG6I5eyFANjPhmPjUX9JRLUSfNPC7FX7zK9gyZAfUEaECL6ALTpGX5AjnBq3C9XmVWPitNpw==}
+    deprecated: Use @eslint/object-schema instead
     dev: true
 
   /@img/sharp-darwin-arm64@0.33.4:
@@ -7664,10 +7660,6 @@ packages:
 
   /@types/unist@2.0.3:
     resolution: {integrity: sha512-FvUupuM3rlRsRtCN+fDudtmytGO6iHJuuRKS1Ss0pG5z8oX0diNEw94UEL7hgDbpN94rgaK5R7sWm6RrSkZuAQ==}
-
-  /@types/uuid@8.3.1:
-    resolution: {integrity: sha512-Y2mHTRAbqfFkpjldbkHGY8JIzRN6XqYRliG8/24FcHm2D2PwW24fl5xMRTVGdrb7iMrwCaIEbLWerGIkXuFWVg==}
-    dev: true
 
   /@types/validate-npm-package-name@4.0.2:
     resolution: {integrity: sha512-lrpDziQipxCEeK5kWxvljWYhUvOiB2A9izZd9B2AFarYAkqZshb4lPbRs7zKEic6eGtH8V/2qJW+dPp9OtF6bw==}
@@ -18822,7 +18814,7 @@ packages:
       isarray: 1.0.0
     dev: true
 
-  /msw@2.3.0(typescript@5.4.5):
+  /msw@2.3.0:
     resolution: {integrity: sha512-cDr1q/QTMzaWhY8n9lpGhceY209k29UZtdTgJ3P8Bzne3TSMchX2EM/ldvn4ATLOktpCefCU2gcEgzHc31GTPw==}
     engines: {node: '>=18'}
     hasBin: true
@@ -18849,7 +18841,6 @@ packages:
       path-to-regexp: 6.2.1
       strict-event-emitter: 0.5.1
       type-fest: 4.18.3
-      typescript: 5.4.5
       yargs: 17.7.2
     dev: true
 
@@ -23207,7 +23198,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.6.0(sass@1.54.0)(webpack@5.90.0):
+  /sass-loader@12.6.0(webpack@5.90.0):
     resolution: {integrity: sha512-oLTaH0YCtX4cfnJZxKSLAyglED0naiYfNG1iXfU5w1LNZ+ukoA5DtyDIN5zmKVZwYNJP4KRc5Y3hkWga+7tYfA==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -23228,7 +23219,6 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
-      sass: 1.54.0
       webpack: 5.90.0(@swc/core@1.5.7)
     dev: true
 
