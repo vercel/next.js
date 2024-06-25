@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
-import { devDependencies } from '../../../../package.json'
 
 import {
   withRequestMeta,
