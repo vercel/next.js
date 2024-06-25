@@ -206,6 +206,7 @@
     "react-dom-builtin": "npm:react-dom@19.0.0-rc-6230622a1a-20240610",
     "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-6230622a1a-20240610",
     "react-experimental-builtin": "npm:react@0.0.0-experimental-6230622a1a-20240610",
+    "react-is-builtin": "npm:react-is@19.0.0-rc-6230622a1a-20240610",
     "react-server-dom-turbopack": "19.0.0-rc-6230622a1a-20240610",
     "react-server-dom-turbopack-experimental": "npm:react-server-dom-turbopack@0.0.0-experimental-6230622a1a-20240610",
     "react-server-dom-webpack": "19.0.0-rc-6230622a1a-20240610",
