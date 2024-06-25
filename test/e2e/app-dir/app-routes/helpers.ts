@@ -63,7 +63,8 @@ export function getRequestMeta(
     | Cookies
     | ReadonlyHeaders
     | ReadonlyRequestCookies
-    | import('node-fetch').Headers
+    // @ts-expect-error
+    | import('next/dist/compiled/node-fetch').Headers
 ): Record<string, any> {
   const headerOrCookie = headersOrCookies.get(KEY)
   if (!headerOrCookie) return {}

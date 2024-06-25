@@ -1,6 +1,6 @@
 // https://github.com/Timer/cssnano-preset-simple/blob/master/test/plugin.js
-import postcss from 'postcss'
 import type { PluginCreator } from 'postcss'
+import postcss from 'postcss'
 
 // Since the cssnano-preset-simple.js will be bundled into cssnano-simple
 // during pre-compilation, we need to test against the source file directly
@@ -12,7 +12,9 @@ const cssnanoPlugin = (options = {}) => {
   for (const nanoPlugin of nanoPlugins) {
     if (Array.isArray(nanoPlugin)) {
       let [processor, opts] = nanoPlugin
-      processor = (processor as any).default || processor
+      processor =
+        (processor as unknown as { default: PluginCreator<any> }).default ||
+        processor
       if (
         typeof opts === 'undefined' ||
         (typeof opts === 'object' && !opts.exclude) ||
