@@ -20,10 +20,5 @@
       "test-log": ["./test/lib/test-log"]
     }
   },
-  "include": [
-    "test/**/*.test.ts",
-    "test/**/*.test.tsx",
-    "test/lib/**/*.ts",
-    "packages/next/types/**/*.d.ts"
-  ]
+  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"]
 }

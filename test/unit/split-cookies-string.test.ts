@@ -1,5 +1,6 @@
 import { splitCookiesString } from 'next/dist/server/web/utils'
-import cookie, { type CookieSerializeOptions } from 'next/dist/compiled/cookie'
+// @ts-ignore
+import cookie, { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 function generateCookies(
   ...cookieOptions: (CookieSerializeOptions & { name: string; value: string })[]

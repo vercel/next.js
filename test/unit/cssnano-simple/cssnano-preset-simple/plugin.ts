@@ -1,6 +1,6 @@
 // https://github.com/Timer/cssnano-preset-simple/blob/master/test/plugin.js
-import type { PluginCreator } from 'postcss'
 import postcss from 'postcss'
+import type { PluginCreator } from 'postcss'
 
 // Since the cssnano-preset-simple.js will be bundled into cssnano-simple
 // during pre-compilation, we need to test against the source file directly
