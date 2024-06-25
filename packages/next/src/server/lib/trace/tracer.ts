@@ -1,6 +1,7 @@
-import type { BaseNextRequest } from '../../base-http'
+import type { FetchEventResult } from '../../web/types'
+import type { TextMapSetter } from '@opentelemetry/api'
 import type { SpanTypes } from './constants'
-import { NextVanillaSpanAllowlist } from './constants'
+import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -8,6 +9,7 @@ import type {
   SpanOptions,
   Tracer,
   AttributeValue,
+  TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
@@ -36,10 +38,22 @@ const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
 }
 
-type BubbledError = Error & { bubble?: boolean }
+export class BubbledError extends Error {
+  constructor(
+    public readonly bubble?: boolean,
+    public readonly result?: FetchEventResult
+  ) {
+    super()
+  }
+}
+
+export function isBubbledError(error: unknown): error is BubbledError {
+  if (typeof error !== 'object' || error === null) return false
+  return error instanceof BubbledError
+}
 
 const closeSpanWithError = (span: Span, error?: Error) => {
-  if ((error as BubbledError | undefined)?.bubble === true) {
+  if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
     if (error) {
@@ -136,13 +150,22 @@ interface NextTracer {
    * Returns undefined otherwise.
    */
   getActiveScopeSpan(): Span | undefined
+
+  /**
+   * Returns trace propagation data for the currently active context. The format is equal to data provided
+   * through the OpenTelemetry propagator API.
+   */
+  getTracePropagationData(): ClientTraceDataEntry[]
 }
 
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.rsc'
+  | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
+  | 'next.clientComponentLoadCount'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
@@ -154,6 +177,20 @@ const rootSpanAttributesStore = new Map<
 const rootSpanIdKey = api.createContextKey('next.rootSpanId')
 let lastSpanId = 0
 const getSpanId = () => lastSpanId++
+
+export interface ClientTraceDataEntry {
+  key: string
+  value: string
+}
+
+const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
+  set(carrier, key, value) {
+    carrier.push({
+      key,
+      value,
+    })
+  },
+}
 
 class NextTracerImpl implements NextTracer {
   /**
@@ -169,15 +206,28 @@ class NextTracerImpl implements NextTracer {
     return context
   }
 
+  public getTracePropagationData(): ClientTraceDataEntry[] {
+    const activeContext = context.active()
+    const entries: ClientTraceDataEntry[] = []
+    propagation.inject(activeContext, entries, clientTraceDataSetter)
+    return entries
+  }
+
   public getActiveScopeSpan(): Span | undefined {
     return trace.getSpan(context?.active())
   }
 
-  public withPropagatedContext<T>(req: BaseNextRequest, fn: () => T): T {
-    if (context.active() !== ROOT_CONTEXT) {
+  public withPropagatedContext<T, C>(
+    carrier: C,
+    fn: () => T,
+    getter?: TextMapGetter<C>
+  ): T {
+    const activeContext = context.active()
+    if (trace.getSpanContext(activeContext)) {
+      // Active span is already set, too late to propagate.
       return fn()
     }
-    const remoteContext = propagation.extract(ROOT_CONTEXT, req.headers)
+    const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
   }
 
@@ -222,6 +272,8 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
+    const spanName = options.spanName ?? type
+
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -230,8 +282,6 @@ class NextTracerImpl implements NextTracer {
       return fn()
     }
 
-    const spanName = options.spanName ?? type
-
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
@@ -239,7 +289,7 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = ROOT_CONTEXT
+      spanContext = context?.active() ?? ROOT_CONTEXT
       isRootSpan = true
     } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true
@@ -258,33 +308,63 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
+          const startTime =
+            'performance' in globalThis && 'measure' in performance
+              ? globalThis.performance.now()
+              : undefined
+
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)
+            if (
+              startTime &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
+              LogSpanAllowList.includes(type || ('' as any))
+            ) {
+              performance.measure(
+                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime,
+                  end: performance.now(),
+                }
+              )
+            }
           }
+
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
               new Map(
                 Object.entries(options.attributes ?? {}) as [
                   AttributeNames,
-                  AttributeValue | undefined
+                  AttributeValue | undefined,
                 ][]
               )
             )
           }
           try {
             if (fn.length > 1) {
-              return fn(span, (err?: Error) => closeSpanWithError(span, err))
+              return fn(span, (err) => closeSpanWithError(span, err))
             }
 
             const result = fn(span)
-
             if (isPromise(result)) {
-              result
-                .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
-                )
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  return res
+                })
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
                 .finally(onCleanup)
             } else {
               span.end()

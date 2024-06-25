@@ -39,7 +39,7 @@ yarn add @xstate/inspect
 #### Import it at the top of the project
 
 ```js
-import { inspect } from '@xstate/inspect'
+import { inspect } from "@xstate/inspect";
 ```
 
 #### Use the inspect method
@@ -47,10 +47,10 @@ import { inspect } from '@xstate/inspect'
 Note that for Next.js projects, you should ensure that the inspector code only runs on the client, rather than the server:
 
 ```js
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   inspect({
     /* options */
-  })
+  });
 }
 ```
 

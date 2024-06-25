@@ -5,33 +5,23 @@ import type {
   ServerPatchAction,
   ReducerState,
   ReadonlyReducerState,
+  Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
-    action
+  const { serverResponse } = action
+  const [flightData, overrideCanonicalUrl] = serverResponse
 
-  const isForCurrentTree =
-    JSON.stringify(previousTree) === JSON.stringify(state.tree)
-
-  // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
-  // In that case opt-out of applying the patch given that the data could be stale.
-  if (!isForCurrentTree) {
-    // TODO-APP: Handle tree mismatch
-    console.log('TREE MISMATCH')
-    // Keep everything as-is.
-    return state
-  }
-
-  if (mutable.previousTree) {
-    return handleMutable(state, mutable)
-  }
+  const mutable: Mutable = {}
 
   mutable.preserveCustomHistoryState = false
 
@@ -57,11 +47,12 @@ export function serverPatchReducer(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
-      treePatch
+      treePatch,
+      state.canonicalUrl
     )
 
     if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
+      return handleSegmentMismatch(state, action, treePatch)
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -81,9 +72,9 @@ export function serverPatchReducer(
       mutable.canonicalUrl = canonicalUrlOverrideHref
     }
 
+    const cache: CacheNode = createEmptyCacheNode()
     applyFlightData(currentCache, cache, flightDataPath)
 
-    mutable.previousTree = currentTree
     mutable.patchedTree = newTree
     mutable.cache = cache
 

@@ -3,6 +3,7 @@ import type { DevBundlerService } from './dev-bundler-service'
 import type { PropagateToWorkersField } from './router-utils/types'
 
 import next from '../next'
+import type { Span } from '../../trace'
 
 let initializations: Record<
   string,
@@ -26,6 +27,10 @@ let requireCacheHotReloader:
 if (process.env.NODE_ENV !== 'production') {
   sandboxContext = require('../web/sandbox/context')
   requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
+}
+
+export function clearAllModuleContexts() {
+  return sandboxContext?.clearAllModuleContexts()
 }
 
 export function clearModuleContext(target: string) {
@@ -81,6 +86,8 @@ async function initializeImpl(opts: {
   _ipcPort?: string
   _ipcKey?: string
   bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
+  quiet?: boolean
 }) {
   const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
   if (type) {
@@ -119,6 +126,7 @@ export async function initialize(
   upgradeHandler: ReturnType<
     InstanceType<typeof NextServer>['getUpgradeHandler']
   >
+  app: NextServer
 }> {
   // if we already setup the server return as we only need to do
   // this on first worker boot

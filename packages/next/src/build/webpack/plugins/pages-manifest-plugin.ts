@@ -132,9 +132,9 @@ export default class PagesManifestPlugin
         ...nodeServerPages,
       })
     } else {
-      assets[
-        `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` + PAGES_MANIFEST
-      ] = new sources.RawSource(
+      const pagesManifestPath =
+        (!this.dev && !this.isEdgeRuntime ? '../' : '') + PAGES_MANIFEST
+      assets[pagesManifestPath] = new sources.RawSource(
         JSON.stringify(
           {
             ...edgeServerPages,
@@ -159,8 +159,7 @@ export default class PagesManifestPlugin
         })
       } else {
         assets[
-          `${!this.dev && !this.isEdgeRuntime ? '../' : ''}` +
-            APP_PATHS_MANIFEST
+          (!this.dev && !this.isEdgeRuntime ? '../' : '') + APP_PATHS_MANIFEST
         ] = new sources.RawSource(
           JSON.stringify(
             {

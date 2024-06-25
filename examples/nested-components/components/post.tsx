@@ -1,7 +1,7 @@
 type PostProps = {
-  title: string
-  children: React.ReactNode
-}
+  title: string;
+  children: React.ReactNode;
+};
 
 export default function Post({ title, children }: PostProps) {
   return (
@@ -10,7 +10,9 @@ export default function Post({ title, children }: PostProps) {
       {children}
       <style jsx>{`
         .main {
-          font: 15px Helvetica, Arial;
+          font:
+            15px Helvetica,
+            Arial;
           border: 1px solid #eee;
           padding: 0 10px;
         }
@@ -22,5 +24,5 @@ export default function Post({ title, children }: PostProps) {
         }
       `}</style>
     </div>
-  )
+  );
 }

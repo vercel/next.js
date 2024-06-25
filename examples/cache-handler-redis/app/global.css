@@ -8,7 +8,7 @@ body,
 html {
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: #333;
   line-height: 1.6;
   background-color: #f4f4f4;
@@ -62,7 +62,7 @@ html {
   transform: translateY(2px);
 }
 
-.revalidate-from-button[aria-disabled='true'] {
+.revalidate-from-button[aria-disabled="true"] {
   background-color: #ccc;
   cursor: not-allowed;
 }

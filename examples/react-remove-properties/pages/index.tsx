@@ -5,5 +5,5 @@ export default function Index() {
         <h1 data-testid="3">Hello World!</h1>
       </div>
     </div>
-  )
+  );
 }

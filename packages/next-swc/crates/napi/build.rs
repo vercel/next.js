@@ -1,12 +1,3 @@
-use std::{
-    env,
-    fs::File,
-    io::{BufWriter, Write},
-    path::Path,
-};
-
-use turbopack_binding::turbo::tasks_build::generate_register;
-
 extern crate napi_build;
 
 fn main() {
@@ -15,25 +6,25 @@ fn main() {
     // So failing build if this fails.
     shadow_rs::new().expect("Should able to generate build time information");
 
-    // Emit current package.json's version field into a text file to create static
-    // const in util.rs This is being used to set correct release version for
-    // the sentry's crash reporter.
-    let out_dir = env::var("OUT_DIR").expect("Outdir should exist");
-    let pkg_file =
-        File::open(Path::new("../../package.json")).expect("Should able to open package.json");
-    let json: serde_json::Value = serde_json::from_reader(pkg_file).unwrap();
-    let pkg_version_dest_path = Path::new(&out_dir).join("package.txt");
-    let mut package_version_writer = BufWriter::new(
-        File::create(pkg_version_dest_path).expect("Failed to create package version text"),
-    );
-    write!(
-        package_version_writer,
-        "{}",
-        json["version"].as_str().unwrap()
-    )
-    .expect("Failed to write target triple text");
-
+    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
     napi_build::setup();
 
-    generate_register();
+    // This is a workaround for napi always including a GCC specific flag.
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        println!("cargo:rerun-if-env-changed=DEBUG_GENERATED_CODE");
+        println!("cargo:rerun-if-env-changed=TYPE_DEF_TMP_PATH");
+        println!("cargo:rerun-if-env-changed=CARGO_CFG_NAPI_RS_CLI_VERSION");
+
+        println!("cargo:rustc-cdylib-link-arg=-undefined");
+        println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+    }
+
+    // Resolve a potential linker issue for unit tests on linux
+    // https://github.com/napi-rs/napi-rs/issues/1782
+    #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
+    println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+
+    #[cfg(not(target_arch = "wasm32"))]
+    turbopack_binding::turbo::tasks_build::generate_register();
 }

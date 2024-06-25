@@ -1,10 +1,11 @@
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::options::{FontDescriptors, NextFontLocalOptions};
 use crate::next_font::{
     font_fallback::FontFallbacks,
+    local::NextFontLocalFontFileOptions,
     stylesheet::{build_fallback_definition, build_font_class_rules},
     util::{get_scoped_font_family, FontCssProperties, FontFamilyType},
 };
@@ -14,32 +15,33 @@ pub(super) async fn build_stylesheet(
     options: Vc<NextFontLocalOptions>,
     fallbacks: Vc<FontFallbacks>,
     css_properties: Vc<FontCssProperties>,
-    request_hash: Vc<u32>,
-) -> Result<Vc<String>> {
-    let scoped_font_family = get_scoped_font_family(
-        FontFamilyType::WebFont.cell(),
-        options.font_family(),
-        request_hash,
-    );
+) -> Result<Vc<RcStr>> {
+    let scoped_font_family =
+        get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family());
 
-    Ok(Vc::cell(formatdoc!(
-        r#"
-        {}
-        {}
-        {}
-    "#,
-        *build_font_face_definitions(scoped_font_family, options).await?,
-        (*build_fallback_definition(fallbacks).await?),
-        *build_font_class_rules(css_properties).await?
-    )))
+    Ok(Vc::cell(
+        formatdoc!(
+            r#"
+            {}
+            {}
+            {}
+        "#,
+            *build_font_face_definitions(scoped_font_family, options, fallbacks.has_size_adjust())
+                .await?,
+            (*build_fallback_definition(fallbacks).await?),
+            *build_font_class_rules(css_properties).await?
+        )
+        .into(),
+    ))
 }
 
 /// Builds a string of `@font-face` definitions for each local font file
 #[turbo_tasks::function]
 pub(super) async fn build_font_face_definitions(
-    scoped_font_family: Vc<String>,
+    scoped_font_family: Vc<RcStr>,
     options: Vc<NextFontLocalOptions>,
-) -> Result<Vc<String>> {
+    has_size_adjust: Vc<bool>,
+) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
 
     let mut definitions = String::new();
@@ -48,18 +50,27 @@ pub(super) async fn build_font_face_definitions(
         FontDescriptors::Many(d) => d.clone(),
     };
 
+    let has_size_adjust = *has_size_adjust.await?;
+
     for font in fonts {
+        let query = NextFontLocalFontFileOptions {
+            path: font.path.clone(),
+            preload: options.preload,
+            has_size_adjust,
+        };
+        let query_str = qstring::QString::from(serde_json::to_string(&query)?.as_str());
+
         definitions.push_str(&formatdoc!(
             r#"
-            @font-face {{
-                font-family: '{}';
-                src: url('{}') format('{}');
-                font-display: {};
-                {}{}
-            }}
-        "#,
+                @font-face {{
+                    font-family: '{}';
+                    src: url('@vercel/turbopack-next/internal/font/local/font?{}') format('{}');
+                    font-display: {};
+                    {}{}
+                }}
+            "#,
             *scoped_font_family.await?,
-            &font.path,
+            query_str,
             ext_to_format(&font.ext)?,
             options.display,
             &font
@@ -75,7 +86,7 @@ pub(super) async fn build_font_face_definitions(
         ));
     }
 
-    Ok(Vc::cell(definitions))
+    Ok(Vc::cell(definitions.into()))
 }
 
 /// Used as e.g. `format('woff')` in `src` properties in `@font-face`

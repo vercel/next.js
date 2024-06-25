@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect } from "react";
 
-import { tns } from 'tiny-slider'
+import { tns } from "tiny-slider";
 
-import Testimonial from './testimonial'
+import Testimonial from "./testimonial";
 
 export default function Testimonials({
   headline,
@@ -11,22 +11,22 @@ export default function Testimonials({
 }) {
   useEffect(() => {
     tns({
-      container: '.testimonial-active',
+      container: ".testimonial-active",
       autoplay: true,
       autoplayTimeout: 5000,
       autoplayButtonOutput: false,
       mouseDrag: true,
       gutter: 0,
       nav: false,
-      navPosition: 'bottom',
+      navPosition: "bottom",
       controls: true,
       controlsText: [
         '<i class="lni lni-chevron-left"></i>',
         '<i class="lni lni-chevron-right"></i>',
       ],
       items: 1,
-    })
-  })
+    });
+  });
 
   return (
     <section id={scrollAnchorId} className="testimonial-section mt-100">
@@ -53,5 +53,5 @@ export default function Testimonials({
         </div>
       </div>
     </section>
-  )
+  );
 }

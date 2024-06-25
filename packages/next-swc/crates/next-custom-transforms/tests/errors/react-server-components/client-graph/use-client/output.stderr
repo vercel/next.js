@@ -1,0 +1,7 @@
+
+  x The "use client" directive must be placed before other expressions. Move it to the top of the file to resolve this issue.
+   ,-[input.js:3:1]
+ 3 | // prettier-ignore
+ 4 | 'use client'
+   : ^^^^^^^^^^^^
+   `----

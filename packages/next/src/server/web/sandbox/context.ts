@@ -28,16 +28,17 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
-let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
   getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**
@@ -48,6 +49,16 @@ if (process.env.NODE_ENV === 'development') {
 const moduleContexts = new Map<string, ModuleContext>()
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
+/**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
 
 /**
  * For a given path a context, this function checks if there is any module
@@ -96,9 +107,14 @@ async function loadWasm(
   return modules
 }
 
-function buildEnvironmentVariablesFrom(): Record<string, string | undefined> {
+function buildEnvironmentVariablesFrom(
+  injectedEnvironments: Record<string, string>
+): Record<string, string | undefined> {
   const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
   const env = Object.fromEntries(pairs)
+  for (const key of Object.keys(injectedEnvironments)) {
+    env[key] = injectedEnvironments[key]
+  }
   env.NEXT_RUNTIME = 'edge'
   return env
 }
@@ -111,15 +127,16 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
-function createProcessPolyfill() {
-  const processPolyfill = { env: buildEnvironmentVariablesFrom() }
-  const overridenValue: Record<string, any> = {}
+function createProcessPolyfill(env: Record<string, string>) {
+  const processPolyfill = { env: buildEnvironmentVariablesFrom(env) }
+  const overriddenValue: Record<string, any> = {}
+
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
-        if (overridenValue[key] !== undefined) {
-          return overridenValue[key]
+        if (overriddenValue[key] !== undefined) {
+          return overriddenValue[key]
         }
         if (typeof (process as any)[key] === 'function') {
           return () => throwUnsupportedAPIError(`process.${key}`)
@@ -127,7 +144,7 @@ function createProcessPolyfill() {
         return undefined
       },
       set(value) {
-        overridenValue[key] = value
+        overriddenValue[key] = value
       },
       enumerable: false,
     })
@@ -222,6 +239,10 @@ const NativeModuleMap = (() => {
   return new Map(Object.entries(mods))
 })()
 
+export const requestStore = new AsyncLocalStorage<{
+  headers: Headers
+}>()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -229,14 +250,15 @@ const NativeModuleMap = (() => {
 async function createModuleContext(options: ModuleContextOptions) {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
-  const wasm = await loadWasm(options.edgeFunctionEntry.wasm ?? [])
+  const { edgeFunctionEntry } = options
+  const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
         ? { strings: true, wasm: true }
         : undefined,
     extend: (context) => {
-      context.process = createProcessPolyfill()
+      context.process = createProcessPolyfill(edgeFunctionEntry.env)
 
       Object.defineProperty(context, 'require', {
         enumerable: false,
@@ -248,6 +270,12 @@ async function createModuleContext(options: ModuleContextOptions) {
           return value
         },
       })
+
+      if (process.env.NODE_ENV !== 'production') {
+        context.__next_log_error__ = function (err: unknown) {
+          options.onError(err)
+        }
+      }
 
       context.__next_eval__ = function __next_eval__(fn: Function) {
         const key = fn.toString()
@@ -325,6 +353,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
+
+        // Forward subrequest header from incoming request to outgoing request
+        const store = requestStore.getStore()
+        if (
+          store?.headers.has('x-middleware-subrequest') &&
+          !init.headers.has('x-middleware-subrequest')
+        ) {
+          init.headers.set(
+            'x-middleware-subrequest',
+            store.headers.get('x-middleware-subrequest') ?? ''
+          )
+        }
+
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
         const value = prevs.concat(options.moduleName).join(':')
@@ -391,6 +432,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       Object.assign(context, wasm)
 
+      context.performance = performance
+
       context.AsyncLocalStorage = AsyncLocalStorage
 
       // @ts-ignore the timeouts have weird types in the edge runtime
@@ -430,10 +473,11 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
 interface ModuleContextOptions {
   moduleName: string
+  onError: (err: unknown) => void
   onWarning: (warn: Error) => void
   useCache: boolean
   distDir: string
-  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
+  edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {

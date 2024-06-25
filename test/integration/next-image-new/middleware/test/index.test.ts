@@ -10,30 +10,35 @@ let app: Awaited<ReturnType<typeof launchApp>>
 let output = ''
 
 describe('Image with middleware in edge func', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStdout: (s) => {
-          output += s
-        },
-        onStderr: (s) => {
-          output += s
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStdout: (s) => {
+            output += s
+          },
+          onStderr: (s) => {
+            output += s
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    it('should not error', async () => {
-      /**
+      it('should not error', async () => {
+        /**
         ⚠️ ../../../../packages/next/dist/esm/client/image-component.js
         Attempted import error: 'preload' is not exported from 'react-dom' (imported as 'preload').
        */
-      await webdriver(appPort, '/')
-      await check(() => output, /compiled \//i)
-      expect(output).not.toContain(`'preload' is not exported from 'react-dom'`)
-    })
-  })
+        await webdriver(appPort, '/')
+        await check(() => output, /compiled \//i)
+        expect(output).not.toContain(
+          `'preload' is not exported from 'react-dom'`
+        )
+      })
+    }
+  )
 })

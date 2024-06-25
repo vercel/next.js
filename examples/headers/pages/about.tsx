@@ -1,6 +1,6 @@
-import Link from 'next/link'
-import styles from '../styles.module.css'
-import Code from '../components/Code'
+import Link from "next/link";
+import styles from "../styles.module.css";
+import Code from "../components/Code";
 
 export default function About() {
   return (
@@ -9,7 +9,7 @@ export default function About() {
         <h1>Path: /about</h1>
         <hr className={styles.hr} />
         <p>
-          The response contains a custom header{' '}
+          The response contains a custom header{" "}
           <Code>X-About-Custom-Header</Code> : <Code>about_header_value</Code>.
         </p>
         <p>
@@ -20,5 +20,5 @@ export default function About() {
         <Link href="/">&larr; Back home</Link>
       </div>
     </div>
-  )
+  );
 }

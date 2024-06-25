@@ -1,19 +1,19 @@
-import React from 'react'
+import React from "react";
 import {
   ComponentParams,
   ComponentRendering,
   Placeholder,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 interface ComponentProps {
-  rendering: ComponentRendering & { params: ComponentParams }
-  params: ComponentParams
+  rendering: ComponentRendering & { params: ComponentParams };
+  params: ComponentParams;
 }
 
 export const Default = (props: ComponentProps): JSX.Element => {
-  const styles = `${props.params.GridParameters ?? ''} ${
-    props.params.Styles ?? ''
-  }`.trimEnd()
+  const styles = `${props.params.GridParameters ?? ""} ${
+    props.params.Styles ?? ""
+  }`.trimEnd();
   const columnWidths = [
     props.params.ColumnWidth1,
     props.params.ColumnWidth2,
@@ -23,7 +23,7 @@ export const Default = (props: ComponentProps): JSX.Element => {
     props.params.ColumnWidth6,
     props.params.ColumnWidth7,
     props.params.ColumnWidth8,
-  ]
+  ];
   const columnStyles = [
     props.params.Styles1,
     props.params.Styles2,
@@ -33,9 +33,9 @@ export const Default = (props: ComponentProps): JSX.Element => {
     props.params.Styles6,
     props.params.Styles7,
     props.params.Styles8,
-  ]
-  const enabledPlaceholders = props.params.EnabledPlaceholders.split(',')
-  const id = props.params.RenderingIdentifier
+  ];
+  const enabledPlaceholders = props.params.EnabledPlaceholders.split(",");
+  const id = props.params.RenderingIdentifier;
 
   return (
     <div
@@ -43,10 +43,10 @@ export const Default = (props: ComponentProps): JSX.Element => {
       id={id ? id : undefined}
     >
       {enabledPlaceholders.map((ph, index) => {
-        const phKey = `column-${ph}-{*}`
+        const phKey = `column-${ph}-{*}`;
         const phStyles = `${columnWidths[+ph - 1]} ${
-          columnStyles[+ph - 1] ?? ''
-        }`.trimEnd()
+          columnStyles[+ph - 1] ?? ""
+        }`.trimEnd();
 
         return (
           <div key={index} className={phStyles}>
@@ -58,8 +58,8 @@ export const Default = (props: ComponentProps): JSX.Element => {
               />
             </div>
           </div>
-        )
+        );
       })}
     </div>
-  )
-}
+  );
+};

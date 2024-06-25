@@ -74,18 +74,19 @@ First, [create an account on Agility CMS](https://agilitycms.com).
 
 After creating an account you'll be asked to create a new project. Use any name of your liking as the **Project Name** and select the **Blank (advanced users)** template to create a blank Agility CMS instance.
 
-### Step 2. Create an `Author` Content Definition
+### Step 2: Create an Author Content Definition
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
+To create an Author Content Definition in the Agility CMS Content Manager, follow these steps:
 
-- The **Title** should be `Author`. This will also pre-populate **Reference Name** for you.
+1. Navigate to **Settings** > **Content Definitions**.
+2. Click on the "New" button to create a new Content Definition.
+3. In the Title field, enter "Author". The Reference Name will be automatically populated for you.
+4. Use the Form Builder tab to add the following fields:
+   - `Name`: Set the Field Label to "Name" and the Field Type to "Text".
+   - `Picture`: Set the Field Label to "Picture" and the Field Type to "Image".
+5. Once you have added these fields, click on "Save & Close" to save your Author content definition.
 
-Next, add these fields via the **Form Builder** tab (you don't have to modify any other settings):
-
-- `Name` - Set **Field Label** to `Name` and **Field Type** to `Text`
-- `Picture` - Set **Field Label** to `Picture` and **Field Type** to `Image`
-
-When you are done, click **Save & Close** to save your `Author` content definition.
+By following these steps, you will be able to define an Author Content Definition in the Agility CMS Content Manager.
 
 ### Step 3. Create a `List` based on your `Author` Content Definition
 

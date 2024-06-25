@@ -55,10 +55,28 @@ async function extractBinary(
       return body.pipeTo(
         new WritableStream({
           write(chunk) {
-            cacheWriteStream.write(chunk)
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.write(chunk, (error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
           close() {
-            cacheWriteStream.close()
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.close((error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
         })
       )

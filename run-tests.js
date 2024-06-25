@@ -1,3 +1,5 @@
+//@ts-check
+
 const os = require('os')
 const path = require('path')
 const _glob = require('glob')
@@ -5,6 +7,7 @@ const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const nodeFetch = require('node-fetch')
 const vercelFetch = require('@vercel/fetch')
+// @ts-expect-error
 const fetch = vercelFetch(nodeFetch)
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
@@ -13,6 +16,23 @@ const { createNextInstall } = require('./test/lib/create-next-install')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
+const { getTestFilter } = require('./test/get-test-filter')
+
+let argv = require('yargs/yargs')(process.argv.slice(2))
+  .string('type')
+  .string('test-pattern')
+  .boolean('timings')
+  .boolean('write-timings')
+  .number('retries')
+  .boolean('debug')
+  .string('g')
+  .alias('g', 'group')
+  .number('c')
+  .boolean('related')
+  .boolean('dry')
+  .boolean('local')
+  .alias('r', 'related')
+  .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -25,11 +45,8 @@ function escapeRegexp(str) {
 const GROUP = process.env.CI ? '##[group]' : ''
 const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
-// Try to read an external array-based json to filter tests to be allowed / or disallowed.
-// If process.argv contains a test to be executed, this'll append it to the list.
-const externalTestsFilterLists = process.env.NEXT_EXTERNAL_TESTS_FILTERS
-  ? require(process.env.NEXT_EXTERNAL_TESTS_FILTERS)
-  : null
+const externalTestsFilter = getTestFilter()
+
 const timings = []
 const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
@@ -70,6 +87,7 @@ const testFilters = {
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
+  traceFn: (fn) => fn(mockTrace()),
   traceChild: () => mockTrace(),
 })
 
@@ -115,7 +133,15 @@ ${output}
   }
 }
 
+let exiting = false
+
 const cleanUpAndExit = async (code) => {
+  if (exiting) {
+    return
+  }
+  exiting = true
+  console.log(`exiting with code ${code}`)
+
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
@@ -131,11 +157,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  console.log(`exiting with code ${code}`)
-
-  setTimeout(() => {
-    process.exit(code)
-  }, 1)
+  process.exit(code)
 }
 
 const isMatchingPattern = (pattern, file) => {
@@ -172,24 +194,28 @@ async function getTestTimings() {
 }
 
 async function main() {
-  let numRetries = DEFAULT_NUM_RETRIES
-  let concurrencyIdx = process.argv.indexOf('-c')
-  let concurrency =
-    (concurrencyIdx > -1 && parseInt(process.argv[concurrencyIdx + 1], 10)) ||
-    DEFAULT_CONCURRENCY
+  // Ensure we have the arguments awaited from yargs.
+  argv = await argv
 
-  const hideOutput = !process.argv.includes('--debug')
-  const outputTimings = process.argv.includes('--timings')
-  const writeTimings = process.argv.includes('--write-timings')
-  const groupIdx = process.argv.indexOf('-g')
-  const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
-  const testPatternIdx = process.argv.indexOf('--test-pattern')
-  const testPattern = testPatternIdx !== -1 && process.argv[testPatternIdx + 1]
-  const testTypeIdx = process.argv.indexOf('--type')
-  const testType = testTypeIdx > -1 ? process.argv[testTypeIdx + 1] : undefined
+  const options = {
+    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    debug: argv.debug ?? false,
+    timings: argv.timings ?? false,
+    writeTimings: argv.writeTimings ?? false,
+    group: argv.group ?? false,
+    testPattern: argv.testPattern ?? false,
+    type: argv.type ?? false,
+    related: argv.related ?? false,
+    retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    dry: argv.dry ?? false,
+    local: argv.local ?? false,
+  }
+  let numRetries = options.retries
+  const hideOutput = !options.debug && !options.dry
+
   let filterTestsBy
 
-  switch (testType) {
+  switch (options.type) {
     case 'unit': {
       numRetries = 0
       filterTestsBy = testFilters.unit
@@ -200,27 +226,44 @@ async function main() {
       break
     }
     default: {
-      filterTestsBy = testFilters[testType]
+      filterTestsBy = testFilters[options.type]
       break
     }
   }
 
-  console.log('Running tests with concurrency:', concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    options.concurrency,
+    'in test mode',
+    process.env.NEXT_TEST_MODE
+  )
 
   /** @type TestFile[] */
-  let tests = process.argv
-    .filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
-    .map((file) => ({
-      file,
-      excludedCases: [],
-    }))
+  let tests = argv._.filter((arg) =>
+    arg.toString().match(/\.test\.(js|ts|tsx)/)
+  ).map((file) => ({ file: file.toString(), excludedCases: [] }))
   let prevTimings
 
   if (tests.length === 0) {
+    /** @type {RegExp | undefined} */
     let testPatternRegex
 
-    if (testPattern) {
-      testPatternRegex = new RegExp(testPattern)
+    if (options.testPattern && typeof options.testPattern === 'string') {
+      testPatternRegex = new RegExp(options.testPattern)
+    }
+
+    if (options.related) {
+      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
+      const tests = await getRelatedTests()
+      if (tests.length)
+        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
+
+      if (testPatternRegex) {
+        console.log('Running related tests:', testPatternRegex.toString())
+      } else {
+        console.log('No matching related tests, exiting.')
+        process.exit(0)
+      }
     }
 
     tests = (
@@ -252,7 +295,7 @@ async function main() {
       }))
   }
 
-  if (outputTimings && groupArg) {
+  if (options.timings && options.group) {
     console.log('Fetching previous timings data')
     try {
       const timingsFile = path.join(process.cwd(), 'test-timings.json')
@@ -267,7 +310,7 @@ async function main() {
         prevTimings = await getTestTimings()
         console.log('Fetched previous timings data successfully')
 
-        if (writeTimings) {
+        if (options.writeTimings) {
           await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
           await cleanUpAndExit(0)
@@ -280,20 +323,8 @@ async function main() {
   }
 
   // If there are external manifest contains list of tests, apply it to the test lists.
-  if (externalTestsFilterLists) {
-    tests = tests
-      .filter((test) => {
-        const info = externalTestsFilterLists[test.file]
-        return info && info.passed.length > 0 && !info.runtimeError
-      })
-      .map((test) => {
-        const info = externalTestsFilterLists[test.file]
-        // Exclude failing and flakey tests, newly added tests are automatically included
-        if (info.failed.length > 0 || info.flakey.length > 0) {
-          test.excludedCases = info.failed.concat(info.flakey)
-        }
-        return test
-      })
+  if (externalTestsFilter) {
+    tests = externalTestsFilter(tests)
   }
 
   let testSet = new Set()
@@ -308,12 +339,13 @@ async function main() {
       return true
     })
 
-  if (groupArg) {
-    const groupParts = groupArg.split('/')
+  if (options.group && typeof options.group === 'string') {
+    const groupParts = options.group.split('/')
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
 
     if (prevTimings) {
+      /** @type {TestFile[][]} */
       const groups = [[]]
       const groupTimes = [0]
 
@@ -353,9 +385,12 @@ async function main() {
     }
   }
 
+  if (!tests) {
+    tests = []
+  }
+
   if (tests.length === 0) {
-    console.log('No tests found for', testType, 'exiting..')
-    return cleanUpAndExit(1)
+    console.log('No tests found for', options.type, 'exiting..')
   }
 
   console.log(`${GROUP}Running tests:
@@ -371,15 +406,16 @@ ${ENDGROUP}`)
   })
 
   if (
+    !options.dry &&
     process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((testType && testType !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') || hasIsolatedTests)
   ) {
     // for isolated next tests: e2e, dev, prod we create
     // a starter Next.js install to re-use to speed up tests
     // to avoid having to run yarn each time
     console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -400,7 +436,7 @@ ${ENDGROUP}`)
     console.log(`${ENDGROUP}`)
   }
 
-  const sema = new Sema(concurrency, { capacity: tests.length })
+  const sema = new Sema(options.concurrency, { capacity: tests.length })
   const outputSema = new Sema(1, { capacity: tests.length })
   const children = new Set()
   const jestPath = path.join(
@@ -423,6 +459,7 @@ ${ENDGROUP}`)
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
+        ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
         '--verbose',
@@ -439,35 +476,43 @@ ${ENDGROUP}`)
             ]),
       ]
       const env = {
-        IS_RETRY: isRetry ? 'true' : undefined,
-        RECORD_REPLAY: shouldRecordTestWithReplay,
         // run tests in headless mode by default
         HEADLESS: 'true',
-        TRACE_PLAYWRIGHT: 'true',
         NEXT_TELEMETRY_DISABLED: '1',
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
-        CIRCLECI: '',
-        GITHUB_ACTIONS: '',
-        CONTINUOUS_INTEGRATION: '',
-        RUN_ID: '',
-        BUILD_NUMBER: '',
-        // Format the output of junit report to include the test name
-        // For the debugging purpose to compare actual run list to the generated reports
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
-        // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
-        // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
-        // [NOTE]: This won't affect if junit reporter is not enabled
-        JEST_SUITE_NAME: [
-          `${process.env.NEXT_TEST_MODE ?? 'default'}`,
-          groupArg,
-          testType,
-          test.file,
-        ]
-          .filter(Boolean)
-          .join(':'),
+
+        ...(options.local
+          ? {}
+          : {
+              IS_RETRY: isRetry ? 'true' : undefined,
+              RECORD_REPLAY: shouldRecordTestWithReplay,
+
+              TRACE_PLAYWRIGHT:
+                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              CIRCLECI: '',
+              GITHUB_ACTIONS: '',
+              CONTINUOUS_INTEGRATION: '',
+              RUN_ID: '',
+              BUILD_NUMBER: '',
+              // Format the output of junit report to include the test name
+              // For the debugging purpose to compare actual run list to the generated reports
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
+              JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
+              // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
+              // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
+              // [NOTE]: This won't affect if junit reporter is not enabled
+              JEST_SUITE_NAME: [
+                `${process.env.NEXT_TEST_MODE ?? 'default'}`,
+                options.group,
+                options.type,
+                test.file,
+              ]
+                .filter(Boolean)
+                .join(':'),
+            }),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more
@@ -495,12 +540,19 @@ ${ENDGROUP}`)
         ].join(' ') + '\n'
       )
 
+      // Don't execute tests when in dry run mode
+      if (options.dry) {
+        return resolve(new Date().getTime() - start)
+      }
+
       const child = spawn(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: {
           ...process.env,
           ...env,
         },
+        // See: https://nodejs.org/en/blog/vulnerability/april-2024-security-releases-2
+        shell: process.platform === 'win32',
       })
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
@@ -509,7 +561,8 @@ ${ENDGROUP}`)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code !== 0 || signal !== null) {
+        const isChildExitWithNonZero = code !== 0 || signal !== null
+        if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
             const isExpanded =
@@ -545,24 +598,34 @@ ${ENDGROUP}`)
           const err = new Error(
             code ? `failed with code: ${code}` : `failed with signal: ${signal}`
           )
+          // @ts-expect-error
           err.output = outputChunks
             .map(({ chunk }) => chunk.toString())
             .join('')
 
           return reject(err)
         }
-        await fsp
-          .rm(
-            path.join(
-              __dirname,
-              'test/traces',
-              path
-                .relative(path.join(__dirname, 'test'), test.file)
-                .replace(/\//g, '-')
-            ),
-            { recursive: true, force: true }
-          )
-          .catch(() => {})
+
+        // If environment is CI and if this test execution is failed after retry, preserve test traces
+        // to upload into github actions artifacts for debugging purpose
+        const shouldPreserveTracesOutput =
+          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          process.env.PRESERVE_TRACES_OUTPUT
+        if (!shouldPreserveTracesOutput) {
+          await fsp
+            .rm(
+              path.join(
+                __dirname,
+                'test/traces',
+                path
+                  .relative(path.join(__dirname, 'test'), test.file)
+                  .replace(/\//g, '-')
+              ),
+              { recursive: true, force: true }
+            )
+            .catch(() => {})
+        }
+
         resolve(new Date().getTime() - start)
       })
     })
@@ -651,6 +714,7 @@ ${ENDGROUP}`)
       }
 
       // Emit test output if test failed or if we're continuing tests on error
+      // This is parsed by the commenter webhook to notify about failing tests
       if ((!passed || shouldContinueTestsOnError) && isTestJob) {
         try {
           const testsOutput = await fsp.readFile(
@@ -681,7 +745,7 @@ ${ENDGROUP}`)
     })
   )
 
-  if (outputTimings) {
+  if (options.timings) {
     const curTimings = {}
     // let junitData = `<testsuites name="jest tests">`
     /*

@@ -36,18 +36,21 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
 
       function handler(e: KeyboardEvent) {
         if (e.key === 'ArrowLeft') {
+          e.preventDefault()
           e.stopPropagation()
           if (buttonLeft.current) {
             buttonLeft.current.focus()
           }
           previous && previous()
         } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
           e.stopPropagation()
           if (buttonRight.current) {
             buttonRight.current.focus()
           }
           next && next()
         } else if (e.key === 'Escape') {
+          e.preventDefault()
           e.stopPropagation()
           if (root instanceof ShadowRoot) {
             const a = root.activeElement
@@ -57,9 +60,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
             }
           }
 
-          if (close) {
-            close()
-          }
+          close?.()
         }
       }
 
@@ -146,7 +147,6 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
               />
             </svg>
           </button>
-          &nbsp;
           {children}
         </nav>
         {close ? (

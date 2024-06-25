@@ -6,10 +6,11 @@
 
 To develop locally:
 
+1. Install Rust and Cargo via [rustup](https://rustup.rs).
 1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
 1. Clone the Next.js repository (download only recent commits for faster clone):
    ```
-   gh repo clone vercel/next.js -- --depth=3000 --branch canary --single-branch
+   gh repo clone vercel/next.js -- --filter=blob:none --branch canary --single-branch
    ```
 1. Create a new branch:
    ```

@@ -1,5 +1,5 @@
 import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/src/trace'
+import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import {
   createDefineEnv,
@@ -8,10 +8,11 @@ import {
   Issue,
   loadBindings,
   Project,
+  StyledString,
   TurbopackResult,
   UpdateInfo,
-} from 'next/src/build/swc'
-import loadConfig from 'next/src/server/config'
+} from 'next/dist/build/swc'
+import loadConfig from 'next/dist/server/config'
 import path from 'path'
 
 function normalizePath(path: string) {
@@ -23,11 +24,29 @@ function normalizePath(path: string) {
     )
 }
 
+function styledStringToMarkdown(styled: StyledString): string {
+  switch (styled.type) {
+    case 'text':
+      return styled.value
+    case 'strong':
+      return '**' + styled.value + '**'
+    case 'code':
+      return '`' + styled.value + '`'
+    case 'line':
+      return styled.value.map(styledStringToMarkdown).join('')
+    case 'stack':
+      return styled.value.map(styledStringToMarkdown).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', styled)
+  }
+}
+
 function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
-      detail: issue.detail && normalizePath(issue.detail),
+      detail:
+        issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
       filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
@@ -89,18 +108,29 @@ function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
   })()
 }
 
+async function* filterMapAsyncIterator<T, U>(
+  iterator: AsyncIterableIterator<T>,
+  transform: (t: T) => U | undefined
+): AsyncGenerator<Awaited<U>> {
+  for await (const val of iterator) {
+    const mapped = transform(val)
+    if (mapped !== undefined) {
+      yield mapped
+    }
+  }
+}
+
 /**
  * Drains the stream until no value is available for 100ms, then returns the next value.
  */
-async function drainAndGetNext<T>(
-  stream: AsyncIterableIterator<TurbopackResult<T>>
-) {
-  const next = stream.next()
+async function drainAndGetNext<T>(stream: AsyncIterableIterator<T>) {
   while (true) {
+    const next = stream.next()
     const result = await Promise.race([
       new Promise((r) => setTimeout(() => r({ next }), 100)),
       next.then(() => undefined),
     ])
+
     if (result) return result
   }
 }
@@ -114,7 +144,7 @@ export function getServerSideProps() { return { props: { ...props, ...${JSON.str
 }
 
 function appPageCode(text) {
-  return `import Client from "./client.ts";
+  return `import Client from "./client.tsx";
 export default () => <div>${text}<Client /></div>;`
 }
 
@@ -134,16 +164,16 @@ describe('next.rs api', () => {
             'export default () => Response.json({ hello: "world" })',
           'pages/api/edge.js':
             'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-          'app/layout.ts':
+          'app/layout.tsx':
             'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.ts':
+          'app/loading.tsx':
             'export default function Loading() { return <>Loading</> }',
-          'app/app/page.ts': appPageCode('hello world'),
-          'app/app/client.ts':
+          'app/app/page.tsx': appPageCode('hello world'),
+          'app/app/client.tsx':
             '"use client";\nexport default () => <div>hello world</div>',
-          'app/app-edge/page.ts':
+          'app/app-edge/page.tsx':
             'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.ts':
+          'app/app-nodejs/page.tsx':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
             'export function GET() { return Response.json({ hello: "world" }) }',
@@ -156,9 +186,7 @@ describe('next.rs api', () => {
   afterAll(() => next.destroy())
 
   let project: Project
-  let projectUpdateSubscription: AsyncIterableIterator<
-    TurbopackResult<UpdateInfo>
-  >
+  let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
     console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
@@ -174,10 +202,9 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
-      serverAddr: `127.0.0.1:3000`,
+      dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
@@ -190,15 +217,24 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
+      buildId: 'development',
+      encryptionKey: '12345',
+      previewProps: {
+        previewModeId: 'development',
+        previewModeEncryptionKey: '12345',
+        previewModeSigningKey: '12345',
+      },
     })
-    projectUpdateSubscription = project.updateInfoSubscribe()
+    projectUpdateSubscription = filterMapAsyncIterator(
+      project.updateInfoSubscribe(1000),
+      (update) => (update.updateType === 'end' ? update.value : undefined)
+    )
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints = await entrypointsSubscribtion.next()
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
@@ -217,7 +253,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
   })
 
   const routes = [
@@ -328,7 +364,7 @@ describe('next.rs api', () => {
           break
         }
         case 'app-page': {
-          const result = await route.htmlEndpoint.writeToDisk()
+          const result = await route.pages[0].htmlEndpoint.writeToDisk()
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
@@ -336,7 +372,7 @@ describe('next.rs api', () => {
             'diagnostics'
           )
 
-          const result2 = await route.rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -394,16 +430,16 @@ describe('next.rs api', () => {
       name: 'client-side change on a app page',
       path: '/app',
       type: 'app-page',
-      file: 'app/app/client.ts',
+      file: 'app/app/client.tsx',
       content: '"use client";\nexport default () => <div>hello world2</div>',
-      expectedUpdate: '/app/app/client.ts',
+      expectedUpdate: '/app/app/client.tsx',
       expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a app page',
       path: '/app',
       type: 'app-page',
-      file: 'app/app/page.ts',
+      file: 'app/app/page.tsx',
       content: appPageCode('hello world2'),
       expectedUpdate: false,
       expectedServerSideChange: true,
@@ -439,16 +475,14 @@ describe('next.rs api', () => {
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.dataEndpoint.serverChanged(
-              false
-            )
+            serverSideSubscription =
+              await route.dataEndpoint.serverChanged(false)
             break
           }
           case 'app-page': {
-            await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.rscEndpoint.serverChanged(
-              false
-            )
+            await route.pages[0].htmlEndpoint.writeToDisk()
+            serverSideSubscription =
+              await route.pages[0].rscEndpoint.serverChanged(false)
             break
           }
           default: {

@@ -1,4 +1,4 @@
-import { link } from '@/styled-system/recipes'
+import { link } from "@/styled-system/recipes";
 
 /**
  * Link with config recipe
@@ -7,7 +7,7 @@ import { link } from '@/styled-system/recipes'
 export default function LinkWithConfigRecipe() {
   return (
     <a
-      className={link({ size: 'lg' })}
+      className={link({ size: "lg" })}
       href="https://panda-css.com/docs/concepts/recipes#config-recipe"
       target="_blank"
       rel="noreferrer"
@@ -15,5 +15,5 @@ export default function LinkWithConfigRecipe() {
       Link with <b>config recipe</b>
       <span className="icon">-&gt;</span>
     </a>
-  )
+  );
 }

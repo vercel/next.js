@@ -57,7 +57,7 @@ type InternalLinkProps = {
    */
   scroll?: boolean
   /**
-   * Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md).
+   * Update the path of the current page without rerunning [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
    *
    * @defaultValue `false`
    */
@@ -71,7 +71,7 @@ type InternalLinkProps = {
   /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded.
-   * Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
+   * Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover in pages router but not in app router. Pages using [Static Generation](/docs/basic-features/data-fetching/get-static-props.md) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
    *
    * @defaultValue `true`
    */
@@ -146,9 +146,9 @@ function prefetch(
       typeof options.locale !== 'undefined'
         ? options.locale
         : // Otherwise fallback to the router's locale.
-        'locale' in router
-        ? router.locale
-        : undefined
+          'locale' in router
+          ? router.locale
+          : undefined
 
     const prefetchedKey = href + '%' + as + '%' + locale
 
@@ -161,15 +161,21 @@ function prefetch(
     prefetched.add(prefetchedKey)
   }
 
-  const prefetchPromise = isAppRouter
-    ? (router as AppRouterInstance).prefetch(href, appOptions)
-    : (router as NextRouter).prefetch(href, as, options)
+  const doPrefetch = async () => {
+    if (isAppRouter) {
+      // note that `appRouter.prefetch()` is currently sync,
+      // so we have to wrap this call in an async function to be able to catch() errors below.
+      return (router as AppRouterInstance).prefetch(href, appOptions)
+    } else {
+      return (router as NextRouter).prefetch(href, as, options)
+    }
+  }
 
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
   // loading with priority which can reject but we don't
   // want to force navigation since this is only a prefetch
-  Promise.resolve(prefetchPromise).catch((err) => {
+  doPrefetch().catch((err) => {
     if (process.env.NODE_ENV !== 'production') {
       // rethrow to show invalid URL errors
       throw err
@@ -255,7 +261,12 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
 }
 
 /**
- * React Component that enables client-side transitions between routes.
+ * A React component that extends the HTML `<a>` element to provide [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
+ * and client-side navigation between routes.
+ *
+ * It is the primary way to navigate between routes in Next.js.
+ *
+ * Read more: [Next.js docs: `<Link>`](https://nextjs.org/docs/app/api-reference/components/link)
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
@@ -587,7 +598,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     ])
 
     const childProps: {
-      onTouchStart: React.TouchEventHandler<HTMLAnchorElement>
+      onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
       onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
       onClick: React.MouseEventHandler<HTMLAnchorElement>
       href?: string
@@ -675,43 +686,45 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           isAppRouter
         )
       },
-      onTouchStart(e) {
-        if (!legacyBehavior && typeof onTouchStartProp === 'function') {
-          onTouchStartProp(e)
-        }
+      onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
+        ? undefined
+        : function onTouchStart(e) {
+            if (!legacyBehavior && typeof onTouchStartProp === 'function') {
+              onTouchStartProp(e)
+            }
 
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onTouchStart === 'function'
-        ) {
-          child.props.onTouchStart(e)
-        }
+            if (
+              legacyBehavior &&
+              child.props &&
+              typeof child.props.onTouchStart === 'function'
+            ) {
+              child.props.onTouchStart(e)
+            }
 
-        if (!router) {
-          return
-        }
+            if (!router) {
+              return
+            }
 
-        if (!prefetchEnabled && isAppRouter) {
-          return
-        }
+            if (!prefetchEnabled && isAppRouter) {
+              return
+            }
 
-        prefetch(
-          router,
-          href,
-          as,
-          {
-            locale,
-            priority: true,
-            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-            bypassPrefetchedCheck: true,
+            prefetch(
+              router,
+              href,
+              as,
+              {
+                locale,
+                priority: true,
+                // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+                bypassPrefetchedCheck: true,
+              },
+              {
+                kind: appPrefetchKind,
+              },
+              isAppRouter
+            )
           },
-          {
-            kind: appPrefetchKind,
-          },
-          isAppRouter
-        )
-      },
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is

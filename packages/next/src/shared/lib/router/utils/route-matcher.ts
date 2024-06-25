@@ -32,8 +32,8 @@ export function getRouteMatcher({ re, groups }: RouteRegex): RouteMatchFn {
         params[slugName] = ~m.indexOf('/')
           ? m.split('/').map((entry) => decode(entry))
           : g.repeat
-          ? [decode(m)]
-          : decode(m)
+            ? [decode(m)]
+            : decode(m)
       }
     })
     return params

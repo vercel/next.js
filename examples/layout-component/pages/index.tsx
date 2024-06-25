@@ -1,6 +1,6 @@
-import type { NextPageWithLayout } from './_app'
-import Layout from '../components/layout'
-import Sidebar from '../components/sidebar'
+import type { NextPageWithLayout } from "./_app";
+import Layout from "../components/layout";
+import Sidebar from "../components/sidebar";
 
 const Index: NextPageWithLayout = () => {
   return (
@@ -25,15 +25,15 @@ const Index: NextPageWithLayout = () => {
       </p>
       <h3>Try It Out</h3>
       <p>
-        To visualize this, try tying in the search input in the{' '}
+        To visualize this, try tying in the search input in the{" "}
         <code>Sidebar</code> and then changing routes. You'll notice the input
         state is persisted.
       </p>
     </section>
-  )
-}
+  );
+};
 
-export default Index
+export default Index;
 
 Index.getLayout = function getLayout(page: React.ReactElement) {
   return (
@@ -41,5 +41,5 @@ Index.getLayout = function getLayout(page: React.ReactElement) {
       <Sidebar />
       {page}
     </Layout>
-  )
-}
+  );
+};

@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
-import { connectToDatabase } from '../util/couchbase'
+import Head from "next/head";
+import styles from "../styles/Home.module.css";
+import { connectToDatabase } from "../util/couchbase";
 
 export default function Home({ isConnected }) {
   return (
@@ -35,7 +35,7 @@ export default function Home({ isConnected }) {
         )}
 
         <p className={styles.description}>
-          Get started by editing{' '}
+          Get started by editing{" "}
           <code className={styles.code}>pages/index.js</code>
         </p>
       </main>
@@ -46,33 +46,33 @@ export default function Home({ isConnected }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>
-  )
+  );
 }
 
 export async function getServerSideProps(context) {
-  let connection = await connectToDatabase()
+  let connection = await connectToDatabase();
 
-  const { collection } = connection
+  const { collection } = connection;
 
   // Check connection with a KV GET operation for a key that doesnt exist
-  let isConnected = false
+  let isConnected = false;
   try {
-    await collection.get('testingConnectionKey')
+    await collection.get("testingConnectionKey");
   } catch (err) {
     // error message will return 'document not found' if and only if we are connected
     // (but this document is not present, we're only trying to test the connection here)
-    if (err.message === 'document not found') {
-      isConnected = true
+    if (err.message === "document not found") {
+      isConnected = true;
     }
     // if the error message is anything OTHER THAN 'document not found', the connection is broken
   }
 
   return {
     props: { isConnected },
-  }
+  };
 }

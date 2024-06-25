@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import img from '../public/hero.jpg'
+import Image from "next/image";
+import img from "../public/hero.jpg";
 
 export default function Header({ scrollHandler }) {
   return (
@@ -39,5 +39,5 @@ export default function Header({ scrollHandler }) {
         </div>
       </div>
     </header>
-  )
+  );
 }

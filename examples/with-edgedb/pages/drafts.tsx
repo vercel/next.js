@@ -1,13 +1,13 @@
-import React from 'react'
-import { GetServerSideProps } from 'next'
-import Layout from '../components/Layout'
-import Post from '../components/Post'
-import { PostProps } from './blog/[id]'
-import { client, e } from '../client'
+import React from "react";
+import { GetServerSideProps } from "next";
+import Layout from "../components/Layout";
+import Post from "../components/Post";
+import { PostProps } from "./blog/[id]";
+import { client, e } from "../client";
 
 type Props = {
-  drafts: PostProps[]
-}
+  drafts: PostProps[];
+};
 
 const Drafts: React.FC<Props> = (props) => {
   return (
@@ -21,7 +21,7 @@ const Drafts: React.FC<Props> = (props) => {
                   <Post post={post} />
                 </div>
               ))
-            : 'No drafts yet.'}
+            : "No drafts yet."}
         </main>
       </div>
       <style jsx>{`
@@ -41,8 +41,8 @@ const Drafts: React.FC<Props> = (props) => {
         }
       `}</style>
     </Layout>
-  )
-}
+  );
+};
 
 export const getServerSideProps: GetServerSideProps = async () => {
   const drafts = await e
@@ -51,12 +51,12 @@ export const getServerSideProps: GetServerSideProps = async () => {
       title: true,
       content: true,
       authorName: true,
-      filter: e.op('not', e.op('exists', post.published)),
+      filter: e.op("not", e.op("exists", post.published)),
     }))
-    .run(client)
+    .run(client);
   return {
     props: { drafts },
-  }
-}
+  };
+};
 
-export default Drafts
+export default Drafts;

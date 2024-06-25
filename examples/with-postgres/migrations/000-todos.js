@@ -5,11 +5,11 @@ exports.up = async function (sql) {
         text CHARACTER VARYING(255) NOT NULL,
         done BOOLEAN NOT NULL DEFAULT FALSE
     )
-  `
-}
+  `;
+};
 
 exports.down = async function (sql) {
   await sql`
     DROP TABLE IF EXISTS todos
-  `
-}
+  `;
+};

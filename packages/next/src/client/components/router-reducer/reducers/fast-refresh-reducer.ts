@@ -6,40 +6,42 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   FastRefreshAction,
+  Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
   state: ReadonlyReducerState,
   action: FastRefreshAction
 ): ReducerState {
-  const { cache, mutable, origin } = action
+  const { origin } = action
+  const mutable: Mutable = {}
   const href = state.canonicalUrl
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
 
-  if (!cache.data) {
-    // TODO-APP: verify that `href` is not an external url.
-    // Fetch data from the root of the tree.
-    cache.data = fetchServerResponse(
-      new URL(href, origin),
-      [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-      state.nextUrl,
-      state.buildId
-    )
-  }
+  const cache: CacheNode = createEmptyCacheNode()
+  // If the current tree was intercepted, the nextUrl should be included in the request.
+  // This is to ensure that the refresh request doesn't get intercepted, accidentally triggering the interception route.
+  const includeNextUrl = hasInterceptionRouteInCurrentTree(state.tree)
 
-  return cache.data.then(
+  // TODO-APP: verify that `href` is not an external url.
+  // Fetch data from the root of the tree.
+  cache.lazyData = fetchServerResponse(
+    new URL(href, origin),
+    [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
+    includeNextUrl ? state.nextUrl : null,
+    state.buildId
+  )
+
+  return cache.lazyData.then(
     ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -51,8 +53,8 @@ function fastRefreshReducerImpl(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      cache.data = null
+      // Remove cache.lazyData as it has been resolved at this point.
+      cache.lazyData = null
 
       let currentTree = state.tree
       let currentCache = state.cache
@@ -65,17 +67,18 @@ function fastRefreshReducerImpl(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          state.canonicalUrl
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -101,7 +104,6 @@ function fastRefreshReducerImpl(
           currentCache = cache
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 

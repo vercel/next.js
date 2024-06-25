@@ -1,6 +1,6 @@
-import styles from '../styles.module.css'
-import Link from 'next/link'
-import Code from '../components/Code'
+import styles from "../styles.module.css";
+import Link from "next/link";
+import Code from "../components/Code";
 
 export default function Index() {
   return (
@@ -9,7 +9,7 @@ export default function Index() {
         <h1>Redirects with Next.js</h1>
         <hr className={styles.hr} />
         <p>
-          The links below are{' '}
+          The links below are{" "}
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
             legacyBehavior
@@ -17,7 +17,7 @@ export default function Index() {
             <>
               custom <Code>redirects</Code>
             </>
-          </Link>{' '}
+          </Link>{" "}
           that redirect an incoming request path to a different destination
           path.
         </p>
@@ -50,5 +50,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  )
+  );
 }

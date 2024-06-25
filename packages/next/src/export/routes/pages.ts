@@ -15,10 +15,10 @@ import {
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
-import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
+import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 
 export const enum ExportedPagesFiles {
   HTML = 'HTML',
@@ -105,10 +105,8 @@ export async function exportPages(
         query,
         renderOpts
       )
-    } catch (err: any) {
-      if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-        throw err
-      }
+    } catch (err) {
+      if (!isBailoutToCSRError(err)) throw err
     }
   }
 
@@ -119,7 +117,7 @@ export async function exportPages(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath?: string
+    validatorPath: string | undefined
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
@@ -163,10 +161,8 @@ export async function exportPages(
           { ...query, amp: '1' },
           renderOpts
         )
-      } catch (err: any) {
-        if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-          throw err
-        }
+      } catch (err) {
+        if (!isBailoutToCSRError(err)) throw err
       }
 
       const ampHtml =
@@ -174,7 +170,7 @@ export async function exportPages(
           ? ampRenderResult.toUnchunkedString()
           : ''
       if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1')
+        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
       await fileWriter(

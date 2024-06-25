@@ -4,7 +4,7 @@
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_binding::{
     turbo::tasks_hash::hash_xxh3_hash64,
@@ -46,7 +46,7 @@ async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
 pub async fn dynamic_image_metadata_source(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: Vc<FileSystemPath>,
-    ty: String,
+    ty: RcStr,
     page: AppPage,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem().await?;
@@ -63,13 +63,15 @@ pub async fn dynamic_image_metadata_source(
     };
 
     let source = Vc::upcast(FileSource::new(path));
-    let exports = &*collect_direct_exports(asset_context.process(
-        source,
-        turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-            EcmaScriptModulesReferenceSubType::Undefined,
-        )),
-    ))
-    .await?;
+    let module = asset_context
+        .process(
+            source,
+            turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            )),
+        )
+        .module();
+    let exports = &*collect_direct_exports(module).await?;
     let exported_fields_excluding_default = exports
         .iter()
         .filter(|e| *e != "default")
@@ -124,7 +126,7 @@ pub async fn dynamic_image_metadata_source(
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--metadata.js")),
+        path.parent().join(format!("{stem}--metadata.js").into()),
         AssetContent::file(file.into()),
     );
 
@@ -132,7 +134,7 @@ pub async fn dynamic_image_metadata_source(
 }
 
 #[turbo_tasks::function]
-async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<String>>> {
+async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
         Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
     else {

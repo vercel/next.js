@@ -1,13 +1,13 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
-import { Page } from '../components/Page'
+import Head from "next/head";
+import styles from "../styles/Home.module.css";
+import { Page } from "../components/Page";
 
 const demoProps = {
   user: {},
   onLogin: () => {},
   onLogout: () => {},
   onCreateAccount: () => {},
-}
+};
 
 export default function Home() {
   return (
@@ -26,10 +26,10 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>
-  )
+  );
 }

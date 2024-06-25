@@ -4,6 +4,16 @@
 
 You have a Next.js project.
 
+### Update `next.config.js`
+
+```javascript
+module.exports = {
+  experimental: {
+    testProxy: true,
+  },
+}
+```
+
 ### Install `@playwright/test` in your project
 
 ```sh
@@ -25,7 +35,7 @@ import { defineConfig } from 'next/experimental/testmode/playwright'
 
 export default defineConfig({
   webServer: {
-    command: 'npm dev -- --experimental-test-proxy',
+    command: 'npm dev',
     url: 'http://localhost:3000',
   },
 })

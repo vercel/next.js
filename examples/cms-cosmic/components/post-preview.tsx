@@ -1,20 +1,20 @@
-import Avatar from './avatar'
-import Date from './date'
-import CoverImage from './cover-image'
-import Link from 'next/link'
-import { AuthorType, ImgixType } from 'interfaces'
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import Link from "next/link";
+import { AuthorType, ImgixType } from "interfaces";
 
 type PostPreviewProps = {
-  title: string
-  coverImage: ImgixType
-  date: string
-  excerpt: string
-  author: AuthorType
-  slug: string
-}
+  title: string;
+  coverImage: ImgixType;
+  date: string;
+  excerpt: string;
+  author: AuthorType;
+  slug: string;
+};
 
 const PostPreview = (props: PostPreviewProps) => {
-  const { title, coverImage, date, excerpt, author, slug } = props
+  const { title, coverImage, date, excerpt, author, slug } = props;
 
   return (
     <div>
@@ -32,7 +32,7 @@ const PostPreview = (props: PostPreviewProps) => {
       <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
       <Avatar name={author.title} picture={author.metadata.picture.imgix_url} />
     </div>
-  )
-}
+  );
+};
 
-export default PostPreview
+export default PostPreview;

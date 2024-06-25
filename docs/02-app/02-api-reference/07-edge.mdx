@@ -5,7 +5,7 @@ description: API Reference for the Edge Runtime.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-The Next.js Edge Runtime is based on standard Web APIs, it supports the following APIs:
+The Next.js Edge Runtime is used for Middleware and supports the following APIs:
 
 ## Network APIs
 
@@ -26,8 +26,8 @@ The Next.js Edge Runtime is based on standard Web APIs, it supports the followin
 
 | API                                                                                 | Description                        |
 | ----------------------------------------------------------------------------------- | ---------------------------------- |
-| [`atob`](https://developer.mozilla.org/docs/Web/API/WindowOrWorkerGlobalScope/atob) | Decodes a base-64 encoded string   |
-| [`btoa`](https://developer.mozilla.org/docs/Web/API/WindowOrWorkerGlobalScope/btoa) | Encodes a string in base-64        |
+| [`atob`](https://developer.mozilla.org/en-US/docs/Web/API/atob)                     | Decodes a base-64 encoded string   |
+| [`btoa`](https://developer.mozilla.org/en-US/docs/Web/API/btoa)                     | Encodes a string in base-64        |
 | [`TextDecoder`](https://developer.mozilla.org/docs/Web/API/TextDecoder)             | Decodes a Uint8Array into a string |
 | [`TextDecoderStream`](https://developer.mozilla.org/docs/Web/API/TextDecoderStream) | Chainable decoder for streams      |
 | [`TextEncoder`](https://developer.mozilla.org/docs/Web/API/TextEncoder)             | Encodes a string into a Uint8Array |
@@ -146,11 +146,10 @@ The following JavaScript language features are disabled, and **will not work:**
 | [`WebAssembly.instantiate`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate) | Compiles and instantiates a WebAssembly module from a buffer source |
 
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
-You can relax the check to allow specific files with your Middleware or Edge API Route exported configuration:
+You can relax the check to allow specific files with your Middleware configuration:
 
-```javascript
+```javascript filename="middleware.ts"
 export const config = {
-  runtime: 'edge', // for Edge API Routes only
   unstable_allowDynamic: [
     // allows a single file
     '/lib/utilities.js',

@@ -1,17 +1,15 @@
-// TODO(alexkirsz) Remove once the diagnostic is fixed.
-#![allow(rustc::untranslatable_diagnostic_trivial)]
 #![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
+#![feature(iter_intersperse)]
 
-mod app_segment_config;
+pub mod app_segment_config;
 pub mod app_structure;
-mod babel;
 mod bootstrap;
 mod embed_js;
 mod emit;
+pub mod instrumentation;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
@@ -34,7 +32,6 @@ mod next_shared;
 pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
-mod sass;
 pub mod tracing_presets;
 mod transform_options;
 pub mod url_node;
@@ -45,10 +42,12 @@ pub use app_segment_config::{
 };
 pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets, emit_client_assets};
 pub use next_edge::context::{
-    get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
+    get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_compile_time_info, get_edge_resolve_options_context,
 };
+pub use next_import_map::get_next_package;
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
-pub use turbopack_binding::{turbopack::node::source_map, *};
+use turbopack_binding::{turbo, turbopack};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
 
 pub fn register() {
@@ -56,8 +55,7 @@ pub fn register() {
     turbo::tasks_bytes::register();
     turbo::tasks_fs::register();
     turbo::tasks_fetch::register();
-    turbopack::dev::register();
-    turbopack::dev_server::register();
+    turbopack::browser::register();
     turbopack::node::register();
     turbopack::turbopack::register();
     turbopack::image::register();
@@ -65,3 +63,9 @@ pub fn register() {
     turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
+
+#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
+compile_error!("You can't enable both `native-tls` and `rustls-tls`");
+
+#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
+compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");

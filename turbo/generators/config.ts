@@ -114,24 +114,13 @@ export default function generator(plop: NodePlopAPI): void {
     ],
     actions: function (answers) {
       const { name } = answers as ErrorResponse
+      const errorsRoot = path.join(plop.getDestBasePath(), 'errors')
 
       return [
         {
           type: 'add',
-          path: `errors/{{ toFileName name }}.md`,
-          templateFile: `errors/template.txt`,
-        },
-        {
-          type: 'modify',
-          path: 'errors/manifest.json',
-          transform(fileContents: string) {
-            const manifestData = JSON.parse(fileContents)
-            manifestData.routes[0].routes.push({
-              title: helpers.toFileName(name),
-              path: `/errors/${helpers.toFileName(name)}.md`,
-            })
-            return JSON.stringify(manifestData, null, 2)
-          },
+          path: path.join(errorsRoot, `{{ toFileName name }}.mdx`),
+          templateFile: path.join(errorsRoot, `template.txt`),
         },
         `Url for the error: https://nextjs.org/docs/messages/${helpers.toFileName(
           name

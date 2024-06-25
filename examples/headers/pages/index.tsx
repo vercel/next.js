@@ -1,6 +1,6 @@
-import Link from 'next/link'
-import styles from '../styles.module.css'
-import Code from '../components/Code'
+import Link from "next/link";
+import styles from "../styles.module.css";
+import Code from "../components/Code";
 
 export default function Index() {
   return (
@@ -9,7 +9,7 @@ export default function Index() {
         <h1>Headers with Next.js</h1>
         <hr className={styles.hr} />
         <p>
-          The links below are examples of{' '}
+          The links below are examples of{" "}
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/headers"
             legacyBehavior
@@ -17,7 +17,7 @@ export default function Index() {
             <>
               custom <Code>headers</Code>
             </>
-          </Link>{' '}
+          </Link>{" "}
           added to your Next.js app.
         </p>
         <nav>
@@ -41,5 +41,5 @@ export default function Index() {
         <hr className={styles.hr} />
       </div>
     </div>
-  )
+  );
 }

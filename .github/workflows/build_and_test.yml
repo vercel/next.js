@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 2.0.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -22,17 +22,49 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
 jobs:
+  changes:
+    name: Determine changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      - name: check for docs only change
+        id: docs-change
+        run: |
+          echo "DOCS_ONLY<<EOF" >> $GITHUB_OUTPUT;
+          echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'false')" >> $GITHUB_OUTPUT;
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: check for release
+        id: is-release
+        run: |
+          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
+            then
+              echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
+            else
+              echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
+          fi
+
+    outputs:
+      docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
+      is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipInstallBuild: 'yes'
+      stepName: 'build-native'
     secrets: inherit
 
   build-next:
@@ -40,6 +72,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       skipNativeBuild: 'yes'
+      stepName: 'build-next'
     secrets: inherit
 
   lint:
@@ -49,120 +82,190 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm lint-no-typescript && pnpm check-examples
+      stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: corepack enable
       - name: 'Run link checker'
-        run: node ./.github/actions/validate-docs-links/lib
+        run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check-types-precompiled:
     name: types and precompiled
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm types-and-precompiled
-      skipForDocsOnly: 'yes'
+      stepName: 'types-and-precompiled'
     secrets: inherit
 
   test-cargo-unit:
     name: test cargo unit
-    needs: ['build-next']
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
+      stepName: 'test-cargo-unit'
     secrets: inherit
-
-  test-cargo-integration:
-    name: test cargo integration
-    needs: ['build-next']
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      skipForDocsOnly: 'yes'
-      needsNextest: 'yes'
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-integration
-
-  test-cargo-bench:
-    name: test cargo benchmarks
-    needs: ['build-next']
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      skipForDocsOnly: 'yes'
-      skipForRelease: 'yes'
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-bench
 
   rust-check:
     name: rust check
-    needs: ['build-next']
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: turbo run rust-check
+      stepName: 'rust-check'
+    secrets: inherit
+
+  rust-doc-check:
+    name: rustdoc check
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      stepName: 'rust-doc-check'
+    secrets: inherit
+
+  devlow-bench:
+    name: Run devlow benchmarks
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - '--turbopack=false'
+          - '--turbopack=true'
+        selector:
+          - '--scenario=heavy-npm-deps --page=homepage'
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}
+      stepName: 'devlow-bench-${{ matrix.mode }}-${{ matrix.selector }}'
     secrets: inherit
 
   test-turbopack-dev:
     name: test turbopack dev
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY}
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      stepName: 'test-turbopack-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-integration:
-    name: test turbopack integration
-    needs: ['build-native', 'build-next']
+    name: test turbopack development integration
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      skipForDocsOnly: 'yes'
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-turbopack-integration-${{ matrix.group }}'
+    secrets: inherit
+
+  test-turbopack-production:
+    name: test turbopack production
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-turbopack-production-${{ matrix.group }}'
+    secrets: inherit
+
+  test-turbopack-production-integration:
+    name: test turbopack production integration
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
     name: test next-swc wasm
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
-      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
+      stepName: 'test-next-swc-wasm'
+    secrets: inherit
+
+  #[NOTE] currently this only checks building wasi target
+  test-next-swc-napi-wasi:
+    name: test next-swc wasi
+    needs: ['changes', 'build-next']
+    # TODO: Re-enable this when https://github.com/napi-rs/napi-rs/issues/2009 is addressed.
+    # Specifically, the `platform` value is now `threads` in
+    # https://github.com/napi-rs/napi-rs/blob/e4ad4767efaf093fdff3dc768856f6100a6e3f72/cli/src/api/build.ts#L530
+    if: false
+    # if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: rustup target add wasm32-wasip1-threads && turbo run build-native-wasi
+      stepName: 'test-next-swc-napi-wasi'
     secrets: inherit
 
   test-unit:
     name: test unit
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -171,80 +274,198 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      stepName: 'test-unit-${{ matrix.node }}'
+
+    secrets: inherit
+
+  test-new-tests-dev:
+    name: Test new tests for flakes (dev)
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --dev-mode --group ${{ matrix.group }}
+      stepName: 'test-new-tests-dev-${{matrix.group}}'
+
+    secrets: inherit
+
+  test-new-tests-start:
+    name: Test new tests for flakes (prod)
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --prod-mode --group ${{ matrix.group }}
+      stepName: 'test-new-tests-start-${{matrix.group}}'
 
     secrets: inherit
 
   test-dev:
     name: test dev
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3]
-
+        group: [1/4, 2/4, 3/4, 4/4]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
-
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      stepName: 'test-dev-${{ matrix.group }}'
     secrets: inherit
 
   test-prod:
     name: test prod
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5]
-
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type production
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-prod-${{ matrix.group }}'
     secrets: inherit
 
   test-integration:
     name: test integration
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-
+        group:
+          - 1/12
+          - 2/12
+          - 3/12
+          - 4/12
+          - 5/12
+          - 6/12
+          - 7/12
+          - 8/12
+          - 9/12
+          - 10/12
+          - 11/12
+          - 12/12
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      skipForDocsOnly: 'yes'
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-integration-${{ matrix.group }}'
     secrets: inherit
 
   test-firefox-safari:
     name: test firefox and safari
-    needs: ['build-native', 'build-next']
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipForDocsOnly: 'yes'
       afterBuild: pnpm playwright install && BROWSER_NAME=firefox node run-tests.js test/production/pages-dir/production/test/index.test.ts && BROWSER_NAME=safari NEXT_TEST_MODE=start node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/e2e/basepath.test.ts && BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      stepName: 'test-firefox-safari'
     secrets: inherit
 
-  report-test-results:
+  # TODO: remove these jobs once PPR is the default
+  # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
+  test-ppr-integration:
+    name: test ppr integration
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.17.0
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-ppr-integration'
+    secrets: inherit
+
+  test-ppr-dev:
+    name: test ppr dev
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      stepName: 'test-ppr-dev-${{ matrix.group }}'
+    secrets: inherit
+
+  test-ppr-prod:
+    name: test ppr prod
+    needs: ['changes', 'build-native', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-ppr-prod-${{ matrix.group }}'
+    secrets: inherit
+
+  report-test-results-to-datadog:
     needs:
       [
+        'changes',
         'test-unit',
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-ppr-dev',
+        'test-ppr-prod',
+        'test-ppr-integration',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-turbopack-production',
+        'test-turbopack-production-integration',
       ]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      skipForDocsOnly: 'yes'
-      uploadTestTrace: 'yes'
-    secrets: inherit
+    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+
+    runs-on: ubuntu-latest
+    name: report test results to datadog
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          path: test
+          merge-multiple: true
+
+      - name: Upload test report to datadog
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
+          fi
+
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            # Add a `test.type` tag to distinguish between turbopack and next.js runs
+            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
+          fi
 
   tests-pass:
     needs:
@@ -258,13 +479,19 @@ jobs:
         'test-dev',
         'test-prod',
         'test-integration',
+        'test-firefox-safari',
+        'test-ppr-dev',
+        'test-ppr-prod',
+        'test-ppr-integration',
         'test-cargo-unit',
-        'test-cargo-integration',
-        'test-cargo-bench',
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
+        'test-new-tests-dev',
+        'test-new-tests-start',
+        'test-turbopack-production',
+        'test-turbopack-production-integration',
       ]
 
     if: always()
@@ -272,4 +499,4 @@ jobs:
     name: thank you, next
     steps:
       - run: exit 1
-        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') || contains(needs.*.result, 'cancelled')) }}
+        if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}

@@ -1,17 +1,21 @@
-use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use anyhow::{bail, Context, Result};
+use turbo_tasks::{RcStr, Vc};
 use turbopack_binding::turbopack::{
     core::{
         asset::{Asset, AssetContent},
+        chunk::ChunkingContext,
         ident::AssetIdent,
         module::Module,
     },
-    turbopack::css::{chunk::CssChunkPlaceable, ParseCss, ParseCssResult},
+    turbopack::css::{
+        chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss,
+        ParseCssResult, ProcessCss,
+    },
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 pub struct CssClientReferenceModule {
     pub client_module: Vc<Box<dyn CssChunkPlaceable>>,
 }
@@ -27,8 +31,8 @@ impl CssClientReferenceModule {
 }
 
 #[turbo_tasks::function]
-fn css_client_reference_modifier() -> Vc<String> {
-    Vc::cell("css client reference".to_string())
+fn css_client_reference_modifier() -> Vc<RcStr> {
+    Vc::cell("css client reference".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -61,5 +65,29 @@ impl ParseCss for CssClientReferenceModule {
         };
 
         Ok(parse_css.parse_css())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ProcessCss for CssClientReferenceModule {
+    #[turbo_tasks::function]
+    async fn get_css_with_placeholder(&self) -> Result<Vc<CssWithPlaceholderResult>> {
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
+
+        Ok(imp.get_css_with_placeholder())
+    }
+
+    #[turbo_tasks::function]
+    async fn finalize_css(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<FinalCssResult>> {
+        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
+            .await?
+            .context("CSS client reference client module must be CSS processable")?;
+
+        Ok(imp.finalize_css(chunking_context))
     }
 }

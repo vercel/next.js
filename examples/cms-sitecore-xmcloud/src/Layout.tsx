@@ -1,40 +1,40 @@
 /**
  * This Layout is needed for Starter Kit.
  */
-import React from 'react'
-import Head from 'next/head'
+import React from "react";
+import Head from "next/head";
 import {
   Placeholder,
   getPublicUrl,
   LayoutServiceData,
   Field,
-} from '@sitecore-jss/sitecore-jss-nextjs'
-import Scripts from 'src/Scripts'
+} from "@sitecore-jss/sitecore-jss-nextjs";
+import Scripts from "src/Scripts";
 
 // Prefix public assets with a public URL to enable compatibility with Sitecore Experience Editor.
 // If you're not supporting the Experience Editor, you can remove this.
-const publicUrl = getPublicUrl()
+const publicUrl = getPublicUrl();
 
 interface LayoutProps {
-  layoutData: LayoutServiceData
+  layoutData: LayoutServiceData;
 }
 
 interface RouteFields {
-  [key: string]: unknown
-  Title?: Field
+  [key: string]: unknown;
+  Title?: Field;
 }
 
 const Layout = ({ layoutData }: LayoutProps): JSX.Element => {
-  const { route } = layoutData.sitecore
-  const fields = route?.fields as RouteFields
-  const isPageEditing = layoutData.sitecore.context.pageEditing
-  const mainClassPageEditing = isPageEditing ? 'editing-mode' : 'prod-mode'
+  const { route } = layoutData.sitecore;
+  const fields = route?.fields as RouteFields;
+  const isPageEditing = layoutData.sitecore.context.pageEditing;
+  const mainClassPageEditing = isPageEditing ? "editing-mode" : "prod-mode";
 
   return (
     <>
       <Scripts />
       <Head>
-        <title>{fields?.Title?.value?.toString() || 'Page'}</title>
+        <title>{fields?.Title?.value?.toString() || "Page"}</title>
         <link rel="icon" href={`${publicUrl}/favicon.ico`} />
       </Head>
 
@@ -57,7 +57,7 @@ const Layout = ({ layoutData }: LayoutProps): JSX.Element => {
         </footer>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

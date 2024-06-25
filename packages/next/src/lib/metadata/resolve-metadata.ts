@@ -14,6 +14,8 @@ import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { ParsedUrlQuery } from 'querystring'
+
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -39,7 +41,7 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 
 type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
@@ -54,13 +56,25 @@ type ViewportResolver = (
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
-  Viewport | ViewportResolver | null
+  Viewport | ViewportResolver | null,
 ][]
 
 type TitleTemplates = {
   title: string | null
   twitter: string | null
   openGraph: string | null
+}
+
+type BuildState = {
+  warnings: Set<string>
+}
+
+type LayoutProps = {
+  params: { [key: string]: any }
+}
+type PageProps = {
+  params: { [key: string]: any }
+  searchParams: { [key: string]: any }
 }
 
 function hasIconsProperty(
@@ -106,6 +120,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
+      metadataContext,
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -135,12 +150,14 @@ function mergeMetadata({
   staticFilesMetadata,
   titleTemplates,
   metadataContext,
+  buildState,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
   staticFilesMetadata: StaticMetadata
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
+  buildState: BuildState
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -176,6 +193,7 @@ function mergeMetadata({
         target.twitter = resolveTwitter(
           source.twitter,
           metadataBase,
+          metadataContext,
           titleTemplates.twitter
         )
         break
@@ -240,12 +258,13 @@ function mergeMetadata({
 
       default: {
         if (
-          key === 'viewport' ||
-          key === 'themeColor' ||
-          key === 'colorScheme'
+          (key === 'viewport' ||
+            key === 'themeColor' ||
+            key === 'colorScheme') &&
+          source[key] != null
         ) {
-          Log.warn(
-            `Unsupported metadata ${key} is configured in metadata export. Please move it to viewport export instead.`
+          buildState.warnings.add(
+            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
@@ -456,7 +475,7 @@ export async function resolveMetadataItems({
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix?: string[]
   getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: { [key: string]: any }
+  searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
@@ -478,9 +497,16 @@ export async function resolveMetadataItems({
       : // Pass through parent params to children
         parentParams
 
-  const layerProps = {
-    params: currentParams,
-    ...(isPage && { searchParams }),
+  let layerProps: LayoutProps | PageProps
+  if (isPage) {
+    layerProps = {
+      params: currentParams,
+      searchParams,
+    }
+  } else {
+    layerProps = {
+      params: currentParams,
+    }
   }
 
   await collectMetadata({
@@ -521,11 +547,13 @@ export async function resolveMetadataItems({
 type WithTitle = { title?: AbsoluteTemplateString | null }
 type WithDescription = { description?: string | null }
 
-const hasTitle = (metadata: WithTitle | null) => !!metadata?.title?.absolute
+const isTitleTruthy = (title: AbsoluteTemplateString | null | undefined) =>
+  !!title?.absolute
+const hasTitle = (metadata: WithTitle | null) => isTitleTruthy(metadata?.title)
 
 function inheritFromMetadata(
-  metadata: ResolvedMetadata,
-  target: (WithTitle & WithDescription) | null
+  target: (WithTitle & WithDescription) | null,
+  metadata: ResolvedMetadata
 ) {
   if (target) {
     if (!hasTitle(target) && hasTitle(metadata)) {
@@ -540,14 +568,10 @@ function inheritFromMetadata(
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
-  titleTemplates: TitleTemplates
+  titleTemplates: TitleTemplates,
+  metadataContext: MetadataContext
 ): ResolvedMetadata {
   const { openGraph, twitter } = metadata
-
-  // If there's no title and description configured in openGraph or twitter,
-  // use the title and description from metadata.
-  inheritFromMetadata(metadata, openGraph)
-  inheritFromMetadata(metadata, twitter)
 
   if (openGraph) {
     // If there's openGraph information but not configured in twitter,
@@ -562,14 +586,23 @@ function postProcessMetadata(
     const hasTwImages = Boolean(
       twitter?.hasOwnProperty('images') && twitter.images
     )
-    if (!hasTwTitle) autoFillProps.title = openGraph.title
-    if (!hasTwDescription) autoFillProps.description = openGraph.description
+    if (!hasTwTitle) {
+      if (isTitleTruthy(openGraph.title)) {
+        autoFillProps.title = openGraph.title
+      } else if (metadata.title && isTitleTruthy(metadata.title)) {
+        autoFillProps.title = metadata.title
+      }
+    }
+    if (!hasTwDescription)
+      autoFillProps.description =
+        openGraph.description || metadata.description || undefined
     if (!hasTwImages) autoFillProps.images = openGraph.images
 
     if (Object.keys(autoFillProps).length > 0) {
       const partialTwitter = resolveTwitter(
         autoFillProps,
         metadata.metadataBase,
+        metadataContext,
         titleTemplates.twitter
       )
       if (metadata.twitter) {
@@ -585,6 +618,12 @@ function postProcessMetadata(
       }
     }
   }
+
+  // If there's no title and description configured in openGraph or twitter,
+  // use the title and description from metadata.
+  inheritFromMetadata(openGraph, metadata)
+  inheritFromMetadata(twitter, metadata)
+
   return metadata
 }
 
@@ -597,13 +636,24 @@ function collectMetadataExportPreloading<Data, ResolvedData>(
   dynamicMetadataExportFn: DataResolver<Data, ResolvedData>,
   resolvers: ((value: ResolvedData) => void)[]
 ) {
-  results.push(
-    dynamicMetadataExportFn(
-      new Promise<any>((resolve) => {
-        resolvers.push(resolve)
-      })
-    )
+  const result = dynamicMetadataExportFn(
+    new Promise<any>((resolve) => {
+      resolvers.push(resolve)
+    })
   )
+
+  if (result instanceof Promise) {
+    // since we eager execute generateMetadata and
+    // they can reject at anytime we need to ensure
+    // we attach the catch handler right away to
+    // prevent unhandled rejections crashing the process
+    result.catch((err) => {
+      return {
+        __nextError: err,
+      }
+    })
+  }
+  results.push(result)
 }
 
 async function getMetadataFromExport<Data, ResolvedData>(
@@ -658,6 +708,11 @@ async function getMetadataFromExport<Data, ResolvedData>(
     resolveParent(currentResolvedMetadata)
     metadata =
       metadataResult instanceof Promise ? await metadataResult : metadataResult
+
+    if (metadata && typeof metadata === 'object' && '__nextError' in metadata) {
+      // re-throw caught metadata error from preloading
+      throw metadata['__nextError']
+    }
   } else if (metadataExport !== null && typeof metadataExport === 'object') {
     // This metadataExport is the object form
     metadata = metadataExport
@@ -685,6 +740,9 @@ export async function accumulateMetadata(
     resolvers: [],
     resolvingIndex: 0,
   }
+  const buildState = {
+    warnings: new Set<string>(),
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -703,6 +761,7 @@ export async function accumulateMetadata(
       metadataContext,
       staticFilesMetadata,
       titleTemplates,
+      buildState,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -716,7 +775,14 @@ export async function accumulateMetadata(
     }
   }
 
-  return postProcessMetadata(resolvedMetadata, titleTemplates)
+  // Only log warnings if there are any, and only once after the metadata resolving process is finished
+  if (buildState.warnings.size > 0) {
+    for (const warning of buildState.warnings) {
+      Log.warn(warning)
+    }
+  }
+
+  return postProcessMetadata(resolvedMetadata, titleTemplates, metadataContext)
 }
 
 export async function accumulateViewport(

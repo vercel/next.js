@@ -6,7 +6,7 @@ This example contains a simple implementation of [Panda CSS](https://panda-css.c
 
 - [Atomic Recipe (CVA)](https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva) Create multi-variant atomic styles with a type-safe runtime API.
 - [Atomic Style](https://panda-css.com/docs/concepts/writing-styles#atomic-styles) Type-safe reusable atoms with small CSS footprint.
-- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Resuable recipes extracted and generated just-in-time.
+- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Reusable recipes extracted and generated just-in-time.
 - [Text Styles](https://panda-css.com/docs/theming/text-styles#defining-text-styles) Global text styles for consistent and legible typography.
 
 ## Deploy your own

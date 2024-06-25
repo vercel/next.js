@@ -1,7 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import { usePathname } from './navigation'
+import { isNextRouterError } from './is-next-router-error'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 const styles = {
   error: {
@@ -30,13 +32,14 @@ export type ErrorComponent = React.ComponentType<{
 
 export interface ErrorBoundaryProps {
   children?: React.ReactNode
-  errorComponent: ErrorComponent
+  errorComponent: ErrorComponent | undefined
   errorStyles?: React.ReactNode | undefined
   errorScripts?: React.ReactNode | undefined
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
   pathname: string
+  errorComponent: ErrorComponent
 }
 
 interface ErrorBoundaryHandlerState {
@@ -48,17 +51,12 @@ interface ErrorBoundaryHandlerState {
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  if (typeof (fetch as any).__nextGetStaticStore === 'function') {
-    const store:
-      | undefined
-      | import('./static-generation-async-storage.external').StaticGenerationStore =
-      (fetch as any).__nextGetStaticStore()?.getStore()
-
-    if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
-      throw error
-    }
+  const store = staticGenerationAsyncStorage.getStore()
+  if (store?.isRevalidate || store?.isStaticGeneration) {
+    console.error(error)
+    throw error
   }
+
   return null
 }
 
@@ -72,6 +70,12 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error) {
+    if (isNextRouterError(error)) {
+      // Re-throw if an expected internal Next.js router error occurs
+      // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
+      throw error
+    }
+
     return { error }
   }
 
@@ -101,7 +105,8 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  render() {
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  render(): React.ReactNode {
     if (this.state.error) {
       return (
         <>

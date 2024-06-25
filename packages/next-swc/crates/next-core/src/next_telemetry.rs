@@ -1,25 +1,24 @@
 use std::collections::HashMap;
 
+use turbo_tasks::RcStr;
 use turbopack_binding::{
     turbo::tasks::Vc,
     turbopack::core::diagnostics::{Diagnostic, DiagnosticPayload},
 };
 
-/// A struct represent telemetry event if certain feature of next.js
-/// is enabled, such as next.config.swcMinify.
-/// This is an equivalent representation of the following code:
-/// https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516
+/// A structure that keeps track of whether a particular Next.js feature is
+/// enabled for the telemetry. The original implementation code can be found at the following [link](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).
 #[turbo_tasks::value(shared)]
 pub struct NextFeatureTelemetry {
-    pub event_name: String,
-    pub feature_name: String,
+    pub event_name: RcStr,
+    pub feature_name: RcStr,
     pub enabled: bool,
 }
 
 impl NextFeatureTelemetry {
-    pub fn new(feature_name: String, enabled: bool) -> Self {
+    pub fn new(feature_name: RcStr, enabled: bool) -> Self {
         NextFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".to_string(),
+            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
             feature_name,
             enabled,
         }
@@ -29,12 +28,12 @@ impl NextFeatureTelemetry {
 #[turbo_tasks::value_impl]
 impl Diagnostic for NextFeatureTelemetry {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("NextFeatureTelemetry_category_tbd".to_string())
+    fn category(&self) -> Vc<RcStr> {
+        Vc::cell("NextFeatureTelemetry_category_tbd".into())
     }
 
     #[turbo_tasks::function]
-    fn name(&self) -> Vc<String> {
+    fn name(&self) -> Vc<RcStr> {
         Vc::cell(self.event_name.clone())
     }
 
@@ -42,7 +41,7 @@ impl Diagnostic for NextFeatureTelemetry {
     fn payload(&self) -> Vc<DiagnosticPayload> {
         Vc::cell(HashMap::from([(
             self.feature_name.clone(),
-            self.enabled.to_string(),
+            self.enabled.to_string().into(),
         )]))
     }
 }
@@ -51,15 +50,15 @@ impl Diagnostic for NextFeatureTelemetry {
 /// referred as `importing` a certain module. (i.e importing @next/image)
 #[turbo_tasks::value(shared)]
 pub struct ModuleFeatureTelemetry {
-    pub event_name: String,
-    pub feature_name: String,
+    pub event_name: RcStr,
+    pub feature_name: RcStr,
     pub invocation_count: usize,
 }
 
 impl ModuleFeatureTelemetry {
-    pub fn new(feature_name: String, invocation_count: usize) -> Self {
+    pub fn new(feature_name: RcStr, invocation_count: usize) -> Self {
         ModuleFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".to_string(),
+            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
             feature_name,
             invocation_count,
         }
@@ -69,12 +68,12 @@ impl ModuleFeatureTelemetry {
 #[turbo_tasks::value_impl]
 impl Diagnostic for ModuleFeatureTelemetry {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("ModuleFeatureTelemetry_category_tbd".to_string())
+    fn category(&self) -> Vc<RcStr> {
+        Vc::cell("ModuleFeatureTelemetry_category_tbd".into())
     }
 
     #[turbo_tasks::function]
-    fn name(&self) -> Vc<String> {
+    fn name(&self) -> Vc<RcStr> {
         Vc::cell(self.event_name.clone())
     }
 
@@ -82,7 +81,7 @@ impl Diagnostic for ModuleFeatureTelemetry {
     fn payload(&self) -> Vc<DiagnosticPayload> {
         Vc::cell(HashMap::from([(
             self.feature_name.clone(),
-            self.invocation_count.to_string(),
+            self.invocation_count.to_string().into(),
         )]))
     }
 }

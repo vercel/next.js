@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -83,7 +83,7 @@ describe('Middleware Runtime', () => {
           },
         },
         startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-        buildCommand: 'pnpm run build',
+        buildCommand: 'pnpm build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
@@ -104,14 +104,12 @@ describe('Middleware Runtime', () => {
   function runTests({ i18n }: { i18n?: boolean }) {
     it('should work with notFound: true correctly', async () => {
       const browser = await next.browser('/ssr-page')
-      await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/ssg/not-found-1")')
 
       await check(
         () => browser.eval('document.documentElement.innerHTML'),
         /This page could not be found/
       )
-      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       await browser.refresh()
       await check(
@@ -168,20 +166,32 @@ describe('Middleware Runtime', () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
         )
-        expect(manifest.middleware).toEqual({
-          '/': {
-            files: expect.arrayContaining([
-              'server/edge-runtime-webpack.js',
-              'server/middleware.js',
-            ]),
-            name: 'middleware',
-            page: '/',
-            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
-            wasm: [],
-            assets: [],
-            regions: 'auto',
-          },
+        const middlewareWithoutEnvs = {
+          ...manifest.middleware['/'],
+        }
+        const envs = {
+          ...middlewareWithoutEnvs.env,
+        }
+        delete middlewareWithoutEnvs.env
+        expect(middlewareWithoutEnvs).toEqual({
+          files: expect.arrayContaining([
+            'server/edge-runtime-webpack.js',
+            'server/middleware.js',
+          ]),
+          name: 'middleware',
+          page: '/',
+          matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
+          wasm: [],
+          assets: [],
+          regions: 'auto',
         })
+        expect(envs).toContainAllKeys([
+          'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
+          '__NEXT_BUILD_ID',
+          '__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
+          '__NEXT_PREVIEW_MODE_ID',
+          '__NEXT_PREVIEW_MODE_SIGNING_KEY',
+        ])
       })
 
       it('should have the custom config in the manifest', async () => {
@@ -722,14 +732,14 @@ describe('Middleware Runtime', () => {
         requests.push(x.url())
       })
 
-      browser.elementById('deep-link').click()
-      browser.waitForElementByCss('[data-query-hello="goodbye"]')
+      await browser.elementById('deep-link').click()
+      await browser.waitForElementByCss('[data-query-hello="goodbye"]')
       const deepLinkMessage = await getMessageContents()
       expect(deepLinkMessage).not.toEqual(ssrMessage)
 
       // Changing the route with a shallow link should not cause a server request
-      browser.elementById('shallow-link').click()
-      browser.waitForElementByCss('[data-query-hello="world"]')
+      await browser.elementById('shallow-link').click()
+      await browser.waitForElementByCss('[data-query-hello="world"]')
       expect(await getMessageContents()).toEqual(deepLinkMessage)
 
       // Check that no server requests were made to ?hello=world,

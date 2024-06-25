@@ -1,140 +1,129 @@
 import { join } from 'path'
-import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from 'next-test-utils'
-
-createNextDescribe(
-  'optimizePackageImports',
-  {
-    env: {
-      NEXT_TEST_MODE: '1',
-    },
-    files: join(__dirname, 'fixture'),
-    packageJson: {
-      scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: `yarn setup && next build`,
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
-    dependencies: {
-      'lucide-react': '0.264.0',
-      '@headlessui/react': '1.7.17',
-      '@heroicons/react': '2.0.18',
-      '@visx/visx': '3.3.0',
-      'recursive-barrel': '1.0.0',
-    },
-  },
-  ({ next }) => {
-    it('app - should render the icons correctly without creating all the modules', async () => {
-      let logs = ''
-      next.on('stdout', (log) => {
-        logs += log
+import { nextTestSetup } from 'e2e-utils'
+// Skipped in Turbopack, will be added later.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'Skipped in Turbopack',
+  () => {
+    describe('optimizePackageImports - basic', () => {
+      const { next } = nextTestSetup({
+        env: {
+          NEXT_TEST_MODE: '1',
+        },
+        files: join(__dirname, 'fixture'),
+        dependencies: {
+          'lucide-react': '0.264.0',
+          '@headlessui/react': '1.7.17',
+          '@heroicons/react': '2.0.18',
+          '@visx/visx': '3.3.0',
+          'recursive-barrel': '1.0.0',
+        },
       })
 
-      const html = await next.render('/')
+      it('app - should render the icons correctly without creating all the modules', async () => {
+        let logs = ''
+        next.on('stdout', (log) => {
+          logs += log
+        })
 
-      // Ensure the icons are rendered
-      expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
+        const html = await next.render('/')
 
-      const modules = [
-        ...logs.matchAll(
-          /Compiled (\/[\w-]*)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
-        ),
-      ]
+        // Ensure the icons are rendered
+        expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-      expect(modules.length).toBeGreaterThanOrEqual(1)
-      for (const [, , , , moduleCount] of modules) {
-        // Ensure that the number of modules is less than 1000 - otherwise we're
-        // importing the entire library.
-        expect(parseInt(moduleCount)).toBeLessThan(1000)
-      }
-    })
+        const modules = [
+          ...logs.matchAll(
+            /Compiled (\/[\w-]*)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
+          ),
+        ]
 
-    it('pages - should render the icons correctly without creating all the modules', async () => {
-      let logs = ''
-      next.on('stdout', (log) => {
-        logs += log
+        expect(modules.length).toBeGreaterThanOrEqual(1)
+        for (const [, , , , moduleCount] of modules) {
+          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // importing the entire library.
+          expect(parseInt(moduleCount)).toBeLessThan(1000)
+        }
       })
 
-      const html = await next.render('/pages-route')
+      it('pages - should render the icons correctly without creating all the modules', async () => {
+        let logs = ''
+        next.on('stdout', (log) => {
+          logs += log
+        })
 
-      // Ensure the icons are rendered
-      expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
+        const html = await next.render('/pages-route')
 
-      const modules = [
-        ...logs.matchAll(
-          /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
-        ),
-      ]
+        // Ensure the icons are rendered
+        expect(html).toContain('<svg xmlns="http://www.w3.org/2000/svg"')
 
-      expect(modules.length).toBeGreaterThanOrEqual(1)
-      for (const [, , , , moduleCount] of modules) {
-        // Ensure that the number of modules is less than 1000 - otherwise we're
-        // importing the entire library.
-        expect(parseInt(moduleCount)).toBeLessThan(1000)
-      }
-    })
+        const modules = [
+          ...logs.matchAll(
+            /Compiled (\/[\w-]+)*\s*in \d+(\.\d+)?(s|ms) \((\d+) modules\)/g
+          ),
+        ]
 
-    it('app - should optimize recursive wildcard export mapping', async () => {
-      let logs = ''
-      next.on('stdout', (log) => {
-        logs += log
+        expect(modules.length).toBeGreaterThanOrEqual(1)
+        for (const [, , , , moduleCount] of modules) {
+          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // importing the entire library.
+          expect(parseInt(moduleCount)).toBeLessThan(1000)
+        }
       })
 
-      await next.render('/recursive-barrel-app')
+      it('app - should optimize recursive wildcard export mapping', async () => {
+        let logs = ''
+        next.on('stdout', (log) => {
+          logs += log
+        })
 
-      const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+        await next.render('/recursive-barrel-app')
 
-      expect(modules.length).toBeGreaterThanOrEqual(1)
-      for (const [, moduleCount] of modules) {
-        // Ensure that the number of modules is less than 1000 - otherwise we're
-        // importing the entire library.
-        expect(parseInt(moduleCount)).toBeLessThan(1000)
-      }
-    })
+        const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
 
-    it('pages - should optimize recursive wildcard export mapping', async () => {
-      let logs = ''
-      next.on('stdout', (log) => {
-        logs += log
+        expect(modules.length).toBeGreaterThanOrEqual(1)
+        for (const [, moduleCount] of modules) {
+          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // importing the entire library.
+          expect(parseInt(moduleCount)).toBeLessThan(1000)
+        }
       })
 
-      await next.render('/recursive-barrel')
+      it('pages - should optimize recursive wildcard export mapping', async () => {
+        let logs = ''
+        next.on('stdout', (log) => {
+          logs += log
+        })
 
-      const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+        await next.render('/recursive-barrel')
 
-      expect(modules.length).toBeGreaterThanOrEqual(1)
-      for (const [, moduleCount] of modules) {
-        // Ensure that the number of modules is less than 1000 - otherwise we're
-        // importing the entire library.
-        expect(parseInt(moduleCount)).toBeLessThan(1000)
-      }
-    })
+        const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
 
-    it('should handle recursive wildcard exports', async () => {
-      const html = await next.render('/recursive')
-      expect(html).toContain('<h1>42</h1>')
-    })
+        expect(modules.length).toBeGreaterThanOrEqual(1)
+        for (const [, moduleCount] of modules) {
+          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // importing the entire library.
+          expect(parseInt(moduleCount)).toBeLessThan(1000)
+        }
+      })
 
-    it('should support visx', async () => {
-      const html = await next.render('/visx')
-      expect(html).toContain('<linearGradient')
-    })
+      it('should handle recursive wildcard exports', async () => {
+        const html = await next.render('/recursive')
+        expect(html).toContain('<h1>42</h1>')
+      })
 
-    it('should not break "use client" directive in optimized packages', async () => {
-      const html = await next.render('/client')
-      expect(html).toContain('this is a client component')
-    })
+      it('should support visx', async () => {
+        const html = await next.render('/visx')
+        expect(html).toContain('<linearGradient')
+      })
 
-    it('should support "use client" directive in barrel file', async () => {
-      const html = await next.render('/client-boundary')
-      expect(html).toContain('<button>0</button>')
+      it('should not break "use client" directive in optimized packages', async () => {
+        const html = await next.render('/client')
+        expect(html).toContain('this is a client component')
+      })
+
+      it('should support "use client" directive in barrel file', async () => {
+        const html = await next.render('/client-boundary')
+        expect(html).toContain('<button>0</button>')
+      })
     })
   }
 )

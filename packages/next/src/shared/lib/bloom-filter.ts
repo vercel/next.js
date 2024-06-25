@@ -10,6 +10,9 @@ function murmurhash2(str: string) {
   return h >>> 0
 }
 
+// default to 0.01% error rate as the filter compresses very well
+const DEFAULT_ERROR_RATE = 0.0001
+
 export class BloomFilter {
   numItems: number
   errorRate: number
@@ -17,7 +20,7 @@ export class BloomFilter {
   numHashes: number
   bitArray: number[]
 
-  constructor(numItems: number, errorRate: number) {
+  constructor(numItems: number, errorRate: number = DEFAULT_ERROR_RATE) {
     this.numItems = numItems
     this.errorRate = errorRate
     this.numBits = Math.ceil(
@@ -27,7 +30,7 @@ export class BloomFilter {
     this.bitArray = new Array(this.numBits).fill(0)
   }
 
-  static from(items: string[], errorRate = 0.01) {
+  static from(items: string[], errorRate = DEFAULT_ERROR_RATE) {
     const filter = new BloomFilter(items.length, errorRate)
 
     for (const item of items) {
@@ -46,7 +49,7 @@ export class BloomFilter {
     }
 
     if (process.env.NEXT_RUNTIME === 'nodejs') {
-      if (this.errorRate < 0.01) {
+      if (this.errorRate < DEFAULT_ERROR_RATE) {
         const filterData = JSON.stringify(data)
         const gzipSize = require('next/dist/compiled/gzip-size').sync(
           filterData
@@ -54,7 +57,7 @@ export class BloomFilter {
 
         if (gzipSize > 1024) {
           console.warn(
-            `Creating filter with error rate less than 1% (0.01) can increase the size dramatically proceed with caution. Received error rate ${this.errorRate} resulted in size ${filterData.length} bytes, ${gzipSize} bytes (gzip)`
+            `Creating filter with error rate less than 0.1% (0.001) can increase the size dramatically proceed with caution. Received error rate ${this.errorRate} resulted in size ${filterData.length} bytes, ${gzipSize} bytes (gzip)`
           )
         }
       }

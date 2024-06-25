@@ -1,11 +1,9 @@
-import * as path from 'path'
 import {
   webpack,
   ModuleFilenameHelpers,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'next/dist/compiled/p-limit'
-import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment: any) {
@@ -49,13 +47,17 @@ function buildError(error: any, file: string) {
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class TerserPlugin {
-  options: any
-  constructor(options: any = {}) {
-    const { terserOptions = {}, parallel, swcMinify } = options
+  options: {
+    terserOptions: any
+  }
+  constructor(
+    options: {
+      terserOptions?: any
+    } = {}
+  ) {
+    const { terserOptions = {} } = options
 
     this.options = {
-      swcMinify,
-      parallel,
       terserOptions,
     }
   }
@@ -64,7 +66,6 @@ export class TerserPlugin {
     compiler: any,
     compilation: any,
     assets: any,
-    optimizeOptions: any,
     cache: any,
     { SourceMapSource, RawSource }: any
   ) {
@@ -73,10 +74,8 @@ export class TerserPlugin {
       'terser-webpack-plugin-optimize'
     )
     terserSpan.setAttribute('compilationName', compilation.name)
-    terserSpan.setAttribute('swcMinify', this.options.swcMinify)
 
     return terserSpan.traceAsyncFn(async () => {
-      let numberOfAssetsForMinify = 0
       const assetsList = Object.keys(assets)
 
       const assetsForMinify = await Promise.all(
@@ -98,16 +97,6 @@ export class TerserPlugin {
               return false
             }
 
-            // don't minify _middleware as it can break in some cases
-            // and doesn't provide too much of a benefit as it's server-side
-            if (
-              name.match(
-                /(edge-runtime-webpack\.js|edge-chunks|middleware\.js$)/
-              )
-            ) {
-              return false
-            }
-
             const { info } = res
 
             // Skip double minimize assets from child compilation
@@ -122,10 +111,6 @@ export class TerserPlugin {
 
             const eTag = cache.getLazyHashedEtag(source)
             const output = await cache.getPromise(name, eTag)
-
-            if (!output) {
-              numberOfAssetsForMinify += 1
-            }
 
             if (debugMinify && debugMinify === '1') {
               console.log(
@@ -143,61 +128,34 @@ export class TerserPlugin {
           })
       )
 
-      const numberOfWorkers = Math.min(
-        numberOfAssetsForMinify,
-        optimizeOptions.availableNumberOfCores
-      )
-
       let initializedWorker: any
 
       // eslint-disable-next-line consistent-return
       const getWorker = () => {
-        if (this.options.swcMinify) {
-          return {
-            minify: async (options: any) => {
-              const result = await require('../../../../swc').minify(
-                options.input,
-                {
-                  ...(options.inputSourceMap
-                    ? {
-                        sourceMap: {
-                          content: JSON.stringify(options.inputSourceMap),
-                        },
-                      }
-                    : {}),
-                  compress: true,
-                  mangle: true,
-                }
-              )
+        return {
+          minify: async (options: any) => {
+            const result = await require('../../../../swc').minify(
+              options.input,
+              {
+                ...(options.inputSourceMap
+                  ? {
+                      sourceMap: {
+                        content: JSON.stringify(options.inputSourceMap),
+                      },
+                    }
+                  : {}),
+                compress: true,
+                mangle: true,
+              }
+            )
 
-              return result
-            },
-          }
+            return result
+          },
         }
-
-        if (initializedWorker) {
-          return initializedWorker
-        }
-
-        initializedWorker = new Worker(path.join(__dirname, './minify.js'), {
-          numWorkers: numberOfWorkers,
-          enableWorkerThreads: true,
-        })
-
-        initializedWorker.getStdout().pipe(process.stdout)
-        initializedWorker.getStderr().pipe(process.stderr)
-
-        return initializedWorker
       }
 
-      const limit = pLimit(
-        // When using the SWC minifier the limit will be handled by Node.js
-        this.options.swcMinify
-          ? Infinity
-          : numberOfAssetsForMinify > 0
-          ? numberOfWorkers
-          : Infinity
-      )
+      // The limit in the SWC minifier  will be handled by Node.js
+      const limit = pLimit(Infinity)
       const scheduledTasks = []
 
       for (const asset of assetsForMinify) {
@@ -291,7 +249,6 @@ export class TerserPlugin {
     }
 
     const pluginName = this.constructor.name
-    const availableNumberOfCores = this.options.parallel
 
     compiler.hooks.thisCompilation.tap(pluginName, (compilation: any) => {
       const cache = compilation.getCache('TerserWebpackPlugin')
@@ -316,16 +273,10 @@ export class TerserPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
         },
         (assets: any) =>
-          this.optimize(
-            compiler,
-            compilation,
-            assets,
-            {
-              availableNumberOfCores,
-            },
-            cache,
-            { SourceMapSource, RawSource }
-          )
+          this.optimize(compiler, compilation, assets, cache, {
+            SourceMapSource,
+            RawSource,
+          })
       )
 
       compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {

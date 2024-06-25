@@ -1,13 +1,13 @@
-import { css } from '@/styled-system/css'
+import { css } from "@/styled-system/css";
 
 const styles = css({
-  fontSize: 'lg',
+  fontSize: "lg",
   color: {
-    _default: 'gray.800',
-    _osDark: 'gray.100',
+    _default: "gray.800",
+    _osDark: "gray.100",
   },
-  fontFamily: 'inter',
-})
+  fontFamily: "inter",
+});
 
 /**
  * Link with atomic styles
@@ -24,5 +24,5 @@ export default function LinkWithAtomicStyle() {
       Link with <b>atomic style</b>
       <span className="icon">-&gt;</span>
     </a>
-  )
+  );
 }

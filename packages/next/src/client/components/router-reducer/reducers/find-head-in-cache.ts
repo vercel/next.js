@@ -5,10 +5,19 @@ import { createRouterCacheKey } from '../create-router-cache-key'
 export function findHeadInCache(
   cache: CacheNode,
   parallelRoutes: FlightRouterState[1]
-): React.ReactNode {
+): [CacheNode, string] | null {
+  return findHeadInCacheImpl(cache, parallelRoutes, '')
+}
+
+function findHeadInCacheImpl(
+  cache: CacheNode,
+  parallelRoutes: FlightRouterState[1],
+  keyPrefix: string
+): [CacheNode, string] | null {
   const isLastItem = Object.keys(parallelRoutes).length === 0
   if (isLastItem) {
-    return cache.head
+    // Returns the entire Cache Node of the segment whose head we will render.
+    return [cache, keyPrefix]
   }
   for (const key in parallelRoutes) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
@@ -24,11 +33,15 @@ export function findHeadInCache(
       continue
     }
 
-    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    const item = findHeadInCacheImpl(
+      cacheNode,
+      childParallelRoutes,
+      keyPrefix + '/' + cacheKey
+    )
     if (item) {
       return item
     }
   }
 
-  return undefined
+  return null
 }

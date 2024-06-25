@@ -1,18 +1,14 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
 use next_build::{
-    build as turbo_next_build,
     build_options::{BuildContext, DefineEnv},
     BuildOptions as NextBuildOptions,
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 
-use crate::{next_api::project::NapiDefineEnv, util::MapErr};
+use crate::next_api::project::NapiDefineEnv;
 
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
@@ -194,17 +190,23 @@ impl FromNapiValue for NapiRouteHas {
 impl From<NapiRouteHas> for RouteHas {
     fn from(val: NapiRouteHas) -> Self {
         match val {
-            NapiRouteHas::Header { key, value } => RouteHas::Header { key, value },
-            NapiRouteHas::Query { key, value } => RouteHas::Query { key, value },
-            NapiRouteHas::Cookie { key, value } => RouteHas::Cookie { key, value },
-            NapiRouteHas::Host { value } => RouteHas::Host { value },
+            NapiRouteHas::Header { key, value } => RouteHas::Header {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Query { key, value } => RouteHas::Query {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Cookie { key, value } => RouteHas::Cookie {
+                key: key.into(),
+                value: value.map(From::from),
+            },
+            NapiRouteHas::Host { value } => RouteHas::Host {
+                value: value.into(),
+            },
         }
     }
-}
-
-#[napi]
-pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
-    turbo_next_build(ctx.try_into()?).await.convert_err()
 }
 
 #[napi]

@@ -1,4 +1,4 @@
-import 'videojs-youtube'
+import "videojs-youtube";
 
 export default function PlayerCSS() {
   return (
@@ -15,5 +15,5 @@ export default function PlayerCSS() {
         ></video>
       </div>
     </>
-  )
+  );
 }

@@ -7,7 +7,7 @@
 }
 
 body {
-  font-family: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', helvetica,
+  font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", helvetica,
     sans-serif;
 }
 
@@ -89,7 +89,7 @@ input:not([type]) {
   font-size: 16px;
 }
 
-input[type='submit'],
+input[type="submit"],
 button {
   margin-left: 4px;
   background: lightblue;
@@ -100,12 +100,12 @@ button {
   background-color: rgb(49, 108, 244);
 }
 
-input[type='submit']:hover,
+input[type="submit"]:hover,
 button:hover {
   background-color: rgb(41, 93, 207);
 }
 
-input[type='submit']:disabled,
+input[type="submit"]:disabled,
 button:disabled {
   background-color: rgb(122, 160, 248);
 }

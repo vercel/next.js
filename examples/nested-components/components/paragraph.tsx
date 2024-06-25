@@ -1,6 +1,6 @@
 type ParagraphProps = {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 export default function Paragraph({ children }: ParagraphProps) {
   return (
@@ -8,10 +8,12 @@ export default function Paragraph({ children }: ParagraphProps) {
       {children}
       <style jsx>{`
         p {
-          font: 13px Helvetica, Arial;
+          font:
+            13px Helvetica,
+            Arial;
           margin: 10px 0;
         }
       `}</style>
     </p>
-  )
+  );
 }

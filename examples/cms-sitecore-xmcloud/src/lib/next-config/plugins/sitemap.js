@@ -8,12 +8,12 @@ const sitemapPlugin = (nextConfig = {}) => {
         ...(await nextConfig.rewrites()),
         // sitemap route
         {
-          source: '/sitemap:id([\\w-]{0,}).xml',
-          destination: '/api/sitemap',
+          source: "/sitemap:id([\\w-]{0,}).xml",
+          destination: "/api/sitemap",
         },
-      ]
+      ];
     },
-  })
-}
+  });
+};
 
-module.exports = sitemapPlugin
+module.exports = sitemapPlugin;

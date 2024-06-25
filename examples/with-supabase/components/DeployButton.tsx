@@ -19,5 +19,5 @@ export default function DeployButton() {
       </svg>
       Deploy to Vercel
     </a>
-  )
+  );
 }

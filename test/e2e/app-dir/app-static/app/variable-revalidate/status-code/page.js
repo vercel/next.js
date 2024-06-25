@@ -1,17 +1,6 @@
-export const revalidate = 0
+import { fetchRetry } from '../../../lib/fetch-retry'
 
-const fetchRetry = async (url, init) => {
-  for (let i = 0; i < 5; i++) {
-    try {
-      return await fetch(url, init)
-    } catch (err) {
-      if (i === 4) {
-        throw err
-      }
-      console.log(`Failed to fetch`, err, `retrying...`)
-    }
-  }
-}
+export const revalidate = 0
 
 export default async function Page() {
   const data = await fetchRetry(

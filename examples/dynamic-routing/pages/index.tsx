@@ -1,4 +1,4 @@
-import Header from '../components/header'
+import Header from "../components/header";
 
 export default function IndexPage() {
   return (
@@ -6,5 +6,5 @@ export default function IndexPage() {
       <Header />
       <h1>Hello World!</h1>
     </>
-  )
+  );
 }

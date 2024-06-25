@@ -14,7 +14,7 @@ export function GoogleTagManager(props: GTMParams) {
     currDataLayerName = dataLayerName
   }
 
-  const gtmLayer = dataLayerName !== 'dataLayer' ? `$l=${dataLayerName}` : ''
+  const gtmLayer = dataLayerName !== 'dataLayer' ? `&l=${dataLayerName}` : ''
   const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
   const gtmPreview = preview ? `&gtm_preview=${preview}&gtm_cookies_win=x` : ''
 
@@ -22,6 +22,7 @@ export function GoogleTagManager(props: GTMParams) {
     // performance.mark is being used as a feature use signal. While it is traditionally used for performance
     // benchmarking it is low overhead and thus considered safe to use in production and it is a widely available
     // existing API.
+    // The performance measurement will be handled by Chrome Aurora
 
     performance.mark('mark_feature_usage', {
       detail: {

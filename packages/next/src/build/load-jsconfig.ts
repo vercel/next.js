@@ -37,10 +37,20 @@ function parseJsonFile(filePath: string) {
   }
 }
 
+export type ResolvedBaseUrl =
+  | { baseUrl: string; isImplicit: boolean }
+  | undefined
+
+export type JsConfig = { compilerOptions: Record<string, any> } | undefined
+
 export default async function loadJsConfig(
   dir: string,
   config: NextConfigComplete
-) {
+): Promise<{
+  useTypeScript: boolean
+  jsConfig: JsConfig
+  resolvedBaseUrl: ResolvedBaseUrl
+}> {
   let typeScriptPath: string | undefined
   try {
     const deps = await hasNecessaryDependencies(dir, [
@@ -81,12 +91,18 @@ export default async function loadJsConfig(
     implicitBaseurl = path.dirname(jsConfigPath)
   }
 
-  let resolvedBaseUrl
-  if (jsConfig) {
-    if (jsConfig.compilerOptions?.baseUrl) {
-      resolvedBaseUrl = path.resolve(dir, jsConfig.compilerOptions.baseUrl)
-    } else {
-      resolvedBaseUrl = implicitBaseurl
+  let resolvedBaseUrl: ResolvedBaseUrl
+  if (jsConfig?.compilerOptions?.baseUrl) {
+    resolvedBaseUrl = {
+      baseUrl: path.resolve(dir, jsConfig.compilerOptions.baseUrl),
+      isImplicit: false,
+    }
+  } else {
+    if (implicitBaseurl) {
+      resolvedBaseUrl = {
+        baseUrl: implicitBaseurl,
+        isImplicit: true,
+      }
     }
   }
 

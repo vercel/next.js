@@ -3,11 +3,12 @@
 import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
   fetchViaHTTP,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -180,6 +181,21 @@ function runTests(mode) {
         referrerpolicy: 'no-referrer',
       })
 
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: 'high',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
       // When priority={true}, we should _not_ set loading="lazy"
       expect(
         await browser.elementById('basic-image').getAttribute('loading')
@@ -216,7 +232,14 @@ function runTests(mode) {
         'lazy'
       )
 
-      const warnings = (await browser.log('browser'))
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe('high')
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
+
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).not.toMatch(
@@ -359,7 +382,7 @@ function runTests(mode) {
     )
 
     if (mode === 'dev') {
-      const warnings = (await browser.log('browser'))
+      const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
@@ -460,14 +483,14 @@ function runTests(mode) {
     )
   })
 
-  it('should callback native onError when error occured while loading image', async () => {
+  it('should callback native onError when error occurred while loading image', async () => {
     let browser = await webdriver(appPort, '/on-error')
     await browser.eval(
       `document.getElementById("img1").scrollIntoView({behavior: "smooth"})`
     )
     await check(
       () => browser.eval(`document.getElementById("msg1").textContent`),
-      'no error occured for img1'
+      'no error occurred for img1'
     )
     await check(
       () => browser.eval(`document.getElementById("img1").style.color`),
@@ -478,7 +501,7 @@ function runTests(mode) {
     )
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'no error occured for img2'
+      'no error occurred for img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),
@@ -487,7 +510,7 @@ function runTests(mode) {
     await browser.eval(`document.getElementById("toggle").click()`)
     await check(
       () => browser.eval(`document.getElementById("msg2").textContent`),
-      'error occured while loading img2'
+      'error occurred while loading img2'
     )
     await check(
       () => browser.eval(`document.getElementById("img2").style.color`),
@@ -542,6 +565,29 @@ function runTests(mode) {
         await browser.close()
       }
     }
+  })
+
+  it('should work when using overrideSrc prop', async () => {
+    const browser = await webdriver(appPort, '/override-src')
+    await check(async () => {
+      const result = await browser.eval(
+        `document.getElementById('override-src').width`
+      )
+      if (result === 0) {
+        throw new Error('Incorrectly loaded image')
+      }
+
+      return 'result-correct'
+    }, /result-correct/)
+
+    await check(
+      () => browser.eval(`document.getElementById('override-src').currentSrc`),
+      /test(.*)jpg/
+    )
+    await check(
+      () => browser.eval(`document.getElementById('override-src').src`),
+      /myoverride/
+    )
   })
 
   it('should work with sizes and automatically use responsive srcset', async () => {
@@ -612,7 +658,7 @@ function runTests(mode) {
       )
       if (mode === 'dev') {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toMatch(
@@ -633,11 +679,11 @@ function runTests(mode) {
     const browser = await webdriver(appPort, '/placeholder-blur')
 
     // blur1
-    expect(await browser.elementById('blur1').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
+    expect(await browser.elementById('blur1').getAttribute('src')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75/
     )
-    expect(await browser.elementById('blur1').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
+    expect(await browser.elementById('blur1').getAttribute('srcset')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=640&q=75 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75 2x/
     )
     expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
@@ -657,11 +703,11 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("blur1").currentSrc`),
       /test(.*)jpg/
     )
-    expect(await browser.elementById('blur1').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75'
+    expect(await browser.elementById('blur1').getAttribute('src')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75/
     )
-    expect(await browser.elementById('blur1').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.fab2915d.jpg&w=828&q=75 2x'
+    expect(await browser.elementById('blur1').getAttribute('srcset')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=640&q=75 1x, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.jpg&w=828&q=75 2x/
     )
     expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
@@ -676,11 +722,11 @@ function runTests(mode) {
     expect(await browser.elementById('blur1').getAttribute('width')).toBe('400')
 
     // blur2
-    expect(await browser.elementById('blur2').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
+    expect(await browser.elementById('blur2').getAttribute('src')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=3840&q=75/
     )
-    expect(await browser.elementById('blur2').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
+    expect(await browser.elementById('blur2').getAttribute('srcset')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=384&q=75 384w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=640&q=75 640w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=750&q=75 750w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=828&q=75 828w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1080&q=75 1080w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1200&q=75 1200w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1920&q=75 1920w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=2048&q=75 2048w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=3840&q=75 3840w/
     )
     expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
       '50vw'
@@ -702,11 +748,11 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("blur2").currentSrc`),
       /test(.*)png/
     )
-    expect(await browser.elementById('blur2').getAttribute('src')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75'
+    expect(await browser.elementById('blur2').getAttribute('src')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=3840&q=75/
     )
-    expect(await browser.elementById('blur2').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=3840&q=75 3840w'
+    expect(await browser.elementById('blur2').getAttribute('srcset')).toMatch(
+      /\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=384&q=75 384w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=640&q=75 640w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=750&q=75 750w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=828&q=75 828w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1080&q=75 1080w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1200&q=75 1200w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=1920&q=75 1920w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=2048&q=75 2048w, \/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest\.(.*)\.png&w=3840&q=75 3840w/
     )
     expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
       '50vw'
@@ -753,7 +799,7 @@ function runTests(mode) {
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -785,7 +831,7 @@ function runTests(mode) {
       'color:transparent;width:100%;height:auto'
     )
     if (mode === 'dev') {
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -795,7 +841,7 @@ function runTests(mode) {
     }
   })
 
-  it('should render picture via getImgProps', async () => {
+  it('should render picture via getImageProps', async () => {
     const browser = await webdriver(appPort, '/picture')
     // Wait for image to load:
     await check(async () => {
@@ -835,7 +881,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -845,7 +891,7 @@ function runTests(mode) {
     it('should show empty string src error', async () => {
       const browser = await webdriver(appPort, '/empty-string-src')
 
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -855,7 +901,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -864,16 +910,32 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
+    it('should show invalid src with leading space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-leading-space')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src " /test.jpg" cannot start with a space or control character.'
+      )
+    })
+
+    it('should show invalid src with trailing space', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-trailing-space')
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png " cannot end with a space or control character.'
       )
     })
 
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
       )
@@ -882,7 +944,7 @@ function runTests(mode) {
     it('should show error when invalid width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-width')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
       )
@@ -891,7 +953,7 @@ function runTests(mode) {
     it('should show error when invalid Infinity width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-Infinity-width')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "Infinity".`
       )
@@ -900,7 +962,7 @@ function runTests(mode) {
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
       )
@@ -909,7 +971,7 @@ function runTests(mode) {
     it('should show missing alt error', async () => {
       const browser = await webdriver(appPort, '/missing-alt')
 
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -919,7 +981,7 @@ function runTests(mode) {
     it('should show error when missing width prop', async () => {
       const browser = await webdriver(appPort, '/missing-width')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "width" property.`
       )
@@ -928,7 +990,7 @@ function runTests(mode) {
     it('should show error when missing height prop', async () => {
       const browser = await webdriver(appPort, '/missing-height')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "height" property.`
       )
@@ -937,7 +999,7 @@ function runTests(mode) {
     it('should show error when width prop on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-width')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "width" and "fill" properties.`
       )
@@ -946,7 +1008,7 @@ function runTests(mode) {
     it('should show error when CSS position changed on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-position')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
@@ -958,7 +1020,7 @@ function runTests(mode) {
         '/invalid-placeholder-blur-static'
       )
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
       )
@@ -970,7 +1032,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
@@ -982,7 +1044,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Expected server HTML to contain a matching/gm
       )
@@ -990,9 +1052,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -1004,17 +1065,15 @@ function runTests(mode) {
           return 'done'
         }, 'done')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        await assertNoRedbox(browser)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 
@@ -1024,7 +1083,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).toMatch(
         /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
       )
@@ -1047,7 +1106,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
       )
@@ -1059,7 +1118,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
       expect(warnings).not.toMatch(
         /Image with src (.*) has a "loader" property that does not implement width/gm
       )
@@ -1119,7 +1178,7 @@ function runTests(mode) {
       )
       expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1134,7 +1193,7 @@ function runTests(mode) {
       )
       expect(warnings.length).toBe(0)
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe('')
+      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1295,7 +1354,7 @@ function runTests(mode) {
     if (mode === 'dev') {
       it('should not log incorrect warnings', async () => {
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toMatch(/Image with src (.*) has "fill"/gm)
@@ -1306,7 +1365,7 @@ function runTests(mode) {
       it('should log warnings when using fill mode incorrectly', async () => {
         browser = await webdriver(appPort, '/fill-warnings')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).toContain(
@@ -1318,11 +1377,14 @@ function runTests(mode) {
         expect(warnings).toContain(
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
         )
+        expect(warnings).toContain(
+          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
+        )
       })
       it('should not log warnings when image unmounts', async () => {
         browser = await webdriver(appPort, '/should-not-warn-unmount')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(warnings).not.toContain(
@@ -1515,27 +1577,33 @@ function runTests(mode) {
 }
 
 describe('Image Component Default Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('dev')
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
+      runTests('dev')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests('server')
-  })
+      runTests('server')
+    }
+  )
 })

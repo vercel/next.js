@@ -17,14 +17,15 @@ declare const incrementalCacheHandler: any
 // const renderToHTML = undefined
 
 import { renderToHTML } from '../../server/render'
-import RouteModule from '../../server/future/route-modules/pages/module'
+import RouteModule from '../../server/route-modules/pages/module'
 
 import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { PAGE_TYPES } from '../../lib/page-types'
 
 // injected by the loader afterwards.
-declare const pagesType: 'app' | 'pages' | 'root'
+declare const pagesType: PAGE_TYPES
 declare const sriEnabled: boolean
 declare const dev: boolean
 declare const nextConfig: NextConfigComplete
@@ -103,7 +104,7 @@ const render = getRender({
   reactLoadableManifest,
   subresourceIntegrityManifest,
   config: nextConfig,
-  buildId: 'VAR_BUILD_ID',
+  buildId: process.env.__NEXT_BUILD_ID!,
   nextFontManifest,
   incrementalCacheHandler,
 })

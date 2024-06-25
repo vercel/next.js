@@ -7,8 +7,8 @@ import {
   Input,
   Textarea,
   Button,
-} from 'rbx'
-import Layout from '../components/Layout'
+} from "rbx";
+import Layout from "../components/Layout";
 
 const ContactPage = () => (
   <Layout>
@@ -45,6 +45,6 @@ const ContactPage = () => (
       </Button.Group>
     </Section>
   </Layout>
-)
+);
 
-export default ContactPage
+export default ContactPage;

@@ -1,28 +1,32 @@
-use std::{net::SocketAddr, path::MAIN_SEPARATOR};
+use std::path::MAIN_SEPARATOR;
 
 use anyhow::Result;
-use indexmap::{map::Entry, IndexMap};
+use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
-    get_edge_resolve_options_context,
+    emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_compile_time_info, get_edge_resolve_options_context,
+    instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
     next_server::{
-        get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, ServerContextType,
+        get_server_chunking_context, get_server_chunking_context_with_client_assets,
+        get_server_compile_time_info, get_server_module_options_context,
+        get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
+    util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
+    Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
@@ -31,32 +35,32 @@ use turbopack_binding::{
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem},
     },
     turbopack::{
-        build::BuildChunkingContext,
         core::{
             changed::content_changed,
+            chunk::ChunkingContext,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
-            environment::ServerAddr,
             file_source::FileSource,
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
+            source_map::OptionSourceMap,
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
-        dev::DevChunkingContext,
-        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
+        nodejs::NodeJsChunkingContext,
         turbopack::{evaluate_context::node_build_environment, ModuleAssetContext},
     },
 };
 
 use crate::{
-    app::{AppProject, OptionAppProject},
+    app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     entrypoints::Entrypoints,
+    instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{Endpoint, Route},
@@ -65,22 +69,30 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
+pub struct DraftModeOptions {
+    pub preview_mode_id: RcStr,
+    pub preview_mode_encryption_key: RcStr,
+    pub preview_mode_signing_key: RcStr,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: String,
+    pub root_path: RcStr,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: String,
+    pub next_config: RcStr,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: String,
+    pub js_config: RcStr,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Vec<(String, String)>,
+    pub env: Vec<(RcStr, RcStr)>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -89,8 +101,17 @@ pub struct ProjectOptions {
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
 
-    /// The address of the dev server.
-    pub server_addr: String,
+    /// The mode in which Next.js is running.
+    pub dev: bool,
+
+    /// The server actions encryption key.
+    pub encryption_key: RcStr,
+
+    /// The build id.
+    pub build_id: RcStr,
+
+    /// Options for draft mode.
+    pub preview_props: DraftModeOptions,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -98,19 +119,19 @@ pub struct ProjectOptions {
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    pub root_path: Option<String>,
+    pub root_path: Option<RcStr>,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: Option<String>,
+    pub project_path: Option<RcStr>,
 
     /// The contents of next.config.js, serialized to JSON.
-    pub next_config: Option<String>,
+    pub next_config: Option<RcStr>,
 
     /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<String>,
+    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
-    pub env: Option<Vec<(String, String)>>,
+    pub env: Option<Vec<(RcStr, RcStr)>>,
 
     /// A map of environment variables which should get injected at compile
     /// time.
@@ -119,21 +140,36 @@ pub struct PartialProjectOptions {
     /// Whether to watch the filesystem for file changes.
     pub watch: Option<bool>,
 
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
+
+    /// The server actions encryption key.
+    pub encryption_key: Option<RcStr>,
+
+    /// The build id.
+    pub build_id: Option<RcStr>,
+
+    /// Options for draft mode.
+    pub preview_props: Option<DraftModeOptions>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
-    pub client: Vec<(String, String)>,
-    pub edge: Vec<(String, String)>,
-    pub nodejs: Vec<(String, String)>,
+    pub client: Vec<(RcStr, RcStr)>,
+    pub edge: Vec<(RcStr, RcStr)>,
+    pub nodejs: Vec<(RcStr, RcStr)>,
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
+}
+
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+pub struct Instrumentation {
+    pub node_js: Vc<Box<dyn Endpoint>>,
+    pub edge: Vc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value]
@@ -155,32 +191,57 @@ impl ProjectContainer {
 
     #[turbo_tasks::function]
     pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+        let PartialProjectOptions {
+            root_path,
+            project_path,
+            next_config,
+            js_config,
+            env,
+            define_env,
+            watch,
+            dev,
+            encryption_key,
+            build_id,
+            preview_props,
+        } = options;
+
         let mut new_options = self.options_state.get().clone();
 
-        if let Some(root_path) = options.root_path {
+        if let Some(root_path) = root_path {
             new_options.root_path = root_path;
         }
-        if let Some(project_path) = options.project_path {
+        if let Some(project_path) = project_path {
             new_options.project_path = project_path;
         }
-        if let Some(next_config) = options.next_config {
+        if let Some(next_config) = next_config {
             new_options.next_config = next_config;
         }
-        if let Some(js_config) = options.js_config {
+        if let Some(js_config) = js_config {
             new_options.js_config = js_config;
         }
-        if let Some(env) = options.env {
+        if let Some(env) = env {
             new_options.env = env;
         }
-        if let Some(define_env) = options.define_env {
+        if let Some(define_env) = define_env {
             new_options.define_env = define_env;
         }
-        if let Some(watch) = options.watch {
+        if let Some(watch) = watch {
             new_options.watch = watch;
         }
-        if let Some(server_addr) = options.server_addr {
-            new_options.server_addr = server_addr;
+        if let Some(dev) = dev {
+            new_options.dev = dev;
         }
+        if let Some(encryption_key) = encryption_key {
+            new_options.encryption_key = encryption_key;
+        }
+        if let Some(build_id) = build_id {
+            new_options.build_id = build_id;
+        }
+        if let Some(preview_props) = preview_props {
+            new_options.preview_props = preview_props;
+        }
+
+        // TODO: Handle mode switch, should prevent mode being switched.
 
         self.options_state.set(new_options);
 
@@ -191,54 +252,64 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+        let env_map: Vc<EnvMap>;
+        let next_config;
+        let define_env;
+        let js_config;
+        let root_path;
+        let project_path;
+        let watch;
+        let dev;
+        let encryption_key;
+        let build_id;
+        let preview_props;
+        {
             let options = this.options_state.get();
-            let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
-            let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
+            env_map = Vc::cell(options.env.iter().cloned().collect());
+            define_env = ProjectDefineEnv {
                 client: Vc::cell(options.define_env.client.iter().cloned().collect()),
                 edge: Vc::cell(options.define_env.edge.iter().cloned().collect()),
                 nodejs: Vc::cell(options.define_env.nodejs.iter().cloned().collect()),
             }
             .cell();
-            let next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            let js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
-            let root_path = options.root_path.clone();
-            let project_path = options.project_path.clone();
-            let watch = options.watch;
-            let server_addr = options.server_addr.parse()?;
-            (
-                env,
-                define_env,
-                next_config,
-                js_config,
-                root_path,
-                project_path,
-                watch,
-                server_addr,
-            )
-        };
+            next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
+            root_path = options.root_path.clone();
+            project_path = options.project_path.clone();
+            watch = options.watch;
+            dev = options.dev;
+            encryption_key = options.encryption_key.clone();
+            build_id = options.build_id.clone();
+            preview_props = options.preview_props.clone();
+        }
 
         let dist_dir = next_config
             .await?
             .dist_dir
             .as_ref()
-            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+            .map_or_else(|| ".next".into(), |d| d.clone());
 
         Ok(Project {
             root_path,
             project_path,
             watch,
-            server_addr,
             next_config,
             js_config,
             dist_dir,
-            env: Vc::upcast(env),
+            env: Vc::upcast(env_map),
             define_env,
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
-                .to_string(),
-            mode: NextMode::Development,
+                .into(),
+            mode: if dev {
+                NextMode::Development.cell()
+            } else {
+                NextMode::Build.cell()
+            },
             versioned_content_map: this.versioned_content_map,
+            build_id,
+            encryption_key,
+            preview_props,
         }
         .cell())
     }
@@ -251,7 +322,7 @@ impl ProjectContainer {
 
     /// See [Project::hmr_identifiers].
     #[turbo_tasks::function]
-    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<String>> {
+    pub fn hmr_identifiers(self: Vc<Self>) -> Vc<Vec<RcStr>> {
         self.project().hmr_identifiers()
     }
 
@@ -263,26 +334,34 @@ impl ProjectContainer {
         let this = self.await?;
         Ok(this.versioned_content_map.get(file_path))
     }
+
+    #[turbo_tasks::function]
+    pub async fn get_source_map(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+        section: Option<RcStr>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        let this = self.await?;
+        Ok(this
+            .versioned_content_map
+            .get_source_map(file_path, section))
+    }
 }
 
 #[turbo_tasks::value]
 pub struct Project {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
-    root_path: String,
+    root_path: RcStr,
 
     /// A path where to emit the build outputs. next.config.js's distDir.
-    dist_dir: String,
+    dist_dir: RcStr,
 
     /// A path inside the root_path which contains the app/pages directories.
-    pub project_path: String,
+    pub project_path: RcStr,
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
-
-    /// The address of the dev server.
-    #[turbo_tasks(trace_ignore)]
-    server_addr: SocketAddr,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -297,11 +376,17 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
-    browserslist_query: String,
+    browserslist_query: RcStr,
 
-    mode: NextMode,
+    mode: Vc<NextMode>,
 
     versioned_content_map: Vc<VersionedContentMap>,
+
+    build_id: RcStr,
+
+    encryption_key: RcStr,
+
+    preview_props: DraftModeOptions,
 }
 
 #[turbo_tasks::value]
@@ -329,32 +414,65 @@ impl ProjectDefineEnv {
     }
 }
 
+#[turbo_tasks::value(shared)]
+struct ConflictIssue {
+    path: Vc<FileSystemPath>,
+    title: Vc<StyledString>,
+    description: Vc<StyledString>,
+    severity: Vc<IssueSeverity>,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for ConflictIssue {
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        self.title
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.description))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
     async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
-        let this = self.await?;
         let app_dir = find_app_dir(self.project_path()).await?;
 
-        Ok(Vc::cell(if let Some(app_dir) = &*app_dir {
-            Some(AppProject::new(self, *app_dir, this.mode))
-        } else {
-            None
-        }))
+        Ok(Vc::cell(
+            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+        ))
     }
 
     #[turbo_tasks::function]
     async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        let this = self.await?;
-        Ok(PagesProject::new(self, this.mode))
+        Ok(PagesProject::new(self))
     }
 
     #[turbo_tasks::function]
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.to_string(),
-            this.root_path.to_string(),
+            PROJECT_FILESYSTEM_NAME.into(),
+            this.root_path.clone(),
+            vec![],
         );
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -369,27 +487,21 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
-        disk_fs.await?.start_watching_with_invalidation_reason()?;
+        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
         Ok(Vc::upcast(disk_fs))
     }
 
     #[turbo_tasks::function]
-    fn server_addr(&self) -> Vc<ServerAddr> {
-        ServerAddr::new(self.server_addr).cell()
-    }
-
-    #[turbo_tasks::function]
-    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(Vc::cell(self.await?.dist_dir.to_string()))
+    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.await?.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.node_fs().root().join(this.dist_dir.to_string()))
+        Ok(self.output_fs().root().join(this.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
@@ -405,25 +517,25 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
-        Ok(self.client_root().join(format!(
-            "{}/_next",
-            next_config
-                .base_path
-                .clone()
-                .unwrap_or_else(|| "".to_string()),
-        )))
+        Ok(self.client_root().join(
+            format!(
+                "{}/_next",
+                next_config.base_path.clone().unwrap_or_else(|| "".into()),
+            )
+            .into(),
+        ))
     }
 
     #[turbo_tasks::function]
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
-        let project_relative = this.project_path.strip_prefix(&this.root_path).unwrap();
+        let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
         let project_relative = project_relative
             .strip_prefix(MAIN_SEPARATOR)
             .unwrap_or(project_relative)
             .replace(MAIN_SEPARATOR, "/");
-        Ok(root.join(project_relative))
+        Ok(root.join(project_relative.into()))
     }
 
     #[turbo_tasks::function]
@@ -437,30 +549,38 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
+        Ok(self.await?.mode)
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
         Ok(self.await?.js_config)
     }
 
     #[turbo_tasks::function]
-    pub(super) fn execution_context(self: Vc<Self>) -> Vc<ExecutionContext> {
+    pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
+        let next_mode = self.next_mode().await?;
 
         let node_execution_chunking_context = Vc::upcast(
-            DevChunkingContext::builder(
+            NodeJsChunkingContext::builder(
                 self.project_path(),
                 node_root,
-                node_root.join("chunks".to_string()),
-                node_root.join("assets".to_string()),
+                node_root,
+                node_root.join("chunks".into()),
+                node_root.join("assets".into()),
                 node_build_environment(),
+                next_mode.runtime_type(),
             )
             .build(),
         );
 
-        ExecutionContext::new(
+        Ok(ExecutionContext::new(
             self.project_path(),
             node_execution_chunking_context,
             self.env(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -476,7 +596,6 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             self.env(),
-            self.server_addr(),
             this.define_env.nodejs(),
         ))
     }
@@ -486,52 +605,89 @@ impl Project {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
             self.project_path(),
-            self.server_addr(),
             this.define_env.edge(),
         ))
     }
 
     #[turbo_tasks::function]
+    pub(super) fn edge_env(&self) -> Vc<EnvMap> {
+        let edge_env = indexmap! {
+            "__NEXT_BUILD_ID".into() => self.build_id.clone(),
+            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".into() => self.encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_ID".into() => self.preview_props.preview_mode_id.clone(),
+            "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY".into() => self.preview_props.preview_mode_encryption_key.clone(),
+            "__NEXT_PREVIEW_MODE_SIGNING_KEY".into() => self.preview_props.preview_mode_signing_key.clone(),
+        };
+        Vc::cell(edge_env)
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-        let this = self.await?;
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         Ok(get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
-            this.mode,
+            self.next_mode(),
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn server_chunking_context(self: Vc<Self>) -> Vc<BuildChunkingContext> {
-        get_server_chunking_context(
-            self.project_path(),
-            self.node_root(),
-            self.client_relative_path(),
-            self.next_config().computed_asset_prefix(),
-            self.server_compile_time_info().environment(),
-        )
+    pub(super) fn server_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+    ) -> Vc<NodeJsChunkingContext> {
+        if client_assets {
+            get_server_chunking_context_with_client_assets(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.client_relative_path(),
+                self.next_config().computed_asset_prefix(),
+                self.server_compile_time_info().environment(),
+            )
+        } else {
+            get_server_chunking_context(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.server_compile_time_info().environment(),
+            )
+        }
     }
 
     #[turbo_tasks::function]
-    pub(super) fn edge_chunking_context(self: Vc<Self>) -> Vc<Box<dyn EcmascriptChunkingContext>> {
-        get_edge_chunking_context(
-            self.project_path(),
-            self.node_root(),
-            self.edge_compile_time_info().environment(),
-        )
+    pub(super) fn edge_chunking_context(
+        self: Vc<Self>,
+        client_assets: bool,
+    ) -> Vc<Box<dyn ChunkingContext>> {
+        if client_assets {
+            get_edge_chunking_context_with_client_assets(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.client_relative_path(),
+                self.next_config().computed_asset_prefix(),
+                self.edge_compile_time_info().environment(),
+            )
+        } else {
+            get_edge_chunking_context(
+                self.next_mode(),
+                self.project_path(),
+                self.node_root(),
+                self.edge_compile_time_info().environment(),
+            )
+        }
     }
 
-    /// Emit a telemetry event corresponding to webpack configuration telemetry
-    /// (https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
         let emit_event = |feature_name: &str, enabled: bool| {
-            NextFeatureTelemetry::new(feature_name.to_string(), enabled)
+            NextFeatureTelemetry::new(feature_name.into(), enabled)
                 .cell()
                 .emit();
         };
@@ -561,7 +717,6 @@ impl Project {
         // need to confirm what we'll do with turbopack.
         let config = self.next_config();
 
-        emit_event("swcMinify", *config.swc_minify().await?);
         emit_event(
             "skipMiddlewareUrlNormalize",
             *config.skip_middleware_url_normalize().await?,
@@ -582,16 +737,16 @@ impl Project {
         let compiler_options = config.compiler.as_ref();
         let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
         let styled_components_enabled = compiler_options
-            .map(|c| c.styled_components.is_some())
+            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
             .and_then(|c| c.react_remove_properties)
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .map(|c| c.remove_console.is_some())
+            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .map(|c| c.emotion.is_some())
+            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
@@ -615,16 +770,39 @@ impl Project {
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
-            routes.extend(app_routes.await?.iter().map(|(k, v)| (k.clone(), *v)));
+            routes.extend(
+                app_routes
+                    .await?
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone())),
+            );
         }
 
         for (pathname, page_route) in pages_project.routes().await?.iter() {
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
+                    ConflictIssue {
+                        path: self.project_path(),
+                        title: StyledString::Text(
+                            format!("App Router and Pages Router both match path: {}", pathname)
+                                .into(),
+                        )
+                        .cell(),
+                        description: StyledString::Text(
+                            "Next.js does not support having both App Router and Pages Router \
+                             routes matching the same path. Please remove one of the conflicting \
+                             routes."
+                                .into(),
+                        )
+                        .cell(),
+                        severity: IssueSeverity::Error.cell(),
+                    }
+                    .cell()
+                    .emit();
                     *entry.get_mut() = Route::Conflict;
                 }
                 Entry::Vacant(entry) => {
-                    entry.insert(*page_route);
+                    entry.insert(page_route.clone());
                 }
             }
         }
@@ -661,9 +839,34 @@ impl Project {
             None
         };
 
+        let instrumentation = find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        );
+        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
+            *instrumentation.await?
+        {
+            let source = Vc::upcast(FileSource::new(fs_path));
+            Some(Instrumentation {
+                node_js: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
+                        .into_trait_ref()
+                        .await?,
+                ),
+                edge: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
+                        .into_trait_ref()
+                        .await?,
+                ),
+            })
+        } else {
+            None
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
+            instrumentation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -672,38 +875,189 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
-        Vc::upcast(ModuleAssetContext::new(
-            Default::default(),
+    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = *self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.edge_client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
                 self.execution_context(),
-                Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
                 self.next_config(),
+                NextRuntime::Edge,
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
-                Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
             ),
-            Vc::cell("middleware".to_string()),
+            Vc::cell("middleware".into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let ecmascript_client_reference_transition_name = (*self.app_project().await?)
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        let context = self.middleware_context();
+
+        Ok(MiddlewareEndpoint::new(
+            self,
+            context,
+            source,
+            app_dir,
+            ecmascript_client_reference_transition_name,
         ))
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
-        let context = self.middleware_context();
+    async fn node_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
 
-        let module = context.process(
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = &*self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
+            self.server_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                NextRuntime::NodeJs,
+            ),
+            get_server_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Vc::cell("instrumentation-edge".into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_instrumentation_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = &*self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = app_project
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        if let Some(app_project) = app_project {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project.edge_client_reference_transition(),
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            Vc::cell(transitions.into_iter().collect()),
+            self.edge_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                NextRuntime::Edge,
+            ),
+            get_edge_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Vc::cell("instrumentation".into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn instrumentation_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        is_edge: bool,
+    ) -> Result<Vc<InstrumentationEndpoint>> {
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let ecmascript_client_reference_transition_name = (*self.app_project().await?)
+            .as_ref()
+            .map(|app_project| app_project.client_transition_name());
+
+        let context = if is_edge {
+            self.edge_instrumentation_context()
+        } else {
+            self.node_instrumentation_context()
+        };
+
+        Ok(InstrumentationEndpoint::new(
+            self,
+            context,
             source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
-
-        MiddlewareEndpoint::new(self, context, module)
+            is_edge,
+            app_dir,
+            ecmascript_client_reference_transition_name,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -711,25 +1065,33 @@ impl Project {
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries_operation(output_assets);
+        let span = tracing::info_span!("emitting");
+        async move {
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-        self.await?
-            .versioned_content_map
-            .insert_output_assets(all_output_assets)
-            .await?;
+            let client_relative_path = self.client_relative_path();
+            let node_root = self.node_root();
 
-        Ok(emit_assets(
-            *all_output_assets.await?,
-            self.node_root(),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets, client_relative_path, node_root)
+                .await?;
+
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
+                client_relative_path,
+                node_root,
+            ))
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]
     async fn hmr_content(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(self
             .await?
@@ -738,19 +1100,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_content_and_write(
-        self: Vc<Self>,
-        identifier: String,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        Ok(self.await?.versioned_content_map.get_and_write(
-            self.client_relative_path().join(identifier),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: String) -> Result<Vc<Box<dyn Version>>> {
+    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
         let content = self.hmr_content(identifier);
 
         Ok(content.version())
@@ -761,7 +1111,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         let version = self.hmr_version(identifier);
@@ -781,17 +1131,17 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn hmr_update(
         self: Vc<Self>,
-        identifier: String,
+        identifier: RcStr,
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content_and_write(identifier).update(from))
+        Ok(self.hmr_content(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is
     /// only needed for testing purposes and isn't used in real apps.
     #[turbo_tasks::function]
-    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<String>>> {
+    pub async fn hmr_identifiers(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         Ok(self
             .await?
             .versioned_content_map

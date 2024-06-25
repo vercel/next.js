@@ -6,7 +6,7 @@
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "jsx": "react",
+    "jsx": "react-jsx",
     "stripInternal": true,
     "verbatimModuleSyntax": true
   },

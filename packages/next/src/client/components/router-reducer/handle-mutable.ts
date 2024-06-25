@@ -16,6 +16,21 @@ export function handleMutable(
   // shouldScroll is true by default, can override to false.
   const shouldScroll = mutable.shouldScroll ?? true
 
+  let nextUrl = state.nextUrl
+
+  if (isNotUndefined(mutable.patchedTree)) {
+    // If we received a patched tree, we need to compute the changed path.
+    const changedPath = computeChangedPath(state.tree, mutable.patchedTree)
+    if (changedPath) {
+      // If the tree changed, we need to update the nextUrl
+      nextUrl = changedPath
+    } else if (!nextUrl) {
+      // if the tree ends up being the same (ie, no changed path), and we don't have a nextUrl, then we should use the canonicalUrl
+      nextUrl = state.canonicalUrl
+    }
+    // otherwise this will be a no-op and continue to use the existing nextUrl
+  }
+
   return {
     buildId: state.buildId,
     // Set href.
@@ -45,10 +60,7 @@ export function handleMutable(
           : state.focusAndScrollRef.apply
         : // If shouldScroll is false then we should not apply scroll and focus management.
           false,
-      onlyHashChange:
-        !!mutable.hashFragment &&
-        state.canonicalUrl.split('#', 1)[0] ===
-          mutable.canonicalUrl?.split('#', 1)[0],
+      onlyHashChange: mutable.onlyHashChange || false,
       hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.
@@ -72,9 +84,6 @@ export function handleMutable(
     tree: isNotUndefined(mutable.patchedTree)
       ? mutable.patchedTree
       : state.tree,
-    nextUrl: isNotUndefined(mutable.patchedTree)
-      ? computeChangedPath(state.tree, mutable.patchedTree) ??
-        state.canonicalUrl
-      : state.nextUrl,
+    nextUrl,
   }
 }

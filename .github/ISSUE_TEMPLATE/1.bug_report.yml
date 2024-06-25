@@ -1,6 +1,6 @@
 name: Bug Report
-description: Create a bug report for the Next.js core
-labels: ['template: bug']
+description: Create a bug report for Next.js.
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -40,13 +40,6 @@ body:
       placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
     validations:
       required: true
-  - type: checkboxes
-    attributes:
-      label: Verify canary release
-      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
-      options:
-        - label: I verified that the issue exists in the latest Next.js canary release
-          required: true
   - type: textarea
     attributes:
       label: Provide environment information
@@ -78,28 +71,46 @@ body:
       multiple: true
       options:
         - 'Not sure'
-        - 'App Router'
-        - 'CLI (create-next-app)'
-        - 'Data fetching (gS(S)P, getInitialProps)'
-        - 'Dynamic imports (next/dynamic)'
-        - 'ESLint (eslint-config-next)'
-        - 'Font optimization (next/font)'
-        - 'Image optimization (next/image, next/legacy/image)'
+        - 'create-next-app'
+        - 'Developer Experience'
+        - 'Documentation'
+        - 'Lazy Loading'
+        - 'Font (next/font)'
+        - 'Image (next/image)'
+        - 'Instrumentation'
         - 'Internationalization (i18n)'
-        - 'Jest (next/jest)'
-        - 'MDX (@next/mdx)'
-        - 'Metadata (metadata, generateMetadata, next/head)'
-        - 'Middleware / Edge (API routes, runtime)'
-        - 'Operating System (Windows, MacOS, Linux)'
-        - 'Package manager (npm, pnpm, Yarn)'
-        - 'Routing (next/router, next/navigation, next/link)'
-        - 'Script optimization (next/script)'
-        - 'Standalone mode (output: "standalone")'
-        - 'Static HTML Export (output: "export")'
-        - 'SWC minifier (swcMinify: true)'
-        - 'SWC transpilation'
-        - 'Turbopack (--turbo)'
-        - 'TypeScript (plugin, built-in types)'
+        - 'Linting'
+        - 'Markdown (MDX)'
+        - 'Metadata'
+        - 'Middleware'
+        - 'Module Resolution'
+        - 'Navigation'
+        - 'Output (export/standalone)'
+        - 'Pages Router'
+        - 'Parallel & Intercepting Routes'
+        - 'Partial Prerendering (PPR)'
+        - 'Performance'
+        - 'Runtime'
+        - 'Script (next/script)'
+        - 'Testing'
+        - 'Turbopack'
+        - 'TypeScript'
+        - 'SWC'
+        - 'Upstream'
+        - 'Webpack'
+
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which stage(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'next dev (local)'
+        - 'next build (local)'
+        - 'next start (local)'
+        - 'Vercel (Deployed)'
+        - 'Other (Deployed)'
     validations:
       required: true
   - type: markdown

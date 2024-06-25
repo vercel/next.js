@@ -9,7 +9,10 @@ import type {
 import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { SizeLimit } from '../../types'
+import type { SizeLimit } from '../types'
+import type { SwrDelta } from './lib/revalidate'
+import type { SupportedTestRunners } from '../cli/next-test'
+import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -19,9 +22,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
+export type I18NDomains = DomainLocale[]
+
 export interface I18NConfig {
   defaultLocale: string
-  domains?: DomainLocale[]
+  domains?: I18NDomains
   localeDetection?: false
   locales: string[]
 }
@@ -93,12 +98,19 @@ export type TurboLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurboRule =
+export type TurboRuleConfigItemOrShortcut =
   | TurboLoaderItem[]
-  | {
-      loaders: TurboLoaderItem[]
-      as: string
-    }
+  | TurboRuleConfigItem
+
+export type TurboRuleConfigItemOptions = {
+  loaders: TurboLoaderItem[]
+  as?: string
+}
+
+export type TurboRuleConfigItem =
+  | TurboRuleConfigItemOptions
+  | { [condition: string]: TurboRuleConfigItem }
+  | false
 
 export interface ExperimentalTurboOptions {
   /**
@@ -112,6 +124,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -123,7 +142,17 @@ export interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurboRule>
+  rules?: Record<string, TurboRuleConfigItemOrShortcut>
+
+  /**
+   * Use swc_css instead of lightningcss for turbopakc
+   */
+  useSwcCss?: boolean
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
@@ -158,16 +187,39 @@ export interface NextJsWebpackConfig {
   ): any
 }
 
+/**
+ * Set of options for the react compiler next.js
+ * currently supports.
+ *
+ * This can be changed without breaking changes while supporting
+ * react compiler in the experimental phase.
+ */
+export interface ReactCompilerOptions {
+  compilationMode?: 'infer' | 'annotation' | 'all'
+  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+}
+
 export interface ExperimentalConfig {
-  windowHistorySupport?: boolean
+  flyingShuttle?: boolean
+  prerenderEarlyExit?: boolean
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  useDeploymentId?: boolean
-  useDeploymentIdServerActions?: boolean
-  deploymentId?: string
   appDocumentPreloading?: boolean
+  preloadEntriesOnStart?: boolean
+  /** @default true */
   strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
+  /**
+   * This config can be used to override the cache behavior for the client router.
+   * These values indicate the time, in seconds, that the cache should be considered
+   * reusable. When the `prefetch` Link prop is left unspecified, this will use the `dynamic` value.
+   * When the `prefetch` Link prop is set to `true`, this will use the `static` value.
+   */
+  staleTimes?: {
+    dynamic?: number
+    static?: number
+  }
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -177,12 +229,20 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * @deprecated use config.swrDelta instead
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
-  // custom path to a cache handler to use
-  incrementalCacheHandlerPath?: string
+  /**
+   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * between CSS files to keep ordering of them.
+   * An alternative is 'strict', which will try to keep correct ordering as
+   * much as possible, even when this leads to many requests.
+   */
+  cssChunking?: 'strict' | 'loose'
   disablePostcssPresetEnv?: boolean
-  swcMinify?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
   proxyTimeout?: number
@@ -204,12 +264,6 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
-  /**
-   * In-memory cache size in bytes.
-   *
-   * If `isrMemoryCacheSize: 0` disables in-memory caching.
-   */
-  isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -232,12 +286,6 @@ export interface ExperimentalConfig {
   }
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
-
-  /**
-   * A list of packages that should be treated as external in the RSC server build.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverComponentsExternalPackages
-   */
-  serverComponentsExternalPackages?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
@@ -274,7 +322,16 @@ export interface ExperimentalConfig {
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
-  mdxRs?: boolean
+  mdxRs?:
+    | boolean
+    | {
+        development?: boolean
+        jsx?: boolean
+        jsxRuntime?: string
+        jsxImportSource?: string
+        providerImportSource?: string
+        mdxType?: 'gfm' | 'commonmark'
+      }
 
   /**
    * Generate Route types and enable type checking for Link and Router.push, etc.
@@ -283,9 +340,51 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
-   * This option is to enable running the Webpack build in a worker thread.
+   * Runs the compilations for server and edge in parallel instead of in serial.
+   * This will make builds faster if there is enough server and edge functions
+   * in the application at the cost of more memory.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerCompiles?: boolean
+
+  /**
+   * Runs the logic to collect build traces for the server routes in parallel
+   * with other work during the compilation. This will increase the speed of
+   * the build at the cost of more memory. This option may incur some additional
+   * work compared to if the option was disabled since the work is started
+   * before data from the client compilation is available to potentially reduce
+   * the amount of code that needs to be traced. Despite that, this may still
+   * result in faster builds for some applications.
+   *
+   * Valid values are:
+   * - `true`: Collect the server build traces in parallel.
+   * - `false`: Do not collect the server build traces in parallel.
+   * - `undefined`: Collect server build traces in parallel only in the `experimental-compile` mode.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerBuildTraces?: boolean
+
+  /**
+   * Run the Webpack build in a separate process to optimize memory usage during build.
+   * Valid values are:
+   * - `false`: Disable the Webpack build worker
+   * - `true`: Enable the Webpack build worker
+   * - `undefined`: Enable the Webpack build worker only if the webpack config is not customized
    */
   webpackBuildWorker?: boolean
+
+  /**
+   * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
+   * but may increase compile times slightly.
+   * Valid values are:
+   * - `false`: Disable Webpack memory optimizations (default).
+   * - `true`: Enables Webpack memory optimizations.
+   */
+  webpackMemoryOptimizations?: boolean
 
   /**
    *
@@ -293,9 +392,15 @@ export interface ExperimentalConfig {
   instrumentationHook?: boolean
 
   /**
+   * The array of the meta tags to the client injected by tracing propagation data.
+   */
+  clientTraceMetadata?: string[]
+
+  /**
+   * Enables experimental Partial Prerendering feature of Next.js.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
-  ppr?: boolean
+  ppr?: ExperimentalPPRConfig
 
   /**
    * Enables experimental taint APIs in React.
@@ -313,7 +418,7 @@ export interface ExperimentalConfig {
      * Allowed origins that can bypass Server Action's CSRF check. This is helpful
      * when you have reverse proxy in front of your app.
      * @example
-     * ["my-app.com"]
+     * ["my-app.com", "*.my-app.com"]
      */
     allowedOrigins?: string[]
   }
@@ -332,31 +437,88 @@ export interface ExperimentalConfig {
    * @internal Used by the Next.js internals only.
    */
   trustHostHeader?: boolean
+
+  useWasmBinary?: boolean
+
   /**
-   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   * Use lightningcss instead of postcss-loader
+   */
+  useLightningcss?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
+
+  /**
+   * Enables `fetch` requests to be proxied to the experimental test proxy server
+   */
+  testProxy?: boolean
+
+  /**
+   * Set a default test runner to be used by `next experimental-test`.
+   */
+  defaultTestRunner?: SupportedTestRunners
+  /**
+   * Allow NODE_ENV=development even for `next build`.
+   */
+  allowDevelopmentBuild?: true
+  /**
+   * @deprecated use `config.bundlePagesRouterDependencies` instead
+   *
    */
   bundlePagesExternals?: boolean
   /**
-   * Uses an IPC server to dedupe build-time requests to the cache handler
+   * @deprecated use `config.serverExternalPackages` instead
+   *
    */
-  staticWorkerRequestDeduping?: boolean
+  serverComponentsExternalPackages?: string[]
+  /**
+   * Enable experimental React compiler optimization.
+   * Configuration accepts partial config object to the compiler, if provided
+   * compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
 
-  useWasmBinary?: boolean
+  /**
+   * Enables `unstable_after`
+   */
+  after?: boolean
+
+  /**
+   * The number of times to retry static generation (per page) before giving up.
+   */
+  staticGenerationRetryCount?: number
 }
 
 export type ExportPathMap = {
   [path: string]: {
     page: string
     query?: NextParsedUrlQuery
+
+    /**
+     * @internal
+     */
     _isAppDir?: boolean
-    _isAppPrefetch?: boolean
+
+    /**
+     * @internal
+     */
     _isDynamicError?: boolean
+
+    /**
+     * @internal
+     */
+    _isRoutePPREnabled?: boolean
   }
 }
 
 /**
- * Next configuration object
- * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Next.js can be configured through a `next.config.js` file in the root of your project directory.
+ *
+ * This can change the behavior, enable experimental features, and configure other advanced options.
+ *
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -441,7 +603,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: Record<string, string>
+  env?: Record<string, string | undefined>
 
   /**
    * Destination directory (defaults to `.next`)
@@ -459,6 +621,21 @@ export interface NextConfig extends Record<string, any> {
    * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
    */
   assetPrefix?: string
+
+  /**
+   * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   */
+  cacheHandler?: string | undefined
+
+  /**
+   * Configure the in-memory cache size in bytes. Defaults to 50 MB.
+   * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching).
+   */
+  cacheMaxMemorySize?: number
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
@@ -482,15 +659,6 @@ export interface NextConfig extends Record<string, any> {
 
   /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
   compress?: boolean
-
-  /**
-   * The field should only be used when a Next.js project is not hosted on Vercel while using Vercel Speed Insights.
-   * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
-   *
-   * @default ''
-   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
-   */
-  analyticsId?: string
 
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
   poweredByHeader?: boolean
@@ -526,6 +694,11 @@ export interface NextConfig extends Record<string, any> {
   amp?: {
     canonicalBase?: string
   }
+
+  /**
+   * A unique identifier for a deployment that will be included in each request's query string or header.
+   */
+  deploymentId?: string
 
   /**
    * Deploy a Next.js application under a sub-path of a domain
@@ -589,16 +762,6 @@ export interface NextConfig extends Record<string, any> {
   httpAgentOptions?: { keepAlive?: boolean }
 
   /**
-   * During a build, Next.js will automatically trace each page and its dependencies to determine all of the files
-   * that are needed for deploying a production version of your application.
-   *
-   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   */
-  outputFileTracing?: boolean
-
-  /**
    * Timeout after waiting to generate static pages in seconds
    *
    * @default 60
@@ -611,15 +774,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
-  crossOrigin?: false | 'anonymous' | 'use-credentials'
-
-  /**
-   * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
-   * @deprecated will be enabled by default and removed in Next.js 15
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
-   */
-  swcMinify?: boolean
+  crossOrigin?: 'anonymous' | 'use-credentials'
 
   /**
    * Optionally enable compiler transforms
@@ -645,6 +800,12 @@ export interface NextConfig extends Record<string, any> {
         }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
+
+    styledJsx?:
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**
@@ -684,9 +845,26 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
+
+  /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
    */
   experimental?: ExperimentalConfig
+
+  /**
+   * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
+   * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
+   */
+  bundlePagesRouterDependencies?: boolean
+
+  /**
+   * A list of packages that should be treated as external in the server build.
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
+   */
+  serverExternalPackages?: string[]
 }
 
 export const defaultConfig: NextConfig = {
@@ -702,6 +880,9 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
+  cacheHandler: undefined,
+  // default to 50MB limit
+  cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -709,7 +890,6 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -736,20 +916,19 @@ export const defaultConfig: NextConfig = {
   httpAgentOptions: {
     keepAlive: true,
   },
-  outputFileTracing: true,
+  swrDelta: undefined,
   staticPageGenerationTimeout: 60,
-  swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    windowHistorySupport: false,
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
+    prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    useDeploymentId: false,
-    deploymentId: undefined,
-    useDeploymentIdServerActions: false,
     appDocumentPreloading: undefined,
+    preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
@@ -773,9 +952,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    // default to 50MB limit
-    isrMemoryCacheSize: 50 * 1024 * 1024,
-    incrementalCacheHandlerPath: undefined,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
@@ -791,9 +967,32 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     instrumentationHook: false,
-    bundlePagesExternals: false,
-    ppr: false,
+    clientTraceMetadata: undefined,
+    parallelServerCompiles: false,
+    parallelServerBuildTraces: false,
+    ppr:
+      // TODO: remove once we've made PPR default
+      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
+      // has been set to `true`, enable the experimental PPR feature so long as it
+      // wasn't explicitly disabled in the config.
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ),
+    webpackBuildWorker: undefined,
+    webpackMemoryOptimizations: false,
+    optimizeServerReact: true,
+    useEarlyImport: false,
+    staleTimes: {
+      dynamic: 0,
+      static: 300,
+    },
+    allowDevelopmentBuild: undefined,
+    reactCompiler: undefined,
+    after: false,
+    staticGenerationRetryCount: undefined,
   },
+  bundlePagesRouterDependencies: false,
 }
 
 export async function normalizeConfig(phase: string, config: any) {

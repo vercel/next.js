@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
   forwardRef,
-  version,
+  use,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -53,6 +53,7 @@ type ImageElementProps = ImgProps & {
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
   setShowAltText: (b: boolean) => void
+  sizesInput: string | undefined
 }
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
@@ -63,7 +64,8 @@ function handleLoading(
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
   setBlurComplete: (b: boolean) => void,
-  unoptimized: boolean
+  unoptimized: boolean,
+  sizesInput: string | undefined
 ) {
   const src = img?.src
   if (!img || img['data-loaded-src'] === src) {
@@ -115,16 +117,19 @@ function handleLoading(
     if (process.env.NODE_ENV !== 'production') {
       const origSrc = new URL(src, 'http://n').searchParams.get('url') || src
       if (img.getAttribute('data-nimg') === 'fill') {
-        if (
-          !unoptimized &&
-          (!img.getAttribute('sizes') || img.getAttribute('sizes') === '100vw')
-        ) {
+        if (!unoptimized && (!sizesInput || sizesInput === '100vw')) {
           let widthViewportRatio =
             img.getBoundingClientRect().width / window.innerWidth
           if (widthViewportRatio < 0.6) {
-            warnOnce(
-              `Image with src "${origSrc}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
-            )
+            if (sizesInput === '100vw') {
+              warnOnce(
+                `Image with src "${origSrc}" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
+              )
+            } else {
+              warnOnce(
+                `Image with src "${origSrc}" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes`
+              )
+            }
           }
         }
         if (img.parentElement) {
@@ -163,11 +168,8 @@ function handleLoading(
 function getDynamicProps(
   fetchPriority?: string
 ): Record<string, string | undefined> {
-  const [majorStr, minorStr] = version.split('.', 2)
-  const major = parseInt(majorStr, 10)
-  const minor = parseInt(minorStr, 10)
-  if (major > 18 || (major === 18 && minor >= 3)) {
-    // In React 18.3.0 or newer, we must use camelCase
+  if (Boolean(use)) {
+    // In React 19.0.0 or newer, we must use camelCase
     // prop to avoid "Warning: Invalid DOM property".
     // See https://github.com/facebook/react/pull/25927
     return { fetchPriority }
@@ -197,6 +199,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       onLoadingCompleteRef,
       setBlurComplete,
       setShowAltText,
+      sizesInput,
       onLoad,
       onError,
       ...rest
@@ -262,7 +265,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
                 onLoadRef,
                 onLoadingCompleteRef,
                 setBlurComplete,
-                unoptimized
+                unoptimized,
+                sizesInput
               )
             }
           },
@@ -274,6 +278,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             setBlurComplete,
             onError,
             unoptimized,
+            sizesInput,
             forwardedRef,
           ]
         )}
@@ -285,7 +290,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             onLoadRef,
             onLoadingCompleteRef,
             setBlurComplete,
-            unoptimized
+            unoptimized,
+            sizesInput
           )
         }}
         onError={(event) => {
@@ -352,6 +358,11 @@ function ImagePreload({
   )
 }
 
+/**
+ * The `Image` component is used to optimize images.
+ *
+ * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
+ */
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
     const pagesRouter = useContext(RouterContext)
@@ -401,6 +412,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             onLoadingCompleteRef={onLoadingCompleteRef}
             setBlurComplete={setBlurComplete}
             setShowAltText={setShowAltText}
+            sizesInput={props.sizes}
             ref={forwardedRef}
           />
         }

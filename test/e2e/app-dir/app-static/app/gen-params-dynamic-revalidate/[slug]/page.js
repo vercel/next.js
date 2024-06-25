@@ -1,20 +1,9 @@
+import { fetchRetry } from '../../../lib/fetch-retry'
+
 export const revalidate = 3
 
 export async function generateStaticParams() {
   return [{ slug: 'one' }]
-}
-
-const fetchRetry = async (url, init) => {
-  for (let i = 0; i < 5; i++) {
-    try {
-      return await fetch(url, init)
-    } catch (err) {
-      if (i === 4) {
-        throw err
-      }
-      console.log(`Failed to fetch`, err, `retrying...`)
-    }
-  }
 }
 
 export default async function page({ params }) {

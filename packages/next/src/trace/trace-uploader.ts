@@ -9,16 +9,50 @@ import { createReadStream } from 'fs'
 import path from 'path'
 import { Telemetry } from '../telemetry/storage'
 
+const COMMON_ALLOWED_EVENTS = ['memory-usage']
+
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
 // it'll up uploaded to the trace server.
-const EVENT_FILTER = new Set([
+const DEV_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
   'client-hmr-latency',
   'hot-reloader',
   'webpack-invalid-client',
   'webpack-invalidated-server',
   'navigation-to-hydration',
   'start-dev-server',
+  'compile-path',
+  'memory-usage',
+  'server-restart-close-to-memory-threshold',
+])
+
+const BUILD_ALLOWED_EVENTS = new Set([
+  ...COMMON_ALLOWED_EVENTS,
+  'next-build',
+  'webpack-compilation',
+  'run-webpack-compiler',
+  'create-entrypoints',
+  'worker-main-edge-server',
+  'worker-main-client',
+  'worker-main-server',
+  'server',
+  'make',
+  'seal',
+  'chunk-graph',
+  'optimize-modules',
+  'optimize-chunks',
+  'optimize',
+  'optimize-tree',
+  'optimize-chunk-modules',
+  'module-hash',
+  'client',
+  'static-check',
+  'node-file-trace-build',
+  'static-generation',
+  'next-export',
+  'verify-typescript-setup',
+  'verify-and-lint',
 ])
 
 const {
@@ -32,9 +66,7 @@ const {
 const isDebugEnabled = !!NEXT_TRACE_UPLOAD_DEBUG || !!NEXT_TRACE_UPLOAD_FULL
 const shouldUploadFullTrace = !!NEXT_TRACE_UPLOAD_FULL
 
-const [, , traceUploadUrl, mode, _isTurboSession, projectDir, distDir] =
-  process.argv
-const isTurboSession = _isTurboSession === 'true'
+const [, , traceUploadUrl, mode, projectDir, distDir] = process.argv
 
 type TraceRequestBody = {
   metadata: TraceMetadata
@@ -97,6 +129,7 @@ interface TraceMetadata {
     crlfDelay: Infinity,
   })
 
+  let isTurboSession = false
   const traces = new Map<string, TraceEvent[]>()
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
@@ -105,23 +138,17 @@ interface TraceMetadata {
         // Always include root spans
         event.parentId === undefined ||
         shouldUploadFullTrace ||
-        EVENT_FILTER.has(event.name)
+        (mode === 'dev'
+          ? DEV_ALLOWED_EVENTS.has(event.name)
+          : BUILD_ALLOWED_EVENTS.has(event.name))
       ) {
-        if (
-          typeof event.tags.trigger === 'string' &&
-          path.isAbsolute(event.tags.trigger)
-        ) {
-          event.tags.trigger =
-            '[project]/' +
-            path
-              .relative(projectDir, event.tags.trigger)
-              .replaceAll(path.sep, '/')
-        }
-
         let trace = traces.get(event.traceId)
         if (trace === undefined) {
           trace = []
           traces.set(event.traceId, trace)
+        }
+        if (typeof event.tags.isTurbopack === 'boolean') {
+          isTurboSession = event.tags.isTurbopack
         }
         trace.push(event)
       }

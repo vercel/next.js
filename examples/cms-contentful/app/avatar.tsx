@@ -1,11 +1,11 @@
-import ContentfulImage from '@/lib/contentful-image'
+import ContentfulImage from "@/lib/contentful-image";
 
 export default function Avatar({
   name,
   picture,
 }: {
-  name: string
-  picture: any
+  name: string;
+  picture: any;
 }) {
   return (
     <div className="flex items-center">
@@ -20,5 +20,5 @@ export default function Avatar({
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

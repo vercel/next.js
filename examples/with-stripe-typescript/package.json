@@ -6,13 +6,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "2.1.1",
-    "@stripe/stripe-js": "1.54.1",
+    "@stripe/react-stripe-js": "2.4.0",
+    "@stripe/stripe-js": "2.2.2",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "server-only": "0.0.1",
-    "stripe": "12.14.0"
+    "stripe": "14.8.0"
   },
   "devDependencies": {
     "@types/node": "20.4.6",

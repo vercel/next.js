@@ -12,8 +12,8 @@ export const workflows = {
    * Published step Id: c199950d-99f0-4983-b711-6c4c91624b22
    */
   default: {
-    codename: 'default',
-    id: '00000000-0000-0000-0000-000000000000',
-    name: 'Default',
+    codename: "default",
+    id: "00000000-0000-0000-0000-000000000000",
+    name: "Default",
   },
-} as const
+} as const;

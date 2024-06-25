@@ -6,11 +6,11 @@ import {
   ACTION_REFRESH,
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
+  ACTION_RESTORE,
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
 import React, { startTransition } from 'react'
-import { createEmptyCacheNode } from '../../../client/components/app-router'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -27,7 +27,7 @@ export type AppRouterActionQueue = {
 export type ActionQueueNode = {
   payload: ReducerActions
   next: ActionQueueNode | null
-  resolve: (value: PromiseLike<AppRouterState> | AppRouterState) => void
+  resolve: (value: ReducerState) => void
   reject: (err: Error) => void
   discarded?: boolean
 }
@@ -48,6 +48,18 @@ function runRemainingActions(
         action: actionQueue.pending,
         setState,
       })
+    } else {
+      // No more actions are pending, check if a refresh is needed
+      if (actionQueue.needsRefresh) {
+        actionQueue.needsRefresh = false
+        actionQueue.dispatch(
+          {
+            type: ACTION_REFRESH,
+            origin: window.location.origin,
+          },
+          setState
+        )
+      }
     }
   }
 }
@@ -68,7 +80,6 @@ async function runAction({
   }
 
   actionQueue.pending = action
-  actionQueue.last = action
 
   const payload = action.payload
   const actionResult = actionQueue.action(prevState, payload)
@@ -76,19 +87,6 @@ async function runAction({
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
-      // if a refresh is needed, we only want to trigger it once the action queue is empty
-      if (actionQueue.needsRefresh && actionQueue.pending === null) {
-        actionQueue.needsRefresh = false
-        actionQueue.dispatch(
-          {
-            type: ACTION_REFRESH,
-            cache: createEmptyCacheNode(),
-            mutable: {},
-            origin: window.location.origin,
-          },
-          setState
-        )
-      }
       return
     }
 
@@ -119,40 +117,55 @@ function dispatchAction(
   setState: DispatchStatePromise
 ) {
   let resolvers: {
-    resolve: (value: AppRouterState | PromiseLike<AppRouterState>) => void
+    resolve: (value: ReducerState) => void
     reject: (reason: any) => void
-  }
+  } = { resolve: setState, reject: () => {} }
 
-  // Create the promise and assign the resolvers to the object.
-  const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
-    resolvers = { resolve, reject }
-  })
+  // most of the action types are async with the exception of restore
+  // it's important that restore is handled quickly since it's fired on the popstate event
+  // and we don't want to add any delay on a back/forward nav
+  // this only creates a promise for the async actions
+  if (payload.type !== ACTION_RESTORE) {
+    // Create the promise and assign the resolvers to the object.
+    const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
+      resolvers = { resolve, reject }
+    })
+
+    startTransition(() => {
+      // we immediately notify React of the pending promise -- the resolver is attached to the action node
+      // and will be called when the associated action promise resolves
+      setState(deferredPromise)
+    })
+  }
 
   const newAction: ActionQueueNode = {
     payload,
     next: null,
-    resolve: resolvers!.resolve,
-    reject: resolvers!.reject,
+    resolve: resolvers.resolve,
+    reject: resolvers.reject,
   }
-
-  startTransition(() => {
-    // we immediately notify React of the pending promise -- the resolver is attached to the action node
-    // and will be called when the associated action promise resolves
-    setState(deferredPromise)
-  })
 
   // Check if the queue is empty
   if (actionQueue.pending === null) {
     // The queue is empty, so add the action and start it immediately
+    // Mark this action as the last in the queue
+    actionQueue.last = newAction
+
     runAction({
       actionQueue,
       action: newAction,
       setState,
     })
-  } else if (payload.type === ACTION_NAVIGATE) {
-    // Navigations take priority over any pending actions.
+  } else if (
+    payload.type === ACTION_NAVIGATE ||
+    payload.type === ACTION_RESTORE
+  ) {
+    // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
+
+    // Mark this action as the last in the queue
+    actionQueue.last = newAction
 
     // if the pending action was a server action, mark the queue as needing a refresh once events are processed
     if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
@@ -166,7 +179,7 @@ function dispatchAction(
     })
   } else {
     // The queue is not empty, so add the action to the end of the queue
-    // It will be started by finishRunningAction after the previous action finishes
+    // It will be started by runRemainingActions after the previous action finishes
     if (actionQueue.last !== null) {
       actionQueue.last.next = newAction
     }

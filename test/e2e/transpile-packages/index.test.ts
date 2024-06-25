@@ -1,6 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
@@ -16,23 +16,18 @@ describe('transpile packages', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './npm')),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
         sass: 'latest',
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: `yarn setup && next ${
-            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-          }`,
+          build: 'next build',
+          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
           start: 'next start',
         },
       },
-      installCommand: 'yarn',
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm build',
     })
   })
   afterAll(() => next.destroy())

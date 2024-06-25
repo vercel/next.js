@@ -3,11 +3,11 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'imgix.cosmicjs.com',
-        port: '',
-        pathname: '/my-account/**',
+        protocol: "https",
+        hostname: "imgix.cosmicjs.com",
+        port: "",
+        pathname: "/my-account/**",
       },
     ],
   },
-}
+};

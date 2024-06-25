@@ -5,9 +5,11 @@ description: Learn how to configure your application with next.config.js.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js can be configured through a `next.config.js` file in the root of your project directory (for example, by `package.json`).
+Next.js can be configured through a `next.config.js` file in the root of your project directory (for example, by `package.json`) with a default export.
 
 ```js filename="next.config.js"
+// @ts-check
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
@@ -21,6 +23,8 @@ module.exports = nextConfig
 If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs`:
 
 ```js filename="next.config.mjs"
+// @ts-check
+
 /**
  * @type {import('next').NextConfig}
  */
@@ -34,6 +38,8 @@ export default nextConfig
 You can also use a function:
 
 ```js filename="next.config.mjs"
+// @ts-check
+
 export default (phase, { defaultConfig }) => {
   /**
    * @type {import('next').NextConfig}
@@ -48,6 +54,8 @@ export default (phase, { defaultConfig }) => {
 Since Next.js 12.1.0, you can use an async function:
 
 ```js filename="next.config.js"
+// @ts-check
+
 module.exports = async (phase, { defaultConfig }) => {
   /**
    * @type {import('next').NextConfig}
@@ -62,6 +70,8 @@ module.exports = async (phase, { defaultConfig }) => {
 `phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
 
 ```js
+// @ts-check
+
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
 
 module.exports = (phase, { defaultConfig }) => {

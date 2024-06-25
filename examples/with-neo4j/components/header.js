@@ -31,5 +31,5 @@ export default function Header({ title }) {
         }
       `}</style>
     </header>
-  )
+  );
 }

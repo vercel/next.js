@@ -1,8 +1,9 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
-  hasRedbox,
   renderViaHTTP,
   getRedboxSource,
 } from 'next-test-utils'
@@ -43,6 +44,8 @@ describe('jsconfig-path-reloading', () => {
 
       if (addAfterStart) {
         await next.patchFile(tsConfigFile, tsConfigContent)
+        // wait a bit for the file watcher to pick up the change
+        await new Promise((resolve) => setTimeout(resolve, 200))
       }
     })
     afterAll(() => next.destroy())
@@ -81,7 +84,7 @@ describe('jsconfig-path-reloading', () => {
           )}`
         )
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
 
         await next.patchFile(
@@ -102,7 +105,7 @@ describe('jsconfig-path-reloading', () => {
           )
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        await assertNoRedbox(browser)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -157,7 +160,7 @@ describe('jsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        await assertNoRedbox(browser)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')

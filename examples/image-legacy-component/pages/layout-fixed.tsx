@@ -1,6 +1,6 @@
-import Image from 'next/legacy/image'
-import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
+import Image from "next/legacy/image";
+import ViewSource from "../components/view-source";
+import mountains from "../public/mountains.jpg";
 
 const Fixed = () => (
   <div>
@@ -14,6 +14,6 @@ const Fixed = () => (
       height={475}
     />
   </div>
-)
+);
 
-export default Fixed
+export default Fixed;

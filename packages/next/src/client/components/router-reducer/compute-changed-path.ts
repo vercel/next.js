@@ -2,8 +2,12 @@ import type {
   FlightRouterState,
   Segment,
 } from '../../../server/app-render/types'
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/future/helpers/interception-routes'
-import { isGroupSegment } from '../../../shared/lib/segment'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 
 const removeLeadingSlash = (segment: string): string => {
@@ -12,6 +16,10 @@ const removeLeadingSlash = (segment: string): string => {
 
 const segmentToPathname = (segment: Segment): string => {
   if (typeof segment === 'string') {
+    // 'children' is not a valid path -- it's technically a parallel route that corresponds with the current segment's page
+    // if we don't skip it, then the computed pathname might be something like `/children` which doesn't make sense.
+    if (segment === 'children') return ''
+
     return segment
   }
 
@@ -39,14 +47,14 @@ export function extractPathFromFlightRouterState(
     : flightRouterState[0]
 
   if (
-    segment === '__DEFAULT__' ||
+    segment === DEFAULT_SEGMENT_KEY ||
     INTERCEPTION_ROUTE_MARKERS.some((m) => segment.startsWith(m))
   )
     return undefined
 
-  if (segment.startsWith('__PAGE__')) return ''
+  if (segment.startsWith(PAGE_SEGMENT_KEY)) return ''
 
-  const segments = [segment]
+  const segments = [segmentToPathname(segment)]
   const parallelRoutes = flightRouterState[1] ?? {}
 
   const childrenPath = parallelRoutes.children

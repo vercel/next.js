@@ -11,16 +11,15 @@ crate-type = ["cdylib"]
 default = ["swc_v1"]
 swc_v1 = []
 
-plugin = ["getrandom/js", "turbopack-binding/__swc_core_binding_wasm_plugin"]
+plugin = ["turbopack-binding/__swc_core_binding_wasm_plugin"]
+
+[lints]
+workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
-next-swc = { workspace = true }
-once_cell = { workspace = true }
-parking_lot_core = "=0.8.0"
-path-clean = "0.1"
-serde = { version = "1", features = ["derive"] }
+next-custom-transforms = { workspace = true }
 serde_json = "1"
 tracing = { version = "0.1.37" }
 wasm-bindgen = { version = "0.2", features = ["enable-interning"] }

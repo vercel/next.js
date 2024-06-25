@@ -58,6 +58,7 @@ Here's a summary of the props available for the Image Component:
 | [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
 | [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
 | [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
+| [`overrideSrc`](#overridesrc)             | `overrideSrc="/seo.png"`                 | String          | -          |
 </div>
 
 ## Required Props
@@ -128,6 +129,8 @@ A `loader` is a function returning a URL string for the image, given the followi
 
 Here is an example of using a custom loader:
 
+<AppOnly>
+
 ```js
 'use client'
 
@@ -150,11 +153,33 @@ export default function Page() {
 }
 ```
 
-<AppOnly>
-
-> **Good to know**: Using props like `loader`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `loader`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
+
+<PagesOnly>
+
+```js
+import Image from 'next/image'
+
+const imageLoader = ({ src, width, quality }) => {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+
+export default function Page() {
+  return (
+    <Image
+      loader={imageLoader}
+      src="me.png"
+      alt="Picture of the author"
+      width={500}
+      height={500}
+    />
+  )
+}
+```
+
+</PagesOnly>
 
 Alternatively, you can use the [loaderFile](#loaderfile) configuration in `next.config.js` to configure every instance of `next/image` in your application, without passing a prop.
 
@@ -172,7 +197,7 @@ By default, the img element will automatically be assigned the `position: "absol
 
 If no styles are applied to the image, the image will stretch to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
-Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio.
 
 For more information, see also:
 
@@ -212,7 +237,7 @@ This example `sizes` could have a dramatic effect on performance metrics. Withou
 Learn more about `srcset` and `sizes`:
 
 - [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
-- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-sizes)
+- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#sizes)
 
 ### `quality`
 
@@ -280,11 +305,23 @@ Remember that the required width and height props can interact with your styling
 
 ### `onLoadingComplete`
 
+<AppOnly>
+
 ```jsx
 'use client'
 
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+```jsx
+<Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
+```
+
+</PagesOnly>
 
 > **Warning**: Deprecated since Next.js 14 in favor of [`onLoad`](#onload).
 
@@ -294,7 +331,7 @@ The callback function will be called with one argument, a reference to the under
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoadingComplete`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoadingComplete`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -310,7 +347,7 @@ The callback function will be called with one argument, the Event which has a `t
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoad`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoad`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -324,7 +361,7 @@ A callback function that is invoked if the image fails to load.
 
 <AppOnly>
 
-> **Good to know**: Using props like `onError`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onError`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -343,7 +380,7 @@ the viewport.
 
 When `eager`, load the image immediately.
 
-Learn more about the [`loading` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#attr-loading).
+Learn more about the [`loading` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
 
 ### `blurDataURL`
 
@@ -388,6 +425,42 @@ module.exports = {
 }
 ```
 
+### `overrideSrc`
+
+When providing the `src` prop to the `<Image>` component, both the `srcset` and `src` attributes are generated automatically for the resulting `<img>`.
+
+```jsx filename="input.js"
+<Image src="/me.jpg" />
+```
+
+```html filename="output.html"
+<img
+  srcset="
+    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+  "
+  src="/_next/image?url=%2Fme.jpg&w=828&q=75"
+/>
+```
+
+In some cases, it is not desirable to have the `src` attribute generated and you may wish to override it using the `overrideSrc` prop.
+
+For example, when upgrading an existing website from `<img>` to `<Image>`, you may wish to maintain the same `src` attribute for SEO purposes such as image ranking or avoiding recrawl.
+
+```jsx filename="input.js"
+<Image src="/me.jpg" overrideSrc="/override.jpg" />
+```
+
+```html filename="output.html"
+<img
+  srcset="
+    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+  "
+  src="/override.jpg"
+/>
+```
+
 ### Other Props
 
 Other properties on the `<Image />` component will be passed to the underlying
@@ -430,13 +503,14 @@ module.exports = {
       {
         protocol: 'https',
         hostname: '**.example.com',
+        port: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -444,6 +518,8 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 - `**` match any number of path segments at the end or subdomains at the beginning
 
 The `**` syntax does not work in the middle of the pattern.
+
+> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
 
 ### `domains`
 
@@ -478,13 +554,27 @@ module.exports = {
 
 This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
-```js
+<AppOnly>
+
+```js filename="my/image/loader.js"
 'use client'
 
 export default function myImageLoader({ src, width, quality }) {
   return `https://example.com/${src}?w=${width}&q=${quality || 75}`
 }
 ```
+
+</AppOnly>
+
+<PagesOnly>
+
+```js filename="my/image/loader.js"
+export default function myImageLoader({ src, width, quality }) {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+```
+
+</PagesOnly>
 
 Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
@@ -494,7 +584,7 @@ Examples:
 
 <AppOnly>
 
-> **Good to know**: Customizing the image loader file, which accepts a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -617,9 +707,11 @@ module.exports = {
 
 ### `dangerouslyAllowSVG`
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without a proper [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
 
-If you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
+Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
+
+However, if you need to serve SVG images with the default Image Optimization API, you can set `dangerouslyAllowSVG` inside your `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -632,6 +724,22 @@ module.exports = {
 ```
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
+
+### `contentDispositionType`
+
+The default [loader](#loader) sets the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#as_a_response_header_for_the_main_body) header to `attachment` for added protection since the API can serve arbitrary remote images.
+
+The default value is `attachment` which forces the browser to download the image when visiting directly. This is particularly important when [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is true.
+
+You can optionally configure `inline` to allow the browser to render the image when visiting directly, without downloading it.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    contentDispositionType: 'inline',
+  },
+}
+```
 
 ## Animated Images
 
@@ -709,11 +817,11 @@ import Image from 'next/image'
 
 export default function Page({ photoUrl }) {
   return (
-    <div style={{ position: 'relative', width: '500px', height: '300px' }}>
+    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         src={photoUrl}
         alt="Picture of the author"
-        sizes="500px"
+        sizes="300px"
         fill
         style={{
           objectFit: 'contain',
@@ -728,7 +836,7 @@ Try it out:
 
 - [Demo the `fill` prop](https://image-component.nextjs.gallery/fill)
 
-## Theme Detection
+## Theme Detection CSS
 
 If you want to display a different image for light and dark mode, you can create a new component that wraps two `<Image>` components and reveals the correct one based on a CSS media query.
 
@@ -790,6 +898,109 @@ Try it out:
 
 - [Demo light/dark mode theme detection](https://image-component.nextjs.gallery/theme)
 
+## getImageProps
+
+For more advanced use cases, you can call `getImageProps()` to get the props that would be passed to the underlying `<img>` element, and instead pass to them to another component, style, canvas, etc.
+
+This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
+
+### Theme Detection Picture
+
+If you want to display a different image for light and dark mode, you can use the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+export default function Page() {
+  const common = { alt: 'Theme Example', width: 800, height: 400 }
+  const {
+    props: { srcSet: dark },
+  } = getImageProps({ ...common, src: '/dark.png' })
+  const {
+    props: { srcSet: light, ...rest },
+  } = getImageProps({ ...common, src: '/light.png' })
+
+  return (
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+      <source media="(prefers-color-scheme: light)" srcSet={light} />
+      <img {...rest} />
+    </picture>
+  )
+}
+```
+
+### Art Direction
+
+If you want to display a different image for mobile and desktop, sometimes called [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction), you can provide different `src`, `width`, `height`, and `quality` props to `getImageProps()`.
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+export default function Home() {
+  const common = { alt: 'Art Direction Example', sizes: '100vw' }
+  const {
+    props: { srcSet: desktop },
+  } = getImageProps({
+    ...common,
+    width: 1440,
+    height: 875,
+    quality: 80,
+    src: '/desktop.jpg',
+  })
+  const {
+    props: { srcSet: mobile, ...rest },
+  } = getImageProps({
+    ...common,
+    width: 750,
+    height: 1334,
+    quality: 70,
+    src: '/mobile.jpg',
+  })
+
+  return (
+    <picture>
+      <source media="(min-width: 1000px)" srcSet={desktop} />
+      <source media="(min-width: 500px)" srcSet={mobile} />
+      <img {...rest} style={{ width: '100%', height: 'auto' }} />
+    </picture>
+  )
+}
+```
+
+### Background CSS
+
+You can even convert the `srcSet` string to the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set) CSS function to optimize a background image.
+
+```jsx filename="app/page.js"
+import { getImageProps } from 'next/image'
+
+function getBackgroundImage(srcSet = '') {
+  const imageSet = srcSet
+    .split(', ')
+    .map((str) => {
+      const [url, dpi] = str.split(' ')
+      return `url("${url}") ${dpi}`
+    })
+    .join(', ')
+  return `image-set(${imageSet})`
+}
+
+export default function Home() {
+  const {
+    props: { srcSet },
+  } = getImageProps({ alt: '', width: 128, height: 128, src: '/img.png' })
+  const backgroundImage = getBackgroundImage(srcSet)
+  const style = { height: '100vh', width: '100vw', backgroundImage }
+
+  return (
+    <main style={style}>
+      <h1>Hello World</h1>
+    </main>
+  )
+}
+```
+
 ## Known Browser Bugs
 
 This `next/image` component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
@@ -805,6 +1016,9 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `v13.2.0`  | `contentDispositionType` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

@@ -1,5 +1,5 @@
-import Title from './Title'
-import Content from './Content'
+import Title from "./Title";
+import Content from "./Content";
 
 export default function Home() {
   return (
@@ -13,5 +13,5 @@ export default function Home() {
         </div>
       </div>
     </div>
-  )
+  );
 }

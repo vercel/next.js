@@ -40,5 +40,5 @@ pub async fn run_turbo_tracing(
         }),
     )
     .await?;
-    Ok(files)
+    Ok(files.into_iter().map(|f| f.to_string()).collect())
 }

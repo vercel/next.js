@@ -323,30 +323,17 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
     return null
   }
 
-  try {
-    const data = await options.fetchData()
+  const data = await options.fetchData()
 
-    const effect = await getMiddlewareData(
-      data.dataHref,
-      data.response,
-      options
-    )
+  const effect = await getMiddlewareData(data.dataHref, data.response, options)
 
-    return {
-      dataHref: data.dataHref,
-      json: data.json,
-      response: data.response,
-      text: data.text,
-      cacheKey: data.cacheKey,
-      effect,
-    }
-  } catch {
-    /**
-     * TODO: Revisit this in the future.
-     * For now we will not consider middleware data errors to be fatal.
-     * maybe we should revisit in the future.
-     */
-    return null
+  return {
+    dataHref: data.dataHref,
+    json: data.json,
+    response: data.response,
+    text: data.text,
+    cacheKey: data.cacheKey,
+    effect,
   }
 }
 
@@ -778,12 +765,23 @@ export default class Router implements BaseRouter {
       const { BloomFilter } =
         require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
 
-      const staticFilterData:
-        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
-        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+      type Filter = ReturnType<
+        import('../../lib/bloom-filter').BloomFilter['export']
+      >
 
-      const dynamicFilterData: typeof staticFilterData = process.env
+      const routerFilterSValue: Filter | false = process.env
+        .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const staticFilterData: Filter | undefined = routerFilterSValue
+        ? routerFilterSValue
+        : undefined
+
+      const routerFilterDValue: Filter | false = process.env
         .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      const dynamicFilterData: Filter | undefined = routerFilterDValue
+        ? routerFilterDValue
+        : undefined
 
       if (staticFilterData?.numHashes) {
         this._bfl_s = new BloomFilter(
@@ -1319,13 +1317,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1365,6 +1356,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&
@@ -1880,9 +1878,8 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      const { page: Component, styleSheets } =
+        await this.fetchComponent('/_error')
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
@@ -1956,12 +1953,12 @@ export default class Router implements BaseRouter {
     let route = requestedRoute
 
     try {
-      const handleCancelled = getCancelledHandler({ route, router: this })
-
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
+
+      const handleCancelled = getCancelledHandler({ route, router: this })
 
       if (hasMiddleware) {
         existingInfo = undefined
@@ -2403,7 +2400,7 @@ export default class Router implements BaseRouter {
                   locale,
                 }),
                 hasMiddleware: true,
-                isServerRender: this.isSsr,
+                isServerRender: false,
                 parseJSON: true,
                 inflightCache: this.sdc,
                 persistCache: !this.isPreview,

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const About = () => {
   return (
@@ -9,7 +9,7 @@ const About = () => {
         Go back to the <Link href="/">Home</Link> page.
       </p>
     </div>
-  )
-}
+  );
+};
 
-export default About
+export default About;

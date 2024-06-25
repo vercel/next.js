@@ -25,14 +25,6 @@ on:
         required: false
         description: 'whether to upload analyzer artifacts'
         type: string
-      skipForDocsOnly:
-        required: false
-        description: 'skip for docs only changes'
-        type: string
-      skipForRelease:
-        required: false
-        description: 'skip for release'
-        type: string
       nodeVersion:
         required: false
         description: 'version of Node.js to use'
@@ -49,18 +41,28 @@ on:
         required: false
         description: 'if swc artifact needs uploading'
         type: string
-      uploadTestTrace:
-        required: false
-        description: 'if test trace needs uploading'
-        type: string
       rustCacheKey:
         required: false
         description: 'rustCacheKey to cache shared target assets'
         type: string
+      stepName:
+        required: true
+        description: 'name of the step, to be used for the upload artifact unique key '
+        type: string
+      timeout_minutes:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 30
+      runs_on_labels:
+        description: 'List of runner labels'
+        required: false
+        type: string
+        default: '["self-hosted", "linux", "x64", "metal"]'
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 2.0.3
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -73,27 +75,42 @@ env:
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  DATADOG_TRACE_NEXTJS_TEST: 'true'
+  NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
 
 jobs:
   build:
-    timeout-minutes: 15
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    runs-on: ${{ fromJson(inputs.runs_on_labels) }}
+
+    outputs:
+      input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
-      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - name: Normalize input step names into path key
+        uses: actions/github-script@v7
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
+
       - run: node -v
       - run: corepack enable
       - run: pwd
 
-      - uses: actions/checkout@v3
+      - run: rm -rf .git
+
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -101,8 +118,6 @@ jobs:
       - name: Install Rust
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-        with:
-          components: rustfmt, clippy
 
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
@@ -121,7 +136,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.7
+        uses: ijjk/rust-cache@turbo-cache-v1.0.8
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
@@ -131,32 +146,25 @@ jobs:
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
 
+      # Configure a git user so that Create Next App can initialize git repos during integration tests.
+      - name: Set CI git user
+        run: |
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
+
       - run: cargo clean
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-
-      - run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        name: check docs only change
-        id: docs-change
-
-      - id: is-release
-        run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
-            then
-              echo "IS_RELEASE=yes" >> $GITHUB_OUTPUT
-            else
-              echo "IS_RELEASE=nope" >> $GITHUB_OUTPUT
-          fi
 
       # normalize versions before build-native for better cache hits
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
-        if: ${{ inputs.skipNativeBuild != 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+      - run: turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
-        if: ${{ inputs.uploadSwcArtifact == 'yes' && steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        uses: actions/upload-artifact@v3
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -180,48 +188,38 @@ jobs:
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
-        if: ${{(inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') && (inputs.skipForRelease != 'yes' || steps.is-release.outputs.IS_RELEASE == 'nope')}}
+        timeout-minutes: ${{ inputs.timeout_minutes }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
+          if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
-          name: webpack bundle analysis stats
+          name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
-      - name: Upload test reports artifact
-        uses: actions/upload-artifact@v3
-        if: ${{ inputs.afterBuild }}
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.afterBuild && always() }}
         with:
-          name: Test trace reports
+          name: test-reports-${{ steps.var.outputs.input_step_key }}
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
           if-no-files-found: ignore
 
-      - name: Download test reports artifact
-        id: download-test-reports
-        uses: actions/download-artifact@v3
-        continue-on-error: true
-        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
+      # upload playwright snapshots from failed tests
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.afterBuild && always() }}
         with:
-          name: Test trace reports
-          path: test
-
-      - name: Upload test trace to datadog
-        if: ${{ inputs.uploadTestTrace == 'yes' && (inputs.skipForDocsOnly != 'yes' || steps.docs-change.outputs.DOCS_CHANGE == 'nope') }}
-        continue-on-error: true
-        run: |
-          ls -al ./test
-          npm install -g junit-report-merger@6.0.2 @datadog/datadog-ci@2.14.0 @aws-sdk/property-provider@3
-          jrm ./nextjs-test-result-junit.xml "test/test-junit-report/**/*.xml"
-          jrm ./turbopack-test-result-junit.xml "test/turbopack-test-junit-report/**/*.xml"
-          # Put a separate tag for the tests with turbopack to distinguish between same test names
-          DD_ENV=ci datadog-ci junit upload --tags test.type:nextjs --service nextjs ./nextjs-test-result-junit.xml
-          DD_ENV=ci datadog-ci junit upload --tags test.type:turbopack --service nextjs ./turbopack-test-result-junit.xml
+          name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
+          path: |
+            test/traces
+          if-no-files-found: ignore

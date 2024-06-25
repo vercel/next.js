@@ -1,5 +1,5 @@
 'use client'
-import { useFormStatus } from 'react-dom'
+import { useFormStatus, useFormState } from 'react-dom'
 import { addToCart } from './actions'
 
 function SubmitButton() {
@@ -12,11 +12,13 @@ function SubmitButton() {
   )
 }
 
-export default async function Page() {
+export default function Page() {
+  const [state, formAction] = useFormState(addToCart)
   return (
     <>
       <h1>Add to cart</h1>
-      <form action={addToCart}>
+      {state && <div id="result">{state}</div>}
+      <form action={formAction}>
         <SubmitButton />
       </form>
     </>

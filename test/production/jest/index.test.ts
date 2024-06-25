@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('next/jest', () => {
@@ -76,17 +76,18 @@ describe('next/jest', () => {
           
           describe("Home", () => {
             it("renders a heading", () => {
-              act(() => {
-                render(<Home />);
+              const { unmount } = render(<Home />);
           
-                const heading = screen.getByRole("heading", {
-                  name: /Loading/i,
-                });
-          
-                expect(heading).toBeInTheDocument();
+              const heading = screen.getByRole("heading", {
+                name: /Loading/i,
               });
+          
+              expect(heading).toBeInTheDocument();
+          
+              unmount();
             });
           });
+        
         `,
         'lib/hello.mjs': `
           import path from 'path'
@@ -128,19 +129,20 @@ describe('next/jest', () => {
       },
       dependencies: {
         '@next/font': 'canary',
-        jest: '27.4.7',
+        jest: '29.7.0',
+        'jest-environment-jsdom': '29.7.0',
         '@testing-library/jest-dom': '5.16.1',
-        '@testing-library/react': '12.1.2',
-        '@testing-library/user-event': '13.5.0',
+        '@testing-library/react': '15.0.2',
+        '@testing-library/user-event': '14.5.2',
       },
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
+          build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

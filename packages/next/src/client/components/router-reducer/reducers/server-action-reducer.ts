@@ -26,15 +26,20 @@ import type {
   ReadonlyReducerState,
   ReducerState,
   ServerActionAction,
+  ServerActionMutable,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
+import { createEmptyCacheNode } from '../../app-router'
+import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
+import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -49,6 +54,7 @@ type FetchServerActionResult = {
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
+  nextUrl: ReadonlyReducerState['nextUrl'],
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
   const body = await encodeReply(actionArgs)
@@ -59,15 +65,14 @@ async function fetchServerAction(
       Accept: RSC_CONTENT_TYPE_HEADER,
       [ACTION]: actionId,
       [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
-      ...(process.env.__NEXT_ACTIONS_DEPLOYMENT_ID &&
-      process.env.NEXT_DEPLOYMENT_ID
+      ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
           }
         : {}),
-      ...(state.nextUrl
+      ...(nextUrl
         ? {
-            [NEXT_URL]: state.nextUrl,
+            [NEXT_URL]: nextUrl,
           }
         : {}),
     },
@@ -145,25 +150,31 @@ export function serverActionReducer(
   state: ReadonlyReducerState,
   action: ServerActionAction
 ): ReducerState {
-  const { mutable, cache, resolve, reject } = action
+  const { resolve, reject } = action
+  const mutable: ServerActionMutable = {}
   const href = state.canonicalUrl
 
   let currentTree = state.tree
 
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(currentTree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
-
   mutable.preserveCustomHistoryState = false
-  mutable.inFlightServerAction = fetchServerAction(state, action)
 
-  // suspends until the server action is resolved.
+  // only pass along the `nextUrl` param (used for interception routes) if the current route was intercepted.
+  // If the route has been intercepted, the action should be as well.
+  // Otherwise the server action might be intercepted with the wrong action id
+  // (ie, one that corresponds with the intercepted route)
+  const nextUrl =
+    state.nextUrl && hasInterceptionRouteInCurrentTree(state.tree)
+      ? state.nextUrl
+      : null
+
+  mutable.inFlightServerAction = fetchServerAction(state, nextUrl, action)
 
   return mutable.inFlightServerAction.then(
-    ({ actionResult, actionFlightData: flightData, redirectLocation }) => {
+    async ({
+      actionResult,
+      actionFlightData: flightData,
+      redirectLocation,
+    }) => {
       // Make sure the redirection is a push instead of a replace.
       // Issue: https://github.com/vercel/next.js/issues/53911
       if (redirectLocation) {
@@ -171,13 +182,8 @@ export function serverActionReducer(
         mutable.pendingPush = true
       }
 
-      mutable.previousTree = state.tree
-
       if (!flightData) {
-        if (!mutable.actionResultResolved) {
-          resolve(actionResult)
-          mutable.actionResultResolved = true
-        }
+        resolve(actionResult)
 
         // If there is a redirect but no flight data we need to do a mpaNavigation.
         if (redirectLocation) {
@@ -204,6 +210,11 @@ export function serverActionReducer(
       // Remove cache.data as it has been resolved at this point.
       mutable.inFlightServerAction = null
 
+      if (redirectLocation) {
+        const newHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = newHref
+      }
+
       for (const flightDataPath of flightData) {
         // FlightDataPath with more than two items means unexpected Flight data was returned
         if (flightDataPath.length !== 4) {
@@ -212,17 +223,20 @@ export function serverActionReducer(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
-          treePatch
+          treePatch,
+          redirectLocation
+            ? createHrefFromUrl(redirectLocation)
+            : state.canonicalUrl
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -235,53 +249,50 @@ export function serverActionReducer(
         }
 
         // The one before last item is the router state tree patch
-        const [subTreeData, head] = flightDataPath.slice(-3)
+        const [cacheNodeSeedData, head, layerAssets] = flightDataPath.slice(-3)
+        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
 
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (subTreeData !== null) {
-          cache.status = CacheStates.READY
-          cache.subTreeData = subTreeData
+        if (rsc !== null) {
+          const cache: CacheNode = createEmptyCacheNode()
+          cache.rsc = rsc
+          cache.prefetchRsc = null
+          cache.loading = cacheNodeSeedData[3]
           fillLazyItemsTillLeafWithHead(
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
             treePatch,
-            head
+            cacheNodeSeedData,
+            head,
+            layerAssets
           )
+
+          await refreshInactiveParallelSegments({
+            state,
+            updatedTree: newTree,
+            updatedCache: cache,
+            includeNextUrl: Boolean(nextUrl),
+            canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
+          })
+
           mutable.cache = cache
           mutable.prefetchCache = new Map()
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
-        mutable.canonicalUrl = href
-
         currentTree = newTree
       }
 
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
-      }
+      resolve(actionResult)
 
-      if (!mutable.actionResultResolved) {
-        resolve(actionResult)
-        mutable.actionResultResolved = true
-      }
       return handleMutable(state, mutable)
     },
     (e: any) => {
-      if (e.status === 'rejected') {
-        if (!mutable.actionResultResolved) {
-          reject(e.reason)
-          mutable.actionResultResolved = true
-        }
+      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
+      reject(e)
 
-        // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-        return state
-      }
-
-      throw e
+      return state
     }
   )
 }

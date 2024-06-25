@@ -1,7 +1,9 @@
 'use client'
+
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function Page() {
+function InnerPage() {
   const searchParams = useSearchParams()
   return (
     <>
@@ -32,7 +34,7 @@ export default function Page() {
             previousQuery ? previousQuery + '-added' : 'foo'
           }`
 
-          window.history.replaceState(null, '', url)
+          window.history.pushState(null, '', url)
         }}
         id="push-string-url-null"
       >
@@ -55,5 +57,13 @@ export default function Page() {
         Push searchParam with undefined data param
       </button>
     </>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <InnerPage />
+    </Suspense>
   )
 }

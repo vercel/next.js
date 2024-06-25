@@ -1,6 +1,6 @@
 {
   "name": "@next/font",
-  "version": "14.0.4-canary.1",
+  "version": "15.0.0-canary.43",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
@@ -17,7 +17,7 @@
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json",
-    "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit"
+    "ncc-fontkit": "ncc build ./fontkit.js --minify -o dist/fontkit"
   },
   "devDependencies": {
     "@types/fontkit": "2.0.0",
@@ -25,6 +25,6 @@
     "fontkit": "2.0.2"
   },
   "peerDependencies": {
-    "next": "*"
+    "next": "14.3.0-canary.15"
   }
 }

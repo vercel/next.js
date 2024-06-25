@@ -1,5 +1,5 @@
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { NodeNextResponse } from './base-http/node'
+import { isNodeNextResponse } from './base-http/helpers'
 
 import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
@@ -15,10 +15,14 @@ export async function sendResponse(
   req: BaseNextRequest,
   res: BaseNextResponse,
   response: Response,
-  waitUntil?: Promise<any>
+  waitUntil?: Promise<unknown>
 ): Promise<void> {
-  // Don't use in edge runtime
-  if (process.env.NEXT_RUNTIME !== 'edge') {
+  if (
+    // The type check here ensures that `req` is correctly typed, and the
+    // environment variable check provides dead code elimination.
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    isNodeNextResponse(res)
+  ) {
     // Copy over the response status.
     res.statusCode = response.status
     res.statusMessage = response.statusText
@@ -43,17 +47,11 @@ export async function sendResponse(
      * See packages/next/server/next-server.ts
      */
 
-    const originalResponse = (res as NodeNextResponse).originalResponse
+    const { originalResponse } = res
 
     // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
     if (response.body && req.method !== 'HEAD') {
-      try {
-        await pipeToNodeResponse(response.body, originalResponse)
-      } finally {
-        if (waitUntil) {
-          await waitUntil
-        }
-      }
+      await pipeToNodeResponse(response.body, originalResponse, waitUntil)
     } else {
       originalResponse.end()
     }

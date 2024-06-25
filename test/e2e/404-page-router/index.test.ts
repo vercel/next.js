@@ -1,9 +1,8 @@
 import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, FileRef, type NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { type NextInstance } from 'test/lib/next-modes/base'
 
 const pathnames = {
   '/404': ['/not/a/real/page?with=query', '/not/a/real/page'],
@@ -28,6 +27,13 @@ const table = [
         { basePath: false, i18n: false, middleware: true },
       ]),
 ]
+
+const baseNextConfig = `
+module.exports = {
+  BASE_PATH
+  I18N
+}
+`
 
 describe('404-page-router', () => {
   let next: NextInstance
@@ -64,18 +70,16 @@ describe('404-page-router', () => {
             )
           )
         }
-        let curNextConfig = await fs.readFile(
-          path.join(__dirname, 'app', 'next.config.js'),
-          'utf8'
-        )
 
-        if (options.basePath) {
-          curNextConfig = curNextConfig.replace('_basePath', 'basePath')
-        }
+        let curNextConfig = baseNextConfig
+          .replace('BASE_PATH', options.basePath ? "basePath: '/docs'," : '')
+          .replace(
+            'I18N',
+            options.i18n
+              ? "i18n: { defaultLocale: 'en-ca', locales: ['en-ca', 'en-fr'] },"
+              : ''
+          )
 
-        if (options.i18n) {
-          curNextConfig = curNextConfig.replace('_i18n', 'i18n')
-        }
         await next.patchFile('next.config.js', curNextConfig)
         await next.start()
       })

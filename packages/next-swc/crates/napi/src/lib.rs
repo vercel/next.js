@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
 #[macro_use]
 extern crate napi_derive;
@@ -45,29 +44,31 @@ use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use turbopack_binding::swc::core::{
     base::{Compiler, TransformOutput},
-    common::{sync::Lazy, FilePathMapping, SourceMap},
+    common::{FilePathMapping, SourceMap},
 };
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod app_structure;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod css;
 pub mod mdx;
 pub mod minify;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
 pub mod transform;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod turbo_trace_server;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod turbotrace;
 pub mod util;
 
 // Declare build-time information variables generated in build.rs
 shadow_rs::shadow!(build);
 
-// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
-// compile error
-#[cfg(not(any(
-    all(target_os = "linux", target_env = "musl", target_arch = "aarch64"),
-    feature = "__internal_dhat-heap",
-    feature = "__internal_dhat-ad-hoc"
-)))]
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
 static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
     turbopack_binding::turbo::malloc::TurboMalloc;
@@ -76,12 +77,7 @@ static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
-    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
-
-    Arc::new(Compiler::new(cm))
-});
-
+#[cfg(not(target_arch = "wasm32"))]
 #[napi::module_init]
 fn init() {
     if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
@@ -94,7 +90,9 @@ fn init() {
 
 #[inline]
 fn get_compiler() -> Arc<Compiler> {
-    COMPILER.clone()
+    let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
+
+    Arc::new(Compiler::new(cm))
 }
 
 pub fn complete_output(
@@ -120,6 +118,7 @@ pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 
+#[cfg(not(target_arch = "wasm32"))]
 fn register() {
     REGISTER_ONCE.call_once(|| {
         ::next_api::register();
@@ -128,8 +127,7 @@ fn register() {
     });
 }
 
-#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
-compile_error!("You can't enable both `native-tls` and `rustls-tls`");
-
-#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
-compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");
+#[cfg(target_arch = "wasm32")]
+fn register() {
+    //noop
+}

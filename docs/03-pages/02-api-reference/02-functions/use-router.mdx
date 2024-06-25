@@ -54,13 +54,6 @@ The following methods are included inside `router`:
 
 ### router.push
 
-<details>
-  <summary>Examples</summary>
-
-- [Using Router](https://github.com/vercel/next.js/tree/canary/examples/using-router)
-
-</details>
-
 Handles client-side transitions, this method is useful for cases where [`next/link`](/docs/pages/api-reference/components/link) is not enough.
 
 ```js
@@ -108,7 +101,7 @@ export default function Page() {
 }
 ```
 
-Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/pages/building-your-application/routing/authenticating):
+Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/pages/building-your-application/authentication):
 
 ```jsx
 import { useEffect } from 'react'

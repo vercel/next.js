@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_swc::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use swc_core::common::Mark;
 use turbopack_binding::swc::core::{
     base::{
@@ -16,7 +16,7 @@ use turbopack_binding::swc::core::{
     },
     ecma::transforms::base::pass::noop,
 };
-use wasm_bindgen::{prelude::*, JsCast};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;

@@ -1,13 +1,14 @@
 import type webpack from 'webpack'
-import type { SizeLimit } from '../../../../../types'
-import type { PagesRouteModuleOptions } from '../../../../server/future/route-modules/pages/module'
+import type { SizeLimit } from '../../../../types'
+import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { RouteKind } from '../../../../server/future/route-kind'
+import { RouteKind } from '../../../../server/route-kind'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export type EdgeSSRLoaderQuery = {
   absolute500Path: string
@@ -15,15 +16,14 @@ export type EdgeSSRLoaderQuery = {
   absoluteDocumentPath: string
   absoluteErrorPath: string
   absolutePagePath: string
-  buildId: string
   dev: boolean
   isServerComponent: boolean
   page: string
   stringifiedConfig: string
   appDirLoader?: string
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   sriEnabled: boolean
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   serverActions?: {
@@ -64,7 +64,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const {
       dev,
       page,
-      buildId,
       absolutePagePath,
       absoluteAppPath,
       absoluteDocumentPath,
@@ -75,7 +74,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       appDirLoader: appDirLoaderBase64,
       pagesType,
       sriEnabled,
-      incrementalCacheHandlerPath,
+      cacheHandler,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
       serverActions,
@@ -144,7 +143,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          VAR_BUILD_ID: buildId,
         },
         {
           sriEnabled: JSON.stringify(sriEnabled),
@@ -157,7 +155,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
               : JSON.stringify(serverActions),
         },
         {
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     } else {
@@ -166,7 +164,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
-          VAR_BUILD_ID: buildId,
           VAR_MODULE_DOCUMENT: documentPath,
           VAR_MODULE_APP: appPath,
           VAR_MODULE_GLOBAL_ERROR: errorPath,
@@ -186,7 +183,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           userland500Page: userland500Path,
-          incrementalCacheHandler: incrementalCacheHandlerPath ?? null,
+          incrementalCacheHandler: cacheHandler ?? null,
         }
       )
     }

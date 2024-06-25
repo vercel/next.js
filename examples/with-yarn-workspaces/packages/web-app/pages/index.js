@@ -1,5 +1,5 @@
-import foo from 'foo'
-import Bar from 'bar'
+import foo from "foo";
+import Bar from "bar";
 
 export default function Home() {
   return (
@@ -8,5 +8,5 @@ export default function Home() {
       <pre>{foo}</pre>
       <Bar />
     </div>
-  )
+  );
 }

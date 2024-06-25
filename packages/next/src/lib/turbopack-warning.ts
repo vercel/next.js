@@ -2,158 +2,58 @@ import type { NextConfig } from '../server/config-shared'
 import path from 'path'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 
-const supportedTurbopackNextConfigOptions = [
-  // Options that affect compilation
-  'output',
-  'crossOrigin',
-  'configFileName',
-  'env',
-  'basePath',
-  'modularizeImports',
-  'compiler.emotion',
-  'compiler.relay',
-  'compiler.styledComponents',
-  'images',
-  'pageExtensions',
-  'onDemandEntries',
-  'rewrites',
-  'redirects',
-  'headers',
-  'reactStrictMode',
-  'swcMinify',
-  'transpilePackages',
-  'trailingSlash',
-  'i18n.defaultLocale',
-  'i18n.domains',
-  'i18n.localeDetection',
-  'i18n.locales',
-  'sassOptions',
-  'configOrigin',
-  'httpAgentOptions',
-  'useFileSystemPublicRoutes',
-  'generateEtags',
-  'assetPrefix',
-  'distDir',
-  'skipMiddlewareUrlNormalize',
-  'skipTrailingSlashRedirect',
-  'amp',
-  'devIndicators',
-  'analyticsId',
-
-  // Options that are ignored as they don't affect Turbopack
-  'webpack',
-  'onDemandEntries',
-  'experimental.cpus',
-  'serverRuntimeConfig',
-  'publicRuntimeConfig',
-  'exportPathMap',
-
-  // Experimental options that affect compilation
-  'experimental.swcPlugins',
-  'experimental.strictNextHead',
-  'experimental.manualClientBasePath',
-  'experimental.middlewarePrefetch',
-  'experimental.optimizeCss',
-  'experimental.nextScriptWorkers',
-  'experimental.optimisticClientCache',
-  'experimental.webVitalsAttribution',
-  'experimental.externalMiddlewareRewritesResolve',
-  'experimental.serverComponentsExternalPackages',
-  'experimental.mdxRs',
-  'experimental.turbo',
-  'experimental.useDeploymentId',
-  'experimental.useDeploymentIdServerActions',
-  'experimental.deploymentId',
-
-  // Experimental options that don't affect compilation
-  'experimental.ppr',
-  'experimental.taint',
-  'experimental.proxyTimeout',
-  'experimental.caseSensitiveRoutes',
-  'experimental.workerThreads',
-  'experimental.isrFlushToDisk',
-  'experimental.logging.level',
-  'experimental.logging.fullUrl',
-  'experimental.scrollRestoration',
-  'experimental.forceSwcTransforms',
-  'experimental.serverActions.bodySizeLimit',
-  'experimental.serverActions.allowedOrigins',
-  'experimental.memoryBasedWorkersCount',
-  'experimental.clientRouterFilterRedirects',
-  'experimental.webpackBuildWorker',
-  'experimental.appDocumentPreloading',
-  'experimental.incrementalCacheHandlerPath',
-  'experimental.amp',
-  'experimental.disableOptimizedLoading',
-  'experimental.isrMemoryCacheSize',
-  'experimental.largePageDataBytes',
-  'experimental.gzipSize',
-  'experimental.trustHostHeader',
+const unsupportedTurbopackNextConfigOptions = [
+  // is this supported?
+  // 'amp',
+  // 'experimental.amp',
 
   // Left to be implemented (priority)
-  // 'experimental.ppr', // Checked in `needs-experimental-react.ts`
-  // clientRouterFilter is `true` by default currently in config-shared.ts,
-  // might be removed as an option altogether.
-  'experimental.clientRouterFilter',
-  'experimental.optimizePackageImports',
+  // 'experimental.clientRouterFilter',
+  // 'experimental.optimizePackageImports',
   // 'compiler.emotion',
-  // 'compiler.reactRemoveProperties',
+  'compiler.reactRemoveProperties',
   // 'compiler.relay',
-  // 'compiler.removeConsole',
+  'compiler.removeConsole',
   // 'compiler.styledComponents',
-  // 'experimental.fetchCacheKeyPrefix',
-  // 'experimental.instrumentationHook',
+  'experimental.fetchCacheKeyPrefix',
 
   // Left to be implemented
-  'excludeDefaultMomentLocales',
-  'experimental.optimizeServerReact',
-  // 'experimental.clientRouterFilterAllowedRate',
-  'experimental.serverMinification',
-  'experimental.serverSourceMaps',
+  // 'excludeDefaultMomentLocales',
+  // 'experimental.optimizeServerReact',
+  'experimental.clientRouterFilterAllowedRate',
+  // 'experimental.serverMinification',
+  // 'experimental.serverSourceMaps',
 
-  // 'experimental.adjustFontFallbacks',
-  // 'experimental.adjustFontFallbacksWithSizeAdjust',
-  // 'experimental.allowedRevalidateHeaderKeys',
-  // 'experimental.bundlePagesExternals',
-  // 'experimental.extensionAlias',
-  // 'experimental.fallbackNodePolyfills',
+  'experimental.adjustFontFallbacks',
+  'experimental.adjustFontFallbacksWithSizeAdjust',
+  'experimental.allowedRevalidateHeaderKeys',
+  'experimental.extensionAlias',
+  'experimental.fallbackNodePolyfills',
 
-  // 'experimental.sri.algorithm',
-  // 'experimental.swcTraceProfiling',
-  // 'experimental.typedRoutes',
+  'experimental.sri.algorithm',
+  'experimental.swcTraceProfiling',
+  'experimental.typedRoutes',
 
   // Left to be implemented (Might not be needed for Turbopack)
-  // 'experimental.craCompat',
-  // 'experimental.disablePostcssPresetEnv',
-  // 'experimental.esmExternals',
-  // 'experimental.externalDir',
+  'experimental.craCompat',
+  'experimental.disablePostcssPresetEnv',
+  'experimental.esmExternals',
   // This is used to force swc-loader to run regardless of finding Babel.
-  // 'experimental.forceSwcTransforms',
-  // 'experimental.fullySpecified',
-  // 'experimental.urlImports',
+  'experimental.forceSwcTransforms',
+  'experimental.fullySpecified',
+  'experimental.urlImports',
 ]
 
 // The following will need to be supported by `next build --turbo`
-const prodSpecificTurboNextConfigOptions = [
-  'eslint',
-  'typescript',
-  'staticPageGenerationTimeout',
-  'outputFileTracing',
-  'generateBuildId',
-  'compress',
-  'productionBrowserSourceMaps',
-  'optimizeFonts',
-  'poweredByHeader',
-  'staticPageGenerationTimeout',
+const unsupportedProductionSpecificTurbopackNextConfigOptions = [
+  // TODO: Support disabling sourcemaps, currently they're always enabled.
+  // 'productionBrowserSourceMaps',
   'reactProductionProfiling',
-  'cleanDistDir',
-  'experimental.turbotrace',
-  'experimental.outputFileTracingRoot',
-  'experimental.outputFileTracingExcludes',
-  'experimental.outputFileTracingIgnores',
-  'experimental.outputFileTracingIncludes',
 ]
 
 // check for babelrc, swc plugins
@@ -161,10 +61,7 @@ export async function validateTurboNextConfig({
   dir,
   isDev,
 }: {
-  allowRetry?: boolean
   dir: string
-  port: number
-  hostname?: string
   isDev?: boolean
 }) {
   const { getPkgManager } =
@@ -182,21 +79,22 @@ export async function validateTurboNextConfig({
   let babelrc = await getBabelConfigFile(dir)
   if (babelrc) babelrc = path.basename(babelrc)
 
-  let hasWebpack = false
-  let hasTurbo = !!process.env.TURBOPACK
+  let hasWebpackConfig = false
+  let hasTurboConfig = false
 
   let unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
+  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
   try {
     rawNextConfig = interopDefault(
-      await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+      await loadConfig(phase, dir, {
         rawConfig: true,
       })
     ) as NextConfig
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(PHASE_DEVELOPMENT_SERVER, {
+      rawNextConfig = (rawNextConfig as any)(phase, {
         defaultConfig,
       })
     }
@@ -237,35 +135,37 @@ export async function validateTurboNextConfig({
 
     const customKeys = flattenKeys(rawNextConfig)
 
-    let supportedKeys = isDev
-      ? [
-          ...supportedTurbopackNextConfigOptions,
-          ...prodSpecificTurboNextConfigOptions,
+    let unsupportedKeys = isDev
+      ? unsupportedTurbopackNextConfigOptions
+      : [
+          ...unsupportedTurbopackNextConfigOptions,
+          ...unsupportedProductionSpecificTurbopackNextConfigOptions,
         ]
-      : supportedTurbopackNextConfigOptions
 
     for (const key of customKeys) {
-      if (key.startsWith('webpack')) {
-        hasWebpack = true
+      if (key.startsWith('webpack') && rawNextConfig.webpack) {
+        hasWebpackConfig = true
       }
       if (key.startsWith('experimental.turbo')) {
-        hasTurbo = true
+        hasTurboConfig = true
       }
 
-      let isSupported =
-        supportedKeys.some(
-          (supportedKey) =>
+      let isUnsupported =
+        unsupportedKeys.some(
+          (unsupportedKey) =>
             // Either the key matches (or is a more specific subkey) of
-            // supportedKey, or the key is the path to a specific subkey.
-            // | key     | supportedKey |
-            // |---------|--------------|
-            // | foo     | foo          |
-            // | foo.bar | foo          |
-            // | foo     | foo.bar      |
-            key.startsWith(supportedKey) || supportedKey.startsWith(`${key}.`)
-        ) ||
-        getDeepValue(rawNextConfig, key) === getDeepValue(defaultConfig, key)
-      if (!isSupported) {
+            // unsupportedKey, or the key is the path to a specific subkey.
+            // | key     | unsupportedKey |
+            // |---------|----------------|
+            // | foo     | foo            |
+            // | foo.bar | foo            |
+            // | foo     | foo.bar        |
+            key.startsWith(unsupportedKey) ||
+            unsupportedKey.startsWith(`${key}.`)
+        ) &&
+        getDeepValue(rawNextConfig, key) !== getDeepValue(defaultConfig, key)
+
+      if (isUnsupported) {
         unsupportedConfig.push(key)
       }
     }
@@ -277,12 +177,12 @@ export async function validateTurboNextConfig({
     'https://nextjs.link/with-turbopack'
   )}\n`
 
-  if (hasWebpack && !hasTurbo) {
+  if (hasWebpackConfig && !hasTurboConfig) {
     Log.warn(
       `Webpack is configured while Turbopack is not, which may cause problems.`
     )
     Log.warn(
-      `See instructions if you need to configure Turbopack:\n  https://turbo.build/pack/docs/features/customizing-turbopack\n`
+      `See instructions if you need to configure Turbopack:\n  https://nextjs.org/docs/app/api-reference/next-config-js/turbo\n`
     )
   }
 

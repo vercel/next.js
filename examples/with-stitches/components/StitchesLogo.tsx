@@ -45,6 +45,6 @@ const StitchesLogo = () => (
       strokeLinejoin="round"
     />
   </svg>
-)
+);
 
-export default StitchesLogo
+export default StitchesLogo;

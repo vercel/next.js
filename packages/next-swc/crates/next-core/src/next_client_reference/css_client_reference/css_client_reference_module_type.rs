@@ -39,11 +39,14 @@ impl CustomModuleType for CssClientReferenceModuleType {
         context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let client_module = self.client_transition.process(
-            source,
-            context,
-            Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-        );
+        let client_module = self
+            .client_transition
+            .process(
+                source,
+                context,
+                Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
+            )
+            .module();
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn CssChunkPlaceable>>(client_module).await?
