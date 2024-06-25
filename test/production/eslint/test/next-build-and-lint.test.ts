@@ -15,6 +15,10 @@ describe('Next Build', () => {
       test('first time setup', async () => {
         const next = await createNext({
           files: new FileRef(dirFirstTimeSetup),
+          dependencies: {
+            // create-next-install will replace this with a version built from the local source
+            'eslint-config-next': 'canary',
+          },
           skipStart: true,
         })
 
@@ -33,14 +37,16 @@ describe('Next Build', () => {
             execSync(`pnpm next lint --strict`, {
               cwd: next.testDir,
               encoding: 'utf8',
+              stdio: 'inherit',
             })
           }).toThrow('Command failed: pnpm next lint --strict')
 
-          const eslintConfigAfterSetupJSON = await execSync(
+          const eslintConfigAfterSetupJSON = execSync(
             `pnpm eslint --print-config pages/index.js`,
             {
               cwd: next.testDir,
               encoding: 'utf8',
+              stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
           const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
@@ -52,8 +58,8 @@ describe('Next Build', () => {
             parser,
             settings,
           }).toEqual({
-            // parser: require.resolve('eslint-config-next')
-            parser: expect.stringContaining('eslint-config-next'),
+            // parser: require.resolve('@typescript-eslint/parser')
+            parser: expect.stringContaining('@typescript-eslint/parser'),
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -89,6 +95,10 @@ describe('Next Build', () => {
       test('first time setup with TypeScript', async () => {
         const next = await createNext({
           files: new FileRef(dirFirstTimeSetupTS),
+          dependencies: {
+            // create-next-install will replace this with a version built from the local source
+            'eslint-config-next': 'canary',
+          },
           skipStart: true,
         })
 
@@ -107,14 +117,16 @@ describe('Next Build', () => {
             execSync(`pnpm next lint --strict`, {
               cwd: next.testDir,
               encoding: 'utf8',
+              stdio: 'inherit',
             })
           }).toThrow('Command failed: pnpm next lint --strict')
 
-          const eslintConfigAfterSetupJSON = await execSync(
+          const eslintConfigAfterSetupJSON = execSync(
             `pnpm eslint --print-config pages/index.tsx`,
             {
               cwd: next.testDir,
               encoding: 'utf8',
+              stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
           const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
