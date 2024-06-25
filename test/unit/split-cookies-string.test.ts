@@ -1,5 +1,4 @@
 import { splitCookiesString } from 'next/dist/server/web/utils'
-// @ts-expect-error
 import cookie, { type CookieSerializeOptions } from 'next/dist/compiled/cookie'
 
 function generateCookies(
