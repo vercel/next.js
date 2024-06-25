@@ -308,6 +308,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/diagnostics/build-diagnostics.test.ts": {
+    "passed": [
+      "build-diagnostics records build diagnostics to a file correctly",
+      "build-diagnostics records framework version to framework.json correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/batcher.test.ts": {
     "passed": [
       "Batcher batch should batch multiple calls to the same key",
@@ -1275,8 +1285,6 @@
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
-      "Error overlay - RSC build errors should error when page component export is not valid",
-      "Error overlay - RSC build errors should error when page component export is not valid on initial load",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
@@ -1341,6 +1349,18 @@
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called in external package",
       "Error Overlay for server components createContext called in Server Component should show error when createContext is called in external package"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/acceptance-app/undefined-default-export.test.ts": {
+    "passed": [
+      "Undefined default export should error if not-found component does not have default export when trigger not-found boundary",
+      "Undefined default export should error if page component does not have default export",
+      "Undefined default export should error when page component export is not valid",
+      "Undefined default export should error when page component export is not valid on initial load"
     ],
     "failed": [],
     "pending": [],
@@ -3212,6 +3232,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -3296,6 +3317,7 @@
       "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
       "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
       "app-dir static/dynamic handling should cache correctly handle JSON body",
+      "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
       "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
       "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
       "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -3510,6 +3532,13 @@
       "app dir - basic should not rerender layout when navigating between routes in the same layout",
       "app dir - basic template component should render the template that is a server component and rerender on navigation"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app/provide-paths.test.ts": {
+    "passed": ["Provided page/app paths should skip dev"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4679,6 +4708,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/not-found/default/default.test.ts": {
+    "passed": [
+      "app dir - not-found - default should has noindex in the head html"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found/group-route-root-not-found/index.test.ts": {
     "passed": [
       "app dir - group routes with root not-found should render default 404 with root layout for non-existent page",
@@ -5778,6 +5816,16 @@
       "searchparams-static-bailout client component should not bailout when not using searchParams",
       "searchparams-static-bailout server component should bailout when using searchParams",
       "searchparams-static-bailout server component should not bailout when not using searchParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
+    "passed": [
+      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
+      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
     ],
     "failed": [],
     "pending": [],
