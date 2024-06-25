@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
+import { devDependencies } from '../../../../package.json'
 
 import {
   withRequestMeta,
@@ -13,6 +14,9 @@ const basePath = process.env.BASE_PATH ?? ''
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      '@types/node-fetch': devDependencies['@types/node-fetch'],
+    },
   })
 
   describe('works with api prefix correctly', () => {

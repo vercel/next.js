@@ -1,6 +1,6 @@
-import type { Headers as NodeFetchHeaders } from 'node-fetch'
 import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+import type { Headers as NodeFetchHeaders } from 'node-fetch'
 
 const KEY = 'x-request-meta'
 
