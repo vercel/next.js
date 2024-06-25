@@ -1,6 +1,6 @@
+import type { Headers as NodeFetchHeaders } from 'node-fetch'
 import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
-import type { NextInstance } from 'e2e-utils'
 
 const KEY = 'x-request-meta'
 
@@ -64,7 +64,7 @@ export function getRequestMeta(
     | Cookies
     | ReadonlyHeaders
     | ReadonlyRequestCookies
-    | Awaited<ReturnType<NextInstance['fetch']>>['headers']
+    | NodeFetchHeaders
 ): Record<string, any> {
   const headerOrCookie = headersOrCookies.get(KEY)
   if (!headerOrCookie) return {}
