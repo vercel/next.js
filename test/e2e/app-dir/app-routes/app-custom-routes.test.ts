@@ -14,7 +14,8 @@ describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@types/node-fetch': devDependencies['@types/node-fetch'],
+      // pin with repo's version of node-fetch
+      '@types/node-fetch': '2.6.1',
     },
   })
 
