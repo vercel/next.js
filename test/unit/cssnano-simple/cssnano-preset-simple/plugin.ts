@@ -12,9 +12,8 @@ const cssnanoPlugin = (options = {}) => {
   for (const nanoPlugin of nanoPlugins) {
     if (Array.isArray(nanoPlugin)) {
       let [processor, opts] = nanoPlugin
-      processor =
-        (processor as unknown as { default: PluginCreator<any> }).default ||
-        processor
+      // @ts-expect-error Property 'default' does not exist on type 'PluginCreator<any>'.ts(2339)
+      processor = processor.default || processor
       if (
         typeof opts === 'undefined' ||
         (typeof opts === 'object' && !opts.exclude) ||
