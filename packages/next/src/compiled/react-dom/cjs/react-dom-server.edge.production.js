@@ -3715,7 +3715,7 @@ function defaultErrorHandler(error) {
   return null;
 }
 function noop() {}
-function createRequest(
+function RequestInstance(
   children,
   resumableState,
   renderState,
@@ -3731,50 +3731,46 @@ function createRequest(
 ) {
   var pingedTasks = [],
     abortSet = new Set();
-  resumableState = {
-    destination: null,
-    flushScheduled: !1,
-    resumableState: resumableState,
-    renderState: renderState,
-    rootFormatContext: rootFormatContext,
-    progressiveChunkSize:
-      void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize,
-    status: 0,
-    fatalError: null,
-    nextSegmentId: 0,
-    allPendingTasks: 0,
-    pendingRootTasks: 0,
-    completedRootSegment: null,
-    abortableTasks: abortSet,
-    pingedTasks: pingedTasks,
-    clientRenderedBoundaries: [],
-    completedBoundaries: [],
-    partialBoundaries: [],
-    trackedPostpones: null,
-    onError: void 0 === onError ? defaultErrorHandler : onError,
-    onPostpone: void 0 === onPostpone ? noop : onPostpone,
-    onAllReady: void 0 === onAllReady ? noop : onAllReady,
-    onShellReady: void 0 === onShellReady ? noop : onShellReady,
-    onShellError: void 0 === onShellError ? noop : onShellError,
-    onFatalError: void 0 === onFatalError ? noop : onFatalError,
-    formState: void 0 === formState ? null : formState
-  };
-  renderState = createPendingSegment(
-    resumableState,
+  this.destination = null;
+  this.flushScheduled = !1;
+  this.resumableState = resumableState;
+  this.renderState = renderState;
+  this.rootFormatContext = rootFormatContext;
+  this.progressiveChunkSize =
+    void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
+  this.status = 0;
+  this.fatalError = null;
+  this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
+  this.completedRootSegment = null;
+  this.abortableTasks = abortSet;
+  this.pingedTasks = pingedTasks;
+  this.clientRenderedBoundaries = [];
+  this.completedBoundaries = [];
+  this.partialBoundaries = [];
+  this.trackedPostpones = null;
+  this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
+  this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+  this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
+  this.onShellError = void 0 === onShellError ? noop : onShellError;
+  this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+  this.formState = void 0 === formState ? null : formState;
+  resumableState = createPendingSegment(
+    this,
     0,
     null,
     rootFormatContext,
     !1,
     !1
   );
-  renderState.parentFlushed = !0;
+  resumableState.parentFlushed = !0;
   children = createRenderTask(
-    resumableState,
+    this,
     null,
     children,
     -1,
     null,
-    renderState,
+    resumableState,
     null,
     abortSet,
     null,
@@ -3786,7 +3782,35 @@ function createRequest(
     !1
   );
   pingedTasks.push(children);
-  return resumableState;
+}
+function createRequest(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone,
+  formState
+) {
+  return new RequestInstance(
+    children,
+    resumableState,
+    renderState,
+    rootFormatContext,
+    progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    formState
+  );
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -5832,13 +5856,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_728 = React.version;
 if (
-  "19.0.0-rc-6230622a1a-20240610" !==
+  "19.0.0-rc-dfd30974ab-20240613" !==
   isomorphicReactPackageVersion$jscomp$inline_728
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_728 +
-        "\n  - react-dom:  19.0.0-rc-6230622a1a-20240610\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-rc-dfd30974ab-20240613\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5926,4 +5950,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.0.0-rc-dfd30974ab-20240613";

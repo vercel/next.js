@@ -151,4 +151,4 @@ exports.preloadModule = function (href, options) {
       });
     } else Internals.d.m(href);
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.0.0-rc-dfd30974ab-20240613";
