@@ -726,12 +726,8 @@ export default async function build(
         )
 
       if (config.requiredEnv.length > 0) {
-        const envs = Object.assign({}, config.env, combinedEnv)
-        const envKeys = new Set(Object.keys(envs))
-
-        const missingKeys = config.requiredEnv.filter(
-          (key) => !envKeys.has(key)
-        )
+        const envs = { ...config.env, ...combinedEnv }
+        const missingKeys = config.requiredEnv.filter((key) => !(key in envs))
 
         Log.error(
           `Missing required environment variables: ${missingKeys.join(', ')}`
