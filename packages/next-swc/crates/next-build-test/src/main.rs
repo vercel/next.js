@@ -117,7 +117,7 @@ fn main() {
                         None
                     };
 
-                    let tt = TurboTasks::new(MemoryBackend::new(5000 * 1024 * 1024));
+                    let tt = TurboTasks::new(MemoryBackend::new(48000 * 1024 * 1024));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);

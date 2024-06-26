@@ -62,10 +62,12 @@ pub async fn main_inner(
         })) as Box<dyn Iterator<Item = _> + Send + Sync>
     } else {
         Box::new(shuffle(entrypoints.routes.clone().into_iter()))
+        // Box::new(entrypoints.routes.clone().into_iter())
     };
 
+    let start = Instant::now();
     let count = render_routes(tt, routes, strat, factor, limit).await?;
-    tracing::info!("rendered {} pages", count);
+    tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
 
     if count == 0 {
         tracing::info!("No pages found, these pages exist:");
@@ -80,12 +82,15 @@ pub async fn main_inner(
 
     let start = Instant::now();
     let memory = TurboMalloc::memory_usage();
-    tt.backend().gc_all_tasks();
+    let (task_count, content_dropped_count, unloaded_count) = tt.backend().gc_all_tasks(tt);
     let memory_after = TurboMalloc::memory_usage();
     tracing::info!(
-        "GC all {:?}, freed {} MB, {} MB remaining",
+        "GC all {task_count} tasks in {:?}, freed {} MB ({} content dropped, {} unloaded), {} MB \
+         remaining",
         start.elapsed(),
         (memory - memory_after) / 1024 / 1024,
+        content_dropped_count,
+        unloaded_count,
         memory_after / 1024 / 1024
     );
 
@@ -152,8 +157,9 @@ pub async fn render_routes(
     );
 
     let stream = tokio_stream::iter(routes)
-        .map(move |(name, route)| async move {
-            tracing::info!("{name}...");
+        .enumerate()
+        .map(move |(i, (name, route))| async move {
+            tracing::info!("{i} {name}...");
             let start = Instant::now();
 
             let memory = TurboMalloc::memory_usage();
@@ -191,19 +197,24 @@ pub async fn render_routes(
             })
             .await?;
 
-            let memory_after = TurboMalloc::memory_usage();
-            if memory_after > memory {
-                tracing::info!(
-                    "memory usage increased by {} MiB",
-                    (memory_after - memory) / 1024 / 1024
-                );
+            if matches!(strategy, Strategy::Development | Strategy::Sequential) {
+                let memory_after = TurboMalloc::memory_usage();
+                if memory_after > memory {
+                    tracing::info!(
+                        "memory usage increased by {} MiB",
+                        (memory_after - memory) / 1024 / 1024
+                    );
+                } else {
+                    tracing::info!(
+                        "memory usage decreased by {} MiB",
+                        (memory - memory_after) / 1024 / 1024
+                    );
+                }
+                tracing::info!("{i} {name} {:?}", start.elapsed());
             } else {
-                tracing::info!(
-                    "memory usage decreased by {} MiB",
-                    (memory - memory_after) / 1024 / 1024
-                );
+                let memory = TurboMalloc::memory_usage();
+                tracing::info!("memory usage {:?} MiB", memory / 1024 / 1024);
             }
-            tracing::info!("{name} {:?}", start.elapsed());
 
             Ok::<_, anyhow::Error>(())
         })
