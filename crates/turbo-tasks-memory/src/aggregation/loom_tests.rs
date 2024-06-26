@@ -9,7 +9,6 @@ use loom::{
     sync::{Mutex, MutexGuard},
     thread,
 };
-use nohash_hasher::IsEnabled;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
 use rstest::*;
@@ -79,8 +78,6 @@ impl Hash for NodeRef {
         Arc::as_ptr(&self.0).hash(state);
     }
 }
-
-impl IsEnabled for NodeRef {}
 
 impl PartialEq for NodeRef {
     fn eq(&self, other: &Self) -> bool {

@@ -18,7 +18,6 @@ auto-hash-map = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 indexmap = { workspace = true }
-nohash-hasher = { workspace = true }
 num_cpus = "1.13.1"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }

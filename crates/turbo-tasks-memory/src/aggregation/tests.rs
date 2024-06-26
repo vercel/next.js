@@ -12,7 +12,6 @@ use std::{
 };
 
 use indexmap::IndexSet;
-use nohash_hasher::IsEnabled;
 use parking_lot::{Mutex, MutexGuard};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
@@ -410,8 +409,6 @@ impl Hash for NodeRef {
         Arc::as_ptr(&self.0).hash(state);
     }
 }
-
-impl IsEnabled for NodeRef {}
 
 impl PartialEq for NodeRef {
     fn eq(&self, other: &Self) -> bool {

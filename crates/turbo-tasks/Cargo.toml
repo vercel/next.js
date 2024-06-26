@@ -29,11 +29,11 @@ event-listener = "2.5.3"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
-nohash-hasher = "0.2.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 pin-project-lite = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
