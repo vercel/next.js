@@ -12,7 +12,6 @@ use crate::MemoryBackend;
 #[derive(Default, Debug)]
 pub struct Output {
     pub(crate) content: OutputContent,
-    updates: u32,
     pub(crate) dependent_tasks: TaskIdSet,
 }
 
@@ -22,7 +21,7 @@ pub enum OutputContent {
     Empty,
     Link(RawVc),
     Error(SharedError),
-    Panic(Option<Cow<'static, str>>),
+    Panic(Option<Box<Cow<'static, str>>>),
 }
 
 impl Display for OutputContent {
@@ -62,7 +61,6 @@ impl Output {
 
     pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         self.content = OutputContent::Error(SharedError::new(error));
-        self.updates += 1;
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
@@ -74,8 +72,7 @@ impl Output {
         message: Option<Cow<'static, str>>,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
-        self.content = OutputContent::Panic(message);
-        self.updates += 1;
+        self.content = OutputContent::Panic(message.map(Box::new));
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
@@ -88,7 +85,6 @@ impl Output {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.content = content;
-        self.updates += 1;
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
