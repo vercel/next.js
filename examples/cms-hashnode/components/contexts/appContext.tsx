@@ -1,21 +1,21 @@
-import React, { createContext, useContext } from 'react'
-import { PostFullFragment, PublicationFragment } from '../../generated/graphql'
+import React, { createContext, useContext } from "react";
+import { PostFullFragment, PublicationFragment } from "../../generated/graphql";
 
-type AppContext = {
-  publication: PublicationFragment
-  post: PostFullFragment | null
-}
+type AppContextType = {
+  publication: PublicationFragment;
+  post: PostFullFragment | null;
+};
 
-const AppContext = createContext<AppContext | null>(null)
+const AppContext = createContext<AppContextType | null>(null);
 
 const AppProvider = ({
   children,
   publication,
   post,
 }: {
-  children: React.ReactNode
-  publication: PublicationFragment
-  post?: PostFullFragment | null
+  children: React.ReactNode;
+  publication: PublicationFragment;
+  post?: PostFullFragment | null;
 }) => {
   return (
     <AppContext.Provider
@@ -26,16 +26,16 @@ const AppProvider = ({
     >
       {children}
     </AppContext.Provider>
-  )
-}
+  );
+};
 
 const useAppContext = () => {
-  const context = useContext(AppContext)
+  const context = useContext(AppContext);
 
   if (!context) {
-    throw new Error('useAppContext must be used within a <AppProvider />')
+    throw new Error("useAppContext must be used within a <AppProvider />");
   }
 
-  return context
-}
-export { AppProvider, useAppContext }
+  return context;
+};
+export { AppProvider, useAppContext };
