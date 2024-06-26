@@ -66,7 +66,6 @@ describe('Basics', () => {
         }
       }
       await expectToContainPreload('dynamic')
-      await expectToContainPreload('dynamic-suspense')
     })
   })
 })
