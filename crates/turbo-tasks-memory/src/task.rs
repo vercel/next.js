@@ -21,8 +21,8 @@ use turbo_prehash::PreHashed;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, NativeFunction, RawVc, TaskId, TaskIdSet,
-    TraitType, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, RawVc, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
 };
 
 use crate::{
@@ -117,15 +117,6 @@ impl Display for TaskType {
     }
 }
 
-#[derive(Default)]
-enum PrepareTaskType {
-    #[default]
-    None,
-    Resolve(&'static NativeFunction),
-    ResolveTrait(&'static TraitType),
-    Native(&'static NativeFunction, NativeTaskFn),
-}
-
 /// A Task is an instantiation of an Function with some arguments.
 /// The same combinations of Function and arguments usually results in the same
 /// Task instance.
@@ -176,11 +167,6 @@ struct TaskState {
 
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
-
-    /// Preparations done for the task type with the bound arguments, e. g.
-    /// argument validation
-    prepared_type: PrepareTaskType,
-
     output: Output,
     cells: AutoMap<ValueTypeId, SmallVec<[Cell; 1]>, BuildHasherDefault<FxHasher>>,
 
@@ -199,7 +185,6 @@ impl TaskState {
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
-            prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             gc: Default::default(),
             #[cfg(feature = "track_wait_dependencies")]
@@ -217,7 +202,6 @@ impl TaskState {
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
-            prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             gc: Default::default(),
             #[cfg(feature = "track_wait_dependencies")]
@@ -245,7 +229,6 @@ impl PartialTaskState {
             },
             children: Default::default(),
             collectibles: Default::default(),
-            prepared_type: PrepareTaskType::None,
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
@@ -275,7 +258,6 @@ impl UnloadedTaskState {
             },
             children: Default::default(),
             collectibles: Default::default(),
-            prepared_type: PrepareTaskType::None,
             output: Default::default(),
             cells: Default::default(),
             gc: Default::default(),
@@ -702,7 +684,7 @@ impl Task {
                     )
                 }
             };
-            let result = self.make_execution_future(state, backend, turbo_tasks);
+            let result = self.make_execution_future(backend, turbo_tasks);
             #[cfg(not(feature = "lazy_remove_children"))]
             {
                 remove_job();
@@ -718,54 +700,31 @@ impl Task {
     /// Prepares task execution and returns a future that will execute the task.
     fn make_execution_future(
         self: &Task,
-        mut state: FullTaskWriteGuard<'_>,
         _backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> (Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>, Span) {
         match &self.ty {
             TaskType::Root(bound_fn) => {
-                drop(state);
                 (bound_fn(), tracing::trace_span!("turbo_tasks::root_task"))
             }
-            TaskType::Once(mutex) => {
-                drop(state);
-                (
-                    mutex.lock().take().expect("Task can only be executed once"),
-                    tracing::trace_span!("turbo_tasks::once_task"),
-                )
-            }
+            TaskType::Once(mutex) => (
+                mutex.lock().take().expect("Task can only be executed once"),
+                tracing::trace_span!("turbo_tasks::once_task"),
+            ),
             TaskType::Persistent { ty, .. } => match &***ty {
                 PersistentTaskType::Native(native_fn, inputs) => {
-                    let result =
-                        if let PrepareTaskType::Native(func, bound_fn) = &state.prepared_type {
-                            let span = func.span();
-                            let entered = span.enter();
-                            let future = bound_fn();
-                            drop(entered);
-                            (future, span)
-                        } else {
-                            let func = registry::get_function(*native_fn);
-                            let span = func.span();
-                            let entered = span.enter();
-                            let bound_fn = func.bind(inputs);
-                            let future = bound_fn();
-                            drop(entered);
-                            state.prepared_type = PrepareTaskType::Native(func, bound_fn);
-                            (future, span)
-                        };
-                    drop(state);
-                    result
+                    let func = registry::get_function(*native_fn);
+                    let span = func.span();
+                    let entered = span.enter();
+                    let bound_fn = func.bind(inputs);
+                    let future = bound_fn();
+                    drop(entered);
+                    (future, span)
                 }
                 PersistentTaskType::ResolveNative(ref native_fn_id, inputs) => {
                     let native_fn_id = *native_fn_id;
-                    let span = if let &PrepareTaskType::Resolve(func) = &state.prepared_type {
-                        func.resolve_span()
-                    } else {
-                        let func = registry::get_function(native_fn_id);
-                        state.prepared_type = PrepareTaskType::Resolve(func);
-                        func.resolve_span()
-                    };
-                    drop(state);
+                    let func = registry::get_function(native_fn_id);
+                    let span = func.resolve_span();
                     let entered = span.enter();
                     let inputs = inputs.clone();
                     let turbo_tasks = turbo_tasks.pin();
@@ -779,15 +738,8 @@ impl Task {
                 }
                 PersistentTaskType::ResolveTrait(trait_type_id, name, inputs) => {
                     let trait_type_id = *trait_type_id;
-                    let span =
-                        if let PrepareTaskType::ResolveTrait(trait_type) = &state.prepared_type {
-                            trait_type.resolve_span(name)
-                        } else {
-                            let trait_type = registry::get_trait(trait_type_id);
-                            state.prepared_type = PrepareTaskType::ResolveTrait(trait_type);
-                            trait_type.resolve_span(name)
-                        };
-                    drop(state);
+                    let trait_type = registry::get_trait(trait_type_id);
+                    let span = trait_type.resolve_span(name);
                     let entered = span.enter();
                     let name = name.clone();
                     let inputs = inputs.clone();
@@ -1659,8 +1611,6 @@ impl Task {
             output,
             collectibles,
             mut aggregation_node,
-            // can be dropped as it can be recomputed
-            prepared_type: _,
             // can be dropped as always Dirty, event has been notified above
             state_type: _,
             // can be dropped as only gc meta info
