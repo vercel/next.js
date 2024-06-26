@@ -415,17 +415,6 @@ async function startWatcher(opts: SetupOpts) {
             pageName,
             !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
           )
-
-          // pageName = pageName.slice(0, -'/route'.length)
-          // if (pageName.endsWith('/sitemap')) {
-
-          //   if (staticInfo.generateSitemaps) {
-          //     pageName = `${pageName}/[__metadata_id__]`
-          //   } else {
-          //     pageName = `${pageName}.xml`
-          //   }
-          // }
-          // pageName = `${pageName}/route`
         }
 
         if (

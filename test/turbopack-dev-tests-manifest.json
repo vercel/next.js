@@ -343,6 +343,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/lib/metadata/is-metadata-route.test.ts": {
+    "passed": [
+      "getExtensionRegexString with dynamic extensions should match dynamic multi-routes with dynamic extensions",
+      "getExtensionRegexString with dynamic extensions should return the correct regex",
+      "getExtensionRegexString without dynamic extensions should return the correct regex"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/lib/metadata/resolve-metadata.test.ts": {
     "passed": [
       "accumulateMetadata alternate should support URL alternate canonical with search params",
@@ -408,6 +419,7 @@
       "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to relative url",
       "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to absolute internal url with query",
       "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to external url",
+      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url that matches file pattern",
       "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url with query"
     ],
     "failed": [],
@@ -531,6 +543,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
+    "passed": [
+      "SharedRevalidateTimings should clear the in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
+      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
+      "SharedRevalidateTimings should return undefined if revalidate timing not found",
+      "SharedRevalidateTimings should set revalidate timing in cache"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/interception-routes.test.ts": {
     "passed": [
       "Interception Route helper extractInterceptionRouteInformation should check the segment length",
@@ -539,6 +564,73 @@
       "Interception Route helper isInterceptionRouteAppPath should not validate incorrect paths",
       "Interception Route helper isInterceptionRouteAppPath should validate correct paths"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/mock-request.test.ts": {
+    "passed": [
+      "MockedRequest should have the correct properties",
+      "MockedResponse should handle set-cookie headers correctly",
+      "MockedResponse should merge headers correctly when calling writeHead",
+      "MockedResponse should update the statusMessage after calling writeHead"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/to-route.test.ts": {
+    "passed": [
+      "toRoute Function should remove trailing `/index`",
+      "toRoute Function should remove trailing slash",
+      "toRoute Function should return `/` when input is `/index/`",
+      "toRoute Function should return `/` when input is `/index`",
+      "toRoute Function should return `/` when input is empty",
+      "toRoute Function should return `/` when input is only a slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/lib/utils.test.ts": {
+    "passed": [
+      "formatNodeOptions wraps values with spaces in quotes",
+      "getFormattedNodeOptionsWithoutInspect handles options with quotes",
+      "getFormattedNodeOptionsWithoutInspect handles options with spaces",
+      "getFormattedNodeOptionsWithoutInspect ignores unrelated options starting with --inspect-",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option at end of line",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect option with parameters",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option",
+      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option with parameters",
+      "getParsedDebugAddress supports the flag with an equal sign",
+      "getParsedDebugAddress supports the flag without an equal sign",
+      "tokenizeArgs splits arguments by spaces",
+      "tokenizeArgs supports quoted values"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/load-manifest.test.ts": {
+    "passed": [
+      "loadManifest should cache the manifest when not already cached",
+      "loadManifest should freeze the manifest when caching",
+      "loadManifest should load the manifest from the file system when not cached",
+      "loadManifest should return the cached manifest when available",
+      "loadManifest should throw an error when the manifest file cannot be read"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/node-polyfill-crypto.test.ts": {
+    "passed": ["node-polyfill-crypto overwrite crypto"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -755,86 +847,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
-    "passed": [
-      "SharedRevalidateTimings should clear the in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
-      "SharedRevalidateTimings should return undefined if revalidate timing not found",
-      "SharedRevalidateTimings should set revalidate timing in cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/mock-request.test.ts": {
-    "passed": [
-      "MockedRequest should have the correct properties",
-      "MockedResponse should handle set-cookie headers correctly",
-      "MockedResponse should merge headers correctly when calling writeHead",
-      "MockedResponse should update the statusMessage after calling writeHead"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/to-route.test.ts": {
-    "passed": [
-      "toRoute Function should remove trailing `/index`",
-      "toRoute Function should remove trailing slash",
-      "toRoute Function should return `/` when input is `/index/`",
-      "toRoute Function should return `/` when input is `/index`",
-      "toRoute Function should return `/` when input is empty",
-      "toRoute Function should return `/` when input is only a slash"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/utils.test.ts": {
-    "passed": [
-      "formatNodeOptions wraps values with spaces in quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with spaces",
-      "getFormattedNodeOptionsWithoutInspect ignores unrelated options starting with --inspect-",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option at end of line",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option with parameters",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option with parameters",
-      "getParsedDebugAddress supports the flag with an equal sign",
-      "getParsedDebugAddress supports the flag without an equal sign",
-      "tokenizeArgs splits arguments by spaces",
-      "tokenizeArgs supports quoted values"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/load-manifest.test.ts": {
-    "passed": [
-      "loadManifest should cache the manifest when not already cached",
-      "loadManifest should freeze the manifest when caching",
-      "loadManifest should load the manifest from the file system when not cached",
-      "loadManifest should return the cached manifest when available",
-      "loadManifest should throw an error when the manifest file cannot be read"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/node-polyfill-crypto.test.ts": {
-    "passed": ["node-polyfill-crypto overwrite crypto"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/server/web/spec-extension/adapters/headers.test.ts": {
     "passed": [
       "HeadersAdapter case-insensitive should handle different case for header names",
@@ -937,6 +949,17 @@
     "passed": [
       "normalizeRscPath should normalize url with .rsc",
       "normalizeRscPath should normalize url with .rsc and searchparams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/shared/lib/router/utils/parse-relative-url.test.ts": {
+    "passed": [
+      "query parsing should parse query string",
+      "relative urls should return valid pathname",
+      "relative urls should throw for invalid pathname"
     ],
     "failed": [],
     "pending": [],
@@ -1146,6 +1169,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/acceptance-app/dynamic-metadata-error.test.ts": {
+    "passed": [
+      "dynamic metadata error should error if the default export of dynamic image is missing",
+      "dynamic metadata error should error when id is missing in generateImageMetadata",
+      "dynamic metadata error should error when id is missing in generateSitemaps"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
       "Error overlay - editor links should be possible to open source file on build error"
@@ -1201,6 +1235,7 @@
     "passed": [
       "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - div > tr",
       "Error overlay for hydration errors should only show one hydration error when bad nesting happened - div under p",
       "Error overlay for hydration errors should only show one hydration error when bad nesting happened - p under p",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
@@ -1209,6 +1244,8 @@
       "Error overlay for hydration errors should show correct hydration error when client renders an extra text node",
       "Error overlay for hydration errors should show correct hydration error when server renders an extra element",
       "Error overlay for hydration errors should show correct hydration error when server renders an extra text node",
+      "Error overlay for hydration errors should show correct hydration error when server renders an extra text node in an invalid place",
+      "Error overlay for hydration errors should show correct hydration error when server renders an extra whitespace in an invalid place",
       "Error overlay for hydration errors should show error if script is directly placed under html instead of body",
       "Error overlay for hydration errors should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
@@ -2495,6 +2532,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions-revalidate-remount/actions-revalidate-remount.test.ts": {
+    "passed": [
+      "actions-revalidate-remount should not remount the page + loading component when revalidating"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/actions/app-action-export.test.ts": {
     "passed": [
       "app-dir action handling - next export skip test for development mode"
@@ -2540,8 +2586,9 @@
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
-      "app-dir action handling Edge SSR should handle redirect to a relative URL in a single pass",
-      "app-dir action handling Edge SSR should handle regular redirects",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
@@ -2550,9 +2597,10 @@
       "app-dir action handling caching disabled by default should use no-store as default for server action",
       "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
-      "app-dir action handling fetch actions should handle redirect to a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle regular redirects",
       "app-dir action handling fetch actions should handle revalidatePath",
       "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
@@ -2575,6 +2623,7 @@
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should log a warning when a server action is not found but an id is provided",
@@ -2651,10 +2700,22 @@
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
       "app dir - basepath should prefix metadata og image with basePath",
       "app dir - basepath should prefix redirect() with basePath",
+      "app dir - basepath should properly stream an internal server action redirect() with a absolute URL",
+      "app dir - basepath should properly stream an internal server action redirect() with a relative URL",
+      "app dir - basepath should redirect externally when encountering absolute URLs on the same host outside the basePath",
       "app dir - basepath should render usePathname without the basePath",
       "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
+    "passed": [
+      "app dir client cache semantics (default semantics) should return fresh data every navigation"
     ],
     "failed": [],
     "pending": [],
@@ -2678,6 +2739,13 @@
     "passed": [
       "app dir client cache semantics (30s/5min) should renew the 30s cache once the data is revalidated"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
+    "passed": ["app dir client cache with parallel routes should skip dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2907,6 +2975,15 @@
   },
   "test/e2e/app-dir/app-prefetch-static/app-prefetch-static.test.ts": {
     "passed": ["app-prefetch-static should skip next dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-prefetch/prefetching.stale-times.test.ts": {
+    "passed": [
+      "app dir - prefetching (custom staleTime) should skip next dev for now"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3168,6 +3245,8 @@
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
       "app-dir static/dynamic handling should skip cache in draft mode",
+      "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
+      "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
       "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
@@ -3175,6 +3254,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
       "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
@@ -3183,6 +3263,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -3250,6 +3332,8 @@
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
       "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
       "app-dir static/dynamic handling should skip cache in draft mode",
+      "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
+      "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
       "app-dir static/dynamic handling should still cache even though the `traceparent` header was different",
@@ -3257,6 +3341,7 @@
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
       "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
@@ -3265,6 +3350,8 @@
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
       "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
+      "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
       "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
       "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
@@ -3320,6 +3407,7 @@
       "app dir - basic <Link /> should push to external url",
       "app dir - basic <Link /> should replace to external url",
       "app dir - basic <Link /> should soft push",
+      "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
@@ -3413,7 +3501,6 @@
     ],
     "failed": [],
     "pending": [
-      "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly when changing the component type",
       "app dir - basic known bugs should support React fetch instrumentation client component",
       "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",
@@ -3501,6 +3588,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/binary/rsc-binary.test.ts": {
+    "passed": [
+      "RSC binary serialization should correctly encode/decode binaries and hydrate"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/build-size/index.test.ts": {
     "passed": ["app-dir build size should skip next dev for now"],
     "failed": [],
@@ -3542,6 +3638,16 @@
   "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
     "passed": [
       "css-client-side-nav-parallel-routes should apply styles after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
+    "passed": [
+      "css-modules-scoping should not prefix grid areas",
+      "css-modules-scoping should prefix animation"
     ],
     "failed": [],
     "pending": [],
@@ -3871,6 +3977,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/fallback-prefetch/fallback-prefetch.test.ts": {
+    "passed": ["fallback-prefetch should prefetch the page without errors"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts": {
     "passed": ["app dir - front redirect issue should redirect"],
     "failed": [],
@@ -4151,9 +4264,6 @@
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
       "app dir - metadata dynamic routes icon image routes should render icon with dynamic routes",
       "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
-      "app dir - metadata dynamic routes should error if the default export of dynamic image is missing",
-      "app dir - metadata dynamic routes should error when id is missing in generateImageMetadata",
-      "app dir - metadata dynamic routes should error when id is missing in generateSitemaps",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
@@ -4194,6 +4304,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-navigation/metadata-navigation.test.ts": {
+    "passed": [
+      "app dir - metadata navigation navigation should render root not-found with default metadata",
+      "app dir - metadata navigation navigation should support notFound in generateMetadata",
+      "app dir - metadata navigation navigation should support redirect in generateMetadata"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
       "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
@@ -4203,7 +4324,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-thrown/metadata-thrown.test.ts": {
+    "passed": [
+      "app dir - metadata thrown should not crash from error thrown during preloading nested generateMetadata"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-warnings/index.test.ts": {
+    "passed": [
+      "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
+      "app dir - metadata missing metadataBase should not warn metadataBase is missing if there is only absolute url",
+      "app dir - metadata missing metadataBase should show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-warnings/standalone.test.ts": {
     "passed": [
       "app dir - metadata missing metadataBase should fallback to localhost if metadataBase is missing for absolute urls resolving",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
@@ -4224,7 +4366,7 @@
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
-      "app dir - metadata basic should support generateMetadata export",
+      "app dir - metadata basic should support generateMetadata dynamic props",
       "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
       "app dir - metadata basic should support robots tags",
@@ -4234,7 +4376,6 @@
       "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
       "app dir - metadata basic should use parent layout title when no title is defined in page",
-      "app dir - metadata file based icons should handle updates to the file icon name and order",
       "app dir - metadata file based icons should not render if image file is not specified",
       "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata icons should merge icons from layout if no static icons files are specified",
@@ -4243,16 +4384,12 @@
       "app dir - metadata icons should support basic object icons field",
       "app dir - metadata icons should support basic string icons field",
       "app dir - metadata icons should support root level of favicon.ico",
-      "app dir - metadata navigation should render root not-found with default metadata",
-      "app dir - metadata navigation should support notFound in generateMetadata",
-      "app dir - metadata navigation should support redirect in generateMetadata",
       "app dir - metadata opengraph should override file based images when opengraph-image and twitter-image specify images property",
       "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
       "app dir - metadata opengraph should support opengraph tags",
       "app dir - metadata opengraph should support opengraph with article type",
       "app dir - metadata react cache should have same title and page value on initial load",
       "app dir - metadata react cache should have same title and page value when navigating",
-      "app dir - metadata should not crash from error thrown during preloading nested generateMetadata",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
       "app dir - metadata static routes should have /favicon.ico as route",
       "app dir - metadata static routes should have icons as route",
@@ -4266,7 +4403,9 @@
       "app dir - metadata viewport should support dynamic viewport export"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "app dir - metadata hmr should handle updates to the file icon name and order"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4291,6 +4430,13 @@
       "modularizeImports should work",
       "modularizeImports should work with MDX"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
+    "passed": ["navigation-redirect-import should work using fetch"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4370,6 +4516,7 @@
       "unstable_after() in edge runtime runs in generateMetadata()",
       "unstable_after() in edge runtime runs in middleware",
       "unstable_after() in edge runtime runs in server actions",
+      "unstable_after() in edge runtime uses waitUntil from request context if available",
       "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
       "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
       "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
@@ -4383,7 +4530,8 @@
       "unstable_after() in nodejs runtime runs in dynamic route handlers",
       "unstable_after() in nodejs runtime runs in generateMetadata()",
       "unstable_after() in nodejs runtime runs in middleware",
-      "unstable_after() in nodejs runtime runs in server actions"
+      "unstable_after() in nodejs runtime runs in server actions",
+      "unstable_after() in nodejs runtime uses waitUntil from request context if available"
     ],
     "failed": [],
     "pending": [],
@@ -4408,6 +4556,19 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-dynamic-css/next-dynamic-css.test.ts": {
+    "passed": [
+      "next-dynamic-css should have correct order of global styles between layout and pages",
+      "next-dynamic-css should have correct order of styles between global and css modules",
+      "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+    ],
+    "failed": [],
+    "pending": [
+      "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic (TODO)"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4623,7 +4784,7 @@
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
-      "parallel-routes-and-interception with patching should gracefully handle when two page segments match the `children` parallel slot"
+      "parallel-routes-and-interception-conflicting-pages should gracefully handle when two page segments match the `children` parallel slot"
     ],
     "failed": [],
     "pending": [],
@@ -4708,6 +4869,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-css/parallel-routes-css.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-css should properly load the Head content from multiple leaf segments"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-layouts/parallel-routes-layouts.test.ts": {
     "passed": [
       "parallel-routes-layouts should properly render layouts for multiple slots"
@@ -4737,6 +4907,7 @@
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for previously intercepted modal and active page slot",
       "parallel-routes-revalidation router.refresh (regular) - searchParams: true should correctly refresh data for the intercepted route and previously active page slot",
       "parallel-routes-revalidation server action revalidation handles refreshing when multiple parallel slots are active",
+      "parallel-routes-revalidation server action revalidation should not trigger a refresh for the page that is being redirected to",
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should not trigger full page when calling router.refresh() on an intercepted route",
@@ -4896,14 +5067,23 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
-    "passed": ["avoid-popstate-flash ppr is disabled in dev"],
+    "passed": ["avoid-popstate-flash should skip dev & deploy"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/incremental/incremental.test.ts": {
+    "passed": [
+      "ppr-navigations incremental can navigate between all the links and back without writing to disk"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
-    "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
+    "passed": ["loading-tsx-no-partial-rendering should skip dev & deploy"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4916,8 +5096,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-navigations/simple/simple.test.ts": {
+    "passed": [
+      "ppr-navigations simple can navigate between all the links and back"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
-    "passed": ["stale-prefetch-entry ppr is disabled in dev"],
+    "passed": ["stale-prefetch-entry should skip dev & deploy"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5119,6 +5308,8 @@
       "app dir - rsc basics should correctly render page returning undefined",
       "app dir - rsc basics should create client reference successfully for all file conventions",
       "app dir - rsc basics should escape streaming data correctly",
+      "app dir - rsc basics should handle client components imported as namespace",
+      "app dir - rsc basics should handle named client components imported as page",
       "app dir - rsc basics should handle streaming server components correctly",
       "app dir - rsc basics should handle various kinds of exports correctly",
       "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
@@ -5149,43 +5340,70 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir - rsc webpack loader should support webpack loader rules"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/scss/3rd-party-module/3rd-party-module.test.ts": {
-    "passed": ["3rd Party CSS Module Support should render the module"],
+    "passed": [
+      "3rd Party CSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "3rd Party CSS Module Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module-additional-data/basic-module-additional-data.test.ts": {
-    "passed": ["Basic Module Additional Data Support should render the module"],
+    "passed": [
+      "Basic Module Additional Data Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Additional Data Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module-include-paths/basic-module-include-paths.test.ts": {
-    "passed": ["Basic Module Include Paths Support should render the module"],
+    "passed": [
+      "Basic Module Include Paths Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Include Paths Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module-prepend-data/basic-module-prepend-data.test.ts": {
-    "passed": ["Basic Module Prepend Data Support should render the module"],
+    "passed": [
+      "Basic Module Prepend Data Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Prepend Data Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/basic-module/basic-module.test.ts": {
-    "passed": ["Basic SCSS Module Support should render the module"],
+    "passed": [
+      "Basic SCSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic SCSS Module Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/catch-all-module/catch-all-module.test.ts": {
-    "passed": ["Catch-all Route CSS Module Usage should render the module"],
+    "passed": [
+      "Catch-all Route CSS Module Usage ({\"sass\": \"1.54.0\"}) should render the module",
+      "Catch-all Route CSS Module Usage ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5195,21 +5413,29 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "SCSS Support Production only CSS Compilation and Prefixing should've compiled and prefixed",
-      "SCSS Support Production only CSS Compilation and Prefixing should've emitted a source map"
+      "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
+      "SCSS Support ({\"sass\": \"1.54.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map",
+      "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've compiled and prefixed",
+      "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Production only CSS Compilation and Prefixing should've emitted a source map"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/composes-basic/composes-basic.test.ts": {
-    "passed": ["CSS Module Composes Usage (Basic) should render the module"],
+    "passed": [
+      "CSS Module Composes Usage (Basic) ({\"sass\": \"1.54.0\"}) should render the module",
+      "CSS Module Composes Usage (Basic) ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/composes-external/composes-external.test.ts": {
-    "passed": ["CSS Module Composes Usage (External) should render the module"],
+    "passed": [
+      "CSS Module Composes Usage (External) ({\"sass\": \"1.54.0\"}) should render the module",
+      "CSS Module Composes Usage (External) ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5217,7 +5443,8 @@
   },
   "test/e2e/app-dir/scss/data-url/data-url.test.ts": {
     "passed": [
-      "SCSS Support loader handling Data Urls should render the module"
+      "SCSS Support loader handling Data Urls ({\"sass\": \"1.54.0\"}) should render the module",
+      "SCSS Support loader handling Data Urls ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
     "failed": [],
     "pending": [],
@@ -5226,7 +5453,8 @@
   },
   "test/e2e/app-dir/scss/dev-module/dev-module.test.ts": {
     "passed": [
-      "Has CSS Module in computed styles in Development should have CSS for page"
+      "Has CSS Module in computed styles in Development ({\"sass\": \"1.54.0\"}) should have CSS for page",
+      "Has CSS Module in computed styles in Development ({\"sass-embedded\": \"1.75.0\"}) should have CSS for page"
     ],
     "failed": [],
     "pending": [],
@@ -5234,7 +5462,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/dynamic-route-module/dynamic-route-module.test.ts": {
-    "passed": ["Dynamic Route CSS Module Usage should apply styles correctly"],
+    "passed": [
+      "Dynamic Route CSS Module Usage ({\"sass\": \"1.54.0\"}) should apply styles correctly",
+      "Dynamic Route CSS Module Usage ({\"sass-embedded\": \"1.75.0\"}) should apply styles correctly"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5242,7 +5473,8 @@
   },
   "test/e2e/app-dir/scss/external-url/external-url.test.ts": {
     "passed": [
-      "SCSS Support loader handling External imports should include font on the page"
+      "SCSS Support loader handling External imports ({\"sass\": \"1.54.0\"}) should include font on the page",
+      "SCSS Support loader handling External imports ({\"sass-embedded\": \"1.75.0\"}) should include font on the page"
     ],
     "failed": [],
     "pending": [],
@@ -5251,7 +5483,8 @@
   },
   "test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts": {
     "passed": [
-      "Can hot reload CSS Module without losing state development only should update CSS color without remounting <input>"
+      "Can hot reload CSS Module without losing state ({\"sass\": \"1.54.0\"}) development only should update CSS color without remounting <input>",
+      "Can hot reload CSS Module without losing state ({\"sass-embedded\": \"1.75.0\"}) development only should update CSS color without remounting <input>"
     ],
     "failed": [],
     "pending": [],
@@ -5303,7 +5536,8 @@
   },
   "test/e2e/app-dir/scss/loader-order/loader-order.test.ts": {
     "passed": [
-      "SCSS Support loader handling Preprocessor loader order should render the module"
+      "SCSS Support loader handling Preprocessor loader order ({\"sass\": \"1.54.0\"}) should render the module",
+      "SCSS Support loader handling Preprocessor loader order ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
     "failed": [],
     "pending": [],
@@ -5311,14 +5545,20 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/multi-global-reversed/multi-global-reversed.test.ts": {
-    "passed": ["(SCSS) Multi Global Support (reversed) should render the page"],
+    "passed": [
+      "(SCSS) Multi Global Support (reversed) ({\"sass\": \"1.54.0\"}) should render the page",
+      "(SCSS) Multi Global Support (reversed) ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/multi-global/multi-global.test.ts": {
-    "passed": ["Multi Global Support should render the page"],
+    "passed": [
+      "Multi Global Support ({\"sass\": \"1.54.0\"}) should render the page",
+      "Multi Global Support ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5326,9 +5566,12 @@
   },
   "test/e2e/app-dir/scss/multi-page/multi-page.test.ts": {
     "passed": [
-      "SCSS Support Can hot reload CSS without losing state should update CSS color without remounting <input>",
-      "SCSS Support Has CSS in computed styles in Development should have CSS for page",
-      "SCSS Support Has CSS in computed styles in Production should have CSS for page"
+      "SCSS Support ({\"sass\": \"1.54.0\"}) Can hot reload CSS without losing state should update CSS color without remounting <input>",
+      "SCSS Support ({\"sass\": \"1.54.0\"}) Has CSS in computed styles in Development should have CSS for page",
+      "SCSS Support ({\"sass\": \"1.54.0\"}) Has CSS in computed styles in Production should have CSS for page",
+      "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Can hot reload CSS without losing state should update CSS color without remounting <input>",
+      "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Has CSS in computed styles in Development should have CSS for page",
+      "SCSS Support ({\"sass-embedded\": \"1.75.0\"}) Has CSS in computed styles in Production should have CSS for page"
     ],
     "failed": [],
     "pending": [],
@@ -5336,7 +5579,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/nested-global/nested-global.test.ts": {
-    "passed": ["Nested @import() Global Support should render the page"],
+    "passed": [
+      "Nested @import() Global Support ({\"sass\": \"1.54.0\"}) should render the page",
+      "Nested @import() Global Support ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5344,7 +5590,8 @@
   },
   "test/e2e/app-dir/scss/nm-module-nested/nm-module-nested.test.ts": {
     "passed": [
-      "Valid Nested CSS Module Usage from within node_modules should render the page"
+      "Valid Nested CSS Module Usage from within node_modules ({\"sass\": \"1.54.0\"}) should render the page",
+      "Valid Nested CSS Module Usage from within node_modules ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5353,7 +5600,8 @@
   },
   "test/e2e/app-dir/scss/nm-module/nm-module.test.ts": {
     "passed": [
-      "Valid CSS Module Usage from within node_modules should render the page"
+      "Valid CSS Module Usage from within node_modules ({\"sass\": \"1.54.0\"}) should render the page",
+      "Valid CSS Module Usage from within node_modules ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5371,7 +5619,8 @@
   },
   "test/e2e/app-dir/scss/npm-import-nested/npm-import-nested.test.ts": {
     "passed": [
-      "Good Nested CSS Import from node_modules should render the page"
+      "Good Nested CSS Import from node_modules ({\"sass\": \"1.54.0\"}) should render the page",
+      "Good Nested CSS Import from node_modules ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5380,7 +5629,8 @@
   },
   "test/e2e/app-dir/scss/npm-import-tilde/npm-import-tilde.test.ts": {
     "passed": [
-      "Good CSS Import from node_modules with tilde should render the page"
+      "Good CSS Import from node_modules with tilde ({\"sass\": \"1.54.0\"}) should render the page",
+      "Good CSS Import from node_modules with tilde ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5388,7 +5638,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/npm-import/npm-import.test.ts": {
-    "passed": ["Good CSS Import from node_modules should render the page"],
+    "passed": [
+      "Good CSS Import from node_modules ({\"sass\": \"1.54.0\"}) should render the page",
+      "Good CSS Import from node_modules ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5396,7 +5649,8 @@
   },
   "test/e2e/app-dir/scss/prod-module/prod-module.test.ts": {
     "passed": [
-      "Has CSS Module in computed styles in Production should render the page"
+      "Has CSS Module in computed styles in Production ({\"sass\": \"1.54.0\"}) should render the page",
+      "Has CSS Module in computed styles in Production ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5411,14 +5665,20 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/single-global-src/single-global-src.test.ts": {
-    "passed": ["Basic Global Support with src/ dir should render the page"],
+    "passed": [
+      "Basic Global Support with src/ dir ({\"sass\": \"1.54.0\"}) should render the page",
+      "Basic Global Support with src/ dir ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/single-global/single-global.test.ts": {
-    "passed": ["Basic Global Support scss should render the page"],
+    "passed": [
+      "Basic Global Support scss ({\"sass\": \"1.54.0\"}) should render the page",
+      "Basic Global Support scss ({\"sass-embedded\": \"1.75.0\"}) should render the page"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5427,7 +5687,7 @@
   "test/e2e/app-dir/scss/unused/unused.test.ts": {
     "passed": [
       "unused scss Body is not hidden when broken in Development development only should have body visible",
-      "unused scss Body is not hidden when unused in Development development only should have body visible"
+      "unused scss Body is not hidden when unused in Development ($dependencies) development only should have body visible"
     ],
     "failed": [],
     "pending": [],
@@ -5438,7 +5698,8 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (1) should render the page"
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (1) ({\"sass\": \"1.54.0\"}) should render the page",
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (1) ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "flakey": [],
     "runtimeError": false
@@ -5447,14 +5708,16 @@
     "passed": [],
     "failed": [],
     "pending": [
-      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (2) should render the page"
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (2) ({\"sass\": \"1.54.0\"}) should render the page",
+      "SCSS Support loader handling CSS URL via `file-loader` and asset prefix (2) ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/url-global-partial/url-global-partial.test.ts": {
     "passed": [
-      "SCSS Support loader handling CSS URL via file-loader sass partial should render the page"
+      "SCSS Support loader handling CSS URL via file-loader sass partial ({\"sass\": \"1.54.0\"}) should render the page",
+      "SCSS Support loader handling CSS URL via file-loader sass partial ({\"sass-embedded\": \"1.75.0\"}) should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5463,7 +5726,8 @@
   },
   "test/e2e/app-dir/scss/url-global/url-global.test.ts": {
     "passed": [
-      "SCSS Support loader handling CSS URL via `file-loader` should render the page"
+      "SCSS Support loader handling ({\"sass\": \"1.54.0\"}) CSS URL via `file-loader` should render the page",
+      "SCSS Support loader handling ({\"sass-embedded\": \"1.75.0\"}) CSS URL via `file-loader` should render the page"
     ],
     "failed": [],
     "pending": [],
@@ -5490,7 +5754,8 @@
   },
   "test/e2e/app-dir/scss/with-styled-jsx/with-styled-jsx.test.ts": {
     "passed": [
-      "Ordering with styled-jsx should have the correct color (css ordering)"
+      "Ordering with styled-jsx ({\"sass\": \"1.54.0\"}) should have the correct color (css ordering)",
+      "Ordering with styled-jsx ({\"sass-embedded\": \"1.75.0\"}) should have the correct color (css ordering)"
     ],
     "failed": [],
     "pending": [],
@@ -5596,8 +5861,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
+    "passed": [
+      "static-shell-debugging ppr = false, debugging = false should render the full page",
+      "static-shell-debugging ppr = false, debugging = true should render the full page",
+      "static-shell-debugging ppr = true, debugging = false should render the full page",
+      "static-shell-debugging ppr = true, debugging = true should only render the static shell",
+      "static-shell-debugging ppr = true, debugging = true should skip hydration to avoid blanking out the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts": {
     "passed": ["syntax-highlighter-crash should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/tailwind-css/tailwind-css.test.ts": {
+    "passed": ["tailwind-css works when importing tailwind/tailwind.css"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5657,11 +5942,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typeof-window/typeof-window.test.ts": {
+    "passed": ["typeof-window should work using cheerio"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
       "underscore-ignore-app-paths should serve app path with %5F",
       "underscore-ignore-app-paths should serve pages path with underscore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts": {
+    "passed": [
+      "unstable-rethrow should correctly trigger the not found page as not found",
+      "unstable-rethrow should handle an internal error that gets propagated to the `cause` field"
     ],
     "failed": [],
     "pending": [],
@@ -6107,16 +6409,16 @@
   },
   "test/e2e/esm-externals/esm-externals.test.ts": {
     "passed": [
-      "esm-externals should render the correct page for /client",
-      "esm-externals should render the correct page for /server",
-      "esm-externals should render the correct page for /ssg",
-      "esm-externals should render the correct page for /ssr",
-      "esm-externals should render the correct page for /static",
-      "esm-externals should return the correct SSR HTML for /client",
-      "esm-externals should return the correct SSR HTML for /server",
-      "esm-externals should return the correct SSR HTML for /ssg",
-      "esm-externals should return the correct SSR HTML for /ssr",
-      "esm-externals should return the correct SSR HTML for /static"
+      "esm-externals app dir url /client should render the correct page",
+      "esm-externals app dir url /client should return the correct SSR HTML",
+      "esm-externals app dir url /server should render the correct page",
+      "esm-externals app dir url /server should return the correct SSR HTML",
+      "esm-externals pages url /ssg should render the correct page",
+      "esm-externals pages url /ssg should return the correct SSR HTML",
+      "esm-externals pages url /ssr should render the correct page",
+      "esm-externals pages url /ssr should return the correct SSR HTML",
+      "esm-externals pages url /static should render the correct page",
+      "esm-externals pages url /static should return the correct SSR HTML"
     ],
     "failed": [],
     "pending": [],
@@ -6470,6 +6772,24 @@
     "passed": [
       "Event with stale state - static route previously was dynamic Ignore event with query param",
       "Event with stale state - static route previously was dynamic Ignore event without query param"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/import-conditions/import-conditions.test.ts": {
+    "passed": [
+      "react version App Router Route Handler with edge runtime",
+      "react version App Router Route Handler with nodejs runtime",
+      "react version App Router page headers with edge runtime",
+      "react version App Router page headers with nodejs runtime",
+      "react version App Router page with edge runtime",
+      "react version App Router page with nodejs runtime",
+      "react version Pages Router page headers with edge runtime",
+      "react version Pages Router page headers with nodejs runtime",
+      "react version Pages Router page with edge runtime",
+      "react version Pages Router page with nodejs runtime after hydration"
     ],
     "failed": [],
     "pending": [],
@@ -6919,10 +7239,13 @@
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
       "module layer client packages in middleware should error when import server packages in middleware",
-      "module layer with server-only in server targets should render installed react version for middleware",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
+      "module layer with server-only in server targets should contain client react exports for pages api",
+      "module layer with server-only in server targets should render installed react-server condition for middleware",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
@@ -7175,7 +7498,8 @@
       "clientTraceMetadata next dev only should inject propagation data for a statically server-side-rendered page",
       "clientTraceMetadata next dev only soft navigating to a dynamic page should not transform previous propagation data",
       "clientTraceMetadata next dev only soft navigating to a static page should not transform previous propagation data",
-      "clientTraceMetadata should inject propagation data for a dynamically server-side-rendered page"
+      "clientTraceMetadata should inject propagation data for a dynamically server-side-rendered page",
+      "clientTraceMetadata should only insert the client trace metadata once"
     ],
     "failed": [],
     "pending": [],
@@ -7381,6 +7705,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/react-version/react-version.test.ts": {
+    "passed": [
+      "react version should use default react condition for pages router apis",
+      "react version should use default react condition for pages router pages",
+      "react version should use react-server condition for app router client components pages",
+      "react version should use react-server condition for app router custom routes",
+      "react version should use react-server condition for app router server components pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/reload-scroll-backforward-restoration/index.test.ts": {
     "passed": [
       "reload-scroll-back-restoration should restore the scroll position on navigating back",
@@ -7403,6 +7740,16 @@
   "test/e2e/revalidate-reason/revalidate-reason.test.ts": {
     "passed": [
       "revalidate-reason development mode should support revalidateReason: \"stale\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/rsc-layers-transform/rsc-layers-transform.test.ts": {
+    "passed": [
+      "rsc layers transform should call instrumentation hook without errors",
+      "rsc layers transform should render installed react-server condition for middleware"
     ],
     "failed": [],
     "pending": [],
