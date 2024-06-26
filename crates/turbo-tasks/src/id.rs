@@ -44,8 +44,6 @@ macro_rules! define_id {
                 Self { id: NonZeroU32::new(id).expect("Ids can only be created from non zero values") }
             }
         }
-
-        impl nohash_hasher::IsEnabled for $name {}
     };
     ($name:ident) => {
         define_id!(internal $name);

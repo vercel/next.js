@@ -1,14 +1,14 @@
 use std::{
     cmp::Ordering,
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     mem::take,
     ops::{ControlFlow, Deref, DerefMut},
     sync::atomic::AtomicU32,
 };
 
 use auto_hash_map::{map::Entry, AutoMap};
-use nohash_hasher::BuildNoHashHasher;
 use parking_lot::Mutex;
+use rustc_hash::FxHasher;
 use turbo_tasks::{event::Event, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi};
 
 use super::{
@@ -50,14 +50,14 @@ pub struct Aggregated {
     pub unfinished_event: Event,
     /// A list of all tasks that are unfinished. Only for debugging.
     #[cfg(feature = "track_unfinished")]
-    pub unfinished_tasks: AutoMap<TaskId, i32, BuildNoHashHasher<TaskId>>,
+    pub unfinished_tasks: AutoMap<TaskId, i32, BuildHasherDefault<FxHasher>>,
     /// A list of all tasks that are dirty.
     /// When the it becomes active, these need to be scheduled.
     // TODO evaluate a more efficient data structure for this since we are copying the list on
     // every level.
-    pub dirty_tasks: AutoMap<TaskId, i32, BuildNoHashHasher<TaskId>>,
+    pub dirty_tasks: AutoMap<TaskId, i32, BuildHasherDefault<FxHasher>>,
     /// Emitted collectibles with count and dependent_tasks by trait type
-    pub collectibles: AutoMap<TraitTypeId, CollectiblesInfo, BuildNoHashHasher<TraitTypeId>>,
+    pub collectibles: AutoMap<TraitTypeId, CollectiblesInfo, BuildHasherDefault<FxHasher>>,
 
     /// Only used for the aggregation root. Which kind of root is this?
     /// [RootType::Once] for OnceTasks or [RootType::Root] for Root Tasks.

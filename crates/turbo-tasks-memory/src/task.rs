@@ -12,7 +12,6 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
-use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
@@ -186,7 +185,7 @@ struct TaskState {
     prepared_type: PrepareTaskType,
 
     output: Output,
-    cells: AutoMap<ValueTypeId, SmallVec<[Cell; 1]>, BuildNoHashHasher<ValueTypeId>>,
+    cells: AutoMap<ValueTypeId, SmallVec<[Cell; 1]>, BuildHasherDefault<FxHasher>>,
 
     // GC state:
     gc: GcTaskState,
