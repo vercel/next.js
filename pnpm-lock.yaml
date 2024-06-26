@@ -467,6 +467,9 @@ importers:
       react-experimental-builtin:
         specifier: npm:react@0.0.0-experimental-6230622a1a-20240610
         version: /react@0.0.0-experimental-6230622a1a-20240610
+      react-is-builtin:
+        specifier: npm:react-is@19.0.0-rc-6230622a1a-20240610
+        version: /react-is@19.0.0-rc-6230622a1a-20240610
       react-server-dom-turbopack:
         specifier: 19.0.0-rc-6230622a1a-20240610
         version: 19.0.0-rc-6230622a1a-20240610(react-dom@19.0.0-rc-6230622a1a-20240610)(react@19.0.0-rc-6230622a1a-20240610)
@@ -1353,9 +1356,6 @@ importers:
       raw-body:
         specifier: 2.4.1
         version: 2.4.1
-      react-is:
-        specifier: 19.0.0-rc-6230622a1a-20240610
-        version: 19.0.0-rc-6230622a1a-20240610
       react-refresh:
         specifier: 0.12.0
         version: 0.12.0
