@@ -53,6 +53,8 @@ type AsyncModule = (
   hasAwait: boolean
 ) => void;
 
+type ResolveAbsolutePath = (modulePath?: string) => string;
+
 interface TurbopackBaseContext {
   a: AsyncModule;
   e: Module["exports"];
@@ -71,6 +73,7 @@ interface TurbopackBaseContext {
   w: LoadWebAssembly;
   u: LoadWebAssemblyModule;
   g: typeof globalThis;
+  P: ResolveAbsolutePath;
   U: RelativeURL;
   __dirname: string;
 }

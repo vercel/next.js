@@ -365,6 +365,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
           g: globalThis,
+          P: resolveAbsolutePath,
           U: relativeURL,
           k: refresh,
           R: createResolvePathFromModule(r),
@@ -384,6 +385,14 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   }
 
   return module;
+}
+
+/**
+ * no-op for browser
+ * @param modulePath
+ */
+function resolveAbsolutePath(modulePath?: string): string {
+  return `/ROOT/${modulePath ?? ""}`;
 }
 
 /**

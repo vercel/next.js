@@ -36,10 +36,8 @@ function stringifySourceInfo(source: SourceInfo): string {
 
 type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
-type ResolveAbsolutePath = (modulePath?: string) => string;
 
 interface TurbopackNodeBuildContext extends TurbopackBaseContext {
-  P: ResolveAbsolutePath;
   R: ResolvePathFromModule;
   x: ExternalRequire;
   y: ExternalImport;

@@ -570,6 +570,7 @@ function instantiateModule(id, source) {
                 w: loadWebAssembly.bind(null, sourceInfo),
                 u: loadWebAssemblyModule.bind(null, sourceInfo),
                 g: globalThis,
+                P: resolveAbsolutePath,
                 U: relativeURL,
                 k: refresh,
                 R: createResolvePathFromModule(r),
@@ -586,6 +587,12 @@ function instantiateModule(id, source) {
         interopEsm(module.exports, module.namespaceObject);
     }
     return module;
+}
+/**
+ * no-op for browser
+ * @param modulePath
+ */ function resolveAbsolutePath(modulePath) {
+    return `/ROOT/${modulePath ?? ""}`;
 }
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
