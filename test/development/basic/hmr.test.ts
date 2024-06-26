@@ -372,14 +372,13 @@ describe.each([[''], ['/docs']])(
             const timeOrigin = await browser.eval('performance.timeOrigin')
             const editedContent = originalContent.replace(
               '<div>テスト</div>',
-              '<h1>テスト</h1>'
+              '<div class="updated">テスト</div>'
             )
 
             // Change the page
             await next.patchFile(pagePath, editedContent)
 
-            // wait for 5 seconds
-            await waitFor(5000)
+            await browser.waitForElementByCss('.updated')
 
             expect(await browser.eval('performance.timeOrigin')).toEqual(
               timeOrigin
