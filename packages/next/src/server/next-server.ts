@@ -308,14 +308,14 @@ export default class NextNodeServer extends BaseServer<
     // development.
   }
 
-  protected async prepareImpl() {
-    await super.prepareImpl()
+  protected async loadInstrumentationModule() {
+    let instrumentationModule: any
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        const instrumentationHook = await dynamicRequire(
+        instrumentationModule = await dynamicRequire(
           resolve(
             this.serverOptions.dir || '.',
             this.serverOptions.conf.distDir!,
@@ -323,14 +323,23 @@ export default class NextNodeServer extends BaseServer<
             INSTRUMENTATION_HOOK_FILENAME
           )
         )
-
-        await instrumentationHook.register?.()
       } catch (err: any) {
         if (err.code !== 'MODULE_NOT_FOUND') {
           err.message = `An error occurred while loading instrumentation hook: ${err.message}`
           throw err
         }
       }
+    }
+    return instrumentationModule
+  }
+
+  protected async prepareImpl() {
+    await super.prepareImpl()
+
+    // Call the instrumentation register hook
+    const instrumentation = await this.loadInstrumentationModule()
+    if (instrumentation) {
+      await instrumentation.register?.()
     }
   }
 

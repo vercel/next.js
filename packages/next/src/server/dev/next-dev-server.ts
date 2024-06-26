@@ -584,7 +584,8 @@ export default class DevServer extends Server {
     })
   }
 
-  private async runInstrumentationHookIfAvailable() {
+  protected async loadInstrumentationModule(): Promise<any> {
+    let instrumentationModule: any
     if (
       this.actualInstrumentationHookFile &&
       (await this.ensurePage({
@@ -596,14 +597,21 @@ export default class DevServer extends Server {
         .catch(() => false))
     ) {
       try {
-        const instrumentationHook = await require(
+        instrumentationModule = await require(
           pathJoin(this.distDir, 'server', INSTRUMENTATION_HOOK_FILENAME)
         )
-        await instrumentationHook.register()
       } catch (err: any) {
         err.message = `An error occurred while loading instrumentation hook: ${err.message}`
         throw err
       }
+    }
+    return instrumentationModule
+  }
+
+  private async runInstrumentationHookIfAvailable() {
+    const instrumentation = await this.loadInstrumentationModule()
+    if (instrumentation) {
+      await instrumentation.register()
     }
   }
 
