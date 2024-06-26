@@ -282,7 +282,7 @@
     "postcss-modules-values": "4.0.0",
     "postcss-preset-env": "7.4.3",
     "postcss-safe-parser": "6.0.0",
-    "postcss-scss": "4.0.3",
+    "postcss-scss": "4.0.9",
     "postcss-value-parser": "4.2.0",
     "process": "0.11.10",
     "punycode": "2.1.1",
