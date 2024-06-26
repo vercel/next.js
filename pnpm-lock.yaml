@@ -771,7 +771,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -833,14 +833,14 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.11
         version: 0.5.11
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-938cd9a-20240601
+        version: 0.0.0-experimental-696af53-20240625
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -961,16 +961,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1092,9 +1092,6 @@ importers:
       '@types/ua-parser-js':
         specifier: 0.7.36
         version: 0.7.36
-      '@types/uuid':
-        specifier: 8.3.1
-        version: 8.3.1
       '@types/webpack-sources1':
         specifier: npm:@types/webpack-sources@0.1.5
         version: /@types/webpack-sources@0.1.5
@@ -1452,9 +1449,6 @@ importers:
       util:
         specifier: 0.12.4
         version: 0.12.4
-      uuid:
-        specifier: 8.3.2
-        version: 8.3.2
       vm-browserify:
         specifier: 1.1.2
         version: 1.1.2
@@ -1594,7 +1588,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.43
+        specifier: 15.0.0-canary.44
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -4208,6 +4202,7 @@ packages:
   /@humanwhocodes/config-array@0.11.14:
     resolution: {integrity: sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==}
     engines: {node: '>=10.10.0'}
+    deprecated: Use @eslint/config-array instead
     dependencies:
       '@humanwhocodes/object-schema': 2.0.2
       debug: 4.3.4
@@ -4237,6 +4232,7 @@ packages:
 
   /@humanwhocodes/object-schema@2.0.2:
     resolution: {integrity: sha512-6EwiSjwWYP7pTckG6I5eyFANjPhmPjUX9JRLUSfNPC7FX7zK9gyZAfUEaECL6ALTpGX5AjnBq3C9XmVWPitNpw==}
+    deprecated: Use @eslint/object-schema instead
     dev: true
 
   /@img/sharp-darwin-arm64@0.33.4:
@@ -7665,10 +7661,6 @@ packages:
   /@types/unist@2.0.3:
     resolution: {integrity: sha512-FvUupuM3rlRsRtCN+fDudtmytGO6iHJuuRKS1Ss0pG5z8oX0diNEw94UEL7hgDbpN94rgaK5R7sWm6RrSkZuAQ==}
 
-  /@types/uuid@8.3.1:
-    resolution: {integrity: sha512-Y2mHTRAbqfFkpjldbkHGY8JIzRN6XqYRliG8/24FcHm2D2PwW24fl5xMRTVGdrb7iMrwCaIEbLWerGIkXuFWVg==}
-    dev: true
-
   /@types/validate-npm-package-name@4.0.2:
     resolution: {integrity: sha512-lrpDziQipxCEeK5kWxvljWYhUvOiB2A9izZd9B2AFarYAkqZshb4lPbRs7zKEic6eGtH8V/2qJW+dPp9OtF6bw==}
     dev: true
@@ -9007,8 +8999,8 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /babel-plugin-react-compiler@0.0.0-experimental-938cd9a-20240601:
-    resolution: {integrity: sha512-t+uBHxbfxq2z4j83ZYgOsV0dlSaRgPfhrYB5+CMv6ByXUAv5wm7m7YLFx67fWKrG3eDhq3+KH1OMeFypuDLkUA==}
+  /babel-plugin-react-compiler@0.0.0-experimental-696af53-20240625:
+    resolution: {integrity: sha512-OUDKms8qmcm5bX0D+sJWC1YcKcd7AZ2aJ7eY6gkR+Xr7PDfkXLbqAld4Qs9B0ntjVbUMEtW/PjlQrxDtY4raHg==}
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
