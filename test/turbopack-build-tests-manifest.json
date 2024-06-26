@@ -1,11 +1,6 @@
 {
   "version": 2,
   "suites": {
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "pending": [],
-      "failed": ["Provided page/app paths should only build the provided paths"]
-    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -813,6 +808,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -909,6 +905,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -1251,6 +1248,15 @@
         "app dir - basic should match partial parameters",
         "app dir - basic should not include parent when not in parent directory with route in directory"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/app/provide-paths.test.ts": {
+      "passed": [],
+      "failed": [
+        "Provided page/app paths should only build the provided paths"
+      ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -2424,6 +2430,16 @@
     "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
       "passed": [
         "not-found app dir css should load css while navigation between not-found and page"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/not-found/default/default.test.ts": {
+      "passed": [
+        "app dir - not-found - default should contain noindex contain in the page",
+        "app dir - not-found - default should has noindex in the head html"
       ],
       "failed": [],
       "pending": [],
@@ -3704,6 +3720,16 @@
         "searchparams-static-bailout client component should not bailout when not using searchParams",
         "searchparams-static-bailout server component should bailout when using searchParams",
         "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
+      "passed": [
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
       ],
       "failed": [],
       "pending": [],
