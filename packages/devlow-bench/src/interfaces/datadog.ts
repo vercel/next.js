@@ -5,6 +5,7 @@ import type {
 import type { Interface } from "../index.js";
 import datadogApiClient from "@datadog/datadog-api-client";
 import os from "os";
+import { command } from "../shell.js";
 
 function toIdentifier(str: string) {
   return str.replace(/\//g, ".").replace(/ /g, "_");
@@ -15,6 +16,22 @@ const UNIT_MAPPING: Record<string, string> = {
   requests: "request",
   bytes: "byte",
 };
+
+const GIT_SHA =
+  process.env.GITHUB_SHA ??
+  (await (async () => {
+    const cmd = command("git", ["rev-parse", "HEAD"]);
+    await cmd.ok();
+    return cmd.output.trim();
+  })());
+
+const GIT_BRANCH =
+  process.env.GITHUB_REF_NAME ??
+  (await (async () => {
+    const cmd = command("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
+    await cmd.ok();
+    return cmd.output.trim();
+  })());
 
 export default function createInterface({
   apiKey = process.env.DATADOG_API_KEY,
@@ -33,6 +50,8 @@ export default function createInterface({
     `arch:${os.arch()}`,
     `total_memory:${Math.round(os.totalmem() / 1024 / 1024 / 1024)}`,
     `node_version:${process.version}`,
+    `git_sha:${GIT_SHA}`,
+    `git_branch:${GIT_BRANCH}`,
   ];
   const configuration = datadogApiClient.client.createConfiguration({
     authMethods: {
