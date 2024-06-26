@@ -1,7 +1,6 @@
 use std::{
-    cell::RefCell,
     fmt::{Debug, Display},
-    mem::{transmute_copy, ManuallyDrop},
+    mem::transmute_copy,
     num::NonZeroU32,
     ops::Deref,
 };
@@ -135,77 +134,12 @@ make_serializable!(
     TraitTypeVisitor
 );
 
-pub trait IdMapping<T> {
-    fn forward(&self, id: T) -> u32;
-    fn backward(&self, id: u32) -> T;
-}
-
-impl<T, U> IdMapping<T> for &U
-where
-    U: IdMapping<T>,
-{
-    fn forward(&self, id: T) -> u32 {
-        (**self).forward(id)
-    }
-
-    fn backward(&self, id: u32) -> T {
-        (**self).backward(id)
-    }
-}
-
-struct TemporarySwapGuard<'c, T>(&'c RefCell<T>, ManuallyDrop<T>);
-
-impl<'c, T> Drop for TemporarySwapGuard<'c, T> {
-    fn drop(&mut self) {
-        // Safety: T is "taken out" only once here before dropping the whole object.
-        let old = unsafe { ManuallyDrop::take(&mut self.1) };
-        *self.0.borrow_mut() = old;
-    }
-}
-
-pub fn with_task_id_mapping<'a, T, M>(mapping: M, func: impl FnOnce() -> T) -> T
-where
-    M: IdMapping<TaskId> + 'a,
-{
-    TASK_ID_MAPPING.with(|cell| {
-        let dyn_box: Box<dyn IdMapping<TaskId> + 'a> = Box::new(mapping);
-        // SAFETY: We cast to 'static lifetime, but it's still safe since we remove the
-        // value again before the lifetime ends. So as long nobody copies the
-        // value it's safe. The thread_local is private, so nobody can use it
-        // except for this module.
-        let static_box: Box<dyn IdMapping<TaskId> + 'static> =
-            unsafe { std::mem::transmute(dyn_box) };
-        let old = std::mem::replace(&mut *cell.borrow_mut(), Some(static_box));
-        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old));
-        func()
-    })
-}
-
-pub fn without_task_id_mapping<T>(func: impl FnOnce() -> T) -> T {
-    TASK_ID_MAPPING.with(|cell| {
-        let old = cell.borrow_mut().take();
-        let _swap_guard = TemporarySwapGuard(cell, ManuallyDrop::new(old));
-        func()
-    })
-}
-
-thread_local! {
-    static TASK_ID_MAPPING: RefCell<Option<Box<dyn IdMapping<TaskId>>>> = RefCell::new(None);
-}
-
 impl Serialize for TaskId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        TASK_ID_MAPPING.with(|cell| {
-            let mapped_id = if let Some(mapping) = cell.borrow().as_ref() {
-                mapping.forward(*self)
-            } else {
-                **self
-            };
-            serializer.serialize_u64(mapped_id as u64)
-        })
+        serializer.serialize_u32(**self)
     }
 }
 
@@ -223,19 +157,11 @@ impl<'de> Deserialize<'de> for TaskId {
                 write!(f, "task id")
             }
 
-            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                TASK_ID_MAPPING.with(|cell| {
-                    let id = v as u32;
-                    let mapped_id = if let Some(mapping) = cell.borrow().as_ref() {
-                        mapping.backward(id)
-                    } else {
-                        TaskId::from(id)
-                    };
-                    Ok(mapped_id)
-                })
+                Ok(TaskId::from(v))
             }
         }
 
