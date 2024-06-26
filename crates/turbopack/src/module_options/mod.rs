@@ -504,17 +504,22 @@ impl ModuleOptions {
         }
 
         if enable_mdx || enable_mdx_rs.is_some() {
-            let (jsx_runtime, jsx_import_source) = if let Some(enable_jsx) = enable_jsx {
+            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
+            {
                 let jsx = enable_jsx.await?;
-                (jsx.runtime.clone(), jsx.import_source.clone())
+                (
+                    jsx.runtime.clone(),
+                    jsx.import_source.clone(),
+                    jsx.development,
+                )
             } else {
-                (None, None)
+                (None, None, false)
             };
 
             let mdx_options = &*enable_mdx_rs.unwrap_or(Default::default()).await?;
 
             let mdx_transform_options = (MdxTransformOptions {
-                development: Some(true),
+                development: Some(development),
                 jsx: Some(false),
                 jsx_runtime,
                 jsx_import_source,
