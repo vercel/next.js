@@ -75,7 +75,7 @@ type InternalLinkProps = {
    *
    * @defaultValue `true`
    */
-  prefetch?: boolean
+  prefetch?: boolean | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
