@@ -12,7 +12,6 @@ const cssnanoPlugin = (options = {}) => {
   for (const nanoPlugin of nanoPlugins) {
     if (Array.isArray(nanoPlugin)) {
       let [processor, opts] = nanoPlugin
-      processor = processor.default || processor
       if (
         typeof opts === 'undefined' ||
         (typeof opts === 'object' && !opts.exclude) ||
