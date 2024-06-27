@@ -6,16 +6,19 @@ function cn(...classes: any[]) {
 }
 
 export default function CoverImage({
+  id,
   title,
   url,
   slug,
 }: {
+  id: string;
   title: string;
   url: string;
   slug?: string;
 }) {
   const image = (
     <ContentfulImage
+      id={id}
       alt={`Cover Image for ${title}`}
       priority
       width={2000}
