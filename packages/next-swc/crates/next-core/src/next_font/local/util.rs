@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 
 use super::options::NextFontLocalOptions;
 use crate::next_font::{
@@ -12,22 +12,17 @@ use crate::next_font::{
 pub(super) async fn build_font_family_string(
     options: Vc<NextFontLocalOptions>,
     font_fallbacks: Vc<FontFallbacks>,
-    request_hash: Vc<u32>,
-) -> Result<Vc<String>> {
+) -> Result<Vc<RcStr>> {
     let mut font_families = vec![format!(
         "'{}'",
-        *get_scoped_font_family(
-            FontFamilyType::WebFont.cell(),
-            options.font_family(),
-            request_hash,
-        )
-        .await?
-    )];
+        *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?
+    )
+    .into()];
 
     for font_fallback in &*font_fallbacks.await? {
         match &*font_fallback.await? {
             FontFallback::Automatic(fallback) => {
-                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
+                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
             }
             FontFallback::Manual(fallbacks) => {
                 font_families.extend_from_slice(fallbacks);
@@ -36,5 +31,5 @@ pub(super) async fn build_font_family_string(
         }
     }
 
-    Ok(Vc::cell(font_families.join(", ")))
+    Ok(Vc::cell(font_families.join(", ").into()))
 }

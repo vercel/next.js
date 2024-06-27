@@ -57,7 +57,7 @@ import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
@@ -134,6 +134,7 @@ type AppRouterProps = Omit<
 > & {
   buildId: string
   initialHead: ReactNode
+  initialLayerAssets: ReactNode
   assetPrefix: string
   missingSlots: Set<string>
 }
@@ -182,7 +183,12 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
+    head: null,
+    layerAssets: null,
+    prefetchLayerAssets: null,
+    prefetchHead: null,
     parallelRoutes: new Map(),
+    loading: null,
   }
 }
 
@@ -286,6 +292,7 @@ function Head({
 function Router({
   buildId,
   initialHead,
+  initialLayerAssets,
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
@@ -303,6 +310,7 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
+        initialLayerAssets,
         couldBeIntercepted,
       }),
     [
@@ -311,6 +319,7 @@ function Router({
       initialCanonicalUrl,
       initialTree,
       initialHead,
+      initialLayerAssets,
       couldBeIntercepted,
     ]
   )
@@ -352,14 +361,24 @@ function Router({
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
         // Don't prefetch for bots as they don't navigate.
-        // Don't prefetch during development (improves compilation performance)
-        if (
-          isBot(window.navigator.userAgent) ||
-          process.env.NODE_ENV === 'development'
-        ) {
+        if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), window.location.href)
+
+        let url: URL
+        try {
+          url = new URL(addBasePath(href), window.location.href)
+        } catch (_) {
+          throw new Error(
+            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+          )
+        }
+
+        // Don't prefetch during development (improves compilation performance)
+        if (process.env.NODE_ENV === 'development') {
+          return
+        }
+
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -390,7 +409,6 @@ function Router({
           })
         })
       },
-      // @ts-ignore we don't want to expose this method at all
       fastRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
@@ -449,6 +467,11 @@ function Router({
         return
       }
 
+      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
+      // of the last MPA navigation.
+      globalMutable.pendingMpaPath = undefined
+
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
@@ -489,7 +512,7 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(createInfinitePromise())
+    use(unresolvedThenable)
   }
 
   useEffect(() => {
@@ -578,7 +601,6 @@ function Router({
         return
       }
 
-      // @ts-ignore useTransition exists
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
@@ -611,6 +633,27 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  const layoutRouterContext = useMemo(() => {
+    return {
+      childNodes: cache.parallelRoutes,
+      tree,
+      // Root node always has `url`
+      // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+      url: canonicalUrl,
+      loading: cache.loading,
+    }
+  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
+
+  const globalLayoutRouterContext = useMemo(() => {
+    return {
+      buildId,
+      changeByServerResponse,
+      tree,
+      focusAndScrollRef,
+      nextUrl,
+    }
+  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+
   let head
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
@@ -625,9 +668,27 @@ function Router({
     head = null
   }
 
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument. We only use the prefetched layer assets
+  // if they are available. Otherwise, we use the non-prefetched version.
+  const resolvedPrefetchLayerAssets =
+    cache.prefetchLayerAssets !== null
+      ? cache.prefetchLayerAssets
+      : cache.layerAssets
+
+  const layerAssets = useDeferredValue(
+    cache.layerAssets,
+    // @ts-expect-error The second argument to `useDeferredValue` is only
+    // available in the experimental builds. When its disabled, it will always
+    // return `cache.layerAssets`.
+    resolvedPrefetchLayerAssets
+  )
+
   let content = (
     <RedirectBoundary>
       {head}
+      {layerAssets}
       {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
@@ -657,28 +718,15 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
+      <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
             <GlobalLayoutRouterContext.Provider
-              value={{
-                buildId,
-                changeByServerResponse,
-                tree,
-                focusAndScrollRef,
-                nextUrl,
-              }}
+              value={globalLayoutRouterContext}
             >
               <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider
-                  value={{
-                    childNodes: cache.parallelRoutes,
-                    tree,
-                    // Root node always has `url`
-                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                    url: canonicalUrl,
-                  }}
-                >
+                <LayoutRouterContext.Provider value={layoutRouterContext}>
                   {content}
                 </LayoutRouterContext.Provider>
               </AppRouterContext.Provider>
@@ -700,4 +748,49 @@ export default function AppRouter(
       <Router {...rest} />
     </ErrorBoundary>
   )
+}
+
+const runtimeStyles = new Set<string>()
+let runtimeStyleChanged = new Set<() => void>()
+
+globalThis._N_E_STYLE_LOAD = function (href: string) {
+  let len = runtimeStyles.size
+  runtimeStyles.add(href)
+  if (runtimeStyles.size !== len) {
+    runtimeStyleChanged.forEach((cb) => cb())
+  }
+  // TODO figure out how to get a promise here
+  // But maybe it's not necessary as react would block rendering until it's loaded
+  return Promise.resolve()
+}
+
+function RuntimeStyles() {
+  const [, forceUpdate] = React.useState(0)
+  const renderedStylesSize = runtimeStyles.size
+  useEffect(() => {
+    const changed = () => forceUpdate((c) => c + 1)
+    runtimeStyleChanged.add(changed)
+    if (renderedStylesSize !== runtimeStyles.size) {
+      changed()
+    }
+    return () => {
+      runtimeStyleChanged.delete(changed)
+    }
+  }, [renderedStylesSize, forceUpdate])
+
+  const dplId = process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+    : ''
+  return [...runtimeStyles].map((href, i) => (
+    <link
+      key={i}
+      rel="stylesheet"
+      href={`${href}${dplId}`}
+      // @ts-ignore
+      precedence="next"
+      // TODO figure out crossOrigin and nonce
+      // crossOrigin={TODO}
+      // nonce={TODO}
+    />
+  ))
 }

@@ -1,8 +1,8 @@
 import type { RequestCookies } from '../cookies'
-import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
+import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 
 /**
  * @internal
@@ -106,9 +106,7 @@ export class MutableRequestCookiesAdapter {
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
       // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = (fetch as any)
-        .__nextGetStaticStore?.()
-        ?.getStore() as undefined | StaticGenerationStore
+      const staticGenerationAsyncStore = staticGenerationAsyncStorage.getStore()
       if (staticGenerationAsyncStore) {
         staticGenerationAsyncStore.pathWasRevalidated = true
       }

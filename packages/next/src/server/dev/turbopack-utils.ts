@@ -10,6 +10,7 @@ import type {
   Issue,
   StyledString,
   TurbopackResult,
+  Update as TurbopackUpdate,
   WrittenEndpoint,
 } from '../../build/swc'
 import {
@@ -30,6 +31,9 @@ import {
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
+import type ws from 'next/dist/compiled/ws'
+import isInternal from '../../shared/lib/is-internal'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -39,15 +43,62 @@ export async function getTurbopackJsConfig(
   return jsConfig ?? { compilerOptions: {} }
 }
 
-class ModuleBuildError extends Error {}
+export class ModuleBuildError extends Error {}
 
-function getIssueKey(issue: Issue): string {
-  return [
-    issue.severity,
-    issue.filePath,
-    JSON.stringify(issue.title),
-    JSON.stringify(issue.description),
-  ].join('-')
+/**
+ * Thin stopgap workaround layer to mimic existing wellknown-errors-plugin in webpack's build
+ * to emit certain type of errors into cli.
+ */
+export function isWellKnownError(issue: Issue): boolean {
+  const { title } = issue
+  const formattedTitle = renderStyledStringToErrorAnsi(title)
+  // TODO: add more well known errors
+  if (
+    formattedTitle.includes('Module not found') ||
+    formattedTitle.includes('Unknown module type')
+  ) {
+    return true
+  }
+
+  return false
+}
+
+const onceErrorSet = new Set()
+/**
+ * Check if given issue is a warning to be display only once.
+ * This miimics behavior of get-page-static-info's warnOnce.
+ * @param issue
+ * @returns
+ */
+function shouldEmitOnceWarning(issue: Issue): boolean {
+  const { severity, title } = issue
+  if (severity === 'warning' && title.value === 'Invalid page configuration') {
+    if (onceErrorSet.has(issue)) {
+      return false
+    }
+    onceErrorSet.add(issue)
+  }
+
+  return true
+}
+
+/// Print out an issue to the console which should not block
+/// the build by throwing out or blocking error overlay.
+export function printNonFatalIssue(issue: Issue) {
+  if (isRelevantWarning(issue) && shouldEmitOnceWarning(issue)) {
+    Log.warn(formatIssue(issue))
+  }
+}
+
+function isNodeModulesIssue(issue: Issue): boolean {
+  return (
+    issue.severity === 'warning' &&
+    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+  )
+}
+
+export function isRelevantWarning(issue: Issue): boolean {
+  return issue.severity === 'warning' && !isNodeModulesIssue(issue)
 }
 
 export function formatIssue(issue: Issue) {
@@ -71,7 +122,7 @@ export function formatIssue(issue: Issue) {
     .replaceAll('/./', '/')
     .replace('\\\\?\\', '')
 
-  let message
+  let message = ''
 
   if (source && source.range) {
     const { start } = source.range
@@ -85,7 +136,12 @@ export function formatIssue(issue: Issue) {
   }
   message += '\n'
 
-  if (source?.range && source.source.content) {
+  if (
+    source?.range &&
+    source.source.content &&
+    // ignore Next.js/React internals, as these can often be huge bundled files.
+    !isInternal(filePath)
+  ) {
     const { start, end } = source.range
     const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
 
@@ -124,29 +180,59 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type IssuesMap = Map<EntryKey, Map<string, Issue>>
+type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
+export type IssuesMap = Map<IssueKey, Issue>
+export type EntryIssuesMap = Map<EntryKey, IssuesMap>
+export type TopLevelIssuesMap = IssuesMap
+
+function getIssueKey(issue: Issue): IssueKey {
+  return `${issue.severity}-${issue.filePath}-${JSON.stringify(
+    issue.title
+  )}-${JSON.stringify(issue.description)}`
+}
+
+export function processTopLevelIssues(
+  currentTopLevelIssues: TopLevelIssuesMap,
+  result: TurbopackResult
+) {
+  currentTopLevelIssues.clear()
+
+  for (const issue of result.issues) {
+    const issueKey = getIssueKey(issue)
+    currentTopLevelIssues.set(issueKey, issue)
+  }
+}
 
 export function processIssues(
-  currentIssues: IssuesMap,
+  currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
   result: TurbopackResult,
-  throwIssue = false
+  throwIssue: boolean,
+  logErrors: boolean
 ) {
-  const newIssues = new Map<string, Issue>()
-  currentIssues.set(key, newIssues)
+  const newIssues = new Map<IssueKey, Issue>()
+  currentEntryIssues.set(key, newIssues)
 
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-
-    relevantIssues.add(formatted)
+    if (issue.severity !== 'warning') {
+      relevantIssues.add(formatted)
+      if (logErrors && isWellKnownError(issue)) {
+        Log.error(formatted)
+      }
+    }
   }
 
   if (relevantIssues.size && throwIssue) {
@@ -181,10 +267,10 @@ export function renderStyledStringToErrorAnsi(string: StyledString): string {
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
 export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
+  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
 }
 
 export type ChangeSubscriptions = Map<
@@ -200,7 +286,7 @@ export type HandleWrittenEndpoint = (
 export type StartChangeSubscription = (
   key: EntryKey,
   includeIssues: boolean,
-  endpoint: Endpoint | undefined,
+  endpoint: Endpoint,
   makePayload: (
     change: TurbopackResult
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
@@ -218,6 +304,15 @@ export type StartBuilding = (
 
 export type ReadyIds = Set<string>
 
+export type ClientState = {
+  clientIssues: EntryIssuesMap
+  hmrPayloads: Map<string, HMR_ACTION_TYPES>
+  turbopackUpdates: TurbopackUpdate[]
+  subscriptions: Map<string, AsyncIterator<any>>
+}
+
+export type ClientStateMap = WeakMap<ws, ClientState>
+
 // hooks only used by the dev server.
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
@@ -229,22 +324,24 @@ export async function handleRouteType({
   page,
   pathname,
   route,
-  currentIssues,
+  currentEntryIssues,
   entrypoints,
   manifestLoader,
   readyIds,
   rewrites,
   hooks,
+  logErrors,
 }: {
   dev: boolean
   page: string
   pathname: string
   route: PageRoute | AppRoute
 
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
   readyIds?: ReadyIds // dev
 
@@ -261,7 +358,13 @@ export async function handleRouteType({
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentIssues, key, writtenEndpoint)
+          processIssues(
+            currentEntryIssues,
+            key,
+            writtenEndpoint,
+            false,
+            logErrors
+          )
         }
         await manifestLoader.loadBuildManifest('_app')
         await manifestLoader.loadPagesManifest('_app')
@@ -272,7 +375,13 @@ export async function handleRouteType({
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentIssues, key, writtenEndpoint)
+          processIssues(
+            currentEntryIssues,
+            key,
+            writtenEndpoint,
+            false,
+            logErrors
+          )
         }
         await manifestLoader.loadPagesManifest('_document')
 
@@ -288,6 +397,7 @@ export async function handleRouteType({
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
+        await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
@@ -296,7 +406,13 @@ export async function handleRouteType({
           pageEntrypoints: entrypoints.page,
         })
 
-        processIssues(currentIssues, serverKey, writtenEndpoint)
+        processIssues(
+          currentEntryIssues,
+          serverKey,
+          writtenEndpoint,
+          false,
+          logErrors
+        )
       } finally {
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
@@ -348,7 +464,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
@@ -385,13 +501,14 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
+      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, key, writtenEndpoint, dev)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
 
       break
     }
@@ -404,6 +521,7 @@ export async function handleRouteType({
       const type = writtenEndpoint?.type
 
       await manifestLoader.loadAppPathsManifest(page)
+
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
@@ -414,12 +532,123 @@ export async function handleRouteType({
         rewrites,
         pageEntrypoints: entrypoints.page,
       })
-      processIssues(currentIssues, key, writtenEndpoint, true)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
       break
     }
     default: {
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
+    }
+  }
+}
+
+/**
+ * Maintains a mapping between entrypoins and the corresponding client asset paths.
+ */
+export class AssetMapper {
+  private entryMap: Map<EntryKey, Set<string>> = new Map()
+  private assetMap: Map<string, Set<EntryKey>> = new Map()
+
+  /**
+   * Overrides asset paths for a key and updates the mapping from path to key.
+   *
+   * @param key
+   * @param assetPaths asset paths relative to the .next directory
+   */
+  setPathsForKey(key: EntryKey, assetPaths: string[]): void {
+    this.delete(key)
+
+    const newAssetPaths = new Set(assetPaths)
+    this.entryMap.set(key, newAssetPaths)
+
+    for (const assetPath of newAssetPaths) {
+      let assetPathKeys = this.assetMap.get(assetPath)
+      if (!assetPathKeys) {
+        assetPathKeys = new Set()
+        this.assetMap.set(assetPath, assetPathKeys)
+      }
+
+      assetPathKeys!.add(key)
+    }
+  }
+
+  /**
+   * Deletes the key and any asset only referenced by this key.
+   *
+   * @param key
+   */
+  delete(key: EntryKey) {
+    for (const assetPath of this.getAssetPathsByKey(key)) {
+      const assetPathKeys = this.assetMap.get(assetPath)
+
+      assetPathKeys?.delete(key)
+
+      if (!assetPathKeys?.size) {
+        this.assetMap.delete(assetPath)
+      }
+    }
+
+    this.entryMap.delete(key)
+  }
+
+  getAssetPathsByKey(key: EntryKey): string[] {
+    return Array.from(this.entryMap.get(key) ?? [])
+  }
+
+  getKeysByAsset(path: string): EntryKey[] {
+    return Array.from(this.assetMap.get(path) ?? [])
+  }
+
+  keys(): IterableIterator<EntryKey> {
+    return this.entryMap.keys()
+  }
+}
+
+export function hasEntrypointForKey(
+  entrypoints: Entrypoints,
+  key: EntryKey,
+  assetMapper: AssetMapper | undefined
+): boolean {
+  const { type, page } = splitEntryKey(key)
+
+  switch (type) {
+    case 'app':
+      return entrypoints.app.has(page)
+    case 'pages':
+      switch (page) {
+        case '_app':
+          return entrypoints.global.app != null
+        case '_document':
+          return entrypoints.global.document != null
+        case '_error':
+          return entrypoints.global.error != null
+        default:
+          return entrypoints.page.has(page)
+      }
+    case 'root':
+      switch (page) {
+        case 'middleware':
+          return entrypoints.global.middleware != null
+        case 'instrumentation':
+          return entrypoints.global.instrumentation != null
+        default:
+          return false
+      }
+    case 'assets':
+      if (!assetMapper) {
+        return false
+      }
+
+      return assetMapper
+        .getKeysByAsset(page)
+        .some((pageKey) =>
+          hasEntrypointForKey(entrypoints, pageKey, assetMapper)
+        )
+    default: {
+      // validation that we covered all cases, this should never run.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _: never = type
+      return false
     }
   }
 }
@@ -435,6 +664,17 @@ type HandleEntrypointsHooks = {
   startBuilding: StartBuilding
   subscribeToChanges: StartChangeSubscription
   unsubscribeFromChanges: StopChangeSubscription
+  unsubscribeFromHmrEvents: (client: ws, id: string) => void
+}
+
+type HandleEntrypointsDevOpts = {
+  assetMapper: AssetMapper
+  changeSubscriptions: ChangeSubscriptions
+  clients: Set<ws>
+  clientStates: ClientStateMap
+  serverFields: ServerFields
+
+  hooks: HandleEntrypointsHooks
 }
 
 export async function handleEntrypoints({
@@ -442,29 +682,24 @@ export async function handleEntrypoints({
 
   currentEntrypoints,
 
-  currentIssues,
+  currentEntryIssues,
   manifestLoader,
   nextConfig,
   rewrites,
-
-  changeSubscriptions,
-  serverFields,
-
-  hooks,
+  logErrors,
+  dev,
 }: {
   entrypoints: TurbopackResult<RawEntrypoints>
 
   currentEntrypoints: Entrypoints
 
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
-  changeSubscriptions?: ChangeSubscriptions // dev
-  serverFields?: ServerFields // dev
-
-  hooks?: HandleEntrypointsHooks //dev
+  dev?: HandleEntrypointsDevOpts
 }) {
   currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
   currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
@@ -500,31 +735,13 @@ export async function handleEntrypoints({
     }
   }
 
-  if (changeSubscriptions) {
-    for (const [key, subscriptionPromise] of changeSubscriptions) {
-      const { type, page } = splitEntryKey(key)
+  if (dev) {
+    await handleEntrypointsDevCleanup({
+      currentEntryIssues,
+      currentEntrypoints,
 
-      // middleware is handled below
-      if (
-        (type === 'app' && !currentEntrypoints.page.has(page)) ||
-        (type === 'pages' && !currentEntrypoints.app.has(page))
-      ) {
-        const subscription = await subscriptionPromise
-        await subscription.return?.()
-        changeSubscriptions.delete(key)
-      }
-    }
-  }
-
-  for (const [key] of currentIssues) {
-    const { type, page } = splitEntryKey(key)
-
-    if (
-      (type === 'app' && !currentEntrypoints.page.has(page)) ||
-      (type === 'pages' && !currentEntrypoints.app.has(page))
-    ) {
-      currentIssues.delete(key)
-    }
+      ...dev,
+    })
   }
 
   const { middleware, instrumentation } = entrypoints
@@ -535,19 +752,19 @@ export async function handleEntrypoints({
   if (currentEntrypoints.global.middleware && !middleware) {
     const key = getEntryKey('root', 'server', 'middleware')
     // Went from middleware to no middleware
-    await hooks?.unsubscribeFromChanges(key)
-    currentIssues.delete(key)
-    hooks?.sendHmr('middleware', {
+    await dev?.hooks.unsubscribeFromChanges(key)
+    currentEntryIssues.delete(key)
+    dev?.hooks.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   } else if (!currentEntrypoints.global.middleware && middleware) {
     // Went from no middleware to middleware
-    hooks?.sendHmr('middleware', {
+    dev?.hooks.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
 
-  currentEntrypoints.global.middleware = entrypoints.middleware
+  currentEntrypoints.global.middleware = middleware
 
   if (nextConfig.experimental.instrumentationHook && instrumentation) {
     const processInstrumentation = async (
@@ -557,8 +774,8 @@ export async function handleEntrypoints({
       const key = getEntryKey('root', 'server', name)
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentIssues, key, writtenEndpoint)
+      dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
     await processInstrumentation('instrumentation.edge', 'edge')
@@ -571,19 +788,19 @@ export async function handleEntrypoints({
       pageEntrypoints: currentEntrypoints.page,
     })
 
-    if (serverFields && hooks?.propagateServerField) {
-      serverFields.actualInstrumentationHookFile = '/instrumentation'
-      await hooks.propagateServerField(
+    if (dev) {
+      dev.serverFields.actualInstrumentationHookFile = '/instrumentation'
+      await dev.hooks.propagateServerField(
         'actualInstrumentationHookFile',
-        serverFields.actualInstrumentationHookFile
+        dev.serverFields.actualInstrumentationHookFile
       )
     }
   } else {
-    if (serverFields && hooks?.propagateServerField) {
-      serverFields.actualInstrumentationHookFile = undefined
-      await hooks.propagateServerField(
+    if (dev) {
+      dev.serverFields.actualInstrumentationHookFile = undefined
+      await dev.hooks.propagateServerField(
         'actualInstrumentationHookFile',
-        serverFields.actualInstrumentationHookFile
+        dev.serverFields.actualInstrumentationHookFile
       )
     }
   }
@@ -591,13 +808,15 @@ export async function handleEntrypoints({
   if (middleware) {
     const key = getEntryKey('root', 'server', 'middleware')
 
-    const processMiddleware = async () => {
-      const writtenEndpoint = await middleware.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentIssues, key, writtenEndpoint)
+    const endpoint = middleware.endpoint
+
+    async function processMiddleware() {
+      const writtenEndpoint = await endpoint.writeToDisk()
+      dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
-      if (serverFields) {
-        serverFields.middleware = {
+      if (dev) {
+        dev.serverFields.middleware = {
           match: null as any,
           page: '/',
           matchers:
@@ -607,16 +826,21 @@ export async function handleEntrypoints({
     }
     await processMiddleware()
 
-    hooks?.subscribeToChanges(key, false, middleware.endpoint, async () => {
-      const finishBuilding = hooks.startBuilding('middleware', undefined, true)
+    dev?.hooks.subscribeToChanges(key, false, endpoint, async () => {
+      const finishBuilding = dev.hooks.startBuilding(
+        'middleware',
+        undefined,
+        true
+      )
       await processMiddleware()
-      if (serverFields && hooks.propagateServerField) {
-        await hooks.propagateServerField(
-          'actualMiddlewareFile',
-          serverFields.actualMiddlewareFile
-        )
-        await hooks.propagateServerField('middleware', serverFields.middleware)
-      }
+      await dev.hooks.propagateServerField(
+        'actualMiddlewareFile',
+        dev.serverFields.actualMiddlewareFile
+      )
+      await dev.hooks.propagateServerField(
+        'middleware',
+        dev.serverFields.middleware
+      )
       await manifestLoader.writeManifests({
         rewrites: rewrites,
         pageEntrypoints: currentEntrypoints.page,
@@ -629,32 +853,98 @@ export async function handleEntrypoints({
     manifestLoader.deleteMiddlewareManifest(
       getEntryKey('root', 'server', 'middleware')
     )
-    if (serverFields) {
-      serverFields.actualMiddlewareFile = undefined
-      serverFields.middleware = undefined
+    if (dev) {
+      dev.serverFields.actualMiddlewareFile = undefined
+      dev.serverFields.middleware = undefined
     }
   }
-  if (serverFields && hooks?.propagateServerField) {
-    await hooks.propagateServerField(
+
+  if (dev) {
+    await dev.hooks.propagateServerField(
       'actualMiddlewareFile',
-      serverFields.actualMiddlewareFile
+      dev.serverFields.actualMiddlewareFile
     )
-    await hooks.propagateServerField('middleware', serverFields.middleware)
+    await dev.hooks.propagateServerField(
+      'middleware',
+      dev.serverFields.middleware
+    )
+  }
+}
+
+async function handleEntrypointsDevCleanup({
+  currentEntryIssues,
+  currentEntrypoints,
+
+  assetMapper,
+  changeSubscriptions,
+  clients,
+  clientStates,
+
+  hooks,
+}: {
+  currentEntrypoints: Entrypoints
+  currentEntryIssues: EntryIssuesMap
+} & HandleEntrypointsDevOpts) {
+  // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
+  for (const key of assetMapper.keys()) {
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      assetMapper.delete(key)
+    }
+  }
+
+  for (const key of changeSubscriptions.keys()) {
+    // middleware is handled separately
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      await hooks.unsubscribeFromChanges(key)
+    }
+  }
+
+  for (const [key] of currentEntryIssues) {
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+      currentEntryIssues.delete(key)
+    }
+  }
+
+  for (const client of clients) {
+    const state = clientStates.get(client)
+    if (!state) {
+      continue
+    }
+
+    for (const key of state.clientIssues.keys()) {
+      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+        state.clientIssues.delete(key)
+      }
+    }
+
+    for (const id of state.subscriptions.keys()) {
+      if (
+        !hasEntrypointForKey(
+          currentEntrypoints,
+          getEntryKey('assets', 'client', id),
+          assetMapper
+        )
+      ) {
+        hooks.unsubscribeFromHmrEvents(client, id)
+      }
+    }
   }
 }
 
 export async function handlePagesErrorRoute({
-  currentIssues,
+  currentEntryIssues,
   entrypoints,
   manifestLoader,
   rewrites,
+  logErrors,
 
   hooks,
 }: {
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
+  logErrors: boolean
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
@@ -663,7 +953,12 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-    processIssues(currentIssues, key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.app, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -677,7 +972,7 @@ export async function handlePagesErrorRoute({
     hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
     })
-    processIssues(currentIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -686,7 +981,12 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-    processIssues(currentIssues, key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.error, () => {
+      // There's a special case for this in `../client/page-bootstrap.ts`.
+      // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+    })
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
@@ -696,4 +996,32 @@ export async function handlePagesErrorRoute({
     rewrites,
     pageEntrypoints: entrypoints.page,
   })
+}
+
+// Since turbopack will create app pages/route entries based on the structure,
+// which means the entry keys are based on file names.
+// But for special metadata conventions we'll change the page/pathname to a different path.
+// So we need this helper to map the new path back to original turbopack entry key.
+export function normalizedPageToTurbopackStructureRoute(
+  route: string,
+  ext: string | false
+): string {
+  let entrypointKey = route
+  if (isMetadataRoute(entrypointKey)) {
+    entrypointKey = entrypointKey.endsWith('/route')
+      ? entrypointKey.slice(0, -'/route'.length)
+      : entrypointKey
+
+    if (ext) {
+      if (entrypointKey.endsWith('/[__metadata_id__]')) {
+        entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
+      }
+      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
+        // For dynamic sitemap route, remove the extension
+        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      }
+    }
+    entrypointKey = entrypointKey + '/route'
+  }
+  return entrypointKey
 }

@@ -6,7 +6,7 @@ export function ensureServerEntryExports(actions: any[]) {
     const action = actions[i]
     if (typeof action !== 'function') {
       throw new Error(
-        `A "use server" file can only export async functions, found ${typeof action}.`
+        `A "use server" file can only export async functions, found ${typeof action}.\nRead more: https://nextjs.org/docs/messages/invalid-use-server-value`
       )
     }
   }

@@ -3,14 +3,12 @@ use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
-    next_manifests::{
-        AssetBinding, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
-    },
+    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2},
     next_server::{get_server_runtime_entries, ServerContextType},
-    util::parse_config_from_source,
+    util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, TryFlatJoinIterExt, Value, Vc};
+use turbo_tasks::{Completion, RcStr, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent, FileSystemPath},
     turbopack::{
@@ -19,7 +17,7 @@ use turbopack_binding::{
             chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
             context::AssetContext,
             module::Module,
-            output::{OutputAsset, OutputAssets},
+            output::OutputAssets,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_output::VirtualOutputAsset,
@@ -29,9 +27,12 @@ use turbopack_binding::{
 };
 
 use crate::{
+    paths::{
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
+        wasm_paths_to_bindings,
+    },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
-    server_paths::all_server_paths,
 };
 
 #[turbo_tasks::value]
@@ -39,6 +40,8 @@ pub struct MiddlewareEndpoint {
     project: Vc<Project>,
     context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
+    app_dir: Option<Vc<FileSystemPath>>,
+    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -48,11 +51,15 @@ impl MiddlewareEndpoint {
         project: Vc<Project>,
         context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
+        app_dir: Option<Vc<FileSystemPath>>,
+        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
             context,
             source,
+            app_dir,
+            ecmascript_client_reference_transition_name,
         }
         .cell()
     }
@@ -74,11 +81,15 @@ impl MiddlewareEndpoint {
             self.context,
             self.project.project_path(),
             module,
-            "middleware".to_string(),
+            "middleware".into(),
         );
 
         let mut evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Middleware),
+            Value::new(ServerContextType::Middleware {
+                app_dir: self.app_dir,
+                ecmascript_client_reference_transition_name: self
+                    .ecmascript_client_reference_transition_name,
+            }),
             self.project.next_mode(),
         )
         .resolve_entries(self.context)
@@ -96,7 +107,7 @@ impl MiddlewareEndpoint {
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context();
+        let edge_chunking_context = self.project.edge_chunking_context(true);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -137,15 +148,18 @@ impl MiddlewareEndpoint {
         let matchers = if let Some(matchers) = config.await?.matcher.as_ref() {
             matchers
                 .iter()
-                .map(|matcher| MiddlewareMatcher {
-                    original_source: matcher.to_string(),
-                    ..Default::default()
+                .map(|matcher| match matcher {
+                    MiddlewareMatcherKind::Str(matchers) => MiddlewareMatcher {
+                        original_source: matchers.as_str().into(),
+                        ..Default::default()
+                    },
+                    MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
                 })
                 .collect()
         } else {
             vec![MiddlewareMatcher {
-                regexp: Some("^/.*$".to_string()),
-                original_source: "/:path*".to_string(),
+                regexp: Some("^/.*$".into()),
+                original_source: "/:path*".into(),
                 ..Default::default()
             }]
         };
@@ -153,20 +167,21 @@ impl MiddlewareEndpoint {
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
             wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-            name: "middleware".to_string(),
-            page: "/".to_string(),
+            name: "middleware".into(),
+            page: "/".into(),
             regions: None,
             matchers,
+            env: this.project.edge_env().await?.clone_value(),
             ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
-            middleware: [("/".to_string(), edge_function_definition)]
+            middleware: [("/".into(), edge_function_definition)]
                 .into_iter()
                 .collect(),
             ..Default::default()
         };
         let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
-            node_root.join("server/middleware/middleware-manifest.json".to_string()),
+            node_root.join("server/middleware/middleware-manifest.json".into()),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string_pretty(
                     &middleware_manifest_v2,
@@ -188,6 +203,7 @@ impl Endpoint for MiddlewareEndpoint {
         async move {
             let this = self.await?;
             let output_assets = self.output_assets();
+            let _ = output_assets.resolve().await?;
             this.project
                 .emit_all_output_assets(Vc::cell(output_assets))
                 .await?;
@@ -197,7 +213,17 @@ impl Endpoint for MiddlewareEndpoint {
                 .await?
                 .clone_value();
 
-            Ok(WrittenEndpoint::Edge { server_paths }.cell())
+            // Middleware could in theory have a client path (e.g. `new URL`).
+            let client_relative_root = this.project.client_relative_path();
+            let client_paths = all_paths_in_root(output_assets, client_relative_root)
+                .await?
+                .clone_value();
+
+            Ok(WrittenEndpoint::Edge {
+                server_paths,
+                client_paths,
+            }
+            .cell())
         }
         .instrument(span)
         .await
@@ -212,95 +238,4 @@ impl Endpoint for MiddlewareEndpoint {
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
     }
-}
-
-pub(crate) async fn get_paths_from_root(
-    root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
-    filter: impl FnOnce(&str) -> bool + Copy,
-) -> Result<Vec<String>> {
-    output_assets
-        .iter()
-        .map({
-            move |&file| async move {
-                let path = &*file.ident().path().await?;
-                let Some(relative) = root.get_path_to(path) else {
-                    return Ok(None);
-                };
-
-                Ok(if filter(relative) {
-                    Some(relative.to_string())
-                } else {
-                    None
-                })
-            }
-        })
-        .try_flat_join()
-        .await
-}
-
-pub(crate) async fn get_js_paths_from_root(
-    root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
-    get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
-}
-
-pub(crate) async fn get_wasm_paths_from_root(
-    root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
-    get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
-}
-
-pub(crate) async fn get_font_paths_from_root(
-    root: &FileSystemPath,
-    output_assets: &[Vc<Box<dyn OutputAsset>>],
-) -> Result<Vec<String>> {
-    get_paths_from_root(root, output_assets, |path| {
-        path.ends_with(".woff")
-            || path.ends_with(".woff2")
-            || path.ends_with(".eot")
-            || path.ends_with(".ttf")
-            || path.ends_with(".otf")
-    })
-    .await
-}
-
-fn get_file_stem(path: &str) -> &str {
-    let file_name = if let Some((_, file_name)) = path.rsplit_once('/') {
-        file_name
-    } else {
-        path
-    };
-
-    if let Some((stem, _)) = file_name.split_once('.') {
-        if stem.is_empty() {
-            file_name
-        } else {
-            stem
-        }
-    } else {
-        file_name
-    }
-}
-
-pub(crate) fn wasm_paths_to_bindings(paths: Vec<String>) -> Vec<AssetBinding> {
-    paths
-        .into_iter()
-        .map(|path| {
-            let stem = get_file_stem(&path);
-
-            // very simple escaping just replacing unsupported characters with `_`
-            let escaped = stem.replace(
-                |c: char| !c.is_ascii_alphanumeric() && c != '$' && c != '_',
-                "_",
-            );
-
-            AssetBinding {
-                name: format!("wasm_{}", escaped),
-                file_path: path,
-            }
-        })
-        .collect()
 }

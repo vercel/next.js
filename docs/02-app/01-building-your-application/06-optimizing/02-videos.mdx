@@ -39,13 +39,13 @@ export function Video() {
 | `width`       | Sets the width of the video player.                                                                       | `<video width="320" />`              |
 | `height`      | Sets the height of the video player.                                                                      | `<video height="240" />`             |
 | `controls`    | If present, it displays the default set of playback controls.                                             | `<video controls />`                 |
-| `autoplay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoplay />`                 |
+| `autoPlay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoPlay />`                 |
 | `loop`        | Loops the video playback.                                                                                 | `<video loop />`                     |
-| `muted`       | Mutes the audio by default. Often used with `autoplay`.                                                   | `<video muted />`                    |
+| `muted`       | Mutes the audio by default. Often used with `autoPlay`.                                                   | `<video muted />`                    |
 | `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`           |
 | `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`              |
 
-> **Good to know**: When using the `autoplay` attribute, it is important to also include the `muted` attribute to ensure the video plays automatically in most browsers and the `playsInline` attribute for compatibility with iOS devices.
+> **Good to know**: When using the `autoPlay` attribute, it is important to also include the `muted` attribute to ensure the video plays automatically in most browsers and the `playsInline` attribute for compatibility with iOS devices.
 
 For a comprehensive list of video attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attributes).
 
@@ -216,25 +216,21 @@ If you have subtitles for your video, you can easily add them using the `<track>
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
-  const {blobs} = await list({
+  const { blobs } = await list({
     prefix: fileName,
-    limit: 2
-  });
-  const { url } = blobs[0];
-  const { url: captionsUrl } = blobs[1];
+    limit: 2,
+  })
+  const { url } = blobs[0]
+  const { url: captionsUrl } = blobs[1]
 
   return (
     <video controls preload="none" aria-label="Video player">
       <source src={url} type="video/mp4" />
-      <track
-        src={captionsUrl}
-        kind="subtitles"
-        srcLang="en"
-        label="English">
+      <track src={captionsUrl} kind="subtitles" srcLang="en" label="English" />
       Your browser does not support the video tag.
     </video>
-  );
-};
+  )
+}
 ```
 
 By following this approach, you can effectively self-host and integrate videos into your Next.js applications.

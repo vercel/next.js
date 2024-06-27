@@ -132,17 +132,16 @@ export function warnOptionHasBeenDeprecated(
 
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
-  oldKey: string,
+  oldExperimentalKey: string,
   newKey: string,
   configFileName: string,
   silent: boolean
 ) {
-  if (config.experimental && oldKey in config.experimental) {
+  if (config.experimental && oldExperimentalKey in config.experimental) {
     if (!silent) {
       Log.warn(
-        `\`${oldKey}\` has been moved out of \`experimental\`` +
-          (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
-          `. Please update your ${configFileName} file accordingly.`
+        `\`experimental.${oldExperimentalKey}\` has been moved to \`${newKey}\`. ` +
+          `Please update your ${configFileName} file accordingly.`
       )
     }
 
@@ -153,7 +152,7 @@ export function warnOptionHasBeenMovedOutOfExperimental(
       current[key] = current[key] || {}
       current = current[key]
     }
-    current[newKeys.shift()!] = (config.experimental as any)[oldKey]
+    current[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
   }
 
   return config
@@ -263,12 +262,11 @@ function assignDefaults(
   const result = { ...defaultConfig, ...config }
 
   if (
-    result.experimental?.ppr &&
-    !process.env.__NEXT_VERSION!.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE
+    result.experimental?.allowDevelopmentBuild &&
+    process.env.NODE_ENV !== 'development'
   ) {
     throw new Error(
-      `The experimental.ppr preview feature can only be enabled when using the latest canary version of Next.js. See more info here: https://nextjs.org/docs/messages/ppr-preview`
+      `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
     )
   }
 
@@ -456,56 +454,20 @@ function assignDefaults(
     }
   }
 
-  if (result.experimental?.incrementalCacheHandlerPath) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.incrementalCacheHandlerPath',
-      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
-      silent
-    )
-  }
-
-  if (result.experimental?.isrMemoryCacheSize) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.isrMemoryCacheSize',
-      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
-      silent
-    )
-  }
-
-  if (typeof result.experimental?.serverActions === 'boolean') {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'experimental.serverActions',
-      'Server Actions are available by default now, `experimental.serverActions` option can be safely removed.',
-      silent
-    )
-  }
-
-  if (result.swcMinify === false) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'swcMinify',
-      'Disabling SWC Minifer will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
-      silent
-    )
-  }
-
-  if (result.outputFileTracing === false) {
-    // TODO: Remove this warning in Next.js 15
-    warnOptionHasBeenDeprecated(
-      result,
-      'outputFileTracing',
-      'Disabling outputFileTracing will not be an option in the next major version. Please report any issues you may be experiencing to https://github.com/vercel/next.js/issues',
-      silent
-    )
-  }
-
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'bundlePagesExternals',
+    'bundlePagesRouterDependencies',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'serverComponentsExternalPackages',
+    'serverExternalPackages',
+    configFileName,
+    silent
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'relay',
@@ -541,6 +503,13 @@ function assignDefaults(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'swrDelta',
+    'swrDelta',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -559,7 +528,7 @@ function assignDefaults(
     )
     if (isNaN(value) || value < 1) {
       throw new Error(
-        'Server Actions Size Limit must be a valid number or filesize format lager than 1MB: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation'
+        'Server Actions Size Limit must be a valid number or filesize format larger than 1MB: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit'
       )
     }
   }
@@ -601,16 +570,8 @@ function assignDefaults(
   }
 
   // only leverage deploymentId
-  if (result.experimental?.useDeploymentId && process.env.NEXT_DEPLOYMENT_ID) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    result.experimental.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-  }
-
-  // can't use this one without the other
-  if (result.experimental?.useDeploymentIdServerActions) {
-    result.experimental.useDeploymentId = true
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
   // use the closest lockfile as tracing root
@@ -628,15 +589,6 @@ function assignDefaults(
       defaultConfig.experimental.outputFileTracingRoot =
         result.experimental.outputFileTracingRoot
     }
-  }
-
-  if (result.output === 'standalone' && !result.outputFileTracing) {
-    if (!silent) {
-      Log.warn(
-        `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
-      )
-    }
-    result.output = undefined
   }
 
   setHttpClientAndAgentOptions(result || defaultConfig)
@@ -861,6 +813,26 @@ function assignDefaults(
       '@mui/icons-material',
       'recharts',
       'react-use',
+      'effect',
+      '@effect/schema',
+      '@effect/platform',
+      '@effect/platform-node',
+      '@effect/platform-browser',
+      '@effect/platform-bun',
+      '@effect/sql',
+      '@effect/sql-mssql',
+      '@effect/sql-mysql2',
+      '@effect/sql-pg',
+      '@effect/sql-squlite-node',
+      '@effect/sql-squlite-bun',
+      '@effect/sql-squlite-wasm',
+      '@effect/sql-squlite-react-native',
+      '@effect/sql-squlite-wasm',
+      '@effect/rpc',
+      '@effect/rpc-http',
+      '@effect/typeclass',
+      '@effect/experimental',
+      '@effect/opentelemetry',
       '@material-ui/core',
       '@material-ui/icons',
       '@tabler/icons-react',
@@ -1022,7 +994,7 @@ export default async function loadConfig(
         require('./config-schema') as typeof import('./config-schema')
       const state = configSchema.safeParse(userConfig)
 
-      if (!state.success) {
+      if (state.success === false) {
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
@@ -1085,6 +1057,18 @@ export default async function loadConfig(
       }
 
       userConfig.experimental.turbo.rules = rules
+    }
+
+    if (userConfig.experimental?.useLightningcss) {
+      const { loadBindings } = require('next/dist/build/swc')
+      const isLightningSupported = (await loadBindings())?.css?.lightning
+
+      if (!isLightningSupported) {
+        curLog.warn(
+          `experimental.useLightningcss is set, but the setting is disabled because next-swc/wasm does not support it yet.`
+        )
+        userConfig.experimental.useLightningcss = false
+      }
     }
 
     onLoadUserConfig?.(userConfig)

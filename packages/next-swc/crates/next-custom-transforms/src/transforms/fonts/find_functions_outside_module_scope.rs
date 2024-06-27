@@ -13,12 +13,11 @@ impl<'a> Visit for FindFunctionsOutsideModuleScope<'a> {
     noop_visit_type!();
 
     fn visit_ident(&mut self, ident: &Ident) {
-        if self.state.font_functions.get(&ident.to_id()).is_some()
-            && self
+        if self.state.font_functions.contains_key(&ident.to_id())
+            && !self
                 .state
                 .font_functions_in_allowed_scope
-                .get(&ident.span.lo)
-                .is_none()
+                .contains(&ident.span.lo)
         {
             HANDLER.with(|handler| {
                 handler

@@ -18,12 +18,15 @@ const runTests = () => {
 }
 
 describe('getServerSideProps', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    afterAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(join(appDir, 'out'))
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      afterAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, 'out'))
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

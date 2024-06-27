@@ -4,17 +4,20 @@ import {
   INTERCEPTION_ROUTE_MARKERS,
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/future/helpers/interception-routes'
+} from '../server/lib/interception-routes'
 import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {
   return path.replace(/\[\[?([^\]]+)\]\]?/g, (_, capture) => {
+    // path-to-regexp only supports word characters, so we replace any non-word characters with underscores
+    const paramName = capture.replace(/\W+/g, '_')
+
     // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (capture.startsWith('...')) {
-      return `:${capture.slice(3)}*`
+    if (paramName.startsWith('...')) {
+      return `:${paramName.slice(3)}*`
     }
-    return ':' + capture
+    return ':' + paramName
   })
 }
 
@@ -89,5 +92,5 @@ export function generateInterceptionRoutesRewrites(
 
 export function isInterceptionRouteRewrite(route: Rewrite) {
   // When we generate interception rewrites in the above implementation, we always do so with only a single `has` condition.
-  return route.has?.[0].key === NEXT_URL
+  return route.has?.[0]?.key === NEXT_URL
 }

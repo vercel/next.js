@@ -68,19 +68,16 @@ export const createProgress = (total: number, label: string) => {
     }
 
     const isFinished = curProgress === total
+    const message = `${label} (${curProgress}/${total})`
     if (progressSpinner && !isFinished) {
-      progressSpinner.setText(`${label} (${curProgress}/${total})`)
+      progressSpinner.setText(message)
     } else {
-      if (progressSpinner) {
-        progressSpinner.stop()
+      progressSpinner?.stop()
+      if (isFinished) {
+        Log.event(message)
+      } else {
+        Log.info(`${message} ${process.stdout.isTTY ? '\n' : '\r'}`)
       }
-      console.log(
-        ` ${
-          isFinished ? Log.prefixes.event : Log.prefixes.info
-        } ${label} (${curProgress}/${total}) ${
-          isFinished ? '' : process.stdout.isTTY ? '\n' : '\r'
-        }`
-      )
     }
   }
 }

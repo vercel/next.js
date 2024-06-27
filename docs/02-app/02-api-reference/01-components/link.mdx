@@ -153,7 +153,7 @@ export default function Page() {
 
 ### `scroll`
 
-**Defaults to `true`.** The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
+**Defaults to `true`.** The default behavior of `<Link>` **is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -178,6 +178,10 @@ export default function Page() {
   )
 }
 ```
+
+> **Good to know**:
+>
+> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
 
 ### `prefetch`
 
@@ -324,8 +328,6 @@ function Page({ posts }) {
 
 </AppOnly>
 
-<PagesOnly>
-
 ### If the child is a custom component that wraps an `<a>` tag
 
 <AppOnly>
@@ -391,6 +393,8 @@ function Home() {
 export default Home
 ```
 
+<PagesOnly>
+
 ### With URL Object
 
 `Link` can also receive a URL object and it will automatically format it to create the URL string. Here's how to do it:
@@ -435,6 +439,8 @@ The above example has a link to:
 
 You can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
+</PagesOnly>
+
 ### Replace the URL instead of push
 
 The default behavior of the `Link` component is to `push` a new URL into the `history` stack. You can use the `replace` prop to prevent adding a new entry, as in the following example:
@@ -454,8 +460,6 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
   Disables scrolling to the top
 </Link>
 ```
-
-</PagesOnly>
 
 ### Middleware
 

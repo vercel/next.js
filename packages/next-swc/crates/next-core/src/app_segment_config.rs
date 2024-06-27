@@ -3,20 +3,20 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::{
     swc::core::{
         common::{source_map::Pos, Span, Spanned, GLOBALS},
-        ecma::ast::{Expr, Ident, Program},
+        ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
     },
     turbopack::{
         core::{
             file_source::FileSource,
             ident::AssetIdent,
             issue::{
-                Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-                StyledString,
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
             },
             source::Source,
         },
@@ -63,15 +63,19 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Default)]
+#[turbo_tasks::value(into = "shared")]
+#[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
     pub dynamic_params: Option<bool>,
     pub revalidate: Option<NextRevalidate>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<String>>,
+    pub preferred_region: Option<Vec<RcStr>>,
+    pub experimental_ppr: Option<bool>,
+    /// Wether these metadata exports are defined in the source file.
+    pub generate_image_metadata: bool,
+    pub generate_sitemaps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,6 +97,8 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
+            ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
         *dynamic_params = dynamic_params.or(parent.dynamic_params);
@@ -100,6 +106,7 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
+        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a paralllel route to this config, returning an
@@ -133,6 +140,8 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
+            experimental_ppr,
+            ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
         merge_parallel(
@@ -147,6 +156,11 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "referredRegion",
+        )?;
+        merge_parallel(
+            experimental_ppr,
+            &parallel_config.experimental_ppr,
+            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -169,12 +183,12 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
+        StyledString::Text("Unable to parse config export in source file".into()).cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]
@@ -188,7 +202,7 @@ impl Issue for NextSegmentConfigParsingIssue {
             StyledString::Text(
                 "The exported configuration object in a source file need to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
-                    .to_string(),
+                    .into(),
             )
             .cell(),
         ))
@@ -200,10 +214,10 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<String> {
+    fn documentation_link(&self) -> Vc<RcStr> {
         Vc::cell(
             "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-                .to_string(),
+                .into(),
         )
     }
 
@@ -221,10 +235,11 @@ pub async fn parse_segment_config_from_source(
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
-    if !(path.path.ends_with(".js")
-        || path.path.ends_with(".jsx")
-        || path.path.ends_with(".ts")
-        || path.path.ends_with(".tsx"))
+    if path.path.ends_with(".d.ts")
+        || !(path.path.ends_with(".js")
+            || path.path.ends_with(".jsx")
+            || path.path.ends_with(".ts")
+            || path.path.ends_with(".tsx"))
     {
         return Ok(Default::default());
     }
@@ -262,22 +277,35 @@ pub async fn parse_segment_config_from_source(
         let mut config = NextSegmentConfig::default();
 
         for item in &module_ast.body {
-            let Some(decl) = item
+            let Some(export_decl) = item
                 .as_module_decl()
                 .and_then(|mod_decl| mod_decl.as_export_decl())
-                .and_then(|export_decl| export_decl.decl.as_var())
             else {
                 continue;
             };
 
-            for decl in &decl.decls {
-                let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
-                    continue;
-                };
+            match &export_decl.decl {
+                Decl::Var(var_decl) => {
+                    for decl in &var_decl.decls {
+                        let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+                            continue;
+                        };
 
-                if let Some(init) = decl.init.as_ref() {
-                    parse_config_value(source, &mut config, ident, init, eval_context);
+                        if let Some(init) = decl.init.as_ref() {
+                            parse_config_value(source, &mut config, ident, init, eval_context);
+                        }
+                    }
                 }
+                Decl::Fn(fn_decl) => {
+                    let ident = &fn_decl.ident;
+                    // create an empty expression of {}, we don't need init for function
+                    let init = Expr::Fn(FnExpr {
+                        ident: None,
+                        function: fn_decl.function.clone(),
+                    });
+                    parse_config_value(source, &mut config, ident, &init, eval_context);
+                }
+                _ => {}
             }
         }
         config
@@ -302,7 +330,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
             source: issue_source(source, span),
         }
         .cell()
@@ -348,11 +376,10 @@ fn parse_config_value(
                 JsValue::Constant(ConstantValue::Str(str)) if str.as_str() == "force-cache" => {
                     config.revalidate = Some(NextRevalidate::ForceCache);
                 }
-                _ => invalid_config(
-                    "`revalidate` needs to be static false, static 'force-cache' or a static \
-                     positive integer",
-                    &value,
-                ),
+                _ => {
+                    //noop; revalidate validation occurs in runtime at
+                    //https://github.com/vercel/next.js/blob/cd46c221d2b7f796f963d2b81eea1e405023db23/packages/next/src/server/lib/patch-fetch.ts#L20
+                }
             }
         }
         "fetchCache" => {
@@ -393,14 +420,14 @@ fn parse_config_value(
 
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
-                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string()],
+                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
                 // Array of strings is turned into a Vec. If one of the values in not a String it
                 // will error.
                 JsValue::Array { items, .. } => {
                     let mut regions = Vec::new();
                     for item in items {
                         if let JsValue::Constant(ConstantValue::Str(str)) = item {
-                            regions.push(str.to_string());
+                            regions.push(str.to_string().into());
                         } else {
                             invalid_config(
                                 "Values of the `preferredRegion` array need to static strings",
@@ -421,6 +448,23 @@ fn parse_config_value(
             };
 
             config.preferred_region = Some(preferred_region);
+        }
+        // Match exported generateImageMetadata function and generateSitemaps function, and pass
+        // them to config.
+        "generateImageMetadata" => {
+            config.generate_image_metadata = true;
+        }
+        "generateSitemaps" => {
+            config.generate_sitemaps = true;
+        }
+        "experimental_ppr" => {
+            let value = eval_context.eval(init);
+            let Some(val) = value.as_bool() else {
+                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
+                return;
+            };
+
+            config.experimental_ppr = Some(val);
         }
         _ => {}
     }
@@ -443,6 +487,7 @@ pub async fn parse_segment_config_from_loader_tree(
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
+
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()

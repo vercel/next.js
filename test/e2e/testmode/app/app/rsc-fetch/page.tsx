@@ -6,6 +6,8 @@ export async function generateMetadata() {
 }
 
 export default async function Page() {
-  const text = await (await fetch('https://example.com')).text()
+  const text = await (
+    await fetch('https://next-data-api-endpoint.vercel.app/api/random')
+  ).text()
   return <pre>{text}</pre>
 }

@@ -1,19 +1,22 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  type MiddlewareMatcher,
+} from '../../../build/analysis/get-page-static-info'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv } from '../../../build/swc'
+import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
-import isError from '../../../lib/is-error'
+import isError, { type NextError } from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
@@ -64,13 +67,21 @@ import {
   getSourceById,
   parseStack,
 } from '../../../client/components/react-dev-overlay/server/middleware'
-import { createOriginalStackFrame as createOriginalTurboStackFrame } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
+import {
+  batchedTraceSource,
+  createOriginalStackFrame as createOriginalTurboStackFrame,
+} from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { ModuleBuildError } from '../../dev/turbopack-utils'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -123,8 +134,6 @@ async function verifyTypeScript(opts: SetupOpts) {
   return usingTypeScript
 }
 
-class ModuleBuildError extends Error {}
-
 export async function propagateServerField(
   opts: SetupOpts,
   field: PropagateToWorkersField,
@@ -158,6 +167,7 @@ async function startWatcher(opts: SetupOpts) {
         distDir: distDir,
         config: opts.nextConfig,
         buildId: 'development',
+        encryptionKey: await generateEncryptionKeyBase64(),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
@@ -392,6 +402,21 @@ async function startWatcher(opts: SetupOpts) {
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
+        if (isAppPath && isMetadataRoute(pageName)) {
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: {},
+            page: pageName,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+
+          pageName = normalizeMetadataPageToRoute(
+            pageName,
+            !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
+          )
+        }
+
         if (
           !isAppPath &&
           pageName.startsWith('/api/') &&
@@ -549,15 +574,15 @@ async function startWatcher(opts: SetupOpts) {
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              allowedRevalidateHeaderKeys: undefined,
               clientRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
-              fetchCacheKeyPrefix: undefined,
+              fetchCacheKeyPrefix:
+                opts.nextConfig.experimental.fetchCacheKeyPrefix,
               hasRewrites,
+              // TODO: Implement
               middlewareMatchers: undefined,
-              previewModeId: undefined,
             }),
           })
         }
@@ -621,19 +646,18 @@ async function startWatcher(opts: SetupOpts) {
               ) {
                 const newDefine = getDefineEnv({
                   isTurbopack: false,
-                  allowedRevalidateHeaderKeys: undefined,
                   clientRouterFilters,
                   config: nextConfig,
                   dev: true,
                   distDir,
-                  fetchCacheKeyPrefix: undefined,
+                  fetchCacheKeyPrefix:
+                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
                   hasRewrites,
                   isClient,
                   isEdgeServer,
                   isNodeOrEdgeCompilation: isNodeServer || isEdgeServer,
                   isNodeServer,
                   middlewareMatchers: undefined,
-                  previewModeId: undefined,
                 })
 
                 Object.keys(plugin.definitions).forEach((key) => {
@@ -925,20 +949,15 @@ async function startWatcher(opts: SetupOpts) {
 
             try {
               originalFrame = await createOriginalStackFrame({
-                line: frame.lineNumber,
-                column: frame.column,
                 source,
                 frame,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
                 errorMessage: err.message,
-                serverCompilation: isEdgeCompiler
-                  ? undefined
-                  : hotReloader.serverStats?.compilation,
-                edgeCompilation: isEdgeCompiler
+                compilation: isEdgeCompiler
                   ? hotReloader.edgeServerStats?.compilation
-                  : undefined,
+                  : hotReloader.serverStats?.compilation,
               })
             } catch {}
           }
@@ -953,18 +972,26 @@ async function startWatcher(opts: SetupOpts) {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
+
+            let errorToLog
             if (isEdgeCompiler) {
-              err = err.message
-            }
-            if (type === 'warning') {
-              Log.warn(err)
-            } else if (type === 'app-dir') {
-              logAppDirError(err)
-            } else if (type) {
-              Log.error(`${type}:`, err)
+              errorToLog = err.message
+            } else if (isError(err) && hotReloader.turbopackProject) {
+              const stack = await traceTurbopackErrorStack(
+                hotReloader.turbopackProject,
+                err,
+                frames
+              )
+
+              const error: NextError = new Error(err.message)
+              error.stack = stack
+              error.digest = err.digest
+              errorToLog = error
             } else {
-              Log.error(err)
+              errorToLog = err
             }
+
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -977,17 +1004,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (err instanceof ModuleBuildError) {
-        Log.error(err.message)
-      } else if (type === 'warning') {
-        Log.warn(err)
-      } else if (type === 'app-dir') {
-        logAppDirError(err)
-      } else if (type) {
-        Log.error(`${type}:`, err)
-      } else {
-        Log.error(err)
-      }
+      logError(err, type)
     }
   }
 
@@ -1006,6 +1023,23 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    Log.error(err.message)
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 
@@ -1036,3 +1070,70 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+// Returns a trace rewritten through Turbopack's sourcemaps
+async function traceTurbopackErrorStack(
+  project: Project,
+  error: Error,
+  frames: StackFrame[]
+): Promise<string> {
+  let originalFrames = await Promise.all(
+    frames.map(async (f) => {
+      try {
+        const traced = await batchedTraceSource(project, {
+          file: f.file!,
+          methodName: f.methodName,
+          line: f.lineNumber ?? 0,
+          column: f.column,
+          isServer: true,
+        })
+
+        return traced?.frame ?? f
+      } catch {
+        return f
+      }
+    })
+  )
+
+  return (
+    error.name +
+    ': ' +
+    error.message +
+    '\n' +
+    originalFrames
+      .map((f) => {
+        if (f == null) {
+          return null
+        }
+
+        let line = '    at'
+        if (f.methodName != null) {
+          line += ' ' + f.methodName
+        }
+
+        if (f.file != null) {
+          const file =
+            f.file.startsWith('/') ||
+            // Built-in "filenames" like `<anonymous>` shouldn't be made relative
+            f.file.startsWith('<') ||
+            f.file.startsWith('node:')
+              ? f.file
+              : `./${f.file}`
+
+          line += ` (${file}`
+          if (f.lineNumber != null) {
+            line += ':' + f.lineNumber
+
+            if (f.column != null) {
+              line += ':' + f.column
+            }
+          }
+          line += ')'
+        }
+
+        return line
+      })
+      .filter(Boolean)
+      .join('\n')
+  )
+}

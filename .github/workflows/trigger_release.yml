@@ -6,12 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable or canary?
+        description: stable, canary, or release candidate?
         required: true
         type: choice
         options:
           - canary
           - stable
+          - release-candidate
 
       semverType:
         description: semver type?
@@ -21,6 +22,11 @@ on:
           - minor
           - major
 
+      force:
+        description: create a new release even if there are no new commits
+        default: false
+        type: boolean
+
     secrets:
       RELEASE_BOT_GITHUB_TOKEN:
         required: true
@@ -29,7 +35,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.12.2
+  TURBO_VERSION: 2.0.3
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -50,7 +56,13 @@ jobs:
           node-version: 18
           check-latest: true
 
-      - run: git clone https://github.com/vercel/next.js.git --depth=25 .
+      - name: Clone Next.js repository
+        run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
+
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
       - name: Get commit of the latest tag
         run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
@@ -59,7 +71,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' }}
+        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

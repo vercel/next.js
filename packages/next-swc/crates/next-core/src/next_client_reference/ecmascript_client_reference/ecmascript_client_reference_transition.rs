@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbopack_binding::turbopack::{
     core::{
         context::ProcessResult,
@@ -18,7 +18,7 @@ use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferencePr
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
-    client_transition: Vc<ContextTransition>,
+    client_transition: Vc<Box<dyn Transition>>,
     ssr_transition: Vc<ContextTransition>,
 }
 
@@ -26,7 +26,7 @@ pub struct NextEcmascriptClientReferenceTransition {
 impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
-        client_transition: Vc<ContextTransition>,
+        client_transition: Vc<Box<dyn Transition>>,
         ssr_transition: Vc<ContextTransition>,
     ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
@@ -40,7 +40,7 @@ impl NextEcmascriptClientReferenceTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
-    fn process_layer(self: Vc<Self>, layer: Vc<String>) -> Vc<String> {
+    fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
 
@@ -58,10 +58,12 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let ident = source.ident().await?;
         let ident_path = ident.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident
-                .path
-                .root()
-                .join(ident_path.path.replace("next/dist/esm/", "next/dist/"));
+            let path = ident.path.root().join(
+                ident_path
+                    .path
+                    .replace("next/dist/esm/", "next/dist/")
+                    .into(),
+            );
             Vc::upcast(FileSource::new_with_query(path, ident.query))
         } else {
             source

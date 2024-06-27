@@ -7,7 +7,6 @@ import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type { LoadableManifest } from '../../load-components'
 import {
@@ -34,6 +33,7 @@ import {
   type ClientBuildManifest,
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
+  processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
@@ -69,8 +69,8 @@ async function readPartialManifest<T>(
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-      ? pageName
-      : getAssetPathFromRoute(pageName),
+        ? pageName
+        : getAssetPathFromRoute(pageName),
     name
   )
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
@@ -86,13 +86,23 @@ export class TurbopackManifestLoader {
   private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
   private pagesManifests: Map<string, PagesManifest> = new Map()
+  private encryptionKey: string
 
   private readonly distDir: string
   private readonly buildId: string
 
-  constructor({ distDir, buildId }: { buildId: string; distDir: string }) {
+  constructor({
+    distDir,
+    buildId,
+    encryptionKey,
+  }: {
+    buildId: string
+    distDir: string
+    encryptionKey: string
+  }) {
     this.distDir = distDir
     this.buildId = buildId
+    this.encryptionKey = encryptionKey
   }
 
   delete(key: EntryKey) {
@@ -123,7 +133,7 @@ export class TurbopackManifestLoader {
     const manifest: ActionManifest = {
       node: {},
       edge: {},
-      encryptionKey: await generateRandomActionKeyRaw(true),
+      encryptionKey: this.encryptionKey,
     }
 
     function mergeActionIds(
@@ -277,6 +287,8 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
+      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
     return manifest
   }
@@ -285,6 +297,12 @@ export class TurbopackManifestLoader {
     pageEntrypoints: PageEntrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
+    const processedRewrites = {
+      ...rewrites,
+      beforeFiles: (rewrites?.beforeFiles ?? []).map(processRoute),
+      afterFiles: (rewrites?.afterFiles ?? []).map(processRoute),
+      fallback: (rewrites?.fallback ?? []).map(processRoute),
+    }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -310,7 +328,7 @@ export class TurbopackManifestLoader {
     )
 
     const interceptionRewrites = JSON.stringify(
-      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      processedRewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
 
     await writeFileAtomic(
@@ -321,9 +339,7 @@ export class TurbopackManifestLoader {
     )
 
     const content: ClientBuildManifest = {
-      __rewrites: rewrites
-        ? (normalizeRewritesForBuildManifest(rewrites) as any)
-        : { afterFiles: [], beforeFiles: [], fallback: [] },
+      __rewrites: normalizeRewritesForBuildManifest(processedRewrites) as any,
       ...Object.fromEntries(
         [...pageEntrypoints.keys()].map((pathname) => [
           pathname,
@@ -496,7 +512,7 @@ export class TurbopackManifestLoader {
     manifests: Iterable<TurbopackMiddlewareManifest>
   ): MiddlewareManifest {
     const manifest: MiddlewareManifest = {
-      version: 2,
+      version: 3,
       middleware: {},
       sortedMiddleware: [],
       functions: {},

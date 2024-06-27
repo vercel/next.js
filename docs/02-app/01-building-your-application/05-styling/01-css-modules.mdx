@@ -1,6 +1,7 @@
 ---
-title: CSS Modules
-description: Style your Next.js Application with CSS Modules.
+title: CSS Modules and Global Styles
+nav_title: CSS Modules
+description: Style your Next.js Application with CSS Modules, Global Styles, and external stylesheets.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -15,6 +16,14 @@ description: Style your Next.js Application with CSS Modules.
 </details>
 
 </PagesOnly>
+
+Next.js supports different types of stylesheets, including:
+
+- [CSS Modules](#css-modules)
+- [Global Styles](#global-styles)
+- [External Stylesheets](#external-stylesheets)
+
+## CSS Modules
 
 Next.js has built-in support for CSS Modules using the `.module.css` extension.
 
@@ -91,8 +100,7 @@ export function Button() {
 
 </PagesOnly>
 
-CSS Modules are an _optional feature_ and are **only enabled for files with the `.module.css` extension**.
-Regular `<link>` stylesheets and global CSS files are still supported.
+CSS Modules are **only enabled for files with the `.module.css` and `.module.sass` extensions**.
 
 In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
 These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
@@ -106,7 +114,7 @@ Global styles can be imported into any layout, page, or component inside the `ap
 
 For example, consider a stylesheet named `app/global.css`:
 
-```css
+```css filename="app/global.css"
 body {
   padding: 20px 20px 60px;
   max-width: 680px;
@@ -287,6 +295,61 @@ function ExampleDialog(props) {
 ```
 
 </PagesOnly>
+
+<AppOnly>
+
+## Ordering and Merging
+
+Next.js optimizes CSS during production builds by automatically chunking (merging) stylesheets. The CSS order is determined by the order in which you import the stylesheets into your application code.
+
+For example, `base-button.module.css` will be ordered before `page.module.css` since `<BaseButton>` is imported first in `<Page>`:
+
+```tsx filename="base-button.tsx" switcher
+import styles from './base-button.module.css'
+
+export function BaseButton() {
+  return <button className={styles.primary} />
+}
+```
+
+```jsx filename="base-button.js" switcher
+import styles from './base-button.module.css'
+
+export function BaseButton() {
+  return <button className={styles.primary} />
+}
+```
+
+```tsx filename="page.ts" switcher
+import { BaseButton } from './base-button'
+import styles from './page.module.css'
+
+export function Page() {
+  return <BaseButton className={styles.primary} />
+}
+```
+
+```jsx filename="page.js" switcher
+import { BaseButton } from './base-button'
+import styles from './page.module.css'
+
+export function Page() {
+  return <BaseButton className={styles.primary} />
+}
+```
+
+To maintain a predictable order, we recommend the following:
+
+- Only import a CSS file in a single JS/TS file.
+  - If using global class names, import the global styles in the same file in the order you want them to be applied.
+- Prefer CSS Modules over global styles.
+  - Use a consistent naming convention for your CSS modules. For example, using `<name>.module.css` over `<name>.tsx`.
+- Extract shared styles into a separate shared component.
+- If using [Tailwind](/docs/app/building-your-application/styling/tailwind-css), import the stylesheet at the top of the file, preferably in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
+
+> **Good to know:** CSS ordering behaves differently in development mode, always ensure to check preview deployments to verify the final CSS order in your production build.
+
+</AppOnly>
 
 ## Additional Features
 

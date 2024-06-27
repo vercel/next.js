@@ -1,5 +1,5 @@
 import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/src/trace'
+import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import {
   createDefineEnv,
@@ -11,8 +11,8 @@ import {
   StyledString,
   TurbopackResult,
   UpdateInfo,
-} from 'next/src/build/swc'
-import loadConfig from 'next/src/server/config'
+} from 'next/dist/build/swc'
+import loadConfig from 'next/dist/server/config'
 import path from 'path'
 
 function normalizePath(path: string) {
@@ -205,7 +205,6 @@ describe('next.rs api', () => {
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
@@ -218,8 +217,14 @@ describe('next.rs api', () => {
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
+      buildId: 'development',
+      encryptionKey: '12345',
+      previewProps: {
+        previewModeId: 'development',
+        previewModeEncryptionKey: '12345',
+        previewModeSigningKey: '12345',
+      },
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -228,8 +233,8 @@ describe('next.rs api', () => {
   })
 
   it('should detect the correct routes', async () => {
-    const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints = await entrypointsSubscribtion.next()
+    const entrypointsSubscription = project.entrypointsSubscribe()
+    const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
@@ -239,7 +244,6 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
-      '/not-found',
       '/page-edge',
       '/page-nodejs',
       '/route-edge',
@@ -249,7 +253,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscribtion.return()
+    entrypointsSubscription.return()
   })
 
   const routes = [
@@ -471,9 +475,8 @@ describe('next.rs api', () => {
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.dataEndpoint.serverChanged(
-              false
-            )
+            serverSideSubscription =
+              await route.dataEndpoint.serverChanged(false)
             break
           }
           case 'app-page': {

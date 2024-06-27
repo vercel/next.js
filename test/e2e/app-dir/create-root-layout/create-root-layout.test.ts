@@ -1,6 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
@@ -53,7 +53,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
@@ -72,10 +72,6 @@ import stripAnsi from 'strip-ansi'
                 'next.config.js': new FileRef(
                   path.join(__dirname, 'next.config.js')
                 ),
-              },
-              dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
               },
             })
           })
@@ -105,7 +101,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
@@ -126,10 +122,6 @@ import stripAnsi from 'strip-ansi'
                 'next.config.js': new FileRef(
                   path.join(__dirname, 'next.config.js')
                 ),
-              },
-              dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
               },
             })
           })
@@ -159,7 +151,7 @@ import stripAnsi from 'strip-ansi'
             }
 
             export default function RootLayout({ children }) {
-             return (
+              return (
                 <html lang="en">
                   <body>{children}</body>
                 </html>
@@ -235,10 +227,6 @@ import stripAnsi from 'strip-ansi'
               'next.config.js': new FileRef(
                 path.join(__dirname, 'next.config.js')
               ),
-            },
-            dependencies: {
-              react: 'latest',
-              'react-dom': 'latest',
             },
           })
 

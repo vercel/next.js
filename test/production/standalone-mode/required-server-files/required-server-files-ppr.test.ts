@@ -3,19 +3,21 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let delayedPostpone
+  let rewritePostpone
 
   const setupNext = async ({
     nextEnv,
@@ -53,6 +55,9 @@ describe('required server files app router', () => {
 
     delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
       .postponed
+    rewritePostpone = (
+      await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
+    ).postponed
 
     await fs.move(
       join(next.testDir, '.next/standalone'),
@@ -78,9 +83,10 @@ describe('required server files app router', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -88,14 +94,17 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
         cwd: next.testDir,
       }
     )
-    appPort = `http://127.0.0.1:${appPort}`
+
+    if (process.platform === 'darwin') {
+      appPort = `http://127.0.0.1:${appPort}`
+    }
   }
 
   beforeAll(async () => {
@@ -193,6 +202,51 @@ describe('required server files app router', () => {
     })
 
     expect(rscRes.status).toBe(200)
+  })
+
+  describe('middleware rewrite', () => {
+    it('should work with a dynamic path', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/rewrite-with-cookie',
+        undefined,
+        {
+          method: 'POST',
+          headers: {
+            'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+          },
+          body: rewritePostpone,
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      expect($('#page').text()).toBe('/rewrite/[slug]')
+      expect($('#params').text()).toBe(JSON.stringify({ slug: 'first-cookie' }))
+    })
+  })
+
+  it('should still render when postponed is corrupted', async () => {
+    const random = Math.random().toString(36).substring(2)
+
+    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+      method: 'POST',
+      headers: {
+        'x-matched-path': '/_next/postponed/resume/dyn/' + random,
+      },
+      // This is a corrupted postponed JSON payload.
+      body: '{',
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    // Expect that the closing HTML tag is still present, indicating a
+    // successful render.
+    expect(html).toContain('</html>')
   })
 
   it('should send cache tags in minimal mode for ISR', async () => {

@@ -1,7 +1,7 @@
-import Link from 'next/link'
 import baseStyle from '../base2.module.css'
 import baseStyle2 from '../base2-scss.module.scss'
 import style from './style.module.css'
+import Nav from '../nav'
 
 export default function Page() {
   return (
@@ -12,21 +12,7 @@ export default function Page() {
       >
         hello world
       </p>
-      <Link href={'/first'} id="first">
-        First
-      </Link>
-      <Link href={'/first-client'} id="first-client">
-        First client
-      </Link>
-      <Link href={'/second'} id="second">
-        Second
-      </Link>
-      <Link href={'/second-client'} id="second-client">
-        Second client
-      </Link>
-      <Link href={'/third'} id="third">
-        Third
-      </Link>
+      <Nav />
     </div>
   )
 }

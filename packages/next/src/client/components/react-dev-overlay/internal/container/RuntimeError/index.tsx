@@ -4,7 +4,7 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
+import { CopyButton } from '../../components/copy-button'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -16,7 +16,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           !(
             f.sourceStackFrame.file === '<anonymous>' &&
             ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          )
+          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
@@ -68,7 +68,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -77,24 +76,21 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         </React.Fragment>
       ) : undefined}
 
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
-        </>
-      ) : null}
-
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h2>Call Stack</h2>
+          <h2>
+            Call Stack
+            {error.error.stack && (
+              <CopyButton
+                actionLabel="Copy error stack"
+                successLabel="Copied"
+                content={error.error.stack}
+              />
+            )}
+          </h2>
+
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
           />
         </React.Fragment>
       ) : undefined}
@@ -129,6 +125,36 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
+  [data-nextjs-data-runtime-error-copy-stack],
+  [data-nextjs-data-runtime-error-copy-stack]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-stack] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-stack {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-stack--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-stack[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .nextjs-data-runtime-error-copy-stack--error,
+  .nextjs-data-runtime-error-copy-stack--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-stack--success {
+    color: var(--color-ansi-green);
+  }
+
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
@@ -154,7 +180,6 @@ export const styles = css`
     height: var(--size-font-small);
     margin-left: var(--size-gap);
     flex-shrink: 0;
-
     display: none;
   }
 
@@ -199,5 +224,36 @@ export const styles = css`
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
+  }
+
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='add'] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
+    color: var(--color-ansi-red);
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
+  }
+  /* hide but text are still accessible in DOM */
+  [data-nextjs-container-errors-pseudo-html--hint] {
+    display: inline-block;
+    font-size: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
+    color: var(--color-accents-1);
   }
 `

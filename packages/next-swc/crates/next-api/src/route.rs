@@ -1,9 +1,9 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, Vc};
 
-use crate::server_paths::ServerPath;
+use crate::paths::ServerPath;
 
 #[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, ValueDebugFormat, Clone, Debug)]
 pub struct AppPageRoute {
@@ -78,19 +78,21 @@ pub trait Endpoint {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum WrittenEndpoint {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: String,
         server_paths: Vec<ServerPath>,
+        client_paths: Vec<RcStr>,
     },
     Edge {
         server_paths: Vec<ServerPath>,
+        client_paths: Vec<RcStr>,
     },
 }
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(IndexMap<String, Route>);
+pub struct Routes(IndexMap<RcStr, Route>);

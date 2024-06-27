@@ -3,12 +3,12 @@ import path from 'path'
 import { existsSync, promises as fs } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
-import { FileRef } from '../e2e-utils'
+import { FileRef, isNextDeploy, isNextDev } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
-import { Span } from 'next/src/trace'
+import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -73,7 +73,9 @@ export class NextInstance {
     this.env = {}
     Object.assign(this, opts)
 
-    if (!(global as any).isNextDeploy) {
+    require('console').log('packageJson??', this.packageJson)
+
+    if (!isNextDeploy) {
       this.env = {
         ...this.env,
         // remove node_modules/.bin repo path from env
@@ -102,7 +104,17 @@ export class NextInstance {
         )
       }
 
-      await fs.cp(files.fsPath, this.testDir, { recursive: true })
+      await fs.cp(files.fsPath, this.testDir, {
+        recursive: true,
+        filter(source) {
+          // we don't copy a package.json as it's manually written
+          // via the createNextInstall process
+          if (path.relative(files.fsPath, source) === 'package.json') {
+            return false
+          }
+          return true
+        },
+      })
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
@@ -128,14 +140,16 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(
-      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
-    )
 
     await parentSpan
       .traceChild('createTestDir')
       .traceAsyncFn(async (rootSpan) => {
         const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        if (!skipIsolatedNext) {
+          require('console').log(
+            `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+          )
+        }
         const tmpDir = skipIsolatedNext
           ? path.join(__dirname, '../../tmp')
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
@@ -146,12 +160,13 @@ export class NextInstance {
           }`
         )
 
-        const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+        const reactVersion =
+          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': reactVersion,
-          '@types/react-dom': reactVersion,
+          '@types/react': 'latest',
+          '@types/react-dom': 'latest',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -193,7 +208,7 @@ export class NextInstance {
             !this.dependencies &&
             !this.installCommand &&
             !this.packageJson &&
-            !(global as any).isNextDeploy
+            !isNextDeploy
           ) {
             await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
               recursive: true,
@@ -206,6 +221,7 @@ export class NextInstance {
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
+              keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
             })
             this.testDir = installDir
           }
@@ -232,10 +248,7 @@ export class NextInstance {
           )
         }
 
-        if (
-          this.nextConfig ||
-          ((global as any).isNextDeploy && !nextConfigFile)
-        ) {
+        if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
           const functions = []
           const exportDeclare =
             this.packageJson?.type === 'module'
@@ -269,7 +282,7 @@ export class NextInstance {
           )
         }
 
-        if ((global as any).isNextDeploy) {
+        if (isNextDeploy) {
           const fileName = path.join(
             this.testDir,
             nextConfigFile || 'next.config.js'
@@ -333,7 +346,12 @@ export class NextInstance {
     throw new Error('Not implemented')
   }
 
-  public async setup(parentSpan: Span): Promise<void> {}
+  public async setup(parentSpan: Span): Promise<void> {
+    if (this.forcedPort === 'random') {
+      this.forcedPort = (await findPort()) + ''
+      console.log('Forced random port:', this.forcedPort)
+    }
+  }
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
@@ -438,7 +456,7 @@ export class NextInstance {
     // TODO: replace this with an event directly from WatchPack inside
     // router-server for better accuracy
     if (
-      (global as any).isNextDev &&
+      isNextDev &&
       (filename.startsWith('app/') || filename.startsWith('pages/'))
     ) {
       require('console').log('fs dev delay', filename)

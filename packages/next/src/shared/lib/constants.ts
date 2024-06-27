@@ -10,19 +10,6 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
-/**
- * Headers that are set by the Next.js server and should be stripped from the
- * request headers going to the user's application.
- */
-export const INTERNAL_HEADERS = [
-  'x-invoke-error',
-  'x-invoke-output',
-  'x-invoke-path',
-  'x-invoke-query',
-  'x-invoke-status',
-  'x-middleware-invoke',
-] as const
-
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -33,6 +20,8 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
+export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
+export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'

@@ -15,6 +15,7 @@ const FORBIDDEN_HEADERS = [
 
 type RunnerFn = (params: {
   name: string
+  onError?: (err: unknown) => void
   onWarning?: (warn: Error) => void
   paths: string[]
   request: NodejsRequestData
@@ -54,6 +55,7 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
 export async function getRuntimeContext(params: {
   name: string
   onWarning?: any
+  onError?: (err: unknown) => void
   useCache: boolean
   edgeFunctionEntry: any
   distDir: string
@@ -63,6 +65,7 @@ export async function getRuntimeContext(params: {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
     onWarning: params.onWarning ?? (() => {}),
+    onError: params.onError ?? (() => {}),
     useCache: params.useCache !== false,
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,

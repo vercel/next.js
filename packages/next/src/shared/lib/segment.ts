@@ -5,4 +5,3 @@ export function isGroupSegment(segment: string) {
 
 export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const DEFAULT_SEGMENT_KEY = '__DEFAULT__'
-export const GLOBAL_NOT_FOUND_SEGMENT_KEY = '__NOT_FOUND__'

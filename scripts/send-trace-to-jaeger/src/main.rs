@@ -36,7 +36,9 @@ fn send_json_to_zipkin(zipkin_api: &str, value: String) {
         .send()
         .expect("Failed to send request");
 
-    println!("body = {:?}", res.text());
+    if !res.status().is_success() {
+        println!("body = {:?}", res.text());
+    }
 }
 
 // function to append zero to a number until 16 characters
@@ -68,7 +70,7 @@ fn main() {
     let first_arg = args().nth(1).expect("Please provide a file name");
 
     if let Ok(lines) = read_lines(first_arg) {
-        for json_to_parse in lines.flatten() {
+        for json_to_parse in lines.map_while(Result::ok) {
             let v = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
                 Ok(v) => v
                     .into_iter()
@@ -83,6 +85,15 @@ fn main() {
                         if data["parentId"] != Value::Null {
                             data["parentId"] =
                                 Value::String(pad_zeros(data["parentId"].as_u64().unwrap()));
+                        }
+
+                        if let Some(tags) = data["tags"].as_object_mut() {
+                            for (_, value) in tags.iter_mut() {
+                                if value.is_boolean() {
+                                    let bool_val = value.as_bool().unwrap();
+                                    *value = serde_json::Value::String(bool_val.to_string());
+                                }
+                            }
                         }
 
                         data
