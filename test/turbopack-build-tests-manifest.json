@@ -1,11 +1,6 @@
 {
   "version": 2,
   "suites": {
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "pending": [],
-      "failed": ["Provided page/app paths should only build the provided paths"]
-    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -813,6 +808,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -909,6 +905,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -1251,6 +1248,15 @@
         "app dir - basic should match partial parameters",
         "app dir - basic should not include parent when not in parent directory with route in directory"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/app/provide-paths.test.ts": {
+      "passed": [],
+      "failed": [
+        "Provided page/app paths should only build the provided paths"
+      ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -1609,7 +1615,9 @@
         "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
         "app dir - next/dynamic should handle next/dynamic in SSR correctly",
         "app dir - next/dynamic should handle next/dynamic in hydration correctly",
-        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
+        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
+        "app dir - next/dynamic should not render loading by default",
+        "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
       ],
       "failed": [
         "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime"
@@ -1976,7 +1984,8 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/mdx/mdx.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "mdx with-mdx-rs app directory should allow importing client components",
         "mdx with-mdx-rs app directory should allow overriding components",
         "mdx with-mdx-rs app directory should work in initial html",
@@ -1990,7 +1999,6 @@
         "mdx with-mdx-rs pages directory should work using browser",
         "mdx with-mdx-rs pages directory should work using browser with mdx import"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2304,7 +2312,7 @@
       "passed": [
         "next-dynamic-css should have correct order of global styles between layout and pages",
         "next-dynamic-css should have correct order of styles between global and css modules",
-        "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+        "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
       ],
       "failed": [
         "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
@@ -2424,6 +2432,16 @@
     "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
       "passed": [
         "not-found app dir css should load css while navigation between not-found and page"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/not-found/default/default.test.ts": {
+      "passed": [
+        "app dir - not-found - default should contain noindex contain in the page",
+        "app dir - not-found - default should has noindex in the head html"
       ],
       "failed": [],
       "pending": [],
@@ -3096,6 +3114,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
+      "passed": [
+        "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
       "passed": [
         "turbo-resolve-extensions should SSR",
@@ -3704,6 +3731,16 @@
         "searchparams-static-bailout client component should not bailout when not using searchParams",
         "searchparams-static-bailout server component should bailout when using searchParams",
         "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
+      "passed": [
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
       ],
       "failed": [],
       "pending": [],
@@ -5595,6 +5632,7 @@
         "Prerender should not supply query values to params or useRouter non-dynamic page SSR",
         "Prerender should not throw error for on-demand revalidate for SSR path",
         "Prerender should of formatted build output correctly",
+        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should on-demand revalidate for revalidate: false",
         "Prerender should on-demand revalidate that returns notFound: true",
         "Prerender should only show warning once per page when large amount of page data is returned",
@@ -5620,7 +5658,6 @@
         "Prerender should navigate between pages successfully",
         "Prerender should not error when rewriting to fallback dynamic SSG page",
         "Prerender should not show error for invalid JSON returned from getStaticProps on SSR",
-        "Prerender should on-demand revalidate for fallback: blocking with onlyGenerated if generated",
         "Prerender should output traces",
         "Prerender should parse query values on mount correctly",
         "Prerender should render correctly for SSG pages that starts with api-docs",
@@ -8820,7 +8857,6 @@
         "Next Build production mode custom directories",
         "Next Build production mode eslint cache lives in the user defined build directory",
         "Next Build production mode eslint caching is enabled",
-        "Next Build production mode first time setup",
         "Next Build production mode ignore during builds",
         "Next Build production mode invalid older eslint version",
         "Next Build production mode missing Next.js plugin",
@@ -15510,6 +15546,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/eslint/test/next-build-and-lint.test.ts": {
+      "passed": [
+        "Next Build production mode first time setup",
+        "Next Build production mode first time setup with TypeScript"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/export/index.test.ts": {
       "passed": [
         "static export API routes export Should throw if a route is matched",
@@ -15997,8 +16043,7 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
-        "required server files app router should send cache tags in minimal mode for ISR",
-        "required server files app router should still render when postponed is corrupted"
+        "required server files app router should send cache tags in minimal mode for ISR"
       ],
       "pending": [],
       "flakey": [],
