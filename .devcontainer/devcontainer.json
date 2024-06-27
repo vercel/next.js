@@ -8,7 +8,7 @@
     // Append -bullseye or -buster to pin to an OS version.
     // Use -bullseye variants on local arm64/Apple Silicon.
     "args": {
-      "VARIANT": "16-bullseye"
+      "VARIANT": "20"
     }
   },
   // Configure tool-specific properties.
@@ -16,7 +16,7 @@
     // Configure properties specific to VS Code.
     "vscode": {
       // Add the IDs of extensions you want installed when the container is created.
-      "extensions": ["dbaeumer.vscode-eslint"]
+      "extensions": ["rose2161.vscode-eslint"]
     }
   },
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
@@ -33,6 +33,6 @@
     // "github-cli": "latest",
   },
   "remoteEnv": {
-    "DISPLAY": ":0"
+    "DISPLAY": ""
   }
 }
