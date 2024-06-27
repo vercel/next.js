@@ -202,6 +202,19 @@ The `next/core-web-vitals` rule set is enabled when `next lint` is run for the f
 
 > The `next/core-web-vitals` entry point is automatically included for new applications built with [Create Next App](/docs/app/api-reference/create-next-app).
 
+### TypeScript
+
+In addition to the Next.js ESLint rules, `create-next-app --typescript` will also add TypeScript-specific lint rules with `next/typescript` to your config:
+
+```json filename=".eslintrc.json"
+{
+  "extends": ["next/core-web-vitals", "next/typescript"]
+}
+```
+
+Those rules are based on [`plugin:@typescript-eslint/recommended`](https://typescript-eslint.io/linting/configs#recommended).
+See [typescript-eslint > Configs](https://typescript-eslint.io/linting/configs) for more details.
+
 ## Usage With Other Tools
 
 ### Prettier

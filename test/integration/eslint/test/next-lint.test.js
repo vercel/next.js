@@ -120,7 +120,9 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
       // App Router
       const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
         await nextLintTemp(null, true)
