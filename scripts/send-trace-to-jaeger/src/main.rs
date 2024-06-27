@@ -19,9 +19,7 @@ where
 
 /// Log the url to view the trace in the browser.
 fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
-    println!(
-        "Jaeger trace will be available on {jaeger_web_ui_url}/trace/{trace_id}"
-    )
+    println!("Jaeger trace will be available on {jaeger_web_ui_url}/trace/{trace_id}")
 }
 
 /// Send trace JSON to Jaeger using ZipKin API.
