@@ -1,6 +1,6 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Benchmarking tool for the developer workflow",
   "publishConfig": {
     "access": "public"
