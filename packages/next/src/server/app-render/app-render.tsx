@@ -88,8 +88,10 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
+  DYNAMIC_DATA,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  type PostponedState,
 } from './static/static-renderer'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
@@ -1018,15 +1020,24 @@ async function renderToHTMLOrFlightImpl(
         tracingMetadata: tracingMetadata,
       })
 
+      let postponed: PostponedState | null = null
+
+      // If provided, the postpone state should be parsed as JSON so it can be
+      // provided to React.
+      if (typeof renderOpts.postponed === 'string') {
+        try {
+          postponed = JSON.parse(renderOpts.postponed)
+        } catch {
+          // If we failed to parse the postponed state, we should default to
+          // performing a dynamic data render.
+          postponed = DYNAMIC_DATA
+        }
+      }
+
       const renderer = createStaticRenderer({
         isRoutePPREnabled,
         isStaticGeneration,
-        // If provided, the postpone state should be parsed as JSON so it can be
-        // provided to React.
-        postponed:
-          typeof renderOpts.postponed === 'string'
-            ? JSON.parse(renderOpts.postponed)
-            : null,
+        postponed,
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
@@ -1042,7 +1053,7 @@ async function renderToHTMLOrFlightImpl(
       })
 
       try {
-        let { stream, postponed, resumed } = await renderer.render(children)
+        const result = await renderer.render(children)
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
@@ -1063,10 +1074,10 @@ async function renderToHTMLOrFlightImpl(
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
-            if (postponed != null) {
+            if (result.postponed != null) {
               // This is the Dynamic HTML case.
               metadata.postponed = JSON.stringify(
-                getDynamicHTMLPostponedState(postponed)
+                getDynamicHTMLPostponedState(result.postponed)
               )
             } else {
               // This is the Dynamic Data case
@@ -1079,7 +1090,7 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
-              stream: await continueDynamicPrerender(stream, {
+              stream: await continueDynamicPrerender(result.stream, {
                 getServerInsertedHTML,
               }),
             }
@@ -1093,10 +1104,10 @@ async function renderToHTMLOrFlightImpl(
 
             if (usedDynamicAPIs(prerenderState)) {
               // This is the same logic above just repeated after ensuring the RSC stream itself has completed
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // This is the Dynamic HTML case.
                 metadata.postponed = JSON.stringify(
-                  getDynamicHTMLPostponedState(postponed)
+                  getDynamicHTMLPostponedState(result.postponed)
                 )
               } else {
                 // This is the Dynamic Data case
@@ -1109,14 +1120,14 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
-                stream: await continueDynamicPrerender(stream, {
+                stream: await continueDynamicPrerender(result.stream, {
                   getServerInsertedHTML,
                 }),
               }
             } else {
               // This is the Static case
               // We still have not used any dynamic APIs. At this point we can produce an entirely static prerender response
-              let renderedHTMLStream = stream
+              let renderedHTMLStream = result.stream
 
               if (staticGenerationStore.forceDynamic) {
                 throw new StaticGenBailoutError(
@@ -1124,13 +1135,13 @@ async function renderToHTMLOrFlightImpl(
                 )
               }
 
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
                 // so we can set all the postponed boundaries to client render mode before we store the HTML response
                 const resumeRenderer = createStaticRenderer({
                   isRoutePPREnabled,
                   isStaticGeneration: false,
-                  postponed: getDynamicHTMLPostponedState(postponed),
+                  postponed: getDynamicHTMLPostponedState(result.postponed),
                   streamOptions: {
                     signal: createPostponedAbortSignal(
                       'static prerender resume'
@@ -1165,7 +1176,7 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(stream, resumeStream)
+                renderedHTMLStream = chainStreams(result.stream, resumeStream)
               }
 
               return {
@@ -1187,10 +1198,10 @@ async function renderToHTMLOrFlightImpl(
             nonce,
             formState
           )
-          if (resumed) {
+          if (result.resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueDynamicHTMLResume(stream, {
+              stream: await continueDynamicHTMLResume(result.stream, {
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
@@ -1198,7 +1209,7 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
-              stream: await continueDynamicDataResume(stream, {
+              stream: await continueDynamicDataResume(result.stream, {
                 inlinedDataStream,
               }),
             }
@@ -1208,7 +1219,7 @@ async function renderToHTMLOrFlightImpl(
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: await continueFizzStream(stream, {
+            stream: await continueFizzStream(result.stream, {
               inlinedDataStream: createInlinedDataReadableStream(
                 dataStream,
                 nonce,

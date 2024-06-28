@@ -1976,8 +1976,7 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/mdx/mdx.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "mdx with-mdx-rs app directory should allow importing client components",
         "mdx with-mdx-rs app directory should allow overriding components",
         "mdx with-mdx-rs app directory should work in initial html",
@@ -1991,6 +1990,7 @@
         "mdx with-mdx-rs pages directory should work using browser",
         "mdx with-mdx-rs pages directory should work using browser with mdx import"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15997,7 +15997,8 @@
         "required server files app router should properly handle fallback for bot request",
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should properly stream resume",
-        "required server files app router should send cache tags in minimal mode for ISR"
+        "required server files app router should send cache tags in minimal mode for ISR",
+        "required server files app router should still render when postponed is corrupted"
       ],
       "pending": [],
       "flakey": [],
