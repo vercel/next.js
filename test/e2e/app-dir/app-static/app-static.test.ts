@@ -82,14 +82,17 @@ describe('app-dir static/dynamic handling', () => {
     expect(echoedHeaders.headers.traceparent).toEqual('C')
   })
 
-  it('should warn for too many cache tags', async () => {
-    const res = await next.fetch('/too-many-cache-tags')
-    expect(res.status).toBe(200)
-    await retry(() => {
-      expect(next.cliOutput).toContain('exceeded max tag count for')
-      expect(next.cliOutput).toContain('tag-65')
+  // Runtime logs aren't queryable in deploy mode
+  if (!isNextDeploy) {
+    it('should warn for too many cache tags', async () => {
+      const res = await next.fetch('/too-many-cache-tags')
+      expect(res.status).toBe(200)
+      await retry(() => {
+        expect(next.cliOutput).toContain('exceeded max tag count for')
+        expect(next.cliOutput).toContain('tag-65')
+      })
     })
-  })
+  }
 
   if (isNextDeploy) {
     describe('new tags have been specified on subsequent fetch', () => {
@@ -115,7 +118,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revlidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -777,6 +780,8 @@ describe('app-dir static/dynamic handling', () => {
           "blog/tim.rsc",
           "blog/tim/first-post.html",
           "blog/tim/first-post.rsc",
+          "default-cache-search-params/page.js",
+          "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
           "dynamic-error/[id]/page.js",
@@ -2198,6 +2203,32 @@ describe('app-dir static/dynamic handling', () => {
       }
       return 'success'
     }, 'success')
+  })
+
+  it('should cache correctly when accessing search params opts into dynamic rendering', async () => {
+    const res = await next.fetch('/default-cache-search-params')
+    expect(res.status).toBe(200)
+
+    let prevHtml = await res.text()
+    let prev$ = cheerio.load(prevHtml)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/default-cache-search-params')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-default-cache').text()).not.toBe(
+        prev$('#data-default-cache').text()
+      )
+      expect(cur$('#data-request-cache').text()).not.toBe(
+        prev$('#data-request-cache').text()
+      )
+      expect(cur$('#data-cache-auto').text()).not.toBe(
+        prev$('#data-cache-auto').text()
+      )
+    })
   })
 
   it('should cache correctly for fetchCache = force-cache', async () => {

@@ -17,7 +17,6 @@ export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
-  'Warning: Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.%s',
   'Warning: In HTML, %s cannot be a child of <%s>.%s\nThis will cause a hydration error.%s',
   'Warning: In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s',
   'Warning: In HTML, text nodes cannot be a child of <%s>.\nThis will cause a hydration error.',

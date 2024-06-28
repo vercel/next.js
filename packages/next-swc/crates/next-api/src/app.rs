@@ -18,7 +18,7 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{
-        ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
+        client_reference_graph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -47,20 +47,20 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAssets,
             },
             file_source::FileSource,
+            ident::AssetIdent,
             module::Module,
             output::{OutputAsset, OutputAssets},
             raw_output::RawOutput,
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        nodejs::EntryChunkGroupResult,
         turbopack::{
             module_options::ModuleOptionsContext,
             resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, FullContextTransition},
+            transition::{ContextTransition, FullContextTransition, Transition},
             ModuleAssetContext,
         },
     },
@@ -119,7 +119,7 @@ impl AppProject {
     }
 }
 
-const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -167,7 +167,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
+    pub(crate) fn client_transition_name(self: Vc<Self>) -> Vc<RcStr> {
         Vc::cell(ECMASCRIPT_CLIENT_TRANSITION_NAME.into())
     }
 
@@ -272,14 +272,27 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    pub fn client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+            Vc::upcast(self.client_transition()),
+            self.ssr_transition(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub fn edge_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextEcmascriptClientReferenceTransition::new(
+            Vc::upcast(self.client_transition()),
+            self.edge_ssr_transition(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     fn rsc_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.ssr_transition(),
-                )),
+                self.client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -306,10 +319,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.edge_ssr_transition(),
-                )),
+                self.edge_client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -339,10 +349,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.ssr_transition(),
-                )),
+                self.client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -370,10 +377,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                Vc::upcast(NextEcmascriptClientReferenceTransition::new(
-                    Vc::upcast(self.client_transition()),
-                    self.edge_ssr_transition(),
-                )),
+                self.edge_client_reference_transition(),
             ),
             (
                 "next-dynamic".into(),
@@ -624,6 +628,11 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
+#[turbo_tasks::function]
+fn client_shared_chunks() -> Vc<RcStr> {
+    Vc::cell("client_shared_chunks".into())
+}
+
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
     Html,
@@ -769,10 +778,8 @@ impl AppEndpoint {
 
         let (app_server_reference_modules, client_dynamic_imports) = if process_client {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                app_entry
-                    .rsc_entry
-                    .ident()
-                    .with_modifier(Vc::cell("client_shared_chunks".into())),
+                AssetIdent::from_path(this.app_project.project().project_path())
+                    .with_modifier(client_shared_chunks()),
                 this.app_project.client_runtime_entries(),
                 client_chunking_context,
             )
@@ -791,9 +798,8 @@ impl AppEndpoint {
             }
             let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-            let client_reference_graph = ClientReferenceGraph::new(Vc::cell(vec![rsc_entry_asset]));
-            let client_reference_types = client_reference_graph.types();
-            let client_references = client_reference_graph.entry(rsc_entry_asset);
+            let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
+            let client_reference_types = client_references.types();
 
             let ssr_chunking_context = if process_ssr {
                 Some(match runtime {
@@ -842,13 +848,13 @@ impl AppEndpoint {
             {
                 entry_client_chunks.extend(chunks.await?.iter().copied());
             }
-            for chunks in client_references_chunks_ref
+            for (chunks, _) in client_references_chunks_ref
                 .client_component_client_chunks
                 .values()
             {
                 client_assets.extend(chunks.await?.iter().copied());
             }
-            for chunks in client_references_chunks_ref
+            for (chunks, _) in client_references_chunks_ref
                 .client_component_ssr_chunks
                 .values()
             {
@@ -942,7 +948,7 @@ impl AppEndpoint {
                 // initialization
                 let client_references_chunks = &*client_references_chunks.await?;
 
-                for &ssr_chunks in client_references_chunks
+                for (ssr_chunks, _) in client_references_chunks
                     .client_component_ssr_chunks
                     .values()
                 {

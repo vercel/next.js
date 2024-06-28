@@ -3,9 +3,7 @@
 import React from 'react'
 import dynamic from 'next/dynamic'
 
-const Red = dynamic(() => import('../../components/red'), {
-  suspense: true,
-})
+const Red = dynamic(() => import('../../components/red'))
 
 function Blue() {
   return (

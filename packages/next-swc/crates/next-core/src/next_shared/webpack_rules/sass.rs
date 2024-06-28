@@ -38,6 +38,7 @@ pub async fn maybe_add_sass_loader(
             loader: "next/dist/compiled/sass-loader".into(),
             options: take(
                 serde_json::json!({
+                    "implementation": sass_options.get("implementation"),
                     "sourceMap": true,
                     "sassOptions": sass_options,
                     "additionalData": additional_data
