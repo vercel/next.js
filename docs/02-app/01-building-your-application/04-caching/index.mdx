@@ -212,7 +212,7 @@ Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) 
 
 Since `fetch` requests are not cached by default, you don't need to opt out of caching. This means data will be fetched from your data source whenever `fetch` is called.
 
-> **Note**: Data Cache is currently only available in Layout, Pages, and Route Handlers, not Middleware. Any fetches done inside of your middleware will be uncached by default.
+> **Note**: Data Cache is currently only available in Layout, Pages, and Route Handlers, not Middleware. Any fetches done inside of your middleware will not be cached by default.
 
 > **Vercel Data Cache**
 >
