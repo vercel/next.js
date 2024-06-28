@@ -2801,6 +2801,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
+        status: res.statusCode,
       }
     )
 

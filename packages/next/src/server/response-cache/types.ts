@@ -19,6 +19,7 @@ export interface ResponseCacheBase {
       routeKind?: RouteKind
 
       isRoutePPREnabled?: boolean
+      status?: number
     }
   ): Promise<ResponseCacheEntry | null>
 }
