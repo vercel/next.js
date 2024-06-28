@@ -123,15 +123,6 @@ export default class ResponseCache implements ResponseCacheBase {
             true
           )
 
-          // When cache context has new status, update the cache entry status
-          if (
-            cacheEntry?.value &&
-            'status' in cacheEntry?.value &&
-            typeof context.status === 'number'
-          ) {
-            cacheEntry.value.status = context.status
-          }
-
           // If the cache entry couldn't be generated, we don't want to cache
           // the result.
           if (!cacheEntry) {
@@ -148,6 +139,15 @@ export default class ResponseCache implements ResponseCacheBase {
             // Unset the previous cache item if it was set.
             if (this.minimalMode) this.previousCacheItem = undefined
             return null
+          }
+
+          // When cache context has new status, update the cache entry status
+          if (
+            'status' in resolveValue &&
+            typeof context.status === 'number' &&
+            resolveValue.status !== context.status
+          ) {
+            resolveValue.status = context.status
           }
 
           // For on-demand revalidate wait to resolve until cache is set.
