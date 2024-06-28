@@ -2,28 +2,12 @@ import { rm, writeFile, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe } from '@vercel/devlow-bench'
-import * as devlow from '@vercel/devlow-bench'
+import { measureTime, reportMeasurement } from '@vercel/devlow-bench'
 import { newBrowserSession } from '@vercel/devlow-bench/browser'
 import { command } from '@vercel/devlow-bench/shell'
 import { waitForFile } from '@vercel/devlow-bench/file'
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
-
-const GIT_SHA =
-  process.env.GITHUB_SHA ??
-  (await (async () => {
-    const cmd = command('git', ['rev-parse', 'HEAD'])
-    await cmd.ok()
-    return cmd.output
-  })())
-
-const GIT_BRANCH =
-  process.env.GITHUB_REF_NAME ??
-  (await (async () => {
-    const cmd = command('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
-    await cmd.ok()
-    return cmd.output
-  })())
 
 const nextDevWorkflow =
   (benchmarkName, pages) =>
@@ -377,26 +361,4 @@ async function retry(fn) {
     }
   }
   throw lastError
-}
-
-function measureTime(name, options) {
-  return devlow.measureTime(name, {
-    props: {
-      git_sha: GIT_SHA,
-      git_branch: GIT_BRANCH,
-      ...options?.props,
-    },
-    ...options,
-  })
-}
-
-function reportMeasurement(name, value, unit, options) {
-  return devlow.reportMeasurement(name, value, unit, {
-    props: {
-      git_sha: GIT_SHA,
-      git_branch: GIT_BRANCH,
-      ...options?.props,
-    },
-    ...options,
-  })
 }
