@@ -1,0 +1,57 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "formatter": {
+    "ignore": [
+      ".github/actions/next-stats-action/.work",
+      "**/.next/",
+      "**/.tina/__generated__/**",
+      "**/.turbo/",
+      "**/_next/",
+      "**/__tmp__/",
+      "**/compiled/",
+      "**/convex/_generated/**",
+      "**/dist/",
+      "**/lerna.json",
+      "**/pnpm-lock.yaml",
+      "**/target/",
+      "**/test-timings.json",
+      "bench/nested-deps/components/**/*",
+      "bench/nested-deps/pages/**/*",
+      "packages/next-codemod/**/*.d.ts",
+      "packages/next-codemod/**/*.js",
+      "packages/next-codemod/transforms/__testfixtures__/**",
+      "packages/next-codemod/transforms/__tests__/**",
+      "packages/next-env/**/*.d.ts",
+      "packages/next-swc/crates/**/tests/**/output*",
+      "packages/next-swc/crates/core/tests/loader/issue-32553/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/errors/react-server-components/client-graph/use-client/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/errors/react-server-components/server-graph/fake-client-entry/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/errors/server-actions/server-graph/8/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/errors/server-actions/server-graph/9/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/fixture/optimize-barrel/normal/4/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/fixture/react-server-components/client-graph/client-entry/input.js",
+      "packages/next-swc/crates/next-custom-transforms/tests/fixture/react-server-components/server-graph/client-entry/input.js",
+      "packages/next-swc/docs/assets/**/*",
+      "packages/next-swc/native/**/*",
+      "packages/next/src/bundles/webpack/packages/*.runtime.js",
+      "packages/next/src/bundles/webpack/packages/lazy-compilation-*.js",
+      "test/development/basic/hmr/components/parse-error.js",
+      "test/e2e/async-modules/amp-validator-wasm.js",
+      "test/lib/amp-validator-wasm.js",
+      "test/production/pages-dir/production/fixture/amp-validator-wasm.js",
+      "test/**/out/**"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "es5",
+      "semicolons": "asNeeded"
+    }
+  },
+  "json": {
+    "parser": {
+      "allowComments": true
+    }
+  }
+}

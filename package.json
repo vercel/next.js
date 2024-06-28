@@ -68,6 +68,7 @@
     "@babel/plugin-proposal-object-rest-spread": "7.20.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
+    "@biomejs/biome": "1.8.3",
     "@edge-runtime/jest-environment": "2.3.10",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
