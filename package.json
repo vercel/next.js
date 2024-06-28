@@ -262,7 +262,7 @@
     "scheduler": "0.25.0-rc-6230622a1a-20240610"
   },
   "engines": {
-    "node": ">=18.17.0",
+    "node": ">=18.18.0",
     "pnpm": "9.4.0"
   },
   "packageManager": "pnpm@9.4.0",
