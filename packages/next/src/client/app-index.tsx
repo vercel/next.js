@@ -15,6 +15,7 @@ import {
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
+import initializePrerenderIndicator from './components/prerender-indicator'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -35,6 +36,10 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
     ev.preventDefault()
     return
   }
+})
+
+initializePrerenderIndicator((handlers) => {
+  window.next.isrIndicatorHandlers = handlers
 })
 
 /// <reference types="react-dom/experimental" />

@@ -113,6 +113,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
+  setAppIsrStatus?: (key: string, value: false | number | null) => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {

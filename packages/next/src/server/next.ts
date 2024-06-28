@@ -26,6 +26,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { getNodeDebugType } from './lib/utils'
+import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 
 let ServerImpl: typeof Server
 
@@ -140,7 +141,7 @@ export class NextServer {
     return server.render404(...args)
   }
 
-  async prepare(serverFields?: any) {
+  async prepare(serverFields?: ServerFields) {
     if (this.standaloneMode) return
 
     const server = await this.getServer()

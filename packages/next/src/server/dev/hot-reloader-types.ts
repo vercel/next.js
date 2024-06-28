@@ -22,6 +22,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
+  APP_ISR_MANIFEST = 'app-isr-manifest',
 }
 
 interface ServerErrorAction {
@@ -105,6 +106,11 @@ export interface TurbopackConnectedAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
+export interface AppIsrManifestAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST
+  data: Record<string, false | number>
+}
+
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
@@ -120,6 +126,7 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
+  | AppIsrManifestAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
@@ -142,7 +149,12 @@ export interface NextJsHotReloaderInterface {
   stop(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
   getCompilationErrors(page: string): Promise<any[]>
-  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void
+  onHMR(
+    req: IncomingMessage,
+    _socket: Duplex,
+    head: Buffer,
+    callback: (client: import('ws').WebSocket) => void
+  ): void
   invalidate({
     reloadAfterInvalidation,
   }: {
