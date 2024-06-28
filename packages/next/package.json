@@ -270,7 +270,7 @@
     "ora": "4.0.4",
     "os-browserify": "0.3.0",
     "p-limit": "3.1.0",
-    "p-queue": "6.6.2",
+    "p-queue": "8.0.1",
     "path-browserify": "1.0.1",
     "path-to-regexp": "6.1.0",
     "picomatch": "4.0.1",

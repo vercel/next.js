@@ -651,7 +651,7 @@ externals['p-queue'] = 'next/dist/compiled/p-queue'
 export async function ncc_p_queue(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('p-queue')))
-    .ncc({ packageName: 'p-queue', externals })
+    .ncc({ packageName: 'p-queue', externals, esm: false })
     .target('src/compiled/p-queue')
 }
 
