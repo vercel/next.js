@@ -40,9 +40,11 @@ serde_regex = "1.1.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
+triomphe = { workspace = true, features = ["unsize"] }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
+unsize = { workspace = true }
 
 [dev-dependencies]
 serde_test = "1.0.157"

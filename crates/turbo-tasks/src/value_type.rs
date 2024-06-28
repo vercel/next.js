@@ -146,7 +146,7 @@ impl ValueType {
 
     pub fn any_as_serializable<'a>(
         &self,
-        arc: &'a Arc<dyn Any + Sync + Send>,
+        arc: &'a triomphe::Arc<dyn Any + Sync + Send>,
     ) -> Option<&'a dyn erased_serde::Serialize> {
         if let Some(s) = self.any_serialization {
             Some((s.0)(&**arc))

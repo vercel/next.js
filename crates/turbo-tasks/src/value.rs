@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
 use crate::SharedReference;
 
@@ -110,9 +110,10 @@ impl<T> Ord for TransientInstance<T> {
     }
 }
 
-impl<T: Send + Sync + 'static> From<TransientInstance<T>> for Arc<T> {
+impl<T: Send + Sync + 'static> From<TransientInstance<T>> for triomphe::Arc<T> {
     fn from(instance: TransientInstance<T>) -> Self {
-        Arc::downcast(instance.inner.1.clone()).unwrap()
+        // we know this downcast must work because we have type T
+        instance.inner.downcast().unwrap()
     }
 }
 
@@ -122,10 +123,10 @@ impl<T: Send + Sync + 'static> From<TransientInstance<T>> for SharedReference {
     }
 }
 
-impl<T: Send + Sync + 'static> From<Arc<T>> for TransientInstance<T> {
-    fn from(arc: Arc<T>) -> Self {
+impl<T: Send + Sync + 'static> From<triomphe::Arc<T>> for TransientInstance<T> {
+    fn from(arc: triomphe::Arc<T>) -> Self {
         Self {
-            inner: SharedReference(None, arc),
+            inner: SharedReference::new(None, arc),
             phantom: PhantomData,
         }
     }
@@ -149,7 +150,7 @@ impl<T: Send + Sync + 'static> TryFrom<SharedReference> for TransientInstance<T>
 impl<T: Send + Sync + 'static> TransientInstance<T> {
     pub fn new(value: T) -> Self {
         Self {
-            inner: SharedReference(None, Arc::new(value)),
+            inner: SharedReference::new(None, triomphe::Arc::new(value)),
             phantom: PhantomData,
         }
     }

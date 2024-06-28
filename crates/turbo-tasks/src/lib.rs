@@ -68,6 +68,7 @@ mod state;
 pub mod task;
 pub mod trace;
 mod trait_ref;
+mod triomphe_utils;
 pub mod util;
 mod value;
 mod value_type;

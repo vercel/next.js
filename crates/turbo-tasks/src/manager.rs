@@ -1469,9 +1469,9 @@ impl CurrentCellRef {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
-                CellContent(Some(SharedReference(
+                CellContent(Some(SharedReference::new(
                     Some(self.index.type_id),
-                    Arc::new(update),
+                    triomphe::Arc::new(update),
                 ))),
             )
         }
@@ -1493,9 +1493,9 @@ impl CurrentCellRef {
         tt.update_own_task_cell(
             self.current_task,
             self.index,
-            CellContent(Some(SharedReference(
+            CellContent(Some(SharedReference::new(
                 Some(self.index.type_id),
-                Arc::new(new_content),
+                triomphe::Arc::new(new_content),
             ))),
         )
     }

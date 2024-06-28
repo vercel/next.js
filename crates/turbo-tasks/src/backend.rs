@@ -162,8 +162,8 @@ impl CellContent {
         let data = self.0.ok_or_else(|| anyhow!("Cell is empty"))?;
         let data = data
             .downcast()
-            .ok_or_else(|| anyhow!("Unexpected type in cell"))?;
-        Ok(ReadRef::new(data))
+            .map_err(|_err| anyhow!("Unexpected type in cell"))?;
+        Ok(ReadRef::new_arc(data))
     }
 
     /// # Safety
@@ -185,8 +185,7 @@ impl CellContent {
     }
 
     pub fn try_cast<T: Any + VcValueType>(self) -> Option<ReadRef<T>> {
-        self.0
-            .and_then(|data| data.downcast().map(|data| ReadRef::new(data)))
+        Some(ReadRef::new_arc(self.0?.downcast().ok()?))
     }
 }
 
