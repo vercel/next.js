@@ -12,7 +12,7 @@
     "dist"
   ],
   "dependencies": {
-    "glob": "10.3.10"
+    "fast-glob": "3.3.1"
   },
   "devDependencies": {
     "eslint": "8.56.0"
