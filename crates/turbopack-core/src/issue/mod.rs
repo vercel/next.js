@@ -5,7 +5,6 @@ pub mod resolve;
 use std::{
     cmp::{min, Ordering},
     fmt::{Display, Formatter},
-    sync::Arc,
 };
 
 use anyhow::{anyhow, Result};
@@ -713,7 +712,7 @@ impl PlainSource {
         let asset_content = asset.content().await?;
         let content = match *asset_content {
             AssetContent::File(file_content) => file_content.await?,
-            AssetContent::Redirect { .. } => ReadRef::new(Arc::new(FileContent::NotFound)),
+            AssetContent::Redirect { .. } => ReadRef::new_owned(FileContent::NotFound),
         };
 
         Ok(PlainSource {

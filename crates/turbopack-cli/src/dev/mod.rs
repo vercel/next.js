@@ -196,25 +196,25 @@ impl TurbopackDevServerBuilder {
         let show_all = self.show_all;
         let log_detail: bool = self.log_detail;
         let browserslist_query: RcStr = self.browserslist_query;
-        let log_args = Arc::new(LogOptions {
+        let log_args = TransientInstance::new(LogOptions {
             current_dir: current_dir().unwrap(),
             project_dir: PathBuf::from(project_dir.clone()),
             show_all,
             log_detail,
             log_level: self.log_level,
         });
-        let entry_requests = Arc::new(self.entry_requests);
+        let entry_requests = TransientInstance::new(self.entry_requests);
         let tasks = turbo_tasks.clone();
         let issue_provider = self.issue_reporter.unwrap_or_else(|| {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
-            Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone().into())))
+            Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
         let source = move || {
             source(
                 root_dir.clone(),
                 project_dir.clone(),
-                entry_requests.clone().into(),
+                entry_requests.clone(),
                 eager_compile,
                 browserslist_query.clone(),
             )

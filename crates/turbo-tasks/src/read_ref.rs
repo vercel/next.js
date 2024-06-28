@@ -1,10 +1,8 @@
 use std::{
-    cmp::Ordering,
     fmt::{Debug, Display},
     hash::Hash,
     marker::PhantomData,
     mem::transmute_copy,
-    sync::Arc,
 };
 
 use serde::{Deserialize, Serialize};
@@ -22,7 +20,7 @@ use crate::{
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(Arc<T>);
+pub struct ReadRef<T>(triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -222,21 +220,21 @@ where
         D: serde::Deserializer<'de>,
     {
         let value = T::deserialize(deserializer)?;
-        Ok(Self(Arc::new(value)))
+        Ok(Self(triomphe::Arc::new(value)))
     }
 }
 
 impl<T> ReadRef<T> {
-    pub fn new(arc: Arc<T>) -> Self {
+    pub fn new_owned(value: T) -> Self {
+        Self(triomphe::Arc::new(value))
+    }
+
+    pub fn new_arc(arc: triomphe::Arc<T>) -> Self {
         Self(arc)
     }
 
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-
-    pub fn ptr_cmp(&self, other: &ReadRef<T>) -> Ordering {
-        Arc::as_ptr(&self.0).cmp(&Arc::as_ptr(&other.0))
+        triomphe::Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -248,8 +246,10 @@ where
     /// reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let local_cell = find_cell_by_type(T::get_value_type_id());
-        local_cell
-            .update_shared_reference(SharedReference(Some(T::get_value_type_id()), read_ref.0));
+        local_cell.update_shared_reference(SharedReference::new(
+            Some(T::get_value_type_id()),
+            read_ref.0,
+        ));
         Vc {
             node: local_cell.into(),
             _t: PhantomData,

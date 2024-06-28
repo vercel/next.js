@@ -474,7 +474,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         Box::pin(async move {
             let output = main_operation(
                 TransientValue::new(dir.clone()),
-                args.clone().into(),
+                TransientInstance::new(args.clone()),
                 module_options,
                 resolve_options,
             );
@@ -513,7 +513,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
 #[turbo_tasks::function]
 async fn main_operation(
     current_dir: TransientValue<PathBuf>,
-    args: TransientInstance<Args>,
+    args: TransientInstance<Arc<Args>>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
 ) -> Result<Vc<Vec<RcStr>>> {
@@ -533,7 +533,7 @@ async fn main_operation(
     let fs = create_fs("context directory", &context_directory, watch).await?;
     let process_cwd = process_cwd.clone().map(RcStr::from);
 
-    match *args {
+    match **args {
         Args::Print { common: _ } => {
             let input = process_input(&dir, &context_directory, input).unwrap();
             let mut result = BTreeSet::new();
