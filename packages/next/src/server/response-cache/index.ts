@@ -143,11 +143,12 @@ export default class ResponseCache implements ResponseCacheBase {
 
           // When cache context has new status, update the cache entry status
           if (
-            'status' in resolveValue &&
+            resolveValue.value &&
+            'status' in resolveValue.value &&
             typeof context.status === 'number' &&
-            resolveValue.status !== context.status
+            resolveValue.value.status !== context.status
           ) {
-            resolveValue.status = context.status
+            resolveValue.value.status = context.status
           }
 
           // For on-demand revalidate wait to resolve until cache is set.
