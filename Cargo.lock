@@ -5290,9 +5290,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "0.95.9"
+version = "0.95.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3dd670aa914c4d9cc0d61d38ee68d06147b474122e73cd08a29ce4a62734108"
+checksum = "4d16e92ab4d110180eb5d102c34dd35792859f86bc5837a37c33f7befcef3410"
 dependencies = [
  "binding_macros",
  "swc",
@@ -5813,9 +5813,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "0.146.6"
+version = "0.146.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac027a1b0074138d6148d8a4c1e6e0402c8071a23c548fa19d2a0f4eff226d85"
+checksum = "417d95a184c1872bc4e4db82c721c20c38bdf01214a65ee512c37b9985b78c01"
 dependencies = [
  "either",
  "memchr",
@@ -6349,9 +6349,9 @@ dependencies = [
 
 [[package]]
 name = "swc_relay"
-version = "0.44.16"
+version = "0.44.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53f264a2f199c875993ec5cf5444bf9f74ec6a43d5b1fbf1d3eb0fda718d9cac"
+checksum = "084e761f8fd640ffa2d8530bbfa0c553da6440d2fded04ed0fa77517d82b398d"
 dependencies = [
  "once_cell",
  "regex",
