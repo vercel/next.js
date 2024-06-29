@@ -82,11 +82,6 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-const isTestMode = !!(
-  process.env.NEXT_TEST_MODE ||
-  process.env.__NEXT_TEST_MODE ||
-  process.env.DEBUG
-)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -192,6 +187,10 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+export function getNextVersion(): string {
+  return require('next/package.json').version
+}
+
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -200,7 +199,7 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   }
 
   try {
-    installed = require('next/package.json').version
+    installed = getNextVersion()
 
     const registry = getRegistry()
     let res
@@ -250,10 +249,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private telemetry: Telemetry
-  private versionInfo: VersionInfo = {
-    staleness: 'unknown',
-    installed: '0.0.0',
-  }
+  private nextVersion: string = '0.0.0'
   private reloadAfterInvalidation: boolean = false
 
   public serverStats: webpack.Stats | null
@@ -726,21 +722,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  private async tracedGetVersionInfo(span: Span, enabled: boolean) {
-    const versionInfoSpan = span.traceChild('get-version-info')
-    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
-      getVersionInfo(enabled)
-    )
-  }
-
   public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.tracedGetVersionInfo(
-      startSpan,
-      isTestMode || this.telemetry.isEnabled
-    )
+    this.nextVersion = getNextVersion()
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
@@ -1423,7 +1409,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
-      this.versionInfo
+      this.nextVersion
     )
 
     let booted = false

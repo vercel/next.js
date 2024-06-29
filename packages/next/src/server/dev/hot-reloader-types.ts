@@ -5,7 +5,6 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc'
-import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -50,7 +49,7 @@ export interface SyncAction {
   hash: string
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
-  versionInfo: VersionInfo
+  nextVersion: string
   updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {

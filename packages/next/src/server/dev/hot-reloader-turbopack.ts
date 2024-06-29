@@ -24,7 +24,7 @@ import {
 } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
-  getVersionInfo,
+  getNextVersion,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
@@ -41,7 +41,6 @@ import {
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
-import type { VersionInfo } from './parse-version-info'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -504,9 +503,7 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const versionInfo: VersionInfo = await getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
+  const nextVersion: string = getNextVersion()
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -671,7 +668,7 @@ export async function createHotReloaderTurbopack(
           errors,
           warnings: [],
           hash: '',
-          versionInfo,
+          nextVersion,
         }
 
         sendToClient(client, sync)
