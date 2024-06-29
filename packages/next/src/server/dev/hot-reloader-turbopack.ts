@@ -504,9 +504,6 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const versionInfo: VersionInfo = await getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -544,7 +541,7 @@ export async function createHotReloaderTurbopack(
 
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
     onHMR(req, socket: Socket, head) {
-      wsServer.handleUpgrade(req, socket, head, (client) => {
+      wsServer.handleUpgrade(req, socket, head, async (client) => {
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
@@ -665,6 +662,10 @@ export async function createHotReloaderTurbopack(
             }
           }
         }
+
+        const versionInfo: VersionInfo = await getVersionInfo(
+          isTestMode || opts.telemetry.isEnabled
+        )
 
         const sync: SyncAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
