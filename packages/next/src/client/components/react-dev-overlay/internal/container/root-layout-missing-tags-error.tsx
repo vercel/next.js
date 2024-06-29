@@ -1,17 +1,17 @@
 import * as React from 'react'
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { Dialog, DialogContent, DialogHeader } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { HotlinkedText } from '../components/hot-linked-text'
+import type { VersionInfoPayload } from '../../../../../server/dev/get-version-info-payload'
 
 type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
-  versionInfo?: VersionInfo
+  versionInfoPayload: VersionInfoPayload
 }
 
 export const RootLayoutMissingTagsError: React.FC<RootLayoutMissingTagsErrorProps> =
-  function RootLayoutMissingTagsError({ missingTags, versionInfo }) {
+  function RootLayoutMissingTagsError({ missingTags, versionInfoPayload }) {
     const noop = React.useCallback(() => {}, [])
     return (
       <Overlay>
@@ -23,7 +23,7 @@ export const RootLayoutMissingTagsError: React.FC<RootLayoutMissingTagsErrorProp
         >
           <DialogContent>
             <DialogHeader className="nextjs-container-errors-header">
-              <VersionStalenessInfo versionInfo={versionInfo} />
+              <VersionStalenessInfo versionInfoPayload={versionInfoPayload} />
               <h3 id="nextjs__container_errors_label">
                 Missing required html tags
               </h3>

@@ -26,6 +26,7 @@ import type ws from 'next/dist/compiled/ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import type { VersionInfoPayload } from './get-version-info-payload'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -104,15 +105,18 @@ export class WebpackHotMiddleware {
   middlewareLatestStats: { ts: number; stats: webpack.Stats } | null
   serverLatestStats: { ts: number; stats: webpack.Stats } | null
   closed: boolean
-  nextVersion: string
+  versionInfoPayload: VersionInfoPayload
 
-  constructor(compilers: webpack.Compiler[], nextVersion: string) {
+  constructor(
+    compilers: webpack.Compiler[],
+    versionInfoPayload: VersionInfoPayload
+  ) {
     this.eventStream = new EventStream()
     this.clientLatestStats = null
     this.middlewareLatestStats = null
     this.serverLatestStats = null
     this.closed = false
-    this.nextVersion = nextVersion
+    this.versionInfoPayload = versionInfoPayload
 
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
@@ -208,7 +212,7 @@ export class WebpackHotMiddleware {
           ...(stats.warnings || []),
           ...(middlewareStats.warnings || []),
         ],
-        nextVersion: this.nextVersion,
+        versionInfoPayload: this.versionInfoPayload,
       })
     }
   }

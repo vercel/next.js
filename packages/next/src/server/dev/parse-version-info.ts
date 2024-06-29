@@ -1,6 +1,6 @@
 import * as semver from 'next/dist/compiled/semver'
 
-export interface VersionInfo {
+export type VersionInfo = {
   installed: string
   staleness:
     | 'fresh'

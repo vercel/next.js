@@ -78,13 +78,13 @@ export default function ReactDevOverlay({
           {displayPrevented ? null : hasBuildError ? (
             <BuildError
               message={state.buildError!}
-              versionInfo={state.versionInfo}
+              versionInfoPayload={state.versionInfoPayload}
             />
           ) : hasRuntimeErrors ? (
             <Errors
               isAppDir={false}
               errors={state.errors}
-              versionInfo={state.versionInfo}
+              versionInfoPayload={state.versionInfoPayload}
               initialDisplayState={'fullscreen'}
             />
           ) : undefined}

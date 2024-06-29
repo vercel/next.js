@@ -19,6 +19,7 @@ import {
   getDefaultHydrationErrorMessage,
   isHydrationError,
 } from '../../is-hydration-error'
+import type { VersionInfoPayload } from '../../../../server/dev/get-version-info-payload'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -171,8 +172,8 @@ export function onBeforeRefresh() {
   Bus.emit({ type: ACTION_BEFORE_REFRESH })
 }
 
-export function onVersionInfo(nextVersion: string) {
-  Bus.emit({ type: ACTION_VERSION_INFO, nextVersion })
+export function onVersionInfo(versionInfoPayload: VersionInfoPayload) {
+  Bus.emit({ type: ACTION_VERSION_INFO, versionInfoPayload })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'

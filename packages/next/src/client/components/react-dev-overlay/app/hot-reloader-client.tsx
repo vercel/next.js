@@ -32,10 +32,11 @@ import type {
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
+import type { VersionInfoPayload } from '../../../../server/dev/get-version-info-payload'
 interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
-  onVersionInfo(nextVersion: string): void
+  onVersionInfo(versionInfoPayload: VersionInfoPayload): void
   onBeforeRefresh(): void
   onRefresh(): void
 }
@@ -305,7 +306,8 @@ function processMessage(
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('nextVersion' in obj) dispatcher.onVersionInfo(obj.nextVersion)
+      if ('versionInfoPayload' in obj)
+        dispatcher.onVersionInfo(obj.versionInfoPayload)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -470,8 +472,8 @@ export default function HotReload({
       onRefresh() {
         dispatch({ type: ACTION_REFRESH })
       },
-      onVersionInfo(nextVersion) {
-        dispatch({ type: ACTION_VERSION_INFO, nextVersion })
+      onVersionInfo(versionInfoPayload) {
+        dispatch({ type: ACTION_VERSION_INFO, versionInfoPayload })
       },
     }
   }, [dispatch])

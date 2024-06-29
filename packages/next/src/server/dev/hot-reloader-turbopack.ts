@@ -23,10 +23,7 @@ import {
   type WrittenEndpoint,
 } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import {
-  getNextVersion,
-  matchNextPageBundleRequest,
-} from './hot-reloader-webpack'
+import { matchNextPageBundleRequest } from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
@@ -80,6 +77,7 @@ import {
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { getVersionInfoPayload } from './hot-reloader-webpack'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -503,7 +501,9 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const nextVersion: string = getNextVersion()
+  const versionInfoPayload = getVersionInfoPayload(
+    isTestMode || opts.telemetry.isEnabled
+  )
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -668,7 +668,7 @@ export async function createHotReloaderTurbopack(
           errors,
           warnings: [],
           hash: '',
-          nextVersion,
+          versionInfoPayload,
         }
 
         sendToClient(client, sync)

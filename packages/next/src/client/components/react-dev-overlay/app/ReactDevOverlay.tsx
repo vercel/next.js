@@ -70,16 +70,17 @@ export default class ReactDevOverlay extends React.PureComponent<
             {state.rootLayoutMissingTags?.length ? (
               <RootLayoutMissingTagsError
                 missingTags={state.rootLayoutMissingTags}
+                versionInfoPayload={state.versionInfoPayload}
               />
             ) : hasBuildError ? (
               <BuildError
                 message={state.buildError!}
-                versionInfo={state.versionInfo}
+                versionInfoPayload={state.versionInfoPayload}
               />
             ) : reactError ? (
               <Errors
                 isAppDir={true}
-                versionInfo={state.versionInfo}
+                versionInfoPayload={state.versionInfoPayload}
                 initialDisplayState="fullscreen"
                 errors={[reactError]}
               />
@@ -88,7 +89,7 @@ export default class ReactDevOverlay extends React.PureComponent<
                 isAppDir={true}
                 initialDisplayState="minimized"
                 errors={state.errors}
-                versionInfo={state.versionInfo}
+                versionInfoPayload={state.versionInfoPayload}
               />
             ) : undefined}
           </ShadowPortal>

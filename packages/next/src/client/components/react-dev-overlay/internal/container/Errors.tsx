@@ -20,7 +20,6 @@ import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
@@ -28,6 +27,7 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import type { VersionInfoPayload } from '../../../../../server/dev/get-version-info-payload'
 
 export type SupportedErrorEvent = {
   id: number
@@ -37,7 +37,7 @@ export type ErrorsProps = {
   isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
-  versionInfo?: VersionInfo
+  versionInfoPayload: VersionInfoPayload
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -68,7 +68,7 @@ export function Errors({
   isAppDir,
   errors,
   initialDisplayState,
-  versionInfo,
+  versionInfoPayload,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -265,7 +265,7 @@ export function Errors({
                 {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              <VersionStalenessInfo versionInfo={versionInfo} />
+              <VersionStalenessInfo versionInfoPayload={versionInfoPayload} />
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}

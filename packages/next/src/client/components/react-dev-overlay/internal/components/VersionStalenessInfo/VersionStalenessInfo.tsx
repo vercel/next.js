@@ -1,11 +1,15 @@
+import {
+  getVersionInfo,
+  type VersionInfoPayload,
+} from '../../../../../../server/dev/get-version-info-payload'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
 export function VersionStalenessInfo({
-  versionInfo,
+  versionInfoPayload,
 }: {
-  versionInfo: VersionInfo | undefined
+  versionInfoPayload: VersionInfoPayload
 }) {
-  if (!versionInfo) return null
+  const versionInfo = await getVersionInfo({ versionInfoPayload })
   const { staleness } = versionInfo
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 

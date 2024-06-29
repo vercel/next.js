@@ -1,5 +1,4 @@
 import * as React from 'react'
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import {
   Dialog,
   DialogBody,
@@ -10,12 +9,16 @@ import { Overlay } from '../components/Overlay'
 import { Terminal } from '../components/Terminal'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { noop as css } from '../helpers/noop-template'
+import type { VersionInfoPayload } from '../../../../../server/dev/get-version-info-payload'
 
-export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
+export type BuildErrorProps = {
+  message: string
+  versionInfoPayload: VersionInfoPayload
+}
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
-  versionInfo,
+  versionInfoPayload,
 }) {
   const noop = React.useCallback(() => {}, [])
   return (
@@ -29,7 +32,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <h1 id="nextjs__container_errors_label">{'Build Error'}</h1>
-            <VersionStalenessInfo versionInfo={versionInfo} />
+            <VersionStalenessInfo versionInfoPayload={versionInfoPayload} />
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"

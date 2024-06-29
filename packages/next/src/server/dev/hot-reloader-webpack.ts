@@ -62,9 +62,6 @@ import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
-import { getRegistry } from '../../lib/helpers/get-registry'
-import { parseVersionInfo } from './parse-version-info'
-import type { VersionInfo } from './parse-version-info'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { getRouteLoaderEntry } from '../../build/webpack/loaders/next-route-loader'
 import {
@@ -80,8 +77,15 @@ import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import type { VersionInfoPayload } from './get-version-info-payload'
+import { isPkgManagerYarn } from '../../lib/helpers/get-pkg-manager'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
+const isTestMode = !!(
+  process.env.NEXT_TEST_MODE ||
+  process.env.__NEXT_TEST_MODE ||
+  process.env.DEBUG
+)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -187,37 +191,22 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export function getNextVersion(): string {
-  return require('next/package.json').version
-}
-
-export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
-  let installed = '0.0.0'
-
+export function getVersionInfoPayload(enabled: boolean): VersionInfoPayload {
   if (!enabled) {
-    return { installed, staleness: 'unknown' }
+    return { enabled: false }
   }
 
+  let installed = '0.0.0'
+
   try {
-    installed = getNextVersion()
+    installed = require('next/package.json').version
+    const registry = isPkgManagerYarn() ? 'yarnpkg.com' : 'npmjs.org'
+    const registryURL = `https://registry.${registry}/-/package/next/dist-tags`
 
-    const registry = getRegistry()
-    let res
-
-    try {
-      res = await fetch(`${registry}-/package/next/dist-tags`)
-    } catch {
-      // ignore fetch errors
-    }
-
-    if (!res || !res.ok) return { installed, staleness: 'unknown' }
-
-    const { latest, canary } = await res.json()
-
-    return parseVersionInfo({ installed, latest, canary })
-  } catch (e: any) {
+    return { enabled: true, registryURL, installed }
+  } catch (e) {
     console.error(e)
-    return { installed, staleness: 'unknown' }
+    return { enabled: false }
   }
 }
 
@@ -249,7 +238,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private telemetry: Telemetry
-  private nextVersion: string = '0.0.0'
+  private versionInfoPayload: VersionInfoPayload = { enabled: false }
   private reloadAfterInvalidation: boolean = false
 
   public serverStats: webpack.Stats | null
@@ -722,11 +711,21 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
+  private tracedGetVersionInfoPayload(span: Span, enabled: boolean) {
+    const versionInfoSpan = span.traceChild('get-version-info-payload')
+    return versionInfoSpan.traceFn<VersionInfoPayload>(() =>
+      getVersionInfoPayload(enabled)
+    )
+  }
+
   public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.nextVersion = getNextVersion()
+    this.versionInfoPayload = this.tracedGetVersionInfoPayload(
+      startSpan,
+      isTestMode || this.telemetry.isEnabled
+    )
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
@@ -1409,7 +1408,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
-      this.nextVersion
+      this.versionInfoPayload
     )
 
     let booted = false
