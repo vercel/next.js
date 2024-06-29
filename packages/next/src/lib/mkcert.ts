@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { X509Certificate, createPublicKey } from 'node:crypto'
+import { X509Certificate, createPrivateKey } from 'node:crypto'
 import { getCacheDirectory } from './helpers/get-cache-directory'
 import * as Log from '../build/output/log'
 import { execSync } from 'node:child_process'
@@ -113,11 +113,14 @@ export async function createSelfSignedCertificate(
     const keyPath = path.resolve(resolvedCertDir, 'localhost-key.pem')
     const certPath = path.resolve(resolvedCertDir, 'localhost.pem')
 
-    if (host && fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
       const cert = new X509Certificate(fs.readFileSync(certPath))
       const key = fs.readFileSync(keyPath)
 
-      if (cert.checkHost(host) && cert.checkPrivateKey(createPublicKey(key))) {
+      if (
+        cert.checkHost(host ?? 'localhost') &&
+        cert.checkPrivateKey(createPrivateKey(key))
+      ) {
         Log.info('Using already generated self signed certificate')
         const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
 
