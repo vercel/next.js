@@ -1,7 +1,6 @@
 import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './internal/container/Errors'
 import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'
 
@@ -17,7 +16,7 @@ export interface OverlayState {
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
   rootLayoutMissingTags: typeof window.__next_root_layout_missing_tags
-  versionInfo: VersionInfo
+  nextVersion: string
   notFound: boolean
 }
 
@@ -58,7 +57,7 @@ export interface UnhandledRejectionAction {
 
 interface VersionInfoAction {
   type: typeof ACTION_VERSION_INFO
-  versionInfo: VersionInfo
+  nextVersion: string
 }
 
 export type BusEvent =
@@ -90,7 +89,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   notFound: false,
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
-  versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+  nextVersion: '0.0.0',
 }
 
 export function useErrorOverlayReducer() {
@@ -155,7 +154,7 @@ export function useErrorOverlayReducer() {
         }
       }
       case ACTION_VERSION_INFO: {
-        return { ..._state, versionInfo: action.versionInfo }
+        return { ..._state, nextVersion: action.nextVersion }
       }
       default: {
         return _state

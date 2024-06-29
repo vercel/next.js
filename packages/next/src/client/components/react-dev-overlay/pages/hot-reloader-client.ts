@@ -281,7 +281,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+      if ('nextVersion' in obj) onVersionInfo(obj.nextVersion)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {

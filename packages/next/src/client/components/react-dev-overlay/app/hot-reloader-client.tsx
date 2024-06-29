@@ -24,7 +24,6 @@ import {
   useWebsocketPing,
 } from '../internal/helpers/use-websocket'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -36,7 +35,7 @@ import type { HydrationErrorState } from '../internal/helpers/hydration-error-in
 interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
-  onVersionInfo(versionInfo: VersionInfo): void
+  onVersionInfo(nextVersion: string): void
   onBeforeRefresh(): void
   onRefresh(): void
 }
@@ -306,7 +305,7 @@ function processMessage(
       const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+      if ('nextVersion' in obj) dispatcher.onVersionInfo(obj.nextVersion)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -471,8 +470,8 @@ export default function HotReload({
       onRefresh() {
         dispatch({ type: ACTION_REFRESH })
       },
-      onVersionInfo(versionInfo) {
-        dispatch({ type: ACTION_VERSION_INFO, versionInfo })
+      onVersionInfo(nextVersion) {
+        dispatch({ type: ACTION_VERSION_INFO, nextVersion })
       },
     }
   }, [dispatch])

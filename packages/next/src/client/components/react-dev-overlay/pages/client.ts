@@ -15,7 +15,6 @@ import {
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
 } from '../shared'
-import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import {
   getDefaultHydrationErrorMessage,
   isHydrationError,
@@ -172,8 +171,8 @@ export function onBeforeRefresh() {
   Bus.emit({ type: ACTION_BEFORE_REFRESH })
 }
 
-export function onVersionInfo(versionInfo: VersionInfo) {
-  Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
+export function onVersionInfo(nextVersion: string) {
+  Bus.emit({ type: ACTION_VERSION_INFO, nextVersion })
 }
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
