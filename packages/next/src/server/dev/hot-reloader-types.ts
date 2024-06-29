@@ -153,7 +153,7 @@ export interface NextJsHotReloaderInterface {
     req: IncomingMessage,
     _socket: Duplex,
     head: Buffer,
-    callback: (client: import('ws').WebSocket) => void
+    callback: (client: import('next/dist/compiled/ws').WebSocket) => void
   ): void
   invalidate({
     reloadAfterInvalidation,

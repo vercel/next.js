@@ -11,7 +11,14 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
  * bundler while in development.
  */
 export class DevBundlerService {
-  public appIsrManifestInner: InstanceType<typeof LRUCache>
+  // can't leverage LRU type directly here as it
+  // isn't a direct dependency
+  public appIsrManifestInner: {
+    get(key: string): number | false
+    set(key: string, value: number | false): void
+    del(key: string): void
+    keys(): string[]
+  }
 
   constructor(
     private readonly bundler: DevBundler,
@@ -22,7 +29,7 @@ export class DevBundlerService {
       length() {
         return 16
       },
-    })
+    }) as any
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
