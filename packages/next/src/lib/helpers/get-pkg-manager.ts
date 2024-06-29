@@ -34,26 +34,3 @@ export function getPkgManager(baseDir: string): PackageManager {
     return 'npm'
   }
 }
-
-// validate if the project is using yarn
-export function isPkgManagerYarn(baseDir: string = process.cwd()): boolean {
-  try {
-    const userAgent = process.env.npm_config_user_agent
-    if (userAgent) {
-      return userAgent.startsWith('yarn')
-    }
-
-    if (fs.existsSync(path.join(baseDir, 'yarn.lock'))) {
-      return true
-    }
-
-    try {
-      execSync('yarn --version', { stdio: 'ignore' })
-      return true
-    } catch {
-      return false
-    }
-  } catch {
-    return false
-  }
-}
