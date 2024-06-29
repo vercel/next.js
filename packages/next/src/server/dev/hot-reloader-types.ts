@@ -22,7 +22,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
-  APP_ISR_MANIFEST = 'app-isr-manifest',
+  APP_ISR_MANIFEST = 'appIsrManifest',
 }
 
 interface ServerErrorAction {
