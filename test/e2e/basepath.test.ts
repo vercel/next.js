@@ -212,15 +212,18 @@ describe('basePath', () => {
     })
 
     it('should respect basePath in amphtml link rel', async () => {
-      const html = await renderViaHTTP(next.url, `${basePath}/amp-hybrid`)
-      const $ = cheerio.load(html)
+      const basePath = '/base-path'; // Asegúrate de definir correctamente basePath
+      const isDev = process.env.NODE_ENV === 'development'; // Verifica el entorno de desarrollo
+    
+      const html = await renderViaHTTP(next.url, `${basePath}/amp-hybrid`);
+      const $ = cheerio.load(html);
+    
       const expectedAmpHtmlUrl = isDev
         ? `${basePath}/amp-hybrid?amp=1`
-        : `${basePath}/amp-hybrid.amp`
-      expect($('link[rel=amphtml]').first().attr('href')).toBe(
-        expectedAmpHtmlUrl
-      )
-    })
+        : `${basePath}/amp-hybrid.amp`;
+    
+      expect($('link[rel=amphtml]').first().attr('href')).toBe(expectedAmpHtmlUrl);
+    });
 
     if (!isDev) {
       if (!(global as any).isNextDeploy) {
