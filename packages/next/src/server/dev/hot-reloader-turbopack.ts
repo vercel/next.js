@@ -41,7 +41,6 @@ import {
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
-import type { VersionInfo } from './parse-version-info'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -541,7 +540,7 @@ export async function createHotReloaderTurbopack(
 
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
     onHMR(req, socket: Socket, head) {
-      wsServer.handleUpgrade(req, socket, head, async (client) => {
+      wsServer.handleUpgrade(req, socket, head, (client) => {
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
@@ -663,19 +662,21 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        const versionInfo: VersionInfo = await getVersionInfo(
-          isTestMode || opts.telemetry.isEnabled
-        )
+        ;(async function () {
+          const versionInfo = await getVersionInfo(
+            isTestMode || opts.telemetry.isEnabled
+          )
 
-        const sync: SyncAction = {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors,
-          warnings: [],
-          hash: '',
-          versionInfo,
-        }
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
 
-        sendToClient(client, sync)
+          sendToClient(client, sync)
+        })()
       })
     },
 
