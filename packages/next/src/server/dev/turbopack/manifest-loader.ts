@@ -278,8 +278,8 @@ export class TurbopackManifestLoader {
       ampDevFiles: [],
       polyfillFiles: [],
       lowPriorityFiles: [
-        'static/development/_ssgManifest.js',
-        'static/development/_buildManifest.js',
+        `static/${this.buildId}/_ssgManifest.js`,
+        `static/${this.buildId}/_buildManifest.js`,
       ],
       rootMainFiles: [],
       ampFirstPages: [],
