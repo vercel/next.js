@@ -1129,8 +1129,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       async-retry:
-        specifier: 1.2.3
-        version: 1.2.3
+        specifier: 1.3.3
+        version: 1.3.3
       async-sema:
         specifier: 3.0.0
         version: 3.0.0
@@ -5077,9 +5077,6 @@ packages:
 
   async-retry@1.2.3:
     resolution: {integrity: sha512-tfDb02Th6CE6pJUF2gjW5ZVjsgwlucVXOEQMvEX9JgSJMs9gAX+Nz3xRuJBKuUYjTSYORqvDBORdAQ3LU59g7Q==}
-
-  async-retry@1.3.1:
-    resolution: {integrity: sha512-aiieFW/7h3hY0Bq5d+ktDBejxuwR78vRu9hDUdR8rNhSaQ29VzPL4AoIRG7D/c7tdenwOcKvgPM6tIxB3cB6HA==}
 
   async-retry@1.3.3:
     resolution: {integrity: sha512-wfr/jstw9xNi/0teMHrRW7dsz3Lt5ARhYNZ2ewpadnhaIp5mbALhOAP+EAdsC7t4Z6wqsDVv9+W6gm1Dk9mEyw==}
@@ -18406,7 +18403,7 @@ snapshots:
 
   '@vercel/fetch-retry@5.0.3(node-fetch@2.6.7(encoding@0.1.13))':
     dependencies:
-      async-retry: 1.3.1
+      async-retry: 1.3.3
       debug: 3.2.7
       node-fetch: 2.6.7(encoding@0.1.13)
     transitivePeerDependencies:
@@ -18928,10 +18925,6 @@ snapshots:
       retry: 0.10.1
 
   async-retry@1.2.3:
-    dependencies:
-      retry: 0.12.0
-
-  async-retry@1.3.1:
     dependencies:
       retry: 0.12.0
 
