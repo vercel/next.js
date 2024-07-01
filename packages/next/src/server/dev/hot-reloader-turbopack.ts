@@ -80,7 +80,6 @@ import {
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
-import type { VersionInfo } from './parse-version-info'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -507,7 +506,6 @@ export async function createHotReloaderTurbopack(
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
-  let versionInfo: VersionInfo | undefined
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -668,9 +666,7 @@ export async function createHotReloaderTurbopack(
         }
 
         ;(async function () {
-          if (!versionInfo) {
-            versionInfo = await versionInfoPromise
-          }
+          const versionInfo = await versionInfoPromise
 
           const sync: SyncAction = {
             action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
