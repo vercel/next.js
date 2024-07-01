@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, hasRedbox, waitFor } from 'next-test-utils'
+import { assertNoRedbox, check, waitFor } from 'next-test-utils'
 
 describe('app dir', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -36,7 +36,7 @@ describe('app dir', () => {
         await waitFor(1000)
 
         // It should not have an error
-        expect(await hasRedbox(browser)).toBe(false)
+        await assertNoRedbox(browser)
 
         // HMR should still work
         const code = await next.readFile('app/page-with-loading/page.js')

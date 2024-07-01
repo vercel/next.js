@@ -174,14 +174,15 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpile_packages.contains(item));
 
+    let ty = ty.into_value();
+
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        // app-ssr can't have esm externals as that would make the module async on the server only
+        *next_config.import_externals().await? && !matches!(ty, ServerContextType::AppSSR { .. }),
     );
-    let ty = ty.into_value();
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
     custom_conditions.extend(
