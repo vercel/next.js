@@ -667,23 +667,21 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        if (!versionInfo) {
-          ;(async function () {
+        ;(async function () {
+          if (!versionInfo) {
             versionInfo = await versionInfoPromise
-          })()
-        }
+          }
 
-        versionInfo ??= { installed: '0.0.0', staleness: 'unknown' }
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
 
-        const sync: SyncAction = {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors,
-          warnings: [],
-          hash: '',
-          versionInfo,
-        }
-
-        sendToClient(client, sync)
+          sendToClient(client, sync)
+        })()
       })
     },
 
