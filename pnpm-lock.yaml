@@ -735,8 +735,8 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       async-retry:
-        specifier: 1.3.1
-        version: 1.3.1
+        specifier: 1.3.3
+        version: 1.3.3
       ci-info:
         specifier: 4.0.0
         version: 4.0.0
@@ -5080,6 +5080,9 @@ packages:
 
   async-retry@1.3.1:
     resolution: {integrity: sha512-aiieFW/7h3hY0Bq5d+ktDBejxuwR78vRu9hDUdR8rNhSaQ29VzPL4AoIRG7D/c7tdenwOcKvgPM6tIxB3cB6HA==}
+
+  async-retry@1.3.3:
+    resolution: {integrity: sha512-wfr/jstw9xNi/0teMHrRW7dsz3Lt5ARhYNZ2ewpadnhaIp5mbALhOAP+EAdsC7t4Z6wqsDVv9+W6gm1Dk9mEyw==}
 
   async-sema@3.0.0:
     resolution: {integrity: sha512-zyCMBDl4m71feawrxYcVbHxv/UUkqm4nKJiLu3+l9lfiQha6jQ/9dxhrXLnzzBXVFqCTDwiUkZOz9XFbdEGQsg==}
@@ -18931,6 +18934,10 @@ snapshots:
   async-retry@1.3.1:
     dependencies:
       retry: 0.12.0
+
+  async-retry@1.3.3:
+    dependencies:
+      retry: 0.13.1
 
   async-sema@3.0.0: {}
 
