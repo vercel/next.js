@@ -45,11 +45,12 @@ export interface MiddlewareConfig {
 }
 
 export interface MiddlewareMatcher {
-  regexp: string
-  locale?: false
+  source: string
+  regexp?: string
+  /** @default true */
+  locale?: boolean
   has?: RouteHas[]
   missing?: RouteHas[]
-  originalSource: string
 }
 
 export interface PageStaticInfo {
