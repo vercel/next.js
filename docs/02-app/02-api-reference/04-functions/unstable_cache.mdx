@@ -48,8 +48,6 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ```tsx filename="app/page.tsx" switcher
 import { unstable_cache } from 'next/cache';
 
-
-
 export default async function Page({ params }: { params: { userID: string } }) {
  const getCachedUser = unstable_cache(
   async () => {
@@ -68,8 +66,6 @@ export default async function Page({ params }: { params: { userID: string } }) {
 
 ```jsx filename="app/page.jsx" switcher
 import { unstable_cache } from 'next/cache';
-
-
 
 export default async function Page({ params }) {
  const getCachedUser = unstable_cache(
