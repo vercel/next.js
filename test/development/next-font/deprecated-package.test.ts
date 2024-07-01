@@ -8,8 +8,6 @@ describe('Deprecated @next/font warning', () => {
       'pages/index.js': '',
     },
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       '@next/font': 'canary',
     },
     skipStart: true,

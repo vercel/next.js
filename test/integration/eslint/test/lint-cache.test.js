@@ -1,43 +1,11 @@
 import fs from 'fs-extra'
-import os from 'os'
 
 import { join } from 'path'
 
-import findUp from 'next/dist/compiled/find-up'
-import { File, nextBuild, nextLint } from 'next-test-utils'
+import { nextLint } from 'next-test-utils'
 
-const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
-const dirCustomConfig = join(__dirname, '../custom-config')
-const dirWebVitalsConfig = join(__dirname, '../config-core-web-vitals')
-const dirPluginRecommendedConfig = join(
-  __dirname,
-  '../plugin-recommended-config'
-)
-const dirPluginCoreWebVitalsConfig = join(
-  __dirname,
-  '../plugin-core-web-vitals-config'
-)
-const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
-const dirBaseDirectories = join(__dirname, '../base-directories')
-const dirBaseDirectoriesConfigFile = new File(
-  join(dirBaseDirectories, '/next.config.js')
-)
-const dirCustomDirectories = join(__dirname, '../custom-directories')
-const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
-const dirInvalidOlderEslintVersion = join(
-  __dirname,
-  '../invalid-eslint-version'
-)
-const dirMaxWarnings = join(__dirname, '../max-warnings')
-const dirEmptyDirectory = join(__dirname, '../empty-directory')
-const dirEslintIgnore = join(__dirname, '../eslint-ignore')
-const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
-const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
-const dirFileLinting = join(__dirname, '../file-linting')
-const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
-const dirTypescript = join(__dirname, '../with-typescript')
 
 test('eslint caching is enabled by default', async () => {
   const cacheDir = join(dirEslintCache, '.next', 'cache')

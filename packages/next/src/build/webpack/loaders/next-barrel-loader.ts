@@ -191,7 +191,7 @@ async function getBarrelMapping(
     let exportList = JSON.parse(matches[3].slice(1, -1)) as [
       string,
       string,
-      string
+      string,
     ][]
     const wildcardExports = [
       ...output.matchAll(/export \* from "([^"]+)"/g),

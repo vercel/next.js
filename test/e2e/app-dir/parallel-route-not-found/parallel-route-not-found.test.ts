@@ -57,6 +57,38 @@ describe('parallel-route-not-found', () => {
     expect(warnings.length).toBe(0)
   })
 
+  it('should handle `notFound()` in generateMetadata on a page that also renders a parallel route', async () => {
+    const browser = await next.browser('/not-found-metadata/page-error')
+
+    // The page's `generateMetadata` function threw a `notFound()` error,
+    // so we should see the not found page.
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Custom Not Found!'
+    )
+  })
+
+  it('should handle `notFound()` in a slot', async () => {
+    const browser = await next.browser('/not-found-metadata/slot-error')
+
+    // The page's `generateMetadata` function threw a `notFound()` error,
+    // so we should see the not found page.
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Custom Not Found!'
+    )
+  })
+
+  // TODO-APP: This test should probably work. But we only provide a not-found boundary for the children slot.
+  // This means that if a parallel route throws a notFound() in generateMetadata, it won't be properly handled.
+  it.skip('should handle `notFound()` in a slot with no `children` slot', async () => {
+    const browser = await next.browser('/not-found-metadata/no-page')
+
+    // The page's `generateMetadata` function threw a `notFound()` error,
+    // so we should see the not found page.
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Custom Not Found!'
+    )
+  })
+
   if (isNextDev) {
     it('should not log any warnings for a regular not found page', async () => {
       const browser = await next.browser('/this-page-doesnt-exist')

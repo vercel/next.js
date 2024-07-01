@@ -383,8 +383,8 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
-        item.as ? `, "${item.as}"` : ''
-      })
+          item.as ? `, "${item.as}"` : ''
+        })
       })()`)
 
       await check(

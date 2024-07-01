@@ -192,7 +192,7 @@ You can modify the `<head>` HTML elements such as `title` and `meta` using the [
 Metadata can be defined by exporting a [`metadata` object](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function) in a [`layout.js`](/docs/app/api-reference/file-conventions/layout) or [`page.js`](/docs/app/api-reference/file-conventions/page) file.
 
 ```tsx filename="app/page.tsx" switcher
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Next.js',
@@ -215,7 +215,7 @@ export default function Page() {
 
 > **Good to know**: You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 
-Learn more about available metadata options in the [API reference](/docs/app/api-reference/functions/generate-metadata)
+Learn more about available metadata options in the [API reference](/docs/app/api-reference/functions/generate-metadata).
 
 ### Active Nav Links
 
@@ -223,13 +223,13 @@ You can use the [usePathname()](/docs/app/api-reference/functions/use-pathname) 
 
 Since `usePathname()` is a client hook, you need to extract the nav links into a Client Component, which can be imported into your layout or template:
 
-```tsx filename="app/components/nav-links.tsx" switcher
+```tsx filename="app/ui/nav-links.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-export function Links() {
+export function NavLinks() {
   const pathname = usePathname()
 
   return (
@@ -249,7 +249,7 @@ export function Links() {
 }
 ```
 
-```jsx filename="app/components/nav-links.js" switcher
+```jsx filename="app/ui/nav-links.js" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'

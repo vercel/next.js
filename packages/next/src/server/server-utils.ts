@@ -55,24 +55,6 @@ export function normalizeVercelUrl(
   }
 }
 
-/**
- * Normalizes `nxtP` and `nxtI` query param values to remove the prefix.
- * This function does not mutate the input key; it calls the provided function
- * with the normalized key.
- */
-export function normalizeNextQueryParam(
-  key: string,
-  onKeyNormalized: (normalizedKey: string) => void
-) {
-  const prefixes = [NEXT_QUERY_PARAM_PREFIX, NEXT_INTERCEPTION_MARKER_PREFIX]
-  for (const prefix of prefixes) {
-    if (key !== prefix && key.startsWith(prefix)) {
-      const normalizedKey = key.substring(prefix.length)
-      onKeyNormalized(normalizedKey)
-    }
-  }
-}
-
 export function interpolateDynamicPath(
   pathname: string,
   params: ParsedUrlQuery,

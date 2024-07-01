@@ -1,7 +1,10 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
+import {
+  getPageStaticInfo,
+  type MiddlewareMatcher,
+} from '../../../build/analysis/get-page-static-info'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
@@ -77,6 +80,8 @@ import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
 import { ModuleBuildError } from '../../dev/turbopack-utils'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -396,6 +401,21 @@ async function startWatcher(opts: SetupOpts) {
           keepIndex: isAppPath,
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
+
+        if (isAppPath && isMetadataRoute(pageName)) {
+          const staticInfo = await getPageStaticInfo({
+            pageFilePath: fileName,
+            nextConfig: {},
+            page: pageName,
+            isDev: true,
+            pageType: PAGE_TYPES.APP,
+          })
+
+          pageName = normalizeMetadataPageToRoute(
+            pageName,
+            !!(staticInfo.generateSitemaps || staticInfo.generateImageMetadata)
+          )
+        }
 
         if (
           !isAppPath &&

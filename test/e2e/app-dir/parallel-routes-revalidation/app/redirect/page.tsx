@@ -8,7 +8,9 @@ export default function Page() {
         redirect('/')
       }}
     >
-      <button type="submit">Redirect</button>
+      <button type="submit" id="redirect-page">
+        Redirect
+      </button>
     </form>
   )
 }

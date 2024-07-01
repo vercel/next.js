@@ -61,9 +61,8 @@ describe('Dynamic Route Interpolation', () => {
       }
 
       // e.g. /_next/static/chunks/pages/blog/%5Bslug%5D-3d2fedc300f04305.js
-      const { status: encodedPathReqStatus } = await next.fetch(
-        pagePathScriptSrc
-      )
+      const { status: encodedPathReqStatus } =
+        await next.fetch(pagePathScriptSrc)
       // e.g. /_next/static/chunks/pages/blog/[slug]-3d2fedc300f04305.js
       const { status: decodedPathReqStatus } = await next.fetch(
         decodeURI(pagePathScriptSrc)

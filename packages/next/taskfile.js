@@ -466,9 +466,10 @@ export async function ncc_edge_runtime(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(/eval\("require"\)/g, 'require')
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      /eval\("require"\)/g,
+      'require'
+    )
   )
 }
 
@@ -646,6 +647,15 @@ export async function ncc_p_limit(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['p-queue'] = 'next/dist/compiled/p-queue'
+export async function ncc_p_queue(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('p-queue')))
+    .ncc({ packageName: 'p-queue', externals })
+    .target('src/compiled/p-queue')
+}
+
+// eslint-disable-next-line camelcase
 externals['raw-body'] = 'next/dist/compiled/raw-body'
 export async function ncc_raw_body(task, opts) {
   await task
@@ -721,13 +731,6 @@ export async function ncc_buffer(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_react_is(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
-    .target('src/compiled/react-is')
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
   await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
     recursive: true,
@@ -799,9 +802,10 @@ export async function ncc_stream_browserify(task, opts) {
 
   await fs.writeFile(
     outputFile,
-    (
-      await fs.readFile(outputFile, 'utf8')
-    ).replace(`require("stream")`, `require("events").EventEmitter`)
+    (await fs.readFile(outputFile, 'utf8')).replace(
+      `require("stream")`,
+      `require("events").EventEmitter`
+    )
   )
 }
 
@@ -1754,6 +1758,13 @@ export async function copy_vendor_react(task_) {
   for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
     await res
   }
+
+  // TODO: Support react-is experimental channel. We currently assume Canary and Experimental are equal.
+  await task_
+    .source(
+      join(dirname(require.resolve('react-is-builtin/package.json')), '**/*')
+    )
+    .target('src/compiled/react-is')
 }
 
 // eslint-disable-next-line camelcase
@@ -2109,7 +2120,12 @@ export async function ncc_ws(task, opts) {
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function path_to_regexp(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('path-to-regexp')))
+    .source(
+      join(
+        dirname(relative(__dirname, require.resolve('path-to-regexp'))),
+        '*.{js,map}'
+      )
+    )
     .target('dist/compiled/path-to-regexp')
 }
 
@@ -2169,6 +2185,7 @@ export async function ncc(task, opts) {
         'ncc_node_html_parser',
         'ncc_napirs_triples',
         'ncc_p_limit',
+        'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
         'ncc_hapi_accept',
@@ -2290,7 +2307,6 @@ export async function ncc(task, opts) {
       'copy_vercel_og',
       'copy_constants_browserify',
       'copy_vendor_react',
-      'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
@@ -2322,6 +2338,7 @@ export async function next_compile(task, opts) {
       'lib_esm',
       'client',
       'client_esm',
+      'diagnostics',
       'telemetry',
       'trace',
       'shared',
@@ -2426,7 +2443,7 @@ export async function nextbuild_esm(task, opts) {
         '**/*.test.+(js|ts|tsx)',
       ],
     })
-    .swc('server', { dev: opts.dev, esm: true })
+    .swc('server', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/build')
 }
 
@@ -2454,7 +2471,7 @@ export async function client(task, opts) {
 export async function client_esm(task, opts) {
   await task
     .source('src/client/**/!(*.test).+(js|ts|tsx)')
-    .swc('client', { dev: opts.dev, esm: true })
+    .swc('client', { dev: opts.dev, esm: true, keepImportAttributes: true })
     .target('dist/esm/client')
 }
 
@@ -2480,7 +2497,6 @@ export async function pages_app(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2492,7 +2508,6 @@ export async function pages_error(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       interopClientDefaultExport: true,
     })
     .target('dist/pages')
@@ -2504,7 +2519,6 @@ export async function pages_document(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
     })
     .target('dist/pages')
 }
@@ -2515,7 +2529,6 @@ export async function pages_app_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2527,7 +2540,6 @@ export async function pages_error_esm(task, opts) {
     .swc('client', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2539,7 +2551,6 @@ export async function pages_document_esm(task, opts) {
     .swc('server', {
       dev: opts.dev,
       keepImportAttributes: true,
-      emitAssertForImportAttributes: true,
       esm: true,
     })
     .target('dist/esm/pages')
@@ -2568,6 +2579,13 @@ export async function trace(task, opts) {
     .source('src/trace/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/trace')
+}
+
+export async function diagnostics(task, opts) {
+  await task
+    .source('src/diagnostics/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/diagnostics')
 }
 
 export async function build(task, opts) {
@@ -2627,10 +2645,12 @@ export default async function (task) {
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('src/experimental/testmode', 'experimental_testmode', opts)
   await task.watch('src/export', 'nextbuildstatic', opts)
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
+  await task.watch('src/diagnostics', 'diagnostics', opts)
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)
@@ -2703,7 +2723,9 @@ export async function server_wasm(task, opts) {
 export async function experimental_testmode(task, opts) {
   await task
     .source('src/experimental/testmode/**/!(*.test).+(js|ts|tsx)')
-    .swc('server', {})
+    .swc('server', {
+      dev: opts.dev,
+    })
     .target('dist/experimental/testmode')
 }
 

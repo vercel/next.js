@@ -72,7 +72,6 @@ const FORCE_TRANSPILE_CONDITIONS =
 
 async function loaderTransform(
   this: any,
-  parentTrace: any,
   source?: string,
   inputSourceMap?: any
 ) {
@@ -118,7 +117,9 @@ async function loaderTransform(
     filename,
     isServer,
     isPageFile,
-    development: this.mode === 'development',
+    development:
+      this.mode === 'development' ||
+      !!nextConfig.experimental?.allowDevelopmentBuild,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
@@ -168,17 +169,14 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
-  const swcSpan = parentTrace.traceChild('next-swc-transform')
-  return swcSpan.traceAsyncFn(() =>
-    transform(source as any, programmaticOptions).then((output) => {
-      if (output.eliminatedPackages && this.eliminatedPackages) {
-        for (const pkg of JSON.parse(output.eliminatedPackages)) {
-          this.eliminatedPackages.add(pkg)
-        }
+  return transform(source as any, programmaticOptions).then((output) => {
+    if (output.eliminatedPackages && this.eliminatedPackages) {
+      for (const pkg of JSON.parse(output.eliminatedPackages)) {
+        this.eliminatedPackages.add(pkg)
       }
-      return [output.code, output.map ? JSON.parse(output.map) : undefined]
-    })
-  )
+    }
+    return [output.code, output.map ? JSON.parse(output.map) : undefined]
+  })
 }
 
 const EXCLUDED_PATHS =
@@ -204,11 +202,8 @@ export function pitch(this: any) {
       isAbsolute(this.resourcePath) &&
       !(await isWasm())
     ) {
-      const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
       this.addDependency(this.resourcePath)
-      return loaderSpan.traceAsyncFn(() =>
-        loaderTransform.call(this, loaderSpan)
-      )
+      return loaderTransform.call(this)
     }
   })().then((r) => {
     if (r) return callback(null, ...r)
@@ -221,20 +216,15 @@ export default function swcLoader(
   inputSource: string,
   inputSourceMap: any
 ) {
-  const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
-  loaderSpan
-    .traceAsyncFn(() =>
-      loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
-    )
-    .then(
-      ([transformedSource, outputSourceMap]: any) => {
-        callback(null, transformedSource, outputSourceMap || inputSourceMap)
-      },
-      (err: Error) => {
-        callback(err)
-      }
-    )
+  loaderTransform.call(this, inputSource, inputSourceMap).then(
+    ([transformedSource, outputSourceMap]: any) => {
+      callback(null, transformedSource, outputSourceMap || inputSourceMap)
+    },
+    (err: Error) => {
+      callback(err)
+    }
+  )
 }
 
 // accept Buffers instead of strings

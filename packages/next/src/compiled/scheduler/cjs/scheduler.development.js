@@ -12,10 +12,7 @@
 
 if (process.env.NODE_ENV !== "production") {
   (function() {
-
-          'use strict';
-
-/* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
+'use strict';
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart ===
@@ -23,7 +20,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var enableSchedulerDebugging = false;
+var enableSchedulerDebugging = false;
 var enableProfiling = false;
 var frameYieldMs = 5;
 var userBlockingPriorityTimeout = 250;
@@ -612,7 +609,6 @@ exports.unstable_runWithPriority = unstable_runWithPriority;
 exports.unstable_scheduleCallback = unstable_scheduleCallback;
 exports.unstable_shouldYield = shouldYieldToHost;
 exports.unstable_wrapCallback = unstable_wrapCallback;
-          /* global __REACT_DEVTOOLS_GLOBAL_HOOK__ */
 if (
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
   typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop ===
@@ -620,6 +616,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }

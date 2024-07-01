@@ -33,6 +33,7 @@ import {
 } from './turbopack/entry-key'
 import type ws from 'next/dist/compiled/ws'
 import isInternal from '../../shared/lib/is-internal'
+import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -520,6 +521,7 @@ export async function handleRouteType({
       const type = writtenEndpoint?.type
 
       await manifestLoader.loadAppPathsManifest(page)
+
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
@@ -994,4 +996,32 @@ export async function handlePagesErrorRoute({
     rewrites,
     pageEntrypoints: entrypoints.page,
   })
+}
+
+// Since turbopack will create app pages/route entries based on the structure,
+// which means the entry keys are based on file names.
+// But for special metadata conventions we'll change the page/pathname to a different path.
+// So we need this helper to map the new path back to original turbopack entry key.
+export function normalizedPageToTurbopackStructureRoute(
+  route: string,
+  ext: string | false
+): string {
+  let entrypointKey = route
+  if (isMetadataRoute(entrypointKey)) {
+    entrypointKey = entrypointKey.endsWith('/route')
+      ? entrypointKey.slice(0, -'/route'.length)
+      : entrypointKey
+
+    if (ext) {
+      if (entrypointKey.endsWith('/[__metadata_id__]')) {
+        entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
+      }
+      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
+        // For dynamic sitemap route, remove the extension
+        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      }
+    }
+    entrypointKey = entrypointKey + '/route'
+  }
+  return entrypointKey
 }

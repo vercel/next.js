@@ -8,7 +8,7 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -140,14 +140,16 @@ export class NextInstance {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
-    require('console').log(
-      `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
-    )
 
     await parentSpan
       .traceChild('createTestDir')
       .traceAsyncFn(async (rootSpan) => {
         const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        if (!skipIsolatedNext) {
+          require('console').log(
+            `Creating test directory with isolated next... (use NEXT_SKIP_ISOLATE=1 to opt-out)`
+          )
+        }
         const tmpDir = skipIsolatedNext
           ? path.join(__dirname, '../../tmp')
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
@@ -158,12 +160,13 @@ export class NextInstance {
           }`
         )
 
-        const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+        const reactVersion =
+          process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
-          '@types/react': reactVersion,
-          '@types/react-dom': reactVersion,
+          '@types/react': 'latest',
+          '@types/react-dom': 'latest',
           typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
@@ -343,7 +346,12 @@ export class NextInstance {
     throw new Error('Not implemented')
   }
 
-  public async setup(parentSpan: Span): Promise<void> {}
+  public async setup(parentSpan: Span): Promise<void> {
+    if (this.forcedPort === 'random') {
+      this.forcedPort = (await findPort()) + ''
+      console.log('Forced random port:', this.forcedPort)
+    }
+  }
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true

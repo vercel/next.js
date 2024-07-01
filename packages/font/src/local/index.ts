@@ -25,7 +25,7 @@ type LocalFont<T extends CssVariable | undefined = undefined> = {
 }
 
 export default function localFont<
-  T extends CssVariable | undefined = undefined
+  T extends CssVariable | undefined = undefined,
 >(
   options: LocalFont<T>
 ): T extends undefined ? NextFont : NextFontWithVariable {

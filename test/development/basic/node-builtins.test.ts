@@ -167,4 +167,35 @@ describe('node builtins', () => {
     expect(parsedData.sys).toBe(true)
     expect(parsedData.timers).toBe(true)
   })
+
+  it('should throw when unsupported builtins are used in middleware', async () => {
+    const res = await next.fetch('/middleware-test')
+    expect(res.status).toBe(200)
+    expect(JSON.parse(res.headers.get('supported-result')))
+      .toMatchInlineSnapshot(`
+      {
+        "assert": true,
+        "buffer": "hello world",
+        "eventEmitter": true,
+        "util": true,
+      }
+    `)
+    expect(JSON.parse(res.headers.get('unsupported-result')))
+      .toMatchInlineSnapshot(`
+      {
+        "constants": false,
+        "crypto": false,
+        "domain": false,
+        "http": false,
+        "https": false,
+        "os": false,
+        "path": false,
+        "stream": false,
+        "timers": false,
+        "tty": false,
+        "vm": false,
+        "zlib": false,
+      }
+    `)
+  })
 })

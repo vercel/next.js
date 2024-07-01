@@ -31,7 +31,6 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
-  experimental: { ppr: boolean }
   _appDir: boolean
   _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -58,7 +57,9 @@ export class CacheHandler {
     ..._args: Parameters<IncrementalCache['set']>
   ): Promise<void> {}
 
-  public async revalidateTag(_tag: string): Promise<void> {}
+  public async revalidateTag(
+    ..._args: Parameters<IncrementalCache['revalidateTag']>
+  ): Promise<void> {}
 
   public resetRequestCache(): void {}
 }
@@ -102,7 +103,6 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
-    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -119,7 +119,6 @@ export class IncrementalCache implements IncrementalCacheType {
     getPrerenderManifest: () => DeepReadonly<PrerenderManifest>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
-    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
@@ -191,7 +190,6 @@ export class IncrementalCache implements IncrementalCacheType {
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
-        experimental,
       })
     }
   }
@@ -236,31 +234,6 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async lock(cacheKey: string) {
-    if (
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
-      process.env.NEXT_RUNTIME !== 'edge'
-    ) {
-      const invokeIpcMethod = require('../server-ipc/request-utils')
-        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
-
-      await invokeIpcMethod({
-        method: 'lock',
-        ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
-        ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
-        args: [cacheKey],
-      })
-
-      return async () => {
-        await invokeIpcMethod({
-          method: 'unlock',
-          ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
-          ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
-          args: [cacheKey],
-        })
-      }
-    }
-
     let unlockNext: () => Promise<void> = () => Promise.resolve()
     const existingLock = this.locks.get(cacheKey)
 
@@ -280,23 +253,8 @@ export class IncrementalCache implements IncrementalCacheType {
     return unlockNext
   }
 
-  async revalidateTag(tag: string) {
-    if (
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
-      process.env.NEXT_RUNTIME !== 'edge'
-    ) {
-      const invokeIpcMethod = require('../server-ipc/request-utils')
-        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
-      return invokeIpcMethod({
-        method: 'revalidateTag',
-        ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
-        ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
-        args: [...arguments],
-      })
-    }
-
-    return this.cacheHandler?.revalidateTag?.(tag)
+  async revalidateTag(tags: string | string[]): Promise<void> {
+    return this.cacheHandler?.revalidateTag?.(tags)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -427,29 +385,14 @@ export class IncrementalCache implements IncrementalCacheType {
     cacheKey: string,
     ctx: {
       kindHint?: IncrementalCacheKindHint
-      revalidate?: number | false
+      revalidate?: Revalidate
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
       softTags?: string[]
+      isRoutePPREnabled?: boolean
     } = {}
   ): Promise<IncrementalCacheEntry | null> {
-    if (
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
-      process.env.NEXT_RUNTIME !== 'edge'
-    ) {
-      const invokeIpcMethod = require('../server-ipc/request-utils')
-        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
-
-      return invokeIpcMethod({
-        method: 'get',
-        ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
-        ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
-        args: [...arguments],
-      })
-    }
-
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
     if (
@@ -549,29 +492,14 @@ export class IncrementalCache implements IncrementalCacheType {
     pathname: string,
     data: IncrementalCacheValue | null,
     ctx: {
-      revalidate?: number | false
+      revalidate?: Revalidate
       fetchCache?: boolean
       fetchUrl?: string
       fetchIdx?: number
       tags?: string[]
+      isRoutePPREnabled?: boolean
     }
   ) {
-    if (
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT &&
-      process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY &&
-      process.env.NEXT_RUNTIME !== 'edge'
-    ) {
-      const invokeIpcMethod = require('../server-ipc/request-utils')
-        .invokeIpcMethod as typeof import('../server-ipc/request-utils').invokeIpcMethod
-
-      return invokeIpcMethod({
-        method: 'set',
-        ipcPort: process.env.__NEXT_INCREMENTAL_CACHE_IPC_PORT,
-        ipcKey: process.env.__NEXT_INCREMENTAL_CACHE_IPC_KEY,
-        args: [...arguments],
-      })
-    }
-
     if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
     // FetchCache has upper limit of 2MB per-entry currently
     const itemSize = JSON.stringify(data).length
@@ -596,7 +524,7 @@ export class IncrementalCache implements IncrementalCacheType {
       // Set the value for the revalidate seconds so if it changes we can
       // update the cache with the new value.
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
-        this.revalidateTimings.set(pathname, ctx.revalidate)
+        this.revalidateTimings.set(toRoute(pathname), ctx.revalidate)
       }
 
       await this.cacheHandler?.set(pathname, data, ctx)

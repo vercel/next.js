@@ -69,8 +69,8 @@ async function readPartialManifest<T>(
     type === 'middleware' || type === 'instrumentation'
       ? ''
       : type === 'app'
-      ? pageName
-      : getAssetPathFromRoute(pageName),
+        ? pageName
+        : getAssetPathFromRoute(pageName),
     name
   )
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
@@ -287,6 +287,8 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
+      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
     return manifest
   }

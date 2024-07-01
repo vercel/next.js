@@ -2,9 +2,23 @@
 import fs from 'fs/promises'
 import execa from 'execa'
 import path from 'path'
+import yargs from 'yargs'
 
 async function main() {
-  let testMode = process.argv.includes('--dev-mode') ? 'dev' : 'start'
+  let argv = await yargs(process.argv.slice(2))
+    .boolean('dev-mode')
+    .string('group').argv
+
+  let testMode = argv.devMode ? 'dev' : 'start'
+  const rawGroup = argv['group']
+  let currentGroup = 1
+  let groupTotal = 1
+
+  if (rawGroup) {
+    ;[currentGroup, groupTotal] = rawGroup
+      .split('/')
+      .map((item) => Number(item))
+  }
 
   let eventData = {}
 
@@ -102,7 +116,35 @@ async function main() {
     )
   )
 
-  const currentTests = testMode === 'dev' ? devTests : prodTests
+  let currentTests = testMode === 'dev' ? devTests : prodTests
+
+  /**
+    @type {Array<string[]>}
+  */
+  const fileGroups = []
+
+  for (const test of currentTests) {
+    let smallestGroup = fileGroups[0]
+    let smallestGroupIdx = 0
+
+    // get the smallest group time to add current one to
+    for (let i = 0; i < groupTotal; i++) {
+      if (!fileGroups[i]) {
+        fileGroups[i] = []
+      }
+
+      if (
+        smallestGroup &&
+        fileGroups[i] &&
+        fileGroups[i].length < smallestGroup.length
+      ) {
+        smallestGroup = fileGroups[i]
+        smallestGroupIdx = i
+      }
+    }
+    fileGroups[smallestGroupIdx].push(test)
+  }
+  currentTests = fileGroups[currentGroup - 1] || []
 
   if (currentTests.length === 0) {
     console.log(`No added/changed tests detected`)

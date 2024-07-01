@@ -35,9 +35,10 @@ pub async fn maybe_add_sass_loader(
             .or(sass_options.get("additionalData"));
         let rule = rules.get_mut(pattern);
         let sass_loader = WebpackLoaderItem {
-            loader: "next/dist/compiled/sass-loader".to_string(),
+            loader: "next/dist/compiled/sass-loader".into(),
             options: take(
                 serde_json::json!({
+                    "implementation": sass_options.get("implementation"),
                     "sourceMap": true,
                     "sassOptions": sass_options,
                     "additionalData": additional_data
@@ -47,7 +48,7 @@ pub async fn maybe_add_sass_loader(
             ),
         };
         let resolve_url_loader = WebpackLoaderItem {
-            loader: "next/dist/build/webpack/loaders/resolve-url-loader/index".to_string(),
+            loader: "next/dist/build/webpack/loaders/resolve-url-loader/index".into(),
             options: take(
                 serde_json::json!({
                     //https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191
@@ -75,10 +76,10 @@ pub async fn maybe_add_sass_loader(
             rule.loaders = Vc::cell(loaders);
         } else {
             rules.insert(
-                pattern.to_string(),
+                pattern.into(),
                 LoaderRuleItem {
                     loaders: Vc::cell(vec![resolve_url_loader, sass_loader]),
-                    rename_as: Some(format!("*{rename}")),
+                    rename_as: Some(format!("*{rename}").into()),
                 },
             );
         }

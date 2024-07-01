@@ -12,7 +12,7 @@ import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../future/route-modules/checks'
+import { isAppRouteRouteModule } from '../route-modules/checks'
 
 type RuntimeConfig = {
   configFileName: string
@@ -38,7 +38,6 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
-  ppr,
 }: {
   dir: string
   distDir: string
@@ -54,7 +53,6 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
-  ppr: boolean
 }): Promise<{
   paths?: string[]
   encodedPaths?: string[]
@@ -109,7 +107,6 @@ export async function loadStaticPaths({
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
-      ppr,
       ComponentMod: components.ComponentMod,
     })
   }

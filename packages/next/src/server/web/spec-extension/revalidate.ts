@@ -4,7 +4,6 @@ import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
-import { getPathname } from '../../../lib/url'
 import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 
 /**
@@ -51,9 +50,7 @@ function revalidate(tag: string, expression: string) {
 
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `Route ${getPathname(
-        store.urlPathname
-      )} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   }
 
@@ -67,15 +64,6 @@ function revalidate(tag: string, expression: string) {
   if (!store.revalidatedTags.includes(tag)) {
     store.revalidatedTags.push(tag)
   }
-
-  if (!store.pendingRevalidates) {
-    store.pendingRevalidates = {}
-  }
-  store.pendingRevalidates[tag] = store.incrementalCache
-    .revalidateTag?.(tag)
-    .catch((err) => {
-      console.error(`revalidate failed for ${tag}`, err)
-    })
 
   // TODO: only revalidate if the path matches
   store.pathWasRevalidated = true

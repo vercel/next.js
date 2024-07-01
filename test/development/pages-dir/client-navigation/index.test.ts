@@ -1,22 +1,24 @@
 /* eslint-env jest */
 
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   fetchViaHTTP,
   getRedboxSource,
-  hasRedbox,
   getRedboxHeader,
-  renderViaHTTP,
   waitFor,
   check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
-import renderingSuite from './rendering'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
+    env: {
+      TEST_STRICT_NEXT_HEAD: String(true),
+    },
   })
 
   it('should not reload when visiting /_error directly', async () => {
@@ -54,7 +56,7 @@ describe('Client Navigation', () => {
 
     it('should have proper error when no children are provided', async () => {
       const browser = await webdriver(next.appPort, '/link-no-child')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'No children were passed to <Link> with `href` of `/about` but one child is required'
       )
@@ -62,7 +64,7 @@ describe('Client Navigation', () => {
 
     it('should not throw error when one number type child is provided', async () => {
       const browser = await webdriver(next.appPort, '/link-number-child')
-      expect(await hasRedbox(browser)).toBe(false)
+      await assertNoRedbox(browser)
       if (browser) await browser.close()
     })
 
@@ -278,7 +280,7 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(next.appPort, '/nav')
         await browser.elementByCss('#empty-props').click()
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
@@ -564,7 +566,7 @@ describe('Client Navigation', () => {
     describe('check hydration mis-match', () => {
       it('should not have hydration mis-match for hash link', async () => {
         const browser = await webdriver(next.appPort, '/nav/hash-changes')
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           console.log('log.message', log.message)
@@ -599,36 +601,32 @@ describe('Client Navigation', () => {
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
 
           // Scrolls to item 400 on the page
           await browser.elementByCss('#scroll-to-item-400').click()
 
-          const scrollPositionBeforeTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionBeforeTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionBeforeTopHash).toBe(7258)
 
           // Scrolls back to top when clicking link with href `#top`.
           await browser.elementByCss('#via-top-hash').click()
 
-          const scrollPositionAfterTopHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterTopHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterTopHash).toBe(0)
 
@@ -671,9 +669,8 @@ describe('Client Navigation', () => {
           // Scrolls back to top when scrolling to `#` with no value.
           await browser.elementByCss('#via-empty-hash').click()
 
-          const scrollPositionAfterEmptyHash = await browser.eval(
-            'window.pageYOffset'
-          )
+          const scrollPositionAfterEmptyHash =
+            await browser.eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
         } finally {
@@ -1381,7 +1378,7 @@ describe('Client Navigation', () => {
       let browser
       try {
         browser = await webdriver(next.appPort, '/error-inside-browser-page')
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:13\)/)
@@ -1399,7 +1396,7 @@ describe('Client Navigation', () => {
           next.appPort,
           '/error-in-the-browser-global-scope'
         )
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
@@ -1469,7 +1466,199 @@ describe('Client Navigation', () => {
     })
   })
 
-  describe('updating head while client routing', () => {
+  describe('foreign history manipulation', () => {
+    it('should ignore history state without options', async () => {
+      let browser
+      try {
+        browser = await webdriver(next.appPort, '/nav')
+        // push history object without options
+        await browser.eval(
+          'window.history.pushState({ url: "/whatever" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        await assertNoRedbox(browser)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore history state with an invalid url', async () => {
+      let browser
+      try {
+        browser = await webdriver(next.appPort, '/nav')
+        // push history object wit invalid url (not relative)
+        await browser.eval(
+          'window.history.pushState({ url: "http://google.com" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        await assertNoRedbox(browser)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore foreign history state with missing properties', async () => {
+      let browser
+      try {
+        browser = await webdriver(next.appPort, '/nav')
+        // push empty history state
+        await browser.eval('window.history.pushState({}, "", "/whatever")')
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        await assertNoRedbox(browser)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  it('should not error on module.exports + polyfills', async () => {
+    let browser
+    try {
+      browser = await webdriver(next.appPort, '/read-only-object-error')
+      expect(await browser.elementByCss('body').text()).toBe(
+        'this is just a placeholder component'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work on nested /index/index.js', async () => {
+    const browser = await webdriver(next.appPort, '/nested-index/index')
+    expect(await browser.elementByCss('p').text()).toBe(
+      'This is an index.js nested in an index/ folder.'
+    )
+    await browser.close()
+  })
+
+  it('should handle undefined prop in head client-side', async () => {
+    const browser = await webdriver(next.appPort, '/head')
+    const value = await browser.eval(
+      `document.querySelector('meta[name="empty-content"]').hasAttribute('content')`
+    )
+
+    expect(value).toBe(false)
+  })
+
+  it.each([true, false])(
+    'should handle boolean async prop in next/script client-side: %s',
+    async (bool) => {
+      const browser = await webdriver(next.appPort, '/script')
+      const value = await browser.eval(
+        `document.querySelector('script[src="/test-async-${JSON.stringify(
+          bool
+        )}.js"]').async`
+      )
+
+      expect(value).toBe(bool)
+    }
+  )
+
+  it('should only execute async and defer scripts with next/script once', async () => {
+    let browser
+    try {
+      browser = await webdriver(next.appPort, '/script')
+
+      await browser.waitForElementByCss('h1')
+      await waitFor(2000)
+      expect(Number(await browser.eval('window.__test_async_executions'))).toBe(
+        1
+      )
+      expect(Number(await browser.eval('window.__test_defer_executions'))).toBe(
+        1
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should emit routeChangeError on hash change cancel', async () => {
+    const browser = await webdriver(next.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.routeErrors = []
+
+      window.next.router.events.on('routeChangeError', function (err) {
+        window.routeErrors.push(err)
+      })
+      window.next.router.push('#first')
+      window.next.router.push('#second')
+      window.next.router.push('#third')
+    })()`)
+
+    await check(async () => {
+      const errorCount = await browser.eval('window.routeErrors.length')
+      return errorCount > 0 ? 'success' : errorCount
+    }, 'success')
+  })
+
+  it('should navigate to paths relative to the current page', async () => {
+    const browser = await webdriver(next.appPort, '/nav/relative')
+    let page
+
+    await browser.elementByCss('a').click()
+
+    await browser.waitForElementByCss('#relative-1')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 1/)
+    await browser.elementByCss('a').click()
+
+    await browser.waitForElementByCss('#relative-2')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative 2/)
+
+    await browser.elementByCss('button').click()
+    await browser.waitForElementByCss('#relative')
+    page = await browser.elementByCss('body').text()
+    expect(page).toMatch(/On relative index/)
+
+    await browser.close()
+  })
+})
+
+describe.each([[false], [true]])(
+  'updating <Head /> with strictNextHead=%s while client routing',
+  (strictNextHead) => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixture'),
+      env: {
+        TEST_STRICT_NEXT_HEAD: String(strictNextHead),
+      },
+    })
+
+    it.each([true, false])(
+      'should handle boolean async prop in next/head client-side: %s',
+      async (bool) => {
+        const browser = await webdriver(next.appPort, '/head')
+        const value = await browser.eval(
+          `document.querySelector('script[src="/test-async-${JSON.stringify(
+            bool
+          )}.js"]').async`
+        )
+
+        expect(value).toBe(bool)
+      }
+    )
+
     it('should only execute async and defer scripts once', async () => {
       let browser
       try {
@@ -1479,10 +1668,42 @@ describe('Client Navigation', () => {
         await waitFor(2000)
         expect(
           Number(await browser.eval('window.__test_async_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
         expect(
           Number(await browser.eval('window.__test_defer_executions'))
-        ).toBe(1)
+        ).toBe(
+          strictNextHead
+            ? 1
+            : // <meta name="next-head-count" /> is floated before <script defer />.
+              // head-manager thinks it needs t add these again resulting in another execution.
+              2
+        )
+
+        await browser.elementByCss('#reverseScriptOrder').click()
+        await waitFor(2000)
+
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
+
+        await browser.elementByCss('#toggleScript').click()
+        await waitFor(2000)
+
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(strictNextHead ? 1 : 2)
       } finally {
         if (browser) {
           await browser.close()
@@ -1497,7 +1718,7 @@ describe('Client Navigation', () => {
 
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let foundStyles = false
         let foundScripts = false
         const logs = []
@@ -1530,7 +1751,7 @@ describe('Client Navigation', () => {
         browser = await webdriver(next.appPort, '/head')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {
@@ -1551,7 +1772,7 @@ describe('Client Navigation', () => {
         browser = await webdriver(next.appPort, '/head-with-json-ld-snippet')
         await browser.waitForElementByCss('h1')
         await waitFor(1000)
-        const browserLogs = await browser.log('browser')
+        const browserLogs = await browser.log()
         let found = false
         browserLogs.forEach((log) => {
           if (log.message.includes('Use next/script instead')) {
@@ -1662,194 +1883,5 @@ describe('Client Navigation', () => {
         }
       }
     })
-  })
-
-  describe('foreign history manipulation', () => {
-    it('should ignore history state without options', async () => {
-      let browser
-      try {
-        browser = await webdriver(next.appPort, '/nav')
-        // push history object without options
-        await browser.eval(
-          'window.history.pushState({ url: "/whatever" }, "", "/whatever")'
-        )
-        await browser.elementByCss('#about-link').click()
-        await browser.waitForElementByCss('.nav-about')
-        await browser.back()
-        await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should ignore history state with an invalid url', async () => {
-      let browser
-      try {
-        browser = await webdriver(next.appPort, '/nav')
-        // push history object wit invalid url (not relative)
-        await browser.eval(
-          'window.history.pushState({ url: "http://google.com" }, "", "/whatever")'
-        )
-        await browser.elementByCss('#about-link').click()
-        await browser.waitForElementByCss('.nav-about')
-        await browser.back()
-        await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    it('should ignore foreign history state with missing properties', async () => {
-      let browser
-      try {
-        browser = await webdriver(next.appPort, '/nav')
-        // push empty history state
-        await browser.eval('window.history.pushState({}, "", "/whatever")')
-        await browser.elementByCss('#about-link').click()
-        await browser.waitForElementByCss('.nav-about')
-        await browser.back()
-        await waitFor(1000)
-        expect(await hasRedbox(browser)).toBe(false)
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-  })
-
-  it('should not error on module.exports + polyfills', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/read-only-object-error')
-      expect(await browser.elementByCss('body').text()).toBe(
-        'this is just a placeholder component'
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should work on nested /index/index.js', async () => {
-    const browser = await webdriver(next.appPort, '/nested-index/index')
-    expect(await browser.elementByCss('p').text()).toBe(
-      'This is an index.js nested in an index/ folder.'
-    )
-    await browser.close()
-  })
-
-  it('should handle undefined prop in head client-side', async () => {
-    const browser = await webdriver(next.appPort, '/head')
-    const value = await browser.eval(
-      `document.querySelector('meta[name="empty-content"]').hasAttribute('content')`
-    )
-
-    expect(value).toBe(false)
-  })
-
-  it.each([true, false])(
-    'should handle boolean async prop in next/head client-side: %s',
-    async (bool) => {
-      const browser = await webdriver(next.appPort, '/head')
-      const value = await browser.eval(
-        `document.querySelector('script[src="/test-async-${JSON.stringify(
-          bool
-        )}.js"]').async`
-      )
-
-      expect(value).toBe(bool)
-    }
-  )
-
-  it.each([true, false])(
-    'should handle boolean async prop in next/script client-side: %s',
-    async (bool) => {
-      const browser = await webdriver(next.appPort, '/script')
-      const value = await browser.eval(
-        `document.querySelector('script[src="/test-async-${JSON.stringify(
-          bool
-        )}.js"]').async`
-      )
-
-      expect(value).toBe(bool)
-    }
-  )
-
-  it('should only execute async and defer scripts with next/script once', async () => {
-    let browser
-    try {
-      browser = await webdriver(next.appPort, '/script')
-
-      await browser.waitForElementByCss('h1')
-      await waitFor(2000)
-      expect(Number(await browser.eval('window.__test_async_executions'))).toBe(
-        1
-      )
-      expect(Number(await browser.eval('window.__test_defer_executions'))).toBe(
-        1
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should emit routeChangeError on hash change cancel', async () => {
-    const browser = await webdriver(next.appPort, '/')
-
-    await browser.eval(`(function() {
-      window.routeErrors = []
-
-      window.next.router.events.on('routeChangeError', function (err) {
-        window.routeErrors.push(err)
-      })
-      window.next.router.push('#first')
-      window.next.router.push('#second')
-      window.next.router.push('#third')
-    })()`)
-
-    await check(async () => {
-      const errorCount = await browser.eval('window.routeErrors.length')
-      return errorCount > 0 ? 'success' : errorCount
-    }, 'success')
-  })
-
-  it('should navigate to paths relative to the current page', async () => {
-    const browser = await webdriver(next.appPort, '/nav/relative')
-    let page
-
-    await browser.elementByCss('a').click()
-
-    await browser.waitForElementByCss('#relative-1')
-    page = await browser.elementByCss('body').text()
-    expect(page).toMatch(/On relative 1/)
-    await browser.elementByCss('a').click()
-
-    await browser.waitForElementByCss('#relative-2')
-    page = await browser.elementByCss('body').text()
-    expect(page).toMatch(/On relative 2/)
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#relative')
-    page = await browser.elementByCss('body').text()
-    expect(page).toMatch(/On relative index/)
-
-    await browser.close()
-  })
-
-  renderingSuite(
-    next,
-    (p, q) => renderViaHTTP(next.appPort, p, q),
-    (p, q) => fetchViaHTTP(next.appPort, p, q),
-    next
-  )
-})
+  }
+)

@@ -120,7 +120,9 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
       // App Router
       const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
         await nextLintTemp(null, true)
@@ -486,7 +488,7 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -538,7 +540,7 @@ describe('Next Lint', () => {
     }
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "compact" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.txt`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,

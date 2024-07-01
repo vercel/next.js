@@ -91,15 +91,20 @@ describe('Auto Export', () => {
     })
 
     it('should include error link when hydration error does occur', async () => {
-      const browser = await webdriver(appPort, '/post-1/hydrate-error')
+      const browser = await webdriver(appPort, '/post-1/hydrate-error', {
+        pushErrorAsConsoleLog: true,
+      })
       const logs = await browser.log()
-      expect(
-        logs.some((log) =>
-          log.message.includes(
-            'See more info here: https://nextjs.org/docs/messages/react-hydration-error'
-          )
-        )
-      ).toBe(true)
+      expect(logs).toEqual(
+        expect.arrayContaining([
+          {
+            message: expect.stringContaining(
+              'https://react.dev/link/hydration-mismatch'
+            ),
+            source: 'error',
+          },
+        ])
+      )
     })
   })
 })
