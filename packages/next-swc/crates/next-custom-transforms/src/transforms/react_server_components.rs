@@ -52,7 +52,7 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
-    directive_import_collection: Option<(bool, bool, Rc<Vec<ModuleImports>>, Rc<Vec<String>>)>,
+    directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
 
 #[derive(Clone, Debug)]
@@ -475,8 +475,11 @@ struct ReactServerComponentValidator {
     invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<JsWord>,
     invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    pub directive_import_collection: Option<(bool, bool, Rc<Vec<ModuleImports>>, Rc<Vec<String>>)>,
+    pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
 }
+
+// A type to workaround a clippy warning.
+type RcVec<T> = Rc<Vec<T>>;
 
 impl ReactServerComponentValidator {
     pub fn new(is_react_server_layer: bool, filename: String, app_dir: Option<PathBuf>) -> Self {
