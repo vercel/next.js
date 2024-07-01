@@ -94,9 +94,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
       await browser.elementByCss('#other-app').click()
 
       await retry(async () => {
-        expect(rscHeaders.length).toBeGreaterThan(0)
         expect(await browser.elementByCss('h1').text()).toBe('other app')
         expect(await browser.url()).toContain('/other-app')
+        expect(rscHeaders.length).toBeGreaterThan(0)
       })
 
       expect(
