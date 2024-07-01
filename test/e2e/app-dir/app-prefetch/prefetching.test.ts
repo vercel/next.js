@@ -220,7 +220,8 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).toContain('Page Data!')
+    expect(prefetchResponse).not.toContain('Layout Data!')
     expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
   })
 
@@ -254,7 +255,7 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).not.toContain('Page Data!')
     expect(prefetchResponse).toContain('Loading Prefetch Auto')
   })
 
@@ -273,6 +274,19 @@ describe('app dir - prefetching', () => {
     expect(await browser.elementById('random-number').text()).toBe(
       initialRandom
     )
+  })
+
+  it('should immediately render the loading state for a dynamic segment when fetched from higher up in the tree', async () => {
+    const browser = await next.browser('/')
+    const loadingText = await browser
+      .elementById('to-dynamic-page')
+      .click()
+      .waitForElementByCss('#loading-text')
+      .text()
+
+    expect(loadingText).toBe('Loading Prefetch Auto')
+
+    await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
   describe('dynamic rendering', () => {

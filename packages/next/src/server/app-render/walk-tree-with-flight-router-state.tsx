@@ -111,14 +111,15 @@ export async function walkTreeWithFlightRouterState({
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
+  // Pre-PPR, the `loading` component signals to the router how deep to render the component tree
+  // to ensure prefetches are quick and inexpensive. If there's no `loading` component anywhere in the tree being rendered,
+  // the prefetch will be short-circuited to avoid requesting a potentially very expensive subtree. If there's a `loading`
+  // somewhere in the tree, we'll recursively render the component tree up until we encounter that loading component, and then stop.
   const shouldSkipComponentTree =
-    // loading.tsx has no effect on prefetching when PPR is enabled
     !experimental.isRoutePPREnabled &&
     isPrefetch &&
     !Boolean(components.loading) &&
-    (flightRouterState ||
-      // If there is no flightRouterState, we need to check the entire loader tree, as otherwise we'll be only checking the root
-      !hasLoadingComponentInTree(loaderTree))
+    !hasLoadingComponentInTree(loaderTree)
 
   if (!parentRendered && renderComponentsOnThisLevel) {
     const overriddenSegment =
