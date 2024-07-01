@@ -102,10 +102,16 @@ export async function fetchServerResponse(
     // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
     fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
 
+    // https://vercel.slack.com/archives/C03S8ED1DKM/p1719791391728039
+    // Prefetches should be priority: "low"
+    // Navigations not reusing a prefetch should be priority: "high"
+    const priority = typeof prefetchKind === 'undefined' ? 'high' : 'low'
+
     const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
+      priority,
     })
 
     const responseUrl = urlToUrlWithoutFlightMarker(res.url)
