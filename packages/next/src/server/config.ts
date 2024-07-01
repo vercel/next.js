@@ -985,7 +985,6 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
-    const isTypeScript = configFileName.endsWith('.ts')
 
     let userConfigModule: any
     try {
@@ -999,7 +998,7 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
-      } else if (isTypeScript) {
+      } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           cwd: dir,

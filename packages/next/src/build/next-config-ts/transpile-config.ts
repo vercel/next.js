@@ -1,6 +1,5 @@
 import type { CompilerOptions } from 'typescript'
 import type { Options as SWCOptions } from '@swc/core'
-import type { NextConfig } from '../../types'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
@@ -49,7 +48,7 @@ export async function transpileConfig({
 }: {
   nextConfigPath: string
   cwd: string
-}): Promise<NextConfig> {
+}) {
   let hasRequire = false
   try {
     const { compilerOptions } = await lazilyGetTSConfig(cwd)
