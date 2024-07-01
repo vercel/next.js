@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { join } from 'node:path'
 
 describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
@@ -81,8 +81,33 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         })
       }
     )
+
+    it('should contain deployment id in RSC payload request headers', async () => {
+      const browser = await next.browser('/from-app')
+      const rscHeaders = []
+      browser.on('request', async (req) => {
+        const headers = await req.allHeaders()
+        if (headers['rsc']) {
+          rscHeaders.push(headers)
+        }
+      })
+      await browser.elementByCss('#other-app').click()
+
+      await retry(async () => {
+        expect(rscHeaders.length).toBeGreaterThan(0)
+        expect(await browser.elementByCss('h1').text()).toBe('other app')
+        expect(await browser.url()).toContain('/other-app')
+      })
+
+      expect(
+        rscHeaders.every(
+          (headers) => headers['x-deployment-id'] === deploymentId
+        )
+      ).toBe(true)
+    })
   }
 )
+
 describe('deployment-id-handling disabled', () => {
   const deploymentId = Date.now() + ''
   const { next } = nextTestSetup({
