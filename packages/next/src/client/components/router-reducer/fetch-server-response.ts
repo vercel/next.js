@@ -104,7 +104,7 @@ export async function fetchServerResponse(
     // Add unique cache query to avoid caching conflicts on CDN which don't respect the Vary header
     fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
 
-    // When creating a "temporary" prefetch (e.g., one that is automatically created if one doesn't exist)
+    // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
     // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
     // Otherwise, all other prefetches are sent with a "low" priority.
     // We use "auto" for in all other cases to match the existing default, as this function is shared outside of prefetching.
