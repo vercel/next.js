@@ -6,11 +6,11 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
+  assertHasRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
-  hasRedbox,
   normalizeRegEx,
   renderViaHTTP,
   retry,
@@ -1099,7 +1099,7 @@ describe('Prerender', () => {
           // we need to reload the page to trigger getStaticProps
           await browser.refresh()
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           const errOverlayContent = await getRedboxHeader(browser)
           const errorMsg = /oops from getStaticProps/
           expect(next.cliOutput).toMatch(errorMsg)
@@ -1239,7 +1239,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1255,7 +1255,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )

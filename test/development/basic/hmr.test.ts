@@ -2,12 +2,13 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import {
+  assertHasRedbox,
+  assertNoRedbox,
   check,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxDescription,
   getRedboxSource,
-  hasRedbox,
   renderViaHTTP,
   retry,
   waitFor,
@@ -361,6 +362,37 @@ describe.each([[''], ['/docs']])(
             }
           }
         })
+
+        it('should not full reload when nonlatin characters are used', async () => {
+          let browser = null
+          const pagePath = join('pages', 'hmr', 'nonlatin.js')
+          const originalContent = await next.readFile(pagePath)
+          try {
+            browser = await webdriver(next.url, basePath + '/hmr/nonlatin')
+            const timeOrigin = await browser.eval('performance.timeOrigin')
+            const editedContent = originalContent.replace(
+              '<div>テスト</div>',
+              '<div class="updated">テスト</div>'
+            )
+
+            // Change the page
+            await next.patchFile(pagePath, editedContent)
+
+            await browser.waitForElementByCss('.updated')
+
+            expect(await browser.eval('performance.timeOrigin')).toEqual(
+              timeOrigin
+            )
+          } finally {
+            // Finally is used so that we revert the content back to the original regardless of the test outcome
+            // restore the about page content.
+            await next.patchFile(pagePath, originalContent)
+
+            if (browser) {
+              await browser.close()
+            }
+          }
+        })
       })
     })
 
@@ -498,7 +530,7 @@ describe.each([[''], ['/docs']])(
 
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         const source = next.normalizeTestDirContent(
           await getRedboxSource(browser)
         )
@@ -608,7 +640,7 @@ describe.each([[''], ['/docs']])(
 
             browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-            expect(await hasRedbox(browser)).toBe(true)
+            await assertHasRedbox(browser)
             expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
             await next.patchFile(aboutPage, aboutContent)
@@ -651,7 +683,7 @@ describe.each([[''], ['/docs']])(
             aboutContent.replace('export', 'aa=20;\nexport')
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -687,7 +719,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -732,7 +764,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
             `"Error: The default export is not a React Component in page: "/hmr/about5""`
           )
@@ -780,7 +812,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           // TODO: Replace this when webpack 5 is the default
           expect(await getRedboxHeader(browser)).toMatch(
             `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -830,7 +862,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
             `"Error: The default export is not a React Component in page: "/hmr/about7""`
           )
@@ -841,7 +873,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -880,7 +912,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
 
           if (process.env.TURBOPACK) {
@@ -913,7 +945,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -952,7 +984,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
           let redboxSource = await getRedboxSource(browser)
 
@@ -999,7 +1031,7 @@ describe.each([[''], ['/docs']])(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
 
@@ -1024,7 +1056,7 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr')
           await browser.elementByCss('#error-in-gip-link').click()
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
             `"Error: an-expected-error-in-gip"`
           )
@@ -1065,7 +1097,7 @@ describe.each([[''], ['/docs']])(
         try {
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
             `"Error: an-expected-error-in-gip"`
           )
@@ -1212,7 +1244,7 @@ describe.each([[''], ['/docs']])(
           pageName,
           `import hello from 'non-existent'\n` + originalContent
         )
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         await waitFor(3000)
         await next.patchFile(pageName, originalContent)
         await check(
