@@ -506,7 +506,7 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"q" parameter (quality) must be a number between 1 and 100`
+      `"q" parameter (quality) must be an integer between 1 and 100`
     )
   })
 
@@ -515,7 +515,7 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"q" parameter (quality) must be a number between 1 and 100`
+      `"q" parameter (quality) must be an integer between 1 and 100`
     )
   })
 
@@ -524,7 +524,7 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"w" parameter (width) must be a number greater than 0`
+      `"w" parameter (width) must be an integer greater than 0`
     )
   })
 
@@ -533,7 +533,7 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"w" parameter (width) must be a number greater than 0`
+      `"w" parameter (width) must be an integer greater than 0`
     )
   })
 
@@ -542,7 +542,16 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"w" parameter (width) must be a number greater than 0`
+      `"w" parameter (width) must be an integer greater than 0`
+    )
+  })
+
+  it('should fail when w is not an integer', async () => {
+    const query = { url: '/test.png', w: 99.9, q: 100 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(
+      `"w" parameter (width) must be an integer greater than 0`
     )
   })
 
@@ -551,7 +560,16 @@ export function runTests(ctx: RunTestsCtx) {
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
-      `"q" parameter (quality) must be a number between 1 and 100`
+      `"q" parameter (quality) must be an integer between 1 and 100`
+    )
+  })
+
+  it('should fail when q is not an integer', async () => {
+    const query = { url: '/test.png', w: ctx.w, q: 99.9 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(
+      `"q" parameter (quality) must be an integer between 1 and 100`
     )
   })
 
