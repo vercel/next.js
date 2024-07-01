@@ -1535,8 +1535,8 @@ importers:
         specifier: '>=0.15.0'
         version: 2.2.1(react@19.0.0-rc-6230622a1a-20240610)
       source-map:
-        specifier: ^0.7.0
-        version: 0.7.3
+        specifier: 0.7.4
+        version: 0.7.4
 
   packages/next-plugin-storybook: {}
 
@@ -12698,10 +12698,6 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
-
-  source-map@0.7.3:
-    resolution: {integrity: sha512-CkCj6giN3S+n9qrYiBTX5gystlENnRW5jZeNLHpe6aue+SrHcG5VYwujhW9s4dY31mEGsxBDrHR6oI69fTXsaQ==}
-    engines: {node: '>= 8'}
 
   source-map@0.7.4:
     resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
@@ -28511,8 +28507,6 @@ snapshots:
   source-map@0.5.7: {}
 
   source-map@0.6.1: {}
-
-  source-map@0.7.3: {}
 
   source-map@0.7.4: {}
 
