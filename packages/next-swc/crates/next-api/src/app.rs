@@ -50,6 +50,7 @@ use turbopack_binding::{
                 EntryChunkGroupResult, EvaluatableAssets,
             },
             file_source::FileSource,
+            ident::AssetIdent,
             module::Module,
             output::{OutputAsset, OutputAssets},
             raw_output::RawOutput,
@@ -627,6 +628,11 @@ pub fn app_entry_point_to_route(
     .cell()
 }
 
+#[turbo_tasks::function]
+fn client_shared_chunks() -> Vc<RcStr> {
+    Vc::cell("client_shared_chunks".into())
+}
+
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
     Html,
@@ -772,10 +778,8 @@ impl AppEndpoint {
 
         let (app_server_reference_modules, client_dynamic_imports) = if process_client {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                app_entry
-                    .rsc_entry
-                    .ident()
-                    .with_modifier(Vc::cell("client_shared_chunks".into())),
+                AssetIdent::from_path(this.app_project.project().project_path())
+                    .with_modifier(client_shared_chunks()),
                 this.app_project.client_runtime_entries(),
                 client_chunking_context,
             )
@@ -844,13 +848,13 @@ impl AppEndpoint {
             {
                 entry_client_chunks.extend(chunks.await?.iter().copied());
             }
-            for chunks in client_references_chunks_ref
+            for (chunks, _) in client_references_chunks_ref
                 .client_component_client_chunks
                 .values()
             {
                 client_assets.extend(chunks.await?.iter().copied());
             }
-            for chunks in client_references_chunks_ref
+            for (chunks, _) in client_references_chunks_ref
                 .client_component_ssr_chunks
                 .values()
             {
@@ -944,7 +948,7 @@ impl AppEndpoint {
                 // initialization
                 let client_references_chunks = &*client_references_chunks.await?;
 
-                for &ssr_chunks in client_references_chunks
+                for (ssr_chunks, _) in client_references_chunks
                     .client_component_ssr_chunks
                     .values()
                 {

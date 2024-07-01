@@ -731,13 +731,6 @@ export async function ncc_buffer(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_react_is(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
-    .target('src/compiled/react-is')
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
   await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
     recursive: true,
@@ -1765,6 +1758,13 @@ export async function copy_vendor_react(task_) {
   for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
     await res
   }
+
+  // TODO: Support react-is experimental channel. We currently assume Canary and Experimental are equal.
+  await task_
+    .source(
+      join(dirname(require.resolve('react-is-builtin/package.json')), '**/*')
+    )
+    .target('src/compiled/react-is')
 }
 
 // eslint-disable-next-line camelcase
@@ -2307,7 +2307,6 @@ export async function ncc(task, opts) {
       'copy_vercel_og',
       'copy_constants_browserify',
       'copy_vendor_react',
-      'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
@@ -2339,6 +2338,7 @@ export async function next_compile(task, opts) {
       'lib_esm',
       'client',
       'client_esm',
+      'diagnostics',
       'telemetry',
       'trace',
       'shared',
@@ -2581,6 +2581,13 @@ export async function trace(task, opts) {
     .target('dist/trace')
 }
 
+export async function diagnostics(task, opts) {
+  await task
+    .source('src/diagnostics/**/*.+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/diagnostics')
+}
+
 export async function build(task, opts) {
   await task.serial(
     ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
@@ -2643,6 +2650,7 @@ export default async function (task) {
   await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
+  await task.watch('src/diagnostics', 'diagnostics', opts)
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)

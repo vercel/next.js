@@ -159,6 +159,10 @@ import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
 import { collectBuildTraces } from './collect-build-traces'
 import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
 import { formatManifest } from './manifests/formatter/format-manifest'
+import {
+  recordFrameworkVersion,
+  updateBuildDiagnostics,
+} from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
@@ -813,6 +817,11 @@ export default async function build(
         expFeatureInfo,
       })
 
+      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
+      await updateBuildDiagnostics({
+        buildStage: 'start',
+      })
+
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
@@ -857,14 +866,20 @@ export default async function build(
         appDir
       )
 
-      const pagesPaths =
-        !appDirOnly && pagesDir
-          ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
-              recursiveReadDir(pagesDir, {
-                pathnameFilter: validFileMatcher.isPageFile,
-              })
-            )
-          : []
+      const providedPagePaths: string[] = JSON.parse(
+        process.env.NEXT_PROVIDED_PAGE_PATHS || '[]'
+      )
+
+      let pagesPaths =
+        providedPagePaths.length > 0
+          ? providedPagePaths
+          : !appDirOnly && pagesDir
+            ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
+                recursiveReadDir(pagesDir, {
+                  pathnameFilter: validFileMatcher.isPageFile,
+                })
+              )
+            : []
 
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
@@ -927,18 +942,25 @@ export default async function build(
       let denormalizedAppPages: string[] | undefined
 
       if (appDir) {
-        const appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
-                validFileMatcher.isAppRouterPage(absolutePath) ||
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
-              ignorePartFilter: (part) => part.startsWith('_'),
-            })
-          )
+        const providedAppPaths: string[] = JSON.parse(
+          process.env.NEXT_PROVIDED_APP_PATHS || '[]'
+        )
+
+        let appPaths =
+          providedAppPaths.length > 0
+            ? providedAppPaths
+            : await nextBuildSpan
+                .traceChild('collect-app-paths')
+                .traceAsyncFn(() =>
+                  recursiveReadDir(appDir, {
+                    pathnameFilter: (absolutePath) =>
+                      validFileMatcher.isAppRouterPage(absolutePath) ||
+                      // For now we only collect the root /not-found page in the app
+                      // directory as the 404 fallback
+                      validFileMatcher.isRootNotFound(absolutePath),
+                    ignorePartFilter: (part) => part.startsWith('_'),
+                  })
+                )
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
@@ -1580,77 +1602,16 @@ export default async function build(
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
+      await updateBuildDiagnostics({
+        buildStage: 'compile',
+        buildOptions: {
+          useBuildWorker: String(useBuildWorker),
+        },
+      })
+
       if (!isGenerateMode) {
-        if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
-          let durationInSeconds = 0
-
-          const serverBuildPromise = webpackBuild(useBuildWorker, [
-            'server',
-          ]).then((res) => {
-            traceMemoryUsage('Finished server compilation', nextBuildSpan)
-            buildTraceContext = res.buildTraceContext
-            durationInSeconds += res.duration
-
-            if (collectServerBuildTracesInParallel) {
-              const buildTraceWorker = new Worker(
-                require.resolve('./collect-build-traces'),
-                {
-                  numWorkers: 1,
-                  exposedMethods: ['collectBuildTraces'],
-                }
-              ) as Worker & typeof import('./collect-build-traces')
-
-              buildTracesPromise = buildTraceWorker
-                .collectBuildTraces({
-                  dir,
-                  config,
-                  distDir,
-                  // Serialize Map as this is sent to the worker.
-                  edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
-                  staticPages: [],
-                  hasSsrAmpPages: false,
-                  buildTraceContext,
-                  outputFileTracingRoot,
-                  isFlyingShuttle: !!config.experimental.flyingShuttle,
-                })
-                .catch((err) => {
-                  console.error(err)
-                  process.exit(1)
-                })
-            }
-          })
-          if (!runServerAndEdgeInParallel) {
-            await serverBuildPromise
-          }
-
-          const edgeBuildPromise = webpackBuild(useBuildWorker, [
-            'edge-server',
-          ]).then((res) => {
-            durationInSeconds += res.duration
-            traceMemoryUsage('Finished edge-server compilation', nextBuildSpan)
-          })
-          if (runServerAndEdgeInParallel) {
-            await serverBuildPromise
-          }
-          await edgeBuildPromise
-
-          await webpackBuild(useBuildWorker, ['client']).then((res) => {
-            durationInSeconds += res.duration
-            traceMemoryUsage('Finished client compilation', nextBuildSpan)
-          })
-
-          Log.event('Compiled successfully')
-
-          telemetry.record(
-            eventBuildCompleted(pagesPaths, {
-              durationInSeconds,
-              totalAppPagesCount,
-            })
-          )
-        } else {
-          const { duration: compilerDuration, ...rest } = turboNextBuild
-            ? await turbopackBuild()
-            : await webpackBuild(useBuildWorker, null)
+        if (turboNextBuild) {
+          const { duration: compilerDuration, ...rest } = await turbopackBuild()
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
@@ -1661,11 +1622,117 @@ export default async function build(
               totalAppPagesCount,
             })
           )
+        } else {
+          if (
+            runServerAndEdgeInParallel ||
+            collectServerBuildTracesInParallel
+          ) {
+            let durationInSeconds = 0
+
+            await updateBuildDiagnostics({
+              buildStage: 'compile-server',
+            })
+
+            const serverBuildPromise = webpackBuild(useBuildWorker, [
+              'server',
+            ]).then((res) => {
+              traceMemoryUsage('Finished server compilation', nextBuildSpan)
+              buildTraceContext = res.buildTraceContext
+              durationInSeconds += res.duration
+
+              if (collectServerBuildTracesInParallel) {
+                const buildTraceWorker = new Worker(
+                  require.resolve('./collect-build-traces'),
+                  {
+                    numWorkers: 1,
+                    exposedMethods: ['collectBuildTraces'],
+                  }
+                ) as Worker & typeof import('./collect-build-traces')
+
+                buildTracesPromise = buildTraceWorker
+                  .collectBuildTraces({
+                    dir,
+                    config,
+                    distDir,
+                    // Serialize Map as this is sent to the worker.
+                    edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
+                    staticPages: [],
+                    hasSsrAmpPages: false,
+                    buildTraceContext,
+                    outputFileTracingRoot,
+                    isFlyingShuttle: !!config.experimental.flyingShuttle,
+                  })
+                  .catch((err) => {
+                    console.error(err)
+                    process.exit(1)
+                  })
+              }
+            })
+            if (!runServerAndEdgeInParallel) {
+              await serverBuildPromise
+              await updateBuildDiagnostics({
+                buildStage: 'webpack-compile-edge-server',
+              })
+            }
+
+            const edgeBuildPromise = webpackBuild(useBuildWorker, [
+              'edge-server',
+            ]).then((res) => {
+              durationInSeconds += res.duration
+              traceMemoryUsage(
+                'Finished edge-server compilation',
+                nextBuildSpan
+              )
+            })
+            if (runServerAndEdgeInParallel) {
+              await serverBuildPromise
+              await updateBuildDiagnostics({
+                buildStage: 'webpack-compile-edge-server',
+              })
+            }
+            await edgeBuildPromise
+
+            await updateBuildDiagnostics({
+              buildStage: 'webpack-compile-client',
+            })
+
+            await webpackBuild(useBuildWorker, ['client']).then((res) => {
+              durationInSeconds += res.duration
+              traceMemoryUsage('Finished client compilation', nextBuildSpan)
+            })
+
+            Log.event('Compiled successfully')
+
+            telemetry.record(
+              eventBuildCompleted(pagesPaths, {
+                durationInSeconds,
+                totalAppPagesCount,
+              })
+            )
+          } else {
+            const { duration: compilerDuration, ...rest } = await webpackBuild(
+              useBuildWorker,
+              null
+            )
+            traceMemoryUsage('Finished build', nextBuildSpan)
+
+            buildTraceContext = rest.buildTraceContext
+
+            telemetry.record(
+              eventBuildCompleted(pagesPaths, {
+                durationInSeconds: compilerDuration,
+                totalAppPagesCount,
+              })
+            )
+          }
         }
       }
 
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
+        await updateBuildDiagnostics({
+          buildStage: 'type-checking',
+        })
         await startTypeChecking(typeCheckingOptions)
         traceMemoryUsage('Finished type checking', nextBuildSpan)
       }
@@ -2416,6 +2483,10 @@ export default async function build(
         UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       )
       const hasStaticApp404 = hasApp404 && isApp404Static
+
+      await updateBuildDiagnostics({
+        buildStage: 'static-generation',
+      })
 
       // we need to trigger automatic exporting when we have
       // - static 404/500

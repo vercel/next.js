@@ -228,6 +228,27 @@ describe('required server files app router', () => {
     })
   })
 
+  it('should still render when postponed is corrupted', async () => {
+    const random = Math.random().toString(36).substring(2)
+
+    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+      method: 'POST',
+      headers: {
+        'x-matched-path': '/_next/postponed/resume/dyn/' + random,
+      },
+      // This is a corrupted postponed JSON payload.
+      body: '{',
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    // Expect that the closing HTML tag is still present, indicating a
+    // successful render.
+    expect(html).toContain('</html>')
+  })
+
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       [
