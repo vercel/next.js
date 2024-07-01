@@ -248,6 +248,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        nextConfigTs: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
