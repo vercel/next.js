@@ -181,6 +181,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         relay: z
           .object({
+            projects: z
+              .array(
+                z.object({
+                  rootDir: z.string(),
+                  artifactDirectory: z.string().optional(),
+                })
+              )
+              .optional(),
             src: z.string(),
             artifactDirectory: z.string().optional(),
             language: z.enum(['javascript', 'typescript', 'flow']).optional(),
