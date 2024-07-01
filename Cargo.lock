@@ -321,7 +321,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "serde",
  "smallvec",
@@ -3111,7 +3111,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "serde",
@@ -6928,6 +6928,7 @@ checksum = "e6631e42e10b40c0690bf92f404ebcfe6e1fdb480391d15f17cc8e96eeed5369"
 dependencies = [
  "serde",
  "stable_deref_trait",
+ "unsize",
 ]
 
 [[package]]
@@ -6977,12 +6978,12 @@ dependencies = [
 [[package]]
 name = "turbo-prehash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7005,16 +7006,18 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "triomphe",
  "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
+ "unsize",
 ]
 
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -7027,7 +7030,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7041,7 +7044,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "dotenvs",
@@ -7055,7 +7058,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -7071,7 +7074,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7103,7 +7106,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "md4",
  "turbo-tasks-macros",
@@ -7113,7 +7116,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "proc-macro-error",
@@ -7127,7 +7130,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7137,7 +7140,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "mimalloc",
 ]
@@ -7145,12 +7148,13 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "auto-hash-map",
  "concurrent-queue",
  "dashmap",
+ "either",
  "indexmap 1.9.3",
  "num_cpus",
  "once_cell",
@@ -7171,7 +7175,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7201,7 +7205,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -7242,7 +7246,7 @@ dependencies = [
 [[package]]
 name = "turbopack-browser"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7265,7 +7269,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "clap",
@@ -7282,7 +7286,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7311,7 +7315,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7338,7 +7342,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -7374,7 +7378,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7409,7 +7413,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "serde",
  "serde_json",
@@ -7420,7 +7424,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7445,7 +7449,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indoc",
@@ -7461,7 +7465,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7477,7 +7481,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -7496,7 +7500,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "serde",
@@ -7511,7 +7515,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -7526,7 +7530,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -7560,7 +7564,7 @@ dependencies = [
 [[package]]
 name = "turbopack-nodejs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7580,7 +7584,7 @@ dependencies = [
 [[package]]
 name = "turbopack-resolve"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7598,7 +7602,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "serde",
@@ -7614,7 +7618,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -7625,7 +7629,7 @@ dependencies = [
 [[package]]
 name = "turbopack-trace-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "either",
@@ -7645,7 +7649,7 @@ dependencies = [
 [[package]]
 name = "turbopack-trace-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -7661,7 +7665,7 @@ dependencies = [
 [[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240626.3#9f9f359d55f875ac6a26bb7971a1931f6d630086"
+source = "git+https://github.com/vercel/turbo.git?branch=sokra/edges-set-list#8e3352dd914e0072f0d96706ea824cce2c103475"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7813,6 +7817,15 @@ name = "unsafe-libyaml"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab4c90930b95a82d00dc9e9ac071b4991924390d46cbd0dfe566148667605e4b"
+
+[[package]]
+name = "unsize"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fa7a7a734c1a5664a662ddcea0b6c9472a21da8888c957c7f1eaa09dba7a939"
+dependencies = [
+ "autocfg",
+]
 
 [[package]]
 name = "untrusted"
