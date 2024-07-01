@@ -159,6 +159,32 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
+function warnCustomizedOption(
+  config: NextConfig,
+  key: string,
+  defaultValue: any,
+  customMessage: string,
+  configFileName: string,
+  silent: boolean
+) {
+  const segs = key.split('.')
+  let current = config
+
+  while (segs.length >= 1) {
+    const seg = segs.shift()!
+    if (!(seg in current)) {
+      return
+    }
+    current = current[seg]
+  }
+
+  if (!silent && current !== defaultValue) {
+    Log.warn(
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}Please update your ${configFileName}.`
+    )
+  }
+}
+
 function assignDefaults(
   dir: string,
   userConfig: { [key: string]: any },
@@ -454,6 +480,15 @@ function assignDefaults(
       images.loaderFile = absolutePath
     }
   }
+
+  warnCustomizedOption(
+    result,
+    'experimental.esmExternals',
+    true,
+    'experimental.esmExternals is not recommended to be modified as it may disrupt module resolution',
+    configFileName,
+    silent
+  )
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,
