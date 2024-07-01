@@ -80,6 +80,7 @@ import {
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import type { VersionInfo } from './parse-version-info'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -503,6 +504,10 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
+  const versionInfoPromise = getVersionInfo(
+    isTestMode || opts.telemetry.isEnabled
+  )
+  let versionInfo: VersionInfo | undefined
 
   const hotReloader: NextJsHotReloaderInterface = {
     turbopackProject: project,
@@ -662,21 +667,23 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        ;(async function () {
-          const versionInfo = await getVersionInfo(
-            isTestMode || opts.telemetry.isEnabled
-          )
+        if (!versionInfo) {
+          ;(async function () {
+            versionInfo = await versionInfoPromise
+          })()
+        }
 
-          const sync: SyncAction = {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-            errors,
-            warnings: [],
-            hash: '',
-            versionInfo,
-          }
+        versionInfo ??= { installed: '0.0.0', staleness: 'unknown' }
 
-          sendToClient(client, sync)
-        })()
+        const sync: SyncAction = {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+          errors,
+          warnings: [],
+          hash: '',
+          versionInfo,
+        }
+
+        sendToClient(client, sync)
       })
     },
 
