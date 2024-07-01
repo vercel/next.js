@@ -6,10 +6,10 @@ import yargs from 'yargs'
 
 async function main() {
   let argv = await yargs(process.argv.slice(2))
-    .boolean('--dev-mode')
+    .boolean('dev-mode')
     .string('group').argv
 
-  let testMode = argv['--dev-mode'] ? 'dev' : 'start'
+  let testMode = argv.devMode ? 'dev' : 'start'
   const rawGroup = argv['group']
   let currentGroup = 1
   let groupTotal = 1
