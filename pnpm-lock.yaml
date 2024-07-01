@@ -1390,8 +1390,8 @@ importers:
         specifier: 1.7.3
         version: 1.7.3
       source-map:
-        specifier: 0.6.1
-        version: 0.6.1
+        specifier: 0.7.4
+        version: 0.7.4
       source-map-loader:
         specifier: 5.0.0
         version: 5.0.0(webpack@5.90.0(@swc/core@1.5.7(@swc/helpers@0.5.11)))
