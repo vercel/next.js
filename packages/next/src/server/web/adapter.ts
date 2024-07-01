@@ -300,7 +300,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
-  if (response && rewrite) {
+  if (response && rewrite && !isEdgeRendering) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,

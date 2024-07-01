@@ -9,7 +9,6 @@
     },
     "test/e2e/app-dir/metadata/metadata.test.ts": {
       "failed": [
-        "app dir - metadata navigation should render root not-found with default metadata",
         "app dir - metadata react cache should have same title and page value on initial load",
         "app dir - metadata react cache should have same title and page value when navigating"
       ]

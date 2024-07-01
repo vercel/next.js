@@ -106,10 +106,9 @@ async function fetchServerAction(
       )
     : undefined
 
-  let isFlightResponse =
-    res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
+  const contentType = res.headers.get('content-type')
 
-  if (isFlightResponse) {
+  if (contentType === RSC_CONTENT_TYPE_HEADER) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
       {
@@ -136,6 +135,19 @@ async function fetchServerAction(
       revalidatedParts,
     }
   }
+
+  // Handle invalid server action responses
+  if (res.status >= 400) {
+    // The server can respond with a text/plain error message, but we'll fallback to something generic
+    // if there isn't one.
+    const error =
+      contentType === 'text/plain'
+        ? await res.text()
+        : 'An unexpected response was received from the server.'
+
+    throw new Error(error)
+  }
+
   return {
     redirectLocation,
     revalidatedParts,
@@ -167,9 +179,7 @@ export function serverActionReducer(
       ? state.nextUrl
       : null
 
-  mutable.inFlightServerAction = fetchServerAction(state, nextUrl, action)
-
-  return mutable.inFlightServerAction.then(
+  return fetchServerAction(state, nextUrl, action).then(
     async ({
       actionResult,
       actionFlightData: flightData,
@@ -206,9 +216,6 @@ export function serverActionReducer(
           state.pushRef.pendingPush
         )
       }
-
-      // Remove cache.data as it has been resolved at this point.
-      mutable.inFlightServerAction = null
 
       if (redirectLocation) {
         const newHref = createHrefFromUrl(redirectLocation, false)
