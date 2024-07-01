@@ -213,16 +213,16 @@ function runTests(mode) {
       // When priority={true}, we should not set fetchpriority="high"
       expect(
         await browser.elementById('basic-image').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('load-eager').getAttribute('fetchpriority')
       ).toBe(null)
       expect(
         await browser.elementById('responsive1').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('responsive2').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
 
       // Setting fetchPriority="low" directly should pass-through to <img>
       expect(
