@@ -1470,6 +1470,12 @@ function loadNative(importPath?: string) {
   }
 
   if (bindings) {
+    if (process.env.NEXT_SWC_MINIFY_BACKPORT) {
+      const pkg = require('@swc/next-minifier-backport')
+      bindings.minify = pkg.minify
+      bindings.minifySync = pkg.minifySync
+    }
+
     nativeBindings = {
       isWasm: false,
       transform(src: string, options: any) {
