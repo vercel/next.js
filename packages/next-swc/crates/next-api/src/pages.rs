@@ -37,7 +37,7 @@ use turbopack_binding::{
             asset::AssetContent,
             chunk::{
                 availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
+                EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
             },
             context::AssetContext,
             file_source::FileSource,
@@ -51,7 +51,7 @@ use turbopack_binding::{
             source::Source,
             virtual_output::VirtualOutputAsset,
         },
-        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
+        ecmascript::resolve::esm_resolve,
         nodejs::NodeJsChunkingContext,
         turbopack::{
             module_options::ModuleOptionsContext,
@@ -630,7 +630,7 @@ impl PageEndpoint {
             );
 
             let Some(client_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -656,7 +656,7 @@ impl PageEndpoint {
             .context("expected Next.js client runtime to resolve to a module")?;
 
             let Some(client_main_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
                 bail!("expected an ECMAScript module asset");
             };
@@ -667,8 +667,8 @@ impl PageEndpoint {
                 client_module.ident(),
                 this.pages_project
                     .client_runtime_entries()
-                    .with_entry(Vc::upcast(client_main_module))
-                    .with_entry(Vc::upcast(client_module)),
+                    .with_entry(client_main_module)
+                    .with_entry(client_module),
                 Value::new(AvailabilityInfo::Root),
             );
 

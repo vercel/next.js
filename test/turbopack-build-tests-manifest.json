@@ -5237,10 +5237,10 @@
       "runtimeError": false
     },
     "test/e2e/new-link-behavior/material-ui.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "New Link Behavior with material-ui should render MuiLink with <a>"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15166,10 +15166,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/barrel-optimization/mui/index.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "Skipped in Turbopack app-dir - optimizePackageImports - mui should build successfully"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

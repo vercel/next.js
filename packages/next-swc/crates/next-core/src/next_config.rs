@@ -12,6 +12,7 @@ use turbopack_binding::{
             issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             resolve::ResolveAliasMap,
         },
+        ecmascript::TreeShakingMode,
         ecmascript_plugin::transform::{
             emotion::EmotionTransformConfig, relay::RelayConfig,
             styled_components::StyledComponentsTransformConfig,
@@ -579,6 +580,8 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    disable_tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -1101,6 +1104,20 @@ impl NextConfig {
                 .unwrap_or_default(),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub async fn tree_shaking_mode(self: Vc<Self>) -> Result<Vc<OptionTreeShaking>> {
+        if self
+            .await?
+            .experimental
+            .disable_tree_shaking
+            .unwrap_or_default()
+        {
+            return Ok(OptionTreeShaking(None).cell());
+        }
+
+        Ok(OptionTreeShaking(Some(TreeShakingMode::ModuleFragments)).cell())
+    }
 }
 
 /// A subset of ts/jsconfig that next.js implicitly
@@ -1171,3 +1188,6 @@ impl Issue for OutdatedConfigIssue {
         Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionTreeShaking(Option<TreeShakingMode>);
