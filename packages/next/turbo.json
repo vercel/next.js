@@ -1,0 +1,343 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "pipeline": {
+    "types": {
+      "dependsOn": ["topo-taskr-compile"]
+    },
+    "taskr-api-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-bin": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-browser-polyfills": {
+      "dependsOn": ["taskr-clear-dist"]
+    },
+    "topo-taskr-build": {
+      "dependsOn": ["taskr-rewrite-compiled-references"]
+    },
+    "taskr-capsize-metrics": {
+      "dependsOn": ["topo-taskr-next-bundle"]
+    },
+    "taskr-clear-dist": {},
+    "taskr-cli": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-client": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-client-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-copy-babel-runtime": {},
+    "taskr-copy-constants-browserify": {},
+    "taskr-copy-ncced": {
+      "dependsOn": ["taskr-clear-dist"]
+    },
+    "taskr-copy-react-is": {},
+    "taskr-copy-regenerator-runtime": {},
+    "taskr-copy-styled-jsx-assets": {
+      "dependsOn": ["taskr-clear-dist"]
+    },
+    "taskr-copy-vendor-react": {},
+    "taskr-copy-vercel-og": {},
+    "taskr-dev": {},
+    "taskr-experimental-testmode": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-lib": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-lib-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-ncc": {},
+    "taskr-ncc-acorn": {},
+    "taskr-ncc-amp-optimizer": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-ncc-amphtml-validator": {},
+    "taskr-ncc-assert": {},
+    "taskr-ncc-async-retry": {},
+    "taskr-ncc-async-sema": {},
+    "taskr-ncc-babel-bundle": {},
+    "taskr-ncc-babel-bundle-packages": {},
+    "taskr-ncc-browser-zlib": {},
+    "taskr-ncc-browserslist": {},
+    "taskr-ncc-buffer": {},
+    "taskr-ncc-bytes": {},
+    "taskr-ncc-ci-info": {},
+    "taskr-ncc-cli-select": {},
+    "taskr-ncc-commander": {},
+    "taskr-ncc-comment-json": {},
+    "taskr-ncc-compression": {},
+    "taskr-ncc-conf": {},
+    "taskr-ncc-content-disposition": {},
+    "taskr-ncc-content-type": {},
+    "taskr-ncc-cookie": {},
+    "taskr-ncc-cross-spawn": {},
+    "taskr-ncc-crypto-browserify": {},
+    "taskr-ncc-cssnano-simple-bundle": {},
+    "taskr-ncc-debug": {},
+    "taskr-ncc-devalue": {},
+    "taskr-ncc-domain-browser": {},
+    "taskr-ncc-edge-runtime": {},
+    "taskr-ncc-edge-runtime-cookies": {},
+    "taskr-ncc-edge-runtime-ponyfill": {},
+    "taskr-ncc-edge-runtime-primitives": {},
+    "taskr-ncc-events": {},
+    "taskr-ncc-find-up": {},
+    "taskr-ncc-fresh": {},
+    "taskr-ncc-get-orientation": {},
+    "taskr-ncc-glob": {},
+    "taskr-ncc-gzip-size": {},
+    "taskr-ncc-hapi-accept": {},
+    "taskr-ncc-http-proxy": {},
+    "taskr-ncc-http-proxy-agent": {},
+    "taskr-ncc-https-browserify": {},
+    "taskr-ncc-https-proxy-agent": {},
+    "taskr-ncc-icss-utils": {},
+    "taskr-ncc-ignore-loader": {},
+    "taskr-ncc-image-size": {},
+    "taskr-ncc-is-animated": {},
+    "taskr-ncc-is-docker": {},
+    "taskr-ncc-is-wsl": {},
+    "taskr-ncc-jest-worker": {},
+    "taskr-ncc-json5": {},
+    "taskr-ncc-jsonwebtoken": {},
+    "taskr-ncc-loader-runner": {},
+    "taskr-ncc-loader-utils2": {},
+    "taskr-ncc-loader-utils3": {},
+    "taskr-ncc-lodash-curry": {},
+    "taskr-ncc-lru-cache": {},
+    "taskr-ncc-mini-css-extract-plugin": {},
+    "taskr-ncc-minimatch": {},
+    "taskr-ncc-mswjs-interceptors": {},
+    "taskr-ncc-nanoid": {},
+    "taskr-ncc-napirs-triples": {},
+    "taskr-ncc-native-url": {},
+    "taskr-ncc-neo-async": {},
+    "taskr-ncc-next-font": {
+      "dependsOn": ["topo-taskr-next-bundle"]
+    },
+    "taskr-ncc-nft": {},
+    "taskr-ncc-node-anser": {},
+    "taskr-ncc-node-cssescape": {},
+    "taskr-ncc-node-data-uri-to-buffer": {},
+    "taskr-ncc-node-fetch": {},
+    "taskr-ncc-node-html-parser": {},
+    "taskr-ncc-node-platform": {},
+    "taskr-ncc-node-shell-quote": {},
+    "taskr-ncc-node-stacktrace-parser": {},
+    "taskr-ncc-opentelemetry-api": {},
+    "taskr-ncc-ora": {},
+    "taskr-ncc-os-browserify": {},
+    "taskr-ncc-p-limit": {},
+    "taskr-ncc-path-browserify": {},
+    "taskr-ncc-postcss-flexbugs-fixes": {},
+    "taskr-ncc-postcss-modules-extract-imports": {},
+    "taskr-ncc-postcss-modules-local-by-default": {},
+    "taskr-ncc-postcss-modules-scope": {},
+    "taskr-ncc-postcss-modules-values": {},
+    "taskr-ncc-postcss-plugin-stub-for-cssnano-simple": {},
+    "taskr-ncc-postcss-preset-env": {},
+    "taskr-ncc-postcss-safe-parser": {},
+    "taskr-ncc-postcss-scss": {},
+    "taskr-ncc-postcss-value-parser": {},
+    "taskr-ncc-process": {},
+    "taskr-ncc-punycode": {},
+    "taskr-ncc-querystring-es3": {},
+    "taskr-ncc-raw-body": {},
+    "taskr-ncc-react-refresh-utils": {
+      "dependsOn": ["topo-taskr-next-bundle"]
+    },
+    "taskr-ncc-rsc-poison-packages": {},
+    "taskr-ncc-sass-loader": {},
+    "taskr-ncc-schema-utils2": {},
+    "taskr-ncc-schema-utils3": {},
+    "taskr-ncc-semver": {},
+    "taskr-ncc-send": {},
+    "taskr-ncc-set-immediate": {},
+    "taskr-ncc-source-map": {},
+    "taskr-ncc-source-map08": {},
+    "taskr-ncc-stream-browserify": {},
+    "taskr-ncc-stream-http": {},
+    "taskr-ncc-string-decoder": {},
+    "taskr-ncc-string-hash": {},
+    "taskr-ncc-strip-ansi": {},
+    "taskr-ncc-superstruct": {},
+    "taskr-ncc-tar": {},
+    "taskr-ncc-terser": {},
+    "taskr-ncc-text-table": {},
+    "taskr-ncc-timers-browserify": {},
+    "taskr-ncc-tty-browserify": {},
+    "taskr-ncc-ua-parser-js": {},
+    "taskr-ncc-unistore": {},
+    "taskr-ncc-util": {},
+    "taskr-ncc-vm-browserify": {},
+    "taskr-ncc-watchpack": {},
+    "taskr-ncc-web-vitals": {},
+    "taskr-ncc-web-vitals-attribution": {},
+    "taskr-ncc-webpack-bundle5": {},
+    "taskr-ncc-webpack-bundle-packages": {},
+    "taskr-ncc-webpack-sources1": {},
+    "taskr-ncc-webpack-sources3": {},
+    "taskr-ncc-ws": {},
+    "taskr-ncc-zod": {},
+    "taskr-next--polyfill-module": {},
+    "taskr-next--polyfill-nomodule": {},
+    "topo-taskr-next-bundle": {
+      "dependsOn": [
+        "taskr-next-bundle-app-turbo",
+        "taskr-next-bundle-app-prod",
+        "taskr-next-bundle-app-dev",
+        "taskr-next-bundle-app-turbo-experimental",
+        "taskr-next-bundle-app-prod-experimental",
+        "taskr-next-bundle-app-dev-experimental",
+        "taskr-next-bundle-pages-prod",
+        "taskr-next-bundle-pages-dev",
+        "taskr-next-bundle-pages-turbo",
+        "taskr-next-bundle-server"
+      ]
+    },
+    "taskr-next-bundle": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-app-dev": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-app-dev-experimental": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-app-prod": { "dependsOn": ["topo-taskr-next-compile"] },
+    "taskr-next-bundle-app-prod-experimental": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-app-turbo": { "dependsOn": ["topo-taskr-next-compile"] },
+    "taskr-next-bundle-app-turbo-experimental": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-pages-dev": { "dependsOn": ["topo-taskr-next-compile"] },
+    "taskr-next-bundle-pages-prod": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-pages-turbo": {
+      "dependsOn": ["topo-taskr-next-compile"]
+    },
+    "taskr-next-bundle-server": { "dependsOn": ["topo-taskr-next-compile"] },
+    "topo-taskr-next-compile": {
+      "dependsOn": [
+        "taskr-cli",
+        "taskr-bin",
+        "taskr-server",
+        "taskr-server-esm",
+        "taskr-api-esm",
+        "taskr-nextbuild",
+        "taskr-nextbuildjest",
+        "taskr-nextbuildstatic",
+        "taskr-nextbuildstatic-esm",
+        "taskr-nextbuild-esm",
+        "taskr-pages",
+        "taskr-pages-esm",
+        "taskr-lib",
+        "taskr-lib-esm",
+        "taskr-client",
+        "taskr-client-esm",
+        "taskr-telemetry",
+        "taskr-trace",
+        "taskr-shared",
+        "taskr-shared-esm",
+        "taskr-shared-re-exported",
+        "taskr-shared-re-exported-esm",
+        "taskr-server-wasm",
+        "taskr-experimental-testmode",
+        "taskr-ncc-amp-optimizer"
+      ]
+    },
+    "taskr-next-compile": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-nextbuild": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-nextbuild-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-nextbuildjest": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-nextbuildstatic": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-nextbuildstatic-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-pages": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-pages-app": {},
+    "taskr-pages-app-esm": {},
+    "taskr-pages-document": {},
+    "taskr-pages-document-esm": {},
+    "taskr-pages-error": {},
+    "taskr-pages-error-esm": {},
+    "taskr-pages-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-path-to-regexp": {
+      "dependsOn": ["taskr-clear-dist"]
+    },
+    "topo-taskr-precompile": {
+      "dependsOn": [
+        "taskr-browser-polyfills",
+        "taskr-path-to-regexp",
+        "taskr-copy-ncced",
+        "taskr-copy-styled-jsx-assets"
+      ]
+    },
+    "taskr-precompile": {
+      "dependsOn": ["taskr-clear-dist"]
+    },
+    "topo-taskr-compile": {
+      "dependsOn": [
+        "taskr-ncc-react-refresh-utils",
+        "taskr-ncc-next-font",
+        "taskr-capsize-metrics"
+      ]
+    },
+    "taskr-compile": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-rewrite-compiled-references": {
+      "dependsOn": ["types"]
+    },
+    "taskr-server": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-server-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-server-wasm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-shared": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-shared-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-shared-re-exported": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-shared-re-exported-esm": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-telemetry": {
+      "dependsOn": ["topo-taskr-precompile"]
+    },
+    "taskr-trace": {
+      "dependsOn": ["topo-taskr-precompile"]
+    }
+  }
+}
