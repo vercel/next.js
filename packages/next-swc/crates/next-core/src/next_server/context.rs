@@ -460,7 +460,7 @@ pub async fn get_server_module_options_context(
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
     ]
     .into_iter()

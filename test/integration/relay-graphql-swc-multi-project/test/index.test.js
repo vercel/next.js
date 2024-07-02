@@ -33,71 +33,63 @@ const runRelayCompiler = () => {
 }
 
 // TODO: Support for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)(
-  'Relay Compiler Transform - Multi Project Config',
-  () => {
-    beforeAll(() => {
-      runRelayCompiler()
+describe('Relay Compiler Transform - Multi Project Config', () => {
+  beforeAll(() => {
+    runRelayCompiler()
+  })
+  describe('development mode', () => {
+    describe('project-a', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(projectAAppDir, appPort, {
+          cwd: projectAAppDir,
+        })
+      })
+
+      afterAll(() => killApp(app))
+
+      runTests('Project A')
     })
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-      'development mode',
-      () => {
-        describe('project-a', () => {
-          beforeAll(async () => {
-            appPort = await findPort()
-            app = await launchApp(projectAAppDir, appPort, {
-              cwd: projectAAppDir,
-            })
-          })
 
-          afterAll(() => killApp(app))
-
-          runTests('Project A')
+    describe('project-b', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(projectBAppDir, appPort, {
+          cwd: projectBAppDir,
         })
+      })
 
-        describe('project-b', () => {
-          beforeAll(async () => {
-            appPort = await findPort()
-            app = await launchApp(projectBAppDir, appPort, {
-              cwd: projectBAppDir,
-            })
-          })
+      afterAll(() => killApp(app))
 
-          afterAll(() => killApp(app))
+      runTests('Project B')
+    })
+  })
 
-          runTests('Project B')
-        })
-      }
-    )
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        // eslint-disable-next-line jest/no-identical-title
-        describe('project-a', () => {
-          beforeAll(async () => {
-            await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })
-            appPort = await findPort()
-            app = await nextStart(projectAAppDir, appPort)
-          })
+  describe('production mode', () => {
+    // eslint-disable-next-line jest/no-identical-title
+    describe('project-a', () => {
+      beforeAll(async () => {
+        await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })
+        appPort = await findPort()
+        app = await nextStart(projectAAppDir, appPort)
+      })
 
-          afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-          runTests('Project A')
-        })
+      runTests('Project A')
+    })
 
-        // eslint-disable-next-line jest/no-identical-title
-        describe('project-b', () => {
-          beforeAll(async () => {
-            await nextBuild(projectBAppDir, [], { cwd: projectBAppDir })
-            appPort = await findPort()
-            app = await nextStart(projectBAppDir, appPort)
-          })
+    // eslint-disable-next-line jest/no-identical-title
+    describe('project-b', () => {
+      beforeAll(async () => {
+        await nextBuild(projectBAppDir, [], { cwd: projectBAppDir })
+        appPort = await findPort()
+        app = await nextStart(projectBAppDir, appPort)
+      })
 
-          afterAll(() => killApp(app))
+      afterAll(() => killApp(app))
 
-          runTests('Project B')
-        })
-      }
-    )
-  }
-)
+      runTests('Project B')
+    })
+  })
+})
