@@ -16054,11 +16054,11 @@
         "required server files should resolve correctly when a redirect is returned",
         "required server files should return data correctly with x-matched-path",
         "required server files should return data correctly with x-matched-path for optional catch-all route",
-        "required server files should run middleware correctly (without minimalMode, with wasm)",
         "required server files should set correct SWR headers with notFound gsp",
         "required server files should set correct SWR headers with notFound gssp",
         "required server files should show invariant when an automatic static page is requested",
-        "required server files should warn when \"next\" is imported directly"
+        "required server files should warn when \"next\" is imported directly",
+        "required server files without minimalMode, with wasm should run middleware correctly"
       ],
       "pending": [],
       "flakey": [],
