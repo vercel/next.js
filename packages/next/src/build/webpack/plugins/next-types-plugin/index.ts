@@ -171,7 +171,9 @@ export interface LayoutProps {
   children?: React.ReactNode
 ${
   options.slots
-    ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
+    ? options.slots
+        .map((slot) => `  ${JSON.stringify(slot)}: React.ReactNode`)
+        .join('\n')
     : ''
 }
   params?: any

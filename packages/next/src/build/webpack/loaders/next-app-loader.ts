@@ -482,7 +482,7 @@ async function createTreeCodeFromPath(
     return {
       treeCode: `{
         ${Object.entries(props)
-          .map(([key, value]) => `${key}: ${value}`)
+          .map(([key, value]) => `${JSON.stringify(key)}: ${value}`)
           .join(',\n')}
       }`,
     }
