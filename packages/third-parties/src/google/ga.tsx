@@ -1,9 +1,10 @@
 'use client'
+
 // TODO: Evaluate import 'client only'
 import React, { useEffect } from 'react'
-import Script from 'next/script'
 
 import type { GAParams } from '../types/google'
+import Script from 'next/script'
 
 declare global {
   interface Window {
@@ -14,7 +15,7 @@ declare global {
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleAnalytics(props: GAParams) {
-  const { gaId, dataLayerName = 'dataLayer' } = props
+  const { gaId, dataLayerName = 'dataLayer', strategy } = props
 
   if (currDataLayerName === undefined) {
     currDataLayerName = dataLayerName
@@ -37,6 +38,7 @@ export function GoogleAnalytics(props: GAParams) {
     <>
       <Script
         id="_next-ga-init"
+        strategy={strategy}
         dangerouslySetInnerHTML={{
           __html: `
           window['${dataLayerName}'] = window['${dataLayerName}'] || [];
@@ -47,6 +49,7 @@ export function GoogleAnalytics(props: GAParams) {
         }}
       />
       <Script
+        strategy={strategy}
         id="_next-ga"
         src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
       />
