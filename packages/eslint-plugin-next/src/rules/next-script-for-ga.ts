@@ -7,7 +7,6 @@ const SUPPORTED_SRCS = [
 ]
 const SUPPORTED_HTML_CONTENT_URLS = [
   'www.google-analytics.com/analytics.js',
-  'www.googletagmanager.com/gtm.js',
 ]
 const description =
   'Prefer `next/script` component when using the inline script for Google Analytics.'
