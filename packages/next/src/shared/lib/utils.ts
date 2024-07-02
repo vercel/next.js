@@ -28,11 +28,8 @@ export type DocumentType = NextComponentType<
   DocumentProps
 >
 
-export type AppType<P = {}> = NextComponentType<
-  AppContextType,
-  P,
-  AppPropsType<any, P>
->
+export type AppType<P extends AppInitialProps = AppInitialProps> =
+  NextComponentType<AppContextType, P, AppPropsType<any, P>>
 
 export type AppTreeType = ComponentType<
   AppInitialProps & { [name: string]: any }
