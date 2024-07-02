@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
@@ -26,25 +26,42 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   if (skipped) return
 
+  const filesToPatchRuntime = [
+    'app/layout.js',
+    'app/route/route.js',
+    'app/route-streaming/route.js',
+  ]
+  const replaceRuntime = (contents: string, file: string) => {
+    const placeholder = `// export const runtime = 'REPLACE_ME'`
+
+    if (!contents.includes(placeholder)) {
+      throw new Error(`Placeholder "${placeholder}" not found in ${file}`)
+    }
+
+    return contents.replace(
+      placeholder,
+      `export const runtime = '${runtimeValue}'`
+    )
+  }
+
+  const runtimePatches = new Map<
+    string,
+    string | ((contents: string) => string)
+  >(
+    filesToPatchRuntime.map(
+      (file) =>
+        [file, (contents: string) => replaceRuntime(contents, file)] as const
+    )
+  )
+
   {
     const originalContents: Record<string, string> = {}
 
     beforeAll(async () => {
-      const placeholder = `// export const runtime = 'REPLACE_ME'`
-
-      const filesToPatch = ['app/layout.js', 'app/route/route.js']
-
-      for (const file of filesToPatch) {
+      for (const file of filesToPatchRuntime) {
         await next.patchFile(file, (contents) => {
-          if (!contents.includes(placeholder)) {
-            throw new Error(`Placeholder "${placeholder}" not found in ${file}`)
-          }
           originalContents[file] = contents
-
-          return contents.replace(
-            placeholder,
-            `export const runtime = '${runtimeValue}'`
-          )
+          return replaceRuntime(contents, file)
         })
       }
     })
@@ -286,6 +303,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const { cleanup } = await sandbox(
       next,
       new Map([
+        ...runtimePatches,
         [
           // this needs to be injected as early as possible, before the server tries to read the context
           // (which may be even before we load the page component in dev mode)
@@ -316,6 +334,97 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     }
   })
 
+  if (!isNextDev) {
+    describe('keeps the invocation alive if after() is called late during streaming', () => {
+      const setup = async () => {
+        const { cleanup } = await patchSandbox(
+          next,
+          new Map<string, string | ((contents: string) => string)>([
+            ...runtimePatches,
+            [
+              'app/layout.js',
+              (contents) => {
+                contents = replaceRuntime(contents, 'app/layout.js')
+
+                contents = contents.replace(
+                  `// export const dynamic = 'REPLACE_ME'`,
+                  `export const dynamic = 'force-dynamic'`
+                )
+
+                return contents
+              },
+            ],
+            [
+              'utils/simulated-invocation.js',
+              (contents) => {
+                return contents.replace(
+                  `const shouldInstallShutdownHook = false`,
+                  `const shouldInstallShutdownHook = true`
+                )
+              },
+            ],
+            [
+              // this needs to be injected as early as possible, before the server tries to read the context
+              // (which may be even before we load the page component in dev mode)
+              'instrumentation.js',
+              outdent`
+                import { injectRequestContext } from './utils/simulated-invocation'
+                export function register() {
+                  injectRequestContext();
+                }
+              `,
+            ],
+          ])
+        )
+
+        return cleanup
+      }
+
+      /* eslint-disable jest/no-standalone-expect */
+      const it_failingForEdge = runtimeValue === 'edge' ? it.failing : it
+
+      it_failingForEdge('during render', async () => {
+        const cleanup = await setup()
+        try {
+          const response = await next.fetch('/delay-deep')
+          expect(response.status).toBe(200)
+          await response.text()
+          await retry(() => {
+            expect(getLogs()).toContainEqual('simulated-invocation :: end')
+          }, 10_000)
+
+          expect(getLogs()).toContainEqual({
+            source: '[page] /delay-deep (Inner2) - after',
+          })
+        } finally {
+          await cleanup()
+        }
+      })
+
+      it_failingForEdge(
+        'in a route handler that streams a response',
+        async () => {
+          const cleanup = await setup()
+          try {
+            const response = await next.fetch('/route-streaming')
+            expect(response.status).toBe(200)
+            await response.text()
+            await retry(() => {
+              expect(getLogs()).toContainEqual('simulated-invocation :: end')
+            }, 10_000)
+
+            expect(getLogs()).toContainEqual({
+              source: '[route handler] /route-streaming - after',
+            })
+          } finally {
+            await cleanup()
+          }
+        }
+      )
+      /* eslint-enable jest/no-standalone-expect */
+    })
+  }
+
   if (isNextDev) {
     // TODO: these are at the end because they destroy the next server.
     // is there a cleaner way to do this without making the tests slower?
@@ -327,12 +436,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           const { session, cleanup } = await sandbox(
             next,
             new Map([
+              ...runtimePatches,
               [
                 'app/static/page.js',
-                (await next.readFile('app/static/page.js')).replace(
-                  `// export const dynamic = 'REPLACE_ME'`,
-                  `export const dynamic = '${dynamicValue}'`
-                ),
+                (contents) =>
+                  contents.replace(
+                    `// export const dynamic = 'REPLACE_ME'`,
+                    `export const dynamic = '${dynamicValue}'`
+                  ),
               ],
             ]),
             '/static'
@@ -354,12 +465,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         const { session, cleanup } = await sandbox(
           next,
           new Map([
+            ...runtimePatches,
             [
               'app/invalid-in-client/page.js',
-              (await next.readFile('app/invalid-in-client/page.js')).replace(
-                `// 'use client'`,
-                `'use client'`
-              ),
+              (contents) => contents.replace(`// 'use client'`, `'use client'`),
             ],
           ]),
           '/invalid-in-client'
@@ -394,4 +503,25 @@ function timeoutPromise(duration: number, message = 'Timeout') {
       reject(new Error(message))
     )
   )
+}
+
+async function patchSandbox(
+  next: NextInstance,
+  files: Map<string, string | ((contents: string) => string)>
+) {
+  await next.stop()
+  await next.clean()
+
+  for (const [file, newContents] of files) {
+    await next.patchFile(file, newContents)
+  }
+
+  await next.start()
+
+  const cleanup = async () => {
+    await next.stop()
+    await next.clean()
+  }
+
+  return { cleanup }
 }

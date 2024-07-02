@@ -452,6 +452,10 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.clearTimeout = (timeout: number) =>
         timeoutsManager.remove(timeout)
 
+      if (process.env.__NEXT_TEST_MODE) {
+        context.__next_outer_globalThis__ = globalThis
+      }
+
       return context
     },
   })
