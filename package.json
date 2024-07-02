@@ -57,7 +57,8 @@
     "version": "pnpm install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky",
     "sync-react": "node ./scripts/sync-react.js",
-    "update-google-fonts": "node ./scripts/update-google-fonts.js"
+    "update-google-fonts": "node ./scripts/update-google-fonts.js",
+    "swc-build-native": "pnpm --filter=@next/swc build-native"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -234,7 +235,7 @@
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
     "tsec": "0.2.1",
-    "turbo": "2.0.3",
+    "turbo": "2.0.6-canary.0",
     "typescript": "5.4.5",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
@@ -262,9 +263,9 @@
   },
   "engines": {
     "node": ">=18.17.0",
-    "pnpm": "8.15.7"
+    "pnpm": "9.4.0"
   },
-  "packageManager": "pnpm@8.15.7",
+  "packageManager": "pnpm@9.4.0",
   "pnpm": {
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"

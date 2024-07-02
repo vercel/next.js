@@ -41,7 +41,6 @@ import {
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
-import type { VersionInfo } from './parse-version-info'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -504,7 +503,7 @@ export async function createHotReloaderTurbopack(
     )
   )
   const overlayMiddleware = getOverlayMiddleware(project)
-  const versionInfo: VersionInfo = await getVersionInfo(
+  const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
 
@@ -666,15 +665,19 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        const sync: SyncAction = {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
-          errors,
-          warnings: [],
-          hash: '',
-          versionInfo,
-        }
+        ;(async function () {
+          const versionInfo = await versionInfoPromise
 
-        sendToClient(client, sync)
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
+
+          sendToClient(client, sync)
+        })()
       })
     },
 
