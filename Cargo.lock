@@ -6922,9 +6922,9 @@ dependencies = [
 
 [[package]]
 name = "triomphe"
-version = "0.1.11"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "859eb650cfee7434994602c3a68b25d77ad9e68c8a6cd491616ef86661382eb3"
+checksum = "e6631e42e10b40c0690bf92f404ebcfe6e1fdb480391d15f17cc8e96eeed5369"
 dependencies = [
  "serde",
  "stable_deref_trait",
