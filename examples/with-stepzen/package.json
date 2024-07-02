@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "stepzen whoami --account && npm run nextjs-and-stepzen || stepzen login",
+    "nextjs-and-stepzen": "concurrently -n NextJS,StepZen \"npm run nextjs\" \"npm run stepzen\"",
+    "build": "next build",
+    "start": "next start",
+    "nextjs": "next dev",
+    "stepzen": "stepzen start --dir ./stepzen"
+  },
+  "dependencies": {
+    "graphiql": "^2.1.0",
+    "graphql": "^16.6.0",
+    "node-fetch": "^3.3.0",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^7.5.0",
+    "stepzen": "^0.24.0-beta.2"
+  }
+}
