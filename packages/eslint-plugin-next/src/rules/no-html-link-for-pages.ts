@@ -20,6 +20,10 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
+// Cache for pageUrls list.
+// Prevents creating the array multiple times and triggering gc.
+let pageUrls
+
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
 export = defineRule({
@@ -92,8 +96,7 @@ export = defineRule({
       return {}
     }
 
-    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
-    return {
+      return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
           return
@@ -133,6 +136,8 @@ export = defineRule({
         if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
           return
         }
+
+        pageUrls ||= getUrlFromPagesDirectories('/', foundPagesDirs)
 
         pageUrls.forEach((pageUrl) => {
           if (pageUrl.test(normalizeURL(hrefPath))) {
