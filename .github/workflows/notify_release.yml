@@ -4,9 +4,6 @@ name: Notify new Next.js release
 on:
   release:
     types: [published]
-  push:
-    branches:
-      - sebbie/06-01-automatically_trigger_sync_with_vercel.com_on_release
 jobs:
   notify:
     runs-on: ubuntu-latest
