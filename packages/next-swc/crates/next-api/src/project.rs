@@ -5,7 +5,7 @@ use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
+    get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
     get_edge_compile_time_info, get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
@@ -1072,17 +1072,14 @@ impl Project {
             let client_relative_path = self.client_relative_path();
             let node_root = self.node_root();
 
-            self.await?
-                .versioned_content_map
-                .insert_output_assets(all_output_assets, client_relative_path, node_root)
-                .await?;
-
-            Ok(emit_assets(
-                *all_output_assets.await?,
-                self.node_root(),
+            let completion = self.await?.versioned_content_map.insert_output_assets(
+                all_output_assets,
+                node_root,
                 client_relative_path,
                 node_root,
-            ))
+            );
+
+            Ok(completion)
         }
         .instrument(span)
         .await
