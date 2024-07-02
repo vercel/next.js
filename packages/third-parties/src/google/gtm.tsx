@@ -36,12 +36,9 @@ export function GoogleTagManager(props: GTMParams) {
       <Script
         id="_next-gtm-init"
         dangerouslySetInnerHTML={{
-          __html: `
-      (function(w,l){
-        w[l]=w[l]||[];
-        w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
-        ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
-      })(window,'${dataLayerName}');`,
+          __html: `(function(w,l){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});${
+            dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''
+          }})(window,'${dataLayerName}');`,
         }}
       />
       <Script
