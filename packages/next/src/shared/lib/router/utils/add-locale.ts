@@ -24,7 +24,11 @@ export function addLocale(
     if (pathHasPrefix(lower, '/api')) return path
     if (pathHasPrefix(lower, `/${locale.toLowerCase()}`)) return path
   }
-
+  // In home page of non-default languages its unclear if the full path was
+  // "/fr" or "/fr/". So follow __NEXT_TRAILING_SLASH in this case.
+  if (path == '/' && !process.env.__NEXT_TRAILING_SLASH) {
+    return `/${locale}`
+  }
   // Add the locale prefix to the path.
   return addPathPrefix(path, `/${locale}`)
 }

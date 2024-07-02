@@ -2,8 +2,10 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
+import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import fs from 'fs'
 
 describe('skip-trailing-slash-redirect', () => {
   let next: NextInstance
@@ -361,6 +363,49 @@ describe('skip-trailing-slash-redirect', () => {
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
 
     expect(await browser.eval('location.pathname')).toBe('/another/')
+  })
+
+  it('should render links to home page without trailing slash unless trailingSlash config', async () => {
+    const curNextConfig = fs.readFileSync(
+      path.join(__dirname, 'app/next.config.js'),
+      { encoding: 'utf-8' }
+    )
+    await next.stop()
+    await next.patchFile(
+      'next.config.js',
+      curNextConfig.replace(
+        'skipTrailingSlashRedirect: true,',
+        'skipTrailingSlashRedirect: true, trailingSlash: true,'
+      )
+    )
+    await next.start()
+
+    let browser = await webdriver(next.url, '/ja-jp/another')
+    browser.waitForElementByCss('#to-index')
+    expect(
+      new URL(
+        await browser.elementByCss('#to-index').getAttribute('href'),
+        'http://n/'
+      ).pathname
+    ).toBe(`/ja-jp/`)
+
+    await next.stop()
+    await next.patchFile(
+      'next.config.js',
+      curNextConfig.replace(
+        'skipTrailingSlashRedirect: true, trailingSlash: true,',
+        'skipTrailingSlashRedirect: true,'
+      )
+    )
+    await next.start()
+
+    browser = await webdriver(next.url, '/ja-jp/another')
+    expect(
+      new URL(
+        await browser.elementByCss('#to-index').getAttribute('href'),
+        'http://n/'
+      ).pathname
+    ).toBe(`/ja-jp`)
   })
 
   describe('pages dir', () => {
