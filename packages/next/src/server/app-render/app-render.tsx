@@ -103,7 +103,6 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -232,11 +231,6 @@ function makeGetDynamicParamFromSegment(
     const key = segmentParam.param
 
     let value = params[key]
-
-    // this is a special marker that will be present for interception routes
-    if (value === '__NEXT_EMPTY_PARAM__') {
-      value = undefined
-    }
 
     if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
@@ -820,16 +814,10 @@ async function renderToHTMLOrFlightImpl(
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request
    * is not a client-side navigation request or if the request is a prefetch
-   * request (except when it's a prefetch request for an interception route
-   * which is always dynamic).
+   * request.
    */
   const shouldProvideFlightRouterState =
-    isRSCRequest &&
-    (!isPrefetchRSCRequest ||
-      !isRoutePPREnabled ||
-      // Interception routes currently depend on the flight router state to
-      // extract dynamic params.
-      isInterceptionRouteAppPath(pagePath))
+    isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
 
   const parsedFlightRouterState = parseAndValidateFlightRouterState(
     req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
