@@ -163,7 +163,7 @@
     "@next/swc": "15.0.0-canary.50",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
-    "@swc/core": "1.5.7",
+    "@swc/core": "1.6.6",
     "@swc/types": "0.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
