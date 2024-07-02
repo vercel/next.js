@@ -83,7 +83,7 @@ const loadScript = (props: ScriptProps): void => {
     LoadCache.add(cacheKey)
     // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
     // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
-    ScriptCache.get(src).then(onLoad, onError)
+    ScriptCache.get(src).then(onLoad)
     return
   }
 
@@ -114,6 +114,8 @@ const loadScript = (props: ScriptProps): void => {
     if (onError) {
       onError(e)
     }
+
+    ScriptCache.delete(src)
   })
 
   if (dangerouslySetInnerHTML) {
