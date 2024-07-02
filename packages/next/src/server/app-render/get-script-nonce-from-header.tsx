@@ -10,8 +10,9 @@ export function getScriptNonceFromHeader(
 
   // First try to find the directive for the 'script-src', otherwise try to
   // fallback to the 'default-src'.
+  // Note the space after 'script-src' is required to ignore script-src-attr and script-src-elem
   const directive =
-    directives.find((dir) => dir.startsWith('script-src')) ||
+    directives.find((dir) => dir.startsWith('script-src ')) ||
     directives.find((dir) => dir.startsWith('default-src'))
 
   // If no directive could be found, then we're done.
