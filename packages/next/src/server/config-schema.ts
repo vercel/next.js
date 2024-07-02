@@ -386,12 +386,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ])
               )
               .optional(),
-            resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
           })
           .optional(),
+        resolveExtensions: z.array(z.string()).optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         instrumentationHook: z.boolean().optional(),

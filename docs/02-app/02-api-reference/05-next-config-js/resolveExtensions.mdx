@@ -1,0 +1,30 @@
+---
+title: resolveExtensions
+description: Use the `resolveExtensions` option to define the list and order of extensions that Webpack and Turbopack will attempt to resolve.
+version: experimental
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+Through `experimental.resolveExtensions`, Turbopack and Webpack can be configured to resolve modules with custom extensions, as in Webpack's [`resolve.extensions`](https://webpack.js.org/configuration/resolve/#resolveextensions) configuration. The order of the extensions in the array defines the order in which extensions are attempted to be resolved. Affects both Turbopack and Webpack.
+
+If not specified, it takes the default value `['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.node']`.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
+  },
+}
+```
+
+This overwrites the original resolve extensions with the provided list. Make sure to include the default extensions.
+
+For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
+
+## Version History
+
+| Version   | Changes                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0` | `resolveExtensions` moved up one level to `experimental.resolveExtensions`, which now affects both Turbopack and Webpack. |
+| `v14.1.1` | `experimental.turbo.resolveExtensions` is used to configure resolve extensions in Turbopack.                              |

@@ -5,13 +5,7 @@ const extensions = ['', '.png', '.tsx', '.ts', '.jsx', '.js', '.json']
  */
 const nextConfig = {
   experimental: {
-    turbo: {
-      resolveExtensions: [...extensions],
-    },
-  },
-  webpack(config) {
-    config.resolve.extensions = [...extensions]
-    return config
+    resolveExtensions: [...extensions],
   },
 }
 

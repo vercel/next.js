@@ -397,7 +397,6 @@ pub struct ExperimentalTurboConfig {
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
     pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
-    pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
 }
@@ -502,6 +501,7 @@ pub struct ExperimentalConfig {
     pub web_vitals_attribution: Option<Vec<RcStr>>,
     pub server_actions: Option<ServerActionsOrLegacyBool>,
     pub sri: Option<SubResourceIntegrity>,
+    pub resolve_extensions: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
 
     // ---
@@ -940,12 +940,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn resolve_extension(self: Vc<Self>) -> Result<Vc<ResolveExtensions>> {
         let this = self.await?;
-        let Some(resolve_extensions) = this
-            .experimental
-            .turbo
-            .as_ref()
-            .and_then(|t| t.resolve_extensions.as_ref())
-        else {
+        let Some(resolve_extensions) = this.experimental.resolve_extensions.as_ref() else {
             return Ok(Vc::cell(None));
         };
         Ok(Vc::cell(Some(resolve_extensions.clone())))

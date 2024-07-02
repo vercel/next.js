@@ -124,13 +124,6 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
-   * (`next --turbo` only) A list of extensions to resolve when importing files.
-   *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
-   */
-  resolveExtensions?: string[]
-
-  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -302,6 +295,14 @@ export interface ExperimentalConfig {
   adjustFontFallbacksWithSizeAdjust?: boolean
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
+
+  /**
+   * A list of extensions to resolve when importing files.
+   * The default value is `['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.node']`.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/resolve-extensions)
+   */
+  resolveExtensions?: string[]
 
   /**
    * Automatically apply the "modularizeImports" optimization to imports of the specified packages.
