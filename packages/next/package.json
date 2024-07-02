@@ -298,7 +298,7 @@
     "server-only": "0.0.1",
     "setimmediate": "1.0.5",
     "shell-quote": "1.7.3",
-    "source-map": "0.6.1",
+    "source-map": "0.7.4",
     "source-map-loader": "5.0.0",
     "source-map08": "npm:source-map@0.8.0-beta.0",
     "stacktrace-parser": "0.1.10",
