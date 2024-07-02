@@ -1,13 +1,11 @@
 'use client'
-
-import Link from 'next/link'
-import Image from 'next/image'
 import testImage from '../../public/test.jpg'
+import Image from 'next/image'
 
 export default function Page() {
   return (
     <>
-      <p>hello app</p>
+      <h1>other app</h1>
       <Image src={testImage} alt="test" />
       <p id="deploymentId">{process.env.NEXT_DEPLOYMENT_ID}</p>
 
@@ -21,9 +19,6 @@ export default function Page() {
       >
         click me
       </button>
-      <Link id="other-app" href="/other-app">
-        other app
-      </Link>
     </>
   )
 }
