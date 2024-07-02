@@ -34,7 +34,6 @@ import {
   continueDynamicHTMLResume,
   continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
-import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -161,54 +160,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   return ['', {}, loaderTree[2]]
 }
 
-/* This method is important for intercepted routes to function:
- * when a route is intercepted, e.g. /blog/[slug], it will be rendered
- * with the layout of the previous page, e.g. /profile/[id]. The problem is
- * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
- * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
- * so we need to read it from the router state.
- */
-function findDynamicParamFromRouterState(
-  flightRouterState: FlightRouterState | undefined,
-  segment: string
-): {
-  param: string
-  value: string | string[] | null
-  treeSegment: Segment
-  type: DynamicParamTypesShort
-} | null {
-  if (!flightRouterState) {
-    return null
-  }
-
-  const treeSegment = flightRouterState[0]
-
-  if (canSegmentBeOverridden(segment, treeSegment)) {
-    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
-      return null
-    }
-
-    return {
-      param: treeSegment[0],
-      value: treeSegment[1],
-      treeSegment: treeSegment,
-      type: treeSegment[2],
-    }
-  }
-
-  for (const parallelRouterState of Object.values(flightRouterState[1])) {
-    const maybeDynamicParam = findDynamicParamFromRouterState(
-      parallelRouterState,
-      segment
-    )
-    if (maybeDynamicParam) {
-      return maybeDynamicParam
-    }
-  }
-
-  return null
-}
-
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
@@ -216,8 +167,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  pagePath: string,
-  flightRouterState: FlightRouterState | undefined
+  pagePath: string
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -277,8 +227,6 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
-
-      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -842,10 +790,7 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    pagePath,
-    // `FlightRouterState` is unconditionally provided here because this method uses it
-    // to extract dynamic params as a fallback if they're not present in the path.
-    parsedFlightRouterState
+    pagePath
   )
 
   // Get the nonce from the incoming request if it has one.
