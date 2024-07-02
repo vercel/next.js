@@ -36,7 +36,7 @@ export function AlternatesMetadata({
     languages
       ? Object.entries(languages).flatMap(([locale, descriptors]) =>
           descriptors?.map((descriptor) =>
-            AlternateLink({ rel: 'alternate', hrefLang: locale, descriptor })
+            AlternateLink({ rel: 'alternate', hreflang: locale, descriptor })
           )
         )
       : null,
