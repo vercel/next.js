@@ -65,7 +65,7 @@ jobs:
           # Note `workflow_id` and `inputs` are contract between vercel/front,
           # if these need to be changed both side should be updated accordingly.
           script: |
-            github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
+            await github.request('POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches', {
               owner: 'vercel',
               repo: 'front',
               workflow_id: 'cron-update-next.yml',
@@ -74,5 +74,7 @@ jobs:
                 version: '${{ steps.version.outputs.value }}'
               }
             })
-            # Ideally we'd include a URL to the started sync.
+            # Ideally we'd include a URL to this specific sync.
             # However, creating a workflow_dispatch event does not produce an ID: https://github.com/orgs/community/discussions/9752
+            console.info('Sync started in https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch')
+            console.info('This may not start a new sync if one is already in progress. Check the logs of the cron-update-next Workflow run.')
