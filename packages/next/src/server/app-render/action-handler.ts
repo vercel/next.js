@@ -182,7 +182,7 @@ async function createForwardedActionResponse(
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
   try {
-    let body: BodyInit | AsyncIterable<any> | undefined
+    let body: BodyInit | ReadableStream<Uint8Array> | undefined
     if (
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
