@@ -403,7 +403,7 @@ export async function handleRouteType({
 
         await manifestLoader.writeManifests({
           rewrites,
-          pageEntrypoints: entrypoints.page,
+          entrypoints,
         })
 
         processIssues(
@@ -461,7 +461,7 @@ export async function handleRouteType({
 
       await manifestLoader.writeManifests({
         rewrites,
-        pageEntrypoints: entrypoints.page,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
@@ -505,7 +505,7 @@ export async function handleRouteType({
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
-        pageEntrypoints: entrypoints.page,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
@@ -530,7 +530,7 @@ export async function handleRouteType({
 
       await manifestLoader.writeManifests({
         rewrites,
-        pageEntrypoints: entrypoints.page,
+        entrypoints,
       })
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
@@ -785,7 +785,7 @@ export async function handleEntrypoints({
     )
     await manifestLoader.writeManifests({
       rewrites: rewrites,
-      pageEntrypoints: currentEntrypoints.page,
+      entrypoints: currentEntrypoints,
     })
 
     if (dev) {
@@ -843,7 +843,7 @@ export async function handleEntrypoints({
       )
       await manifestLoader.writeManifests({
         rewrites: rewrites,
-        pageEntrypoints: currentEntrypoints.page,
+        entrypoints: currentEntrypoints,
       })
 
       finishBuilding?.()
@@ -994,7 +994,7 @@ export async function handlePagesErrorRoute({
 
   await manifestLoader.writeManifests({
     rewrites,
-    pageEntrypoints: entrypoints.page,
+    entrypoints,
   })
 }
 

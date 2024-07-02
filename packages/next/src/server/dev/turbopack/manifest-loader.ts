@@ -22,6 +22,7 @@ import {
   PAGES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
 import { readFile, writeFile } from 'fs/promises'
@@ -35,7 +36,7 @@ import {
   srcEmptySsgManifest,
   processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
-import type { PageEntrypoints } from './types'
+import type { Entrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 
@@ -294,7 +295,7 @@ export class TurbopackManifestLoader {
   }
 
   private async writeBuildManifest(
-    pageEntrypoints: PageEntrypoints,
+    entrypoints: Entrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
     const processedRewrites = {
@@ -338,15 +339,22 @@ export class TurbopackManifestLoader {
       )};`
     )
 
+    const pagesKeys = [...entrypoints.page.keys()]
+    if (entrypoints.global.app) {
+      pagesKeys.push('/_app')
+    }
+    if (entrypoints.global.error) {
+      pagesKeys.push('/_error')
+    }
     const content: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(processedRewrites) as any,
       ...Object.fromEntries(
-        [...pageEntrypoints.keys()].map((pathname) => [
+        pagesKeys.map((pathname) => [
           pathname,
-          `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
+          [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
         ])
       ),
-      sortedPages: [...pageEntrypoints.keys()],
+      sortedPages: pagesKeys,
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -358,6 +366,26 @@ export class TurbopackManifestLoader {
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),
       srcEmptySsgManifest
+    )
+  }
+
+  private async writeClientMiddlewareManifest(): Promise<void> {
+    const middlewareManifest = this.mergeMiddlewareManifests(
+      this.middlewareManifests.values()
+    )
+
+    const matchers = middlewareManifest?.middleware['/']?.matchers || []
+
+    const clientMiddlewareManifestPath = join(
+      this.distDir,
+      'static',
+      this.buildId,
+      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+    )
+    deleteCache(clientMiddlewareManifestPath)
+    await writeFileAtomic(
+      clientMiddlewareManifestPath,
+      JSON.stringify(matchers, null, 2)
     )
   }
 
@@ -602,19 +630,20 @@ export class TurbopackManifestLoader {
 
   async writeManifests({
     rewrites,
-    pageEntrypoints,
+    entrypoints,
   }: {
     rewrites: SetupOpts['fsChecker']['rewrites']
-    pageEntrypoints: PageEntrypoints
+    entrypoints: Entrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
     await this.writeAutomaticFontOptimizationManifest()
-    await this.writeBuildManifest(pageEntrypoints, rewrites)
+    await this.writeBuildManifest(entrypoints, rewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()
+    await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
   }
