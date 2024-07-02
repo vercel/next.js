@@ -412,10 +412,12 @@ export function Signup() {
 }
 ```
 
-Note that it is important to return an object instead of throwing an error here, because uncaught errors in Server Actions are considered to be internal server error and the error message [will not be sent to the client](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) in production to avoid leaking sensitive information. See more information on [error handling](#error-handling) in Server Actions.
+
 
 > **Good to know:**
 >
+> - To display form errors in the user UI, you should return a **serializable object** instead of throwing an error (e.g. `throw new Error('...')`. Uncaught errors in Server Actions are considered to be an internal server error and the error message [will not be sent to the client](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) in production to avoid leaking sensitive information. See more information on [error handling](#error-handling) in Server Actions.
+> - Throwing errors will trigger the nearest the nearest `error.js` boundary - see [Error Handling](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#error-handling)
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 > - In earlier React Canary versions, this API was part of React DOM and called `useFormState`.
 
@@ -689,7 +691,7 @@ Remember to consider the [behavior and caveats](https://react.dev/reference/reac
 
 Uncaught errors in Server Actions are considered to be internal server errors. As a result, in production, the error message is omitted and instead [a generic error with a digest](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) is sent to avoid leaking potentially sensitive information.
 
-Therefore, if you want to return a user-friendly error message to be displayed in the UI, you should return a serializable object with the error message, rather than throwing an error:
+To return a user-friendly error message to be displayed in the UI, you should return a **serializable object** with the error message, rather than throwing an error:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -697,7 +699,7 @@ Therefore, if you want to return a user-friendly error message to be displayed i
 export async function signIn(formData: FormData) {
   const passwordIsCorrect = await checkPassword(formData.get('password'))
   if (!passwordIsCorrect) {
-    return { error: 'Incorrect password' }
+    return { error: 'Invalid email or password' }
   }
   // ...
 }
@@ -709,17 +711,17 @@ export async function signIn(formData: FormData) {
 export async function signIn(formData) {
   const passwordIsCorrect = await checkPassword(formData.get('password'))
   if (!passwordIsCorrect) {
-    return { error: 'Incorrect password' }
+    return { error: 'Incorrect email or password' }
   }
   // ...
 }
 ```
 
-In the client, you can then use the returned object to display the error message. We recommend using the [`useActionState`](https://react.dev/reference/react/useActionState) hook to simplify this process. See [Server-side form validation](#server-side-form-validation) for an example.
+We recommend using the [`useActionState`](https://react.dev/reference/react/useActionState) hook to display the error message. See [Server-side form validation](#server-side-form-validation) for an example.
 
 #### Server Errors
 
-When an **unexpected** error occurs, it'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. Therefore you can use `error.js` to let the user know that something has gone wrong.
+When an **unexpected** server error occurs, you can throw an error that'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. 
 
 ```tsx filename="app/dashboard/error.tsx" switcher
 'use client' // Error components must be Client Components
