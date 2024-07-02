@@ -187,14 +187,14 @@ const PAGES: Record<
     group: 'global',
     conflict: true,
     url: '/global-first',
-    selector: '#hello',
+    selector: '#hello1',
     color: 'rgb(0, 255, 0)',
   },
   'global-second': {
     group: 'global',
     conflict: true,
     url: '/global-second',
-    selector: '#hello',
+    selector: '#hello2',
     color: 'rgb(0, 0, 255)',
   },
 }
