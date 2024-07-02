@@ -1,0 +1,25 @@
+{
+  "typescript.tsdk": ".yarn/sdks/typescript/lib",
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "search.exclude": {
+    "package-lock.json": true,
+    "**/.yarn": true,
+    "**/.pnp.*": true
+  },
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.addMissingImports": "explicit"
+  },
+  "jest.autoRun": {
+    "watch": false // Start the jest with the watch flag
+    // "onStartup": ["all-tests"] // Run all tests upon project launch
+  },
+  "jest.showCoverageOnLoad": true, // Show code coverage when the project is launched
+  "jest.showTerminalOnLaunch": false, // Don't automatically open test explorer terminal on launch
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "eslint.nodePath": ".yarn/sdks",
+  "prettier.prettierPath": ".yarn/sdks/prettier/index.cjs"
+}

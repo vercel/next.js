@@ -1,0 +1,14 @@
+{
+  "name": "eslint",
+  "version": "8.57.0-sdk",
+  "main": "./lib/api.js",
+  "type": "commonjs",
+  "bin": {
+    "eslint": "./bin/eslint.js"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./lib/api.js",
+    "./use-at-your-own-risk": "./lib/unsupported-api.js"
+  }
+}

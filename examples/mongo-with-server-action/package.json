@@ -1,0 +1,60 @@
+{
+  "name": "next-ts-template-fullstack-bysxx",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "description": "Fullstack Next.js + TypeScript Template",
+  "author": "bysxx <0415white@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bysxx/next13-ts-template-fullstack"
+  },
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "format": "next lint --fix && prettier '**/*.{json,yaml}' --write",
+    "type": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "mongoose": "^8.3.1",
+    "next": "^14.2.4",
+    "postcss": "^8.4.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.3"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^15.0.1",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.2.77",
+    "@types/react-dom": "^18.2.25",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
+    "eslint": "^8.57.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb-typescript": "^18.0.0",
+    "eslint-config-next": "^14.2.4",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jest": "^28.2.0",
+    "eslint-plugin-jest-dom": "^5.2.0",
+    "eslint-plugin-jest-formatting": "^3.1.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-simple-import-sort": "^12.0.0",
+    "eslint-plugin-tailwindcss": "^3.15.1",
+    "eslint-plugin-unused-imports": "^3.1.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "yarn@4.3.1"
+}
