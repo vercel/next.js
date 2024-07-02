@@ -38,8 +38,8 @@ turbopack-binding = { workspace = true, features = [
 ] }
 # To allow quote! macro works
 swc_core = { workspace = true, features = ["ecma_quote"] }
-react_remove_properties = "0.24.14"
-remove_console = "0.25.14"
+react_remove_properties = "0.24.15"
+remove_console = "0.25.15"
 preset_env_base = "0.4.12"
 
 [dev-dependencies]
