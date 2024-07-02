@@ -202,7 +202,7 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -326,7 +326,7 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{}", i).into(), DUMMY_SP).into(),
+                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -1228,7 +1228,7 @@ fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declar
 }
 
 fn gen_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$ACTION_{}", cnt).into();
+    let id: JsWord = format!("$$ACTION_{cnt}").into();
     *cnt += 1;
     id
 }
@@ -1402,9 +1402,8 @@ fn remove_server_directive_index_in_module(
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use server\"? \"{}\" is not a supported \
-                                         directive name.",
-                                        value
+                                        "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                         directive name."
                                     )
                                     .as_str(),
                                 )
@@ -1507,9 +1506,8 @@ fn remove_server_directive_index_in_fn(
                             .struct_span_err(
                                 *span,
                                 format!(
-                                    "Did you mean \"use server\"? \"{}\" is not a supported \
-                                     directive name.",
-                                    value
+                                    "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                     directive name."
                                 )
                                 .as_str(),
                             )
@@ -1635,7 +1633,7 @@ impl VisitMut for ClosureReplacer<'_> {
         if let Some(index) = self.index(e) {
             *e = Expr::Ident(Ident::new(
                 // $$ACTION_ARG_0
-                format!("$$ACTION_ARG_{}", index).into(),
+                format!("$$ACTION_ARG_{index}").into(),
                 DUMMY_SP,
             ));
         }
@@ -1651,7 +1649,7 @@ impl VisitMut for ClosureReplacer<'_> {
                     key: PropName::Ident(i.clone()),
                     value: Box::new(Expr::Ident(Ident::new(
                         // $$ACTION_ARG_0
-                        format!("$$ACTION_ARG_{}", index).into(),
+                        format!("$$ACTION_ARG_{index}").into(),
                         DUMMY_SP,
                     ))),
                 })));
