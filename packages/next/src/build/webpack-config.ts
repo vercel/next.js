@@ -89,6 +89,7 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
+import { DEFAULT_TRANSPILE_PACKAGES } from './constants'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -97,8 +98,6 @@ type ClientEntries = {
 
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
-
-const DEFAULT_TRANSPILE_PACKAGES: string[] = ['geist']
 
 export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
@@ -859,6 +858,7 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackages,
     optOutBundlingPackageRegex,
+    transpiledPackages: finalTranspilePackages,
     dir,
   })
 
