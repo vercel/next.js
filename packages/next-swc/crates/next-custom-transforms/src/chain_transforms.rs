@@ -109,6 +109,23 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub optimize_server_react: Option<crate::transforms::optimize_server_react::Config>,
+
+    #[serde(default)]
+    pub decorator_version: DecoratorVersion,
+}
+
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub enum DecoratorVersion {
+    #[default]
+    #[serde(rename = "legacy")]
+    Legacy,
+
+    #[serde(rename = "2021-12")]
+    V202112,
+
+    #[serde(rename = "2022-03")]
+    V202203,
 }
 
 pub fn custom_before_pass<'a, C>(
