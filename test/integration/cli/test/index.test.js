@@ -52,7 +52,8 @@ const runAndCaptureOutput = async ({ port }) => {
 const testExitSignal = async (
   killSignal = '',
   args = [],
-  readyRegex = /Creating an optimized production/
+  readyRegex = /Creating an optimized production/,
+  expectedCode = 0
 ) => {
   let instance
   const killSigint = (inst) => {
@@ -76,7 +77,7 @@ const testExitSignal = async (
   // See: https://nodejs.org/api/process.html#process_signal_events
   const expectedExitSignal = process.platform === `win32` ? killSignal : null
   expect(signal).toBe(expectedExitSignal)
-  expect(code).toBe(0)
+  expect(code).toBe(expectedCode)
 }
 
 describe('CLI Usage', () => {
@@ -101,7 +102,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGINT',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            130
           )
         })
         test('should exit when SIGTERM is signalled', async () => {
@@ -118,7 +120,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGTERM',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            143
           )
         })
 
@@ -342,11 +345,11 @@ describe('CLI Usage', () => {
         })
 
         test('should exit when SIGINT is signalled', async () => {
-          await testExitSignal('SIGINT', ['build', dirBasic])
+          await testExitSignal('SIGINT', ['build', dirBasic], undefined, 130)
         })
 
         test('should exit when SIGTERM is signalled', async () => {
-          await testExitSignal('SIGTERM', ['build', dirBasic])
+          await testExitSignal('SIGTERM', ['build', dirBasic], undefined, 143)
         })
 
         test('invalid directory', async () => {
@@ -830,11 +833,21 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const port = await findPort()
-      await testExitSignal('SIGINT', ['dev', dirBasic, '-p', port], /- Local:/)
+      await testExitSignal(
+        'SIGINT',
+        ['dev', dirBasic, '-p', port],
+        /- Local:/,
+        130
+      )
     })
     test('should exit when SIGTERM is signalled', async () => {
       const port = await findPort()
-      await testExitSignal('SIGTERM', ['dev', dirBasic, '-p', port], /- Local:/)
+      await testExitSignal(
+        'SIGTERM',
+        ['dev', dirBasic, '-p', port],
+        /- Local:/,
+        143
+      )
     })
 
     test('invalid directory', async () => {
