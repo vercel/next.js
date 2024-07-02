@@ -406,6 +406,9 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "no-loss-of-precision": [
       "off",
     ],
+    "no-new-native-nonconstructor": [
+      "off",
+    ],
     "no-new-symbol": [
       "off",
     ],

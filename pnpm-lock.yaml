@@ -780,10 +780,10 @@ importers:
         specifier: ^1.3.3
         version: 1.3.3
       '@typescript-eslint/eslint-plugin':
-        specifier: ^5.4.2 || ^6.0.0 || 7.0.0 - 7.2.0
+        specifier: ^5.4.2 || ^6.0.0 || ^7.0.0
         version: 6.14.0(@typescript-eslint/parser@6.14.0(eslint@8.31.0)(typescript@4.8.2))(eslint@8.31.0)(typescript@4.8.2)
       '@typescript-eslint/parser':
-        specifier: ^5.4.2 || ^6.0.0 || 7.0.0 - 7.2.0
+        specifier: ^5.4.2 || ^6.0.0 || ^7.0.0
         version: 6.14.0(eslint@8.31.0)(typescript@4.8.2)
       eslint:
         specifier: ^7.23.0 || ^8.0.0

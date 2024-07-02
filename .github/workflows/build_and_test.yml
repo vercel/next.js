@@ -197,7 +197,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
@@ -213,7 +213,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-turbopack-production-${{ matrix.group }}'
     secrets: inherit
@@ -229,7 +229,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
@@ -366,7 +366,7 @@ jobs:
           - 12/12
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-integration-${{ matrix.group }}'
     secrets: inherit
@@ -391,7 +391,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
