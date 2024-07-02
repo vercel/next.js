@@ -5,7 +5,9 @@ export async function generateStaticParams(s: string) {
   return 1
 }
 
-async function generateMetadata({ s }: { s: number }) {}
+async function generateMetadata({ s }: { s: number }) {
+  return 1
+}
 export { generateMetadata }
 
 export const foo = 'bar'

@@ -83,6 +83,11 @@ describe('app type checking', () => {
 
         // Avoid invalid return types for exported functions.
         expect(errors).toContain(
+          `"Promise<number>" is not a valid generateMetadata return type`
+        )
+
+        // Avoid invalid return types for exported functions.
+        expect(errors).toContain(
           `"Promise<number>" is not a valid generateStaticParams return type`
         )
 
