@@ -6,7 +6,7 @@ import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugi
 import type { ExportAppOptions } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
 
-import '../lib/setup-exception-listeners'
+import './lib/setup-exception-listeners'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
