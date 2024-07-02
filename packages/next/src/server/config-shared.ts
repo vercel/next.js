@@ -200,6 +200,10 @@ export interface ReactCompilerOptions {
 }
 
 export interface ExperimentalConfig {
+  /**
+   * Enable next.config.ts, defaults to true
+   */
+  nextConfigTs?: boolean
   flyingShuttle?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
@@ -991,6 +995,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
+    nextConfigTs: true,
   },
   bundlePagesRouterDependencies: false,
 }
