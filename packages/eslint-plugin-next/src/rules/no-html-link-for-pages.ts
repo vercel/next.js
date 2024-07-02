@@ -2,6 +2,7 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
+import getRuleOptions from '../utils/get-rule-options'
 
 import {
   getUrlFromPagesDirectories,
@@ -45,6 +46,40 @@ export = defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+            },
+          },
         ],
       },
     ],
@@ -54,14 +89,14 @@ export = defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    // TODO: get `pageExtensions` from `next.config.js`
+    const { pagesDir, pageExtensions } = getRuleOptions(context)
 
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
-      customPagesDirectory
-        ? [customPagesDirectory]
+      pagesDir.length > 0
+        ? pagesDir
         : rootDirs.map((dir) => [
             path.join(dir, 'pages'),
             path.join(dir, 'src', 'pages'),
@@ -92,7 +127,12 @@ export = defineRule({
       return {}
     }
 
-    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = getUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
