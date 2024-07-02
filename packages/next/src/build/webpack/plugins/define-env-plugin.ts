@@ -173,6 +173,9 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
+    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
+      config.devIndicators.appIsrStatus
+    ),
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,

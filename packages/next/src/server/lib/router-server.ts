@@ -1,6 +1,6 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler } from './router-utils/setup-dev-bundler'
+import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 import type { NextServer } from '../next'
 
@@ -41,6 +41,10 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type AppIsrManifestAction,
+} from '../dev/hot-reloader-types'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -53,6 +57,7 @@ export type RenderServer = Pick<
   | 'clearModuleContext'
   | 'deleteAppClientCache'
   | 'propagateServerField'
+  | 'getServerField'
 >
 
 export interface LazyRenderServerInstance {
@@ -603,7 +608,11 @@ export async function initialize(opts: {
     dev: !!opts.dev,
     server: opts.server,
     isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: developmentBundler?.serverFields || {},
+    serverFields: {
+      ...(developmentBundler?.serverFields || {}),
+      setAppIsrStatus:
+        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+    } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
@@ -660,7 +669,19 @@ export async function initialize(opts: {
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(req, socket, head)
+          return developmentBundler.hotReloader.onHMR(
+            req,
+            socket,
+            head,
+            (client) => {
+              client.send(
+                JSON.stringify({
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  data: devBundlerService?.appIsrManifest || {},
+                } satisfies AppIsrManifestAction)
+              )
+            }
+          )
         }
       }
 

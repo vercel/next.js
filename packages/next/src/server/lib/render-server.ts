@@ -47,6 +47,19 @@ export function deleteCache(filePaths: string[]) {
   }
 }
 
+export async function getServerField(
+  dir: string,
+  field: PropagateToWorkersField
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
+  }
+  const { app } = initialization
+  let appField = (app as any).server
+  return appField[field]
+}
+
 export async function propagateServerField(
   dir: string,
   field: PropagateToWorkersField,

@@ -31,6 +31,16 @@ module.exports = {
 }
 ```
 
+There is also an indicator to show whether a page will be prerendered during a build in dev. It can be hidden per-page by clicking although if you never want it to show it can be disabled:
+
+```js filename="next.config.js"
+module.exports = {
+  devIndicators: {
+    appIsrStatus: false,
+  },
+}
+```
+
 </AppOnly>
 
 <PagesOnly>

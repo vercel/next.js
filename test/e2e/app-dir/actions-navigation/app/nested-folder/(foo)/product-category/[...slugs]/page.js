@@ -6,7 +6,7 @@ function SubmitButton() {
   const { pending } = useFormStatus()
 
   return (
-    <button type="submit" aria-disabled={pending}>
+    <button type="submit" aria-disabled={pending} id="submit">
       Add to cart
     </button>
   )

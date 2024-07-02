@@ -404,10 +404,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  public onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer) {
+  public onHMR(
+    req: IncomingMessage,
+    _socket: Duplex,
+    head: Buffer,
+    callback: (client: ws.WebSocket) => void
+  ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
       this.webpackHotMiddleware?.onHMR(client)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      callback(client)
 
       client.addEventListener('message', ({ data }) => {
         data = typeof data !== 'string' ? data.toString() : data

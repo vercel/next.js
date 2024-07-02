@@ -543,8 +543,9 @@ export async function createHotReloaderTurbopack(
     },
 
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
-    onHMR(req, socket: Socket, head) {
+    onHMR(req, socket: Socket, head, callback) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
+        callback(client)
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
