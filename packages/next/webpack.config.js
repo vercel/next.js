@@ -56,6 +56,8 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
+    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
+      'next/dist/client/dev/noop-turbopack-hmr',
   }
 }
 

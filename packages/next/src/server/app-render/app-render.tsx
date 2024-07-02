@@ -7,6 +7,7 @@ import type {
   RenderOpts,
   Segment,
   CacheNodeSeedData,
+  PreloadCallbacks,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -118,6 +119,7 @@ import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
+import AppRouter from '../../client/components/app-router'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -338,6 +340,8 @@ async function generateFlight(
     flightRouterState,
   } = ctx
 
+  const preloadCallbacks: PreloadCallbacks = []
+
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
@@ -369,6 +373,7 @@ async function generateFlight(
         rootLayoutIncluded: false,
         asNotFound: ctx.isNotFoundPath || options?.asNotFound,
         metadataOutlet: <MetadataOutlet />,
+        preloadCallbacks,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -436,27 +441,53 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   }
 }
 
-type ReactServerAppProps = {
-  tree: LoaderTree
-  ctx: AppRenderContext
-  asNotFound: boolean
+export type InitialRSCPayload = {
+  /** buildId */
+  b: string
+  /** assetPrefix */
+  p: string
+  /** initialCanonicalUrl */
+  c: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** initialStyles */
+  s: React.ReactNode
+  /** initialTree */
+  t: FlightRouterState
+  /** initialSeedData */
+  d: CacheNodeSeedData
+  /** initialHead */
+  h: React.ReactNode
+  /** initialLayerAssets */
+  l: React.ReactNode
+  /** missingSlots */
+  m: Set<string> | undefined
+  /** GlobalError */
+  G: React.ComponentType<any>
 }
+
 // This is the root component that runs in the RSC context
-async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
+async function getRootAppProps(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  asNotFound: boolean
+) {
   // Create full component tree from root to leaf.
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
-  const missingSlots = new Set<string>()
+  let missingSlots: Set<string> | undefined
+
+  // We only track missing parallel slots in development
+  if (process.env.NODE_ENV === 'development') {
+    missingSlots = new Set<string>()
+  }
+
   const {
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      AppRouter,
-      GlobalError,
-      createDynamicallyTrackedSearchParams,
-    },
+    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
     requestStore: { url },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
@@ -475,6 +506,8 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
+  const preloadCallbacks: PreloadCallbacks = []
+
   const { seedData, styles } = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
@@ -488,6 +521,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     asNotFound: asNotFound,
     metadataOutlet: <MetadataOutlet />,
     missingSlots,
+    preloadCallbacks,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -497,52 +531,52 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  return (
-    <AppRouter
-      buildId={ctx.renderOpts.buildId}
-      assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={url.pathname + url.search}
-      // This is the router state tree.
-      initialTree={initialTree}
-      // This is the tree of React nodes that are seeded into the cache
-      initialSeedData={seedData}
-      couldBeIntercepted={couldBeIntercepted}
-      initialHead={
-        <>
-          <NonIndex ctx={ctx} />
-          {/* Adding requestId as react key to make metadata remount for each render */}
-          <MetadataTree key={ctx.requestId} />
-        </>
-      }
-      initialLayerAssets={styles}
-      globalErrorComponent={GlobalError}
-      // This is used to provide debug information (when in development mode)
-      // about which slots were not filled by page components while creating the component tree.
-      missingSlots={missingSlots}
-    />
+  const initialHead = (
+    <>
+      <NonIndex ctx={ctx} />
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
+    </>
   )
+
+  return {
+    P: <Preloads preloadCallbacks={preloadCallbacks} />,
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: url.pathname + url.search,
+    i: couldBeIntercepted,
+    s: styles,
+    t: initialTree,
+    d: seedData,
+    h: initialHead,
+    l: styles,
+    m: missingSlots,
+    G: GlobalError,
+  } as InitialRSCPayload & { P: React.ReactNode }
 }
 
-type ReactServerErrorProps = {
-  tree: LoaderTree
-  ctx: AppRenderContext
-  errorType: 'not-found' | 'redirect' | undefined
+/**
+ * Preload calls (such as `ReactDOM.preloadStyle` and `ReactDOM.preloadFont`) need to be called during rendering
+ * in order to create the appropriate preload tags in the DOM, otherwise they're a no-op. Since we invoke
+ * renderToReadableStream with a function that returns component props rather than a component itself, we use
+ * this component to "render  " the preload calls.
+ */
+function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
+  preloadCallbacks.forEach((preloadFn) => preloadFn())
+  return null
 }
+
 // This is the root component that runs in the RSC context
-async function ReactServerError({
-  tree,
-  ctx,
-  errorType,
-}: ReactServerErrorProps) {
+async function getRootErrorProps(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  errorType: 'not-found' | 'redirect' | undefined
+) {
   const {
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      AppRouter,
-      GlobalError,
-      createDynamicallyTrackedSearchParams,
-    },
+    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
     requestStore: { url },
     requestId,
   } = ctx
@@ -557,7 +591,7 @@ async function ReactServerError({
     createDynamicallyTrackedSearchParams,
   })
 
-  const head = (
+  const initialHead = (
     <>
       <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
@@ -585,19 +619,19 @@ async function ReactServerError({
     </html>,
     null,
   ]
-  return (
-    <AppRouter
-      buildId={ctx.renderOpts.buildId}
-      assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={url.pathname + url.search}
-      initialTree={initialTree}
-      initialHead={head}
-      initialLayerAssets={null}
-      globalErrorComponent={GlobalError}
-      initialSeedData={initialSeedData}
-      missingSlots={new Set()}
-    />
-  )
+
+  return {
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: url.pathname + url.search,
+    i: false,
+    s: null,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    l: null,
+    G: GlobalError,
+  } as InitialRSCPayload
 }
 
 // This component must run in an SSR context. It will render the RSC root component
@@ -611,14 +645,47 @@ function ReactServerEntrypoint<T>({
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   nonce?: string
-}): T {
+}): JSX.Element {
   preinitScripts()
-  const response = useFlightStream(
-    reactServerStream,
-    clientReferenceManifest,
-    nonce
+  const response = React.use(
+    useFlightStream<InitialRSCPayload>(
+      reactServerStream,
+      clientReferenceManifest,
+      nonce
+    )
   )
-  return React.use(response)
+
+  const {
+    b: buildId,
+    p: assetPrefix,
+    c: initialCanonicalUrl,
+    s: initialStyles,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    l: initialLayerAssets,
+    m: missingSlots,
+    G: GlobalError,
+  } = response
+
+  return (
+    <>
+      {initialStyles}
+      <AppRouter
+        buildId={buildId}
+        assetPrefix={assetPrefix}
+        initialCanonicalUrl={initialCanonicalUrl}
+        // This is the router state tree.
+        initialTree={initialTree}
+        // This is the tree of React nodes that are seeded into the cache
+        initialSeedData={initialSeedData}
+        missingSlots={missingSlots}
+        initialHead={initialHead}
+        initialLayerAssets={initialLayerAssets}
+        globalErrorComponent={GlobalError}
+      />
+    </>
+  )
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -964,7 +1031,7 @@ async function renderToHTMLOrFlightImpl(
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
+        await getRootAppProps(tree, ctx, asNotFound),
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
@@ -1309,7 +1376,7 @@ async function renderToHTMLOrFlightImpl(
         )
 
         const errorServerStream = ComponentMod.renderToReadableStream(
-          <ReactServerError tree={tree} ctx={ctx} errorType={errorType} />,
+          await getRootErrorProps(tree, ctx, errorType),
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,

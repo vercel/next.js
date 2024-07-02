@@ -188,3 +188,5 @@ export interface RenderOptsPartial {
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
   RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]
