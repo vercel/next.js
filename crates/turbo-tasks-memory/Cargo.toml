@@ -25,6 +25,7 @@ parking_lot = { workspace = true }
 priority-queue = "1.3.0"
 ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
+serde = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -38,8 +39,9 @@ criterion = { workspace = true, features = ["async_tokio"] }
 lazy_static = { workspace = true }
 loom = "0.7.2"
 rand = { workspace = true, features = ["small_rng"] }
+regex = { workspace = true }
 rstest = { workspace = true }
-serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
 
