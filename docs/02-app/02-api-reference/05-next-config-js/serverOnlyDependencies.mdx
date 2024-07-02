@@ -1,0 +1,23 @@
+---
+title: serverOnlyDependencies
+description: Mark certain imports as server-only to disable the addition of any subsequent, undesired client-side JS to the client-side bundle.
+---
+
+Next.js automatically tree-shakes client dependencies from server components, but there are cases where bundler tree-shaking is not smart enough to solely rely on. For example, tree-shaking works by determining if a dependency is referenced. If a client dependency is referenced (via adding to an object property, logging it, or similar) it will not be tree-shaken and will appear in the resulting client-side bundle.
+
+This is an escape hatch that can be used to mark certain dependencies as server-only, in which case, no subsequent client dependencies will be added to the resulting client-side JS.
+
+```js filename="next.config.js"
+const path = require('path')
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    serverOnlyDependencies: [path.resolve(__dirname, './app/my-server-dep.js')],
+  },
+}
+
+module.exports = nextConfig
+```
+
+In most cases, you should not need to use this property - but it can be helpful to library authors building on Next.js.

@@ -286,6 +286,10 @@ export interface ExperimentalConfig {
   }
   adjustFontFallbacks?: boolean
   adjustFontFallbacksWithSizeAdjust?: boolean
+  /**
+   * A list of imports that should completely disable any client dependencies from being added to generated client JS.
+   */
+  serverOnlyDependencies?: string[]
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
