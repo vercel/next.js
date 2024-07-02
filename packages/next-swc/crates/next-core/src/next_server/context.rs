@@ -140,7 +140,7 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
-    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
+    let mut transpile_packages = next_config.final_transpile_packages().await?.clone_value();
     transpile_packages.extend(
         (*next_config.optimize_package_imports().await?)
             .iter()

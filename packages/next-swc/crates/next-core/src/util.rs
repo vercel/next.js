@@ -93,7 +93,7 @@ pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpile_packages = next_config.transpile_packages().await?;
+    let transpile_packages = next_config.final_transpile_packages().await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
