@@ -381,7 +381,7 @@ async function createTreeCodeFromPath(
 
       if (!globalError) {
         const resolvedGlobalErrorPath = await resolver(
-          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
+          `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
         )
         if (resolvedGlobalErrorPath) {
           globalError = resolvedGlobalErrorPath
