@@ -301,7 +301,7 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidate?: Revalidate
+  revalidate?: Revalidate | undefined
 }
 
 export type NextEnabledDirectories = {

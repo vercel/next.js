@@ -469,11 +469,11 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      revalidate?: Revalidate | undefined
+      swrDelta?: SwrDelta | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
