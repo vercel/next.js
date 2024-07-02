@@ -14,7 +14,7 @@ declare global {
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleAnalytics(props: GAParams) {
-  const { gaId, dataLayerName = 'dataLayer' } = props
+  const { gaId, dataLayerName = 'dataLayer', nonce } = props
 
   if (currDataLayerName === undefined) {
     currDataLayerName = dataLayerName
@@ -45,10 +45,12 @@ export function GoogleAnalytics(props: GAParams) {
 
           gtag('config', '${gaId}');`,
         }}
+        nonce={nonce}
       />
       <Script
         id="_next-ga"
         src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+        nonce={nonce}
       />
     </>
   )
