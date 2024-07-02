@@ -1,0 +1,12 @@
+{
+  "name": "my-package",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js"
+    },
+    "./env": {
+      "import": "./env.js"
+    }
+  }
+}

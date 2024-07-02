@@ -1,0 +1,7 @@
+{
+  "name": "turbo-self-referencing",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^20"
+  }
+}
