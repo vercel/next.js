@@ -396,7 +396,7 @@ const config = {
           if (!ALLOWED_EXPORTS.includes(name.text) && !API_DOCS[name.text]) {
             diagnostics.push({
               file: source,
-              category: ts.DiagnosticCategory.Error,
+              category: ts.DiagnosticCategory.Warning,
               code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
               messageText: `"${name.text}" is not a valid Next.js entry export value.`,
               start: name.getStart(),
