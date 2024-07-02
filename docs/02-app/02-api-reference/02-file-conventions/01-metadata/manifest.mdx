@@ -5,6 +5,8 @@ description: API Reference for manifest.json file.
 
 Add or generate a `manifest.(json|webmanifest)` file that matches the [Web Manifest Specification](https://developer.mozilla.org/docs/Web/Manifest) in the **root** of `app` directory to provide information about your web application for the browser.
 
+> **Good to know**: By default, manifest file is ignored and not displayed. To enable it, extend the [matcher](/docs/app/building-your-application/routing/middleware#matcher) in the `middleware.js` file.
+
 ## Static Manifest file
 
 ```json filename="app/manifest.json | app/manifest.webmanifest"
