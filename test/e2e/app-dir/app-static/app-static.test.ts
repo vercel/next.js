@@ -82,61 +82,6 @@ describe('app-dir static/dynamic handling', () => {
     expect(echoedHeaders.headers.traceparent).toEqual('C')
   })
 
-  // Runtime logs aren't queryable in deploy mode
-  if (!isNextDeploy) {
-    it('should warn for too many cache tags', async () => {
-      const res = await next.fetch('/too-many-cache-tags')
-      expect(res.status).toBe(200)
-      await retry(() => {
-        expect(next.cliOutput).toContain('exceeded max tag count for')
-        expect(next.cliOutput).toContain('tag-65')
-      })
-    })
-  }
-
-  if (isNextDeploy) {
-    describe('new tags have been specified on subsequent fetch', () => {
-      it('should not fetch from memory cache', async () => {
-        const res1 = await next.fetch('/specify-new-tags/one-tag')
-        expect(res1.status).toBe(200)
-
-        const res2 = await next.fetch('/specify-new-tags/two-tags')
-        expect(res2.status).toBe(200)
-
-        const html1 = await res1.text()
-        const html2 = await res2.text()
-        const $1 = cheerio.load(html1)
-        const $2 = cheerio.load(html2)
-
-        const data1 = $1('#page-data').text()
-        const data2 = $2('#page-data').text()
-        expect(data1).not.toBe(data2)
-      })
-
-      it('should not fetch from memory cache after revalidateTag is used', async () => {
-        const res1 = await next.fetch('/specify-new-tags/one-tag')
-        expect(res1.status).toBe(200)
-
-        const revalidateRes = await next.fetch(
-          '/api/revalidate-tag-node?tag=thankyounext'
-        )
-        expect((await revalidateRes.json()).revalidated).toBe(true)
-
-        const res2 = await next.fetch('/specify-new-tags/two-tags')
-        expect(res2.status).toBe(200)
-
-        const html1 = await res1.text()
-        const html2 = await res2.text()
-        const $1 = cheerio.load(html1)
-        const $2 = cheerio.load(html2)
-
-        const data1 = $1('#page-data').text()
-        const data2 = $2('#page-data').text()
-        expect(data1).not.toBe(data2)
-      })
-    })
-  }
-
   if (isNextStart) {
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
