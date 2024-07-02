@@ -23,13 +23,13 @@ const runTests = () => {
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.params).toEqual({ slug: 'first' })
 
-    await browser.elementByCss('#add-query-shallow').click()
+    await browser.elementByCss('#add-query-shallow-to-first').click()
     await waitFor(1000)
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props2).toEqual(props)
 
-    await browser.elementByCss('#remove-query-shallow').click()
+    await browser.elementByCss('#remove-query-shallow-to-first').click()
     await waitFor(1000)
 
     const props3 = JSON.parse(await browser.elementByCss('#props').text())
@@ -52,13 +52,50 @@ const runTests = () => {
     expect(props5.random).not.toBe(props4.random)
   })
 
+  it('should not shallowly navigate back in history when current page was not shallow and setting a query parameter as replace', async () => {
+    const browser = await webdriver(appPort, '/first')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.params).toEqual({ slug: 'first' })
+
+    await browser.elementByCss('#add-query-shallow-to-first').click()
+    await waitFor(1000)
+
+    const props2 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props2).toEqual(props)
+
+    await browser.elementByCss('#to-another').click()
+    await waitFor(1000)
+
+    await check(() => browser.elementByCss('#props').text(), /another/)
+
+    const props3 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props3.params).toEqual({ slug: 'another' })
+    expect(props3.random).not.toBe(props.random)
+
+    await browser
+      .elementByCss('#add-query-shallow-to-another-by-replace')
+      .click()
+    await waitFor(1000)
+
+    const props4 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props4).toEqual(props3)
+
+    await browser.back()
+    await waitFor(1000)
+
+    const props5 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props5.params).toEqual({ slug: 'first' })
+    expect(props5.random).not.toBe(props3.random)
+  })
+
   it('should not shallowly navigate forwards in history when current page was not shallow', async () => {
     const browser = await webdriver(appPort, '/first')
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
     expect(props.params).toEqual({ slug: 'first' })
 
-    await browser.elementByCss('#add-query-shallow').click()
+    await browser.elementByCss('#add-query-shallow-to-first').click()
     await waitFor(1000)
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
