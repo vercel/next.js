@@ -30,9 +30,10 @@ use turbo_tasks::{
 
 use crate::{
     cell::RecomputingCell,
+    edges_set::{TaskEdge, TaskEdgesSet},
     gc::{GcQueue, PERCENTAGE_IDLE_TARGET_MEMORY, PERCENTAGE_TARGET_MEMORY},
     output::Output,
-    task::{Task, TaskDependency, TaskDependencySet, DEPENDENCIES_TO_TRACK},
+    task::{Task, DEPENDENCIES_TO_TRACK},
 };
 
 fn prehash_task_type(task_type: PersistentTaskType) -> PreHashed<PersistentTaskType> {
@@ -277,13 +278,13 @@ impl Backend for MemoryBackend {
     }
 
     type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> =
-        TaskLocalFuture<RefCell<TaskDependencySet>, T>;
+        TaskLocalFuture<RefCell<TaskEdgesSet>, T>;
     fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
         &self,
         _task: TaskId,
         future: T,
     ) -> Self::ExecutionScopeFuture<T> {
-        DEPENDENCIES_TO_TRACK.scope(RefCell::new(TaskDependencySet::with_hasher()), future)
+        DEPENDENCIES_TO_TRACK.scope(RefCell::new(TaskEdgesSet::new()), future)
     }
 
     fn try_start_task_execution(
@@ -359,7 +360,7 @@ impl Backend for MemoryBackend {
             move || format!("reading task output from {reader}"),
             turbo_tasks,
             |output| {
-                Task::add_dependency_to_current(TaskDependency::Output(task));
+                Task::add_dependency_to_current(TaskEdge::Output(task));
                 output.read(reader)
             },
         )
@@ -392,7 +393,7 @@ impl Backend for MemoryBackend {
                 task.with_cell(index, |cell| cell.read_own_content_untracked())
             })))
         } else {
-            Task::add_dependency_to_current(TaskDependency::Cell(task_id, index));
+            Task::add_dependency_to_current(TaskEdge::Cell(task_id, index));
             self.with_task(task_id, |task| {
                 match task.with_cell_mut(index, self.gc_queue.as_ref(), |cell| {
                     cell.read_content(

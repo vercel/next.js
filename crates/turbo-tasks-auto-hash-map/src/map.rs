@@ -137,13 +137,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
                 }
                 None
             }
-            AutoMap::Map(map) => {
-                let result = map.remove(key);
-                if result.is_some() && map.len() < MIN_HASH_SIZE {
-                    self.convert_to_list();
-                }
-                result
-            }
+            AutoMap::Map(map) => map.remove(key),
         }
     }
 
@@ -210,6 +204,33 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
                     RawEntry::Vacant(VacantRawEntry::Map(entry))
                 }
             },
+        }
+    }
+
+    /// see [HashMap::retain](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.retain)
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&K, &mut V) -> bool,
+    {
+        match self {
+            AutoMap::List(list) => {
+                // Don't use `Vec::retain`, as that uses a slower algorithm to maintain order,
+                // which we don't care about
+                let mut len = list.len();
+                let mut i = 0;
+                while i < len {
+                    let (key, value) = &mut list[i];
+                    if !f(key, value) {
+                        list.swap_remove(i);
+                        len -= 1;
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+            AutoMap::Map(map) => {
+                map.retain(f);
+            }
         }
     }
 
@@ -554,14 +575,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntr
     pub fn remove(self) -> V {
         match self {
             OccupiedEntry::List { list, index } => list.swap_remove(index).1,
-            OccupiedEntry::Map { entry, this } => {
-                let v = entry.remove();
-                let this = unsafe { &mut *this };
-                if this.len() < MIN_HASH_SIZE {
-                    this.convert_to_list();
-                }
-                v
-            }
+            OccupiedEntry::Map { entry, this: _ } => entry.remove(),
         }
     }
 }
@@ -636,14 +650,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize>
     pub fn remove(self) -> V {
         match self {
             OccupiedRawEntry::List { list, index } => list.swap_remove(index).1,
-            OccupiedRawEntry::Map { entry, this } => {
-                let v = entry.remove();
-                let this = unsafe { &mut *this };
-                if this.len() < MIN_HASH_SIZE {
-                    this.convert_to_list();
-                }
-                v
-            }
+            OccupiedRawEntry::Map { entry, this: _ } => entry.remove(),
         }
     }
 }

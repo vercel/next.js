@@ -7,6 +7,7 @@ use std::{
 };
 
 use auto_hash_map::{map::Entry, AutoMap};
+use either::Either;
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{event::Event, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi};
@@ -458,32 +459,9 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
 
     fn children(&self) -> Self::ChildrenIter<'_> {
         match self.guard {
-            TaskMetaStateWriteGuard::Full(ref guard) => {
-                #[cfg(feature = "lazy_remove_children")]
-                {
-                    let outdated_children = match &guard.state_type {
-                        TaskStateType::InProgress {
-                            outdated_children, ..
-                        } => Some(outdated_children.iter().copied()),
-                        _ => None,
-                    };
-                    Some(
-                        guard
-                            .children
-                            .iter()
-                            .copied()
-                            .chain(outdated_children.into_iter().flatten()),
-                    )
-                    .into_iter()
-                    .flatten()
-                }
-                #[cfg(not(feature = "lazy_remove_children"))]
-                {
-                    Some(guard.children.iter().copied()).into_iter().flatten()
-                }
-            }
+            TaskMetaStateWriteGuard::Full(ref guard) => Either::Left(guard.state_type.children()),
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
-                None.into_iter().flatten()
+                Either::Right(std::iter::empty())
             }
             TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }

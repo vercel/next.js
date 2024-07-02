@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
+either = { workspace = true }
 indexmap = { workspace = true }
 num_cpus = "1.13.1"
 once_cell = { workspace = true }
@@ -58,8 +59,7 @@ print_scope_updates = []
 print_task_invalidation = []
 inline_add_to_scope = []
 inline_remove_from_scope = []
-lazy_remove_children = []
-default = ["lazy_remove_children"]
+default = []
 
 [[bench]]
 name = "mod"

@@ -2,7 +2,7 @@ use std::mem::replace;
 
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 
-use super::{PartialTaskState, Task, TaskState, UnloadedTaskState};
+use super::{PartialTaskState, TaskState, UnloadedTaskState};
 use crate::{
     aggregation::AggregationNode,
     map_guard::{ReadGuard, WriteGuard},
@@ -171,7 +171,6 @@ impl<'a> TaskMetaStateReadGuard<'a> {
 impl<'a> TaskMetaStateWriteGuard<'a> {
     pub(super) fn full_from(
         mut guard: RwLockWriteGuard<'a, TaskMetaState>,
-        task: &Task,
     ) -> FullTaskWriteGuard<'a> {
         match &*guard {
             TaskMetaState::Full(_) => {}
@@ -183,8 +182,7 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
                 )
                 .into_partial()
                 .unwrap();
-                *guard =
-                    TaskMetaState::Full(Box::new(partial.into_full(task.get_event_description())));
+                *guard = TaskMetaState::Full(Box::new(partial.into_full()));
             }
             TaskMetaState::Unloaded(_) => {
                 let unloaded = replace(
@@ -194,8 +192,7 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
                 )
                 .into_unloaded()
                 .unwrap();
-                *guard =
-                    TaskMetaState::Full(Box::new(unloaded.into_full(task.get_event_description())));
+                *guard = TaskMetaState::Full(Box::new(unloaded.into_full()));
             }
         }
         WriteGuard::new(guard, TaskMetaState::as_full, TaskMetaState::as_full_mut)
