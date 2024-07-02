@@ -34,6 +34,7 @@ use crate::{
     gc::{GcQueue, PERCENTAGE_IDLE_TARGET_MEMORY, PERCENTAGE_TARGET_MEMORY},
     output::Output,
     task::{Task, DEPENDENCIES_TO_TRACK},
+    task_statistics::TaskStatisticsApi,
 };
 
 fn prehash_task_type(task_type: PersistentTaskType) -> PreHashed<PersistentTaskType> {
@@ -49,6 +50,7 @@ pub struct MemoryBackend {
     memory_limit: usize,
     gc_queue: Option<GcQueue>,
     idle_gc_active: AtomicBool,
+    task_statistics: TaskStatisticsApi,
 }
 
 impl Default for MemoryBackend {
@@ -71,6 +73,7 @@ impl MemoryBackend {
             memory_limit,
             gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
+            task_statistics: TaskStatisticsApi::default(),
         }
     }
 
@@ -230,6 +233,10 @@ impl MemoryBackend {
                 task.schedule_when_dirty_from_aggregation(self, turbo_tasks)
             });
         }
+    }
+
+    pub fn task_statistics(&self) -> &TaskStatisticsApi {
+        &self.task_statistics
     }
 }
 
@@ -529,8 +536,53 @@ impl Backend for MemoryBackend {
             self.lookup_and_connect_task(parent_task, &self.task_cache, &task_type, turbo_tasks)
         {
             // fast pass without creating a new task
+            self.task_statistics().map(|stats| match &*task_type {
+                PersistentTaskType::ResolveNative(function_id, ..)
+                | PersistentTaskType::Native(function_id, ..) => {
+                    stats.increment_cache_hit(*function_id);
+                }
+                PersistentTaskType::ResolveTrait(trait_type, name, inputs) => {
+                    // HACK: Resolve the first argument (`self`) in order to attribute the cache hit
+                    // to the concrete trait implementation, rather than the dynamic trait method.
+                    // This ensures cache hits and misses are both attributed to the same thing.
+                    //
+                    // Because this task already resolved, in most cases `self` should either be
+                    // resolved, or already in the process of being resolved.
+                    //
+                    // However, `self` could become unloaded due to cache eviction, and this might
+                    // trigger an otherwise unnecessary re-evalutation.
+                    //
+                    // This is a potentially okay trade-off as long as we don't log statistics by
+                    // default. The alternative would be to store function ids on completed
+                    // ResolveTrait tasks.
+                    let trait_type = *trait_type;
+                    let name = name.clone();
+                    let this = inputs
+                        .first()
+                        .cloned()
+                        .expect("No arguments for trait call");
+                    let stats = Arc::clone(stats);
+                    turbo_tasks.run_once(Box::pin(async move {
+                        let function_id =
+                            PersistentTaskType::resolve_trait_method(trait_type, name, this)
+                                .await?;
+                        stats.increment_cache_hit(function_id);
+                        Ok(())
+                    }));
+                }
+            });
             task
         } else {
+            self.task_statistics().map(|stats| match &*task_type {
+                PersistentTaskType::Native(function_id, ..) => {
+                    stats.increment_cache_miss(*function_id);
+                }
+                PersistentTaskType::ResolveTrait(..) | PersistentTaskType::ResolveNative(..) => {
+                    // these types re-execute themselves as `Native` after
+                    // resolving their arguments, skip counting their
+                    // executions here to avoid double-counting
+                }
+            });
             // It's important to avoid overallocating memory as this will go into the task
             // cache and stay there forever. We can to be as small as possible.
             let (task_type_hash, mut task_type) = PreHashed::into_parts(task_type);
