@@ -2145,6 +2145,7 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
     }
 
+    let isPreviousCacheStale = false
     let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
 
@@ -2659,6 +2660,9 @@ export default abstract class Server<
       if (previousCacheEntry?.isStale === -1) {
         isOnDemandRevalidate = true
       }
+      if (previousCacheEntry?.isStale) {
+        isPreviousCacheStale = true
+      }
 
       // only allow on-demand revalidate for fallback: true/blocking
       // or for prerendered fallback: false paths
@@ -2801,7 +2805,6 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
         isRoutePPREnabled,
-        status: res.statusCode,
       }
     )
 
@@ -3058,7 +3061,12 @@ export default abstract class Server<
       // If the request is a data request, then we shouldn't set the status code
       // from the response because it should always be 200. This should be gated
       // behind the experimental PPR flag.
-      if (cachedData.status && (!isRSCRequest || !isRoutePPREnabled)) {
+      // Status should only be retrieved from cache when previous cache is not stale.
+      if (
+        cachedData.status &&
+        (!isRSCRequest || !isRoutePPREnabled) &&
+        !isPreviousCacheStale
+      ) {
         res.statusCode = cachedData.status
       }
 

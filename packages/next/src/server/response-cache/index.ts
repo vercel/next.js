@@ -54,7 +54,6 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch?: boolean
       incrementalCache: IncrementalCache
       isRoutePPREnabled?: boolean
-      status?: number
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
@@ -149,17 +148,6 @@ export default class ResponseCache implements ResponseCacheBase {
           }
 
           if (typeof resolveValue.revalidate !== 'undefined') {
-            // When cache context has new status, update the cache entry status when it's revalidating.
-            if (
-              resolveValue.value &&
-              'status' in resolveValue.value &&
-              typeof context.status === 'number' &&
-              resolveValue.value.status !== context.status &&
-              resolveValue.revalidate
-            ) {
-              resolveValue.value.status = context.status
-            }
-
             if (this.minimalMode) {
               this.previousCacheItem = {
                 key: cacheKey,
