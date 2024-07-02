@@ -41,11 +41,6 @@ describe('use-params', () => {
     expect(await browser.elementByCss('#param-id2').text()).toBe('b')
   })
 
-  it('should work on pages router', async () => {
-    const browser = await next.browser('/pages-dir/foobar')
-    expect(await browser.elementById('params').text()).toBe('"foobar"')
-  })
-
   it("shouldn't rerender host component when prefetching", async () => {
     const browser = await next.browser('/rerenders/foobar')
     const initialRandom = await browser.elementById('random').text()
@@ -53,5 +48,19 @@ describe('use-params', () => {
     await link.hover()
     const newRandom = await browser.elementById('random').text()
     expect(initialRandom).toBe(newRandom)
+  })
+
+  it("shouldn't rerender when updating window.history.state", async () => {
+    const browser = await next.browser('/rerenders/foobar')
+    const initialRandom = await browser.elementById('random').text()
+    const button = await browser.elementByCss('#replace-history')
+    await button.click()
+    const newRandom = await browser.elementById('random').text()
+    expect(initialRandom).toBe(newRandom)
+  })
+
+  it('should work on pages router', async () => {
+    const browser = await next.browser('/pages-dir/foobar')
+    expect(await browser.elementById('params').text()).toBe('"foobar"')
   })
 })
