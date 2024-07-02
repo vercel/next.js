@@ -352,6 +352,20 @@ export const metadata = {
 <meta name="description" content="The React Framework for the Web" />
 ```
 
+### `abstract`
+
+A brief description of what this web-page is about. Not recommended, superseded by [description](https://nextjs.org/docs/app/api-reference/functions/generate-metadata#description).
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  abstract: 'This website is about Next.js',
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="abstract" content="This website is about Next.js" />
+```
+
 ### Basic Fields
 
 ```jsx filename="layout.js | page.js"
@@ -931,6 +945,18 @@ export const metadata = {
 
 ```html filename="<head> output" hideLineNumbers
 <meta name="category" content="technology" />
+```
+
+### `classification`
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  classification: 'My Classification',
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="classification" content="My Classification" />
 ```
 
 ### `other`
