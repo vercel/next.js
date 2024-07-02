@@ -78,6 +78,7 @@ const fetch = require('node-fetch')
     style?: ${formatUnion(styleTypes)} | Array<${formatUnion(styleTypes)}>
     display?:Display
     variable?: T
+    text?: string
     ${hasPreloadableSubsets ? 'preload?:boolean' : ''}
     fallback?: string[]
     adjustFontFallback?: boolean
