@@ -83,7 +83,7 @@ checkFields<Diff<{
   experimental_ppr?: boolean
   `
   }
-}, TEntry, ''>>()
+}, AllowPrefixedKeys<'_', TEntry>, ''>>()
 
 ${
   options.type === 'route'
@@ -184,6 +184,10 @@ type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalid
 // If T is unknown or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
 type OmitWithTag<T, K extends keyof any, _M> = Omit<T, K>
 type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T) ? {} : OmitWithTag<T, keyof Base, Message>
+
+type Prefixed<P extends string, S> = S extends string & \`\${P}\${infer _R}\` ? S : never
+type PrefixedKeys<Prefix extends string, T> = { [K in keyof T]: K extends Prefixed<Prefix, K> ? K : never }[keyof T]
+type AllowPrefixedKeys<Prefix extends string, T> = Omit<T, PrefixedKeys<Prefix, T>>
 
 type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
