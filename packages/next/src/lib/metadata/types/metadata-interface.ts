@@ -6,10 +6,12 @@ import type {
 import type {
   AppleWebApp,
   AppLinks,
+  Facebook,
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
+  ResolvedFacebook,
   ViewportLayout,
 } from './extra-types'
 import type {
@@ -321,6 +323,25 @@ interface Metadata extends DeprecatedMetadataFields {
   twitter?: null | Twitter
 
   /**
+   * The Facebook metadata for the document.
+   * You can specify either appId or admins, but not both.
+   * @example
+   * ```tsx
+   * { appId: "12345678" }
+   *
+   * <meta property="fb:app_id" content="12345678" />
+   * ```
+   *
+   * @example
+   * ```tsx
+   * { admins: ["12345678"] }
+   *
+   * <meta property="fb:admins" content="12345678" />
+   * ```
+   */
+  facebook?: null | Facebook
+
+  /**
    * The common verification tokens for the document.
    * @example
    * ```tsx
@@ -507,6 +528,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   manifest: null | string | URL
 
   twitter: null | ResolvedTwitterMetadata
+
+  facebook: null | ResolvedFacebook
 
   // common verification tokens
   verification: null | ResolvedVerification

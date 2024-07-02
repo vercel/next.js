@@ -88,6 +88,20 @@ export type ResolvedAppleWebApp = {
   statusBarStyle?: 'default' | 'black' | 'black-translucent'
 }
 
+export type Facebook = FacebookAppId | FacebookAdmins
+export type FacebookAppId = {
+  appId: string
+  admins?: never
+}
+export type FacebookAdmins = {
+  appId?: never
+  admins: string | string[]
+}
+export type ResolvedFacebook = {
+  appId?: string
+  admins?: string[]
+}
+
 // Format Detection
 // This is a poorly specified metadata export type that is supposed to
 // control whether the device attempts to conver text that matches
