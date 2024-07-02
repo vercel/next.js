@@ -355,9 +355,20 @@ async function getDefinedMetadata(
             'next.page': route,
           },
         },
-        () => mod.generateMetadata(props, parent)
+        () => {
+          if (Array.isArray(mod.generateMetadata(props, parent))) {
+            throw new Error(
+              'The return type of generateMetadata must be a non-Array object'
+            )
+          }
+          return mod.generateMetadata(props, parent)
+        }
       )
   }
+  if (Array.isArray(mod.metadata)) {
+    throw new Error('The return type of metadata must be a non-Array object')
+  }
+
   return mod.metadata || null
 }
 
