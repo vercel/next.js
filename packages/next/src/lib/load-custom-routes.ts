@@ -25,6 +25,7 @@ export type Rewrite = {
   locale?: false
   has?: RouteHas[]
   missing?: RouteHas[]
+  unstable_statusCode?: number
 
   /**
    * @internal - used internally for routing
@@ -158,6 +159,7 @@ export function checkCustomRoutes(
   if (type === 'rewrite') {
     allowedKeys.add('basePath')
     allowedKeys.add('destination')
+    allowedKeys.add('unstable_statusCode')
   }
   if (type === 'redirect') {
     allowedKeys.add('basePath')
