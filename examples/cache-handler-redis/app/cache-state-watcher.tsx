@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 type CacheStateWatcherProps = { time: number; revalidateAfter: number };
 
 export function CacheStateWatcher({
   time,
   revalidateAfter,
-}: CacheStateWatcherProps): JSX.Element {
+}: CacheStateWatcherProps): ReactNode {
   const [cacheState, setCacheState] = useState("");
   const [countDown, setCountDown] = useState("");
 

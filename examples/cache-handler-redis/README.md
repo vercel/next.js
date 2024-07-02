@@ -29,15 +29,17 @@ docker-compose up -d
 
 Then, build and start the Next.js app as usual.
 
+To see the cache logs use NEXT_PRIVATE_DEBUG_CACHE=1 [troubleshooting](https://caching-tools.github.io/next-shared-cache/troubleshooting)
+
 ## Documentation
 
 For detailed information on configuration and usage, please refer to our comprehensive [Documentation ↗](https://caching-tools.github.io/next-shared-cache).
 
 ## Key Features and Considerations
 
-- **Handlers:** The `@neshca/cache-handler` package includes [Handlers](https://caching-tools.github.io/next-shared-cache/redis-stack) for seamless integration with Redis.
+- **Handlers:** The `@neshca/cache-handler` package includes [Handlers](https://caching-tools.github.io/next-shared-cache/handlers/redis-stack) for seamless integration with Redis.
 
-- **Create Your Own Handlers:** Take a look at [Custom Redis Handler](https://caching-tools.github.io/next-shared-cache/redis-stack-custom) and use it as a basis to create your own handler.
+- **Create Your Own Handlers:** Take a look at [Custom Redis Handler](https://caching-tools.github.io/next-shared-cache/usage/creating-a-custom-handler) and use it as a basis to create your own handler.
 
 - **Redis Server Setup:** Ensure your Redis server is running and properly configured before starting your Next.js application.
 
