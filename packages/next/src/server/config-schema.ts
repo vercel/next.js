@@ -566,6 +566,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .args()
       .returns(z.promise(z.array(zRedirect)))
       .optional(),
+    requiredEnv: z.array(z.string()).optional(),
     rewrites: z
       .function()
       .args()

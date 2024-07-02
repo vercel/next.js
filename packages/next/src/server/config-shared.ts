@@ -605,6 +605,10 @@ export interface NextConfig extends Record<string, any> {
    */
   env?: Record<string, string | undefined>
 
+  // TODO: Add documentation
+  // keys of environment variables that are required
+  requiredEnv?: string[]
+
   /**
    * Destination directory (defaults to `.next`)
    */
@@ -869,6 +873,7 @@ export interface NextConfig extends Record<string, any> {
 
 export const defaultConfig: NextConfig = {
   env: {},
+  requiredEnv: [],
   webpack: null,
   eslint: {
     ignoreDuringBuilds: false,
