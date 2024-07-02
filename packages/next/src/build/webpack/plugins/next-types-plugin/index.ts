@@ -603,8 +603,6 @@ export class NextTypesPlugin {
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
-      if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
-
       if (!mod.resource.startsWith(this.appDir + path.sep)) {
         if (!this.dev) {
           if (mod.resource.startsWith(this.pagesDir + path.sep)) {
@@ -625,6 +623,8 @@ export class NextTypesPlugin {
           this.collectPage(mod.resource)
         }
       }
+
+      if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
 
       const typePath = path.join(
         appTypesBasePath,
