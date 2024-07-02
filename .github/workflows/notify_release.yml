@@ -74,5 +74,5 @@ jobs:
                 version: '${{ steps.version.outputs.value }}'
               }
             })
-      - name: workflow_dispatch response
-        run: echo ${{ steps.trigger-front-sync.outputs.response }}
+            # Ideally we'd include a URL to the started sync.
+            # However, creating a workflow_dispatch event does not produce an ID: https://github.com/orgs/community/discussions/9752
