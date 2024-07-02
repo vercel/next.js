@@ -1882,6 +1882,8 @@ export default abstract class Server<
 
     const prerenderManifest = this.getPrerenderManifest()
 
+    const nullBodyStatus = new Set([101, 204, 205, 304])
+
     if (isAppPath && isDynamic) {
       const pathsResult = await this.getStaticPaths({
         pathname,
@@ -3005,10 +3007,13 @@ export default abstract class Server<
       await sendResponse(
         req,
         res,
-        new Response(cachedData.body, {
-          headers: fromNodeOutgoingHttpHeaders(headers),
-          status: cachedData.status || 200,
-        })
+        new Response(
+          nullBodyStatus.has(cachedData.status) ? null : cachedData.body,
+          {
+            headers: fromNodeOutgoingHttpHeaders(headers),
+            status: cachedData.status || 200,
+          }
+        )
       )
       return null
     } else if (cachedData.kind === 'APP_PAGE') {
