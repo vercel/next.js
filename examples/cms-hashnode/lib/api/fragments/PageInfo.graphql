@@ -1,0 +1,4 @@
+fragment PageInfo on PageInfo {
+	endCursor
+	hasNextPage
+}
