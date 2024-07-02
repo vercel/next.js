@@ -1,5 +1,6 @@
 import * as React from 'react'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import type { SupportedErrorEvent } from './Errors'
 import {
   Dialog,
   DialogBody,
@@ -11,13 +12,25 @@ import { Terminal } from '../components/Terminal'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { noop as css } from '../helpers/noop-template'
 
-export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
+export type BuildErrorProps = {
+  message: string
+  versionInfo?: VersionInfo
+  errors: SupportedErrorEvent[]
+}
+
+function getFirstLine(message: string) {
+  return message.split('\n')[0]
+}
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
   versionInfo,
+  errors,
 }) {
   const noop = React.useCallback(() => {}, [])
+  const firstError = errors[0]
+  const actualError = firstError?.event.reason
+
   return (
     <Overlay fixed>
       <Dialog
@@ -34,7 +47,9 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              Failed to compile
+              {actualError?.message
+                ? getFirstLine(actualError?.message)
+                : message}
             </p>
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">

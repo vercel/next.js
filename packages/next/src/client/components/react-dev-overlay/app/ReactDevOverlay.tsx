@@ -73,6 +73,7 @@ export default class ReactDevOverlay extends React.PureComponent<
               />
             ) : hasBuildError ? (
               <BuildError
+                errors={state.errors}
                 message={state.buildError!}
                 versionInfo={state.versionInfo}
               />
