@@ -78,6 +78,11 @@ async function loaderTransform(
   // Make the loader async
   const filename = this.resourcePath
 
+  // Ensure `.d.ts` are not processed.
+  if (filename.endsWith('.d.ts')) {
+    return [source, inputSourceMap]
+  }
+
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
   const shouldMaybeExclude = maybeExclude(
     filename,
