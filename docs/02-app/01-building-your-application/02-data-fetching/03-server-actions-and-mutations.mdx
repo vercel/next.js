@@ -412,8 +412,6 @@ export function Signup() {
 }
 ```
 
-
-
 > **Good to know:**
 >
 > - To display form errors in the user UI, you should return a **serializable object** instead of throwing an error (e.g. `throw new Error('...')`. Uncaught errors in Server Actions are considered to be an internal server error and the error message [will not be sent to the client](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) in production to avoid leaking sensitive information. See more information on [error handling](#error-handling) in Server Actions.
@@ -721,7 +719,61 @@ We recommend using the [`useActionState`](https://react.dev/reference/react/useA
 
 #### Server Errors
 
-When an **unexpected** server error occurs, you can throw an error that'll be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling) or `<Suspense>` boundary on the client. 
+When an **unexpected** server error occurs, you can use `try`/`catch` to know that something went wrong:
+
+```tsx filename="app/components/login-button.tsx" switcher
+'use client'
+
+import { signIn } from './auth-actions'
+
+export function LoginButton() {
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await signIn()
+        } catch (e) {
+          if (e instanceof Error && 'digest' in e) {
+            console.error(`Something went wrong. Digest: ${e.digest}`)
+          } else {
+            console.error('Something went wrong')
+          }
+        }
+      }}
+    >
+      Login
+    </button>
+  )
+}
+```
+
+```jsx filename="app/components/login-button.js" switcher
+'use client'
+
+import { signIn } from './auth-actions'
+
+export function LoginButton() {
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await signIn()
+        } catch (e) {
+          if (e instanceof Error && 'digest' in e) {
+            console.error(`Something went wrong. Digest: ${e.digest}`)
+          } else {
+            console.error('Something went wrong')
+          }
+        }
+      }}
+    >
+      Login
+    </button>
+  )
+}
+```
+
+If you use a [form action](#forms), uncaught errors will also be caught by the nearest [`error.js`](/docs/app/building-your-application/routing/error-handling).
 
 ```tsx filename="app/dashboard/error.tsx" switcher
 'use client' // Error components must be Client Components
