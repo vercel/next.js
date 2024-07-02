@@ -10,8 +10,8 @@ export default function GoogleMapsEmbed(props: GoogleMapsEmbedTypes) {
 
   return (
     <ThirdPartyScriptEmbed
-      height={formattedProps.height || null}
-      width={formattedProps.width || null}
+      height={formattedProps.height ?? null}
+      width={formattedProps.width ?? null}
       html={html}
       dataNtpc="GoogleMapsEmbed"
     ></ThirdPartyScriptEmbed>
