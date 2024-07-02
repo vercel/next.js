@@ -1197,7 +1197,7 @@ export default class NextNodeServer extends BaseServer<
               }
               let url = metric.url
 
-              if (url.length > 48) {
+             if (url.length > 48 && this.nextConfig.experimental.logging !== 'verbose') {
                 const parsed = new URL(url)
                 const truncatedHost = formatRequestUrl(
                   parsed.host,
