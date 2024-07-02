@@ -357,7 +357,7 @@ impl LoaderTreeBuilder {
     }
 
     #[async_recursion]
-    async fn walk_tree(&mut self, loader_tree: Vc<LoaderTree>, root: bool) -> Result<()> {
+    async fn walk_tree(&mut self, loader_tree: &LoaderTree, root: bool) -> Result<()> {
         use std::fmt::Write;
 
         let LoaderTree {
@@ -366,7 +366,7 @@ impl LoaderTreeBuilder {
             parallel_routes,
             components,
             global_metadata,
-        } = &*loader_tree.await?;
+        } = loader_tree;
 
         writeln!(
             self.loader_tree_code,
@@ -387,7 +387,7 @@ impl LoaderTreeBuilder {
             not_found,
             metadata,
             route: _,
-        } = &*components.await?;
+        } = &components;
         self.write_component(ComponentType::Layout, *layout).await?;
         self.write_component(ComponentType::Page, *page).await?;
         self.write_component(ComponentType::DefaultPage, *default)
@@ -402,7 +402,7 @@ impl LoaderTreeBuilder {
         let components_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
         // add parallel_routes
-        for (key, &parallel_route) in parallel_routes.iter() {
+        for (key, parallel_route) in parallel_routes.iter() {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
             self.walk_tree(parallel_route, false).await?;
             writeln!(self.loader_tree_code, ",")?;
@@ -426,7 +426,7 @@ impl LoaderTreeBuilder {
     }
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
-        self.walk_tree(loader_tree, true).await?;
+        self.walk_tree(&*loader_tree.await?, true).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code.into(),

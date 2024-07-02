@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use anyhow::{bail, Result};
+use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
@@ -474,20 +475,33 @@ fn parse_config_value(
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let loader_tree = loader_tree.await?;
-    let components = loader_tree.components.await?;
+    let loader_tree = &*loader_tree.await?;
+
+    parse_segment_config_from_loader_tree_internal(loader_tree).await
+}
+
+#[async_recursion]
+pub async fn parse_segment_config_from_loader_tree_internal(
+    loader_tree: &LoaderTree,
+) -> Result<Vc<NextSegmentConfig>> {
     let mut config = NextSegmentConfig::default();
+
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .copied()
-        .map(parse_segment_config_from_loader_tree)
+        .map(|loader_tree| async move {
+            parse_segment_config_from_loader_tree_internal(loader_tree)
+                .await?
+                .await
+        })
         .try_join()
         .await?;
+
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
 
+    let components = &loader_tree.components;
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()
