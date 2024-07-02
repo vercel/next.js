@@ -1,1 +1,4 @@
-[{ "slug": "foo", "title": "Foo" }]
+[
+  { "slug": "foo", "title": "Foo" },
+  { "slug": "bar", "title": "Bar" }
+]
