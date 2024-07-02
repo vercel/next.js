@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "autoprefixer": "10.4.14",
+    "axios": "^0.27.2",
+    "classnames": "^2.3.2",
+    "mongoose": "^7.3.4",
+    "next": "^14.0.2",
+    "postcss": "^8.4.21",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.8.0",
+    "tailwindcss": "3.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@types/node": "17.0.42",
+    "@types/react": "18.0.12",
+    "@types/react-dom": "18.0.5",
+    "prettier": "^2.8.1",
+    "typescript": "4.7.3"
+  },
+  "packageManager": "yarn@4.0.1"
+}
