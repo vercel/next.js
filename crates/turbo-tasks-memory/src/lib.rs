@@ -10,6 +10,7 @@
 mod aggregation;
 mod cell;
 mod count_hash_set;
+mod edges_set;
 mod gc;
 mod map_guard;
 mod memory_backend;

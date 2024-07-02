@@ -47,16 +47,6 @@ pub struct RecomputingCell {
 }
 
 impl Cell {
-    /// Returns true if the cell has a value.
-    pub fn has_value(&self) -> bool {
-        match self {
-            Cell::Empty => false,
-            Cell::Recomputing { .. } => false,
-            Cell::TrackedValueless { .. } => false,
-            Cell::Value { .. } => true,
-        }
-    }
-
     /// Removes a task from the list of dependent tasks.
     pub fn remove_dependent_task(&mut self, task: TaskId) {
         match self {
