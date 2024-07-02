@@ -29,6 +29,7 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
+import { createEnvDefinitions } from '../lib/experimental/typed-env'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -37,6 +38,7 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
+  distDir?: string
   hostname?: string
   allowRetry?: boolean
   customServer?: boolean
@@ -90,6 +92,7 @@ export async function startServer(
   const {
     dir,
     isDev,
+    distDir,
     hostname,
     minimalMode,
     allowRetry,
@@ -257,6 +260,10 @@ export async function startServer(
         const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
+
+        if (expFeatureInfo?.includes('typedEnv')) {
+          await createEnvDefinitions(distDir!, startServerInfo.env)
+        }
       }
       logStartInfo({
         networkUrl,

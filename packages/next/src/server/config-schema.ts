@@ -363,6 +363,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           ])
           .optional(),
         typedRoutes: z.boolean().optional(),
+        typedEnv: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
         webpackMemoryOptimizations: z.boolean().optional(),
         turbo: z
