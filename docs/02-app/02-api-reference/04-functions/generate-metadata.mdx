@@ -963,6 +963,22 @@ export const metadata = {
 <meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
+If you want to generate meta tags with the property attribute, you can use an array of objects.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  other: [
+    { property: 'customProperty', content: 'meta1' },
+    { name: 'customName', content: 'meta2' },
+  ],
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="customProperty" content="meta1" />
+<meta name="customName" content="meta2" />
+```
+
 ## Unsupported Metadata
 
 The following metadata types do not currently have built-in support. However, they can still be rendered in the layout or page itself.

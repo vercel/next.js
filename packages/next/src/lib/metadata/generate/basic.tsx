@@ -101,17 +101,9 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
       : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
-    ...(metadata.other
-      ? Object.entries(metadata.other).map(([name, content]) => {
-          if (Array.isArray(content)) {
-            return content.map((contentItem) =>
-              Meta({ name, content: contentItem })
-            )
-          } else {
-            return Meta({ name, content })
-          }
-        })
-      : []),
+    ...metadata.other.map(({ name, property, content }) =>
+      Meta({ name, property, content })
+    ),
   ])
 }
 

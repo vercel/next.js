@@ -250,7 +250,22 @@ function mergeMetadata({
         target[key] = source[key] || null
         break
       case 'other':
-        target.other = Object.assign({}, target.other, source.other)
+        if (Array.isArray(source.other)) {
+          target.other = [...target.other, ...source.other]
+        } else if (source.other) {
+          const sourceOtherArray = Object.entries(source.other).flatMap(
+            ([name, content]) => {
+              if (Array.isArray(content)) {
+                return content.map((contentItem) => ({
+                  name,
+                  content: contentItem,
+                }))
+              }
+              return { name, content }
+            }
+          )
+          target.other = [...target.other, ...sourceOtherArray]
+        }
         break
       case 'metadataBase':
         target.metadataBase = metadataBase

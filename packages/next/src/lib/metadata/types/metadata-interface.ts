@@ -451,11 +451,13 @@ interface Metadata extends DeprecatedMetadataFields {
   classification?: null | string
 
   /**
-   * Arbitrary name/value pairs for the document.
+   * Arbitrary name/value pairs for the document, can be an object or an array of objects.
    */
-  other?: {
-    [name: string]: string | number | Array<string | number>
-  } & DeprecatedMetadataFields
+  other?:
+    | ({
+        [name: string]: string | number | Array<string | number>
+      } & DeprecatedMetadataFields)
+    | Array<{ name?: string; property?: string; content?: string | number }>
 }
 
 interface ResolvedMetadata extends DeprecatedMetadataFields {
@@ -541,12 +543,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   category: null | string
   classification: null | string
 
-  // Arbitrary name/value pairs
-  other:
-    | null
-    | ({
-        [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+  // an array of objects
+  other: Array<{ name?: string; property?: string; content?: string | number }>
 }
 
 type RobotsFile = {
