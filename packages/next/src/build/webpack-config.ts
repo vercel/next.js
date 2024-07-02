@@ -2473,6 +2473,7 @@ export default async function getBaseWebpackConfig(
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     const updatedEntry = async () => {
+      const newEntry: webpack.EntryObject = {}
       const entry: webpack.EntryObject =
         typeof originalEntry === 'function'
           ? await originalEntry()
@@ -2486,15 +2487,15 @@ export default async function getBaseWebpackConfig(
         const originalFile = clientEntries[
           CLIENT_STATIC_FILES_RUNTIME_MAIN
         ] as string
-        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+        newEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
           originalFile,
         ]
       }
       delete entry['main.js']
 
-      for (const name of Object.keys(entry)) {
-        entry[name] = finalizeEntrypoint({
+      for (const name of Object.keys(entry).sort()) {
+        newEntry[name] = finalizeEntrypoint({
           value: entry[name],
           compilerType,
           name,
@@ -2502,7 +2503,7 @@ export default async function getBaseWebpackConfig(
         })
       }
 
-      return entry
+      return newEntry
     }
     // @ts-ignore webpack 5 typings needed
     webpackConfig.entry = updatedEntry
