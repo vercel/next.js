@@ -66,7 +66,7 @@ jobs:
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
   # Build binaries for publishing
   build-native:
@@ -432,7 +432,12 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ github.sha }}-${{ github.run_number }}
+            ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
       - uses: actions/download-artifact@v4
         with:
@@ -480,7 +485,12 @@ jobs:
         id: restore-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          # Cache includes repo checkout which is required for later scripts
+          fail-on-cache-miss: true
+          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ github.sha }}-${{ github.run_number }}
+            ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
       - uses: actions/download-artifact@v4
         with:
