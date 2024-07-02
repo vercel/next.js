@@ -414,7 +414,7 @@ export function Signup() {
 
 > **Good to know:**
 >
-> - To display form errors in the user UI, you should return a **serializable object** instead of throwing an error (e.g. `throw new Error('...')`. Uncaught errors in Server Actions are considered to be an internal server error and the error message [will not be sent to the client](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) in production to avoid leaking sensitive information. See more information on [error handling](#error-handling) in Server Actions.
+> - To display form errors in the user UI, you should return a **serializable object** instead of throwing an error (e.g. `throw new Error('...')`). Uncaught errors in Server Actions are considered to be an internal server error and the error message [will not be sent to the client](/docs/app/building-your-application/routing/error-handling#securing-sensitive-error-information) in production to avoid leaking sensitive information. See more information on [error handling](#error-handling) in Server Actions.
 > - Throwing errors will trigger the nearest the nearest `error.js` boundary - see [Error Handling](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#error-handling)
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 > - In earlier React Canary versions, this API was part of React DOM and called `useFormState`.
