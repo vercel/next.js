@@ -26,10 +26,10 @@ import {
 } from '../../../shared/lib/constants'
 import {
   getActions,
-  generateActionId,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
+  generateActionChecksum,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -43,6 +43,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { isWebpackServerOnlyLayer } from '../../utils'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
+import { getHashedActionId } from '../../../server/app-render/encryption-utils'
 
 interface Options {
   dev: boolean
@@ -887,6 +888,7 @@ export class FlightClientEntryPlugin {
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
+      encryptionKey: this.encryptionKey,
       __client_imported__: fromClient,
     })}!`
 
@@ -895,7 +897,10 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
     for (const [p, names] of actionsArray) {
       for (const name of names) {
-        const id = generateActionId(p, name)
+        const id = getHashedActionId(
+          generateActionChecksum(p, name),
+          this.encryptionKey
+        )
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},

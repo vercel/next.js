@@ -1,6 +1,7 @@
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { djb2Hash } from '../../shared/lib/hash'
 
 // Keep the key in memory as it should never change during the lifetime of the server in
 // both development and production.
@@ -9,6 +10,14 @@ let __next_encryption_key_generation_promise: Promise<
 > | null = null
 let __next_loaded_action_key: CryptoKey
 let __next_internal_development_raw_action_key: string
+
+export function getHashedActionId(
+  checksum: string,
+  providedEncryptionKey?: string
+) {
+  const encryptionKey = providedEncryptionKey ?? getEncryptionRawKeySync()
+  return djb2Hash(encryptionKey + ':' + checksum).toString(36)
+}
 
 export function arrayBufferToString(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer)
@@ -174,11 +183,9 @@ export function getClientReferenceManifestSingleton() {
   return serverActionsManifestSingleton.clientReferenceManifest
 }
 
-export async function getActionEncryptionKey() {
-  if (__next_loaded_action_key) {
-    return __next_loaded_action_key
-  }
-
+// Synchronously return the encryption key which must be loaded before calling
+// this function.
+export function getEncryptionRawKeySync() {
   const serverActionsManifestSingleton = (globalThis as any)[
     SERVER_ACTION_MANIFESTS_SINGLETON
   ] as {
@@ -199,6 +206,16 @@ export async function getActionEncryptionKey() {
   if (rawKey === undefined) {
     throw new Error('Missing encryption key for Server Actions')
   }
+
+  return rawKey
+}
+
+export async function getActionEncryptionKey() {
+  if (__next_loaded_action_key) {
+    return __next_loaded_action_key
+  }
+
+  const rawKey = getEncryptionRawKeySync()
 
   __next_loaded_action_key = await crypto.subtle.importKey(
     'raw',

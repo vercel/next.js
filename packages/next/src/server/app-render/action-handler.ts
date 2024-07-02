@@ -801,12 +801,14 @@ export async function handleAction({
         }
       }
 
+      // `actionId` must exist if we got here, as otherwise we would have thrown an error.
+      if (!actionId) {
+        throw new Error('Error: Missing Action ID. This is a bug in Next.js.')
+      }
+
       const actionHandler = (
         await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      )[actionId]
 
       const returnVal = await actionHandler.apply(null, bound)
 
