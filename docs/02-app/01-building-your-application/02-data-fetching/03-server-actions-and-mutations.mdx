@@ -94,7 +94,7 @@ You can also pass a Server Action to a Client Component as a prop:
 export default function ClientComponent({
   updateItemAction,
 }: {
-  updateItemAction: (formData: FormData) => void,
+  updateItemAction: (formData: FormData) => void
 }) {
   return <form action={updateItemAction}>{/* ... */}</form>
 }
