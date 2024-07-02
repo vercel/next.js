@@ -891,6 +891,8 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
+
   if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
@@ -913,8 +915,6 @@ async function renderToHTMLOrFlightImpl(
   // injected nodes from user code (`useServerInsertedHTML`).
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-
-  getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
 
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
