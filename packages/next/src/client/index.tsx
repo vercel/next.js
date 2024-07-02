@@ -458,8 +458,6 @@ const performanceMeasures = {
 } as const
 
 let reactRoot: any = null
-// On initial render a hydrate should always happen
-let shouldHydrate: boolean = true
 
 function clearMarks(): void {
   ;[
@@ -575,14 +573,12 @@ function renderReactElement(
     performance.mark(performanceMarks.beforeRender)
   }
 
-  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
+  const reactEl = fn(!reactRoot ? markHydrateComplete : markRenderComplete)
   if (!reactRoot) {
     // Unlike with createRoot, you don't need a separate root.render() call here
     reactRoot = ReactDOM.hydrateRoot(domEl, reactEl, {
       onRecoverableError,
     })
-    // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
-    shouldHydrate = false
   } else {
     const startTransition = (React as any).startTransition
     startTransition(() => {
