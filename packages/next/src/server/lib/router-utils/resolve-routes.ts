@@ -403,6 +403,17 @@ export function getResolveRoutes(
 
               parsedUrl.pathname = normalized
             }
+
+            if (config.i18n) {
+              const curLocaleResult = normalizeLocalePath(
+                parsedUrl.pathname || '',
+                config.i18n.locales
+              )
+
+              if (curLocaleResult.detectedLocale) {
+                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              }
+            }
           }
         }
 
