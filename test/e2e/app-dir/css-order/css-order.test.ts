@@ -183,6 +183,20 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
   },
+  'global-first': {
+    group: 'global',
+    conflict: true,
+    url: '/global-first',
+    selector: '#hello1',
+    color: 'rgb(0, 255, 0)',
+  },
+  'global-second': {
+    group: 'global',
+    conflict: true,
+    url: '/global-second',
+    selector: '#hello2',
+    color: 'rgb(0, 0, 255)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
