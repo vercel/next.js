@@ -194,9 +194,6 @@ importers:
       '@vercel/devlow-bench':
         specifier: 0.3.1
         version: 0.3.1(encoding@0.1.13)
-      '@vercel/fetch':
-        specifier: 6.1.1
-        version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))
       '@vercel/og':
         specifier: 0.6.2
         version: 0.6.2
@@ -4170,9 +4167,6 @@ packages:
   '@types/aria-query@5.0.1':
     resolution: {integrity: sha512-XTIieEY+gvJ39ChLcB4If5zHtPxt3Syj5rgZR+e1ctpmK8NjPf0zFqsz4JpLJT0xla9GFDKjy8Cpu331nrmE1Q==}
 
-  '@types/async-retry@1.2.1':
-    resolution: {integrity: sha512-yMQ6CVgICWtyFNBqJT3zqOc+TnqqEPLo4nKJNPFwcialiylil38Ie6q1ENeFTjvaLOkVim9K5LisHgAKJWidGQ==}
-
   '@types/async-retry@1.4.2':
     resolution: {integrity: sha512-GUDuJURF0YiJZ+CBjNQA0+vbP/VHlJbB0sFqkzsV7EcOPRfurVonXpXKAt3w8qIjM1TEzpz6hc6POocPvHOS3w==}
 
@@ -4356,9 +4350,6 @@ packages:
   '@types/long@4.0.1':
     resolution: {integrity: sha512-5tXH6Bx/kNGd3MgffdmP4dy2Z+G4eaXw0SE81Tq3BNadtnMR5/ySMzX4SLEzHJzSmPNn4HIdpQsBvXMUykr58w==}
 
-  '@types/lru-cache@4.1.1':
-    resolution: {integrity: sha512-8mNEUG6diOrI6pMqOHrHPDBB1JsrpedeMK9AWGzVCQ7StRRribiT9BRvUmF8aUws9iBbVlgVekOT5Sgzc1MTKw==}
-
   '@types/lru-cache@5.1.0':
     resolution: {integrity: sha512-RaE0B+14ToE4l6UqdarKPnXwVDuigfFv+5j9Dze/Nqr23yyuqdNvzcZi3xB+3Agvi5R4EOgAksfv3lXX4vBt9w==}
 
@@ -4379,9 +4370,6 @@ packages:
 
   '@types/mute-stream@0.0.4':
     resolution: {integrity: sha512-CPM9nzrCPPJHQNA9keH9CVkVI+WR5kMa+7XEs5jcGQ0VoAGnLv242w8lIVgwAEfmE4oufJRaTc9PNLQl0ioAow==}
-
-  '@types/node-fetch@2.3.2':
-    resolution: {integrity: sha512-yW0EOebSsQme9yKu09XbdDfle4/SmWZMK4dfteWcSLCYNQQcF+YOv0kIrvm+9pO11/ghA4E6A+RNQqvYj4Nr3A==}
 
   '@types/node-fetch@2.6.1':
     resolution: {integrity: sha512-oMqjURCaxoSIsHSr1E47QHzbmzNR5rK8McHuNb11BOM9cHcIK3Avy0s/b2JlXHoQGTYS3NsvWzV1M0iK7l0wbA==}
@@ -4608,22 +4596,6 @@ packages:
     resolution: {integrity: sha512-RbKloNKAj55/JYqhx2QtqVFWKr1f7zvuBVGs8oPksCO6oZkSnvgJhcgjftOpFAzJKUSQ+oUOYIO9oWdjDUjgFw==}
     hasBin: true
 
-  '@vercel/fetch-cached-dns@2.0.2':
-    resolution: {integrity: sha512-gDqKEV8CeY2YmCdZpP1rn3tFK1L07Vw2+HYkCK8zpRHOVGr/sP8yhBsW+C/yqGVj0i9z/rIvqIHe5emvRvxwgw==}
-    peerDependencies:
-      node-fetch: '*'
-
-  '@vercel/fetch-retry@5.0.3':
-    resolution: {integrity: sha512-DIIoBY92r+sQ6iHSf5WjKiYvkdsDIMPWKYATlE0KcUAj2RV6SZK9UWpUzBRKsofXqedOqpVjrI0IE6AWL7JRtg==}
-    peerDependencies:
-      node-fetch: '*'
-
-  '@vercel/fetch@6.1.1':
-    resolution: {integrity: sha512-nddCkgpA0aVIqOlzh+qVlzDNcQq0cSnqefM+x6SciGI4GCvVZeaZ7WEowgX8I/HwBAq8Uj5Bdnd+r0+sYsJsig==}
-    peerDependencies:
-      '@types/node-fetch': '2'
-      node-fetch: '2'
-
   '@vercel/ncc@0.34.0':
     resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
     hasBin: true
@@ -4691,9 +4663,6 @@ packages:
 
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
-
-  '@zeit/dns-cached-resolve@2.1.2':
-    resolution: {integrity: sha512-A/5gbBskKPETTBqHwvlaW1Ri2orO62yqoFoXdxna1SQ7A/lXjpWgpJ1wdY3IQEcz5LydpS4sJ8SzI2gFyyLEhg==}
 
   JSONStream@1.3.5:
     resolution: {integrity: sha512-E+iruNOY8VV9s4JEbe1aNEm6MiszPRr/UfcHMz0TQh1BXSxHK+ASV1R6W4HpjBhSeS+54PIsAMCBmwD06LLsqQ==}
@@ -4783,10 +4752,6 @@ packages:
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
-
-  agentkeepalive@3.4.1:
-    resolution: {integrity: sha512-MPIwsZU9PP9kOrZpyu2042kYA8Fdt/AedQYkYXucHgF9QoD9dXVp0ypuGnHXSR0hTstBxdt85Xkh4JolYfK5wg==}
-    engines: {node: '>= 4.0.0'}
 
   agentkeepalive@4.1.4:
     resolution: {integrity: sha512-+V/rGa3EuU74H6wR04plBb7Ks10FbtUQgRj/FQOG7uUIEuaINI+AiqJR1k6t3SVNs7o7ZjIdus6706qqzVq8jQ==}
@@ -17801,8 +17766,6 @@ snapshots:
 
   '@types/aria-query@5.0.1': {}
 
-  '@types/async-retry@1.2.1': {}
-
   '@types/async-retry@1.4.2':
     dependencies:
       '@types/retry': 0.12.0
@@ -18025,8 +17988,6 @@ snapshots:
 
   '@types/long@4.0.1': {}
 
-  '@types/lru-cache@4.1.1': {}
-
   '@types/lru-cache@5.1.0': {}
 
   '@types/mdast@3.0.10':
@@ -18042,10 +18003,6 @@ snapshots:
   '@types/minimist@1.2.0': {}
 
   '@types/mute-stream@0.0.4':
-    dependencies:
-      '@types/node': 20.12.3
-
-  '@types/node-fetch@2.3.2':
     dependencies:
       '@types/node': 20.12.3
 
@@ -18395,32 +18352,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@vercel/fetch-cached-dns@2.0.2(node-fetch@2.6.7(encoding@0.1.13))':
-    dependencies:
-      '@types/node-fetch': 2.3.2
-      '@zeit/dns-cached-resolve': 2.1.2
-      node-fetch: 2.6.7(encoding@0.1.13)
-
-  '@vercel/fetch-retry@5.0.3(node-fetch@2.6.7(encoding@0.1.13))':
-    dependencies:
-      async-retry: 1.3.1
-      debug: 3.2.7
-      node-fetch: 2.6.7(encoding@0.1.13)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@vercel/fetch@6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7(encoding@0.1.13))':
-    dependencies:
-      '@types/async-retry': 1.2.1
-      '@types/node-fetch': 2.6.1
-      '@vercel/fetch-cached-dns': 2.0.2(node-fetch@2.6.7(encoding@0.1.13))
-      '@vercel/fetch-retry': 5.0.3(node-fetch@2.6.7(encoding@0.1.13))
-      agentkeepalive: 3.4.1
-      debug: 3.1.0
-      node-fetch: 2.6.7(encoding@0.1.13)
-    transitivePeerDependencies:
-      - supports-color
-
   '@vercel/ncc@0.34.0': {}
 
   '@vercel/nft@0.27.1(encoding@0.1.13)':
@@ -18531,14 +18462,6 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  '@zeit/dns-cached-resolve@2.1.2':
-    dependencies:
-      '@types/async-retry': 1.2.1
-      '@types/lru-cache': 4.1.1
-      '@types/node': 20.12.3
-      async-retry: 1.2.3
-      lru-cache: 5.1.1
-
   JSONStream@1.3.5:
     dependencies:
       jsonparse: 1.3.1
@@ -18615,10 +18538,6 @@ snapshots:
       debug: 4.1.1
     transitivePeerDependencies:
       - supports-color
-
-  agentkeepalive@3.4.1:
-    dependencies:
-      humanize-ms: 1.2.1
 
   agentkeepalive@4.1.4:
     dependencies:
