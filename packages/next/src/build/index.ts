@@ -1513,7 +1513,7 @@ export default async function build(
 
         await manifestLoader.writeManifests({
           rewrites: emptyRewritesObjToBeImplemented,
-          pageEntrypoints: currentEntrypoints.page,
+          entrypoints: currentEntrypoints,
         })
 
         const errors: {
