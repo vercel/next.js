@@ -13,10 +13,10 @@ mod vdbg;
 
 use internal::PassthroughDebug;
 
-/// The return type of `ValueDebug::dbg`.
+/// The return type of [`ValueDebug::dbg`].
 ///
-/// We don't use `Vc<RcStr>` directly because we don't want the
-/// `Debug`/`Display` representations to be escaped.
+/// We don't use [`Vc<RcStr>`][crate::RcStr] or [`String`] directly because we
+/// don't want the [`Debug`]/[`Display`] representations to be escaped.
 #[turbo_tasks::value]
 pub struct ValueDebugString(String);
 
@@ -46,8 +46,8 @@ impl ValueDebugString {
     }
 }
 
-/// `Debug`-like trait for `Vc` types, automatically derived when using
-/// `turbo_tasks::value` and `turbo_tasks::value_trait`.
+/// [`Debug`]-like trait for [`Vc`] types, automatically derived when using
+/// [`macro@turbo_tasks::value`] and [`turbo_tasks::value_trait`].
 ///
 /// # Usage
 ///
@@ -62,9 +62,9 @@ pub trait ValueDebug {
     fn dbg_depth(self: Vc<Self>, depth: usize) -> Vc<ValueDebugString>;
 }
 
-/// Use [autoref specialization] to implement `ValueDebug` for `T: Debug`.
+/// Use [autoref specialization] to implement [`ValueDebug`] for `T: Debug`.
 ///
-/// [autoref specialization] https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
+/// [autoref specialization]: https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
 pub trait ValueDebugFormat {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString;
 }

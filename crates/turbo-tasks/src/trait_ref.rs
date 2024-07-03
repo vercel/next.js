@@ -9,9 +9,10 @@ use crate::{
     RawVc, ReadRawVcFuture, SharedReference, Vc, VcValueTrait,
 };
 
-/// Similar to a [`ReadRef<T>`], but contains a value trait object instead. The
-/// only way to interact with a `TraitRef<T>` is by passing it around or turning
-/// it back into a value trait vc by calling [`ReadRef::cell`].
+/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
+/// object instead. The only way to interact with a `TraitRef<T>` is by passing
+/// it around or turning it back into a value trait vc by calling
+/// [`ReadRef::cell`][crate::ReadRef::cell].
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
 pub struct TraitRef<T>

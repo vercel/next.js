@@ -2,7 +2,7 @@ use std::{any::Any, marker::PhantomData, mem::ManuallyDrop};
 
 use super::traits::VcValueType;
 
-/// Trait that controls [`Vc`]'s read representation.
+/// Trait that controls [`crate::Vc`]'s read representation.
 ///
 /// Has two implementations:
 /// * [`VcDefaultRead`]

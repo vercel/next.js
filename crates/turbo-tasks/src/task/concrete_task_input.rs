@@ -330,8 +330,8 @@ impl<'de> Deserialize<'de> for SharedValue {
 ///
 /// When a task is called, all its arguments will be converted and stored as
 /// [`ConcreteTaskInput`]s. When the task is actually run, these inputs will be
-/// converted back into the argument types. This is handled by the [`TaskInput`]
-/// trait.
+/// converted back into the argument types. This is handled by the
+/// [`TaskInput`][crate::TaskInput] trait.
 #[allow(clippy::derived_hash_with_manual_eq)]
 #[derive(Debug, Hash, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum ConcreteTaskInput {

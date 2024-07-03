@@ -1,6 +1,6 @@
 use crate::{self as turbo_tasks, RawVc, TryJoinIterExt, Vc};
 /// Just an empty type, but it's never equal to itself.
-/// [Vc<Completion>] can be used as return value instead of `()`
+/// [`Vc<Completion>`] can be used as return value instead of `()`
 /// to have a concrete reference that can be awaited.
 /// It will invalidate the awaiting task everytime the referenced
 /// task has been executed.

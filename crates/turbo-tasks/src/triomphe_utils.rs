@@ -2,8 +2,8 @@ use std::any::Any;
 
 use unsize::Coercion;
 
-/// Attempt to downcast a `triomphe::Arc<dyn Any + Send + Sync>` to a concrete
-/// type.
+/// Attempt to downcast a [`triomphe::Arc<dyn Any + Send +
+/// Sync>`][`triomphe::Arc`] to a concrete type.
 ///
 /// Ported from [`std::sync::Arc::downcast`] to [`triomphe::Arc`].
 pub fn downcast_triomphe_arc<T: Any + Send + Sync>(
@@ -25,7 +25,7 @@ pub fn downcast_triomphe_arc<T: Any + Send + Sync>(
     }
 }
 
-/// [`Coerce::to_any`] except that it coerces to `dyn Any + Send + Sync` as
+/// [`Coercion::to_any`] except that it coerces to `dyn Any + Send + Sync` as
 /// opposed to `dyn Any`.
 pub fn coerce_to_any_send_sync<T: Any + Send + Sync>() -> Coercion<T, dyn Any + Send + Sync> {
     // SAFETY: The signature of this function guarantees the coercion is valid

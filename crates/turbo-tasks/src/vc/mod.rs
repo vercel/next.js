@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use self::cell_mode::VcCellMode;
 pub use self::{
-    cast::{VcValueTraitCast, VcValueTypeCast},
+    cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
     read::{VcDefaultRead, VcRead, VcTransparentRead},
@@ -30,7 +30,7 @@ use crate::{
 /// Turbo Engine backend implementation.
 ///
 /// In order to get a reference to the pointed value, you need to `.await` the
-/// [`Vc<T>`] to get a [`ReadRef<T>`]:
+/// [`Vc<T>`] to get a [`ReadRef<T>`][crate::ReadRef]:
 ///
 /// ```
 /// let some_vc: Vc<T>;

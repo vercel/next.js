@@ -5,16 +5,17 @@ use anyhow::Result;
 use crate::{backend::CellContent, ReadRef, TraitRef, VcRead, VcValueTrait, VcValueType};
 
 /// Trait defined to share behavior between values and traits within
-/// [`ReadRawVcFuture`]. See [`ValueCast`] and [`TraitCast`].
+/// [`ReadRawVcFuture`][crate::ReadRawVcFuture]. See [`VcValueTypeCast`] and
+/// [`VcValueTraitCast`].
 ///
-/// This should not be implemented by users.
-pub trait VcCast {
+/// This trait is sealed and cannot be implemented by users.
+pub trait VcCast: private::Sealed {
     type Output;
 
     fn cast(content: CellContent) -> Result<Self::Output>;
 }
 
-/// Casts an arbitrary cell content into a [`ReadRef<T, U>`].
+/// Casts an arbitrary cell content into a [`ReadRef<T>`].
 pub struct VcValueTypeCast<T> {
     _phantom: PhantomData<T>,
 }
@@ -63,4 +64,15 @@ where
         // implements T
         content.cast_trait::<T>()
     }
+}
+
+// Implement the sealed trait pattern for `VcCast`.
+// https://rust-lang.github.io/api-guidelines/future-proofing.html
+mod private {
+    use super::{VcValueTraitCast, VcValueTypeCast};
+    use crate::{VcValueTrait, VcValueType};
+
+    pub trait Sealed {}
+    impl<T> Sealed for VcValueTypeCast<T> where T: VcValueType {}
+    impl<T> Sealed for VcValueTraitCast<T> where T: VcValueTrait + ?Sized {}
 }
