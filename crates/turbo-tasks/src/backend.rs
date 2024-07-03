@@ -121,7 +121,7 @@ impl PersistentTaskType {
     }
 
     /// Returns the name of the function in the code. Trait methods are
-    /// formatted as [`TraitName::method_name`].
+    /// formatted as `TraitName::method_name`.
     ///
     /// Equivalent to [`ToString::to_string`], but potentially more efficient as
     /// it can return a `&'static str` in many cases.
@@ -411,8 +411,8 @@ impl PersistentTaskType {
         Ok(turbo_tasks.dynamic_call(native_fn, resolved_inputs))
     }
 
-    /// Shared helper used by [`resolve_trait_method`] and
-    /// [`run_resolve_trait`].
+    /// Shared helper used by [`Self::resolve_trait_method`] and
+    /// [`Self::run_resolve_trait`].
     fn resolve_trait_method_from_value(
         trait_type: TraitTypeId,
         this_value: ConcreteTaskInput,

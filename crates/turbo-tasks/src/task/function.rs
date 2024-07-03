@@ -10,7 +10,7 @@
 //! of its arguments implement `TaskInput` and its return type implements
 //! `TaskOutput`. There are a few hoops one needs to jump through to make this
 //! work, but they are described in this blog post:
-//! https://blog.logrocket.com/rust-bevy-entity-component-system/
+//! <https://blog.logrocket.com/rust-bevy-entity-component-system/>
 //!
 //! However, there is an additional complication in our case: async methods
 //! that accept a reference to the receiver as their first argument.
