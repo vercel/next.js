@@ -331,6 +331,7 @@ export default abstract class Server<
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
+  protected instrumentation: any
   private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
@@ -574,6 +575,7 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
       },
+      onRequestError: this.instrumentationOnRequestError,
     }
 
     // Initialize next/config with the environment configuration
@@ -814,6 +816,16 @@ export default abstract class Server<
     }
 
     return matchers
+  }
+
+  protected instrumentationOnRequestError = async (
+    err: any,
+    req: any,
+    context: any
+  ) => {
+    if (this.instrumentation) {
+      this.instrumentation.onRequestError?.(err, req, context)
+    }
   }
 
   public logError(err: Error): void {
@@ -1437,6 +1449,7 @@ export default abstract class Server<
         throw err
       }
       this.logError(getProperError(err))
+      console.log('Base server handle request 500', err)
       res.statusCode = 500
       res.body('Internal Server Error').send()
     }
@@ -3358,6 +3371,7 @@ export default abstract class Server<
         return await this.renderErrorToResponse(ctx, err)
       }
 
+      console.log('Base server render to response 500', err)
       res.statusCode = 500
 
       // if pages/500 is present we still need to trigger

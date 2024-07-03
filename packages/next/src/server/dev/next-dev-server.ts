@@ -157,8 +157,6 @@ export default class DevServer extends Server {
       options.startServerSpan ?? trace('start-next-dev-server')
     this.storeGlobals()
     this.renderOpts.dev = true
-    this.renderOpts.appDirDevErrorLogger = (err: any) =>
-      this.logErrorWithOriginalStack(err, 'app-dir')
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
@@ -186,6 +184,12 @@ export default class DevServer extends Server {
           result.errors.filter((e) => e.severity !== 'ERROR')
         )
       })
+    }
+
+    this.renderOpts.onRequestError = (err: any, req: any, context: any) => {
+      super.instrumentationOnRequestError(err, req, context)
+      // Safe catch to avoid floating promises
+      this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
@@ -413,6 +417,7 @@ export default class DevServer extends Server {
         return { finished: false }
       }
 
+      // Dev middleware error
       response.statusCode = 500
       await this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
@@ -443,6 +448,8 @@ export default class DevServer extends Server {
       this.logErrorWithOriginalStack(error, 'warning')
       const err = getProperError(error)
       const { req, res, page } = params
+
+      // Dev edge function error
       res.statusCode = 500
       await this.renderError(err, req, res, page)
       return null
@@ -506,6 +513,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
+      console.log('dev server err', err)
       formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {
@@ -611,7 +619,7 @@ export default class DevServer extends Server {
   private async runInstrumentationHookIfAvailable() {
     const instrumentation = await this.loadInstrumentationModule()
     if (instrumentation) {
-      await instrumentation.register()
+      await instrumentation.register?.()
     }
   }
 

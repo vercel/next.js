@@ -142,7 +142,7 @@ export interface RenderOptsPartial {
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  appDirDevErrorLogger?: (err: any) => Promise<void>
+  onRequestError?: (err: any, request: any, context: any) => void
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void

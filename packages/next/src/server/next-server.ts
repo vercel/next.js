@@ -309,13 +309,13 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async loadInstrumentationModule() {
-    let instrumentationModule: any
+    // let instrumentationModule: any
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
     ) {
       try {
-        instrumentationModule = await dynamicRequire(
+        this.instrumentation = await dynamicRequire(
           resolve(
             this.serverOptions.dir || '.',
             this.serverOptions.conf.distDir!,
@@ -330,16 +330,16 @@ export default class NextNodeServer extends BaseServer<
         }
       }
     }
-    return instrumentationModule
+    return this.instrumentation
   }
 
   protected async prepareImpl() {
     await super.prepareImpl()
 
     // Call the instrumentation register hook
-    const instrumentation = await this.loadInstrumentationModule()
-    if (instrumentation) {
-      await instrumentation.register?.()
+    this.instrumentation = await this.loadInstrumentationModule()
+    if (this.instrumentation) {
+      await this.instrumentation.register?.()
     }
   }
 
@@ -1734,6 +1734,26 @@ export default class NextNodeServer extends BaseServer<
       }
 
       const error = getProperError(err)
+      if (this.instrumentation) {
+        const errorContext = {
+          routerKind: '',
+          routePath: '',
+          routeType: '',
+          revalidateReason: '',
+          renderType: '',
+          renderSource: '',
+        }
+        this.instrumentation.onRequestError(
+          error,
+          {
+            url: req.url,
+            method: req.method,
+            // cookies: req.headers.cookie,
+            headers: req.headers,
+          },
+          errorContext
+        )
+      }
       console.error(error)
       res.statusCode = 500
       await this.renderError(error, req, res, parsed.pathname || '')

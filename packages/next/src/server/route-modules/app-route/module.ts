@@ -376,16 +376,29 @@ export class AppRouteRouteModule extends RouteModule<
                         this.staticGenerationAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
                     })
-                    const res = await handler(request, {
-                      params: context.params
-                        ? parsedUrlQueryToParams(context.params)
-                        : undefined,
-                    })
+                    let error: unknown
+                    let res
+                    try {
+                      res = await handler(request, {
+                        params: context.params
+                          ? parsedUrlQueryToParams(context.params)
+                          : undefined,
+                      })
+                    } catch (err) {
+                      error = err
+                    }
                     if (!(res instanceof Response)) {
-                      throw new Error(
+                      error = Error(
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
+                    if (error) {
+                      throw error
+                    }
+
+                    // Cast type for TS, if it's not response, it will throw an error above
+                    res = res as Response
+
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
