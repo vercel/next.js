@@ -361,7 +361,9 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
             change.unfinished_tasks_update.push((task, -count));
         }
         for (&task, &count) in data.dirty_tasks.iter() {
-            change.dirty_tasks_update.push((task, -count));
+            if count > 0 {
+                change.dirty_tasks_update.push((task, -1));
+            }
         }
         for (trait_type_id, collectibles_info) in data.collectibles.iter() {
             for (collectible, count) in collectibles_info.collectibles.iter() {
@@ -508,7 +510,13 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     Some(change)
                 }
             }
-            TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => None,
+            TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
+                Some(TaskChange {
+                    unfinished: 1,
+                    dirty_tasks_update: vec![(self.id, 1)],
+                    collectibles: vec![],
+                })
+            }
             TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
@@ -554,7 +562,13 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     Some(change)
                 }
             }
-            TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => None,
+            TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
+                Some(TaskChange {
+                    unfinished: -1,
+                    dirty_tasks_update: vec![(self.id, -1)],
+                    collectibles: vec![],
+                })
+            }
             TaskMetaStateWriteGuard::TemporaryFiller => unreachable!(),
         }
     }
@@ -629,13 +643,16 @@ fn update_count_entry<K: Eq + Hash, H: BuildHasher + Default, const I: usize>(
                 }
             }
         }
-        Entry::Vacant(e) => {
-            if update == 0 {
-                (0, UpdateCountEntryChange::Updated)
-            } else {
+        Entry::Vacant(e) => match update.cmp(&0) {
+            Ordering::Less => {
+                e.insert(update);
+                (update, UpdateCountEntryChange::Updated)
+            }
+            Ordering::Equal => (0, UpdateCountEntryChange::Updated),
+            Ordering::Greater => {
                 e.insert(update);
                 (update, UpdateCountEntryChange::Inserted)
             }
-        }
+        },
     }
 }
