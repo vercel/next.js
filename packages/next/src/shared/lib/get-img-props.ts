@@ -400,9 +400,6 @@ export function getImgProps(
     // through the built-in Image Optimization API.
     unoptimized = true
   }
-  if (priority) {
-    fetchPriority = 'high'
-  }
 
   const qualityInt = getInt(quality)
 
