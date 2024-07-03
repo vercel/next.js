@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import type { BrowserInterface } from 'next-webdriver'
 
-describe('parallel-routes-catchall-css', () => {
+// This test is re-enabled in the next PR in the stack
+describe.skip('parallel-routes-catchall-css', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

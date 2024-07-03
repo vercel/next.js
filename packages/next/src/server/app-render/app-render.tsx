@@ -498,28 +498,30 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
   return (
-    <AppRouter
-      buildId={ctx.renderOpts.buildId}
-      assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={url.pathname + url.search}
-      // This is the router state tree.
-      initialTree={initialTree}
-      // This is the tree of React nodes that are seeded into the cache
-      initialSeedData={seedData}
-      couldBeIntercepted={couldBeIntercepted}
-      initialHead={
-        <>
-          <NonIndex ctx={ctx} />
-          {/* Adding requestId as react key to make metadata remount for each render */}
-          <MetadataTree key={ctx.requestId} />
-        </>
-      }
-      initialLayerAssets={styles}
-      globalErrorComponent={GlobalError}
-      // This is used to provide debug information (when in development mode)
-      // about which slots were not filled by page components while creating the component tree.
-      missingSlots={missingSlots}
-    />
+    <>
+      {styles}
+      <AppRouter
+        buildId={ctx.renderOpts.buildId}
+        assetPrefix={ctx.assetPrefix}
+        initialCanonicalUrl={url.pathname + url.search}
+        // This is the router state tree.
+        initialTree={initialTree}
+        // This is the tree of React nodes that are seeded into the cache
+        initialSeedData={seedData}
+        couldBeIntercepted={couldBeIntercepted}
+        initialHead={
+          <>
+            <NonIndex ctx={ctx} />
+            {/* Adding requestId as react key to make metadata remount for each render */}
+            <MetadataTree key={ctx.requestId} />
+          </>
+        }
+        globalErrorComponent={GlobalError}
+        // This is used to provide debug information (when in development mode)
+        // about which slots were not filled by page components while creating the component tree.
+        missingSlots={missingSlots}
+      />
+    </>
   )
 }
 
@@ -592,7 +594,6 @@ async function ReactServerError({
       initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
-      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
