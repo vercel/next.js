@@ -1,6 +1,10 @@
-use std::{any::Any, marker::PhantomData, mem::ManuallyDrop};
+use std::{any::Any, marker::PhantomData, mem::ManuallyDrop, pin::Pin, task::Poll};
+
+use anyhow::Result;
+use futures::Future;
 
 use super::traits::VcValueType;
+use crate::{ReadRawVcFuture, VcCast, VcValueTrait, VcValueTraitCast, VcValueTypeCast};
 
 /// Trait that controls [`crate::Vc`]'s read representation.
 ///
@@ -108,5 +112,55 @@ where
         unsafe {
             std::mem::transmute_copy::<ManuallyDrop<&Self::Target>, &T>(&ManuallyDrop::new(target))
         }
+    }
+}
+
+pub struct ReadVcFuture<T, Cast = VcValueTypeCast<T>>
+where
+    T: ?Sized,
+    Cast: VcCast,
+{
+    raw: ReadRawVcFuture,
+    _phantom_t: PhantomData<T>,
+    _phantom_cast: PhantomData<Cast>,
+}
+
+impl<T> From<ReadRawVcFuture> for ReadVcFuture<T, VcValueTypeCast<T>>
+where
+    T: VcValueType,
+{
+    fn from(raw: ReadRawVcFuture) -> Self {
+        Self {
+            raw,
+            _phantom_t: PhantomData,
+            _phantom_cast: PhantomData,
+        }
+    }
+}
+
+impl<T> From<ReadRawVcFuture> for ReadVcFuture<T, VcValueTraitCast<T>>
+where
+    T: VcValueTrait + ?Sized,
+{
+    fn from(raw: ReadRawVcFuture) -> Self {
+        Self {
+            raw,
+            _phantom_t: PhantomData,
+            _phantom_cast: PhantomData,
+        }
+    }
+}
+
+impl<T, Cast> Future for ReadVcFuture<T, Cast>
+where
+    T: ?Sized,
+    Cast: VcCast,
+{
+    type Output = Result<Cast::Output>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // Safety: We never move the contents of `self`
+        let raw = unsafe { self.map_unchecked_mut(|this| &mut this.raw) };
+        Poll::Ready(std::task::ready!(raw.poll(cx)).and_then(Cast::cast))
     }
 }
