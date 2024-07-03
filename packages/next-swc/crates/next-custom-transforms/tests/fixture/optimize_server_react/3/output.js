@@ -15,8 +15,6 @@ export default function App({ x }) {
         ()=>null
     ];
     return <div>
-
       <h1>Hello World</h1>
-
     </div>;
 }
