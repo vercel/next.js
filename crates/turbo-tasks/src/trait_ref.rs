@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     manager::find_cell_by_type,
-    vc::{cast::VcCast, VcValueTraitCast},
-    RawVc, ReadRawVcFuture, SharedReference, Vc, VcValueTrait,
+    vc::{cast::VcCast, ReadVcFuture, VcValueTraitCast},
+    RawVc, SharedReference, Vc, VcValueTrait,
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
@@ -141,18 +141,17 @@ where
 {
     type ValueTrait = T;
 
-    type Future = ReadRawVcFuture<T, VcValueTraitCast<T>>;
+    type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
 
     fn into_trait_ref(self) -> Self::Future {
-        self.node.into_trait_read::<T>()
+        self.node.into_read().into()
     }
 
     fn into_trait_ref_untracked(self) -> Self::Future {
-        self.node.into_trait_read_untracked::<T>()
+        self.node.into_read_untracked().into()
     }
 
     fn into_trait_ref_strongly_consistent_untracked(self) -> Self::Future {
-        self.node
-            .into_strongly_consistent_trait_read_untracked::<T>()
+        self.node.into_strongly_consistent_read_untracked().into()
     }
 }

@@ -1,9 +1,7 @@
 use std::{
-    any::Any,
     fmt::{Debug, Display},
     future::Future,
     hash::Hash,
-    marker::PhantomData,
     pin::Pin,
     sync::Arc,
     task::Poll,
@@ -21,10 +19,8 @@ use crate::{
     registry::{
         get_value_type, {self},
     },
-    turbo_tasks,
-    vc::{cast::VcCast, VcValueTraitCast, VcValueTypeCast},
-    CollectiblesSource, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
-    VcValueType,
+    turbo_tasks, CollectiblesSource, SharedReference, TaskId, TraitTypeId, ValueTypeId, Vc,
+    VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -63,50 +59,32 @@ pub enum RawVc {
 }
 
 impl RawVc {
-    pub(crate) fn into_read<T: VcValueType>(self) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
+    pub(crate) fn into_read(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new(self)
     }
 
-    pub(crate) fn into_strongly_consistent_read<T: VcValueType>(
-        self,
-    ) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
-        // returns a custom future to have something concrete and sized
-        // this avoids boxing in IntoFuture
+    pub(crate) fn into_strongly_consistent_read(self) -> ReadRawVcFuture {
         ReadRawVcFuture::new_strongly_consistent(self)
     }
 
-    pub(crate) fn into_trait_read<T: VcValueTrait + ?Sized>(
-        self,
-    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
-        // returns a custom future to have something concrete and sized
-        // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self)
-    }
-
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub(crate) fn into_read_untracked_with_turbo_tasks<T: Any + VcValueType>(
-        self,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> ReadRawVcFuture<T, VcValueTypeCast<T>> {
-        ReadRawVcFuture::new_untracked_with_turbo_tasks(self, turbo_tasks)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub(crate) fn into_trait_read_untracked<T: VcValueTrait + ?Sized>(
-        self,
-    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
+    pub(crate) fn into_read_untracked(self) -> ReadRawVcFuture {
         ReadRawVcFuture::new_untracked(self)
     }
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub(crate) fn into_strongly_consistent_trait_read_untracked<T: VcValueTrait + ?Sized>(
+    pub(crate) fn into_read_untracked_with_turbo_tasks(
         self,
-    ) -> ReadRawVcFuture<T, VcValueTraitCast<T>> {
+        turbo_tasks: &dyn TurboTasksApi,
+    ) -> ReadRawVcFuture {
+        ReadRawVcFuture::new_untracked_with_turbo_tasks(self, turbo_tasks)
+    }
+
+    pub(crate) fn into_strongly_consistent_read_untracked(self) -> ReadRawVcFuture {
         ReadRawVcFuture::new_strongly_consistent_untracked(self)
     }
 
@@ -266,17 +244,15 @@ impl Display for RawVc {
     }
 }
 
-pub struct ReadRawVcFuture<T: ?Sized, Cast = VcValueTypeCast<T>> {
+pub struct ReadRawVcFuture {
     turbo_tasks: Arc<dyn TurboTasksApi>,
     strongly_consistent: bool,
     current: RawVc,
     untracked: bool,
     listener: Option<EventListener>,
-    phantom_data: PhantomData<Pin<Box<T>>>,
-    _cast: PhantomData<Cast>,
 }
 
-impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
+impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc) -> Self {
         let tt = turbo_tasks();
         ReadRawVcFuture {
@@ -285,8 +261,6 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             current: vc,
             untracked: false,
             listener: None,
-            phantom_data: PhantomData,
-            _cast: PhantomData,
         }
     }
 
@@ -298,8 +272,6 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             current: vc,
             untracked: true,
             listener: None,
-            phantom_data: PhantomData,
-            _cast: PhantomData,
         }
     }
 
@@ -311,8 +283,6 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             current: vc,
             untracked: true,
             listener: None,
-            phantom_data: PhantomData,
-            _cast: PhantomData,
         }
     }
 
@@ -324,8 +294,6 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             current: vc,
             untracked: false,
             listener: None,
-            phantom_data: PhantomData,
-            _cast: PhantomData,
         }
     }
 
@@ -337,14 +305,12 @@ impl<T: ?Sized, Cast: VcCast> ReadRawVcFuture<T, Cast> {
             current: vc,
             untracked: true,
             listener: None,
-            phantom_data: PhantomData,
-            _cast: PhantomData,
         }
     }
 }
 
-impl<T: ?Sized, Cast: VcCast> Future for ReadRawVcFuture<T, Cast> {
-    type Output = Result<Cast::Output>;
+impl Future for ReadRawVcFuture {
+    type Output = Result<CellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         self.turbo_tasks.notify_scheduled_tasks();
@@ -390,7 +356,7 @@ impl<T: ?Sized, Cast: VcCast> Future for ReadRawVcFuture<T, Cast> {
                     match read_result {
                         Ok(Ok(content)) => {
                             // SAFETY: Constructor ensures that T and U are binary identical
-                            return Poll::Ready(Cast::cast(content));
+                            return Poll::Ready(Ok(content));
                         }
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),
@@ -409,7 +375,7 @@ impl<T: ?Sized, Cast: VcCast> Future for ReadRawVcFuture<T, Cast> {
     }
 }
 
-unsafe impl<T, Cast> Send for ReadRawVcFuture<T, Cast> where T: ?Sized {}
-unsafe impl<T, Cast> Sync for ReadRawVcFuture<T, Cast> where T: ?Sized {}
+unsafe impl Send for ReadRawVcFuture {}
+unsafe impl Sync for ReadRawVcFuture {}
 
-impl<T, Cast> Unpin for ReadRawVcFuture<T, Cast> where T: ?Sized {}
+impl Unpin for ReadRawVcFuture {}
