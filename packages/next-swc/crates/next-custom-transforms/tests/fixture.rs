@@ -27,7 +27,7 @@ use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
         ecma::{
-            parser::{EsConfig, Syntax},
+            parser::{EsSyntax, Syntax},
             transforms::{
                 base::resolver,
                 react::jsx,
@@ -40,7 +40,7 @@ use turbopack_binding::swc::{
 };
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })
