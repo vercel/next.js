@@ -834,14 +834,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn final_transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let mut transpile_packages = self.transpile_packages().await?.clone_value();
-        // Add default transpile packages
-        transpile_packages.push("geist".into());
-        Ok(Vc::cell(transpile_packages))
-    }
-
-    #[turbo_tasks::function]
     pub async fn webpack_rules(
         self: Vc<Self>,
         active_conditions: Vec<RcStr>,

@@ -140,12 +140,11 @@ pub async fn get_server_resolve_options_context(
     let invalid_styled_jsx_client_only_resolve_plugin =
         get_invalid_styled_jsx_resolve_plugin(project_path);
 
-    let mut transpile_packages = next_config.final_transpile_packages().await?.clone_value();
-    transpile_packages.extend(
-        (*next_config.optimize_package_imports().await?)
-            .iter()
-            .cloned(),
-    );
+    let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
+        project_path,
+        "dist/lib/default-transpiled-packages.json".into(),
+    )
+    .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_templateon(
@@ -153,6 +152,14 @@ pub async fn get_server_resolve_options_context(
         "dist/lib/server-external-packages.json".into(),
     )
     .await?;
+
+    let mut transpile_packages = next_config.transpile_packages().await?.clone_value();
+    transpile_packages.extend(
+        (*next_config.optimize_package_imports().await?)
+            .iter()
+            .cloned(),
+    );
+    transpile_packages.extend(default_transpiled_packages.iter().cloned());
 
     let server_external_packages = &*next_config.server_external_packages().await?;
 
