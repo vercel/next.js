@@ -837,7 +837,7 @@ impl NextConfig {
     pub async fn final_transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
         let mut transpile_packages = self.transpile_packages().await?.clone_value();
         // Add default transpile packages
-        transpile_packages.extend("geist".into());
+        transpile_packages.push("geist".into());
         Ok(Vc::cell(transpile_packages))
     }
 
