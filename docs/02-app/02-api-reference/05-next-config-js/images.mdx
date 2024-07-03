@@ -66,6 +66,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Sirv](#sirv)
 - [Supabase](#supabase)
 - [Thumbor](#thumbor)
+- [Nitrogen AIO](#nitrogen-aio)
 
 ### Akamai
 
@@ -237,5 +238,22 @@ export default function supabaseLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### Nitrogen AIO
+
+```js
+// Docs: https://docs.n7.io/aio/intergrations/
+export default function aioLoader({ src, width, quality }) {
+  const url = new URL(src)
+  const params = url.searchParams
+  const aioParams = params.getAll('aio')
+  aioParams.push(`w-${width}`)
+  if (quality) {
+    aioParams.push(`q-${quality.toString()}`)
+  }
+  params.set('aio', aioParams.join(';'))
+  return url.href
 }
 ```
