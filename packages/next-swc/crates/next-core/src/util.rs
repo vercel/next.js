@@ -94,7 +94,7 @@ pub async fn get_transpiled_package(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.to_vec();
+    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
@@ -102,12 +102,7 @@ pub async fn get_transpiled_package(
     )
     .await?;
 
-    transpile_packages.extend(
-        default_transpiled_packages
-            .iter()
-            .map(|package| package.as_str())
-            .collect(),
-    );
+    transpile_packages.extend(default_transpiled_packages.iter().cloned());
 
     Ok(Vc::cell(transpile_packages))
 }
