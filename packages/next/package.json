@@ -256,6 +256,7 @@
     "jest-worker": "27.5.1",
     "json5": "2.2.3",
     "jsonwebtoken": "9.0.0",
+    "lightningcss": "1.25.1",
     "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.0",
     "loader-utils3": "npm:loader-utils@3.1.3",

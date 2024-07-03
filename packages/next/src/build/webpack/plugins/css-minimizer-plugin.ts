@@ -1,7 +1,4 @@
-import cssnanoSimple from 'next/dist/compiled/cssnano-simple'
-import postcssScss from 'next/dist/compiled/postcss-scss'
-import postcss from 'postcss'
-import type { Parser } from 'postcss'
+import { transform } from 'next/dist/compiled/lightningcss'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { spans } from './profiling-plugin'
 
@@ -9,9 +6,8 @@ import { spans } from './profiling-plugin'
 const CSS_REGEX = /\.css(\?.*)?$/i
 
 type CssMinimizerPluginOptions = {
-  postcssOptions: {
-    map: false | { prev?: string | false; inline: boolean; annotation: boolean }
-  }
+  sourceMap: boolean
+  inputSourceMap?: string
 }
 
 export class CssMinimizerPlugin {
@@ -24,35 +20,33 @@ export class CssMinimizerPlugin {
   }
 
   optimizeAsset(file: string, asset: any) {
-    const postcssOptions = {
-      ...this.options.postcssOptions,
-      to: file,
-      from: file,
-
-      // We don't actually add this parser to support Sass. It can also be used
-      // for inline comment support. See the README:
-      // https://github.com/postcss/postcss-scss/blob/master/README.md#2-inline-comments-for-postcss
-      parser: postcssScss as any as Parser,
+    const lightningcssOptions = {
+      ...this.options,
+      filename: file,
     }
 
     let input: string
-    if (postcssOptions.map && asset.sourceAndMap) {
+    if (lightningcssOptions.sourceMap && asset.sourceAndMap) {
       const { source, map } = asset.sourceAndMap()
       input = source
-      postcssOptions.map.prev = map ? map : false
+      if (map) lightningcssOptions.inputSourceMap = map
     } else {
       input = asset.source()
     }
 
-    return postcss([cssnanoSimple({}, postcss)])
-      .process(input, postcssOptions)
-      .then((res) => {
-        if (res.map) {
-          return new sources.SourceMapSource(res.css, file, res.map.toJSON())
-        } else {
-          return new sources.RawSource(res.css)
-        }
-      })
+    let { code, map } = transform({
+      code: Buffer.from(input),
+      minify: true,
+      ...lightningcssOptions,
+    })
+
+    return !!map
+      ? new sources.SourceMapSource(
+          code.toString(),
+          file,
+          JSON.parse(map.toString())
+        )
+      : new sources.RawSource(code.toString())
   }
 
   apply(compiler: webpack.Compiler) {
@@ -94,7 +88,7 @@ export class CssMinimizerPlugin {
                       return
                     }
 
-                    const result = await this.optimizeAsset(file, asset)
+                    const result = this.optimizeAsset(file, asset)
                     await cache.storePromise(file, etag, result)
                     assets[file] = result
                   })

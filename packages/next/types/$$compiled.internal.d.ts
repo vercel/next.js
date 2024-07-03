@@ -53,6 +53,10 @@ declare module 'next/dist/compiled/commander' {
   export default commander
 }
 
+declare module 'next/dist/compiled/lightningcss' {
+  export * from 'lightningcss'
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }

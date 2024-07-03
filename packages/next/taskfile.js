@@ -1106,6 +1106,15 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
 }
 
+// eslint-disable-next-line camelcase
+externals['lightningcss'] = 'next/dist/compiled/lightningcss'
+export async function ncc_lightningcss(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('lightningcss')))
+    .ncc({ packageName: 'lightningcss', externals })
+    .target('src/compiled/lightningcss')
+}
+
 externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
 // eslint-disable-next-line camelcase
 export async function ncc_cssnano_simple_bundle(task, opts) {
@@ -2224,6 +2233,7 @@ export async function ncc(task, opts) {
         'ncc_vm_browserify',
         'ncc_babel_bundle',
         'ncc_bytes',
+        'ncc_lightningcss',
         'ncc_ci_info',
         'ncc_cli_select',
         'ncc_comment_json',

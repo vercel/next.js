@@ -1116,16 +1116,7 @@ export default async function getBaseWebpackConfig(
             CssMinimizerPlugin,
           } = require('./webpack/plugins/css-minimizer-plugin')
           new CssMinimizerPlugin({
-            postcssOptions: {
-              map: {
-                // `inline: false` generates the source map in a separate file.
-                // Otherwise, the CSS file is needlessly large.
-                inline: false,
-                // `annotation: false` skips appending the `sourceMappingURL`
-                // to the end of the CSS file. Webpack already handles this.
-                annotation: false,
-              },
-            },
+            sourceMap: false,
           }).apply(compiler)
         },
       ],
