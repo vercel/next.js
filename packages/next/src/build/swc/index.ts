@@ -23,6 +23,8 @@ import {
 import type { PageExtensions } from '../page-extensions-type'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
+import loadOptions from '../../server/config'
+import { PHASE_INFO } from '../../shared/lib/constants'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -194,6 +196,16 @@ export interface Binding {
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  // If the experimental.useWasmBinary flag is set in next.config.js, forcibly set useWasmBinary to true.
+  // This is because we'd otherwise have to propagate the flag everywhere loadBindings is used.
+  // See https://github.com/vercel/next.js/issues/62059.
+  if (useWasmBinary === false) {
+    const options = await loadOptions(PHASE_INFO, '')
+    if (options?.experimental?.useWasmBinary !== undefined) {
+      useWasmBinary = options.experimental.useWasmBinary
+    }
+  }
+
   // Increase Rust stack size as some npm packages being compiled need more than the default.
   if (!process.env.RUST_MIN_STACK) {
     process.env.RUST_MIN_STACK = '8388608'
