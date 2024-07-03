@@ -835,11 +835,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn final_transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let mut transpile_packages = self
-            .await?
-            .transpile_packages
-            .clone_value()
-            .unwrap_or_default();
+        let mut transpile_packages = self.transpile_packages().await?.clone_value();
         // Add default transpile packages
         transpile_packages.extend("geist".into());
         Ok(Vc::cell(transpile_packages))
