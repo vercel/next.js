@@ -4,7 +4,6 @@ import type {
   FlightSegmentPath,
   Segment,
 } from './types'
-import React from 'react'
 import {
   canSegmentBeOverridden,
   matchSegment,
@@ -16,9 +15,7 @@ import {
   addSearchParamsIfPageSegment,
   createFlightRouterStateFromLoaderTree,
 } from './create-flight-router-state-from-loader-tree'
-import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
-import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -140,7 +137,7 @@ export async function walkTreeWithFlightRouterState({
       return [[overriddenSegment, routerState, null, null]]
     } else {
       // Create component tree using the slice of the loaderTree
-      const { seedData } = await createComponentTree(
+      const seedData = await createComponentTree(
         // This ensures flightRouterPath is valid and filters down the tree
         {
           ctx,
@@ -158,23 +155,7 @@ export async function walkTreeWithFlightRouterState({
         }
       )
 
-      // Create head
-      const { layoutOrPagePath } = parseLoaderTree(loaderTreeToFilter)
-      const layerAssets = getLayerAssets({
-        ctx,
-        layoutOrPagePath,
-        injectedCSS: new Set(injectedCSS),
-        injectedJS: new Set(injectedJS),
-        injectedFontPreloadTags: new Set(injectedFontPreloadTags),
-      })
-      const head = (
-        <>
-          {layerAssets}
-          {rscPayloadHead}
-        </>
-      )
-
-      return [[overriddenSegment, routerState, seedData, head]]
+      return [[overriddenSegment, routerState, seedData, rscPayloadHead]]
     }
   }
 
