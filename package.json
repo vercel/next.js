@@ -57,7 +57,8 @@
     "version": "pnpm install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky",
     "sync-react": "node ./scripts/sync-react.js",
-    "update-google-fonts": "node ./scripts/update-google-fonts.js"
+    "update-google-fonts": "node ./scripts/update-google-fonts.js",
+    "swc-build-native": "pnpm --filter=@next/swc build-native"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -91,7 +92,7 @@
     "@replayio/replay": "0.20.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
-    "@swc/core": "1.5.7",
+    "@swc/core": "1.6.6",
     "@swc/helpers": "0.5.11",
     "@swc/types": "0.1.7",
     "@testing-library/jest-dom": "6.1.2",
