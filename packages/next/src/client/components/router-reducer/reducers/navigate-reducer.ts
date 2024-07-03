@@ -172,10 +172,10 @@ function navigateReducer_noPPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -364,10 +364,10 @@ function navigateReducer_PPR(
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
           0,
-          -5
+          -4
         ) as unknown as FlightSegmentPath
         // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-4)[0] as FlightRouterState
+        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
@@ -406,20 +406,18 @@ function navigateReducer_PPR(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 4
+            flightDataPath.length === 3
           ) {
             const prefetchedTree: FlightRouterState = flightDataPath[0]
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
-            const layerAssets = flightDataPath[3]
 
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head,
-              layerAssets
+              head
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched

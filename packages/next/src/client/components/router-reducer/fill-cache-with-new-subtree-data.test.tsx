@@ -31,8 +31,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
@@ -42,8 +40,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -57,8 +53,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -72,8 +66,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -105,8 +97,6 @@ describe('fillCacheWithNewSubtreeData', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -120,8 +110,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -136,8 +124,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -148,8 +134,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                         {
                           lazyData: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map([
@@ -170,8 +154,6 @@ describe('fillCacheWithNewSubtreeData', () => {
                                         <title>Head Injected!</title>
                                       </>
                                     ),
-                                    layerAssets: null,
-                                    prefetchLayerAssets: null,
                                   },
                                 ],
                               ]),
