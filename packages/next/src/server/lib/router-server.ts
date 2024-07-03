@@ -321,6 +321,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
+        type,
       } = await resolveRoutes({
         req,
         res,
@@ -371,10 +372,13 @@ export async function initialize(opts: {
         res.setHeader(key, resHeaders[key])
       }
 
-      // handle redirect
-      if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
-        const destination = url.format(parsedUrl)
+      if (statusCode && (type === 'redirect' || type === 'rewrite')) {
         res.statusCode = statusCode
+      }
+
+      // handle redirect
+      if (!bodyStream && statusCode && type === 'redirect') {
+        const destination = url.format(parsedUrl)
         res.setHeader('location', destination)
 
         if (statusCode === RedirectStatusCode.PermanentRedirect) {
@@ -385,7 +389,6 @@ export async function initialize(opts: {
 
       // handle middleware body response
       if (bodyStream) {
-        res.statusCode = statusCode || 200
         return await pipeToNodeResponse(bodyStream, res)
       }
 
