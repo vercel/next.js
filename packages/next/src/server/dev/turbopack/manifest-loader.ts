@@ -39,6 +39,7 @@ import {
 import type { Entrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
+import type { CustomRoutes } from '../../../lib/load-custom-routes'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -296,13 +297,14 @@ export class TurbopackManifestLoader {
 
   private async writeBuildManifest(
     entrypoints: Entrypoints,
-    rewrites: SetupOpts['fsChecker']['rewrites']
+    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
+    productionRewrites: CustomRoutes['rewrites'] | undefined
   ): Promise<void> {
-    const processedRewrites = {
-      ...rewrites,
-      beforeFiles: (rewrites?.beforeFiles ?? []).map(processRoute),
-      afterFiles: (rewrites?.afterFiles ?? []).map(processRoute),
-      fallback: (rewrites?.fallback ?? []).map(processRoute),
+    const rewrites = productionRewrites ?? {
+      ...devRewrites,
+      beforeFiles: (devRewrites?.beforeFiles ?? []).map(processRoute),
+      afterFiles: (devRewrites?.afterFiles ?? []).map(processRoute),
+      fallback: (devRewrites?.fallback ?? []).map(processRoute),
     }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
@@ -329,7 +331,7 @@ export class TurbopackManifestLoader {
     )
 
     const interceptionRewrites = JSON.stringify(
-      processedRewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
 
     await writeFileAtomic(
@@ -347,7 +349,7 @@ export class TurbopackManifestLoader {
       pagesKeys.push('/_error')
     }
     const content: ClientBuildManifest = {
-      __rewrites: normalizeRewritesForBuildManifest(processedRewrites) as any,
+      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
       ...Object.fromEntries(
         pagesKeys.map((pathname) => [
           pathname,
@@ -629,17 +631,19 @@ export class TurbopackManifestLoader {
   }
 
   async writeManifests({
-    rewrites,
+    devRewrites,
+    productionRewrites,
     entrypoints,
   }: {
-    rewrites: SetupOpts['fsChecker']['rewrites']
+    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+    productionRewrites: CustomRoutes['rewrites'] | undefined
     entrypoints: Entrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
     await this.writeAutomaticFontOptimizationManifest()
-    await this.writeBuildManifest(entrypoints, rewrites)
+    await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()

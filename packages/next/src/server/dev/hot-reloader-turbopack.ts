@@ -462,7 +462,8 @@ export async function createHotReloaderTurbopack(
         currentEntryIssues,
         manifestLoader,
         nextConfig: opts.nextConfig,
-        rewrites: opts.fsChecker.rewrites,
+        devRewrites: opts.fsChecker.rewrites,
+        productionRewrites: undefined,
         logErrors: true,
 
         dev: {
@@ -800,7 +801,8 @@ export async function createHotReloaderTurbopack(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: opts.fsChecker.rewrites,
+            devRewrites: opts.fsChecker.rewrites,
+            productionRewrites: undefined,
             logErrors: true,
 
             hooks: {
@@ -861,7 +863,8 @@ export async function createHotReloaderTurbopack(
             entrypoints: currentEntrypoints,
             manifestLoader,
             readyIds,
-            rewrites: opts.fsChecker.rewrites,
+            devRewrites: opts.fsChecker.rewrites,
+            productionRewrites: undefined,
             logErrors: true,
 
             hooks: {
@@ -887,7 +890,8 @@ export async function createHotReloaderTurbopack(
   // Write empty manifests
   await currentEntriesHandling
   await manifestLoader.writeManifests({
-    rewrites: opts.fsChecker.rewrites,
+    devRewrites: opts.fsChecker.rewrites,
+    productionRewrites: undefined,
     entrypoints: currentEntrypoints,
   })
 
