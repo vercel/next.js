@@ -17,7 +17,7 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { createComponentTree } from './create-component-tree'
+import { createCacheNodeSeedData } from './create-cache-node-seed-data'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
@@ -137,7 +137,7 @@ export async function walkTreeWithFlightRouterState({
       return [[overriddenSegment, routerState, null, null]]
     } else {
       // Create component tree using the slice of the loaderTree
-      const seedData = await createComponentTree(
+      const seedData = await createCacheNodeSeedData(
         // This ensures flightRouterPath is valid and filters down the tree
         {
           ctx,
@@ -148,7 +148,7 @@ export async function walkTreeWithFlightRouterState({
           injectedCSS,
           injectedJS,
           injectedFontPreloadTags,
-          // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+          // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createCacheNodeSeedData starts at the current level and does a check for "rootLayoutAtThisLevel" too.
           rootLayoutIncluded,
           asNotFound,
           metadataOutlet,

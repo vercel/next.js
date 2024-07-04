@@ -38,7 +38,7 @@ enum NextServerSpan {
 enum NextNodeServerSpan {
   compression = 'NextNodeServer.compression',
   getBuildId = 'NextNodeServer.getBuildId',
-  createComponentTree = 'NextNodeServer.createComponentTree',
+  createCacheNodeSeedData = 'NextNodeServer.createCacheNodeSeedData',
   clientComponentLoading = 'NextNodeServer.clientComponentLoading',
   getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
@@ -137,7 +137,7 @@ export const NextVanillaSpanAllowlist = [
   AppRouteRouteHandlersSpan.runHandler,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
-  NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.createCacheNodeSeedData,
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
@@ -148,7 +148,7 @@ export const NextVanillaSpanAllowlist = [
 // when the otel log prefix env is set
 export const LogSpanAllowList = [
   NextNodeServerSpan.findPageComponents,
-  NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.createCacheNodeSeedData,
   NextNodeServerSpan.clientComponentLoading,
 ]
 

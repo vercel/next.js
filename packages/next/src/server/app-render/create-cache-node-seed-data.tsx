@@ -23,7 +23,7 @@ type Params = {
 /**
  * Use the provided loader tree to create the React Component tree.
  */
-export function createComponentTree(props: {
+export function createCacheNodeSeedData(props: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
   parentParams: Params
@@ -38,11 +38,11 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
-    NextNodeServerSpan.createComponentTree,
+    NextNodeServerSpan.createCacheNodeSeedData,
     {
       spanName: 'build component tree',
     },
-    () => createComponentTreeInternal(props)
+    () => createCacheNodeSeedDataImpl(props)
   )
 }
 
@@ -52,7 +52,7 @@ function errorMissingDefaultExport(pagePath: string, convention: string) {
   )
 }
 
-async function createComponentTreeInternal({
+async function createCacheNodeSeedDataImpl({
   createSegmentPath,
   loaderTree: tree,
   parentParams,
@@ -420,7 +420,7 @@ async function createComponentTreeInternal({
             }
           }
 
-          const seedData = await createComponentTreeInternal({
+          const seedData = await createCacheNodeSeedDataImpl({
             createSegmentPath: (child) => {
               return createSegmentPath([...currentSegmentPath, ...child])
             },

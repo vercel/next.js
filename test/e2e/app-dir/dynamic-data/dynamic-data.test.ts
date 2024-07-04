@@ -75,7 +75,7 @@ describe('dynamic-data', () => {
       expect($('#boundary').html()).toBeNull()
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
-      // see note in create-component-tree
+      // see note in create-cache-node-seed-data
       expect($('#layout').text()).toBe('run')
       expect($('#page').text()).toBe('run')
       // we expect there to be a suspense boundary in fallback state

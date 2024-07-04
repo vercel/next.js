@@ -102,7 +102,8 @@ describe('opentelemetry', () => {
                       name: 'build component tree',
                       attributes: {
                         'next.span_name': 'build component tree',
-                        'next.span_type': 'NextNodeServer.createComponentTree',
+                        'next.span_type':
+                          'NextNodeServer.createCacheNodeSeedData',
                       },
                       kind: 0,
                       status: { code: 0 },
@@ -255,7 +256,8 @@ describe('opentelemetry', () => {
                       kind: 0,
                       attributes: {
                         'next.span_name': 'build component tree',
-                        'next.span_type': 'NextNodeServer.createComponentTree',
+                        'next.span_type':
+                          'NextNodeServer.createCacheNodeSeedData',
                       },
                       status: { code: 0 },
                       spans: [

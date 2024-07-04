@@ -83,7 +83,7 @@ import {
   makeGetServerInsertedHTML,
 } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import { createComponentTree } from './create-component-tree'
+import { createCacheNodeSeedData } from './create-cache-node-seed-data'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
@@ -475,7 +475,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
-  const seedData = await createComponentTree({
+  const seedData = await createCacheNodeSeedData({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
