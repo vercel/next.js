@@ -90,7 +90,7 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 }
 
 #[turbo_tasks::function]
-pub async fn get_transpiled_package(
+pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
@@ -111,7 +111,7 @@ pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_package(next_config, project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
