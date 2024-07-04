@@ -417,9 +417,10 @@ function navigateReducer_PPR(
               currentTree,
               prefetchedTree,
               seedData,
-              head
+              head,
+              mutable.onlyHashChange
             )
-            if (task !== null && task.node !== null) {
+            if (task !== null) {
               // We've created a new Cache Node tree that contains a prefetched
               // version of the next page. This can be rendered instantly.
 
@@ -430,32 +431,37 @@ function navigateReducer_PPR(
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState
 
-              const newCache = task.node
+              // It's possible that `updateCacheNodeOnNavigation` only spawned tasks to reuse the existing cache,
+              // in which case `task.node` will be null, signaling we don't need to wait for a dynamic request
+              // and can simply apply the patched `FlightRouterState`.
+              if (task.node !== null) {
+                const newCache = task.node
 
-              // The prefetched tree has dynamic holes in it. We initiate a
-              // dynamic request to fill them in.
-              //
-              // Do not block on the result. We'll immediately render the Cache
-              // Node tree and suspend on the dynamic parts. When the request
-              // comes in, we'll fill in missing data and ping React to
-              // re-render. Unlike the lazy fetching model in the non-PPR
-              // implementation, this is modeled as a single React update +
-              // streaming, rather than multiple top-level updates. (However,
-              // even in the new model, we'll still need to sometimes update the
-              // root multiple times per navigation, like if the server sends us
-              // a different response than we expected. For now, we revert back
-              // to the lazy fetching mechanism in that case.)
-              listenForDynamicRequest(
-                task,
-                fetchServerResponse(
-                  url,
-                  currentTree,
-                  state.nextUrl,
-                  state.buildId
+                // The prefetched tree has dynamic holes in it. We initiate a
+                // dynamic request to fill them in.
+                //
+                // Do not block on the result. We'll immediately render the Cache
+                // Node tree and suspend on the dynamic parts. When the request
+                // comes in, we'll fill in missing data and ping React to
+                // re-render. Unlike the lazy fetching model in the non-PPR
+                // implementation, this is modeled as a single React update +
+                // streaming, rather than multiple top-level updates. (However,
+                // even in the new model, we'll still need to sometimes update the
+                // root multiple times per navigation, like if the server sends us
+                // a different response than we expected. For now, we revert back
+                // to the lazy fetching mechanism in that case.)
+                listenForDynamicRequest(
+                  task,
+                  fetchServerResponse(
+                    url,
+                    currentTree,
+                    state.nextUrl,
+                    state.buildId
+                  )
                 )
-              )
 
-              mutable.cache = newCache
+                mutable.cache = newCache
+              }
             } else {
               // Nothing changed, so reuse the old cache.
               // TODO: What if the head changed but not any of the segment data?

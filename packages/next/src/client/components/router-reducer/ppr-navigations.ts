@@ -67,7 +67,8 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode
+  prefetchHead: React.ReactNode,
+  onlyHashChange: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
@@ -119,7 +120,12 @@ export function updateCacheNodeOnNavigation(
         : undefined
 
     let taskChild: Task | null
-    if (newSegmentChild === PAGE_SEGMENT_KEY) {
+    if (onlyHashChange && oldRouterStateChild !== undefined) {
+      // If only the hash fragment changed, we can re-use the existing cache.
+      // We spawn a "task" just to keep track of the updated router state; unlike most, it's
+      // already fulfilled and won't be affected by the dynamic response.
+      taskChild = spawnReusedTask(oldRouterStateChild)
+    } else if (newSegmentChild === PAGE_SEGMENT_KEY) {
       // This is a leaf segment — a page, not a shared layout. We always apply
       // its data.
       taskChild = spawnPendingTask(
@@ -164,7 +170,8 @@ export function updateCacheNodeOnNavigation(
             oldRouterStateChild,
             newRouterStateChild,
             prefetchDataChild,
-            prefetchHead
+            prefetchHead,
+            onlyHashChange
           )
         } else {
           // The server didn't send any prefetch data for this segment. This
@@ -221,6 +228,14 @@ export function updateCacheNodeOnNavigation(
     return null
   }
 
+  // Check if any of the tasks that were created have a non-null node. This signals that
+  // it needs the dynamic data from the server to be fulfilled. Re-used tasks will have a
+  // null `node`, but with an updated `route`, signaling that only the router state changed
+  // but no new data needs to be fetched.
+  const taskChildrenHasPendingTask = Array.from(taskChildren.values()).some(
+    (task) => task.node !== null
+  )
+
   const newCacheNode: ReadyCacheNode = {
     lazyData: null,
     rsc: oldCacheNode.rsc,
@@ -245,7 +260,9 @@ export function updateCacheNodeOnNavigation(
       newRouterState,
       patchedRouterStateChildren
     ),
-    node: newCacheNode,
+    // Only return the new cache node if there are pending tasks that need to be resolved
+    // by the dynamic data from the server. If they don't, we don't need to trigger a dynamic request.
+    node: taskChildrenHasPendingTask ? newCacheNode : null,
     children: taskChildren,
   }
 }
