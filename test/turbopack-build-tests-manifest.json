@@ -1,11 +1,6 @@
 {
   "version": 2,
   "suites": {
-    "test/e2e/app-dir/app/provide-paths.test.ts": {
-      "passed": [],
-      "pending": [],
-      "failed": ["Provided page/app paths should only build the provided paths"]
-    },
     "test/e2e/404-page-router/index.test.ts": {
       "passed": [
         "404-page-router 404-page-router with basePath of false and i18n of false and middleware false for /error should have the correct router parameters after it is ready",
@@ -191,6 +186,7 @@
         "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
         "app-dir action handling should not log errors for non-action form POSTs",
         "app-dir action handling should only submit action once when resubmitting an action after navigation",
+        "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
         "app-dir action handling should push new route when redirecting",
         "app-dir action handling should report errors with bad inputs correctly",
         "app-dir action handling should support .bind",
@@ -209,6 +205,7 @@
         "app-dir action handling should support uploading files",
         "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
         "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+        "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
         "app-dir action handling should work with interception routes"
       ],
       "failed": [
@@ -378,6 +375,7 @@
         "app dir - css css support client pages should support css modules inside client pages",
         "app dir - css css support client pages should support global css inside client pages",
         "app dir - css css support css ordering should have inner layers take precedence over outer layers",
+        "app dir - css css support page extensions should include css imported in MDX pages",
         "app dir - css css support server layouts should support css modules inside server layouts",
         "app dir - css css support server layouts should support external css imports",
         "app dir - css css support server pages should not contain pages css in app dir page",
@@ -401,9 +399,7 @@
         "app dir - css sass support server pages should support global sass/scss inside server pages",
         "app dir - css sass support server pages should support sass/scss modules inside server pages"
       ],
-      "failed": [
-        "app dir - css css support page extensions should include css imported in MDX pages"
-      ],
+      "failed": [],
       "pending": [
         "app dir - css css support server layouts should support global css inside server layouts"
       ],
@@ -580,9 +576,13 @@
         "app dir - prefetching dynamic rendering /force-dynamic should update search params following a link click",
         "app dir - prefetching dynamic rendering /revalidate-0 should not re-render layout when navigating between sub-pages",
         "app dir - prefetching dynamic rendering /revalidate-0 should update search params following a link click",
+        "app dir - prefetching fetch priority should have an auto priority for all other fetch operations",
+        "app dir - prefetching fetch priority should prefetch links in viewport with low priority",
+        "app dir - prefetching fetch priority should prefetch with high priority when navigating to a page without a prefetch entry",
         "app dir - prefetching invalid URLs should not throw when an invalid URL is passed to Link",
         "app dir - prefetching invalid URLs should throw when an invalid URL is passed to router.prefetch",
         "app dir - prefetching should calculate `_rsc` query based on `Next-Url`",
+        "app dir - prefetching should immediately render the loading state for a dynamic segment when fetched from higher up in the tree",
         "app dir - prefetching should navigate when prefetch is false",
         "app dir - prefetching should not fetch again when a static page was prefetched",
         "app dir - prefetching should not have prefetch error for static path",
@@ -813,6 +813,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -909,6 +910,7 @@
         "app-dir static/dynamic handling should cache correctly for fetchCache = default-cache",
         "app-dir static/dynamic handling should cache correctly for fetchCache = force-cache",
         "app-dir static/dynamic handling should cache correctly handle JSON body",
+        "app-dir static/dynamic handling should cache correctly when accessing search params opts into dynamic rendering",
         "app-dir static/dynamic handling should cache correctly with POST method and revalidate",
         "app-dir static/dynamic handling should cache correctly with authorization header and revalidate",
         "app-dir static/dynamic handling should cache correctly with cookie header and revalidate",
@@ -1251,6 +1253,15 @@
         "app dir - basic should match partial parameters",
         "app dir - basic should not include parent when not in parent directory with route in directory"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/app/provide-paths.test.ts": {
+      "passed": [],
+      "failed": [
+        "Provided page/app paths should only build the provided paths"
+      ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -1609,7 +1620,9 @@
         "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
         "app dir - next/dynamic should handle next/dynamic in SSR correctly",
         "app dir - next/dynamic should handle next/dynamic in hydration correctly",
-        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled"
+        "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
+        "app dir - next/dynamic should not render loading by default",
+        "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
       ],
       "failed": [
         "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime"
@@ -2171,11 +2184,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "modularizeImports should work",
         "modularizeImports should work with MDX"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2304,7 +2317,7 @@
       "passed": [
         "next-dynamic-css should have correct order of global styles between layout and pages",
         "next-dynamic-css should have correct order of styles between global and css modules",
-        "next-dynamic-css should have correct order of styles on next/dymamic loaded component"
+        "next-dynamic-css should have correct order of styles on next/dynamic loaded component"
       ],
       "failed": [
         "next-dynamic-css should have correct order of styles on client component that is sharing styles with next/dynamic"
@@ -2424,6 +2437,16 @@
     "test/e2e/app-dir/not-found/css-precedence/index.test.ts": {
       "passed": [
         "not-found app dir css should load css while navigation between not-found and page"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/not-found/default/default.test.ts": {
+      "passed": [
+        "app dir - not-found - default should contain noindex contain in the page",
+        "app dir - not-found - default should has noindex in the head html"
       ],
       "failed": [],
       "pending": [],
@@ -3096,6 +3119,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/react-owner-stacks-svgr/react-owner-stacks-svgr.test.ts": {
+      "passed": [
+        "react-owner-stacks-svgr renders an SVG that is transformed by @svgr/webpack into a React component"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
       "passed": [
         "turbo-resolve-extensions should SSR",
@@ -3704,6 +3736,16 @@
         "searchparams-static-bailout client component should not bailout when not using searchParams",
         "searchparams-static-bailout server component should bailout when using searchParams",
         "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
+      "passed": [
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
+        "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
       ],
       "failed": [],
       "pending": [],
@@ -4729,6 +4771,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/import-meta/import-meta.test.ts": {
+      "passed": [
+        "import-meta import.meta.url should work in browser",
+        "import-meta import.meta.url should work on the server"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/instrumentation-hook-src/instrumentation-hook-src.test.ts": {
       "passed": [
         "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
@@ -5259,6 +5311,16 @@
       ],
       "failed": [],
       "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "next-config-warnings - esm-externals-false should contain esmExternals feature usage in telemetry",
+        "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -8820,7 +8882,6 @@
         "Next Build production mode custom directories",
         "Next Build production mode eslint cache lives in the user defined build directory",
         "Next Build production mode eslint caching is enabled",
-        "Next Build production mode first time setup",
         "Next Build production mode ignore during builds",
         "Next Build production mode invalid older eslint version",
         "Next Build production mode missing Next.js plugin",
@@ -8836,6 +8897,7 @@
     },
     "test/integration/eslint/test/next-lint.test.js": {
       "passed": [
+        "Next Lint First Time Setup  creates .eslintrc.json file with a default app router configuration",
         "Next Lint First Time Setup  creates .eslintrc.json file with a default configuration",
         "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with npm",
         "Next Lint First Time Setup  installs eslint and eslint-config-next as devDependencies if missing with pnpm",
@@ -11291,6 +11353,7 @@
         "with contentDispositionType inline dev support with next.config.js should fail when q is less than 1",
         "with contentDispositionType inline dev support with next.config.js should fail when q is missing",
         "with contentDispositionType inline dev support with next.config.js should fail when q is not a number",
+        "with contentDispositionType inline dev support with next.config.js should fail when q is not an integer",
         "with contentDispositionType inline dev support with next.config.js should fail when url fails to load an image",
         "with contentDispositionType inline dev support with next.config.js should fail when url has file protocol",
         "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
@@ -11301,6 +11364,7 @@
         "with contentDispositionType inline dev support with next.config.js should fail when w is less than 0",
         "with contentDispositionType inline dev support with next.config.js should fail when w is missing",
         "with contentDispositionType inline dev support with next.config.js should fail when w is not a number",
+        "with contentDispositionType inline dev support with next.config.js should fail when w is not an integer",
         "with contentDispositionType inline dev support with next.config.js should fail when width is not in next.config.js",
         "with contentDispositionType inline dev support with next.config.js should handle concurrent requests",
         "with contentDispositionType inline dev support with next.config.js should handle non-ascii characters in image url",
@@ -11359,6 +11423,7 @@
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is less than 1",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is missing",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not a number",
+        "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not an integer",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url fails to load an image",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has file protocol",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -11369,6 +11434,7 @@
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is less than 0",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is missing",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not a number",
+        "with contentDispositionType inline Production Mode Server support with next.config.js should fail when w is not an integer",
         "with contentDispositionType inline Production Mode Server support with next.config.js should fail when width is not in next.config.js",
         "with contentDispositionType inline Production Mode Server support with next.config.js should handle concurrent requests",
         "with contentDispositionType inline Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -11430,6 +11496,7 @@
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is less than 1",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is missing",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not a number",
+        "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not an integer",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url fails to load an image",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has file protocol",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
@@ -11440,6 +11507,7 @@
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is less than 0",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is missing",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not a number",
+        "with dangerouslyAllowSVG config dev support with next.config.js should fail when w is not an integer",
         "with dangerouslyAllowSVG config dev support with next.config.js should fail when width is not in next.config.js",
         "with dangerouslyAllowSVG config dev support with next.config.js should handle concurrent requests",
         "with dangerouslyAllowSVG config dev support with next.config.js should handle non-ascii characters in image url",
@@ -11495,6 +11563,7 @@
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is less than 1",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is missing",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not a number",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not an integer",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url fails to load an image",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has file protocol",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -11505,6 +11574,7 @@
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is less than 0",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is missing",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not a number",
+        "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when w is not an integer",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when width is not in next.config.js",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle concurrent requests",
         "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -11597,6 +11667,7 @@
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is less than 1",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is missing",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not a number",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not an integer",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url fails to load an image",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has file protocol",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
@@ -11607,6 +11678,7 @@
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is less than 0",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is missing",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not a number",
+        "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when w is not an integer",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when width is not in next.config.js",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should handle concurrent requests",
         "with minimumCacheTTL of 5 sec dev support with next.config.js should handle non-ascii characters in image url",
@@ -11665,6 +11737,7 @@
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is less than 1",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is missing",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not a number",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not an integer",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url fails to load an image",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has file protocol",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -11675,6 +11748,7 @@
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is less than 0",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is missing",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not a number",
+        "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when w is not an integer",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when width is not in next.config.js",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle concurrent requests",
         "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -11732,6 +11806,7 @@
         "with latest sharp dev support w/o next.config.js should fail when q is less than 1",
         "with latest sharp dev support w/o next.config.js should fail when q is missing",
         "with latest sharp dev support w/o next.config.js should fail when q is not a number",
+        "with latest sharp dev support w/o next.config.js should fail when q is not an integer",
         "with latest sharp dev support w/o next.config.js should fail when url has file protocol",
         "with latest sharp dev support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp dev support w/o next.config.js should fail when url is missing",
@@ -11741,6 +11816,7 @@
         "with latest sharp dev support w/o next.config.js should fail when w is less than 0",
         "with latest sharp dev support w/o next.config.js should fail when w is missing",
         "with latest sharp dev support w/o next.config.js should fail when w is not a number",
+        "with latest sharp dev support w/o next.config.js should fail when w is not an integer",
         "with latest sharp dev support w/o next.config.js should fail when width is not in next.config.js",
         "with latest sharp dev support w/o next.config.js should handle non-ascii characters in image url",
         "with latest sharp dev support w/o next.config.js should maintain animated gif",
@@ -11789,6 +11865,7 @@
         "with latest sharp dev support with next.config.js should fail when q is less than 1",
         "with latest sharp dev support with next.config.js should fail when q is missing",
         "with latest sharp dev support with next.config.js should fail when q is not a number",
+        "with latest sharp dev support with next.config.js should fail when q is not an integer",
         "with latest sharp dev support with next.config.js should fail when url fails to load an image",
         "with latest sharp dev support with next.config.js should fail when url has file protocol",
         "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
@@ -11799,6 +11876,7 @@
         "with latest sharp dev support with next.config.js should fail when w is less than 0",
         "with latest sharp dev support with next.config.js should fail when w is missing",
         "with latest sharp dev support with next.config.js should fail when w is not a number",
+        "with latest sharp dev support with next.config.js should fail when w is not an integer",
         "with latest sharp dev support with next.config.js should fail when width is not in next.config.js",
         "with latest sharp dev support with next.config.js should handle concurrent requests",
         "with latest sharp dev support with next.config.js should handle non-ascii characters in image url",
@@ -11853,6 +11931,7 @@
         "with latest sharp Production Mode Server support w/o next.config.js should fail when q is less than 1",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when q is missing",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not a number",
+        "with latest sharp Production Mode Server support w/o next.config.js should fail when q is not an integer",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url has file protocol",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when url is missing",
@@ -11862,6 +11941,7 @@
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is less than 0",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is missing",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not a number",
+        "with latest sharp Production Mode Server support w/o next.config.js should fail when w is not an integer",
         "with latest sharp Production Mode Server support w/o next.config.js should fail when width is not in next.config.js",
         "with latest sharp Production Mode Server support w/o next.config.js should handle non-ascii characters in image url",
         "with latest sharp Production Mode Server support w/o next.config.js should maintain animated gif",
@@ -11910,6 +11990,7 @@
         "with latest sharp Production Mode Server support with next.config.js should fail when q is less than 1",
         "with latest sharp Production Mode Server support with next.config.js should fail when q is missing",
         "with latest sharp Production Mode Server support with next.config.js should fail when q is not a number",
+        "with latest sharp Production Mode Server support with next.config.js should fail when q is not an integer",
         "with latest sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
         "with latest sharp Production Mode Server support with next.config.js should fail when url has file protocol",
         "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -11920,6 +12001,7 @@
         "with latest sharp Production Mode Server support with next.config.js should fail when w is less than 0",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is missing",
         "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
+        "with latest sharp Production Mode Server support with next.config.js should fail when w is not an integer",
         "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
         "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
         "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
@@ -15510,6 +15592,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/eslint/test/next-build-and-lint.test.ts": {
+      "passed": [
+        "Next Build production mode first time setup",
+        "Next Build production mode first time setup with TypeScript"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/export/index.test.ts": {
       "passed": [
         "static export API routes export Should throw if a route is matched",
@@ -15999,66 +16091,6 @@
         "required server files app router should properly stream resume",
         "required server files app router should send cache tags in minimal mode for ISR",
         "required server files app router should still render when postponed is corrupted"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/production/standalone-mode/required-server-files/required-server-files.test.ts": {
-      "passed": [],
-      "failed": [
-        "required server files `cacheHandler` should have correct path",
-        "required server files `cacheMaxMemorySize` should be disabled by setting to 0",
-        "required server files `compress` should be `false` in nextEnv",
-        "required server files should bubble error correctly for API page",
-        "required server files should bubble error correctly for gip page",
-        "required server files should bubble error correctly for gsp page",
-        "required server files should bubble error correctly for gssp page",
-        "required server files should cap de-dupe previousCacheItem expires time",
-        "required server files should correctly handle a mismatch in buildIds when normalizing next data",
-        "required server files should de-dupe HTML/data requests",
-        "required server files should favor valid route params over routes-matches",
-        "required server files should favor valid route params over routes-matches optional",
-        "required server files should handle bad request correctly with rewrite",
-        "required server files should have correct asPath on dynamic SSG page correctly",
-        "required server files should have correct asPath on dynamic SSG page fallback correctly",
-        "required server files should have correct cache-control for notFound no revalidate",
-        "required server files should have correct cache-control for notFound with revalidate",
-        "required server files should have correct cache-control for redirect no revalidate",
-        "required server files should have correct cache-control for redirect with revalidate",
-        "required server files should have correct resolvedUrl from dynamic route",
-        "required server files should have correct resolvedUrl from rewrite",
-        "required server files should have correct resolvedUrl from rewrite with added query",
-        "required server files should have the correct cache-control for props with no revalidate",
-        "required server files should match the index page correctly",
-        "required server files should match the root dynamic page correctly",
-        "required server files should normalize catch-all rewrite query values correctly",
-        "required server files should normalize index optional values correctly for API page",
-        "required server files should normalize optional revalidations correctly for SSG page",
-        "required server files should normalize optional values correctly for API page",
-        "required server files should normalize optional values correctly for SSG page",
-        "required server files should normalize optional values correctly for SSG page with encoded slash",
-        "required server files should normalize optional values correctly for SSP page",
-        "required server files should not 404 for onlyGenerated on-demand revalidate in minimal mode",
-        "required server files should not apply trailingSlash redirect",
-        "required server files should output middleware correctly",
-        "required server files should output required-server-files manifest correctly",
-        "required server files should read .env files and process.env",
-        "required server files should render SSR page correctly",
-        "required server files should render SSR page correctly with x-matched-path",
-        "required server files should render dynamic SSR page correctly",
-        "required server files should render dynamic SSR page correctly with x-matched-path",
-        "required server files should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
-        "required server files should render fallback page correctly",
-        "required server files should render fallback page correctly with x-matched-path and routes-matches",
-        "required server files should resolve correctly when a redirect is returned",
-        "required server files should return data correctly with x-matched-path",
-        "required server files should return data correctly with x-matched-path for optional catch-all route",
-        "required server files should set correct SWR headers with notFound gsp",
-        "required server files should set correct SWR headers with notFound gssp",
-        "required server files should show invariant when an automatic static page is requested",
-        "required server files should warn when \"next\" is imported directly",
-        "required server files without minimalMode, with wasm should run middleware correctly"
       ],
       "pending": [],
       "flakey": [],
