@@ -20,7 +20,7 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
-import { AfterContextImpl, type AfterContext } from '../after/after-context'
+import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -192,7 +192,7 @@ function createAfterContext(
   const { waitUntil, onClose, ComponentMod } = renderOpts
   const cacheScope = ComponentMod?.createCacheScope()
 
-  return new AfterContextImpl({ waitUntil, onClose, cacheScope })
+  return new AfterContext({ waitUntil, onClose, cacheScope })
 }
 
 function isAfterEnabled(

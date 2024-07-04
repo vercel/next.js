@@ -13,7 +13,7 @@ describe('AfterContext', () => {
   type AfterContextMod = typeof import('./after-context')
 
   let requestAsyncStorage: RASMod['requestAsyncStorage']
-  let AfterContextImpl: AfterContextMod['AfterContextImpl']
+  let AfterContext: AfterContextMod['AfterContext']
   let after: AfterMod['unstable_after']
 
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('AfterContext', () => {
     requestAsyncStorage = RASMod.requestAsyncStorage
 
     const AfterContextMod = await import('./after-context')
-    AfterContextImpl = AfterContextMod.AfterContextImpl
+    AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
     after = AfterMod.unstable_after
@@ -49,7 +49,7 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -116,7 +116,7 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -164,7 +164,7 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -255,7 +255,7 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -315,7 +315,7 @@ describe('AfterContext', () => {
       throw new Error('onClose is broken for some reason')
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -353,7 +353,7 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -406,7 +406,7 @@ describe('AfterContext', () => {
     const waitUntil = undefined
     const onClose = jest.fn()
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
@@ -436,7 +436,7 @@ describe('AfterContext', () => {
 
     const onClose = undefined
 
-    const afterContext = new AfterContextImpl({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
       cacheScope: undefined,
