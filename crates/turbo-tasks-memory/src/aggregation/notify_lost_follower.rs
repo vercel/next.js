@@ -27,6 +27,7 @@ impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
                 None
             }
             RemoveIfEntryResult::Removed => {
+                aggregating.followers.shrink_amortized();
                 let uppers = aggregating.uppers.iter().cloned().collect::<StackVec<_>>();
                 start_in_progress_all(ctx, &uppers);
                 self.finish_in_progress(ctx, balance_queue, upper_id);
@@ -58,6 +59,7 @@ impl<I: Clone + Eq + Hash, D> AggregationNode<I, D> {
         match aggregating.followers.remove_if_entry(follower_id) {
             RemoveIfEntryResult::PartiallyRemoved => None,
             RemoveIfEntryResult::Removed => {
+                aggregating.followers.shrink_amortized();
                 let uppers = aggregating.uppers.iter().cloned().collect::<StackVec<_>>();
                 start_in_progress_all(ctx, &uppers);
                 Some(PreparedNotifyLostFollower::RemovedFollower {
@@ -162,6 +164,7 @@ impl<C: AggregationContext> PreparedInternalOperation<C> for PreparedNotifyLostF
                                     return;
                                 }
                                 RemoveIfEntryResult::Removed => {
+                                    aggregating.followers.shrink_amortized();
                                     let uppers =
                                         aggregating.uppers.iter().cloned().collect::<StackVec<_>>();
                                     start_in_progress_all(ctx, &uppers);

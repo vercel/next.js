@@ -186,6 +186,16 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
             None => 0,
         }
     }
+
+    /// Frees unused memory
+    pub fn shrink_to_fit(&mut self) {
+        self.inner.shrink_to_fit();
+    }
+
+    /// Frees unused memory in an amortized way
+    pub fn shrink_amortized(&mut self) {
+        self.inner.shrink_amortized()
+    }
 }
 
 impl<T: Eq + Hash + Clone, H: BuildHasher + Default> CountHashSet<T, H> {
