@@ -1,16 +1,11 @@
-import type { NextPageWithLayout } from "./_app";
-import Layout from "../components/layout";
-import Sidebar from "../components/sidebar";
-
-const About: NextPageWithLayout = () => {
+export default function Home() {
   return (
     <section>
       <h2>Layout Example (About)</h2>
       <p>
-        This example adds a property <code>getLayout</code> to your page,
-        allowing you to return a React component for the layout. This allows you
-        to define the layout on a per-page basis. Since we're returning a
-        function, we can have complex nested layouts if desired.
+        You can define a layout by default exporting a React component from 
+        a layout.js file. The component should accept a children prop that will
+        be populated with a child layout (if it exists) or a page during rendering.
       </p>
       <p>
         When navigating between pages, we want to persist page state (input
@@ -33,13 +28,3 @@ const About: NextPageWithLayout = () => {
   );
 };
 
-export default About;
-
-About.getLayout = function getLayout(page: React.ReactElement) {
-  return (
-    <Layout>
-      <Sidebar />
-      {page}
-    </Layout>
-  );
-};
