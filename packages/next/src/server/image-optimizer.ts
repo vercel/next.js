@@ -187,6 +187,22 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter cannot be an array' }
     }
 
+    if (url.length > 3072) {
+      return { errorMessage: '"url" parameter is too long' }
+    }
+
+    if (url.startsWith('//')) {
+      return {
+        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+      }
+    }
+
+    if (url.startsWith('/_next/image')) {
+      return {
+        errorMessage: '"url" parameter cannot be recursive',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
