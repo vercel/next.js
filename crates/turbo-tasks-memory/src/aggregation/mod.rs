@@ -45,15 +45,6 @@ pub enum AggregationNode<I, D> {
     Aggegating(Box<AggegatingNode<I, D>>),
 }
 
-impl<I, D> AggregationNode<I, D> {
-    pub fn new() -> Self {
-        Self::Leaf {
-            aggregation_number: 0,
-            uppers: CountHashSet::new(),
-        }
-    }
-}
-
 /// The aggregation node structure for aggregating nodes.
 pub struct AggegatingNode<I, D> {
     aggregation_number: u32,
@@ -64,6 +55,26 @@ pub struct AggegatingNode<I, D> {
 }
 
 impl<I, A> AggregationNode<I, A> {
+    pub fn new() -> Self {
+        Self::Leaf {
+            aggregation_number: 0,
+            uppers: CountHashSet::new(),
+        }
+    }
+
+    pub fn shrink_to_fit(&mut self)
+    where
+        I: Hash + Eq,
+    {
+        match self {
+            AggregationNode::Leaf { uppers, .. } => uppers.shrink_to_fit(),
+            AggregationNode::Aggegating(aggregating) => {
+                aggregating.uppers.shrink_to_fit();
+                aggregating.followers.shrink_to_fit();
+            }
+        }
+    }
+
     /// Returns the aggregation number of the node.
     pub fn aggregation_number(&self) -> u32 {
         match self {

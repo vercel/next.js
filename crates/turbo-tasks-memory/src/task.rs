@@ -1513,42 +1513,51 @@ impl Task {
 
         let mut cells_to_drop = Vec::new();
 
-        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-            if state.gc.generation > generation {
-                return false;
-            }
+        match self.state_mut() {
+            TaskMetaStateWriteGuard::Full(mut state) => {
+                if state.gc.generation > generation {
+                    return false;
+                }
 
-            match &mut state.state_type {
-                TaskStateType::Done { stateful, edges: _ } => {
-                    if *stateful {
+                match &mut state.state_type {
+                    TaskStateType::Done { stateful, edges: _ } => {
+                        if *stateful {
+                            return false;
+                        }
+                    }
+                    TaskStateType::Dirty { .. } => {}
+                    _ => {
+                        // GC can't run in this state. We will reschedule it when the execution
+                        // completes.
                         return false;
                     }
                 }
-                TaskStateType::Dirty { .. } => {}
-                _ => {
-                    // GC can't run in this state. We will reschedule it when the execution
-                    // completes.
-                    return false;
+
+                // shrinking memory and dropping cells
+                state.aggregation_node.shrink_to_fit();
+                state.output.dependent_tasks.shrink_to_fit();
+                state.cells.shrink_to_fit();
+                for cells in state.cells.values_mut() {
+                    cells.shrink_to_fit();
+                    for cell in cells.iter_mut() {
+                        cells_to_drop.extend(cell.gc_content());
+                        cell.shrink_to_fit();
+                    }
                 }
+
+                drop(state);
+
+                // Dropping cells outside of the lock
+                drop(cells_to_drop);
+
+                true
             }
-
-            // shrinking memory and dropping cells
-            state.output.dependent_tasks.shrink_to_fit();
-            state.cells.shrink_to_fit();
-            for cells in state.cells.values_mut() {
-                cells.shrink_to_fit();
-                for cell in cells.iter_mut() {
-                    cells_to_drop.extend(cell.gc_content());
-                    cell.shrink_to_fit();
-                }
+            TaskMetaStateWriteGuard::Partial(mut state) => {
+                state.aggregation_node.shrink_to_fit();
+                false
             }
-        } else {
-            return false;
-        };
-
-        drop(cells_to_drop);
-
-        true
+            _ => false,
+        }
     }
 
     pub(crate) fn gc_state(&self) -> Option<GcTaskState> {

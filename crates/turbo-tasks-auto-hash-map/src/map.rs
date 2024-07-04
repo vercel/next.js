@@ -249,6 +249,25 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
             }
         }
     }
+
+    pub fn shrink_amortized(&mut self) {
+        match self {
+            AutoMap::List(list) => {
+                if list.capacity() > list.len() * 3 {
+                    list.shrink_to_fit();
+                }
+            }
+            AutoMap::Map(map) => {
+                if map.len() <= MIN_HASH_SIZE {
+                    let mut list = SmallVec::with_capacity(map.len());
+                    list.extend(map.drain());
+                    *self = AutoMap::List(list);
+                } else if map.capacity() > map.len() * 3 {
+                    map.shrink_to_fit();
+                }
+            }
+        }
+    }
 }
 
 impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
