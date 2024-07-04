@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { BrowserInterface } from '../../../lib/browsers/base'
 
 describe('Script component with crossOrigin props', () => {
   const { next } = nextTestSetup({
@@ -7,20 +6,12 @@ describe('Script component with crossOrigin props', () => {
   })
 
   it('should be set crossOrigin also in preload link tag', async () => {
-    let browser: BrowserInterface
+    const browser = await next.browser('/')
 
-    try {
-      browser = await next.browser('/')
+    const crossorigin = await browser
+      .elementByCss('link[href="https://code.jquery.com/jquery-3.7.1.min.js"]')
+      .getAttribute('crossorigin')
 
-      expect(
-        await browser
-          .elementByCss(
-            'link[href="https://code.jquery.com/jquery-3.7.1.min.js"]'
-          )
-          .getAttribute('crossorigin')
-      ).toBe('use-credentials')
-    } finally {
-      if (browser) await browser.close()
-    }
+    expect(crossorigin).toBe('use-credentials')
   })
 })
