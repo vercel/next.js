@@ -73,18 +73,9 @@ impl CustomTransformer for RelayTransformer {
                 .context("Expected relative path to relay artifact")?,
         );
 
-        let config = if self.config.artifact_directory.is_some() {
-            self.config.clone()
-        } else {
-            swc_relay::Config {
-                artifact_directory: Some(PathBuf::from("__generated__")),
-                ..self.config
-            }
-        };
-
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut swc_relay::relay(
-            &config,
+            &self.config,
             FileName::Real(PathBuf::from(ctx.file_name_str)),
             path_to_proj,
             // [TODO]: pages_dir comes through next-swc-loader
