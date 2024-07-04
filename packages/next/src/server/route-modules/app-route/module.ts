@@ -56,6 +56,7 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
+import type { RenderOptsPartial } from '../../app-render/types'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -68,7 +69,8 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: StaticGenerationContext['renderOpts']
+  renderOpts: StaticGenerationContext['renderOpts'] &
+    Pick<RenderOptsPartial, 'onRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
 
@@ -376,28 +378,16 @@ export class AppRouteRouteModule extends RouteModule<
                         this.staticGenerationAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
                     })
-                    let error: unknown
-                    let res
-                    try {
-                      res = await handler(request, {
-                        params: context.params
-                          ? parsedUrlQueryToParams(context.params)
-                          : undefined,
-                      })
-                    } catch (err) {
-                      error = err
-                    }
+                    const res = await handler(request, {
+                      params: context.params
+                        ? parsedUrlQueryToParams(context.params)
+                        : undefined,
+                    })
                     if (!(res instanceof Response)) {
-                      error = Error(
+                      throw new Error(
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-                    if (error) {
-                      throw error
-                    }
-
-                    // Cast type for TS, if it's not response, it will throw an error above
-                    res = res as Response
 
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
