@@ -659,6 +659,7 @@ export default class NextNodeServer extends BaseServer<
     ctx: RequestContext<NodeNextRequest, NodeNextResponse>,
     bubbleNoFallback: boolean
   ) {
+    console.log('renderPageComponent')
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
@@ -672,14 +673,19 @@ export default class NextNodeServer extends BaseServer<
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         if (edgeFunctionsPage === page) {
-          await this.runEdgeFunction({
-            req: ctx.req,
-            res: ctx.res,
-            query: ctx.query,
-            params: ctx.renderOpts.params,
-            page,
-            appPaths,
-          })
+          try {
+            await this.runEdgeFunction({
+              req: ctx.req,
+              res: ctx.res,
+              query: ctx.query,
+              params: ctx.renderOpts.params,
+              page,
+              appPaths,
+            })
+          } catch (err) {
+            console.error('renderPageComponent err', err)
+            throw err
+          }
           return null
         }
       }
@@ -1935,6 +1941,20 @@ export default class NextNodeServer extends BaseServer<
       incrementalCache:
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
+    }).catch((err) => {
+      // For api routes it will directly throw an error, capture the error here
+      this.renderOpts.onRequestError?.(
+        err,
+        {
+          url: params.req.url,
+          method: params.req.method,
+          headers: params.req.headers,
+        },
+        {
+          routerKind: '',
+        }
+      )
+      throw err
     })
 
     if (result.fetchMetrics) {
