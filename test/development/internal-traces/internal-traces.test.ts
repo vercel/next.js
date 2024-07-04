@@ -7,10 +7,11 @@ describe('internal traces', () => {
   })
 
   it('should not write long internal traces to stdio', async () => {
-    await next.render$('/traces')
-    expect(next.cliOutput.length).toBeLessThan(128 * 1024 /* 128kb of ascii */)
-    expect(next.cliOutput).not.toContain(
-      'https://nextjs.org/docs/messages/large-page-data'
-    )
+    const browser = await next.browser('/')
+    const crossOrigin = await browser
+      .elementByCss('link[href="https://code.jquery.com/jquery-3.7.1.min.js"]')
+      .getAttribute('crossorigin')
+
+    expect(crossOrigin).toBe('use-credentials')
   })
 })

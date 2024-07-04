@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('type-env', () => {
+describe('typed-env-pages', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
