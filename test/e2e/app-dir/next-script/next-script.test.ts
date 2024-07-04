@@ -1,16 +1,10 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from '../../../lib/next-modes/base'
+import { nextTestSetup } from 'e2e-utils'
 import { BrowserInterface } from '../../../lib/browsers/base'
 
 describe('Script component with crossOrigin props', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-    })
+  const { next } = nextTestSetup({
+    files: __dirname,
   })
-  afterAll(() => next.destroy())
 
   it('should be set crossOrigin also in preload link tag', async () => {
     let browser: BrowserInterface
