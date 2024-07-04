@@ -125,3 +125,23 @@ To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment
 ```sh
 TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
 ```
+
+## Integration testing outside the repository with preview builds
+
+Every branch build will create a tarball for each package in this repository<sup>1</sup> that can be used in external repositories.
+
+You can use this preview build in other packages by using a https://vercel-packages.vercel.app URL instead of a version in the `package.json` e.g.
+
+```json
+{
+  "dependencies": {
+    "next": "https://vercel-packages.vercel.app/next/commits/abcd/next"
+  }
+}
+```
+
+You can refer to builds only by commit SHAs at the moment.
+
+<sup>1</sup> Not all native packages are built automatically.
+`build-and-deploy` excludes slow, rarely used native variants of `next-swc`.
+To force a build of all packages, you can trigger `build-and-deploy` manually (i.e. `workflow_dispatch`).
