@@ -107,7 +107,11 @@ export function createErrorHandler({
         })
       }
 
-      if (!silenceLogger) {
+      if (
+        !silenceLogger &&
+        // Only log the error from SSR rendering as RSC error will still be pipped there
+        source === 'html'
+      ) {
         if (errorLogger) {
           errorLogger(err).catch(() => {})
         } else {
