@@ -108,9 +108,11 @@ export function createErrorHandler({
       }
 
       if (
-        !silenceLogger &&
-        // Only log the error from SSR rendering as RSC error will still be pipped there
-        source === 'html'
+        (!silenceLogger &&
+          // Only log the error from SSR rendering errors and flight data render errors,
+          // as RSC renderer error will still be pipped into SSR renderer as well.
+          source === 'html') ||
+        source === 'flightData'
       ) {
         if (errorLogger) {
           errorLogger(err).catch(() => {})
