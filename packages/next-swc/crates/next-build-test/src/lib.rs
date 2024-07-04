@@ -202,19 +202,27 @@ pub async fn render_routes(
             })
             .await?;
 
+            let duration = start.elapsed();
             let memory_after = TurboMalloc::memory_usage();
-            if memory_after > memory {
-                tracing::info!(
-                    "memory usage increased by {} MiB",
-                    (memory_after - memory) / 1024 / 1024
-                );
+            if matches!(strategy, Strategy::Sequential { .. }) {
+                if memory_after > memory {
+                    tracing::info!(
+                        "{name} {:?} {} MiB (memory usage increased by {} MiB)",
+                        duration,
+                        memory_after / 1024 / 1024,
+                        (memory_after - memory) / 1024 / 1024
+                    );
+                } else {
+                    tracing::info!(
+                        "{name} {:?} {} MiB (memory usage decreased by {} MiB)",
+                        duration,
+                        memory_after / 1024 / 1024,
+                        (memory - memory_after) / 1024 / 1024
+                    );
+                }
             } else {
-                tracing::info!(
-                    "memory usage decreased by {} MiB",
-                    (memory - memory_after) / 1024 / 1024
-                );
+                tracing::info!("{name} {:?} {} MiB", duration, memory_after / 1024 / 1024);
             }
-            tracing::info!("{name} {:?}", start.elapsed());
 
             Ok::<_, anyhow::Error>(())
         })
