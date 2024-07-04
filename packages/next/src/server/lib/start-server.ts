@@ -261,7 +261,8 @@ export async function startServer(
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
 
-        if (expFeatureInfo?.includes('typedEnv')) {
+        // opt out if typedEnv is set to false
+        if (startServerInfo.nextConfig.typedEnv !== false) {
           await createEnvDefinitions(distDir!, startServerInfo.env)
         }
       }

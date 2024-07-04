@@ -339,9 +339,6 @@ export interface ExperimentalConfig {
    */
   typedRoutes?: boolean
 
-  // TODO: Add documentation
-  typedEnv?: boolean
-
   /**
    * Runs the compilations for server and edge in parallel instead of in serial.
    * This will make builds faster if there is enough server and edge functions
@@ -609,6 +606,14 @@ export interface NextConfig extends Record<string, any> {
   env?: Record<string, string | undefined>
 
   /**
+   * Enable type-checking and autocompletion for environment variables.
+   *
+   * @default true
+   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedEnv
+   */
+  typedEnv?: boolean
+
+  /**
    * Destination directory (defaults to `.next`)
    */
   distDir?: string
@@ -872,6 +877,7 @@ export interface NextConfig extends Record<string, any> {
 
 export const defaultConfig: NextConfig = {
   env: {},
+  typedEnv: true,
   webpack: null,
   eslint: {
     ignoreDuringBuilds: false,
@@ -969,7 +975,6 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
-    typedEnv: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

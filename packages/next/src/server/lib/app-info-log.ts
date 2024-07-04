@@ -5,7 +5,10 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import loadConfig, { getEnabledExperimentalFeatures } from '../config'
+import loadConfig, {
+  getEnabledExperimentalFeatures,
+  type NextConfig,
+} from '../config'
 
 export function logStartInfo({
   networkUrl,
@@ -56,9 +59,10 @@ export async function getStartServerInfo(
   envInfo?: string[]
   expFeatureInfo?: string[]
   env: Env
+  nextConfig: NextConfig
 }> {
-  let env: Env = {}
   let expFeatureInfo: string[] = []
+  let nextConfig: NextConfig = {}
   await loadConfig(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
@@ -70,7 +74,7 @@ export async function getStartServerInfo(
         expFeatureInfo = userNextConfigExperimental.sort(
           (a, b) => a.length - b.length
         )
-        env = userConfig.env ?? {}
+        nextConfig = userConfig
       },
     }
   )
@@ -84,11 +88,12 @@ export async function getStartServerInfo(
     envInfo = loadedEnvFiles.map((f) => f.path)
   }
 
-  env = Object.assign({}, env, parsedEnv)
+  const env: Env = Object.assign({}, parsedEnv, nextConfig.env)
 
   return {
     envInfo,
     expFeatureInfo,
     env,
+    nextConfig,
   }
 }

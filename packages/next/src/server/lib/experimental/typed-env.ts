@@ -20,7 +20,11 @@ export {}`
   try {
     await mkdir(dirname(envDtsPath), { recursive: true })
     await writeFile(envDtsPath, definitionStr, 'utf-8')
-  } catch (e) {
-    console.error(`Failed to write ${envDtsPath}: ${e}`)
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
+      await writeFile(envDtsPath, definitionStr, 'utf-8')
+    }
+
+    console.error(`Failed to write ${envDtsPath}: ${error}`)
   }
 }
