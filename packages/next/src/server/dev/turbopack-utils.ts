@@ -520,9 +520,7 @@ export async function handleRouteType({
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(
-        normalizeAppMetadataRoutePage(page, false)
-      )
+      await manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
@@ -1000,7 +998,11 @@ export async function handlePagesErrorRoute({
   })
 }
 
-export function normalizeAppMetadataRoutePage(
+// Since turbopack will create app pages/route entries based on the structure,
+// which means the entry keys are based on file names.
+// But for special metadata conventions we'll change the page/pathname to a different path.
+// So we need this helper to map the new path back to original turbopack entry key.
+export function normalizedPageToTurbopackStructureRoute(
   route: string,
   ext: string | false
 ): string {

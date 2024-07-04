@@ -731,13 +731,6 @@ export async function ncc_buffer(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function copy_react_is(task, opts) {
-  await task
-    .source(join(dirname(require.resolve('react-is/package.json')), '**/*'))
-    .target('src/compiled/react-is')
-}
-
-// eslint-disable-next-line camelcase
 export async function copy_constants_browserify(task, opts) {
   await fs.mkdir(join(__dirname, 'src/compiled/constants-browserify'), {
     recursive: true,
@@ -1765,6 +1758,13 @@ export async function copy_vendor_react(task_) {
   for (const res of copy_vendor_react_impl(task_, { experimental: true })) {
     await res
   }
+
+  // TODO: Support react-is experimental channel. We currently assume Canary and Experimental are equal.
+  await task_
+    .source(
+      join(dirname(require.resolve('react-is-builtin/package.json')), '**/*')
+    )
+    .target('src/compiled/react-is')
 }
 
 // eslint-disable-next-line camelcase
@@ -2307,7 +2307,6 @@ export async function ncc(task, opts) {
       'copy_vercel_og',
       'copy_constants_browserify',
       'copy_vendor_react',
-      'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
@@ -2590,47 +2589,13 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'generate_types', 'rewrite_compiled_references'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
   await execa.command('pnpm run types', {
     stdio: 'inherit',
   })
-}
-
-/**
- * TypeScript will emit references to the compiled types used to type the implementation.
- * The declarations however don't need such detailed types.
- * We rewrite the references to reference a more lightweight solution instead.
- * @param {import('taskr').Task} task
- */
-export async function rewrite_compiled_references(task, opts) {
-  const declarationDirectory = join(__dirname, 'dist')
-  const declarationFiles = glob.sync('**/*.d.ts', { cwd: declarationDirectory })
-
-  for (const declarationFile of declarationFiles) {
-    const content = await fs.readFile(
-      join(declarationDirectory, declarationFile),
-      'utf8'
-    )
-    // Rewrite
-    // /// <reference path="../../../../types/$$compiled.internal.d.ts" />
-    // to
-    // /// <reference path="../../../../types/compiled.d.ts" />
-    if (content.indexOf('/types/$$compiled.internal.d.ts" />') !== -1) {
-      await fs.writeFile(
-        join(declarationDirectory, declarationFile),
-        content.replace(
-          /\/types\/\$\$compiled\.internal\.d\.ts" \/>/g,
-          '/types/compiled.d.ts" />'
-        )
-      )
-    }
-  }
 }
 
 export default async function (task) {
