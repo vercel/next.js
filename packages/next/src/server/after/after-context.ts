@@ -20,10 +20,6 @@ export type AfterContextOpts = {
   cacheScope: CacheScope | undefined
 }
 
-export function createAfterContext(opts: AfterContextOpts): AfterContext {
-  return new AfterContextImpl(opts)
-}
-
 export class AfterContextImpl implements AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
