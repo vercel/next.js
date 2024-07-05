@@ -18,10 +18,10 @@ Any Next.js app inside the monorepo can be debugged with these configurations.
 2. Enter the app dirname, e.g. `examples/hello-world` or `test/e2e/app-dir/app`.
 3. Select the `next` command from the presented options (`dev`, `build`, or `start`).
 
-To see the changes you make to the Next.js codebase during development, you can run `NEXT_SERVER_EVAL_SOURCE_MAPS=1 pnpm dev` in the root directory, which will watch for file changes in `packages/next` and recompile the Next.js source code on any file saves.
+To see the changes you make to the Next.js codebase during development, you can run `pnpm dev` in the root directory, which will watch for file changes in `packages/next` and recompile the Next.js source code on any file saves.
 
 ## Breakpoints
 
 When developing/debugging Next.js, you can set breakpoints anywhere in the `packages/next` source code that will stop the debugger at certain locations so you can examine the behavior. Read more about [breakpoints in the VS Code documentation](https://code.visualstudio.com/docs/nodejs/nodejs-debugging#_breakpoints).
 
-To ensure that the original names are displayed in the "Variables" section, build the Next.js source code with `NEXT_SERVER_EVAL_SOURCE_MAPS=1` (see above).
+To ensure that the original names are displayed in the "Variables" section, build the Next.js source code with `NEXT_SERVER_EVAL_SOURCE_MAPS=1`. This is automatically applied when using `pnpm dev`.
