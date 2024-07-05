@@ -7,7 +7,7 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
-import type { JSX } from 'react'
+import type { CSSProperties, JSX } from 'react'
 
 export interface StaticImageData {
   src: string
@@ -80,6 +80,12 @@ export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+const INVALID_BACKGROUND_SIZE_VALUES = [
+  'fill',
+  '-moz-initial',
+  'none',
+  undefined,
+]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
 type ImageConfig = ImageConfigComplete & {
   allSizes: number[]
@@ -96,6 +102,16 @@ type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
 export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
+
+export type PlaceholderStyle = Partial<
+  Pick<
+    CSSProperties,
+    | 'backgroundSize'
+    | 'backgroundPosition'
+    | 'backgroundRepeat'
+    | 'backgroundImage'
+  >
+>
 
 function isStaticRequire(
   src: StaticRequire | StaticImageData
@@ -634,9 +650,13 @@ export function getImgProps(
         : `url("${placeholder}")` // assume `data:image/`
       : null
 
-  let placeholderStyle = backgroundImage
+  let placeholderStyle: PlaceholderStyle = backgroundImage
     ? {
-        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundSize: !INVALID_BACKGROUND_SIZE_VALUES.includes(
+          imgStyle.objectFit
+        )
+          ? imgStyle.objectFit
+          : 'cover',
         backgroundPosition: imgStyle.objectPosition || '50% 50%',
         backgroundRepeat: 'no-repeat',
         backgroundImage,
