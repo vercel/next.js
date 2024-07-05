@@ -54,8 +54,8 @@ export function createWebpackAliases({
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
   // version when removed or not present
+  const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
   if (dev) {
-    const nextDistPath = 'next/dist/' + (isEdgeServer ? 'esm/' : '')
     customAppAliases[`${PAGES_DIR_ALIAS}/_app`] = [
       ...(pagesDir
         ? pageExtensions.reduce((prev, ext) => {

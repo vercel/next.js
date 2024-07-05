@@ -336,8 +336,6 @@ export default class NextNodeServer extends BaseServer<
   protected async prepareImpl() {
     await super.prepareImpl()
 
-    // Call the instrumentation register hook
-    this.instrumentation = await this.loadInstrumentationModule()
     if (this.instrumentation) {
       await this.instrumentation.register?.()
     }

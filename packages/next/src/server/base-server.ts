@@ -1551,6 +1551,8 @@ export default abstract class Server<
     if (this.prepared) return
 
     if (this.preparedPromise === null) {
+      // Get instrumentation module
+      this.instrumentation = await this.loadInstrumentationModule()
       this.preparedPromise = this.prepareImpl().then(() => {
         this.prepared = true
         this.preparedPromise = null
@@ -1559,6 +1561,7 @@ export default abstract class Server<
     return this.preparedPromise
   }
   protected async prepareImpl(): Promise<void> {}
+  protected async loadInstrumentationModule(): Promise<any> {}
 
   // Backwards compatibility
   protected async close(): Promise<void> {}

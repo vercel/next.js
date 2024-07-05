@@ -34,6 +34,7 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getEdgeInstrumentationModule } from './web/globals'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -412,5 +413,9 @@ export default class NextWebServer extends BaseServer<
         (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
       ) ?? []
     )
+  }
+
+  protected async loadInstrumentationModule() {
+    return await getEdgeInstrumentationModule()
   }
 }

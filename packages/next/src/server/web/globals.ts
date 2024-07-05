@@ -1,10 +1,20 @@
 declare const _ENTRIES: any
 
-async function registerInstrumentation() {
-  const register =
+export async function getEdgeInstrumentationModule() {
+  const instrumentation =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
-    (await _ENTRIES.middleware_instrumentation).register
+    (await _ENTRIES.middleware_instrumentation)
+
+  return instrumentation
+}
+
+let instrumentationModulePromise: Promise<any> | null = null
+async function registerInstrumentation() {
+  if (!instrumentationModulePromise) {
+    instrumentationModulePromise = getEdgeInstrumentationModule()
+  }
+  const { register } = await instrumentationModulePromise
   if (register) {
     try {
       await register()
