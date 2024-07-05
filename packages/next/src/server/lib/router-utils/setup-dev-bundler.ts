@@ -556,7 +556,6 @@ async function startWatcher(opts: SetupOpts) {
             }
           )
 
-          // opt out if typedEnv is set to false
           if (nextConfig.experimental?.typedEnv) {
             const env = Object.assign({}, parsedEnv, nextConfig.env)
             await createEnvDefinitions(distDir, env)
