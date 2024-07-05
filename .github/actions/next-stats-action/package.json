@@ -18,7 +18,7 @@
     "typescript": "5.1.6"
   },
   "engines": {
-    "node": ">=18.17.0"
+    "node": ">=18.18.0"
   },
   "packageManager": "pnpm@9.4.0"
 }

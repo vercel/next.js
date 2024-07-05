@@ -1021,6 +1021,13 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
+  it('should fail when url is recursive', async () => {
+    const query = { url: `/_next/image?url=test.pngw=1&q=1`, w: ctx.w, q: 1 }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
+  })
+
   it('should fail when internal url is not an image', async () => {
     const url = `/api/no-header`
     const query = { url, w: ctx.w, q: 39 }
