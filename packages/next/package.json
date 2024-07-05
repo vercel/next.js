@@ -94,6 +94,7 @@
   },
   "dependencies": {
     "@next/env": "15.0.0-canary.56",
+    "@swc/counter": "=0.1.3",
     "@swc/helpers": "0.5.11",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
