@@ -841,6 +841,9 @@ importers:
       '@next/env':
         specifier: 15.0.0-canary.56
         version: link:../next-env
+      '@swc/counter':
+        specifier: '=0.1.3'
+        version: 0.1.3
       '@swc/helpers':
         specifier: 0.5.11
         version: 0.5.11
@@ -4665,14 +4668,23 @@ packages:
   '@types/babel__generator@7.6.2':
     resolution: {integrity: sha512-MdSJnBjl+bdwkLskZ3NGFp9YcXGx5ggLpQQPqtgakVhsWK0hTtNYhjpZLlWQTviGTvF8at+Bvli3jV7faPdgeQ==}
 
+  '@types/babel__generator@7.6.8':
+    resolution: {integrity: sha512-ASsj+tpEDsEiFr1arWrlN6V3mdfjRMZt6LtK/Vp/kreFLnr5QH5+DhvD5nINYZXzwJvXeGq+05iUXcAzVrqWtw==}
+
   '@types/babel__template@7.4.0':
     resolution: {integrity: sha512-NTPErx4/FiPCGScH7foPyr+/1Dkzkni+rHiYHHoTjvwou7AQzJkNeD60A9CXRy+ZEN2B1bggmkTMCDb+Mv5k+A==}
+
+  '@types/babel__template@7.4.4':
+    resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
 
   '@types/babel__traverse@7.11.0':
     resolution: {integrity: sha512-kSjgDMZONiIfSH1Nxcr5JIRMwUetDki63FSQfpTCz8ogF3Ulqm8+mr5f78dUYs6vMiB6gBusQqfQmBvHZj/lwg==}
 
   '@types/babel__traverse@7.11.1':
     resolution: {integrity: sha512-Vs0hm0vPahPMYi9tDjtP66llufgO3ST16WXaSTtDGEl9cewAl3AibmxWw6TINOqHPT9z0uABKAYjT9jNSg4npw==}
+
+  '@types/babel__traverse@7.20.6':
+    resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
 
   '@types/body-parser@1.17.1':
     resolution: {integrity: sha512-RoX2EZjMiFMjZh9lmYrwgoP9RTpAjSHiJxdp4oidAQVO02T7HER3xj9UKue5534ULWeqVEkujhWcyvUce+d68w==}
@@ -5234,8 +5246,8 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  acorn@8.12.0:
-    resolution: {integrity: sha512-RTvkC4w+KNXrM39/lWCUaG0IbRkWdCv7W/IOW9oU6SawyxulvkQy5HQPVTKxEjczcUvapcrw3cFx/60VN/NRNw==}
+  acorn@8.12.1:
+    resolution: {integrity: sha512-tcpGyI9zbizT9JbV6oYE477V6mTlXvvi0T0G3SNIYE2apm/G5huBa1+K89VGeovbg+jycCrfhl3ADxErOuO6Jg==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -8741,6 +8753,9 @@ packages:
 
   immutable@4.1.0:
     resolution: {integrity: sha512-oNkuqVTA8jqG1Q6c+UglTOD1xhC1BtjKI7XkCXRkZHrN5m18/XsnUp8Q89GkQO/z+0WjonSvl0FLhDYftp46nQ==}
+
+  immutable@4.3.6:
+    resolution: {integrity: sha512-Ju0+lEMyzMVZarkTn/gqRpdqd5dOPaz1mCZ0SH3JV6iFw81PldE/PEB1hWVEA288HPt4WXW8O7AWxB10M+03QQ==}
 
   import-cwd@3.0.0:
     resolution: {integrity: sha512-4pnzH16plW+hgvRECbDWpQl3cqtvSofHWh44met7ESfZ8UZOWWddm8hEyDTqREJ9RbYHY8gi8DqmaelApoOGMg==}
@@ -13235,6 +13250,10 @@ packages:
     resolution: {integrity: sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==}
     engines: {node: '>=0.10.0'}
 
+  source-map-js@1.2.0:
+    resolution: {integrity: sha512-itJW8lvSA0TXEphiRoawsCksnlf8SyvmFzIhltqAHluXd88pkCd+cXJVHTDwdCr0IzwptSm035IHQktUu1QUMg==}
+    engines: {node: '>=0.10.0'}
+
   source-map-loader@5.0.0:
     resolution: {integrity: sha512-k2Dur7CbSLcAH73sBcIkV5xjPV4SzqO1NJ7+XaQl8if3VODDUj3FNchNGpqgJSKbvUfJuhVdv8K2Eu8/TNl2eA==}
     engines: {node: '>= 18.12.0'}
@@ -15187,7 +15206,7 @@ snapshots:
       '@babel/core': 7.22.5
       '@babel/helper-compilation-targets': 7.24.7
       '@babel/helper-plugin-utils': 7.24.7
-      debug: 4.1.1
+      debug: 4.3.5
       lodash.debounce: 4.0.8
       resolve: 1.22.8
     transitivePeerDependencies:
@@ -19043,19 +19062,30 @@ snapshots:
     dependencies:
       '@babel/parser': 7.22.5
       '@babel/types': 7.22.5
-      '@types/babel__generator': 7.6.2
-      '@types/babel__template': 7.4.0
-      '@types/babel__traverse': 7.11.0
+      '@types/babel__generator': 7.6.8
+      '@types/babel__template': 7.4.4
+      '@types/babel__traverse': 7.20.6
     optional: true
 
   '@types/babel__generator@7.6.2':
     dependencies:
       '@babel/types': 7.22.5
 
+  '@types/babel__generator@7.6.8':
+    dependencies:
+      '@babel/types': 7.22.5
+    optional: true
+
   '@types/babel__template@7.4.0':
     dependencies:
       '@babel/parser': 7.22.5
       '@babel/types': 7.22.5
+
+  '@types/babel__template@7.4.4':
+    dependencies:
+      '@babel/parser': 7.22.5
+      '@babel/types': 7.22.5
+    optional: true
 
   '@types/babel__traverse@7.11.0':
     dependencies:
@@ -19064,6 +19094,11 @@ snapshots:
   '@types/babel__traverse@7.11.1':
     dependencies:
       '@babel/types': 7.22.5
+
+  '@types/babel__traverse@7.20.6':
+    dependencies:
+      '@babel/types': 7.22.5
+    optional: true
 
   '@types/body-parser@1.17.1':
     dependencies:
@@ -19726,9 +19761,9 @@ snapshots:
     dependencies:
       acorn: 8.11.3
 
-  acorn-jsx@5.3.2(acorn@8.12.0):
+  acorn-jsx@5.3.2(acorn@8.12.1):
     dependencies:
-      acorn: 8.12.0
+      acorn: 8.12.1
 
   acorn-loose@8.3.0:
     dependencies:
@@ -19750,7 +19785,7 @@ snapshots:
 
   acorn@8.11.3: {}
 
-  acorn@8.12.0: {}
+  acorn@8.12.1: {}
 
   acorn@8.5.0: {}
 
@@ -20403,7 +20438,6 @@ snapshots:
   braces@3.0.3:
     dependencies:
       fill-range: 7.1.1
-    optional: true
 
   brorand@1.1.0: {}
 
@@ -20779,7 +20813,6 @@ snapshots:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
-    optional: true
 
   chownr@1.1.3: {}
 
@@ -22745,8 +22778,8 @@ snapshots:
 
   espree@10.1.0:
     dependencies:
-      acorn: 8.12.0
-      acorn-jsx: 5.3.2(acorn@8.12.0)
+      acorn: 8.12.1
+      acorn-jsx: 5.3.2(acorn@8.12.1)
       eslint-visitor-keys: 4.0.0
 
   espree@7.3.1:
@@ -23125,7 +23158,6 @@ snapshots:
   fill-range@7.1.1:
     dependencies:
       to-regex-range: 5.0.1
-    optional: true
 
   finalhandler@1.1.2:
     dependencies:
@@ -24105,6 +24137,8 @@ snapshots:
       queue: 6.0.2
 
   immutable@4.1.0: {}
+
+  immutable@4.3.6: {}
 
   import-cwd@3.0.0:
     dependencies:
@@ -29374,9 +29408,9 @@ snapshots:
 
   sass@1.77.6:
     dependencies:
-      chokidar: 3.5.3
-      immutable: 4.1.0
-      source-map-js: 1.0.2
+      chokidar: 3.6.0
+      immutable: 4.3.6
+      source-map-js: 1.2.0
 
   satori@0.10.9:
     dependencies:
@@ -29692,6 +29726,8 @@ snapshots:
   source-list-map@2.0.1: {}
 
   source-map-js@1.0.2: {}
+
+  source-map-js@1.2.0: {}
 
   source-map-loader@5.0.0(webpack@5.90.0(@swc/core@1.6.6(@swc/helpers@0.5.11))):
     dependencies:
