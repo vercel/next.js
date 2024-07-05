@@ -673,19 +673,14 @@ export default class NextNodeServer extends BaseServer<
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         if (edgeFunctionsPage === page) {
-          try {
-            await this.runEdgeFunction({
-              req: ctx.req,
-              res: ctx.res,
-              query: ctx.query,
-              params: ctx.renderOpts.params,
-              page,
-              appPaths,
-            })
-          } catch (err) {
-            console.error('renderPageComponent err', err)
-            throw err
-          }
+          await this.runEdgeFunction({
+            req: ctx.req,
+            res: ctx.res,
+            query: ctx.query,
+            params: ctx.renderOpts.params,
+            page,
+            appPaths,
+          })
           return null
         }
       }
