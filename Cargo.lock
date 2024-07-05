@@ -3088,7 +3088,7 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "pathdiff",
- "preset_env_base 0.4.13",
+ "preset_env_base 0.5.0",
  "react_remove_properties",
  "regex",
  "remove_console",
@@ -5076,14 +5076,14 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.73.25"
+version = "0.73.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f1c9d55895dbf33cad349e2c1bee26e1a193386420490a133bbb2b919e2bd3d"
+checksum = "e9518da8ffdf78718b9545ddbf8237a901957b465603b98e1ffcc46006365ade"
 dependencies = [
  "anyhow",
  "lightningcss",
  "parcel_selectors",
- "preset_env_base 0.4.13",
+ "preset_env_base 0.5.0",
  "serde",
  "swc_common",
  "swc_css_ast",
