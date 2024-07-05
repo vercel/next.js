@@ -436,6 +436,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             .optional(),
         ]),
         staticGenerationRetryCount: z.number().int().optional(),
+        typedEnv: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
@@ -593,7 +594,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
-    typedEnv: z.boolean().optional(),
     typescript: z
       .strictObject({
         ignoreBuildErrors: z.boolean().optional(),

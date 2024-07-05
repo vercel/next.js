@@ -1,6 +1,8 @@
 import type { Env } from '@next/env'
 import { dirname, join } from 'node:path'
+import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
+import { error } from '../../../build/output/log'
 
 export async function createEnvDefinitions(distDir: string, env: Env) {
   const envKeys = Object.keys(env ?? {})
@@ -18,13 +20,11 @@ export {}`
 
   const envDtsPath = join(distDir, 'types', 'env.d.ts')
   try {
-    await mkdir(dirname(envDtsPath), { recursive: true })
-    await writeFile(envDtsPath, definitionStr, 'utf-8')
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') {
-      await writeFile(envDtsPath, definitionStr, 'utf-8')
+    if (!existsSync(dirname(envDtsPath))) {
+      await mkdir(dirname(envDtsPath), { recursive: true })
     }
-
-    console.error(`Failed to write ${envDtsPath}: ${error}`)
+    await writeFile(envDtsPath, definitionStr, 'utf-8')
+  } catch (e) {
+    error(`Failed to write ${envDtsPath}: ${e}`)
   }
 }
