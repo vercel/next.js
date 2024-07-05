@@ -1,7 +1,7 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import type { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('Legacy decorators SWC option', () => {
@@ -10,9 +10,7 @@ describe('Legacy decorators SWC option', () => {
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'jsconfig.json': new FileRef(
-          join(__dirname, 'legacy-decorators/jsconfig.json')
-        ),
+        'jsconfig.json': new FileRef(join(__dirname, 'legacy-decorators/jsconfig.json')),
         pages: new FileRef(join(__dirname, 'legacy-decorators/pages')),
       },
       dependencies: {
@@ -21,18 +19,22 @@ describe('Legacy decorators SWC option', () => {
       },
     })
   })
-  afterAll(() => next.destroy())
+
+  afterAll(async () => await next.destroy())
 
   it('should compile with legacy decorators enabled', async () => {
     let browser
     try {
       browser = await webdriver(next.url, '/')
-      const text = await browser.elementByCss('#count').text()
-      expect(text).toBe('Current number: 0')
+      
+      const initialText = await browser.elementByCss('#count').text()
+      expect(initialText).toBe('Current number: 0')
+
       await browser.elementByCss('#increase').click()
+      
       await check(
         () => browser.elementByCss('#count').text(),
-        /Current number: 1/
+        'Current number: 1'
       )
     } finally {
       if (browser) {
