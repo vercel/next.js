@@ -1,18 +1,24 @@
 import type { Env } from '@next/env'
-import { dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { error } from '../../../build/output/log'
 
 export async function createEnvDefinitions(distDir: string, env: Env) {
   const envKeys = Object.keys(env ?? {})
+  if (envKeys.length === 0) {
+    return
+  }
+
+  const envKeysStr = envKeys
     .map((key) => `      ${key}: readonly string`)
     .join('\n')
+
   const definitionStr = `// Type definitions for Next.js environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-${envKeys}
+${envKeysStr}
     }
   }
 }
