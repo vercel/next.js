@@ -42,7 +42,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${input:appDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${input:appDirname}/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/${input:appDirname}/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -65,7 +66,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -88,7 +90,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -111,7 +114,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/test/e2e/app-dir/app/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -134,7 +138,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/examples/hello-world/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -156,7 +161,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/examples/hello-world/app/$1"
       },
       "skipFiles": ["<node_internals>/**"],
       "env": {
@@ -179,7 +185,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/examples/hello-world/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/examples/hello-world/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/examples/hello-world/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -198,7 +205,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -218,7 +226,8 @@
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
         "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*"
+        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1"
       },
       "env": {
         "HEADLESS": "true",
