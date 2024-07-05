@@ -12,7 +12,7 @@ use swc_core::{
     ecma::{
         ast::{EsVersion, Program},
         lints::{config::LintConfig, rules::LintParams},
-        parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
+        parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
         transforms::base::{
             helpers::{Helpers, HELPERS},
             resolver,
@@ -285,7 +285,7 @@ async fn parse_content(
             let mut parsed_program = {
                 let lexer = Lexer::new(
                     match ty {
-                        EcmascriptModuleAssetType::Ecmascript => Syntax::Es(EsConfig {
+                        EcmascriptModuleAssetType::Ecmascript => Syntax::Es(EsSyntax {
                             jsx: true,
                             fn_bind: true,
                             decorators: true,
@@ -298,7 +298,7 @@ async fn parse_content(
                             explicit_resource_management: true,
                         }),
                         EcmascriptModuleAssetType::Typescript { tsx, .. } => {
-                            Syntax::Typescript(TsConfig {
+                            Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: false,
                                 no_early_errors: true,
@@ -307,7 +307,7 @@ async fn parse_content(
                             })
                         }
                         EcmascriptModuleAssetType::TypescriptDeclaration => {
-                            Syntax::Typescript(TsConfig {
+                            Syntax::Typescript(TsSyntax {
                                 decorators: true,
                                 dts: true,
                                 no_early_errors: true,
