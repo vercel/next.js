@@ -76,7 +76,7 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "dev": "taskr",
+    "dev": "NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
