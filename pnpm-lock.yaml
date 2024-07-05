@@ -4668,23 +4668,14 @@ packages:
   '@types/babel__generator@7.6.2':
     resolution: {integrity: sha512-MdSJnBjl+bdwkLskZ3NGFp9YcXGx5ggLpQQPqtgakVhsWK0hTtNYhjpZLlWQTviGTvF8at+Bvli3jV7faPdgeQ==}
 
-  '@types/babel__generator@7.6.8':
-    resolution: {integrity: sha512-ASsj+tpEDsEiFr1arWrlN6V3mdfjRMZt6LtK/Vp/kreFLnr5QH5+DhvD5nINYZXzwJvXeGq+05iUXcAzVrqWtw==}
-
   '@types/babel__template@7.4.0':
     resolution: {integrity: sha512-NTPErx4/FiPCGScH7foPyr+/1Dkzkni+rHiYHHoTjvwou7AQzJkNeD60A9CXRy+ZEN2B1bggmkTMCDb+Mv5k+A==}
-
-  '@types/babel__template@7.4.4':
-    resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
 
   '@types/babel__traverse@7.11.0':
     resolution: {integrity: sha512-kSjgDMZONiIfSH1Nxcr5JIRMwUetDki63FSQfpTCz8ogF3Ulqm8+mr5f78dUYs6vMiB6gBusQqfQmBvHZj/lwg==}
 
   '@types/babel__traverse@7.11.1':
     resolution: {integrity: sha512-Vs0hm0vPahPMYi9tDjtP66llufgO3ST16WXaSTtDGEl9cewAl3AibmxWw6TINOqHPT9z0uABKAYjT9jNSg4npw==}
-
-  '@types/babel__traverse@7.20.6':
-    resolution: {integrity: sha512-r1bzfrm0tomOI8g1SzvCaQHo6Lcv6zu0EA+W2kHrt8dyrHQxGzBBL4kdkzIS+jBMV+EYcMAEAqXqYaLJq5rOZg==}
 
   '@types/body-parser@1.17.1':
     resolution: {integrity: sha512-RoX2EZjMiFMjZh9lmYrwgoP9RTpAjSHiJxdp4oidAQVO02T7HER3xj9UKue5534ULWeqVEkujhWcyvUce+d68w==}
@@ -15206,7 +15197,7 @@ snapshots:
       '@babel/core': 7.22.5
       '@babel/helper-compilation-targets': 7.24.7
       '@babel/helper-plugin-utils': 7.24.7
-      debug: 4.3.5
+      debug: 4.1.1
       lodash.debounce: 4.0.8
       resolve: 1.22.8
     transitivePeerDependencies:
@@ -19062,30 +19053,19 @@ snapshots:
     dependencies:
       '@babel/parser': 7.22.5
       '@babel/types': 7.22.5
-      '@types/babel__generator': 7.6.8
-      '@types/babel__template': 7.4.4
-      '@types/babel__traverse': 7.20.6
+      '@types/babel__generator': 7.6.2
+      '@types/babel__template': 7.4.0
+      '@types/babel__traverse': 7.11.0
     optional: true
 
   '@types/babel__generator@7.6.2':
     dependencies:
       '@babel/types': 7.22.5
 
-  '@types/babel__generator@7.6.8':
-    dependencies:
-      '@babel/types': 7.22.5
-    optional: true
-
   '@types/babel__template@7.4.0':
     dependencies:
       '@babel/parser': 7.22.5
       '@babel/types': 7.22.5
-
-  '@types/babel__template@7.4.4':
-    dependencies:
-      '@babel/parser': 7.22.5
-      '@babel/types': 7.22.5
-    optional: true
 
   '@types/babel__traverse@7.11.0':
     dependencies:
@@ -19094,11 +19074,6 @@ snapshots:
   '@types/babel__traverse@7.11.1':
     dependencies:
       '@babel/types': 7.22.5
-
-  '@types/babel__traverse@7.20.6':
-    dependencies:
-      '@babel/types': 7.22.5
-    optional: true
 
   '@types/body-parser@1.17.1':
     dependencies:
