@@ -33,8 +33,11 @@ describe('fast-refresh-fetch-cache', () => {
       const valueBeforeRefresh = await browser.elementById('value').text()
       await browser.elementByCss(`button`).click()
       await browser.waitForIdleNetwork()
-      const valueAfterRefresh = await browser.elementById('value').text()
-      expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
+
+      await retry(async () => {
+        const valueAfterRefresh = await browser.elementById('value').text()
+        expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
+      })
     })
   })
 })
