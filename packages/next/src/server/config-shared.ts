@@ -342,8 +342,7 @@ export interface ExperimentalConfig {
   /**
    * Enable type-checking and autocompletion for environment variables.
    *
-   * @default true
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedEnv
+   * @default false
    */
   typedEnv?: boolean
 
