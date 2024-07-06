@@ -137,6 +137,37 @@ export default async function Page() {
 }
 ```
 
+Or
+
+```tsx filename="app/page.tsx" switcher
+import { redirect } from 'next/navigation'
+
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    redirect("/dashboard")
+  }
+
+  return '...'
+}
+```
+```jsx filename="app/page.js" switcher
+import { redirect } from 'next/navigation'
+
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    redirect('/dashboard')
+  }
+
+  return '...'
+}
+```
+
 ## Uncaught Exceptions
 
 Uncaught exceptions are unexpected errors that indicate bugs or issues that should not occur during the normal flow of your application. These should be handled by throwing errors, which will then be caught by error boundaries.
