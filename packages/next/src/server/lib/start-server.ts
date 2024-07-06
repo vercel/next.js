@@ -38,7 +38,7 @@ export interface StartServerOptions {
   dir: string
   port: number
   isDev: boolean
-  distDir: string
+  distDir?: string
   hostname?: string
   allowRetry?: boolean
   customServer?: boolean
@@ -259,7 +259,7 @@ export async function startServer(
         expFeatureInfo = startServerInfo.expFeatureInfo
 
         if (startServerInfo.nextConfig.experimental?.typedEnv) {
-          await createEnvDefinitions(distDir, startServerInfo.env)
+          await createEnvDefinitions(distDir!, startServerInfo.env)
         }
       }
       logStartInfo({
