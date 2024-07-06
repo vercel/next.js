@@ -2507,18 +2507,35 @@ export default abstract class Server<
               : res
 
             // Call the built-in render method on the module.
-            result = await routeModule.render(
-              // TODO: fix this type
-              // @ts-expect-error - preexisting accepted this
-              request,
-              response,
-              {
-                page: pathname,
-                params: opts.params,
-                query,
-                renderOpts,
-              }
-            )
+            try {
+              result = await routeModule.render(
+                // TODO: fix this type
+                // @ts-expect-error - preexisting accepted this
+                request,
+                response,
+                {
+                  page: pathname,
+                  params: opts.params,
+                  query,
+                  renderOpts,
+                }
+              )
+            } catch (err) {
+              this.instrumentationOnRequestError(
+                err,
+                {
+                  method: req.method,
+                  url: req.url,
+                  headers: req.headers,
+                },
+                {
+                  routerKind: 'Pages Router',
+                  routePath: pathname,
+                  routeType: 'render',
+                }
+              )
+              throw err
+            }
           } else {
             const module = components.routeModule as AppPageRouteModule
 

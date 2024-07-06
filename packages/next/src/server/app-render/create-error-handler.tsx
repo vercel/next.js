@@ -33,7 +33,7 @@ export function createErrorHandler({
   source,
   dev,
   isNextExport,
-  onReactStreamRenderError: onRenderError,
+  onReactStreamRenderError,
   digestErrorsMap,
   allCapturedErrors,
   silenceLogger,
@@ -41,7 +41,7 @@ export function createErrorHandler({
   source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
   isNextExport?: boolean
-  onReactStreamRenderError?: (err: any) => void // Promise<void>
+  onReactStreamRenderError?: (err: any) => void
   digestErrorsMap: Map<string, Error>
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
@@ -114,8 +114,8 @@ export function createErrorHandler({
           source === 'html') ||
         source === 'flightData'
       ) {
-        if (onRenderError) {
-          onRenderError(err)
+        if (onReactStreamRenderError) {
+          onReactStreamRenderError(err)
         } else {
           // The error logger is currently not provided in the edge runtime.
           // Use the exposed `__next_log_error__` instead.
