@@ -87,6 +87,7 @@ export default function cloudfrontLoader({ src, width, quality }) {
   url.searchParams.set('width', width.toString())
   url.searchParams.set('quality', (quality || 75).toString())
   return url.href
+}
 ```
 
 ### Cloudinary

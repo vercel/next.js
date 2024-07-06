@@ -53,7 +53,6 @@ export async function getRequestHandlers({
   server,
   hostname,
   minimalMode,
-  isNodeDebugging,
   keepAliveTimeout,
   experimentalHttpsServer,
   quiet,
@@ -64,7 +63,6 @@ export async function getRequestHandlers({
   server?: import('http').Server
   hostname?: string
   minimalMode?: boolean
-  isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
   quiet?: boolean
@@ -76,7 +74,6 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
-    isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalHttpsServer,
     startServerSpan,
@@ -304,7 +301,6 @@ export async function startServer(
           server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
