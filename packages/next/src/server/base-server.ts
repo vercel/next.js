@@ -232,8 +232,6 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: HTTPServer
-
-  isNodeDebugging?: 'brk' | boolean
 }
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
