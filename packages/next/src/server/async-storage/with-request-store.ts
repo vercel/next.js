@@ -22,6 +22,8 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
+import type LRUCache from 'next/dist/compiled/lru-cache'
+import type { CachedFetchData } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -76,13 +78,21 @@ export type RequestContext = {
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
   isFastRefresh?: boolean
+  fastRefreshFetchCache?: LRUCache<string, CachedFetchData>
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
   storage: AsyncLocalStorage<RequestStore>,
-  { req, url, res, renderOpts, isFastRefresh = false }: RequestContext,
+  {
+    req,
+    url,
+    res,
+    renderOpts,
+    isFastRefresh,
+    fastRefreshFetchCache,
+  }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
   function defaultOnUpdateCookies(cookies: string[]) {
@@ -173,6 +183,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
     isFastRefresh,
+    fastRefreshFetchCache,
   }
 
   if (store.afterContext) {

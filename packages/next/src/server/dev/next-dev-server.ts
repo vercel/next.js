@@ -66,6 +66,7 @@ import { generateInterceptionRoutesRewrites } from '../../lib/generate-intercept
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
+import type { CachedFetchData } from '../response-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -107,6 +108,7 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch?: typeof fetch
+  private readonly fastRefreshFetchCache: LRUCache<string, CachedFetchData>
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -190,6 +192,15 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
     this.pagesDir = pagesDir
     this.appDir = appDir
+
+    this.fastRefreshFetchCache = new LRUCache({
+      max: this.nextConfig.cacheMaxMemorySize,
+      length: (value) => JSON.stringify(value).length,
+    })
+  }
+
+  protected override getFastRefreshFetchCache() {
+    return this.fastRefreshFetchCache
   }
 
   protected getRouteMatchers(): RouteMatcherManager {

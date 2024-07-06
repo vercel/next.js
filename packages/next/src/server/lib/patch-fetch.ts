@@ -19,6 +19,7 @@ import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../client/components/request-async-storage.external'
+import type { CachedFetchData } from '../response-cache'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -505,10 +506,14 @@ function createPatchedFetcher(
           finalRevalidate === false
 
         let cacheKey: string | undefined
-        if (staticGenerationStore.incrementalCache && isCacheableRevalidate) {
+
+        if (
+          staticGenerationStore.incrementalCache &&
+          (isCacheableRevalidate || requestStore?.fastRefreshFetchCache)
+        ) {
           try {
             cacheKey =
-              await staticGenerationStore.incrementalCache.fetchCacheKey(
+              await staticGenerationStore.incrementalCache.generateCacheKey(
                 fetchUrl,
                 isRequestInput ? (input as RequestInit) : init
               )
@@ -590,33 +595,44 @@ function createPatchedFetcher(
               res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
-              isCacheableRevalidate
+              (isCacheableRevalidate || requestStore?.fastRefreshFetchCache)
             ) {
               const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
-              try {
-                await staticGenerationStore.incrementalCache.set(
+              const cachedFetchData = {
+                headers: Object.fromEntries(res.headers.entries()),
+                body: bodyBuffer.toString('base64'),
+                status: res.status,
+                url: res.url,
+              }
+
+              if (requestStore?.fastRefreshFetchCache) {
+                requestStore.fastRefreshFetchCache.set(
                   cacheKey,
-                  {
-                    kind: 'FETCH',
-                    data: {
-                      headers: Object.fromEntries(res.headers.entries()),
-                      body: bodyBuffer.toString('base64'),
-                      status: res.status,
-                      url: res.url,
-                    },
-                    revalidate: normalizedRevalidate,
-                  },
-                  {
-                    fetchCache: true,
-                    revalidate: finalRevalidate,
-                    fetchUrl,
-                    fetchIdx,
-                    tags,
-                  }
+                  cachedFetchData
                 )
-              } catch (err) {
-                console.warn(`Failed to set fetch cache`, input, err)
+              }
+
+              if (isCacheableRevalidate) {
+                try {
+                  await staticGenerationStore.incrementalCache.set(
+                    cacheKey,
+                    {
+                      kind: 'FETCH',
+                      data: cachedFetchData,
+                      revalidate: normalizedRevalidate,
+                    },
+                    {
+                      fetchCache: true,
+                      revalidate: finalRevalidate,
+                      fetchUrl,
+                      fetchIdx,
+                      tags,
+                    }
+                  )
+                } catch (err) {
+                  console.warn(`Failed to set fetch cache`, input, err)
+                }
               }
 
               const response = new Response(bodyBuffer, {
@@ -635,70 +651,86 @@ function createPatchedFetcher(
         let isForegroundRevalidate = false
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
-          handleUnlock =
-            await staticGenerationStore.incrementalCache.lock(cacheKey)
+          let cachedFetchData: CachedFetchData | undefined
 
-          const entry = staticGenerationStore.isOnDemandRevalidate
-            ? null
-            : await staticGenerationStore.incrementalCache.get(cacheKey, {
-                kindHint: 'fetch',
-                revalidate: finalRevalidate,
-                fetchUrl,
-                fetchIdx,
-                tags,
-                softTags: implicitTags,
-              })
-
-          if (entry) {
-            await handleUnlock()
-          } else {
-            // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
-            cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
+          if (
+            requestStore?.isFastRefresh &&
+            requestStore.fastRefreshFetchCache
+          ) {
+            cachedFetchData = requestStore.fastRefreshFetchCache.get(cacheKey)
           }
 
-          if (entry?.value && entry.value.kind === 'FETCH') {
-            // when stale and is revalidating we wait for fresh data
-            // so the revalidated entry has the updated data
-            if (staticGenerationStore.isRevalidate && entry.isStale) {
-              isForegroundRevalidate = true
+          if (!cachedFetchData) {
+            handleUnlock =
+              await staticGenerationStore.incrementalCache.lock(cacheKey)
+
+            const entry = staticGenerationStore.isOnDemandRevalidate
+              ? null
+              : await staticGenerationStore.incrementalCache.get(cacheKey, {
+                  kindHint: 'fetch',
+                  revalidate: finalRevalidate,
+                  fetchUrl,
+                  fetchIdx,
+                  tags,
+                  softTags: implicitTags,
+                })
+
+            if (entry) {
+              await handleUnlock()
             } else {
-              if (entry.isStale) {
-                staticGenerationStore.pendingRevalidates ??= {}
-                if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
-                  staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true)
-                      .catch(console.error)
-                      .finally(() => {
-                        staticGenerationStore.pendingRevalidates ??= {}
-                        delete staticGenerationStore.pendingRevalidates[
-                          cacheKey || ''
-                        ]
-                      })
-                }
-              }
-              const resData = entry.value.data
-
-              trackFetchMetric(staticGenerationStore, {
-                start: fetchStart,
-                url: fetchUrl,
-                cacheReason,
-                cacheStatus: 'hit',
-                status: resData.status || 200,
-                method: init?.method || 'GET',
-              })
-
-              const response = new Response(
-                Buffer.from(resData.body, 'base64'),
-                {
-                  headers: resData.headers,
-                  status: resData.status,
-                }
-              )
-              Object.defineProperty(response, 'url', {
-                value: entry.value.data.url,
-              })
-              return response
+              // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
+              cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
             }
+
+            if (entry?.value && entry.value.kind === 'FETCH') {
+              // when stale and is revalidating we wait for fresh data
+              // so the revalidated entry has the updated data
+              if (staticGenerationStore.isRevalidate && entry.isStale) {
+                isForegroundRevalidate = true
+              } else {
+                if (entry.isStale) {
+                  staticGenerationStore.pendingRevalidates ??= {}
+                  if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
+                    staticGenerationStore.pendingRevalidates[cacheKey] =
+                      doOriginalFetch(true)
+                        .catch(console.error)
+                        .finally(() => {
+                          staticGenerationStore.pendingRevalidates ??= {}
+                          delete staticGenerationStore.pendingRevalidates[
+                            cacheKey || ''
+                          ]
+                        })
+                  }
+                }
+
+                cachedFetchData = entry.value.data
+              }
+            }
+          }
+
+          if (cachedFetchData) {
+            trackFetchMetric(staticGenerationStore, {
+              start: fetchStart,
+              url: fetchUrl,
+              cacheReason,
+              cacheStatus: 'hit',
+              status: cachedFetchData.status || 200,
+              method: init?.method || 'GET',
+            })
+
+            const response = new Response(
+              Buffer.from(cachedFetchData.body, 'base64'),
+              {
+                headers: cachedFetchData.headers,
+                status: cachedFetchData.status,
+              }
+            )
+
+            Object.defineProperty(response, 'url', {
+              value: cachedFetchData.url,
+            })
+
+            return response
           }
         }
 

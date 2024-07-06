@@ -23,14 +23,16 @@ export interface ResponseCacheBase {
   ): Promise<ResponseCacheEntry | null>
 }
 
+export type CachedFetchData = {
+  headers: Record<string, string>
+  body: string
+  url: string
+  status?: number
+}
+
 export interface CachedFetchValue {
   kind: 'FETCH'
-  data: {
-    headers: { [k: string]: string }
-    body: string
-    url: string
-    status?: number
-  }
+  data: CachedFetchData
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry
   tags?: string[]
