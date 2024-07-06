@@ -22,8 +22,7 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
-import type LRUCache from 'next/dist/compiled/lru-cache'
-import type { CachedFetchData } from '../response-cache'
+import type { FastRefreshFetchCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -78,7 +77,7 @@ export type RequestContext = {
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
   isFastRefresh?: boolean
-  fastRefreshFetchCache?: LRUCache<string, CachedFetchData>
+  fastRefreshFetchCache?: FastRefreshFetchCache
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <

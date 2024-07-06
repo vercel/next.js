@@ -121,8 +121,7 @@ import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
-import type LRUCache from 'next/dist/compiled/lru-cache'
-import type { CachedFetchData } from '../response-cache'
+import type { FastRefreshFetchCache } from '../response-cache'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1555,7 +1554,7 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  fastRefreshFetchCache?: LRUCache<string, CachedFetchData>
+  fastRefreshFetchCache?: FastRefreshFetchCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (

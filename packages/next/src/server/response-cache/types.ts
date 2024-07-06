@@ -23,6 +23,11 @@ export interface ResponseCacheBase {
   ): Promise<ResponseCacheEntry | null>
 }
 
+export interface FastRefreshFetchCache {
+  get(key: string): CachedFetchData | undefined
+  set(key: string, data: CachedFetchData): void
+}
+
 export type CachedFetchData = {
   headers: Record<string, string>
   body: string

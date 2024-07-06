@@ -8,8 +8,7 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 import { requestAsyncStorage } from './request-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AfterContext } from '../../server/after/after-context'
-import type LRUCache from 'next/dist/compiled/lru-cache'
-import type { CachedFetchData } from '../../server/response-cache'
+import type { FastRefreshFetchCache } from '../../server/response-cache'
 
 export interface RequestStore {
   /**
@@ -39,7 +38,7 @@ export interface RequestStore {
   readonly assetPrefix: string
   readonly afterContext: AfterContext | undefined
   readonly isFastRefresh?: boolean
-  readonly fastRefreshFetchCache?: LRUCache<string, CachedFetchData>
+  readonly fastRefreshFetchCache?: FastRefreshFetchCache
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

@@ -66,7 +66,7 @@ import { generateInterceptionRoutesRewrites } from '../../lib/generate-intercept
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
-import type { CachedFetchData } from '../response-cache'
+import type { FastRefreshFetchCache } from '../response-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -108,7 +108,7 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch?: typeof fetch
-  private readonly fastRefreshFetchCache: LRUCache<string, CachedFetchData>
+  private readonly fastRefreshFetchCache: FastRefreshFetchCache
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,

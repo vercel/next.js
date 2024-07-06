@@ -12,8 +12,7 @@ import {
 } from '../route-module'
 import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import type LRUCache from 'next/dist/compiled/lru-cache'
-import type { CachedFetchData } from '../../response-cache'
+import type { FastRefreshFetchCache } from '../../response-cache'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -41,7 +40,7 @@ interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
   renderOpts: RenderOpts
-  fastRefreshFetchCache?: LRUCache<string, CachedFetchData>
+  fastRefreshFetchCache?: FastRefreshFetchCache
 }
 
 export type AppPageRouteModuleOptions = RouteModuleOptions<
