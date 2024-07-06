@@ -40,8 +40,7 @@ export function refreshReducer(
   cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    includeNextUrl ? state.nextUrl : null,
-    state.buildId
+    { nextUrl: includeNextUrl ? state.nextUrl : null, buildId: state.buildId }
   )
 
   return cache.lazyData.then(

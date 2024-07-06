@@ -407,8 +407,7 @@ function InnerLayoutRouter({
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
         refetchTree,
-        includeNextUrl ? context.nextUrl : null,
-        buildId
+        { nextUrl: includeNextUrl ? context.nextUrl : null, buildId }
       ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({

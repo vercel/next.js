@@ -29,6 +29,12 @@ import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
+export interface FetchServerResponseOptions {
+  readonly nextUrl: string | null
+  readonly buildId: string
+  readonly prefetchKind?: PrefetchKind
+}
+
 export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined,
@@ -58,15 +64,16 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
 }
 
 /**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ * Fetch the flight data for the provided url. Takes in the current router state
+ * to decide what to render server-side.
  */
 export async function fetchServerResponse(
   url: URL,
   flightRouterState: FlightRouterState,
-  nextUrl: string | null,
-  currentBuildId: string,
-  prefetchKind?: PrefetchKind
+  options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
+  const { nextUrl, buildId, prefetchKind } = options
+
   const headers: {
     [RSC_HEADER]: '1'
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
@@ -169,14 +176,10 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildId, flightData]: NextFlightResponse = await createFromFetch(
-      Promise.resolve(res),
-      {
-        callServer,
-      }
-    )
+    const [buildIdFromResponse, flightData]: NextFlightResponse =
+      await createFromFetch(Promise.resolve(res), { callServer })
 
-    if (currentBuildId !== buildId) {
+    if (buildId !== buildIdFromResponse) {
       return doMpaNavigation(res.url)
     }
 

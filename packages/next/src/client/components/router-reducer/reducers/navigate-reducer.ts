@@ -452,12 +452,10 @@ function navigateReducer_PPR(
                 // to the lazy fetching mechanism in that case.)
                 listenForDynamicRequest(
                   task,
-                  fetchServerResponse(
-                    url,
-                    currentTree,
-                    state.nextUrl,
-                    state.buildId
-                  )
+                  fetchServerResponse(url, currentTree, {
+                    nextUrl: state.nextUrl,
+                    buildId: state.buildId,
+                  })
                 )
 
                 mutable.cache = newCache
