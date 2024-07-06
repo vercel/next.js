@@ -36,6 +36,7 @@ export interface RequestStore {
   >
   readonly assetPrefix: string
   readonly afterContext: AfterContext | undefined
+  readonly isFastRefresh: boolean
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

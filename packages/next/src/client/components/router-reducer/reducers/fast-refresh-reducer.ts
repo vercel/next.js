@@ -38,6 +38,7 @@ function fastRefreshReducerImpl(
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
     buildId: state.buildId,
+    isFastRefresh: true,
   })
 
   return cache.lazyData.then(

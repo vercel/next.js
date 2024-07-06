@@ -75,13 +75,14 @@ export type RequestContext = {
   }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
+  isFastRefresh?: boolean
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
   storage: AsyncLocalStorage<RequestStore>,
-  { req, url, res, renderOpts }: RequestContext,
+  { req, url, res, renderOpts, isFastRefresh = false }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
   function defaultOnUpdateCookies(cookies: string[]) {
@@ -171,6 +172,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
+    isFastRefresh,
   }
 
   if (store.afterContext) {

@@ -39,6 +39,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
+  NEXT_FAST_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -136,6 +137,7 @@ type AppRenderBaseContext = {
   requestStore: RequestStore
   componentMod: AppPageModule
   renderOpts: RenderOpts
+  parsedRequestHeaders: ParsedRequestHeaders
 }
 
 export type GenerateFlight = typeof generateFlight
@@ -172,6 +174,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isFastRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
 }
@@ -182,6 +185,9 @@ function parseRequestHeaders(
 ): ParsedRequestHeaders {
   const isPrefetchRequest =
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+
+  const isFastRefresh =
+    headers[NEXT_FAST_REFRESH_HEADER.toLowerCase()] !== undefined
 
   const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
 
@@ -201,7 +207,13 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
-  return { flightRouterState, isPrefetchRequest, isRSCRequest, nonce }
+  return {
+    flightRouterState,
+    isPrefetchRequest,
+    isFastRefresh,
+    isRSCRequest,
+    nonce,
+  }
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -742,7 +754,7 @@ async function renderToHTMLOrFlightImpl(
   const digestErrorsMap: Map<string, DigestedError> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
-  const { staticGenerationStore, requestStore } = baseCtx
+  const { staticGenerationStore, requestStore, parsedRequestHeaders } = baseCtx
   const { isStaticGeneration } = staticGenerationStore
 
   /**
@@ -872,9 +884,7 @@ async function renderToHTMLOrFlightImpl(
   stripInternalQueries(query)
 
   const { flightRouterState, isPrefetchRequest, isRSCRequest, nonce } =
-    // We read these values from the request object as, in certain cases,
-    // base-server will strip them to opt into different rendering behavior.
-    parseRequestHeaders(req.headers, { isRoutePPREnabled })
+    parsedRequestHeaders
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -1558,9 +1568,17 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const url = parseRelativeUrl(req.url, undefined, false)
 
+  // We read these values from the request object as, in certain cases,
+  // base-server will strip them to opt into different rendering behavior.
+  const parsedRequestHeaders = parseRequestHeaders(req.headers, {
+    isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+  })
+
+  const { isFastRefresh } = parsedRequestHeaders
+
   return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
-    { req, url, res, renderOpts },
+    { req, url, res, renderOpts, isFastRefresh },
     (requestStore) =>
       withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
@@ -1581,6 +1599,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
               staticGenerationStore,
               componentMod: renderOpts.ComponentMod,
               renderOpts,
+              parsedRequestHeaders,
             },
             staticGenerationStore.requestEndedState || {}
           )
