@@ -152,6 +152,7 @@ import {
   type WaitUntil,
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
+import type { InstrumentationModule } from './instrumentation/types'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -331,7 +332,7 @@ export default abstract class Server<
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
-  protected instrumentation: any
+  protected instrumentation: InstrumentationModule | undefined
   private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
@@ -575,7 +576,8 @@ export default abstract class Server<
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
       },
-      onRequestError: this.instrumentationOnRequestError.bind(this),
+      onInstrumentationRequestError:
+        this.instrumentationOnRequestError.bind(this),
     }
 
     // Initialize next/config with the environment configuration
@@ -2410,7 +2412,8 @@ export default abstract class Server<
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
-              onRequestError: this.renderOpts.onRequestError,
+              onInstrumentationRequestError:
+                this.renderOpts.onInstrumentationRequestError,
             },
           }
 
@@ -2471,17 +2474,6 @@ export default abstract class Server<
           } catch (err) {
             // If this is during static generation, throw the error again.
             if (isSSG) throw err
-
-            const errorRequest = {
-              url: req.url,
-              method: req.method,
-              headers: req.headers,
-            }
-            const errorContext = {
-              routePath: '',
-            }
-
-            renderOpts.onRequestError?.(err, errorRequest, errorContext)
 
             Log.error(err)
 

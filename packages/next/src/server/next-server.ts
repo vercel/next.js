@@ -657,7 +657,6 @@ export default class NextNodeServer extends BaseServer<
     ctx: RequestContext<NodeNextRequest, NodeNextResponse>,
     bubbleNoFallback: boolean
   ) {
-    console.log('renderPageComponent')
     const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
     if (edgeFunctionsPages.length) {
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
@@ -1733,26 +1732,6 @@ export default class NextNodeServer extends BaseServer<
       }
 
       const error = getProperError(err)
-      if (this.instrumentation) {
-        const errorContext = {
-          routerKind: '',
-          routePath: '',
-          routeType: '',
-          revalidateReason: '',
-          renderType: '',
-          renderSource: '',
-        }
-        this.instrumentation.onRequestError(
-          error,
-          {
-            url: req.url,
-            method: req.method,
-            // cookies: req.headers.cookie,
-            headers: req.headers,
-          },
-          errorContext
-        )
-      }
       console.error(error)
       res.statusCode = 500
       await this.renderError(error, req, res, parsed.pathname || '')
@@ -1934,20 +1913,6 @@ export default class NextNodeServer extends BaseServer<
       incrementalCache:
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
-    }).catch((err) => {
-      // For api routes it will directly throw an error, capture the error here
-      this.renderOpts.onRequestError?.(
-        err,
-        {
-          url: params.req.url,
-          method: params.req.method,
-          headers: params.req.headers,
-        },
-        {
-          routerKind: '',
-        }
-      )
-      throw err
     })
 
     if (result.fetchMetrics) {

@@ -596,7 +596,7 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicResponse,
     serverActions,
-    onRequestError,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -693,16 +693,13 @@ async function renderToHTMLOrFlightImpl(
   }
 
   const errorContext = {
-    routerKind: 'APP_PAGE',
+    routerKind: 'App Router',
     routePath: pagePath,
     routeType: 'render',
-    revalidateReason: '',
-    renderType: '',
-    renderSource: '',
-  }
+  } as const
 
   function onReactStreamRenderError(err: Error) {
-    onRequestError?.(err, requestContext, errorContext)
+    onInstrumentationRequestError?.(err, requestContext, errorContext)
   }
 
   const serverComponentsErrorHandler = createErrorHandler({

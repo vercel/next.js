@@ -19,6 +19,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import type { InstrumentationOnRequestError } from '../instrumentation/types'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -186,7 +187,10 @@ export default class DevServer extends Server {
       })
     }
 
-    this.renderOpts.onRequestError = (err: any, req: any, context: any) => {
+    this.renderOpts.onInstrumentationRequestError = (
+      ...args: Parameters<NonNullable<InstrumentationOnRequestError>>
+    ) => {
+      const [err, req, context] = args
       super.instrumentationOnRequestError(err, req, context)
       // Safe catch to avoid floating promises
       this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})

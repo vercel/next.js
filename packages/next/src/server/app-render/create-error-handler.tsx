@@ -115,7 +115,7 @@ export function createErrorHandler({
         source === 'flightData'
       ) {
         if (onRenderError) {
-          onRenderError(err) //.catch(() => {})
+          onRenderError(err)
         } else {
           // The error logger is currently not provided in the edge runtime.
           // Use the exposed `__next_log_error__` instead.

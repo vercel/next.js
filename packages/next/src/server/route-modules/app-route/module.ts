@@ -70,7 +70,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: StaticGenerationContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onRequestError'>
+    Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
 

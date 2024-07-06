@@ -11,6 +11,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { InstrumentationOnRequestError } from '../instrumentation/types'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -142,7 +143,7 @@ export interface RenderOptsPartial {
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onRequestError?: (err: any, request: any, context: any) => void
+  onInstrumentationRequestError: InstrumentationOnRequestError
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
