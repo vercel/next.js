@@ -976,18 +976,31 @@ export default class NextNodeServer extends BaseServer<
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
-        const handled = await this.runEdgeFunction({
-          req,
-          res,
-          query,
-          params: match.params,
-          page: match.definition.page,
-          match,
-          appPaths: null,
-        })
+        try {
+          const handled = await this.runEdgeFunction({
+            req,
+            res,
+            query,
+            params: match.params,
+            page: match.definition.page,
+            match,
+            appPaths: null,
+          })
 
-        // If we handled the request, we can return early.
-        if (handled) return true
+          // If we handled the request, we can return early.
+          if (handled) return true
+        } catch (apiError) {
+          const errorRequest = {
+            method: req.method,
+            url: req.url,
+            headers: req.headers,
+          }
+          this.instrumentationOnRequestError(apiError, errorRequest, {
+            routePath: match.definition.page,
+            routerKind: 'Pages Router',
+            routeType: 'route',
+          } as const)
+        }
       }
 
       // If the route was detected as being a Pages API route, then handle
@@ -1001,8 +1014,21 @@ export default class NextNodeServer extends BaseServer<
 
         delete query._nextBubbleNoFallback
 
-        const handled = await this.handleApiRequest(req, res, query, match)
-        if (handled) return true
+        try {
+          const handled = await this.handleApiRequest(req, res, query, match)
+          if (handled) return true
+        } catch (apiError) {
+          const errorRequest = {
+            method: req.method,
+            url: req.url,
+            headers: req.headers,
+          }
+          this.instrumentationOnRequestError(apiError, errorRequest, {
+            routePath: match.definition.page,
+            routerKind: 'Pages Router',
+            routeType: 'route',
+          } as const)
+        }
       }
 
       await this.render(req, res, pathname, query, parsedUrl, true)
@@ -1715,7 +1741,7 @@ export default class NextNodeServer extends BaseServer<
         }
         return true
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (bubblingResult) {
         throw err
       }

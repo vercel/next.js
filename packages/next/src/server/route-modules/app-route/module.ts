@@ -388,7 +388,6 @@ export class AppRouteRouteModule extends RouteModule<
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 

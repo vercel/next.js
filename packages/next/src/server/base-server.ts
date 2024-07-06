@@ -152,7 +152,10 @@ import {
   type WaitUntil,
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
-import type { InstrumentationModule } from './instrumentation/types'
+import type {
+  InstrumentationModule,
+  InstrumentationOnRequestError,
+} from './instrumentation/types'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -821,12 +824,10 @@ export default abstract class Server<
   }
 
   protected async instrumentationOnRequestError(
-    err: any,
-    req: any,
-    context: any
+    ...args: Parameters<InstrumentationOnRequestError>
   ) {
     if (this.instrumentation) {
-      this.instrumentation.onRequestError?.(err, req, context)
+      this.instrumentation.onRequestError?.(...args)
     }
   }
 
@@ -1451,7 +1452,6 @@ export default abstract class Server<
         throw err
       }
       this.logError(getProperError(err))
-      console.log('Base server handle request 500', err)
       res.statusCode = 500
       res.body('Internal Server Error').send()
     }
@@ -3378,7 +3378,6 @@ export default abstract class Server<
         return await this.renderErrorToResponse(ctx, err)
       }
 
-      console.log('Base server render to response 500', err)
       res.statusCode = 500
 
       // if pages/500 is present we still need to trigger

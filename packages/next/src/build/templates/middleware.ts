@@ -6,6 +6,7 @@ import { adapter } from '../../server/web/adapter'
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
+import { getEdgeInstrumentationModule } from '../../server/web/globals'
 
 const mod = { ..._mod }
 const handler = mod.middleware || mod.default
@@ -18,12 +19,37 @@ if (typeof handler !== 'function') {
   )
 }
 
+function errorHandledHandler(fn: AdapterOptions['handler']) {
+  return async function (...args: Parameters<AdapterOptions['handler']>) {
+    try {
+      return await fn(...args)
+    } catch (error) {
+      const req = args[0]
+      const instrumentation = await getEdgeInstrumentationModule()
+      instrumentation.onRequestError?.(
+        error,
+        {
+          url: req.url,
+          method: req.method,
+          headers: Object.fromEntries(req.headers.entries()),
+        },
+        {
+          routerKind: 'Pages Router',
+          routePath: '/middleware',
+          routeType: 'middleware',
+        }
+      )
+      throw error
+    }
+  }
+}
+
 export default function nHandler(
   opts: Omit<AdapterOptions, 'IncrementalCache' | 'page' | 'handler'>
 ) {
   return adapter({
     ...opts,
     page,
-    handler,
+    handler: errorHandledHandler(handler),
   })
 }

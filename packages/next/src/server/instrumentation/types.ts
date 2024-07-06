@@ -5,18 +5,17 @@ type RequestErrorContext = {
   // TODO: other future instrumentation context
 }
 
+export type InstrumentationOnRequestError = (
+  error: unknown,
+  errorRequest: Readonly<{
+    method: string
+    url: string
+    headers: NodeJS.Dict<string | string[]>
+  }>,
+  errorContext: Readonly<RequestErrorContext>
+) => void | Promise<void>
+
 export type InstrumentationModule = {
   register?(): void
-  onRequestError?(
-    error: unknown,
-    errorRequest: Readonly<{
-      method: string
-      url: string
-      headers: NodeJS.Dict<string | string[]>
-    }>,
-    errorContext: Readonly<RequestErrorContext>
-  ): void | Promise<void>
+  onRequestError?: InstrumentationOnRequestError
 }
-
-export type InstrumentationOnRequestError =
-  InstrumentationModule['onRequestError']

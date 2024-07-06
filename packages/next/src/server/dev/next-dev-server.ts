@@ -517,7 +517,6 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
-      console.log('dev server err', err)
       formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {

@@ -1,6 +1,8 @@
+import type { InstrumentationModule } from '../instrumentation/types'
+
 declare const _ENTRIES: any
 
-export async function getEdgeInstrumentationModule() {
+export async function getEdgeInstrumentationModule(): Promise<InstrumentationModule> {
   const instrumentation =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
