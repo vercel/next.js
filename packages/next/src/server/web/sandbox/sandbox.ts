@@ -58,7 +58,7 @@ function withTaggedErrors(fn: RunnerFn): RunnerFn {
 }
 
 export async function getRuntimeContext(
-  params: RunnerFnParams
+  params: Omit<RunnerFnParams, 'request'>
 ): Promise<EdgeRuntime<any>> {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
