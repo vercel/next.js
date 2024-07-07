@@ -72,6 +72,7 @@ tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
+once_cell ={workspace= true}
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
