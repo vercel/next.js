@@ -2,7 +2,7 @@
 
 export default function Page() {
   if (typeof window === 'undefined') {
-    throw new Error('client-page-node-error')
+    throw new Error('client-page-edge-error')
   }
   return <div>client-page</div>
 }

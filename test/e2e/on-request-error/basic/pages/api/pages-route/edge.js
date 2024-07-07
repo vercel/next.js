@@ -1,5 +1,5 @@
 export default function handle(req, res) {
-  throw new Error('api-error-edge')
+  throw new Error('api-edge-error')
 }
 
 export const config = {

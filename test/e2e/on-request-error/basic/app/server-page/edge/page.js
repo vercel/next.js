@@ -1,5 +1,5 @@
 export default function Page() {
-  throw new Error('server-page-node-error')
+  throw new Error('server-page-edge-error')
 }
 
 export const dynamic = 'force-dynamic'

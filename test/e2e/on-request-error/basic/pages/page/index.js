@@ -1,5 +1,5 @@
 export default function Page() {
-  throw new Error('pages-error')
+  throw new Error('pages-page-node-error')
 }
 
 export const config = {

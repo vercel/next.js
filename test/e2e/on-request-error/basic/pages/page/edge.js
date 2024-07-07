@@ -1,5 +1,5 @@
 export default function Page() {
-  throw new Error('pages-error-edge')
+  throw new Error('pages-page-edge-error')
 }
 
 export const config = {
