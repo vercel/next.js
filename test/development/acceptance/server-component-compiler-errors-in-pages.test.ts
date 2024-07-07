@@ -67,12 +67,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js
-        Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
-          x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+        Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
           | react-essentials#server-components
           | 
           | 
-           ,-[TEST_DIR/components/Comp.js:1:1]
+           ,-[1:1]
          1 | import { cookies } from 'next/headers'
            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          2 | 
@@ -126,12 +125,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js
-        Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
-          x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
+        Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
           | react-essentials#server-components
           | 
           | 
-           ,-[TEST_DIR/components/Comp.js:1:1]
+           ,-[1:1]
          1 | import 'server-only'
            : ^^^^^^^^^^^^^^^^^^^^
          2 | 
@@ -184,12 +182,11 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js
-        Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
-          x You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-
+        Error:   x You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-
           | started/react-essentials#server-components
           | 
           | 
-           ,-[TEST_DIR/components/Comp.js:1:1]
+           ,-[1:1]
          1 | import { unstable_after } from 'next/server'
            :          ^^^^^^^^^^^^^^
          2 | 

@@ -224,7 +224,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       expect(source).toMatchInlineSnapshot(`
         "./index.js
         Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[TEST_DIR/index.js:7:1]
+           ,-[7:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
@@ -232,7 +232,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
            : ^
            \`----
           x Unexpected eof
-           ,-[TEST_DIR/index.js:7:1]
+           ,-[7:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
