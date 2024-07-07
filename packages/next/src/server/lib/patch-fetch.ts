@@ -660,7 +660,7 @@ function createPatchedFetcher(
             cachedFetchData = requestStore.fastRefreshFetchCache.get(cacheKey)
           }
 
-          if (!cachedFetchData) {
+          if (isCacheableRevalidate && !cachedFetchData) {
             handleUnlock =
               await staticGenerationStore.incrementalCache.lock(cacheKey)
 
