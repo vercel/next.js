@@ -5,8 +5,6 @@ import path from 'path'
 const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '../..')
 const logPath = path.join(dir, 'output-log.json')
 
-console.log('logPath', logPath)
-
 export async function POST(req) {
   let payloadString = ''
   const decoder = new TextDecoder()

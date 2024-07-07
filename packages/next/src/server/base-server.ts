@@ -2475,7 +2475,19 @@ export default abstract class Server<
             // If this is during static generation, throw the error again.
             if (isSSG) throw err
 
-            Log.error(err)
+            this.instrumentationOnRequestError(
+              err,
+              {
+                method: req.method,
+                url: req.url,
+                headers: req.headers,
+              },
+              {
+                routerKind: 'App Router',
+                routePath: pathname,
+                routeType: 'route',
+              }
+            )
 
             // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())

@@ -16,19 +16,18 @@ describe('on-request-error - basic', () => {
     return JSON.parse(content)
   }
 
-  // let currentLogIndex = 0
   async function validateErrorRecord(
     name: string,
     url: string,
-    message?: string
+    isMiddleware: boolean = false
   ) {
     await retry(async () => {
-      const currentLog = next.cliOutput //.slice(currentLogIndex)
-      expect(currentLog).toContain(
-        `[instrumentation] write-log:${message || name}`
-      )
-      // currentLogIndex = next.cliOutput.length
-    })
+      const recordLogs = next.cliOutput
+        .split('\n')
+        .filter((log) => log.includes('[instrumentation] write-log'))
+      const expectedLog = recordLogs.find((log) => log.includes(name))
+      expect(expectedLog).toBeDefined()
+    }, 5000)
 
     const json = await getOutputLogJson()
     const record = json[name]
@@ -38,11 +37,21 @@ describe('on-request-error - basic', () => {
     expect(payload.message).toBe(name)
     expect(count).toBe(1)
 
-    validateRequestByName(payload.request, url)
+    validateRequestByName(payload.request, url, isMiddleware)
   }
 
-  function validateRequestByName(request: any, url: string) {
-    expect(request.url).toBe(url)
+  function validateRequestByName(
+    request: any,
+    url: string,
+    isMiddleware: boolean = false
+  ) {
+    if (isMiddleware) {
+      // For middleware, the URL is absolute url with host
+      expect(request.url).toMatch(/^http:\/\//)
+      expect(request.url).toMatch(url)
+    } else {
+      expect(request.url).toBe(url)
+    }
     expect(request.method).toBe('GET')
     expect(request.headers['accept']).toBe('*/*')
   }
@@ -108,7 +117,7 @@ describe('on-request-error - basic', () => {
   describe('middleware', () => {
     it('should catch middleware error', async () => {
       await next.fetch('/middleware-error')
-      await validateErrorRecord('middleware-error', '/middleware-error')
+      await validateErrorRecord('middleware-error', '/middleware-error', true)
     })
   })
 })

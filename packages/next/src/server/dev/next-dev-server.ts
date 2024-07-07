@@ -620,9 +620,8 @@ export default class DevServer extends Server {
   }
 
   private async runInstrumentationHookIfAvailable() {
-    const instrumentation = await this.loadInstrumentationModule()
-    if (instrumentation) {
-      await instrumentation.register?.()
+    if (this.instrumentation) {
+      await this.instrumentation.register?.()
     }
   }
 

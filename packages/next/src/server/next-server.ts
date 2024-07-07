@@ -309,7 +309,6 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async loadInstrumentationModule() {
-    // let instrumentationModule: any
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
@@ -543,6 +542,7 @@ export default class NextNodeServer extends BaseServer<
       query,
       params: match.params,
       page: match.definition.pathname,
+      onRequestError: this.instrumentation?.onRequestError,
     })
 
     return true
@@ -976,31 +976,18 @@ export default class NextNodeServer extends BaseServer<
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
-        try {
-          const handled = await this.runEdgeFunction({
-            req,
-            res,
-            query,
-            params: match.params,
-            page: match.definition.page,
-            match,
-            appPaths: null,
-          })
+        const handled = await this.runEdgeFunction({
+          req,
+          res,
+          query,
+          params: match.params,
+          page: match.definition.page,
+          match,
+          appPaths: null,
+        })
 
-          // If we handled the request, we can return early.
-          if (handled) return true
-        } catch (apiError) {
-          const errorRequest = {
-            method: req.method,
-            url: req.url,
-            headers: req.headers,
-          }
-          this.instrumentationOnRequestError(apiError, errorRequest, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-          } as const)
-        }
+        // If we handled the request, we can return early.
+        if (handled) return true
       }
 
       // If the route was detected as being a Pages API route, then handle
@@ -1014,21 +1001,8 @@ export default class NextNodeServer extends BaseServer<
 
         delete query._nextBubbleNoFallback
 
-        try {
-          const handled = await this.handleApiRequest(req, res, query, match)
-          if (handled) return true
-        } catch (apiError) {
-          const errorRequest = {
-            method: req.method,
-            url: req.url,
-            headers: req.headers,
-          }
-          this.instrumentationOnRequestError(apiError, errorRequest, {
-            routePath: match.definition.page,
-            routerKind: 'Pages Router',
-            routeType: 'route',
-          } as const)
-        }
+        const handled = await this.handleApiRequest(req, res, query, match)
+        if (handled) return true
       }
 
       await this.render(req, res, pathname, query, parsedUrl, true)

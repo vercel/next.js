@@ -7,6 +7,7 @@ import type { RouteModuleOptions } from '../route-module'
 
 import { RouteModule, type RouteModuleHandleContext } from '../route-module'
 import { apiResolver } from '../../api-utils/node/api-resolver'
+import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
@@ -92,6 +93,11 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * The page that's being rendered.
    */
   page: string
+
+  /**
+   * The error handler for the request.
+   */
+  onRequestError?: InstrumentationOnRequestError
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -146,7 +152,8 @@ export class PagesAPIRouteModule extends RouteModule<
       },
       context.minimalMode,
       context.dev,
-      context.page
+      context.page,
+      context.onRequestError
     )
   }
 }

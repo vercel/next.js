@@ -29,6 +29,7 @@ import {
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
+import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type RevalidateFn = (config: {
   urlPath: string
@@ -324,7 +325,8 @@ export async function apiResolver(
   apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
-  page?: string
+  page?: string,
+  onRequestError?: InstrumentationOnRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -435,6 +437,20 @@ export async function apiResolver(
       }
     }
   } catch (err) {
+    onRequestError?.(
+      err,
+      {
+        url: req.url || '',
+        method: req.method || 'GET',
+        headers: req.headers,
+      },
+      {
+        routerKind: 'Pages Router',
+        routePath: page || '',
+        routeType: 'route',
+      }
+    )
+
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
