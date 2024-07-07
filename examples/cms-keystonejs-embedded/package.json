@@ -7,8 +7,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "@keystone-next/fields": "^9.0.0",
-    "@keystone-next/keystone": "^18.0.0",
+    "@keystone-next/fields": "^15.0.0",
+    "@keystone-next/keystone": "^29.0.0",
     "next": "10.2.2",
     "react": "18.2.0",
     "react-dom": "18.2.0"
