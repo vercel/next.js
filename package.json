@@ -195,6 +195,7 @@
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
+    "prettier-2": "npm:prettier@^2",
     "prettier": "3.2.5",
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
