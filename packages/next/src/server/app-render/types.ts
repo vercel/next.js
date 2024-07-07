@@ -12,6 +12,9 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { InstrumentationOnRequestError } from '../instrumentation/types'
+import type { NextRequestHint } from '../web/adapter'
+import type { BaseNextRequest } from '../base-http'
+import type { IncomingMessage } from 'http'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -124,6 +127,14 @@ export type ActionFlightResponse =
   // This case happens when `redirect()` is called in a server action.
   | NextFlightResponse
 
+export type ServerOnInstrumentationRequestError = (
+  error: unknown,
+  // The request could be middleware, node server or web server request,
+  // we normalized them into an aligned format to `onRequestError` API later.
+  request: NextRequestHint | BaseNextRequest | IncomingMessage,
+  errorContext: Parameters<InstrumentationOnRequestError>[2]
+) => void | Promise<void>
+
 export interface RenderOptsPartial {
   err?: Error | null
   dev?: boolean
@@ -143,7 +154,7 @@ export interface RenderOptsPartial {
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onInstrumentationRequestError: InstrumentationOnRequestError
+  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void

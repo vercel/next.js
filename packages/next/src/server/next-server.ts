@@ -542,7 +542,7 @@ export default class NextNodeServer extends BaseServer<
       query,
       params: match.params,
       page: match.definition.pathname,
-      onRequestError: this.instrumentation?.onRequestError,
+      onError: this.instrumentationOnRequestError,
     })
 
     return true

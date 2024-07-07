@@ -11,7 +11,10 @@ import type {
 } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from './render'
-import type { RenderOptsPartial as AppRenderOptsPartial } from './app-render/types'
+import type {
+  RenderOptsPartial as AppRenderOptsPartial,
+  ServerOnInstrumentationRequestError,
+} from './app-render/types'
 import type {
   CachedAppPageValue,
   CachedPageValue,
@@ -47,6 +50,7 @@ import type {
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
+import type { InstrumentationModule } from './instrumentation/types'
 
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
@@ -152,10 +156,7 @@ import {
   type WaitUntil,
 } from './after/builtin-request-context'
 import { ENCODED_TAGS } from './stream-utils/encodedTags'
-import type {
-  InstrumentationModule,
-  InstrumentationOnRequestError,
-} from './instrumentation/types'
+import { NextRequestHint } from './web/adapter'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -824,10 +825,23 @@ export default abstract class Server<
   }
 
   protected async instrumentationOnRequestError(
-    ...args: Parameters<InstrumentationOnRequestError>
+    ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
+    const [err, req, ctx] = args
     if (this.instrumentation) {
-      this.instrumentation.onRequestError?.(...args)
+      this.instrumentation.onRequestError?.(
+        err,
+        {
+          url: req.url || '',
+          method: req.method || 'GET',
+          // Normalize middleware headers and other server request headers
+          headers:
+            req instanceof NextRequestHint
+              ? Object.fromEntries(req.headers.entries())
+              : req.headers,
+        },
+        ctx
+      )
     }
   }
 
@@ -2475,19 +2489,11 @@ export default abstract class Server<
             // If this is during static generation, throw the error again.
             if (isSSG) throw err
 
-            this.instrumentationOnRequestError(
-              err,
-              {
-                method: req.method,
-                url: req.url,
-                headers: req.headers,
-              },
-              {
-                routerKind: 'App Router',
-                routePath: pathname,
-                routeType: 'route',
-              }
-            )
+            this.instrumentationOnRequestError(err, req, {
+              routerKind: 'App Router',
+              routePath: pathname,
+              routeType: 'route',
+            })
 
             // Otherwise, send a 500 response.
             await sendResponse(req, res, handleInternalServerErrorResponse())
@@ -2533,19 +2539,11 @@ export default abstract class Server<
                 }
               )
             } catch (err) {
-              this.instrumentationOnRequestError(
-                err,
-                {
-                  method: req.method,
-                  url: req.url,
-                  headers: req.headers,
-                },
-                {
-                  routerKind: 'Pages Router',
-                  routePath: pathname,
-                  routeType: 'render',
-                }
-              )
+              this.instrumentationOnRequestError(err, req, {
+                routerKind: 'Pages Router',
+                routePath: pathname,
+                routeType: 'render',
+              })
               throw err
             }
           } else {

@@ -686,11 +686,6 @@ async function renderToHTMLOrFlightImpl(
   // intentionally silence the error logger in this case to avoid double
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
-  const requestContext = {
-    url: req.url,
-    method: req.method,
-    headers: req.headers,
-  }
 
   const errorContext = {
     routerKind: 'App Router',
@@ -699,7 +694,7 @@ async function renderToHTMLOrFlightImpl(
   } as const
 
   function onReactStreamRenderError(err: Error) {
-    onInstrumentationRequestError?.(err, requestContext, errorContext)
+    onInstrumentationRequestError?.(err, req, errorContext)
   }
 
   const serverComponentsErrorHandler = createErrorHandler({

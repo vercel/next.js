@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
 import { generateETag } from '../../lib/etag'
@@ -29,7 +30,6 @@ import {
 } from '../../../lib/constants'
 import { tryGetPreviewData } from './try-get-preview-data'
 import { parseBody } from './parse-body'
-import type { InstrumentationOnRequestError } from '../../instrumentation/types'
 
 type RevalidateFn = (config: {
   urlPath: string
@@ -326,7 +326,7 @@ export async function apiResolver(
   propagateError: boolean,
   dev?: boolean,
   page?: string,
-  onRequestError?: InstrumentationOnRequestError
+  onError?: ServerOnInstrumentationRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -437,19 +437,11 @@ export async function apiResolver(
       }
     }
   } catch (err) {
-    onRequestError?.(
-      err,
-      {
-        url: req.url || '',
-        method: req.method || 'GET',
-        headers: req.headers,
-      },
-      {
-        routerKind: 'Pages Router',
-        routePath: page || '',
-        routeType: 'route',
-      }
-    )
+    onError?.(err, req, {
+      routerKind: 'Pages Router',
+      routePath: page || '',
+      routeType: 'route',
+    })
 
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)

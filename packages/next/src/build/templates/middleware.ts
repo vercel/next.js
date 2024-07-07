@@ -19,6 +19,8 @@ if (typeof handler !== 'function') {
   )
 }
 
+// Middleware will only sent out the FetchEvent to next server,
+// so load instrumentation module here and track the error inside middleware module.
 function errorHandledHandler(fn: AdapterOptions['handler']) {
   return async function (...args: Parameters<AdapterOptions['handler']>) {
     try {
