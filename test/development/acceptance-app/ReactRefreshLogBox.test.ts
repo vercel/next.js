@@ -233,7 +233,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `)
     } else {
       expect(source).toEqual(outdent`
-        "./index.js
+        ./index.js
         Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
            ,-[7:1]
          4 |       <p>lol</p>
@@ -255,7 +255,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
         Import trace for requested module:
         ./index.js
-        ./app/page.js"
+        ./app/page.js
       `)
     }
 
