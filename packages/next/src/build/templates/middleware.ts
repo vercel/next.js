@@ -28,7 +28,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
     } catch (error) {
       const req = args[0]
       const instrumentation = await getEdgeInstrumentationModule()
-      instrumentation.onRequestError?.(
+      instrumentation?.onRequestError?.(
         error,
         {
           url: req.url,

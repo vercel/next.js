@@ -828,6 +828,7 @@ export default abstract class Server<
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
     const [err, req, ctx] = args
+
     if (this.instrumentation) {
       this.instrumentation.onRequestError?.(
         err,
@@ -2488,6 +2489,8 @@ export default abstract class Server<
           } catch (err) {
             // If this is during static generation, throw the error again.
             if (isSSG) throw err
+
+            Log.error(err)
 
             this.instrumentationOnRequestError(err, req, {
               routerKind: 'App Router',

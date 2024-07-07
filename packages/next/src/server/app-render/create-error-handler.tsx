@@ -114,17 +114,16 @@ export function createErrorHandler({
           source === 'html') ||
         source === 'flightData'
       ) {
-        if (onReactStreamRenderError) {
+        // Dev mode logging:
+        // The error logger is currently not provided in the edge runtime.
+        // Use the exposed `__next_log_error__` instead.
+        // This will trace error traces to the original source code.
+        if (typeof __next_log_error__ === 'function') {
+          __next_log_error__(err)
+        } else if (onReactStreamRenderError) {
           onReactStreamRenderError(err)
         } else {
-          // The error logger is currently not provided in the edge runtime.
-          // Use the exposed `__next_log_error__` instead.
-          // This will trace error traces to the original source code.
-          if (typeof __next_log_error__ === 'function') {
-            __next_log_error__(err)
-          } else {
-            console.error(err)
-          }
+          console.error(err)
         }
       }
     }

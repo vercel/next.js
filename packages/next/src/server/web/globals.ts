@@ -2,7 +2,9 @@ import type { InstrumentationModule } from '../instrumentation/types'
 
 declare const _ENTRIES: any
 
-export async function getEdgeInstrumentationModule(): Promise<InstrumentationModule> {
+export async function getEdgeInstrumentationModule(): Promise<
+  InstrumentationModule | undefined
+> {
   const instrumentation =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
@@ -16,10 +18,10 @@ async function registerInstrumentation() {
   if (!instrumentationModulePromise) {
     instrumentationModulePromise = getEdgeInstrumentationModule()
   }
-  const { register } = await instrumentationModulePromise
-  if (register) {
+  const instrumentation = await instrumentationModulePromise
+  if (instrumentation?.register) {
     try {
-      await register()
+      await instrumentation.register()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err

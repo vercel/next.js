@@ -418,7 +418,6 @@ export default class DevServer extends Server {
         return { finished: false }
       }
 
-      // Dev middleware error
       response.statusCode = 500
       await this.renderError(err, request, response, parsedUrl.pathname)
       return { finished: true }
@@ -450,7 +449,6 @@ export default class DevServer extends Server {
       const err = getProperError(error)
       const { req, res, page } = params
 
-      // Dev edge function error
       res.statusCode = 500
       await this.renderError(err, req, res, page)
       return null
