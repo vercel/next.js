@@ -434,6 +434,9 @@ importers:
       prettier:
         specifier: 3.2.5
         version: 3.2.5
+      prettier-2:
+        specifier: npm:prettier@^2
+        version: prettier@2.5.1
       pretty-bytes:
         specifier: 5.3.0
         version: 5.3.0
