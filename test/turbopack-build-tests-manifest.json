@@ -1398,7 +1398,8 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/css-order/css-order.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "css-order turbo should load correct styles navigating back again interleaved-a -> interleaved-b -> interleaved-a -> interleaved-b",
         "css-order turbo should load correct styles navigating back again pages-first -> pages-second -> pages-first -> pages-second",
         "css-order turbo should load correct styles navigating back again pages-first -> pages-third -> pages-first -> pages-third",
@@ -1471,9 +1472,7 @@
         "css-order turbo should load correct styles on reversed-b",
         "css-order turbo should load correct styles on second",
         "css-order turbo should load correct styles on second-client",
-        "css-order turbo should load correct styles on third"
-      ],
-      "failed": [
+        "css-order turbo should load correct styles on third",
         "css-order turbo should load correct styles navigating back again first -> first-client -> first -> first-client",
         "css-order turbo should load correct styles navigating back again first -> second -> first -> second",
         "css-order turbo should load correct styles navigating back again first -> second-client -> first -> second-client",
@@ -7241,14 +7240,14 @@
         "CSS Module client-side navigation dev should be able to client-side navigate from blue to red",
         "CSS Module client-side navigation dev should be able to client-side navigate from none to blue",
         "CSS Module client-side navigation dev should be able to client-side navigate from none to red",
-        "CSS Module client-side navigation dev should be able to client-side navigate from red to blue",
-        "CSS Module client-side navigation production mode should time out and hard navigate for stalled CSS request"
+        "CSS Module client-side navigation dev should be able to client-side navigate from red to blue"
       ],
       "failed": [
         "CSS Module client-side navigation production mode should be able to client-side navigate from blue to red",
         "CSS Module client-side navigation production mode should be able to client-side navigate from none to blue",
         "CSS Module client-side navigation production mode should be able to client-side navigate from none to red",
-        "CSS Module client-side navigation production mode should be able to client-side navigate from red to blue"
+        "CSS Module client-side navigation production mode should be able to client-side navigate from red to blue",
+        "CSS Module client-side navigation production mode should time out and hard navigate for stalled CSS request"
       ],
       "pending": [],
       "flakey": [],
@@ -7518,8 +7517,6 @@
       "passed": [
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on hover)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on load)",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should not change color on hover",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate black without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(false) production mode should hydrate red without dependencies manifest",
@@ -7527,15 +7524,17 @@
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate black without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should hydrate red without dependencies manifest",
         "CSS Support Page hydrates with CSS and not waiting on dependencies useLightnincsss(true) production mode should route from black to red without dependencies",
-        "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
-        "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS",
         "CSS Support production mode CSS Import from node_modules useLightnincsss(false) should fail the build",
         "CSS Support production mode CSS Import from node_modules useLightnincsss(true) should fail the build"
       ],
       "failed": [
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from index)",
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct color on index page (on nav from other)",
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(false) production mode not have intermediary page styles on error rendering",
         "CSS Support CSS Cleanup on Render Failure useLightnincsss(true) production mode not have intermediary page styles on error rendering",
-        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order"
+        "CSS Support CSS page transition inject <style> with nonce so it works with CSP header production mode should have correct CSS injection order",
+        "CSS Support Page reload on CSS missing useLightnincsss(false) production mode should fall back to server-side transition on missing CSS",
+        "CSS Support Page reload on CSS missing useLightnincsss(true) production mode should fall back to server-side transition on missing CSS"
       ],
       "pending": [],
       "flakey": [],
@@ -11993,7 +11992,6 @@
         "nested index.js production mode should client render page /index/user",
         "nested index.js production mode should follow link to /",
         "nested index.js production mode should follow link to /index",
-        "nested index.js production mode should follow link to /index/index",
         "nested index.js production mode should follow link to /index/project",
         "nested index.js production mode should follow link to /index/user",
         "nested index.js production mode should not find a link to /index/index/index",
@@ -12003,7 +12001,9 @@
         "nested index.js production mode should ssr page /index/project",
         "nested index.js production mode should ssr page /index/user"
       ],
-      "failed": [],
+      "failed": [
+        "nested index.js production mode should follow link to /index/index"
+      ],
       "pending": [
         "nested index.js development mode should 404 on /index/index/index",
         "nested index.js development mode should client render page /",
