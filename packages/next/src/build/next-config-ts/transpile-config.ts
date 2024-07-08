@@ -4,7 +4,6 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { parseJsonFile } from '../load-jsconfig'
-import { transform } from '../swc'
 
 function resolveSWCOptions(
   cwd: string,
@@ -55,6 +54,8 @@ export async function transpileConfig({
     const swcOptions = resolveSWCOptions(cwd, compilerOptions)
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
+    // lazy load swc since it calls React too early
+    const { transform } = await import('../swc')
     const { code } = await transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists

@@ -2,12 +2,13 @@ import type { Options as SWCOptions } from '@swc/core'
 import Module from 'node:module'
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { transformSync } from '../swc'
 
 const oldJSHook = require.extensions['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 export function registerHook(swcOptions: SWCOptions) {
+  // lazy load swc since it calls React too early
+  const { transformSync } = require('../swc')
   require.extensions['.js'] = function (mod: any, oldFilename) {
     try {
       return oldJSHook(mod, oldFilename)
