@@ -81,27 +81,6 @@
       }
     },
     {
-      "name": "Launch current directory in development",
-      "type": "node",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["packages/next/dist/bin/next", "dev", "${fileDirname}"],
-      "skipFiles": ["<node_internals>/**"],
-      "sourceMapPathOverrides": {
-        "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
-        "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
-        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
-      },
-      "env": {
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
-      }
-    },
-    {
       "name": "Run e2e test",
       "type": "node",
       "request": "launch",
