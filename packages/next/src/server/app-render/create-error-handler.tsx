@@ -118,8 +118,10 @@ export function createErrorHandler({
         // Use the exposed `__next_log_error__` instead.
         // This will trace error traces to the original source code.
 
-        if (typeof __next_log_error__ === 'function') {
-          __next_log_error__(err)
+        if (process.env.NODE_ENV !== 'production') {
+          if (typeof __next_log_error__ === 'function') {
+            __next_log_error__(err)
+          }
         } else {
           console.error(err)
         }
