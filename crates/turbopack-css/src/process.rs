@@ -437,7 +437,7 @@ pub async fn finalize_css(
             let code = code.await?;
             let code = match &*code {
                 FileContent::Content(v) => v.content().to_str()?,
-                _ => unreachable!("this case should be filtered out while parsing"),
+                _ => bail!("this case should be filtered out while parsing"),
             };
             let (result, srcmap) = stylesheet.to_css(cm.clone(), &code, true, true, true)?;
 
