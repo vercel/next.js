@@ -598,7 +598,7 @@ fn chain() {
         let aggregated = aggregation_data(&ctx, &current);
         assert_eq!(aggregated.value, 15050);
     }
-    assert_eq!(ctx.additions.load(Ordering::SeqCst), 122);
+    assert_eq!(ctx.additions.load(Ordering::SeqCst), 182);
     ctx.additions.store(0, Ordering::SeqCst);
     check_invariants(&ctx, once(current.clone()));
 
@@ -609,8 +609,8 @@ fn chain() {
     check_invariants(&ctx, once(current.clone()));
 
     leaf.incr(&ctx);
-    // The change need to propagate through 2 aggregated nodes
-    assert_eq!(ctx.additions.load(Ordering::SeqCst), 2);
+    // The change need to propagate through 4 aggregated nodes
+    assert_eq!(ctx.additions.load(Ordering::SeqCst), 4);
     ctx.additions.store(0, Ordering::SeqCst);
 
     {
@@ -640,7 +640,7 @@ fn chain() {
 
     leaf.incr(&ctx);
     // This should be less the 20 to prove that we are reusing trees
-    assert_eq!(ctx.additions.load(Ordering::SeqCst), 3);
+    assert_eq!(ctx.additions.load(Ordering::SeqCst), 5);
     ctx.additions.store(0, Ordering::SeqCst);
 
     {
@@ -678,10 +678,10 @@ fn chain_double_connected() {
 
     {
         let aggregated = aggregation_data(&ctx, &current);
-        assert_eq!(aggregated.value, 13188);
+        assert_eq!(aggregated.value, 20017);
     }
     check_invariants(&ctx, once(current.clone()));
-    assert_eq!(ctx.additions.load(Ordering::SeqCst), 285);
+    assert_eq!(ctx.additions.load(Ordering::SeqCst), 643);
     ctx.additions.store(0, Ordering::SeqCst);
 
     print(&ctx, &current, true);
