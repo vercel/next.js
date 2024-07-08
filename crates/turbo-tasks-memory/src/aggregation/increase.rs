@@ -4,7 +4,7 @@ use super::{
     balance_queue::BalanceQueue, AggegatingNode, AggregationContext, AggregationNode,
     AggregationNodeGuard, PreparedInternalOperation, PreparedOperation, StackVec,
 };
-pub(super) const LEAF_NUMBER: u32 = 64;
+pub(super) const LEAF_NUMBER: u32 = 16;
 
 #[derive(Debug)]
 pub enum IncreaseReason {
@@ -179,21 +179,23 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                 uppers,
                 reason,
             } => {
-                let mut need_to_run = true;
-                while need_to_run {
-                    need_to_run = false;
-                    let mut max = 0;
-                    for upper_id in &uppers {
-                        let upper = ctx.node(upper_id);
-                        let aggregation_number = upper.aggregation_number();
-                        if aggregation_number != u32::MAX {
-                            if aggregation_number > max {
-                                max = aggregation_number;
-                            }
-                            if aggregation_number == target_aggregation_number {
-                                target_aggregation_number += 1;
-                                if max >= target_aggregation_number {
-                                    need_to_run = true;
+                if target_aggregation_number >= LEAF_NUMBER {
+                    let mut need_to_run = true;
+                    while need_to_run {
+                        need_to_run = false;
+                        let mut max = 0;
+                        for upper_id in &uppers {
+                            let upper = ctx.node(upper_id);
+                            let aggregation_number = upper.aggregation_number();
+                            if aggregation_number != u32::MAX {
+                                if aggregation_number > max {
+                                    max = aggregation_number;
+                                }
+                                if aggregation_number == target_aggregation_number {
+                                    target_aggregation_number += 1;
+                                    if max >= target_aggregation_number {
+                                        need_to_run = true;
+                                    }
                                 }
                             }
                         }

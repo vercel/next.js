@@ -49,8 +49,8 @@ pub fn on_added<C: AggregationContext>(
     };
     let followers_len = aggregating.followers.len();
     let optimize = (!already_optimizing_for_node
-        && followers_len > MAX_FOLLOWERS
-        && (followers_len - MAX_FOLLOWERS).count_ones() == 1)
+        && followers_len >= MAX_FOLLOWERS
+        && followers_len.count_ones() == 1)
         .then(|| {
             aggregating
                 .followers
