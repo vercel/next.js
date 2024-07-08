@@ -542,7 +542,7 @@ export default class NextNodeServer extends BaseServer<
       query,
       params: match.params,
       page: match.definition.pathname,
-      onError: this.instrumentationOnRequestError,
+      onError: this.instrumentationOnRequestError.bind(this),
     })
 
     return true
@@ -976,18 +976,27 @@ export default class NextNodeServer extends BaseServer<
         delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
-        const handled = await this.runEdgeFunction({
-          req,
-          res,
-          query,
-          params: match.params,
-          page: match.definition.page,
-          match,
-          appPaths: null,
-        })
-
         // If we handled the request, we can return early.
-        if (handled) return true
+        // For api routes edge runtime
+        try {
+          const handled = await this.runEdgeFunction({
+            req,
+            res,
+            query,
+            params: match.params,
+            page: match.definition.page,
+            match,
+            appPaths: null,
+          })
+          if (handled) return true
+        } catch (apiError) {
+          this.instrumentationOnRequestError(apiError, req, {
+            routePath: match.definition.page,
+            routerKind: 'Pages Router',
+            routeType: 'route',
+          })
+          throw apiError
+        }
       }
 
       // If the route was detected as being a Pages API route, then handle
