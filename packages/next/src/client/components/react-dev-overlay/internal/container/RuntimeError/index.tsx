@@ -11,13 +11,11 @@ export type RuntimeErrorProps = { error: ReadyRuntimeError }
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
-      const filteredFrames = error.frames.filter(
-        (f) =>
-          !(
-            f.sourceStackFrame.file === '<anonymous>' &&
-            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
-      )
+      const filteredFrames = error.frames
+        // Filter out nodejs internal frames since you can't do anything about them.
+        // e.g. node:internal/timers shows up pretty often due to timers, but not helpful to users.
+        // Only present the last line before nodejs internal trace.
+        .filter((f) => !f.sourceStackFrame.file?.startsWith('node:'))
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
         (entry) =>
