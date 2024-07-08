@@ -7,8 +7,10 @@ const oldJSHook = require.extensions['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 export function registerHook(swcOptions: SWCOptions) {
-  // lazy load swc since it calls React too early
+  // lazy require swc since it loads React before even setting NODE_ENV
+  // resulting loading Development React on Production
   const { transformSync } = require('../swc')
+
   require.extensions['.js'] = function (mod: any, oldFilename) {
     try {
       return oldJSHook(mod, oldFilename)

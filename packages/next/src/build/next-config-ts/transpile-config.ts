@@ -54,8 +54,9 @@ export async function transpileConfig({
     const swcOptions = resolveSWCOptions(cwd, compilerOptions)
 
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
-    // lazy load swc since it calls React too early
-    const { transform } = await import('../swc')
+    // lazy require swc since it loads React before even setting NODE_ENV
+    // resulting loading Development React on Production
+    const { transform } = require('../swc')
     const { code } = await transform(nextConfigString, swcOptions)
 
     // register require hook only if require exists
