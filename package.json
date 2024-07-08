@@ -264,9 +264,9 @@
   },
   "engines": {
     "node": ">=18.18.0",
-    "pnpm": "9.4.0"
+    "pnpm": "9.5.0"
   },
-  "packageManager": "pnpm@9.4.0",
+  "packageManager": "pnpm@9.5.0",
   "pnpm": {
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
