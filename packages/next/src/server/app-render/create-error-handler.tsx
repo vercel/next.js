@@ -118,11 +118,6 @@ export function createErrorHandler({
         // Use the exposed `__next_log_error__` instead.
         // This will trace error traces to the original source code.
 
-        if (typeof __next_log_error__ === 'function') {
-          __next_log_error__(err)
-        } else if (!dev && process.env.NEXT_RUNTIME !== 'edge') {
-          console.error(err)
-        }
         onReactStreamRenderError?.(err)
       }
     }

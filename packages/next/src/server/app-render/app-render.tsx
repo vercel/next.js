@@ -693,9 +693,9 @@ async function renderToHTMLOrFlightImpl(
     routeType: 'render',
   } as const
 
-  function onReactStreamRenderError(err: Error) {
-    onInstrumentationRequestError?.(err, req, errorContext)
-  }
+  const onReactStreamRenderError = onInstrumentationRequestError
+    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
+    : undefined
 
   const serverComponentsErrorHandler = createErrorHandler({
     source: ErrorHandlerSource.serverComponents,

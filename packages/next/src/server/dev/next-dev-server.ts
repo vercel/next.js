@@ -65,6 +65,7 @@ import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
+import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -184,13 +185,6 @@ export default class DevServer extends Server {
           result.errors.filter((e) => e.severity !== 'ERROR')
         )
       })
-    }
-
-    this.renderOpts.onInstrumentationRequestError = (...args) => {
-      const [err, req, context] = args
-      super.instrumentationOnRequestError(err, req, context)
-      // Safe catch to avoid floating promises
-      this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
     }
 
     const { pagesDir, appDir } = findPagesDir(this.dir)
@@ -866,5 +860,15 @@ export default class DevServer extends Server {
 
   async getCompilationError(page: string): Promise<any> {
     return await this.bundlerService.getCompilationError(page)
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    super.instrumentationOnRequestError(...args)
+
+    const err = args[0]
+    // Safe catch to avoid floating promises
+    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
   }
 }

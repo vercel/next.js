@@ -105,6 +105,7 @@ import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import { stripNextRscUnionQuery } from '../lib/url'
+import type { ServerOnInstrumentationRequestError } from './app-render/types'
 
 export * from './base-server'
 
@@ -1972,5 +1973,16 @@ export default class NextNodeServer extends BaseServer<
     // Not implemented for production use cases, this is implemented on the
     // development server.
     return null
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    super.instrumentationOnRequestError(...args)
+
+    // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
+    if (!this.renderOpts.dev) {
+      console.error(args[0])
+    }
   }
 }
