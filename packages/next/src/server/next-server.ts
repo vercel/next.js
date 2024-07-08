@@ -1982,7 +1982,7 @@ export default class NextNodeServer extends BaseServer<
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {
-      console.error(args[0])
+      this.logError(args[0] as Error)
     }
   }
 }
