@@ -1,11 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('next-config-ts - hmr', () => {
+describe('hmr-next-config-ts', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-
   it('should output config file change', async () => {
     await check(async () => next.cliOutput, /ready/i)
 

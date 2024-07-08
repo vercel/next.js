@@ -1003,6 +1003,9 @@ export default async function loadConfig(
           nextConfigPath: path,
           cwd: dir,
         })
+        curLog.warn(
+          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
+        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1063,16 +1066,6 @@ export default async function loadConfig(
           }
         }
       }
-    }
-
-    if (
-      configFileName === 'next.config.ts' &&
-      !userConfig.experimental?.nextConfigTs
-    ) {
-      // warn when using next.config.ts but experimental.nextConfigTs is set to false
-      curLog.warn(
-        `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
-      )
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
