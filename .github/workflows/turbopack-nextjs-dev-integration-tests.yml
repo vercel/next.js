@@ -40,6 +40,7 @@ jobs:
     name: Setup Next.js build
     uses: ./.github/workflows/setup-nextjs-build.yml
     with:
+      nodeVersion: 18.18.2
       version: ${{ inputs.version || 'canary' }}
 
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
