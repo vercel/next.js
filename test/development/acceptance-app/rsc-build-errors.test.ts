@@ -334,11 +334,24 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     await session.assertHasRedbox()
-    if (!isTurbopack) {
+    if (isTurbopack) {
+      // TODO: strip out the filepath from error message.
+      // Currently turbopack gives error message with filepath as a prefix. e.g.
+      // ./test/e2e/app-dir/hello-world/app/page.tsx:6:7
+      // Module not found: Can't resolve 'non-existing-module'
+      // Where we don't need the 1st line of filepath but the error message.
+    } else {
       expect(await session.getRedboxDescription()).toInclude(
         `Module not found: Can't resolve 'non-existing-module'`
       )
     }
+
+    await next.patchFile(
+      'app/unresolve/page.js',
+      'export default function Page() { return <p>page</p> }'
+    )
+
+    await session.assertNoRedbox()
 
     await cleanup()
   })
