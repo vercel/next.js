@@ -8,6 +8,10 @@ on:
       # If not specified, will use latest release version including canary.
       version:
         type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
 
 jobs:
   build_nextjs:
