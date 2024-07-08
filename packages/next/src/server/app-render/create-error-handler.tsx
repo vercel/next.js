@@ -120,7 +120,7 @@ export function createErrorHandler({
 
         if (typeof __next_log_error__ === 'function') {
           __next_log_error__(err)
-        } else if (!dev) {
+        } else {
           console.error(err)
         }
         onReactStreamRenderError?.(err)
