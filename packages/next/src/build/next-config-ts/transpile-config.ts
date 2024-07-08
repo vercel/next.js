@@ -1,7 +1,7 @@
-import type { CompilerOptions } from 'typescript'
 import type { Options as SWCOptions } from '@swc/core'
-import { readFile } from 'node:fs/promises'
+import type { CompilerOptions } from 'typescript'
 import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { parseJsonFile } from '../load-jsconfig'
 
