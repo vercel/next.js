@@ -3,12 +3,12 @@ import path from 'path'
 import { existsSync, promises as fs } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
-import { FileRef, isNextDeploy, isNextDev } from '../e2e-utils'
+import { FileRef, isNextDeploy } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, waitFor, findPort } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -352,10 +352,12 @@ export class NextInstance {
       console.log('Forced random port:', this.forcedPort)
     }
   }
+
   public async start(useDirArg: boolean = false): Promise<void> {}
+
   public async stop(): Promise<void> {
-    this.isStopping = true
     if (this.childProcess) {
+      this.isStopping = true
       const exitPromise = once(this.childProcess, 'exit')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
@@ -370,6 +372,7 @@ export class NextInstance {
       this.childProcess = undefined
       require('console').log(`Stopped next server`)
     }
+    this.isStopping = false
   }
 
   public async destroy(): Promise<void> {
@@ -432,46 +435,25 @@ export class NextInstance {
   public async hasFile(filename: string) {
     return existsSync(path.join(this.testDir, filename))
   }
+
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+
   public async readJSON(filename: string) {
     return JSON.parse(
       await fs.readFile(path.join(this.testDir, filename), 'utf-8')
     )
   }
-  private async handleDevWatchDelayBeforeChange(filename: string) {
-    // This is a temporary workaround for turbopack starting watching too late.
-    // So we delay file changes by 500ms to give it some time
-    // to connect the WebSocket and start watching.
-    if (process.env.TURBOPACK) {
-      require('console').log('fs dev delay before', filename)
-      await waitFor(500)
-    }
-  }
-  private async handleDevWatchDelayAfterChange(filename: string) {
-    // to help alleviate flakiness with tests that create
-    // dynamic routes // and then request it we give a buffer
-    // of 500ms to allow WatchPack to detect the changed files
-    // TODO: replace this with an event directly from WatchPack inside
-    // router-server for better accuracy
-    if (
-      isNextDev &&
-      (filename.startsWith('app/') || filename.startsWith('pages/'))
-    ) {
-      require('console').log('fs dev delay', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-  }
+
   public async patchFile(
     filename: string,
     content: string | ((contents: string) => string)
-  ) {
-    await this.handleDevWatchDelayBeforeChange(filename)
-
+  ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
     const newFile = !existsSync(outputPath)
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
+
     await fs.writeFile(
       outputPath,
       typeof content === 'function'
@@ -479,42 +461,33 @@ export class NextInstance {
         : content
     )
 
-    if (newFile) {
-      await this.handleDevWatchDelayAfterChange(filename)
-    }
+    return { newFile }
   }
+
   public async patchFileFast(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.writeFile(outputPath, content)
   }
-  public async renameFile(filename: string, newFilename: string) {
-    await this.handleDevWatchDelayBeforeChange(filename)
 
+  public async renameFile(filename: string, newFilename: string) {
     await fs.rename(
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
-
-    await this.handleDevWatchDelayAfterChange(filename)
   }
-  public async renameFolder(foldername: string, newFoldername: string) {
-    await this.handleDevWatchDelayBeforeChange(foldername)
 
+  public async renameFolder(foldername: string, newFoldername: string) {
     await fs.rename(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
-    await this.handleDevWatchDelayAfterChange(foldername)
   }
-  public async deleteFile(filename: string) {
-    await this.handleDevWatchDelayBeforeChange(filename)
 
+  public async deleteFile(filename: string) {
     await fs.rm(path.join(this.testDir, filename), {
       recursive: true,
       force: true,
     })
-
-    await this.handleDevWatchDelayAfterChange(filename)
   }
 
   /**
