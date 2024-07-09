@@ -7371,11 +7371,12 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/browserslist.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Browserslist: New production mode should have compiled successfully",
+        "Browserslist: Old production mode should have compiled successfully"
+      ],
+      "failed": [
         "Browserslist: New production mode should've emitted a single CSS file",
-        "Browserslist: Old production mode should have compiled successfully",
         "Browserslist: Old production mode should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7383,11 +7384,12 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/css-modules.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "CSS Modules: Import Exports production mode should have compiled successfully",
+        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+      ],
+      "failed": [
         "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully",
         "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
         "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
@@ -7398,13 +7400,14 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
         "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
+        "Inline Comments: Minify production mode should have compiled successfully"
+      ],
+      "failed": [
+        "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
         "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
-        "Inline Comments: Minify production mode should have compiled successfully",
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7426,25 +7429,25 @@
         "Catch-all Route CSS Module Usage production mode should apply styles correctly",
         "Dynamic Route CSS Module Usage production mode should apply styles correctly",
         "Has CSS Module in computed styles in Development should have CSS for page",
-        "Has CSS Module in computed styles in Production production mode should have CSS for page"
+        "Has CSS Module in computed styles in Production production mode should have CSS for page",
+        "Basic CSS Module Support production mode should have compiled successfully",
+        "3rd Party CSS Module Support production mode should have compiled successfully",
+        "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+        "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+        "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+        "Has CSS Module in computed styles in Production production mode should have compiled successfully",
+        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully"
       ],
       "failed": [
-        "3rd Party CSS Module Support production mode should have compiled successfully",
         "3rd Party CSS Module Support production mode should've emitted a single CSS file",
         "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-        "Basic CSS Module Support production mode should have compiled successfully",
         "Basic CSS Module Support production mode should've emitted a single CSS file",
         "Basic CSS Module Support production mode should've injected the CSS on server render",
-        "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
         "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Catch-all Route CSS Module Usage production mode should have compiled successfully",
         "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Dynamic Route CSS Module Usage production mode should have compiled successfully",
         "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Has CSS Module in computed styles in Production production mode should have compiled successfully",
-        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
         "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
@@ -7459,39 +7462,40 @@
       "runtimeError": false
     },
     "test/integration/css/test/basic-global-support.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Basic Global Support production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with src/ dir production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support with src/ dir production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
         "CSS URL via `file-loader` and asset prefix (1) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
         "CSS URL via `file-loader` and asset prefix (2) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
         "CSS URL via `file-loader` production mode useLightnincsss(false) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
         "CSS URL via `file-loader` production mode useLightnincsss(true) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
         "Multi Global Support (reversed) production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
         "Multi Global Support (reversed) production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
         "Multi Global Support production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Multi Global Support production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
+        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully"
+      ],
+      "failed": [
+        "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
+        "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
+        "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
+        "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
+        "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
+        "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
         "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7501,26 +7505,26 @@
     "test/integration/css/test/css-and-styled-jsx.test.js": {
       "passed": [
         "Ordering with styled-jsx (dev) should have the correct color (css ordering)",
+        "Ordering with styled-jsx (prod) production mode should have compiled successfully",
         "Ordering with styled-jsx (prod) production mode should have the correct color (css ordering)"
       ],
-      "failed": [
-        "Ordering with styled-jsx (prod) production mode should have compiled successfully"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css/test/css-compilation.test.js": {
-      "passed": [],
+      "passed": [
+        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
+        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully"
+      ],
       "failed": [
         "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
         "CSS Property Ordering production mode useLightnincsss(true) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've emitted a source map",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should compile successfully",
@@ -7557,12 +7561,12 @@
         "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should not execute scripts in any order",
         "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
         "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
-        "should handle unresolved files gracefully production mode should build correctly"
+        "should handle unresolved files gracefully production mode should build correctly",
+        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have compiled successfully",
+        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully"
       ],
       "failed": [
         "Data URLs production mode should have emitted expected files",
-        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have compiled successfully",
-        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
         "should handle unresolved files gracefully production mode should have correct file references in CSS output"
       ],
       "pending": [
@@ -7643,12 +7647,13 @@
       "runtimeError": false
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
-      "passed": [],
+      "passed": [
+        "Valid Global CSS from npm production mode should compile successfully"
+      ],
       "failed": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should compile successfully",
         "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
@@ -8106,8 +8111,7 @@
       "runtimeError": false
     },
     "test/integration/draft-mode/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Test Draft Mode production mode should compile successfully",
         "Test Draft Mode production mode should enable draft mode",
         "Test Draft Mode production mode should not return fallback page on draft request",
@@ -8120,6 +8124,7 @@
         "Test Draft Mode production mode should return prerendered page on second request",
         "Test Draft Mode production mode should start production application"
       ],
+      "failed": [],
       "pending": [
         "Test Draft Mode development mode should disable draft mode",
         "Test Draft Mode development mode should enable draft mode",
@@ -10612,8 +10617,7 @@
       "runtimeError": false
     },
     "test/integration/getserversideprops-preview/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "ServerSide Props Preview Mode production mode should compile successfully",
         "ServerSide Props Preview Mode production mode should enable preview mode",
         "ServerSide Props Preview Mode production mode should not return fallback page on preview request",
@@ -10624,6 +10628,7 @@
         "ServerSide Props Preview Mode production mode should start production application",
         "ServerSide Props Preview Mode production mode should throw error when setting too large of preview data"
       ],
+      "failed": [],
       "pending": [
         "ServerSide Props Preview Mode development mode should enable preview mode",
         "ServerSide Props Preview Mode development mode should fetch prerendered data",
@@ -13607,10 +13612,10 @@
       "runtimeError": false
     },
     "test/integration/polyfilling-minimal/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Polyfilling (minimal) production mode should compile successfully"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13734,8 +13739,7 @@
       "runtimeError": false
     },
     "test/integration/prerender-preview/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Prerender Preview Mode production mode should compile successfully",
         "Prerender Preview Mode production mode should enable preview mode",
         "Prerender Preview Mode production mode should expire cookies with a maxAge",
@@ -13751,6 +13755,7 @@
         "Prerender Preview Mode production mode should start production application",
         "Prerender Preview Mode production mode should throw error when setting too large of preview data"
       ],
+      "failed": [],
       "pending": [
         "Prerender Preview Mode development mode should enable preview mode",
         "Prerender Preview Mode development mode should fetch live static props with preview active",

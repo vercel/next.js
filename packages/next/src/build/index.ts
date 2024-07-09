@@ -1619,6 +1619,8 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
+          Log.event('Compiled successfully')
+
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
               durationInSeconds: compilerDuration,
