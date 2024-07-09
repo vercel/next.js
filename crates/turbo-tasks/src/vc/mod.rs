@@ -2,9 +2,15 @@ pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
 mod read;
+pub(crate) mod resolved;
 mod traits;
 
-use std::{any::Any, marker::PhantomData, ops::Deref};
+use std::{
+    any::Any,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    ops::Deref,
+};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -16,6 +22,7 @@ pub use self::{
     cell_mode::{VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    resolved::ResolvedVc,
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
@@ -205,11 +212,11 @@ where
     }
 }
 
-impl<T> core::hash::Hash for Vc<T>
+impl<T> Hash for Vc<T>
 where
     T: ?Sized + Send,
 {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
     }
 }
@@ -363,10 +370,19 @@ where
     ///
     /// This is async and will rethrow any fatal error that happened during task
     /// execution.
-    pub async fn resolve(self) -> Result<Self> {
+    pub async fn resolve(self) -> Result<Vc<T>> {
         Ok(Self {
             node: self.node.resolve().await?,
             _t: PhantomData,
+        })
+    }
+
+    /// Resolve the reference until it points to a cell directly, and wrap the
+    /// result in a [`ResolvedVc`], which strongly guarantees that the
+    /// [`Vc`] was resolved.
+    pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
+        Ok(ResolvedVc {
+            node: self.resolve().await?,
         })
     }
 
