@@ -9,12 +9,31 @@ You can configure the logging level and whether the full URL is logged to the co
 
 Currently, `logging` only applies to data fetching using the `fetch` API. It does not yet apply to other logs inside of Next.js.
 
-```js filename="next.config.js"
-module.exports = {
+```js filename="next.config.mjs"
+const nextConfig = {
   logging: {
     fetches: {
       fullUrl: true,
     },
   },
 }
+
+export default nextConfig
+```
+
+In addition, you can disable the route-level logging by setting `logging` to `false`.
+
+```
+GET / in ...ms
+GET / in ...ms
+GET / in ...ms
+GET / in ...ms
+```
+
+```js filename="next.config.mjs"
+const nextConfig = {
+  logging: false,
+}
+
+export default nextConfig
 ```
