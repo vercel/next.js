@@ -49,6 +49,7 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
+  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -174,9 +175,11 @@ async function createTreeCodeFromPath(
     pageExtensions,
     basePath,
     buildInfo,
+    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
+    flyingShuttle?: boolean
     buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
@@ -296,8 +299,9 @@ async function createTreeCodeFromPath(
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
 
           // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-          props[normalizeParallelKey(parallelKey)] =
-            `['${PAGE_SEGMENT_KEY}', {}, {
+          props[
+            normalizeParallelKey(parallelKey)
+          ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [${varName}, ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
@@ -352,8 +356,10 @@ async function createTreeCodeFromPath(
 
       const definedFilePaths = filePaths.filter(([, filePath]) => {
         if (filePath !== undefined) {
-          if (buildInfo.route?.relatedModules) {
-            buildInfo.route.relatedModules.push(filePath)
+          if (flyingShuttle) {
+            if (buildInfo.route?.relatedModules) {
+              buildInfo.route.relatedModules.push(filePath)
+            }
           }
           return true
         }
@@ -407,8 +413,8 @@ async function createTreeCodeFromPath(
         parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
           ? 'children'
           : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+          ? PAGE_SEGMENT_KEY
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode
@@ -460,8 +466,9 @@ async function createTreeCodeFromPath(
       ]`
     }
 
-    const adjacentParallelSegments =
-      await resolveAdjacentParallelSegments(segmentPath)
+    const adjacentParallelSegments = await resolveAdjacentParallelSegments(
+      segmentPath
+    )
 
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
@@ -532,6 +539,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -718,6 +726,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     basePath,
     collectedDeclarations,
     buildInfo,
+    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -768,6 +777,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         basePath,
         collectedDeclarations,
         buildInfo,
+        flyingShuttle,
       })
     }
   }
@@ -797,13 +807,17 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       ? // Evaluate the imported modules early in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(modulePath)};\nconst ${varName} = () => ${varName}_;\n`
+            return `import * as ${varName}_ from ${JSON.stringify(
+              modulePath
+            )};\nconst ${varName} = () => ${varName}_;\n`
           })
           .join('')
       : // Lazily evaluate the imported modules in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(modulePath)});\n`
+            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              modulePath
+            )});\n`
           })
           .join('')
 

@@ -265,8 +265,8 @@ export async function createPagesMapping({
         pagesType === 'pages'
           ? PAGES_DIR_ALIAS
           : pagesType === 'app'
-            ? APP_DIR_ALIAS
-            : ROOT_DIR_ALIAS,
+          ? APP_DIR_ALIAS
+          : ROOT_DIR_ALIAS,
         pagePath
       )
     )
@@ -609,8 +609,8 @@ export async function createEntrypoints(
         pagesType === PAGE_TYPES.PAGES
           ? posix.join('pages', bundleFile)
           : pagesType === PAGE_TYPES.APP
-            ? posix.join('app', bundleFile)
-            : bundleFile.slice(1)
+          ? posix.join('app', bundleFile)
+          : bundleFile.slice(1)
 
       const absolutePagePath = mappings[page]
 
@@ -677,6 +677,7 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              flyingShuttle: config.experimental.flyingShuttle,
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true
@@ -742,6 +743,7 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
+                flyingShuttle: config.experimental.flyingShuttle,
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,
@@ -824,10 +826,10 @@ export function finalizeEntrypoint({
       const layer = isApi
         ? WEBPACK_LAYERS.api
         : isInstrumentation
-          ? WEBPACK_LAYERS.instrument
-          : isServerComponent
-            ? WEBPACK_LAYERS.reactServerComponents
-            : undefined
+        ? WEBPACK_LAYERS.instrument
+        : isServerComponent
+        ? WEBPACK_LAYERS.reactServerComponents
+        : undefined
 
       return {
         publicPath: isApi ? '' : undefined,
@@ -841,8 +843,8 @@ export function finalizeEntrypoint({
         layer: isApi
           ? WEBPACK_LAYERS.api
           : isMiddlewareFilename(name) || isInstrumentation
-            ? WEBPACK_LAYERS.middleware
-            : undefined,
+          ? WEBPACK_LAYERS.middleware
+          : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,
         asyncChunks: false,
