@@ -2,7 +2,15 @@ import type { Env } from '@next/env'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 
-export async function createEnvDefinitions(distDir: string, env: Env) {
+export async function createEnvDefinitions({
+  distDir,
+  env,
+  isTest = false,
+}: {
+  distDir: string
+  env: Env
+  isTest?: boolean
+}) {
   const envKeysStr = Object.keys(env)
     .map((key) => `      ${key}: readonly string`)
     .join('\n')
@@ -16,6 +24,10 @@ ${envKeysStr}
   }
 }
 export {}`
+
+  if (isTest) {
+    return definitionStr
+  }
 
   try {
     // we expect the types directory to already exist

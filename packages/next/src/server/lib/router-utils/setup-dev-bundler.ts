@@ -82,7 +82,7 @@ import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
 import { ModuleBuildError } from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
-import { createEnvDefinitions } from '../experimental/typed-env'
+import { createEnvDefinitions } from '../experimental/create-env-definitions'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -558,7 +558,10 @@ async function startWatcher(opts: SetupOpts) {
 
           if (usingTypeScript && nextConfig.experimental?.typedEnv) {
             // do not await, this is not essential for further process
-            createEnvDefinitions(distDir, { ...parsedEnv, ...nextConfig.env })
+            createEnvDefinitions({
+              distDir,
+              env: { ...parsedEnv, ...nextConfig.env },
+            })
           }
 
           await propagateServerField(opts, 'loadEnvConfig', [
