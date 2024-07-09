@@ -12,8 +12,11 @@ import { notFound } from 'next/navigation'
 
 export default async function Page() {
   try {
-    const post = await fetch('https://.../posts/1').then((res) => res.json())
-    if (!post) notFound()
+    const post = await fetch('https://.../posts/1').then((res) => {
+      if (res.status === 404) notFound()
+      if (!res.ok) throw new Error(res.statusText)
+      return res.json()
+    })
   } catch (err) {
     console.error(err)
   }
@@ -27,8 +30,11 @@ import { notFound, unstable_rethrow } from 'next/navigation'
 
 export default async function Page() {
   try {
-    const post = await fetch('https://.../posts/1').then((res) => res.json())
-    if (!post) notFound()
+    const post = await fetch('https://.../posts/1').then((res) => {
+      if (res.status === 404) notFound()
+      if (!res.ok) throw new Error(res.statusText)
+      return res.json()
+    })
   } catch (err) {
     unstable_rethrow(err)
     console.error(err)
