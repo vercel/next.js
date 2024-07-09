@@ -62,5 +62,14 @@ describe('prefetch-navigation', () => {
 
     // Resolve the request to allow the page to finish loading
     await rscRequestPromise.get('/catch-all/2').resolve()
+
+    // Now go back to the first page to make sure that the server seeded
+    // prefetch cache entry behaves the same as one that is retrieved
+    // from the client prefetch.
+    await browser.elementByCss('a[href="/catch-all/1"]').click()
+    await browser.waitForElementByCss('#dynamic-page-1')
+
+    targetPageParams = await browser.elementById('params').text()
+    expect(targetPageParams).toBe('Params: {"slug":["1"]}')
   })
 })

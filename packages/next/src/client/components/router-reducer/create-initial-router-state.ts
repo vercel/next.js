@@ -105,7 +105,9 @@ export function createInitialRouterState({
       location.origin
     )
 
-    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    const initialFlightData: FlightData = [
+      [initialTree, initialSeedData, initialHead],
+    ]
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,
