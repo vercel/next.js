@@ -1110,7 +1110,10 @@ export default class NextNodeServer extends BaseServer<
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
 
-      const loggingFetchesConfig = this.nextConfig.logging?.fetches
+      const loggingFetchesConfig =
+        typeof this.nextConfig.logging === 'object'
+          ? this.nextConfig.logging?.fetches
+          : undefined
       const enabledVerboseLogging = !!loggingFetchesConfig
       const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
 
@@ -1124,6 +1127,8 @@ export default class NextNodeServer extends BaseServer<
         const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
+          if (this.nextConfig.logging === false) return
+
           // we don't log for non-route requests
           const routeMatch = getRequestMeta(req).match
 
