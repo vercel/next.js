@@ -18,7 +18,7 @@ import type {
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
   RSC_HEADER,
@@ -53,7 +53,7 @@ export async function fetchServerResponse(
 ): Promise<FetchServerResponseResult> {
   const headers: {
     [RSC_HEADER]: '1'
-    [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
@@ -62,7 +62,7 @@ export async function fetchServerResponse(
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
+    [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
       JSON.stringify(flightRouterState)
     ),
   }
@@ -84,7 +84,7 @@ export async function fetchServerResponse(
   const uniqueCacheQuery = hexHash(
     [
       headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE],
+      headers[NEXT_ROUTER_STATE_TREE_HEADER],
       headers[NEXT_URL],
     ].join(',')
   )
