@@ -41,7 +41,7 @@ export interface RouteMeta {
   preferredRegion: string | string[] | undefined
   middlewareConfig: MiddlewareConfig
   // references to other modules that this route needs
-  // e.g. related relates, not-found routes, etc
+  // e.g. related routes, not-found routes, etc
   relatedModules?: string[]
 }
 

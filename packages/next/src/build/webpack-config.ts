@@ -1204,7 +1204,7 @@ export default async function getBaseWebpackConfig(
                 ? `[name].js`
                 : `../[name].js`
               : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-                  dev ? '' : appDir ? '-[contenthash]' : '-[contenthash]'
+                  dev ? '' : '-[contenthash]'
                 }.js`,
           }
         : {}),
