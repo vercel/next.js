@@ -355,10 +355,8 @@ async function createTreeCodeFromPath(
 
       const definedFilePaths = filePaths.filter(([, filePath]) => {
         if (filePath !== undefined) {
-          if (flyingShuttle) {
-            if (buildInfo.route?.relatedModules) {
-              buildInfo.route.relatedModules.push(filePath)
-            }
+          if (flyingShuttle && buildInfo.route?.relatedModules) {
+            buildInfo.route.relatedModules.push(filePath)
           }
           return true
         }

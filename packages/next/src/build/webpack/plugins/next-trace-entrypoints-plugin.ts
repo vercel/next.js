@@ -439,7 +439,10 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                             // attach related app route modules to ensure
                             // we properly track them as dependencies
                             // e.g. layouts, loading, etc
-                            if (moduleBuildInfo.route?.relatedModules) {
+                            if (
+                              this.flyingShuttle &&
+                              moduleBuildInfo.route?.relatedModules
+                            ) {
                               let curAdditionalEntries =
                                 additionalEntries.get(name)
 
