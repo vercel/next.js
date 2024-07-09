@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-describe('hmr-next-config-ts', () => {
+describe('next-config-ts - dev-hmr', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
