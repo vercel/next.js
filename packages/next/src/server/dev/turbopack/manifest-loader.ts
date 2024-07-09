@@ -40,6 +40,7 @@ import type { Entrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
+import { getSortedRoutes } from '../../../shared/lib/router/utils'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -348,15 +349,17 @@ export class TurbopackManifestLoader {
     if (entrypoints.global.error) {
       pagesKeys.push('/_error')
     }
+
+    const sortedPageKeys = getSortedRoutes(pagesKeys)
     const content: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
       ...Object.fromEntries(
-        pagesKeys.map((pathname) => [
+        sortedPageKeys.map((pathname) => [
           pathname,
           [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
         ])
       ),
-      sortedPages: pagesKeys,
+      sortedPages: sortedPageKeys,
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
