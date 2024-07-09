@@ -234,13 +234,11 @@ export class NextInstance {
             await this.writeInitialFiles()
           })
 
-        let nextConfigFile = Object.keys(this.files).find((file) =>
+        const testDirFiles = await fs.readdir(this.testDir)
+
+        let nextConfigFile = testDirFiles.find((file) =>
           file.startsWith('next.config.')
         )
-
-        if (existsSync(path.join(this.testDir, 'next.config.js'))) {
-          nextConfigFile = 'next.config.js'
-        }
 
         if (nextConfigFile && this.nextConfig) {
           throw new Error(
