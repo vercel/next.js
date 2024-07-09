@@ -61,8 +61,7 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
@@ -96,36 +95,6 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
     }
   }
   return urlWithoutFlightParameters
-}
-
-// this function performs a depth-first search of the tree to find the selected
-// params
-function getSelectedParams(
-  currentTree: FlightRouterState,
-  params: Params = {}
-): Params {
-  const parallelRoutes = currentTree[1]
-
-  for (const parallelRoute of Object.values(parallelRoutes)) {
-    const segment = parallelRoute[0]
-    const isDynamicParameter = Array.isArray(segment)
-    const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
-    }
-
-    params = getSelectedParams(parallelRoute, params)
-  }
-
-  return params
 }
 
 type AppRouterProps = Omit<

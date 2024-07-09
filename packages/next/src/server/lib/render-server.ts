@@ -90,7 +90,6 @@ async function initializeImpl(opts: {
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
   server?: any
@@ -116,7 +115,6 @@ async function initializeImpl(opts: {
     customServer: false,
     httpServer: opts.server,
     port: opts.port,
-    isNodeDebugging: opts.isNodeDebugging,
   })
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()

@@ -337,22 +337,34 @@ Once the fields have been validated on the server, you can return a serializable
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
+import { redirect } from 'next/navigation'
+
 export async function createUser(prevState: any, formData: FormData) {
-  // ...
-  return {
-    message: 'Please enter a valid email',
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
   }
+
+  redirect('/dashboard')
 }
 ```
 
 ```jsx filename="app/actions.js" switcher
 'use server'
 
+import { redirect } from 'next/navigation'
+
 export async function createUser(prevState, formData) {
-  // ...
-  return {
-    message: 'Please enter a valid email',
+  const res = await fetch('https://...')
+  const json = await res.json()
+
+  if (!res.ok) {
+    return { message: 'Please enter a valid email' }
   }
+
+  redirect('/dashboard')
 }
 ```
 
@@ -376,9 +388,7 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
+      <p aria-live="polite">{state?.message}</p>
       <button>Sign up</button>
     </form>
   )
@@ -403,9 +413,7 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
+      <p aria-live="polite">{state?.message}</p>
       <button>Sign up</button>
     </form>
   )

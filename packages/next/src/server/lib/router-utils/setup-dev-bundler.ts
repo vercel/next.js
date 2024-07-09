@@ -49,7 +49,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
-  DEV_MIDDLEWARE_MANIFEST,
+  DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../../shared/lib/constants'
 
@@ -860,7 +860,7 @@ async function startWatcher(opts: SetupOpts) {
   const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)
 
-  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_MIDDLEWARE_MANIFEST}`
+  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {

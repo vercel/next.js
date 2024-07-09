@@ -166,7 +166,6 @@ import {
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
@@ -1354,7 +1353,7 @@ export default async function build(
               distDir,
               fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
               hasRewrites,
-              // TODO: Implement
+              // Implemented separately in Turbopack, doesn't have to be passed here.
               middlewareMatchers: undefined,
             }),
             buildId: NextBuildContext.buildId!,
@@ -1405,13 +1404,6 @@ export default async function build(
           encryptionKey,
         })
 
-        // TODO: implement this
-        const emptyRewritesObjToBeImplemented = {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        }
-
         const entrypointsResult = await entrypointsSubscription.next()
         if (entrypointsResult.done) {
           throw new Error('Turbopack did not return any entrypoints')
@@ -1443,7 +1435,8 @@ export default async function build(
           currentEntryIssues,
           manifestLoader,
           nextConfig: config,
-          rewrites: emptyRewritesObjToBeImplemented,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
           logErrors: false,
         })
 
@@ -1478,7 +1471,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1494,7 +1488,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1505,15 +1500,17 @@ export default async function build(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: emptyRewritesObjToBeImplemented,
+            devRewrites: undefined,
+            productionRewrites: customRoutes.rewrites,
             logErrors: false,
           })
         )
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({
-          rewrites: emptyRewritesObjToBeImplemented,
-          pageEntrypoints: currentEntrypoints.page,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
+          entrypoints: currentEntrypoints,
         })
 
         const errors: {
@@ -2106,8 +2103,6 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
-                          const isInterceptionRoute =
-                            isInterceptionRouteAppPath(page)
                           if (appConfig.revalidate !== 0) {
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
@@ -2124,27 +2119,22 @@ export default async function build(
                             }
 
                             // Mark the app as static if:
-                            // - It's not an interception route (these currently depend on request headers and cannot be computed at build)
                             // - It has no dynamic param
                             // - It doesn't have generateStaticParams but `dynamic` is set to
                             //   `error` or `force-static`
-                            if (!isInterceptionRoute) {
-                              if (!isDynamic) {
-                                appStaticPaths.set(originalAppPath, [page])
-                                appStaticPathsEncoded.set(originalAppPath, [
-                                  page,
-                                ])
-                                isStatic = true
-                              } else if (
-                                !hasGenerateStaticParams &&
-                                (appConfig.dynamic === 'error' ||
-                                  appConfig.dynamic === 'force-static')
-                              ) {
-                                appStaticPaths.set(originalAppPath, [])
-                                appStaticPathsEncoded.set(originalAppPath, [])
-                                isStatic = true
-                                isRoutePPREnabled = false
-                              }
+                            if (!isDynamic) {
+                              appStaticPaths.set(originalAppPath, [page])
+                              appStaticPathsEncoded.set(originalAppPath, [page])
+                              isStatic = true
+                            } else if (
+                              !hasGenerateStaticParams &&
+                              (appConfig.dynamic === 'error' ||
+                                appConfig.dynamic === 'force-static')
+                            ) {
+                              appStaticPaths.set(originalAppPath, [])
+                              appStaticPathsEncoded.set(originalAppPath, [])
+                              isStatic = true
+                              isRoutePPREnabled = false
                             }
                           }
 
