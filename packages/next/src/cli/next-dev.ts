@@ -210,7 +210,6 @@ const nextDev = async (
     allowRetry,
     isDev: true,
     hostname: host,
-    distDir,
   }
 
   if (options.turbo) {

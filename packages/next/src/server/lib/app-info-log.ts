@@ -1,14 +1,11 @@
-import { loadEnvConfig, type Env } from '@next/env'
+import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
 import { bold, purple } from '../../lib/picocolors'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import loadConfig, {
-  getEnabledExperimentalFeatures,
-  type NextConfig,
-} from '../config'
+import loadConfig, { getEnabledExperimentalFeatures } from '../config'
 
 export function logStartInfo({
   networkUrl,
@@ -58,11 +55,8 @@ export async function getStartServerInfo(
 ): Promise<{
   envInfo?: string[]
   expFeatureInfo?: string[]
-  env: Env
-  nextConfig: NextConfig
 }> {
   let expFeatureInfo: string[] = []
-  let nextConfig: NextConfig = {}
   await loadConfig(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
     dir,
@@ -74,7 +68,6 @@ export async function getStartServerInfo(
         expFeatureInfo = userNextConfigExperimental.sort(
           (a, b) => a.length - b.length
         )
-        nextConfig = userConfig
       },
     }
   )
@@ -83,17 +76,13 @@ export async function getStartServerInfo(
   // the worker process with the esm loader so that the
   // initial env state is correct
   let envInfo: string[] = []
-  const { parsedEnv, loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
+  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
   if (loadedEnvFiles.length > 0) {
     envInfo = loadedEnvFiles.map((f) => f.path)
   }
 
-  const env: Env = Object.assign({}, parsedEnv, nextConfig.env)
-
   return {
     envInfo,
     expFeatureInfo,
-    env,
-    nextConfig,
   }
 }

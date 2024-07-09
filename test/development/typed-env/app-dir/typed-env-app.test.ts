@@ -7,11 +7,14 @@ describe('typed-env-app', () => {
   })
 
   it('should have env types from next config', async () => {
-    const envDts = await next.readFile('.next/types/env.d.ts')
+    await check(
+      async () => {
+        return await next.readFile('.next/types/env.d.ts')
+      },
 
-    // should not include from production-specific env
-    // e.g. FROM_PROD_ENV_LOCAL: readonly string
-    expect(envDts).toBe(`// Type definitions for Next.js environment variables
+      // should not include from production-specific env
+      // e.g. FROM_PROD_ENV_LOCAL: readonly string
+      `// Type definitions for Next.js environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
@@ -22,13 +25,17 @@ declare global {
     }
   }
 }
-export {}`)
+export {}`
+    )
   })
 
   it('should rewrite env types if .env is modified', async () => {
-    // env.d.ts is written from original .env
-    expect(await next.readFile('.next/types/env.d.ts')).toInclude(
-      'FROM_ENV: readonly string'
+    await check(
+      async () => {
+        return await next.readFile('.next/types/env.d.ts')
+      },
+      // env.d.ts is written from original .env
+      /FROM_ENV: readonly string/
     )
 
     // modify .env
@@ -37,10 +44,11 @@ export {}`)
     // should not include from original .env
     // e.g. FROM_ENV: readonly string
     // but have MODIFIED_ENV: readonly string
-    expect(
-      await check(
-        async () => await next.readFile('.next/types/env.d.ts'),
-        `// Type definitions for Next.js environment variables
+    await check(
+      async () => {
+        return await next.readFile('.next/types/env.d.ts')
+      },
+      `// Type definitions for Next.js environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
@@ -52,7 +60,6 @@ declare global {
   }
 }
 export {}`
-      )
-    ).toBe(true)
+    )
   })
 })
