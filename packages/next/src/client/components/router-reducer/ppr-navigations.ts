@@ -99,6 +99,17 @@ export function updateCacheNodeOnNavigation(
     [parallelRouteKey: string]: FlightRouterState
   } = {}
   let taskChildren = null
+
+  // For most navigations, we need to issue a "dynamic" request to fetch the
+  // full RSC data from the server since during rendering, we'll only serve
+  // the prefetch shell. For some navigations, we re-use the existing cache node
+  // (via `spawnReusedTask`), and don't actually need fresh data from the server.
+  // In those cases, we use this `needsDynamicRequest` flag to return a `null`
+  // cache node, which signals to the caller that we don't need to issue a
+  // dynamic request. We start off with a `false` value, and then for each parallel
+  // route, we set it to `true` if we encounter a segment that needs a dynamic request.
+  let needsDynamicRequest = false
+
   for (let parallelRouteKey in newRouterStateChildren) {
     const newRouterStateChild: FlightRouterState =
       newRouterStateChildren[parallelRouteKey]
@@ -211,6 +222,9 @@ export function updateCacheNodeOnNavigation(
         const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild)
         newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
         prefetchParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+        // a non-null taskChild.node means we're waiting for a dynamic request to
+        // fill in the missing data
+        needsDynamicRequest = true
       }
 
       // The child tree's route state may be different from the prefetched
@@ -227,14 +241,6 @@ export function updateCacheNodeOnNavigation(
     // No new tasks were spawned.
     return null
   }
-
-  // Check if any of the tasks that were created have a non-null node. This signals that
-  // it needs the dynamic data from the server to be fulfilled. Re-used tasks will have a
-  // null `node`, but with an updated `route`, signaling that only the router state changed
-  // but no new data needs to be fetched.
-  const taskChildrenHasPendingTask = Array.from(taskChildren.values()).some(
-    (task) => task.node !== null
-  )
 
   const newCacheNode: ReadyCacheNode = {
     lazyData: null,
@@ -262,7 +268,7 @@ export function updateCacheNodeOnNavigation(
     ),
     // Only return the new cache node if there are pending tasks that need to be resolved
     // by the dynamic data from the server. If they don't, we don't need to trigger a dynamic request.
-    node: taskChildrenHasPendingTask ? newCacheNode : null,
+    node: needsDynamicRequest ? newCacheNode : null,
     children: taskChildren,
   }
 }
