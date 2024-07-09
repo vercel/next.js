@@ -5,8 +5,8 @@ import type {
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
-  ACTION,
-  NEXT_ROUTER_STATE_TREE,
+  ACTION_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
@@ -63,8 +63,10 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION]: actionId,
-      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
+      [ACTION_HEADER]: actionId,
+      [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
+        JSON.stringify(state.tree)
+      ),
       ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,

@@ -37,7 +37,7 @@ import {
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
@@ -768,7 +768,7 @@ async function renderToHTMLOrFlightImpl(
     isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
 
   const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+    req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
   )
 
   /**
