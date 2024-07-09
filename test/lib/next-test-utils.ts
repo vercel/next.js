@@ -85,7 +85,7 @@ export function initNextServerScript(
       }
     }
 
-    if (opts.shouldRejectOnError) {
+    if (opts?.shouldRejectOnError) {
       instance.on('exit', (code) => {
         if (code !== 0) {
           reject(new Error('exited with code: ' + code))
