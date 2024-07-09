@@ -86,7 +86,7 @@ impl Environment {
             ExecutionEnvironment::Browser(browser_env) => {
                 Vc::cell(Versions::parse_versions(browserslist::resolve(
                     browser_env.await?.browserslist_query.split(','),
-                    &browserslist::Opts::default(),
+                    &browserslist::Opts::new(),
                 )?)?)
             }
             ExecutionEnvironment::EdgeWorker(_) => todo!(),
