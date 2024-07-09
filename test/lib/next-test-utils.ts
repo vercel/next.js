@@ -46,6 +46,8 @@ export function initNextServerScript(
     nodeArgs?: string[]
     onStdout?: (data: any) => void
     onStderr?: (data: any) => void
+    // If true, the promise will reject if the process exits with a non-zero code
+    shouldRejectOnError?: boolean
   }
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
@@ -81,6 +83,14 @@ export function initNextServerScript(
       if (opts && opts.onStderr) {
         opts.onStderr(message.toString())
       }
+    }
+
+    if (opts.shouldRejectOnError) {
+      instance.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error('exited with code: ' + code))
+        }
+      })
     }
 
     instance.stdout.on('data', handleStdout)
