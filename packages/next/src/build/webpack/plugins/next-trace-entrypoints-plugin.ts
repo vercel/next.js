@@ -435,6 +435,27 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                             }
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+
+                            // attach related app route modules to ensure
+                            // we properly track them as dependencies
+                            // e.g. layouts, loading, etc
+                            if (moduleBuildInfo.route?.relatedModules) {
+                              let curAdditionalEntries =
+                                additionalEntries.get(name)
+
+                              if (!curAdditionalEntries) {
+                                curAdditionalEntries = new Map()
+                                additionalEntries.set(
+                                  name,
+                                  curAdditionalEntries
+                                )
+                              }
+
+                              for (const item of moduleBuildInfo.route
+                                ?.relatedModules) {
+                                curAdditionalEntries.set(item, entryMod)
+                              }
+                            }
                           }
                         }
 
@@ -494,8 +515,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             }
 
             const entryPaths = Array.from(entryModMap.keys())
+            const entryPathDepMap = new Map<string, Set<string>>()
 
-            const collectDependencies = async (mod: any) => {
+            const collectDependencies = async (mod: any, parent: string) => {
               if (!mod || !mod.dependencies) return
 
               for (const dep of mod.dependencies) {
@@ -503,20 +525,28 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
                 if (depMod?.resource && !depModMap.get(depMod.resource)) {
                   if (this.flyingShuttle) {
+                    // ensure we associate this dep with the entry
+                    let curDepSet = entryPathDepMap.get(parent)
+
+                    if (!curDepSet) {
+                      curDepSet = new Set()
+                      entryPathDepMap.set(parent, curDepSet)
+                    }
+                    curDepSet.add(depMod.resource)
                     this.traceHashes.set(
                       depMod.resource,
                       await getOriginalHash(depMod.resource)
                     )
                   }
                   depModMap.set(depMod.resource, depMod)
-                  await collectDependencies(depMod)
+                  await collectDependencies(depMod, parent)
                 }
               }
             }
             const entriesToTrace = [...entryPaths]
 
             for (const entry of entryPaths) {
-              await collectDependencies(entryModMap.get(entry))
+              await collectDependencies(entryModMap.get(entry), entry)
               const entryName = entryNameMap.get(entry)!
               const curExtraEntries = additionalEntries.get(entryName)
 
@@ -629,7 +659,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     this.tracingRoot,
                     entry
                   )
-
                   const curExtraEntries = additionalEntries.get(entryName)
                   const finalDeps = new Map<string, { bundled: boolean }>()
 
@@ -664,6 +693,29 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                       }
                     }
                   }
+
+                  // ensure we grab all associated dependencies
+                  if (this.flyingShuttle) {
+                    const curDepSet = entryPathDepMap.get(entry)
+
+                    for (const item of curDepSet || []) {
+                      if (!item.includes('?')) {
+                        if (!finalDeps.has(item)) {
+                          finalDeps.set(item, {
+                            bundled: true,
+                          })
+                        }
+                        for (const [dep, info] of parentFilesMap
+                          .get(nodePath.relative(this.tracingRoot, entry))
+                          ?.entries() || []) {
+                          finalDeps.set(nodePath.join(this.tracingRoot, dep), {
+                            bundled: info.ignored,
+                          })
+                        }
+                      }
+                    }
+                  }
+
                   this.entryTraces.set(entryName, finalDeps)
                 }
               })

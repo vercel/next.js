@@ -944,10 +944,25 @@ export default async function getBaseWebpackConfig(
                 }
               ),
           ],
+
+    ...(config.experimental.flyingShuttle
+      ? {
+          recordsPath: path.join(distDir, 'cache', 'shuttle', 'records.json'),
+        }
+      : {}),
+
     optimization: {
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            moduleIds: 'deterministic',
+            portableRecords: true,
+          }
+        : {}),
+
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1180,6 +1195,19 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            // ensure we only use contenthash as it's more deterministic
+            filename: isNodeOrEdgeCompilation
+              ? dev || isEdgeServer
+                ? `[name].js`
+                : `../[name].js`
+              : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+                  dev ? '' : appDir ? '-[contenthash]' : '-[contenthash]'
+                }.js`,
+          }
+        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1789,7 +1817,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      isNodeServer &&
+      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(

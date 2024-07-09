@@ -14,7 +14,7 @@ describe('should output updated trace files', () => {
       nanoid: '4.0.1',
     },
     env: {
-      FLYING_SHUTTLE: 'true',
+      NEXT_PRIVATE_FLYING_SHUTTLE: 'true',
     },
   })
 
@@ -35,6 +35,12 @@ describe('should output updated trace files', () => {
     )
 
     expect(deploymentsTrace.fileHashes).toBeTruthy()
+
+    const deploymentsFileHashKeys = Object.keys(deploymentsTrace.fileHashes)
+    expect(
+      deploymentsFileHashKeys.filter((item) => item.includes('/layout')).length
+    ).toBe(3)
+
     expect(ssgTrace.fileHashes).toBeTruthy()
 
     // ensure all files have corresponding fileHashes
