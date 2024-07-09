@@ -745,6 +745,12 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
+      if (config.experimental.flyingShuttle) {
+        await fs.mkdir(path.join(distDir, 'cache', 'shuttle'), {
+          recursive: true,
+        })
+      }
+
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
         .traceAsyncFn(() => loadCustomRoutes(config))
