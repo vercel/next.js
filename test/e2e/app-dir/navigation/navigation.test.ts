@@ -3,7 +3,6 @@ import { retry, waitFor } from 'next-test-utils'
 import type { Response } from 'playwright'
 
 describe('app dir - navigation', () => {
-  console.log('modifying test file')
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
