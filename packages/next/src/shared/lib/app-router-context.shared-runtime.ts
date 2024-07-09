@@ -52,8 +52,6 @@ export type LazyCacheNode = {
 
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
   loading: LoadingModuleData
 
@@ -96,8 +94,6 @@ export type ReadyCacheNode = {
   lazyData: null
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
   loading: LoadingModuleData
 

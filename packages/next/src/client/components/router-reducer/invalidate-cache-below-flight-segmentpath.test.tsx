@@ -32,8 +32,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
@@ -43,8 +41,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -58,8 +54,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -73,8 +67,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -116,8 +108,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     const expectedCache: CacheNode = {
       lazyData: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -129,8 +119,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               {
                 lazyData: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -146,8 +134,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           rsc: <React.Fragment>Page</React.Fragment>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                         },
                       ],
