@@ -142,6 +142,7 @@ describe('required server files', () => {
           errors.push(msg)
           stderr += msg
         },
+        shouldRejectOnError: true,
       }
     )
   })
