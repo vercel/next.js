@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    marker::PhantomData,
     path::{Path, PathBuf},
     sync::{atomic::*, Arc, Mutex},
     time::Duration,
@@ -70,34 +71,37 @@ ignore!(
     AtomicBool,
     AtomicUsize
 );
-ignore!((), String, Duration, anyhow::Error, RcStr);
+ignore!((), str, String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
 ignore!(serde_json::Value);
 
-impl<'a> TraceRawVcs for &'a str {
+impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
 }
 
-impl<A: TraceRawVcs> TraceRawVcs for (A,) {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.0, trace_context);
-    }
+// based on stdlib's internal `tuple_impls!` macro
+macro_rules! impl_trace_tuple {
+    ($T:ident) => {
+        impl_trace_tuple!(@impl $T);
+    };
+    ($T:ident $( $U:ident )+) => {
+        impl_trace_tuple!($( $U )+);
+        impl_trace_tuple!(@impl $T $( $U )+);
+    };
+    (@impl $( $T:ident )+) => {
+        impl<$($T: TraceRawVcs),+> TraceRawVcs for ($($T,)+) {
+            #[allow(non_snake_case)]
+            fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+                let ($($T,)+) = self;
+                $(
+                    TraceRawVcs::trace_raw_vcs($T, trace_context);
+                )+
+            }
+        }
+    };
 }
 
-impl<A: TraceRawVcs, B: TraceRawVcs> TraceRawVcs for (A, B) {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.0, trace_context);
-        TraceRawVcs::trace_raw_vcs(&self.1, trace_context);
-    }
-}
-
-impl<A: TraceRawVcs, B: TraceRawVcs, C: TraceRawVcs> TraceRawVcs for (A, B, C) {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.0, trace_context);
-        TraceRawVcs::trace_raw_vcs(&self.1, trace_context);
-        TraceRawVcs::trace_raw_vcs(&self.2, trace_context);
-    }
-}
+impl_trace_tuple!(E D C B A Z Y X W V U T);
 
 impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
@@ -115,6 +119,14 @@ impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
     }
 }
 
+impl<T: TraceRawVcs, const N: usize> TraceRawVcs for [T; N] {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
 impl<T: TraceRawVcs, S> TraceRawVcs for HashSet<T, S> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
@@ -123,7 +135,7 @@ impl<T: TraceRawVcs, S> TraceRawVcs for HashSet<T, S> {
     }
 }
 
-impl<T: TraceRawVcs, S> TraceRawVcs for AutoSet<T, S> {
+impl<T: TraceRawVcs, S, const I: usize> TraceRawVcs for AutoSet<T, S, I> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
@@ -156,7 +168,7 @@ impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for HashMap<K, V, S> {
     }
 }
 
-impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for AutoMap<K, V, S> {
+impl<K: TraceRawVcs, V: TraceRawVcs, S, const I: usize> TraceRawVcs for AutoMap<K, V, S, I> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, trace_context);
@@ -210,15 +222,26 @@ impl<T: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for Result<T, E> {
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for Mutex<T> {
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Mutex<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         self.lock().unwrap().trace_raw_vcs(trace_context);
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for RefCell<T> {
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for RefCell<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         self.borrow().trace_raw_vcs(trace_context);
+    }
+}
+
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &T {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        (**self).trace_raw_vcs(trace_context);
+    }
+}
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &mut T {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        (**self).trace_raw_vcs(trace_context);
     }
 }
 
