@@ -699,15 +699,19 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     const curDepSet = entryPathDepMap.get(entry)
 
                     for (const item of curDepSet || []) {
+                      // ensure loader specific deps aren't included
                       if (!item.includes('?')) {
                         if (!finalDeps.has(item)) {
                           finalDeps.set(item, {
                             bundled: true,
                           })
                         }
-                        for (const [dep, info] of parentFilesMap
-                          .get(nodePath.relative(this.tracingRoot, entry))
-                          ?.entries() || []) {
+                        const parentFiles =
+                          parentFilesMap
+                            .get(nodePath.relative(this.tracingRoot, entry))
+                            ?.entries() || []
+
+                        for (const [dep, info] of parentFiles) {
                           finalDeps.set(nodePath.join(this.tracingRoot, dep), {
                             bundled: info.ignored,
                           })

@@ -37,6 +37,8 @@ describe('should output updated trace files', () => {
     expect(deploymentsTrace.fileHashes).toBeTruthy()
 
     const deploymentsFileHashKeys = Object.keys(deploymentsTrace.fileHashes)
+    // ensure the 3 related layouts are included, root, dashboard,
+    // and deployments
     expect(
       deploymentsFileHashKeys.filter((item) => item.includes('/layout')).length
     ).toBe(3)
