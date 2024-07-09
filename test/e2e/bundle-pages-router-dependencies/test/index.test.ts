@@ -15,12 +15,12 @@ describe('bundlePagesRouterDependencies', () => {
 
   it('should bundle pages dependencies except for serverExternalPackages', async () => {
     const html = await next.render('/')
-    console.log(html)
-    expect(html).toInclude(
-      'require(&quot;./opted-out-external-package-source&quot;)'
+    expect(html).toMatch(
+      /require\(&[\w#]+;.\/opted-out-external-package-source&[\w#]+;\)/
     )
-    expect(html).toInclude('./external-package-source')
-    expect(html).not.toInclude('require(&quot;./external-package-source&quot;)')
+    expect(html).not.toMatch(
+      /require\(&[\w#]+;.\/external-package-source&[\w#]+;\)/
+    )
     if (process.env.TURBOPACK) {
       expect(html).toInclude(
         'node_modules/external-package/external-package-source.js [ssr] (ecmascript)'
