@@ -6,7 +6,7 @@ import { adapter } from '../../server/web/adapter'
 
 // Import the userland code.
 import * as _mod from 'VAR_USERLAND'
-import { getEdgeInstrumentationModule } from '../../server/web/globals'
+import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 
 const mod = { ..._mod }
 const handler = mod.middleware || mod.default
@@ -27,8 +27,7 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
       return await fn(...args)
     } catch (error) {
       const req = args[0]
-      const instrumentation = await getEdgeInstrumentationModule()
-      instrumentation?.onRequestError?.(
+      edgeInstrumentationOnRequestError(
         error,
         {
           url: req.url,

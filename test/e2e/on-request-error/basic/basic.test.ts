@@ -4,6 +4,9 @@ import { retry } from 'next-test-utils'
 describe('on-request-error - basic', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
+    },
   })
 
   const outputLogPath = 'output-log.json'

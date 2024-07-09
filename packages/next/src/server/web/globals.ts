@@ -1,4 +1,7 @@
-import type { InstrumentationModule } from '../instrumentation/types'
+import type {
+  InstrumentationModule,
+  InstrumentationOnRequestError,
+} from '../instrumentation/types'
 
 declare const _ENTRIES: any
 
@@ -26,6 +29,18 @@ async function registerInstrumentation() {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err
     }
+  }
+}
+
+export async function edgeInstrumentationOnRequestError(
+  ...args: Parameters<InstrumentationOnRequestError>
+) {
+  const instrumentation = await getEdgeInstrumentationModule()
+  if (
+    process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
+    instrumentation?.onRequestError
+  ) {
+    instrumentation.onRequestError(...args)
   }
 }
 

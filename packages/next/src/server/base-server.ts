@@ -171,7 +171,7 @@ export interface MiddlewareRoutingItem {
 
 export type RouteHandler<
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
 > = (
   req: ServerRequest,
   res: ServerResponse,
@@ -266,7 +266,7 @@ export interface BaseRequestHandler<
   ServerRequest extends BaseNextRequest | IncomingMessage = BaseNextRequest,
   ServerResponse extends
     | BaseNextResponse
-    | HTTPServerResponse = BaseNextResponse,
+    | HTTPServerResponse = BaseNextResponse
 > {
   (
     req: ServerRequest,
@@ -277,7 +277,7 @@ export interface BaseRequestHandler<
 
 export type RequestContext<
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
 > = {
   req: ServerRequest
   res: ServerResponse
@@ -315,7 +315,7 @@ export type NextEnabledDirectories = {
 export default abstract class Server<
   ServerOptions extends Options = Options,
   ServerRequest extends BaseNextRequest = BaseNextRequest,
-  ServerResponse extends BaseNextResponse = BaseNextResponse,
+  ServerResponse extends BaseNextResponse = BaseNextResponse
 > {
   public readonly hostname?: string
   public readonly fetchHostname?: string
@@ -829,7 +829,10 @@ export default abstract class Server<
   ) {
     const [err, req, ctx] = args
 
-    if (this.instrumentation) {
+    if (
+      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
+      this.instrumentation
+    ) {
       this.instrumentation.onRequestError?.(
         err,
         {
@@ -981,8 +984,8 @@ export default abstract class Server<
       req.headers['x-forwarded-port'] ??= this.port
         ? this.port.toString()
         : isHttps
-          ? '443'
-          : '80'
+        ? '443'
+        : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
 
@@ -1816,8 +1819,8 @@ export default abstract class Server<
         typeof fallbackField === 'string'
           ? 'static'
           : fallbackField === null
-            ? 'blocking'
-            : fallbackField,
+          ? 'blocking'
+          : fallbackField,
     }
   }
 
@@ -2884,10 +2887,10 @@ export default abstract class Server<
         isOnDemandRevalidate
           ? 'REVALIDATED'
           : cacheEntry.isMiss
-            ? 'MISS'
-            : cacheEntry.isStale
-              ? 'STALE'
-              : 'HIT'
+          ? 'MISS'
+          : cacheEntry.isStale
+          ? 'STALE'
+          : 'HIT'
       )
     }
 
