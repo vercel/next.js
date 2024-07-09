@@ -15,7 +15,6 @@ export function fillLazyItemsTillLeafWithHead(
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
   head: React.ReactNode,
-  layerAssets: React.ReactNode,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
@@ -61,15 +60,13 @@ export function fillLazyItemsTillLeafWithHead(
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
-            // The prefetch prefixed fields are PPR-only. When PPR is enabled, we shouldn't hit
+            // This is a PPR-only field. When PPR is enabled, we shouldn't hit
             // this path during a navigation, but until PPR is fully implemented
             // yet it's possible the existing node does have a non-null
             // `prefetchRsc`. As an incremental step, we'll just de-opt to the
             // old behavior — no PPR value.
             prefetchRsc: null,
             head: null,
-            layerAssets: null,
-            prefetchLayerAssets: null,
             prefetchHead: null,
             loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
@@ -85,8 +82,6 @@ export function fillLazyItemsTillLeafWithHead(
             // PPR value, if it exists.
             prefetchRsc: existingCacheNode.prefetchRsc,
             head: existingCacheNode.head,
-            layerAssets: existingCache.layerAssets,
-            prefetchLayerAssets: existingCache.prefetchLayerAssets,
             prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
             loading: existingCacheNode.loading,
@@ -99,8 +94,6 @@ export function fillLazyItemsTillLeafWithHead(
             rsc: null,
             prefetchRsc: null,
             head: null,
-            prefetchLayerAssets: null,
-            layerAssets: null,
             prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             loading: null,
@@ -116,7 +109,6 @@ export function fillLazyItemsTillLeafWithHead(
           parallelRouteState,
           parallelSeedData ? parallelSeedData : null,
           head,
-          layerAssets,
           prefetchEntry
         )
 
@@ -135,8 +127,6 @@ export function fillLazyItemsTillLeafWithHead(
         rsc: seedNode,
         prefetchRsc: null,
         head: null,
-        prefetchLayerAssets: null,
-        layerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
@@ -149,8 +139,6 @@ export function fillLazyItemsTillLeafWithHead(
         rsc: null,
         prefetchRsc: null,
         head: null,
-        prefetchLayerAssets: null,
-        layerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
@@ -170,7 +158,6 @@ export function fillLazyItemsTillLeafWithHead(
       parallelRouteState,
       parallelSeedData,
       head,
-      layerAssets,
       prefetchEntry
     )
   }

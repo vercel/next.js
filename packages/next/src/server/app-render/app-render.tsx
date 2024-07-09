@@ -417,7 +417,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
-  const { seedData, styles } = await createComponentTree({
+  const seedData = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
@@ -456,7 +456,6 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
           <MetadataTree key={ctx.requestId} />
         </>
       }
-      initialLayerAssets={styles}
       globalErrorComponent={GlobalError}
       // This is used to provide debug information (when in development mode)
       // about which slots were not filled by page components while creating the component tree.
@@ -534,7 +533,6 @@ async function ReactServerError({
       initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
-      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
