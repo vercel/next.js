@@ -1,21 +1,9 @@
 import type { Env } from '@next/env'
-// import { existsSync } from 'node:fs'
-// import { dirname, join } from 'node:path'
 import { join } from 'node:path'
-// import { mkdir, writeFile } from 'node:fs/promises'
 import { writeFile } from 'node:fs/promises'
-import { error } from '../../../build/output/log'
 
 export async function createEnvDefinitions(distDir: string, env: Env) {
-  const envDtsPath = join(distDir, 'types', 'env.d.ts')
-  // const envDtsDir = dirname(envDtsPath)
-
-  const envKeys = Object.keys(env)
-  if (envKeys.length === 0) {
-    return
-  }
-
-  const envKeysStr = envKeys
+  const envKeysStr = Object.keys(env)
     .map((key) => `      ${key}: readonly string`)
     .join('\n')
 
@@ -30,11 +18,11 @@ ${envKeysStr}
 export {}`
 
   try {
-    // if (!existsSync(envDtsDir)) {
-    //   await mkdir(envDtsDir, { recursive: true })
-    // }
-    await writeFile(envDtsPath, definitionStr, 'utf-8')
+    // we expect the types directory to already exist
+    const envDtsPath = join(distDir, 'types', 'env.d.ts')
+    // do not await, this is not essential for further process
+    writeFile(envDtsPath, definitionStr, 'utf-8')
   } catch (e) {
-    error(`Failed to write ${envDtsPath}: ${e}`)
+    console.error('Failed to write env.d.ts:', e)
   }
 }
