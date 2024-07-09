@@ -22,6 +22,11 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
+#[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
+pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_resolved_value(input)
+}
+
 #[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
 pub fn derive_value_debug_attr(input: TokenStream) -> TokenStream {
     derive::derive_value_debug(input)
