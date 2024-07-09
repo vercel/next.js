@@ -5,7 +5,8 @@ import path from 'path'
 
 /**
  * Detects changed tests files by comparing the current branch with `origin/canary`
- * Returns tests separated by test mode (dev/prod)
+ * Returns tests separated by test mode (dev/prod), as well as the corresponding commit hash
+ * that the current branch is pointing to
  */
 export default async function getChangedTests() {
   let eventData = {}
@@ -31,6 +32,11 @@ export default async function getChangedTests() {
     eventData?.head?.repo?.full_name ||
     process.env.GITHUB_REPOSITORY ||
     (await execa('git remote get-url origin', EXECA_OPTS)).stdout
+
+  const commitSha =
+    eventData?.head?.sha ||
+    process.env.GITHUB_SHA ||
+    (await execa('git rev-parse HEAD', EXECA_OPTS)).stdout
 
   const isCanary =
     branchName.trim() === 'canary' && remoteUrl.includes('vercel/next.js')
@@ -60,6 +66,7 @@ export default async function getChangedTests() {
       branchName,
       remoteUrl,
       isCanary,
+      commitSha,
     },
     `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`
   )
@@ -102,5 +109,5 @@ export default async function getChangedTests() {
     )
   )
 
-  return { devTests, prodTests }
+  return { devTests, prodTests, commitSha }
 }

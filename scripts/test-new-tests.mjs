@@ -40,7 +40,7 @@ async function main() {
   /** @type import('execa').Options */
   const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
-  const { devTests, prodTests } = await getChangedTests()
+  const { devTests, prodTests, commitSha } = await getChangedTests()
 
   let currentTests = testMode === 'dev' ? devTests : prodTests
 
@@ -79,6 +79,26 @@ async function main() {
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
 
+  // Only override the test version for deploy tests, as they need to run against
+  // the artifacts for the pull request. Otherwise, we don't need to specify this property,
+  // as tests will run against the local version of Next.js
+  const nextTestVersion =
+    testMode === 'deploy'
+      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      : undefined
+
+  if (nextTestVersion) {
+    // Verify the artifacts for the commit SHA exist before running the tests
+    console.log(`Verifying artifacts for commit ${commitSha}`)
+    const res = await fetch(nextTestVersion)
+
+    if (!res.ok) {
+      throw new Error(
+        `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
+      )
+    }
+  }
+
   for (let i = 0; i < attempts; i++) {
     console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests`)
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
@@ -86,6 +106,7 @@ async function main() {
       env: {
         ...process.env,
         NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: nextTestVersion,
       },
     })
   }
