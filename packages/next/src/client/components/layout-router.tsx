@@ -406,8 +406,11 @@ function InnerLayoutRouter({
       const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
-        refetchTree,
-        { nextUrl: includeNextUrl ? context.nextUrl : null, buildId }
+        {
+          flightRouterState: refetchTree,
+          nextUrl: includeNextUrl ? context.nextUrl : null,
+          buildId,
+        }
       ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({

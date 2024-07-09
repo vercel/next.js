@@ -30,6 +30,7 @@ import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 
 export interface FetchServerResponseOptions {
+  readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly buildId: string
   readonly prefetchKind?: PrefetchKind
@@ -69,10 +70,9 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
  */
 export async function fetchServerResponse(
   url: URL,
-  flightRouterState: FlightRouterState,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { nextUrl, buildId, prefetchKind } = options
+  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
 
   const headers: {
     [RSC_HEADER]: '1'

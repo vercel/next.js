@@ -195,7 +195,8 @@ function createLazyPrefetchEntry({
   // initiates the fetch request for the prefetch and attaches a listener
   // to the promise to update the prefetch cache entry when the promise resolves (if necessary)
   const data = prefetchQueue.enqueue(() =>
-    fetchServerResponse(url, tree, {
+    fetchServerResponse(url, {
+      flightRouterState: tree,
       nextUrl,
       buildId,
       prefetchKind: kind,
