@@ -39,11 +39,15 @@
       ],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/${input:appDirname}/*",
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${input:appDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${input:appDirname}/.next/server/$1",
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${input:appDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
-        "webpack:///./app/(.*)": "${workspaceFolder}/${input:appDirname}/app/$1",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {
@@ -68,11 +72,15 @@
       ],
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
-        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {
@@ -90,11 +98,15 @@
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
+        "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",
         "webpack://_N_E/[.]/(app|pages)/(.*)": "${workspaceFolder}/${fileDirname}/$1/$2",
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${fileDirname}/.next/server/$1",
-        "webpack://_N_E/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${fileDirname}/*",
+        "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
-        "webpack:///./app/(.*)": "${workspaceFolder}/${fileDirname}/app/$1",
+        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {
