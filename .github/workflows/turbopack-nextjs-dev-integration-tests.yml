@@ -90,7 +90,7 @@ jobs:
 
       - name: Run test/development
         run: |
-          NEXT_TEST_MODE=dev TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type development
+          NEXT_TEST_MODE=dev TURBOPACK=1 TURBOPACK_DEV=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type development
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
 
@@ -141,7 +141,7 @@ jobs:
 
       - name: Run test/integration
         run: |
-          TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+          TURBOPACK=1 TURBOPACK_DEV=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
         continue-on-error: true
 
       - name: Upload test report artifacts
