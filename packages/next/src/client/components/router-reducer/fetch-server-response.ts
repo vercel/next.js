@@ -74,8 +74,7 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, buildId, prefetchKind, isFastRefresh } =
-    options
+  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
 
   const headers: {
     [RSC_HEADER]: '1'
@@ -104,7 +103,7 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
-  if (isFastRefresh) {
+  if (process.env.NODE_ENV === 'development' && options.isFastRefresh) {
     headers[NEXT_FAST_REFRESH_HEADER] = '1'
   }
 
