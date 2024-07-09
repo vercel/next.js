@@ -128,3 +128,5 @@ unsafe impl<T: ?Sized> ResolvedValue for PhantomData<T> {}
 
 unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &T {}
 unsafe impl<T: ResolvedValue + ?Sized> ResolvedValue for &mut T {}
+
+pub use turbo_tasks_macros::ResolvedValue;
