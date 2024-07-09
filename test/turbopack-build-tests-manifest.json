@@ -13640,17 +13640,18 @@
     "test/integration/preload-viewport/test/index.test.js": {
       "passed": [
         "Prefetching Links in viewport production mode should correctly omit pre-generated dynamic pages from SSG manifest",
-        "Prefetching Links in viewport production mode should de-dupe inflight SSG requests",
         "Prefetching Links in viewport production mode should handle timed out prefetch correctly",
-        "Prefetching Links in viewport production mode should inject a <script> tag when onMouseEnter (even with invalid ref)",
-        "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled",
-        "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled and fetch data",
         "Prefetching Links in viewport production mode should not have unhandledRejection when failing to prefetch on link",
         "Prefetching Links in viewport production mode should not prefetch when prefetch is explicitly set to false",
         "Prefetching Links in viewport production mode should not prefetch with bot UA",
+        "Prefetching Links in viewport production mode should de-dupe inflight SSG requests",
+        "Prefetching Links in viewport production mode should inject a <script> tag when onMouseEnter (even with invalid ref)",
+        "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled",
+        "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled and fetch data",
         "Prefetching Links in viewport production mode should not re-prefetch for an already prefetched page",
         "Prefetching Links in viewport production mode should prefetch data files",
         "Prefetching Links in viewport production mode should prefetch data files when mismatched",
+        "Prefetching Links in viewport production mode should prefetch rewritten href with link in viewport onload",
         "Prefetching Links in viewport production mode should prefetch with a different asPath for a prefetched page",
         "Prefetching Links in viewport production mode should prefetch with link in viewport and inject script on hover",
         "Prefetching Links in viewport production mode should prefetch with link in viewport on scroll",
@@ -13659,9 +13660,8 @@
         "Prefetching Links in viewport production mode should prefetch with non-bot UA"
       ],
       "failed": [
-        "Prefetching Links in viewport production mode should not duplicate prefetches",
         "Prefetching Links in viewport production mode should not prefetch already loaded scripts",
-        "Prefetching Links in viewport production mode should prefetch rewritten href with link in viewport onload"
+        "Prefetching Links in viewport production mode should not duplicate prefetches"
       ],
       "pending": [],
       "flakey": [],
