@@ -496,6 +496,12 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  /**
+   * Enables caching of fetched responses in server components for Fast Refresh
+   * requests. See https://nextjs.org/docs/architecture/fast-refresh
+   */
+  fastRefreshFetchCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1002,6 +1008,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
+    fastRefreshFetchCache: false,
   },
   bundlePagesRouterDependencies: false,
 }

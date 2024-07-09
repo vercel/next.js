@@ -414,7 +414,9 @@ export default abstract class Server<
   }): ResponseCacheBase
 
   protected getFastRefreshFetchCache(): FastRefreshFetchCache | undefined {
-    return (globalThis as any).__fastRefreshFetchCache
+    return this.nextConfig.experimental.fastRefreshFetchCache
+      ? (globalThis as any).__fastRefreshFetchCache
+      : undefined
   }
 
   protected abstract loadEnvConfig(params: {

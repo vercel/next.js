@@ -4,6 +4,7 @@
 const nextConfig = {
   experimental: {
     after: true,
+    fastRefreshFetchCache: true,
   },
 }
 

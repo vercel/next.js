@@ -3,6 +3,11 @@ import { retry } from 'next-test-utils'
 
 describe('fast-refresh-fetch-cache', () => {
   const { next } = nextTestSetup({ files: __dirname })
+  const loggedAfterValueRegexp = /After: (\d\.\d+)/
+  let cliOutputLength: number
+
+  const getLoggedAfterValue = () =>
+    next.cliOutput.slice(cliOutputLength).match(loggedAfterValueRegexp)?.[1]
 
   describe.each(['edge', 'node'])('%s runtime', (runtime) => {
     afterEach(async () => {
@@ -40,12 +45,6 @@ describe('fast-refresh-fetch-cache', () => {
     })
 
     describe('in after()', () => {
-      const loggedAfterValueRegexp = /After: (\d\.\d+)/
-      let cliOutputLength: number
-
-      const getLoggedAfterValue = () =>
-        next.cliOutput.slice(cliOutputLength).match(loggedAfterValueRegexp)?.[1]
-
       beforeEach(() => {
         cliOutputLength = next.cliOutput.length
       })
@@ -78,6 +77,67 @@ describe('fast-refresh-fetch-cache', () => {
         await retry(async () => {
           const valueAfterRefresh = getLoggedAfterValue()
           expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
+        })
+      })
+    })
+
+    describe('with experimental.fastRefreshFetchCache not enabled', () => {
+      beforeAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace(
+            'fastRefreshFetchCache: true,',
+            '// fastRefreshFetchCache: true,'
+          )
+        )
+      })
+
+      afterAll(async () => {
+        await next.patchFile('next.config.js', (content) =>
+          content.replace(
+            '// fastRefreshFetchCache: true,',
+            'fastRefreshFetchCache: true,'
+          )
+        )
+      })
+
+      it('should not use cached fetch calls for fast refresh requests', async () => {
+        const browser = await next.browser(`/${runtime}`)
+        const valueBeforePatch = await browser.elementById('value').text()
+
+        await next.patchFile('components/page.tsx', (content) =>
+          content.replace('foo', 'bar')
+        )
+
+        await retry(async () => {
+          const updatedContent = await browser.elementById('content').text()
+          expect(updatedContent).toBe('bar')
+        })
+
+        const valueAfterPatch = await browser.elementById('value').text()
+        expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+      })
+
+      describe('in after()', () => {
+        beforeEach(() => {
+          cliOutputLength = next.cliOutput.length
+        })
+
+        it('should not use cached fetch calls for fast refresh requests', async () => {
+          const browser = await next.browser(`/${runtime}`)
+          const valueBeforePatch = getLoggedAfterValue()
+          cliOutputLength = next.cliOutput.length
+
+          await next.patchFile('components/page.tsx', (content) =>
+            content.replace('foo', 'bar')
+          )
+
+          await retry(async () => {
+            const updatedContent = await browser.elementById('content').text()
+            expect(updatedContent).toBe('bar')
+          })
+
+          const valueAfterPatch = getLoggedAfterValue()
+          expect(valueBeforePatch).not.toEqual(valueAfterPatch)
         })
       })
     })
