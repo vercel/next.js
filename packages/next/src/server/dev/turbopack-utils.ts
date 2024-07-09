@@ -118,7 +118,24 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  let message = formattedTitle + '\n'
+  let formattedFilePath = filePath
+    .replace('[project]/', './')
+    .replaceAll('/./', '/')
+    .replace('\\\\?\\', '')
+
+  let message = ''
+
+  if (source && source.range) {
+    const { start } = source.range
+    message = `${formattedFilePath}:${start.line + 1}:${
+      start.column + 1
+    }\n${formattedTitle}`
+  } else if (formattedFilePath) {
+    message = `${formattedFilePath}\n${formattedTitle}`
+  } else {
+    message = formattedTitle
+  }
+  message += '\n'
 
   if (
     source?.range &&
