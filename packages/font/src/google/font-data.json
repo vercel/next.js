@@ -6806,6 +6806,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "telugu"]
   },
+  "Maname": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "sinhala", "vietnamese"]
+  },
   "Mandali": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -11144,6 +11149,32 @@
     ],
     "subsets": ["emoji", "latin", "latin-ext", "math", "vietnamese"]
   },
+  "Playwrite AR": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite AT": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
   "Playwrite AU NSW": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11209,6 +11240,32 @@
     ],
     "subsets": []
   },
+  "Playwrite BE VLG": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite BE WAL": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
   "Playwrite BR": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11235,7 +11292,46 @@
     ],
     "subsets": []
   },
+  "Playwrite CL": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
   "Playwrite CO": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite CU": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite CZ": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
     "axes": [
@@ -11288,6 +11384,32 @@
     "subsets": []
   },
   "Playwrite DE VA": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite DK Loopet": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite DK Uloopet": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
     "axes": [
@@ -11368,6 +11490,45 @@
   "Playwrite GB S": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite HR": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite HR Lijeva": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite HU": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
     "axes": [
       {
         "tag": "wght",
@@ -11509,6 +11670,19 @@
     "subsets": []
   },
   "Playwrite NZ": {
+    "weights": ["100", "200", "300", "400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 400,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": []
+  },
+  "Playwrite PE": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
     "axes": [
