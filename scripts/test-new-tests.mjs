@@ -88,14 +88,33 @@ async function main() {
       : undefined
 
   if (nextTestVersion) {
-    // Verify the artifacts for the commit SHA exist before running the tests
     console.log(`Verifying artifacts for commit ${commitSha}`)
-    const res = await fetch(nextTestVersion)
+    // Attempt to fetch the deploy artifacts for the commit
+    // These might take a moment to become available, so we'll retry a few times
+    const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
+      for (let i = 0; i < retries; i++) {
+        const res = await fetch(url)
+        if (res.ok) {
+          return res
+        } else if (i < retries - 1) {
+          console.log(
+            `Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`
+          )
+          await new Promise((resolve) => setTimeout(resolve, timeout))
+        } else {
+          throw new Error(
+            `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
+          )
+        }
+      }
+    }
 
-    if (!res.ok) {
-      throw new Error(
-        `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
-      )
+    try {
+      await fetchWithRetry(nextTestVersion)
+      console.log(`Artifacts verified for commit ${commitSha}`)
+    } catch (error) {
+      console.error(error.message)
+      throw error
     }
   }
 
