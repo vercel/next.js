@@ -11,6 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
+import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -149,6 +150,14 @@ async function startWatcher(opts: SetupOpts) {
   const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
+
+  // we ensure the types directory exists on turbo
+  if (usingTypeScript && opts.turbo) {
+    const distTypesDir = path.join(distDir, 'types')
+    if (!fs.existsSync(distTypesDir)) {
+      await mkdir(distTypesDir, { recursive: true })
+    }
+  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
