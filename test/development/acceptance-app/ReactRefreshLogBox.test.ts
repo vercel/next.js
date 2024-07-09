@@ -840,17 +840,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       new Map([
         [
           'app/page.js',
-          // TODO: repro stringify (<anonymous>)
           outdent`
-        export default function Page() {
-          const e = new Error("Boom!");
-          e.stack += \`
-          at stringify (<anonymous>)
-          at <unknown> (<anonymous>)
-          at foo (bar:1:1)\`;
-          throw e;
-        }
-      `,
+          export default function Page() {
+            try {
+              (function() {
+                throw new Error("This is an error from an anonymous function");
+              })();
+            } catch (e) {
+              throw e
+            }
+          }
+        `,
         ],
       ])
     )
@@ -859,15 +859,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     let callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
-    expect(texts).not.toContain('stringify\n<anonymous>')
-    expect(texts).not.toContain('<unknown>\n<anonymous>')
-    expect(texts).toContain('foo\nbar (1:1)')
+    const text = (
+      await Promise.all(callStackFrames.map((f) => f.innerText()))
+    ).join('')
+    expect(text).not.toContain('<anonymous>')
+    expect(text).toContain('app/page.js')
 
     await cleanup()
   })
 
-  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+  test('should hide unrelated frames in stack trace with nodejs internal calls', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
@@ -897,6 +898,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
 
     expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
+    expect(texts.filter((t) => t.includes('node:async_hooks'))).toHaveLength(0)
 
     await cleanup()
   })
