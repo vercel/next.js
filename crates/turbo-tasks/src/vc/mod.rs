@@ -22,7 +22,7 @@ pub use self::{
     cell_mode::{VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
-    resolved::ResolvedVc,
+    resolved::{ResolvedValue, ResolvedVc},
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{
