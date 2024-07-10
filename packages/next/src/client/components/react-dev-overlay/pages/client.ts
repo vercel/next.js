@@ -15,7 +15,7 @@ import {
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import { attachHydrationErrorState } from '../internal/helpers/use-error-handler'
+import { attachHydrationErrorState } from '../internal/helpers/attach-hydration-error-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
