@@ -105,8 +105,8 @@
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.41.2",
     "babel-plugin-react-compiler": "*",
-    "react": "19.0.0-rc-f3e09d6328-20240612",
-    "react-dom": "19.0.0-rc-f3e09d6328-20240612",
+    "react": "19.0.0-rc-dfd30974ab-20240613",
+    "react-dom": "19.0.0-rc-dfd30974ab-20240613",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
