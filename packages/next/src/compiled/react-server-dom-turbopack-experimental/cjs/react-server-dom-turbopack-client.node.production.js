@@ -1013,7 +1013,7 @@ function missingCall() {
     'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
   );
 }
-function createResponse(
+function ResponseInstance(
   bundlerConfig,
   moduleLoading,
   callServer,
@@ -1022,24 +1022,18 @@ function createResponse(
   temporaryReferences
 ) {
   var chunks = new Map();
-  bundlerConfig = {
-    _bundlerConfig: bundlerConfig,
-    _moduleLoading: moduleLoading,
-    _callServer: void 0 !== callServer ? callServer : missingCall,
-    _encodeFormAction: encodeFormAction,
-    _nonce: nonce,
-    _chunks: chunks,
-    _stringDecoder: new util.TextDecoder(),
-    _fromJSON: null,
-    _rowState: 0,
-    _rowID: 0,
-    _rowTag: 0,
-    _rowLength: 0,
-    _buffer: [],
-    _tempRefs: temporaryReferences
-  };
-  bundlerConfig._fromJSON = createFromJSONCallback(bundlerConfig);
-  return bundlerConfig;
+  this._bundlerConfig = bundlerConfig;
+  this._moduleLoading = moduleLoading;
+  this._callServer = void 0 !== callServer ? callServer : missingCall;
+  this._encodeFormAction = encodeFormAction;
+  this._nonce = nonce;
+  this._chunks = chunks;
+  this._stringDecoder = new util.TextDecoder();
+  this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
+  this._tempRefs = temporaryReferences;
+  this._fromJSON = createFromJSONCallback(this);
 }
 function resolveBuffer(response, id, buffer) {
   var chunks = response._chunks,
@@ -1478,7 +1472,7 @@ function noServerCall() {
   );
 }
 exports.createFromNodeStream = function (stream, ssrManifest, options) {
-  var response = createResponse(
+  var response = new ResponseInstance(
     ssrManifest.moduleMap,
     ssrManifest.moduleLoading,
     noServerCall,
