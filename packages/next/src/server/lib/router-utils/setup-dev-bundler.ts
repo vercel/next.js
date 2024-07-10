@@ -11,6 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
+import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -82,6 +83,7 @@ import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
 import { ModuleBuildError } from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import { createEnvDefinitions } from '../experimental/create-env-definitions'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -149,6 +151,14 @@ async function startWatcher(opts: SetupOpts) {
   const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
+
+  // we ensure the types directory exists here
+  if (usingTypeScript) {
+    const distTypesDir = path.join(distDir, 'types')
+    if (!fs.existsSync(distTypesDir)) {
+      await mkdir(distTypesDir, { recursive: true })
+    }
+  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -546,10 +556,24 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          // only log changes in router server
-          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
-            Log.info(`Reload env: ${envFilePath}`)
-          })
+          const { parsedEnv } = loadEnvConfig(
+            dir,
+            true,
+            Log,
+            true,
+            (envFilePath) => {
+              Log.info(`Reload env: ${envFilePath}`)
+            }
+          )
+
+          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
+            // do not await, this is not essential for further process
+            createEnvDefinitions({
+              distDir,
+              env: { ...parsedEnv, ...nextConfig.env },
+            })
+          }
+
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
