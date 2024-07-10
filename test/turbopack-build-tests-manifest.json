@@ -13662,13 +13662,13 @@
         "Prefetching Links in viewport production mode should prefetch with link in viewport on scroll",
         "Prefetching Links in viewport production mode should prefetch with link in viewport onload",
         "Prefetching Links in viewport production mode should prefetch with link in viewport when href changes",
-        "Prefetching Links in viewport production mode should prefetch with non-bot UA"
-      ],
-      "failed": [
-        "Prefetching Links in viewport production mode should not prefetch already loaded scripts",
+        "Prefetching Links in viewport production mode should prefetch with non-bot UA",
         "Prefetching Links in viewport production mode should not duplicate prefetches"
       ],
-      "pending": [],
+      "failed": [],
+      "pending": [
+        "Prefetching Links in viewport production mode should not prefetch already loaded scripts"
+      ],
       "flakey": [],
       "runtimeError": false
     },
