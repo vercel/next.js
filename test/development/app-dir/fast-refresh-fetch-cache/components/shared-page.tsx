@@ -4,11 +4,11 @@ import React from 'react'
 import { fetchRandomValue } from '../lib/fetch-random-value'
 import { RefreshButton } from './refresh-button'
 
-export async function Page() {
-  const value = await fetchRandomValue('render')
+export async function SharedPage({ runtime }: { runtime: string }) {
+  const value = await fetchRandomValue(`render-${runtime}`)
 
   after(async () => {
-    const value = await fetchRandomValue('after')
+    const value = await fetchRandomValue(`after-${runtime}`)
     console.log('After:', value)
   })
 

@@ -11,7 +11,7 @@ describe('fast-refresh-fetch-cache', () => {
 
   describe.each(['edge', 'node'])('%s runtime', (runtime) => {
     afterEach(async () => {
-      await next.patchFile('components/page.tsx', (content) =>
+      await next.patchFile('components/shared-page.tsx', (content) =>
         content.replace('bar', 'foo')
       )
     })
@@ -20,7 +20,7 @@ describe('fast-refresh-fetch-cache', () => {
       const browser = await next.browser(`/${runtime}`)
       const valueBeforePatch = await browser.elementById('value').text()
 
-      await next.patchFile('components/page.tsx', (content) =>
+      await next.patchFile('components/shared-page.tsx', (content) =>
         content.replace('foo', 'bar')
       )
 
@@ -54,7 +54,7 @@ describe('fast-refresh-fetch-cache', () => {
         const valueBeforePatch = getLoggedAfterValue()
         cliOutputLength = next.cliOutput.length
 
-        await next.patchFile('components/page.tsx', (content) =>
+        await next.patchFile('components/shared-page.tsx', (content) =>
           content.replace('foo', 'bar')
         )
 
@@ -104,7 +104,7 @@ describe('fast-refresh-fetch-cache', () => {
         const browser = await next.browser(`/${runtime}`)
         const valueBeforePatch = await browser.elementById('value').text()
 
-        await next.patchFile('components/page.tsx', (content) =>
+        await next.patchFile('components/shared-page.tsx', (content) =>
           content.replace('foo', 'bar')
         )
 
@@ -127,7 +127,7 @@ describe('fast-refresh-fetch-cache', () => {
           const valueBeforePatch = getLoggedAfterValue()
           cliOutputLength = next.cliOutput.length
 
-          await next.patchFile('components/page.tsx', (content) =>
+          await next.patchFile('components/shared-page.tsx', (content) =>
             content.replace('foo', 'bar')
           )
 
