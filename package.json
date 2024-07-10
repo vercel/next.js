@@ -57,7 +57,8 @@
     "version": "pnpm install --no-frozen-lockfile && IS_PUBLISH=yes ./scripts/check-pre-compiled.sh && git add .",
     "prepare": "husky",
     "sync-react": "node ./scripts/sync-react.js",
-    "update-google-fonts": "node ./scripts/update-google-fonts.js"
+    "update-google-fonts": "node ./scripts/update-google-fonts.js",
+    "swc-build-native": "pnpm --filter=@next/swc build-native"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -91,7 +92,7 @@
     "@replayio/replay": "0.20.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
-    "@swc/core": "1.5.7",
+    "@swc/core": "1.6.6",
     "@swc/helpers": "0.5.11",
     "@swc/types": "0.1.7",
     "@testing-library/jest-dom": "6.1.2",
@@ -194,6 +195,7 @@
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
+    "prettier-2": "npm:prettier@^2",
     "prettier": "3.2.5",
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
@@ -235,7 +237,7 @@
     "tree-kill": "1.2.2",
     "tsec": "0.2.1",
     "turbo": "2.0.6-canary.0",
-    "typescript": "5.4.5",
+    "typescript": "5.5.3",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
     "webpack": "5.90.0",
@@ -261,10 +263,10 @@
     "scheduler": "0.25.0-rc-6230622a1a-20240610"
   },
   "engines": {
-    "node": ">=18.17.0",
-    "pnpm": "9.4.0"
+    "node": ">=18.18.0",
+    "pnpm": "9.5.0"
   },
-  "packageManager": "pnpm@9.4.0",
+  "packageManager": "pnpm@9.5.0",
   "pnpm": {
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"

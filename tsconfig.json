@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "strict": false,
     "noEmit": true,
+    "strict": false,
     "allowJs": true,
+    "esModuleInterop": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "module": "esnext",
+    "module": "ESNext",
     "target": "ESNext",
-    "esModuleInterop": true,
     "moduleResolution": "node",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {

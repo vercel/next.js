@@ -65,10 +65,10 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  onCleanup: (listener: () => Promise<void>) => void
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
@@ -133,6 +133,7 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
+        onCleanup: opts.onCleanup,
       })
     )
 
@@ -602,7 +603,6 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
-    isNodeDebugging: !!opts.isNodeDebugging,
     serverFields: developmentBundler?.serverFields || {},
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
