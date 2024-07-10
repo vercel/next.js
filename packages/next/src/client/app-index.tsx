@@ -9,33 +9,33 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
-import { isNextRouterError } from './components/is-next-router-error'
 import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
+import { isNextRouterError } from './components/is-next-router-error'
+import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 
-// Since React doesn't call onerror for errors caught in error boundaries.
+// Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  if (
-    process.env.NODE_ENV !== 'production'
-      ? isNextRouterError(args[1])
-      : isNextRouterError(args[0])
-  ) {
-    return
-  }
-  origConsoleError.apply(window.console, args)
-}
+  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  if (!isNextRouterError(error)) {
+    if (process.env.NODE_ENV !== 'production') {
+      const storeHydrationErrorStateFromConsoleArgs =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
+          .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
+      storeHydrationErrorStateFromConsoleArgs()
 
-window.addEventListener('error', (ev: WindowEventMap['error']): void => {
-  if (isNextRouterError(ev.error)) {
-    ev.preventDefault()
-    return
+      storeHydrationErrorStateFromConsoleArgs(...args)
+      handleClientError(error)
+    }
+
+    origConsoleError.apply(window.console, args)
   }
-})
+}
 
 /// <reference types="react-dom/experimental" />
 
@@ -202,16 +202,6 @@ export function hydrate() {
   } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
-
-  if (process.env.NODE_ENV !== 'production') {
-    // Patch console.error to collect information about hydration errors
-    const patchConsoleError =
-      require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-        .patchConsoleError as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').patchConsoleError
-    if (!isError) {
-      patchConsoleError()
-    }
-  }
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {
