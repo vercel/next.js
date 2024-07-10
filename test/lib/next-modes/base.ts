@@ -368,9 +368,9 @@ export class NextInstance {
       this.childProcess.kill('SIGKILL')
       await exitPromise
       this.childProcess = undefined
+      this.isStopping = false
       require('console').log(`Stopped next server`)
     }
-    this.isStopping = false
   }
 
   public async destroy(): Promise<void> {

@@ -195,7 +195,7 @@ export class NextDevInstance extends NextInstance {
 
   public override async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
-    super.deleteFile(filename)
+    await super.deleteFile(filename)
     await this.handleDevWatchDelayAfterChange(filename)
   }
 }
