@@ -11,7 +11,7 @@ use turbo_tasks::TurboTasks;
 use turbopack_binding::{
     turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend},
     turbopack::trace_utils::{
-        exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+        exit::ExitHandler, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
     },
 };
 
@@ -80,9 +80,10 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
-                    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+                    let exit_handler = ExitHandler::listen();
 
-                    let _guard = if let Some(mut trace) = trace {
+                    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+                    if let Some(mut trace) = trace {
                         // Trace presets
                         match trace.as_str() {
                             "overview" | "1" => {
@@ -106,18 +107,16 @@ fn main() {
                             subscriber.with(EnvFilter::builder().parse(trace).unwrap());
                         let trace_file = "trace.log";
                         let trace_writer = std::fs::File::create(trace_file).unwrap();
-                        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+                        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
                         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-                        let guard = ExitGuard::new(guard).unwrap();
+                        exit_handler.on_exit(async move {
+                            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
+                        });
 
                         subscriber.init();
-
-                        Some(guard)
                     } else {
                         tracing_subscriber::fmt::init();
-
-                        None
                     };
 
                     let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
