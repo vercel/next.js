@@ -65,22 +65,18 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
  * When the hydration runtime error is thrown, the message and component stack are added to the error.
  * This results in a more helpful error message in the error overlay.
  */
-export function patchConsoleError() {
-  const prev = console.error
-  console.error = function (msg, serverContent, clientContent, componentStack) {
-    if (isKnownHydrationWarning(msg)) {
-      hydrationErrorState.warning = [
-        // remove the last %s from the message
-        msg,
-        serverContent,
-        clientContent,
-      ]
-      hydrationErrorState.componentStack = componentStack
-      hydrationErrorState.serverContent = serverContent
-      hydrationErrorState.clientContent = clientContent
-    }
 
-    // @ts-expect-error argument is defined
-    prev.apply(console, arguments)
+export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
+  const [msg, serverContent, clientContent, componentStack] = args
+  if (isKnownHydrationWarning(msg)) {
+    hydrationErrorState.warning = [
+      // remove the last %s from the message
+      msg,
+      serverContent,
+      clientContent,
+    ]
+    hydrationErrorState.componentStack = componentStack
+    hydrationErrorState.serverContent = serverContent
+    hydrationErrorState.clientContent = clientContent
   }
 }

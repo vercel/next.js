@@ -4,7 +4,7 @@ import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
   getReactHydrationDiffSegments,
   hydrationErrorState,
-  patchConsoleError,
+  storeHydrationErrorStateFromConsoleArgs,
 } from '../internal/helpers/hydration-error-info'
 import {
   ACTION_BEFORE_REFRESH,
@@ -20,9 +20,6 @@ import {
   getDefaultHydrationErrorMessage,
   isHydrationError,
 } from '../../is-hydration-error'
-
-// Patch console.error to collect information about hydration errors
-patchConsoleError()
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -93,6 +90,7 @@ let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  storeHydrationErrorStateFromConsoleArgs(...args)
   handleError(error)
   origConsoleError.apply(window.console, args)
 }
