@@ -43,10 +43,9 @@ export async function edgeInstrumentationOnRequestError(
     ) {
       await instrumentation.onRequestError(...args)
     }
-  } catch (err: any) {
-    // Throw hard error since middleware is critical path here, if it's error then the request will fail anyway.
-    err.message = `An error occurred while running instrumentation request error handler: ${err.message}`
-    throw err
+  } catch (err) {
+    // Log the soft error and continue, since the original error has already been thrown
+    console.error('Error in instrumentation.onRequestError:', err)
   }
 }
 
