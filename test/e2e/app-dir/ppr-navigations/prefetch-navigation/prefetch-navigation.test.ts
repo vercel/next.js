@@ -12,7 +12,10 @@ describe('prefetch-navigation', () => {
   }
 
   it('should render the prefetch without waiting for the RSC request', async () => {
-    const rscRequestPromise = new Map<string, any>()
+    const rscRequestPromise = new Map<
+      string,
+      { resolve: () => Promise<void> }
+    >()
     const browser = await next.browser('/catch-all/1', {
       beforePageLoad(page: Page) {
         page.route('**/catch-all/**', async (route: Route) => {
@@ -23,20 +26,26 @@ describe('prefetch-navigation', () => {
 
           if (headers['rsc'] === '1' && !headers['next-router-prefetch']) {
             // Create a promise that will be resolved by the later test code
-            let resolve: () => void
-            const promise = new Promise<void>((res) => (resolve = res))
+            let resolvePromise: () => void
+            const promise = new Promise<void>((res) => {
+              resolvePromise = res
+            })
 
             if (rscRequestPromise.has(pathname)) {
               throw new Error('Duplicate request')
             }
 
-            rscRequestPromise.set(pathname, { route, resolve })
+            rscRequestPromise.set(pathname, {
+              resolve: async () => {
+                await route.continue()
+                // wait a moment to ensure the response is received
+                await new Promise((res) => setTimeout(res, 500))
+                resolvePromise()
+              },
+            })
 
             // Await the promise to effectively stall the request
             await promise
-
-            // Continue the route after resolving the promise
-            await route.continue()
           } else {
             await route.continue()
           }
