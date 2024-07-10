@@ -34,6 +34,8 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getEdgeInstrumentationModule } from './web/globals'
+import type { ServerOnInstrumentationRequestError } from './app-render/types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -412,5 +414,25 @@ export default class NextWebServer extends BaseServer<
         (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
       ) ?? []
     )
+  }
+
+  protected async loadInstrumentationModule() {
+    return await getEdgeInstrumentationModule()
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+    const err = args[0]
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      typeof __next_log_error__ === 'function'
+    ) {
+      __next_log_error__(err)
+    } else {
+      console.error(err)
+    }
   }
 }

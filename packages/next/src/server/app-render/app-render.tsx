@@ -594,7 +594,7 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicResponse,
     serverActions,
-    appDirDevErrorLogger,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -685,11 +685,21 @@ async function renderToHTMLOrFlightImpl(
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
 
+  const errorContext = {
+    routerKind: 'App Router',
+    routePath: pagePath,
+    routeType: 'render',
+  } as const
+
+  const onReactStreamRenderError = onInstrumentationRequestError
+    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
+    : undefined
+
   const serverComponentsErrorHandler = createErrorHandler({
     source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -697,7 +707,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -705,7 +715,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
