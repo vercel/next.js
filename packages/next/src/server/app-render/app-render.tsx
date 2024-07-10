@@ -609,6 +609,12 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    // reset isr status at start of request
+    const { pathname } = new URL(req.url || '/', 'http://n')
+    renderOpts.setAppIsrStatus?.(pathname, null)
+  }
+
   if (
     // The type check here ensures that `req` is correctly typed, and the
     // environment variable check provides dead code elimination.
@@ -616,6 +622,25 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      const staticGenStore =
+        ComponentMod.staticGenerationAsyncStorage.getStore()
+
+      if (
+        process.env.NODE_ENV === 'development' &&
+        staticGenStore &&
+        renderOpts.setAppIsrStatus
+      ) {
+        // only node can be ISR so we only need to update the status here
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        let { revalidate } = staticGenStore
+        if (typeof revalidate === 'undefined') {
+          revalidate = false
+        }
+        if (revalidate === false || revalidate > 0) {
+          renderOpts.setAppIsrStatus(pathname, revalidate)
+        }
+      }
+
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
