@@ -24,13 +24,7 @@ const rejectionQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []
 const rejectionHandlers: Array<ErrorHandler> = []
 
-export function handleClientError(error: unknown) {
-  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
-    // A non-error was thrown, we don't have anything to show. :-(
-    return
-  }
-
-  const isCausedByHydrationFailure = isHydrationError(error)
+export function attachHydrationErrorState(error: Error) {
   if (
     isHydrationError(error) &&
     !error.message.includes(
@@ -69,8 +63,19 @@ export function handleClientError(error: unknown) {
     ;(error as any).details = parsedHydrationErrorState
   }
 
+  return error
+}
+
+export function handleClientError(error: unknown) {
+  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
+    // A non-error was thrown, we don't have anything to show. :-(
+    return
+  }
+
+  attachHydrationErrorState(error)
+
   // Only queue one hydration every time
-  if (isCausedByHydrationFailure) {
+  if (isHydrationError(error)) {
     if (!hasHydrationError) {
       errorQueue.push(error)
     }
