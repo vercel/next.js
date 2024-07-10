@@ -151,8 +151,8 @@ async function startWatcher(opts: SetupOpts) {
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
 
-  // we ensure the types directory exists on turbo
-  if (usingTypeScript && opts.turbo) {
+  // we ensure the types directory exists here
+  if (usingTypeScript) {
     const distTypesDir = path.join(distDir, 'types')
     if (!fs.existsSync(distTypesDir)) {
       await mkdir(distTypesDir, { recursive: true })

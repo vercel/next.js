@@ -62,4 +62,6 @@ declare global {
 export {}`
     )
   })
+
+  // TODO: test for deleting .env & updating env.d.ts
 })
