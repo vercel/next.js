@@ -40,7 +40,7 @@ async function main() {
   /** @type import('execa').Options */
   const EXECA_OPTS_STDIO = { ...EXECA_OPTS, stdio: 'inherit' }
 
-  const { devTests, prodTests } = await getChangedTests()
+  const { devTests, prodTests, commitSha } = await getChangedTests()
 
   let currentTests = testMode === 'dev' ? devTests : prodTests
 
@@ -79,6 +79,45 @@ async function main() {
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
 
+  // Only override the test version for deploy tests, as they need to run against
+  // the artifacts for the pull request. Otherwise, we don't need to specify this property,
+  // as tests will run against the local version of Next.js
+  const nextTestVersion =
+    testMode === 'deploy'
+      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      : undefined
+
+  if (nextTestVersion) {
+    console.log(`Verifying artifacts for commit ${commitSha}`)
+    // Attempt to fetch the deploy artifacts for the commit
+    // These might take a moment to become available, so we'll retry a few times
+    const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
+      for (let i = 0; i < retries; i++) {
+        const res = await fetch(url)
+        if (res.ok) {
+          return res
+        } else if (i < retries - 1) {
+          console.log(
+            `Attempt ${i + 1} failed. Retrying in ${timeout / 1000} seconds...`
+          )
+          await new Promise((resolve) => setTimeout(resolve, timeout))
+        } else {
+          throw new Error(
+            `Failed to verify artifacts for commit ${commitSha}: ${res.status}`
+          )
+        }
+      }
+    }
+
+    try {
+      await fetchWithRetry(nextTestVersion)
+      console.log(`Artifacts verified for commit ${commitSha}`)
+    } catch (error) {
+      console.error(error.message)
+      throw error
+    }
+  }
+
   for (let i = 0; i < attempts; i++) {
     console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests`)
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
@@ -86,6 +125,7 @@ async function main() {
       env: {
         ...process.env,
         NEXT_TEST_MODE: testMode,
+        NEXT_TEST_VERSION: nextTestVersion,
       },
     })
   }

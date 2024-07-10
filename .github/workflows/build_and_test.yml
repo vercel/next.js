@@ -313,6 +313,23 @@ jobs:
 
     secrets: inherit
 
+  test-new-tests-deploy:
+    name: Test new tests when deployed
+    needs: ['test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      stepName: 'test-new-tests-deploy-${{matrix.group}}'
+
+    secrets: inherit
+
   test-dev:
     name: test dev
     needs: ['changes', 'build-native', 'build-next']
@@ -490,6 +507,7 @@ jobs:
         'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
+        'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]
