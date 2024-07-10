@@ -1,0 +1,56 @@
+---
+title: Multi Zones
+description: Learn how to build micro-frontends using Next.js Multi Zones to deploy multiple Next.js apps under a single domain.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+<details open>
+  <summary>Examples</summary>
+
+- [With Zones](https://github.com/vercel/next.js/tree/canary/examples/with-zones)
+
+</details>
+
+Multi Zones are an approach to micro-frontends that separate a single large application on a domain into smaller applications that each serve a set of paths.
+This is useful when there are collections of pages unrelated to the other pages in the application. By moving those pages to a separate zone, you can reduce the size of each application which improves build times and removes code that is only necessary for one of the zones.
+
+For example, let's say you have the following set of pages that you would like to split up:
+
+- `/blog/*` for all blog posts
+- `/docs/*` for all documentation
+- The rest of your website
+
+With multi zones support, you can create three applications that all are served on the same domain and look the same to the user, but you can develop and deploy each of the applications independently.
+
+## How to define a zone
+
+There are no special APIs to define a new zone. A zone is a regularl Next.js application where you also do the following:
+
+- Configure a [basePath](/docs/app/api-reference/next-config-js/basePath) to avoid conflicts with pages and static files.
+- Make sure that the URL paths are unique to the zone. For example, if this zone serves `/blog`, no other zone should also try to serve `/blog`.
+
+## How to route requests to the right zone
+
+With the Multi Zones set-up, you need to route the paths to the correct zone. You can use any HTTP proxy to do this, but typically one of the Next.js applications is chosen to be the routing application.
+
+To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone. For example:
+
+```js
+async rewrites() {
+    return [
+        {
+            source: '/blog',
+            destination: `${process.env.BLOG_DOMAIN}/blog`,
+        },
+        {
+            source: '/blog/:path+',
+            destination: `${process.env.BLOG_DOMAIN}/blog/:path+`,
+        }
+    ];
+}
+```
+
+The Next.js applications that make up the different zones can live in any repository. However, it is often convenient to put these zones in a monorepo to more easily share code.
+
+For [Next.js on Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) applications, you can use a [monorepo](https://vercel.com/blog/monorepos-are-changing-how-teams-build-software?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) to deploy both apps with a single `git push`.
