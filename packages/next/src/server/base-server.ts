@@ -833,19 +833,24 @@ export default abstract class Server<
       process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
       this.instrumentation
     ) {
-      this.instrumentation.onRequestError?.(
-        err,
-        {
-          url: req.url || '',
-          method: req.method || 'GET',
-          // Normalize middleware headers and other server request headers
-          headers:
-            req instanceof NextRequestHint
-              ? Object.fromEntries(req.headers.entries())
-              : req.headers,
-        },
-        ctx
-      )
+      try {
+        await this.instrumentation.onRequestError?.(
+          err,
+          {
+            url: req.url || '',
+            method: req.method || 'GET',
+            // Normalize middleware headers and other server request headers
+            headers:
+              req instanceof NextRequestHint
+                ? Object.fromEntries(req.headers.entries())
+                : req.headers,
+          },
+          ctx
+        )
+      } catch (handlerErr) {
+        // Log the soft error and continue, since errors can thrown from react stream handler
+        console.error('Error in instrumentation.onRequestError:', handlerErr)
+      }
     }
   }
 
@@ -2495,7 +2500,7 @@ export default abstract class Server<
 
             Log.error(err)
 
-            this.instrumentationOnRequestError(err, req, {
+            await this.instrumentationOnRequestError(err, req, {
               routerKind: 'App Router',
               routePath: pathname,
               routeType: 'route',
@@ -2545,7 +2550,7 @@ export default abstract class Server<
                 }
               )
             } catch (err) {
-              this.instrumentationOnRequestError(err, req, {
+              await this.instrumentationOnRequestError(err, req, {
                 routerKind: 'Pages Router',
                 routePath: pathname,
                 routeType: 'render',

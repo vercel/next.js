@@ -423,7 +423,7 @@ export default class NextWebServer extends BaseServer<
   protected async instrumentationOnRequestError(
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
-    super.instrumentationOnRequestError(...args)
+    await super.instrumentationOnRequestError(...args)
     const err = args[0]
 
     if (

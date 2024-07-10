@@ -865,7 +865,7 @@ export default class DevServer extends Server {
   protected async instrumentationOnRequestError(
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
-    super.instrumentationOnRequestError(...args)
+    await super.instrumentationOnRequestError(...args)
 
     const err = args[0]
     // Safe catch to avoid floating promises

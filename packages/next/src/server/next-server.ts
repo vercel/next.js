@@ -991,7 +991,7 @@ export default class NextNodeServer extends BaseServer<
           })
           if (handled) return true
         } catch (apiError) {
-          this.instrumentationOnRequestError(apiError, req, {
+          await this.instrumentationOnRequestError(apiError, req, {
             routePath: match.definition.page,
             routerKind: 'Pages Router',
             routeType: 'route',
@@ -1978,7 +1978,7 @@ export default class NextNodeServer extends BaseServer<
   protected async instrumentationOnRequestError(
     ...args: Parameters<ServerOnInstrumentationRequestError>
   ) {
-    super.instrumentationOnRequestError(...args)
+    await super.instrumentationOnRequestError(...args)
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
     if (!this.renderOpts.dev) {

@@ -36,11 +36,17 @@ export async function edgeInstrumentationOnRequestError(
   ...args: Parameters<InstrumentationOnRequestError>
 ) {
   const instrumentation = await getEdgeInstrumentationModule()
-  if (
-    process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
-    instrumentation?.onRequestError
-  ) {
-    instrumentation.onRequestError(...args)
+  try {
+    if (
+      process.env.__NEXT_EXPERIMENTAL_INSTRUMENTATION &&
+      instrumentation?.onRequestError
+    ) {
+      await instrumentation.onRequestError(...args)
+    }
+  } catch (err: any) {
+    // Throw hard error since middleware is critical path here, if it's error then the request will fail anyway.
+    err.message = `An error occurred while running instrumentation request error handler: ${err.message}`
+    throw err
   }
 }
 

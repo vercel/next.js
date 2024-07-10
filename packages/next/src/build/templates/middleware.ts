@@ -25,10 +25,10 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   return async (...args: Parameters<AdapterOptions['handler']>) => {
     try {
       return await fn(...args)
-    } catch (error) {
+    } catch (err) {
       const req = args[0]
-      edgeInstrumentationOnRequestError(
-        error,
+      await edgeInstrumentationOnRequestError(
+        err,
         {
           url: req.url,
           method: req.method,
@@ -40,7 +40,8 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
           routeType: 'middleware',
         }
       )
-      throw error
+
+      throw err
     }
   }
 }
