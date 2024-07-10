@@ -848,6 +848,28 @@ function missingCall() {
     'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
   );
 }
+function ResponseInstance(
+  bundlerConfig,
+  moduleLoading,
+  callServer,
+  encodeFormAction,
+  nonce,
+  temporaryReferences
+) {
+  var chunks = new Map();
+  this._bundlerConfig = bundlerConfig;
+  this._moduleLoading = moduleLoading;
+  this._callServer = void 0 !== callServer ? callServer : missingCall;
+  this._encodeFormAction = encodeFormAction;
+  this._nonce = nonce;
+  this._chunks = chunks;
+  this._stringDecoder = new TextDecoder();
+  this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
+  this._tempRefs = temporaryReferences;
+  this._fromJSON = createFromJSONCallback(this);
+}
 function resolveBuffer(response, id, buffer) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
@@ -1264,30 +1286,16 @@ function createFromJSONCallback(response) {
   };
 }
 function createResponseFromOptions(options) {
-  var callServer = options && options.callServer ? options.callServer : void 0;
-  options =
+  return new ResponseInstance(
+    null,
+    null,
+    options && options.callServer ? options.callServer : void 0,
+    void 0,
+    void 0,
     options && options.temporaryReferences
       ? options.temporaryReferences
-      : void 0;
-  var chunks = new Map();
-  callServer = {
-    _bundlerConfig: null,
-    _moduleLoading: null,
-    _callServer: void 0 !== callServer ? callServer : missingCall,
-    _encodeFormAction: void 0,
-    _nonce: void 0,
-    _chunks: chunks,
-    _stringDecoder: new TextDecoder(),
-    _fromJSON: null,
-    _rowState: 0,
-    _rowID: 0,
-    _rowTag: 0,
-    _rowLength: 0,
-    _buffer: [],
-    _tempRefs: options
-  };
-  callServer._fromJSON = createFromJSONCallback(callServer);
-  return callServer;
+      : void 0
+  );
 }
 function startReadingFromStream(response, stream) {
   function progress(_ref) {

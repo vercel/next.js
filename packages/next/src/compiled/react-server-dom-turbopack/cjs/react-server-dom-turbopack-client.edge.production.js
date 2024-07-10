@@ -1011,6 +1011,28 @@ function missingCall() {
     'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
   );
 }
+function ResponseInstance(
+  bundlerConfig,
+  moduleLoading,
+  callServer,
+  encodeFormAction,
+  nonce,
+  temporaryReferences
+) {
+  var chunks = new Map();
+  this._bundlerConfig = bundlerConfig;
+  this._moduleLoading = moduleLoading;
+  this._callServer = void 0 !== callServer ? callServer : missingCall;
+  this._encodeFormAction = encodeFormAction;
+  this._nonce = nonce;
+  this._chunks = chunks;
+  this._stringDecoder = new TextDecoder();
+  this._fromJSON = null;
+  this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
+  this._buffer = [];
+  this._tempRefs = temporaryReferences;
+  this._fromJSON = createFromJSONCallback(this);
+}
 function resolveBuffer(response, id, buffer) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
@@ -1437,33 +1459,16 @@ function noServerCall() {
   );
 }
 function createResponseFromOptions(options) {
-  var bundlerConfig = options.ssrManifest.moduleMap,
-    moduleLoading = options.ssrManifest.moduleLoading,
-    encodeFormAction = options.encodeFormAction,
-    nonce = "string" === typeof options.nonce ? options.nonce : void 0;
-  options =
+  return new ResponseInstance(
+    options.ssrManifest.moduleMap,
+    options.ssrManifest.moduleLoading,
+    noServerCall,
+    options.encodeFormAction,
+    "string" === typeof options.nonce ? options.nonce : void 0,
     options && options.temporaryReferences
       ? options.temporaryReferences
-      : void 0;
-  var chunks = new Map();
-  bundlerConfig = {
-    _bundlerConfig: bundlerConfig,
-    _moduleLoading: moduleLoading,
-    _callServer: void 0 !== noServerCall ? noServerCall : missingCall,
-    _encodeFormAction: encodeFormAction,
-    _nonce: nonce,
-    _chunks: chunks,
-    _stringDecoder: new TextDecoder(),
-    _fromJSON: null,
-    _rowState: 0,
-    _rowID: 0,
-    _rowTag: 0,
-    _rowLength: 0,
-    _buffer: [],
-    _tempRefs: options
-  };
-  bundlerConfig._fromJSON = createFromJSONCallback(bundlerConfig);
-  return bundlerConfig;
+      : void 0
+  );
 }
 function startReadingFromStream(response, stream) {
   function progress(_ref) {
