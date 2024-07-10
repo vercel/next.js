@@ -5,11 +5,9 @@ import { writeFile } from 'node:fs/promises'
 export async function createEnvDefinitions({
   distDir,
   env,
-  isTest = false,
 }: {
   distDir: string
   env: Env
-  isTest?: boolean
 }) {
   const envKeysStr = Object.keys(env)
     .map((key) => `      ${key}: readonly string`)
@@ -25,7 +23,7 @@ ${envKeysStr}
 }
 export {}`
 
-  if (isTest) {
+  if (process.env.NODE_ENV === 'test') {
     return definitionStr
   }
 

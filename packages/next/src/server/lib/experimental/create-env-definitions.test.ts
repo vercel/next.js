@@ -11,7 +11,6 @@ describe('create-env-definitions', () => {
     const definitionStr = await createEnvDefinitions({
       distDir: '/dist',
       env,
-      isTest: true,
     })
     expect(definitionStr).toMatchInlineSnapshot(`
       "// Type definitions for Next.js environment variables
@@ -33,7 +32,6 @@ describe('create-env-definitions', () => {
     const definitionStr = await createEnvDefinitions({
       distDir: '/dist',
       env: {},
-      isTest: true,
     })
     expect(definitionStr).toMatchInlineSnapshot(`
       "// Type definitions for Next.js environment variables
