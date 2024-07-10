@@ -206,4 +206,4 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.0.0-rc-a26e3f403e-20240611";
+exports.version = "19.0.0-rc-f3e09d6328-20240612";

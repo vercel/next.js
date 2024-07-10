@@ -290,6 +290,14 @@
           if ("function" === typeof type)
             return type.displayName || type.name || null;
           if ("string" === typeof type) return type;
+          break;
+        case 29:
+          type = fiber._debugInfo;
+          if (null != type)
+            for (var i = type.length - 1; 0 <= i; i--)
+              if ("string" === typeof type[i].name) return type[i].name;
+          if (null !== fiber.return)
+            return getComponentNameFromFiber(fiber.return);
       }
       return null;
     }
@@ -5440,7 +5448,14 @@
           var fiber = createFiber(29, x, null, returnFiber.mode);
           fiber.lanes = lanes;
           fiber.return = returnFiber;
-          fiber._debugInfo = currentDebugInfo;
+          var debugInfo = (fiber._debugInfo = currentDebugInfo);
+          fiber._debugOwner = returnFiber._debugOwner;
+          if (null != debugInfo)
+            for (var i = debugInfo.length - 1; 0 <= i; i--)
+              if ("string" === typeof debugInfo[i].stack) {
+                fiber._debugOwner = debugInfo[i];
+                break;
+              }
           return fiber;
         } finally {
           currentDebugInfo = prevDebugInfo;
@@ -23446,14 +23461,6 @@
     var didWarnAboutUndefinedDerivedState = new Set();
     var didWarnAboutInvalidateContextType = new Set();
     var didWarnOnInvalidCallback = new Set();
-    Object.defineProperty(fakeInternalInstance, "_processChildContext", {
-      enumerable: !1,
-      value: function () {
-        throw Error(
-          "_processChildContext is not available in React 16+. This likely means you have multiple copies of React and are attempting to nest a React 15 tree inside a React 16 tree using unstable_renderSubtreeIntoContainer, which isn't supported. Try to make sure you have only one copy of React (and ideally, switch to ReactDOM.createPortal)."
-        );
-      }
-    });
     Object.freeze(fakeInternalInstance);
     var classComponentUpdater = {
         isMounted: function (component) {
@@ -24150,11 +24157,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-a26e3f403e-20240611" !== isomorphicReactPackageVersion)
+      if ("19.0.0-rc-f3e09d6328-20240612" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-a26e3f403e-20240611\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-rc-f3e09d6328-20240612\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24209,12 +24216,12 @@
           scheduleRoot: scheduleRoot,
           setRefreshHandler: setRefreshHandler,
           getCurrentFiber: getCurrentFiberForDevTools,
-          reconcilerVersion: "19.0.0-rc-a26e3f403e-20240611"
+          reconcilerVersion: "19.0.0-rc-f3e09d6328-20240612"
         });
       })({
         findFiberByHostInstance: getClosestInstanceFromNode,
         bundleType: 1,
-        version: "19.0.0-rc-a26e3f403e-20240611",
+        version: "19.0.0-rc-f3e09d6328-20240612",
         rendererPackageName: "react-dom"
       }) &&
       canUseDOM &&
@@ -24344,7 +24351,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.0.0-rc-a26e3f403e-20240611";
+    exports.version = "19.0.0-rc-f3e09d6328-20240612";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

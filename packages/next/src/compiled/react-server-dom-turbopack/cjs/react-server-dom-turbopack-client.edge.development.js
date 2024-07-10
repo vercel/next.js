@@ -893,6 +893,62 @@
       registerServerReference(proxy, { id: id, bound: null }, encodeFormAction);
       return proxy;
     }
+    function getComponentNameFromType(type) {
+      if (null == type) return null;
+      if ("function" === typeof type)
+        return type.$$typeof === REACT_CLIENT_REFERENCE
+          ? null
+          : type.displayName || type.name || null;
+      if ("string" === typeof type) return type;
+      switch (type) {
+        case REACT_FRAGMENT_TYPE:
+          return "Fragment";
+        case REACT_PORTAL_TYPE:
+          return "Portal";
+        case REACT_PROFILER_TYPE:
+          return "Profiler";
+        case REACT_STRICT_MODE_TYPE:
+          return "StrictMode";
+        case REACT_SUSPENSE_TYPE:
+          return "Suspense";
+        case REACT_SUSPENSE_LIST_TYPE:
+          return "SuspenseList";
+      }
+      if ("object" === typeof type)
+        switch (
+          ("number" === typeof type.tag &&
+            error$jscomp$0(
+              "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
+            ),
+          type.$$typeof)
+        ) {
+          case REACT_CONTEXT_TYPE:
+            return (type.displayName || "Context") + ".Provider";
+          case REACT_CONSUMER_TYPE:
+            return (type._context.displayName || "Context") + ".Consumer";
+          case REACT_FORWARD_REF_TYPE:
+            var innerType = type.render;
+            type = type.displayName;
+            type ||
+              ((type = innerType.displayName || innerType.name || ""),
+              (type = "" !== type ? "ForwardRef(" + type + ")" : "ForwardRef"));
+            return type;
+          case REACT_MEMO_TYPE:
+            return (
+              (innerType = type.displayName || null),
+              null !== innerType
+                ? innerType
+                : getComponentNameFromType(type.type) || "Memo"
+            );
+          case REACT_LAZY_TYPE:
+            innerType = type._payload;
+            type = type._init;
+            try {
+              return getComponentNameFromType(type(innerType));
+            } catch (x) {}
+        }
+      return null;
+    }
     function Chunk(status, value, reason, response) {
       this.status = status;
       this.value = value;
@@ -913,7 +969,6 @@
           return chunk.value;
         case "pending":
         case "blocked":
-        case "cyclic":
           throw chunk;
         default:
           throw chunk.reason;
@@ -932,7 +987,6 @@
           break;
         case "pending":
         case "blocked":
-        case "cyclic":
           if (chunk.value)
             for (var i = 0; i < resolveListeners.length; i++)
               chunk.value.push(resolveListeners[i]);
@@ -1003,33 +1057,33 @@
       }
     }
     function initializeModelChunk(chunk) {
-      var prevChunk = initializingChunk,
-        prevBlocked = initializingChunkBlockedModel;
-      initializingChunk = chunk;
-      initializingChunkBlockedModel = null;
+      var prevHandler = initializingHandler;
+      initializingHandler = null;
       var resolvedModel = chunk.value;
-      chunk.status = "cyclic";
+      chunk.status = "blocked";
       chunk.value = null;
       chunk.reason = null;
       try {
-        var value = JSON.parse(resolvedModel, chunk._response._fromJSON);
-        if (
-          null !== initializingChunkBlockedModel &&
-          0 < initializingChunkBlockedModel.deps
-        )
-          (initializingChunkBlockedModel.value = value),
-            (chunk.status = "blocked");
-        else {
-          var resolveListeners = chunk.value;
-          chunk.status = "fulfilled";
-          chunk.value = value;
-          null !== resolveListeners && wakeChunk(resolveListeners, value);
+        var value = JSON.parse(resolvedModel, chunk._response._fromJSON),
+          resolveListeners = chunk.value;
+        null !== resolveListeners &&
+          ((chunk.value = null),
+          (chunk.reason = null),
+          wakeChunk(resolveListeners, value));
+        if (null !== initializingHandler) {
+          if (initializingHandler.errored) throw initializingHandler.value;
+          if (0 < initializingHandler.deps) {
+            initializingHandler.value = value;
+            initializingHandler.chunk = chunk;
+            return;
+          }
         }
+        chunk.status = "fulfilled";
+        chunk.value = value;
       } catch (error$1) {
         (chunk.status = "rejected"), (chunk.reason = error$1);
       } finally {
-        (initializingChunk = prevChunk),
-          (initializingChunkBlockedModel = prevBlocked);
+        initializingHandler = prevHandler;
       }
     }
     function initializeModuleChunk(chunk) {
@@ -1078,42 +1132,73 @@
       chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
       return chunk;
     }
-    function createModelResolver(
-      chunk,
+    function waitForReference(
+      referencedChunk,
       parentObject,
       key,
-      cyclic,
       response,
       map,
       path
     ) {
-      if (initializingChunkBlockedModel) {
-        var blocked = initializingChunkBlockedModel;
-        cyclic || blocked.deps++;
-      } else
-        blocked = initializingChunkBlockedModel = {
-          deps: cyclic ? 0 : 1,
-          value: null
-        };
-      return function (value) {
-        for (var i = 1; i < path.length; i++) value = value[path[i]];
+      function fulfill(value) {
+        for (var i = 1; i < path.length; i++) {
+          for (; value.$$typeof === REACT_LAZY_TYPE; )
+            if (((value = value._payload), value === handler.chunk))
+              value = handler.value;
+            else if ("fulfilled" === value.status) value = value.value;
+            else {
+              path.splice(0, i - 1);
+              value.then(fulfill, reject);
+              return;
+            }
+          value = value[path[i]];
+        }
         parentObject[key] = map(response, value);
         "" === key &&
-          null === blocked.value &&
-          (blocked.value = parentObject[key]);
-        blocked.deps--;
-        0 === blocked.deps &&
-          "blocked" === chunk.status &&
-          ((value = chunk.value),
-          (chunk.status = "fulfilled"),
-          (chunk.value = blocked.value),
-          null !== value && wakeChunk(value, blocked.value));
-      };
-    }
-    function createModelReject(chunk) {
-      return function (error) {
-        return triggerErrorOnChunk(chunk, error);
-      };
+          null === handler.value &&
+          (handler.value = parentObject[key]);
+        handler.deps--;
+        0 === handler.deps &&
+          ((i = handler.chunk),
+          null !== i &&
+            "blocked" === i.status &&
+            ((value = i.value),
+            (i.status = "fulfilled"),
+            (i.value = handler.value),
+            null !== value && wakeChunk(value, handler.value)));
+      }
+      function reject(error) {
+        if (!handler.errored) {
+          var blockedValue = handler.value;
+          handler.errored = !0;
+          handler.value = error;
+          var chunk = handler.chunk;
+          null !== chunk &&
+            "blocked" === chunk.status &&
+            ("object" === typeof blockedValue &&
+              null !== blockedValue &&
+              blockedValue.$$typeof === REACT_ELEMENT_TYPE &&
+              ((blockedValue = {
+                name: getComponentNameFromType(blockedValue.type) || "",
+                owner: blockedValue._owner
+              }),
+              (chunk._debugInfo || (chunk._debugInfo = [])).push(blockedValue)),
+            triggerErrorOnChunk(chunk, error));
+        }
+      }
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          parent: null,
+          chunk: null,
+          value: null,
+          deps: 1,
+          errored: !1
+        };
+      referencedChunk.then(fulfill, reject);
+      return null;
     }
     function createServerReferenceProxy(response, metaData) {
       function proxy() {
@@ -1151,7 +1236,7 @@
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
-              (!Array.isArray(response) &&
+              (!isArrayImpl(response) &&
                 "function" !== typeof response[ASYNC_ITERATOR] &&
                 response.$$typeof !== REACT_ELEMENT_TYPE) ||
               response._debugInfo ||
@@ -1164,23 +1249,28 @@
           return response;
         case "pending":
         case "blocked":
-        case "cyclic":
-          var parentChunk = initializingChunk;
-          id.then(
-            createModelResolver(
-              parentChunk,
-              parentObject,
-              key,
-              "cyclic" === id.status,
-              response,
-              map,
-              reference
-            ),
-            createModelReject(parentChunk)
+          return waitForReference(
+            id,
+            parentObject,
+            key,
+            response,
+            map,
+            reference
           );
-          return null;
         default:
-          throw id.reason;
+          return (
+            initializingHandler
+              ? ((initializingHandler.errored = !0),
+                (initializingHandler.value = id.reason))
+              : (initializingHandler = {
+                  parent: null,
+                  chunk: null,
+                  value: id.reason,
+                  deps: 0,
+                  errored: !0
+                }),
+            null
+          );
       }
     }
     function createMap(response, model) {
@@ -1206,7 +1296,19 @@
     }
     function parseModelString(response, parentObject, key, value) {
       if ("$" === value[0]) {
-        if ("$" === value) return REACT_ELEMENT_TYPE;
+        if ("$" === value)
+          return (
+            null !== initializingHandler &&
+              "0" === key &&
+              (initializingHandler = {
+                parent: initializingHandler,
+                chunk: null,
+                value: null,
+                deps: 0,
+                errored: !1
+              }),
+            REACT_ELEMENT_TYPE
+          );
         switch (value[1]) {
           case "$":
             return value.slice(1);
@@ -1423,8 +1525,8 @@
                 (previousBlockedChunk = chunk));
           } else {
             chunk = previousBlockedChunk;
-            var _chunk2 = createPendingChunk(response);
-            _chunk2.then(
+            var _chunk3 = createPendingChunk(response);
+            _chunk3.then(
               function (v) {
                 return controller.enqueue(v);
               },
@@ -1432,10 +1534,10 @@
                 return controller.error(e);
               }
             );
-            previousBlockedChunk = _chunk2;
+            previousBlockedChunk = _chunk3;
             chunk.then(function () {
-              previousBlockedChunk === _chunk2 && (previousBlockedChunk = null);
-              resolveModelChunk(_chunk2, json);
+              previousBlockedChunk === _chunk3 && (previousBlockedChunk = null);
+              resolveModelChunk(_chunk3, json);
             });
           }
         },
@@ -1787,41 +1889,64 @@
     }
     function createFromJSONCallback(response) {
       return function (key, value) {
-        return "string" === typeof value
-          ? parseModelString(response, this, key, value)
-          : "object" === typeof value && null !== value
-          ? (value[0] === REACT_ELEMENT_TYPE
-              ? ((key = {
-                  $$typeof: REACT_ELEMENT_TYPE,
-                  type: value[1],
-                  key: value[2],
-                  props: value[3],
-                  _owner: value[4]
-                }),
-                Object.defineProperty(key, "ref", {
-                  enumerable: !1,
-                  get: nullRefGetter
-                }),
-                (key._store = {}),
-                Object.defineProperty(key._store, "validated", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: 1
-                }),
-                Object.defineProperty(key, "_debugInfo", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: null
-                }),
-                null !== initializingChunkBlockedModel
-                  ? ((value = Object.freeze.bind(Object, key.props)),
-                    initializingChunk.then(value, value))
-                  : Object.freeze(key.props))
-              : (key = value),
-            key)
-          : value;
+        if ("string" === typeof value)
+          return parseModelString(response, this, key, value);
+        if ("object" === typeof value && null !== value) {
+          if (value[0] === REACT_ELEMENT_TYPE)
+            if (
+              ((key = {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: value[1],
+                key: value[2],
+                props: value[3],
+                _owner: value[4]
+              }),
+              Object.defineProperty(key, "ref", {
+                enumerable: !1,
+                get: nullRefGetter
+              }),
+              (key._store = {}),
+              Object.defineProperty(key._store, "validated", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: 1
+              }),
+              Object.defineProperty(key, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              }),
+              null !== initializingHandler)
+            ) {
+              var handler = initializingHandler;
+              initializingHandler = handler.parent;
+              handler.errored
+                ? ((value = new Chunk(
+                    "rejected",
+                    null,
+                    handler.value,
+                    response
+                  )),
+                  (key = {
+                    name: getComponentNameFromType(key.type) || "",
+                    owner: key._owner
+                  }),
+                  (value._debugInfo = [key]),
+                  (key = createLazyChunkWrapper(value)))
+                : 0 < handler.deps &&
+                  ((value = new Chunk("blocked", null, null, response)),
+                  (handler.value = key),
+                  (handler.chunk = value),
+                  (key = Object.freeze.bind(Object, key.props)),
+                  value.then(key, key),
+                  (key = createLazyChunkWrapper(value)));
+            } else Object.freeze(key.props);
+          else key = value;
+          return key;
+        }
+        return value;
       };
     }
     function noServerCall() {
@@ -1947,6 +2072,12 @@
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+      REACT_PORTAL_TYPE = Symbol.for("react.portal"),
+      REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+      REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
+      REACT_PROFILER_TYPE = Symbol.for("react.profiler");
+    Symbol.for("react.provider");
+    var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
       REACT_CONTEXT_TYPE = Symbol.for("react.context"),
       REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
       REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
@@ -1964,7 +2095,8 @@
       knownServerReferences = new WeakMap(),
       boundCache = new WeakMap(),
       FunctionBind = Function.prototype.bind,
-      ArraySlice = Array.prototype.slice;
+      ArraySlice = Array.prototype.slice,
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
     Chunk.prototype = Object.create(Promise.prototype);
     Chunk.prototype.then = function (resolve, reject) {
       switch (this.status) {
@@ -1980,7 +2112,6 @@
           break;
         case "pending":
         case "blocked":
-        case "cyclic":
           resolve &&
             (null === this.value && (this.value = []),
             this.value.push(resolve));
@@ -1992,8 +2123,7 @@
           reject && reject(this.reason);
       }
     };
-    var initializingChunk = null,
-      initializingChunkBlockedModel = null;
+    var initializingHandler = null;
     exports.createFromFetch = function (promiseForResponse, options) {
       var response = createResponseFromOptions(options);
       promiseForResponse.then(

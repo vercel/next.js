@@ -634,7 +634,15 @@
       this.onPostpone =
         void 0 === onPostpone ? defaultPostponeHandler : onPostpone;
       this.environmentName =
-        void 0 === environmentName ? "Server" : environmentName;
+        void 0 === environmentName
+          ? function () {
+              return "Server";
+            }
+          : "function" !== typeof environmentName
+          ? function () {
+              return environmentName;
+            }
+          : environmentName;
       this.didWarnForKey = null;
       model = createTask(this, model, null, !1, abortSet);
       pingedTasks.push(model);
@@ -935,17 +943,15 @@
       if (null !== prevThenableState)
         owner = prevThenableState._componentDebugInfo;
       else {
-        var componentName = Component.displayName || Component.name || "";
+        var componentDebugID = debugID,
+          componentName = Component.displayName || Component.name || "",
+          componentEnv = request.environmentName();
         request.pendingChunks++;
-        var componentDebugID = debugID;
-        owner = {
-          name: componentName,
-          env: request.environmentName,
-          owner: owner
-        };
+        owner = { name: componentName, env: componentEnv, owner: owner };
         owner.stack = stack;
         outlineModel(request, owner);
         emitDebugChunk(request, componentDebugID, owner);
+        task.environmentName = componentEnv;
         warnForMissingKey(request, key, validated, owner);
       }
       prepareToUseHooksForComponent(prevThenableState, owner);
@@ -1272,6 +1278,7 @@
         },
         thenableState: null
       };
+      task.environmentName = request.environmentName();
       abortSet.add(task);
       return task;
     }
@@ -1476,15 +1483,11 @@
           );
         task.keyPath = prevKeyPath;
         task.implicitSlot = prevImplicitSlot;
-        if (parent)
-          return (
-            request.pendingChunks++,
-            (task = request.nextChunkId++),
-            (prevKeyPath = logRecoverableError(request, key)),
-            emitErrorChunk(request, task, prevKeyPath, key),
-            serializeLazyID(task)
-          );
-        throw key;
+        request.pendingChunks++;
+        task = request.nextChunkId++;
+        prevKeyPath = logRecoverableError(request, key);
+        emitErrorChunk(request, task, prevKeyPath, key);
+        return parent ? serializeLazyID(task) : serializeByValueID(task);
       }
     }
     function renderModelDestructive(
@@ -1500,7 +1503,8 @@
       if ("object" === typeof value) {
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
-            var _writtenObjects = request.writtenObjects;
+            var elementReference = null,
+              _writtenObjects = request.writtenObjects;
             if (null === task.keyPath && !task.implicitSlot) {
               var _existingReference = _writtenObjects.get(value);
               if (void 0 !== _existingReference)
@@ -1510,10 +1514,8 @@
                 -1 === parentPropertyName.indexOf(":") &&
                   ((parent = _writtenObjects.get(parent)),
                   void 0 !== parent &&
-                    _writtenObjects.set(
-                      value,
-                      parent + ":" + parentPropertyName
-                    ));
+                    ((elementReference = parent + ":" + parentPropertyName),
+                    _writtenObjects.set(value, elementReference)));
             }
             if ((parentPropertyName = value._debugInfo)) {
               if (null === debugID) return outlineTask(request, task);
@@ -1521,7 +1523,7 @@
             }
             parentPropertyName = value.props;
             parent = parentPropertyName.ref;
-            return renderElement(
+            value = renderElement(
               request,
               task,
               value.type,
@@ -1534,6 +1536,12 @@
                 : value._debugStack,
               value._store.validated
             );
+            "object" === typeof value &&
+              null !== value &&
+              null !== elementReference &&
+              (_writtenObjects.has(value) ||
+                _writtenObjects.set(value, elementReference));
+            return value;
           case REACT_LAZY_TYPE:
             task.thenableState = null;
             parentPropertyName = callLazyInitInDEV(value);
@@ -1563,48 +1571,51 @@
           );
         if (
           void 0 !== request.temporaryReferences &&
-          ((_writtenObjects = request.temporaryReferences.get(value)),
-          void 0 !== _writtenObjects)
+          ((elementReference = request.temporaryReferences.get(value)),
+          void 0 !== elementReference)
         )
-          return "$T" + _writtenObjects;
-        _writtenObjects = TaintRegistryObjects.get(value);
-        void 0 !== _writtenObjects && throwTaintViolation(_writtenObjects);
-        _writtenObjects = request.writtenObjects;
-        _existingReference = _writtenObjects.get(value);
+          return "$T" + elementReference;
+        elementReference = TaintRegistryObjects.get(value);
+        void 0 !== elementReference && throwTaintViolation(elementReference);
+        elementReference = request.writtenObjects;
+        _writtenObjects = elementReference.get(value);
         if ("function" === typeof value.then) {
-          if (void 0 !== _existingReference) {
+          if (void 0 !== _writtenObjects) {
             if (null !== task.keyPath || task.implicitSlot)
               return (
                 "$@" + serializeThenable(request, task, value).toString(16)
               );
             if (modelRoot === value) modelRoot = null;
-            else return _existingReference;
+            else return _writtenObjects;
           }
           request = "$@" + serializeThenable(request, task, value).toString(16);
-          _writtenObjects.set(value, request);
+          elementReference.set(value, request);
           return request;
         }
-        if (void 0 !== _existingReference)
+        if (void 0 !== _writtenObjects)
           if (modelRoot === value) modelRoot = null;
-          else return _existingReference;
+          else return _writtenObjects;
         else if (
           -1 === parentPropertyName.indexOf(":") &&
-          ((_existingReference = _writtenObjects.get(parent)),
-          void 0 !== _existingReference)
+          ((_writtenObjects = elementReference.get(parent)),
+          void 0 !== _writtenObjects)
         ) {
-          var propertyName = parentPropertyName;
+          _existingReference = parentPropertyName;
           if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
             switch (parentPropertyName) {
               case "1":
-                propertyName = "type";
+                _existingReference = "type";
                 break;
               case "2":
-                propertyName = "key";
+                _existingReference = "key";
                 break;
               case "3":
-                propertyName = "props";
+                _existingReference = "props";
             }
-          _writtenObjects.set(value, _existingReference + ":" + propertyName);
+          elementReference.set(
+            value,
+            _writtenObjects + ":" + _existingReference
+          );
         }
         if (isArrayImpl(value)) return renderFragment(request, task, value);
         if (value instanceof Map) return serializeMap(request, value);
@@ -1639,9 +1650,9 @@
           return serializeTypedArray(request, "V", value);
         if ("function" === typeof Blob && value instanceof Blob)
           return serializeBlob(request, value);
-        if ((_writtenObjects = getIteratorFn(value)))
+        if ((elementReference = getIteratorFn(value)))
           return (
-            (parentPropertyName = _writtenObjects.call(value)),
+            (parentPropertyName = elementReference.call(value)),
             parentPropertyName === value
               ? "$i" +
                 outlineModel(request, Array.from(parentPropertyName)).toString(
@@ -1654,8 +1665,8 @@
           value instanceof ReadableStream
         )
           return serializeReadableStream(request, task, value);
-        _writtenObjects = value[ASYNC_ITERATOR];
-        if ("function" === typeof _writtenObjects)
+        elementReference = value[ASYNC_ITERATOR];
+        if ("function" === typeof elementReference)
           return (
             null !== task.keyPath
               ? ((value = [
@@ -1668,7 +1679,7 @@
                   0
                 ]),
                 (value = task.implicitSlot ? [value] : value))
-              : ((parentPropertyName = _writtenObjects.call(value)),
+              : ((parentPropertyName = elementReference.call(value)),
                 (value = serializeAsyncIterable(
                   request,
                   task,
@@ -1685,6 +1696,24 @@
           throw Error(
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported."
           );
+        if (
+          "object" === typeof value.task &&
+          null !== value.task &&
+          "function" === typeof value.task.run &&
+          "string" === typeof value.name &&
+          "string" === typeof value.env &&
+          void 0 !== value.owner &&
+          "string" === typeof value.stack
+        )
+          return (
+            (request = {
+              name: value.name,
+              env: value.env,
+              owner: value.owner
+            }),
+            (request.stack = value.stack),
+            request
+          );
         if ("Object" !== objectName(value))
           error$jscomp$2(
             "Only plain objects can be passed to Client Components from Server Components. %s objects are not supported.%s",
@@ -1696,14 +1725,14 @@
             request = Object.getOwnPropertyNames(value);
             for (task = 0; task < request.length; task++)
               if (
-                ((_writtenObjects = Object.getOwnPropertyDescriptor(
+                ((elementReference = Object.getOwnPropertyDescriptor(
                   value,
                   request[task]
                 )),
-                !_writtenObjects ||
-                  (!_writtenObjects.enumerable &&
+                !elementReference ||
+                  (!elementReference.enumerable &&
                     (("key" !== request[task] && "ref" !== request[task]) ||
-                      "function" !== typeof _writtenObjects.get)))
+                      "function" !== typeof elementReference.get)))
               ) {
                 request = !1;
                 break a;
@@ -1806,11 +1835,11 @@
       }
       if ("symbol" === typeof value) {
         task = request.writtenSymbols;
-        _writtenObjects = task.get(value);
-        if (void 0 !== _writtenObjects)
-          return serializeByValueID(_writtenObjects);
-        _writtenObjects = value.description;
-        if (Symbol.for(_writtenObjects) !== value)
+        elementReference = task.get(value);
+        if (void 0 !== elementReference)
+          return serializeByValueID(elementReference);
+        elementReference = value.description;
+        if (Symbol.for(elementReference) !== value)
           throw Error(
             "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
               (value.description + ") cannot be found among global symbols.") +
@@ -1821,7 +1850,7 @@
         parent = encodeReferenceChunk(
           request,
           parentPropertyName,
-          "$S" + _writtenObjects
+          "$S" + elementReference
         );
         request.completedImportChunks.push(parent);
         task.set(value, parentPropertyName);
@@ -2117,8 +2146,9 @@
       stackTrace,
       args
     ) {
-      var counter = { objectCount: 0 };
-      methodName = [methodName, stackTrace, owner, request.environmentName];
+      var counter = { objectCount: 0 },
+        env = request.environmentName();
+      methodName = [methodName, stackTrace, owner, env];
       methodName.push.apply(methodName, args);
       args = stringify(methodName, function (parentPropertyName, value) {
         try {
@@ -2139,7 +2169,10 @@
     }
     function forwardDebugInfo(request, id, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
-        request.pendingChunks++, emitDebugChunk(request, id, debugInfo[i]);
+        request.pendingChunks++,
+          "string" === typeof debugInfo[i].name &&
+            outlineModel(request, debugInfo[i]),
+          emitDebugChunk(request, id, debugInfo[i]);
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2194,14 +2227,20 @@
           modelRoot = resolvedModel;
           task.keyPath = null;
           task.implicitSlot = !1;
-          if ("object" === typeof resolvedModel && null !== resolvedModel)
+          if ("object" === typeof resolvedModel && null !== resolvedModel) {
             request.writtenObjects.set(
               resolvedModel,
               serializeByValueID(task.id)
-            ),
-              emitChunk(request, task, resolvedModel);
-          else {
-            var json = stringify(resolvedModel);
+            );
+            var currentEnv = request.environmentName();
+            currentEnv !== task.environmentName &&
+              emitDebugChunk(request, task.id, { env: currentEnv });
+            emitChunk(request, task, resolvedModel);
+          } else {
+            var json = stringify(resolvedModel),
+              _currentEnv = request.environmentName();
+            _currentEnv !== task.environmentName &&
+              emitDebugChunk(request, task.id, { env: _currentEnv });
             emitModelChunk(request, task.id, json);
           }
           request.abortableTasks.delete(task);
