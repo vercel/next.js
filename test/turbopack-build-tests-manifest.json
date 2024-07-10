@@ -15260,13 +15260,12 @@
     },
     "test/integration/with-router/test/index.test.js": {
       "passed": [
-        "withRouter SSR should show an error when trying to use router methods during SSR"
-      ],
-      "failed": [
+        "withRouter SSR should show an error when trying to use router methods during SSR",
         "withRouter production mode allows observation of navigation events using top level Router",
         "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
         "withRouter production mode allows observation of navigation events using withRouter"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
