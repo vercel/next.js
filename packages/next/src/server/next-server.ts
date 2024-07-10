@@ -84,10 +84,7 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
-import {
-  INSTRUMENTATION_HOOK_FILENAME,
-  RSC_PREFETCH_SUFFIX,
-} from '../lib/constants'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
@@ -1077,13 +1074,6 @@ export default class NextNodeServer extends BaseServer<
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
     return this.runApi(req, res, query, match)
-  }
-
-  protected getPrefetchRsc(pathname: string): Promise<string> {
-    return this.getCacheFilesystem().readFile(
-      join(this.serverDistDir, 'app', `${pathname}${RSC_PREFETCH_SUFFIX}`),
-      'utf8'
-    )
   }
 
   protected getCacheFilesystem(): CacheFs {

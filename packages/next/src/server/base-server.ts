@@ -403,8 +403,6 @@ export default abstract class Server<
     renderOpts: LoadedRenderOpts
   ): Promise<RenderResult>
 
-  protected abstract getPrefetchRsc(pathname: string): Promise<string | null>
-
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
     requestProtocol: 'http' | 'https'
