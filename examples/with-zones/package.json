@@ -1,5 +1,3 @@
 {
-  "name": "with-zones",
-  "private": true,
-  "description": "A repository with multiple Next.js examples demonstrating how to serve traffic from a single domain to multiple applications."
+  "private": true
 }
