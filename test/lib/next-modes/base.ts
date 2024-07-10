@@ -304,6 +304,33 @@ export class NextInstance {
           }
         `
           )
+
+          if (
+            testDirFiles.includes('node_modules') &&
+            !testDirFiles.includes('vercel.json')
+          ) {
+            // Tests that include a patched node_modules dir won't automatically be uploaded to Vercel.
+            // We need to ensure node_modules is not excluded from the deploy files, and tweak the
+            // start + build commands to handle copying the patched node modules into the final.
+            // To be extra safe, we only do this if the test directory doesn't already have a custom vercel.json
+            require('console').log(
+              'Detected node_modules in the test directory, writing `vercel.json` and `.vercelignore` to ensure its included.'
+            )
+
+            await fs.writeFile(
+              path.join(this.testDir, 'vercel.json'),
+              JSON.stringify({
+                installCommand: 'mv node_modules node_modules.bak && npm i',
+                buildCommand:
+                  'cp -r node_modules.bak/* node_modules && npm run build',
+              })
+            )
+
+            await fs.writeFile(
+              path.join(this.testDir, '.vercelignore'),
+              '!node_modules'
+            )
+          }
         }
       })
   }
