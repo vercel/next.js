@@ -320,9 +320,8 @@ export class NextInstance {
             await fs.writeFile(
               path.join(this.testDir, 'vercel.json'),
               JSON.stringify({
-                installCommand: 'mv node_modules node_modules.bak && npm i',
-                buildCommand:
-                  'cp -r node_modules.bak/* node_modules && npm run build',
+                installCommand:
+                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
               })
             )
 
