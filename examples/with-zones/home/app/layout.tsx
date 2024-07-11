@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Next.js - With Zones",
+  title: "Next.js - Home Zone",
   description: "Next.js example for Multi Zones",
 };
 
