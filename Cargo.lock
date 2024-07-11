@@ -2837,9 +2837,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.68.18"
+version = "0.68.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8831538b7fde064ae1e450f5821e6cc621b9deae6e86120c1b4b65d8221bceb4"
+checksum = "493b54c142f3044decf1dae3d511d0a2bbf1386269083bd62c7d4786582a6c69"
 dependencies = [
  "convert_case",
  "handlebars",
