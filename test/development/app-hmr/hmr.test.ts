@@ -261,6 +261,7 @@ describe(`app-dir-hmr`, () => {
         .waitForElementByCss('[data-testid="new-runtime-functionality-page"]')
 
       const logs = await browser.log()
+      // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
       if (process.env.TURBOPACK) {
         // FIXME: logging "rebuilding" multiple times instead of closing it of with "done in"
         // Should just not branch here and have the same logs as Webpack.
@@ -289,7 +290,6 @@ describe(`app-dir-hmr`, () => {
           ])
         )
       } else {
-        // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
         expect(logs).toEqual(
           expect.arrayContaining([
             {
@@ -302,7 +302,7 @@ describe(`app-dir-hmr`, () => {
             },
           ])
         )
-        expect(logs).toEqual(
+        expect(logs).not.toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               source: 'error',
@@ -310,13 +310,8 @@ describe(`app-dir-hmr`, () => {
           ])
         )
       }
-      if (process.env.TURBOPACK) {
-        // No MPA navigation triggered
-        expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(true)
-      } else {
-        // MPA navigation triggered
-        expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(undefined)
-      }
+      // No MPA navigation triggered
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(true)
     })
   })
 })
