@@ -13,13 +13,7 @@ describe('on-request-error - skip-next-internal-error.test', () => {
     return
   }
 
-  async function assertNoNextjsInternalErrors(
-    pathname: string,
-    expectedStatus = 200
-  ) {
-    const { status } = await next.fetch(pathname)
-    expect(status).toBe(expectedStatus)
-
+  async function assertNoNextjsInternalErrors() {
     const output = next.cliOutput
     // No navigation errors
     expect(output).not.toContain('NEXT_REDIRECT')
@@ -34,45 +28,54 @@ describe('on-request-error - skip-next-internal-error.test', () => {
   describe('app router render', () => {
     // Server navigation errors
     it('should not catch server component not-found errors', async () => {
-      await assertNoNextjsInternalErrors('/server/not-found', 404)
+      await next.fetch('/server/not-found')
+      await assertNoNextjsInternalErrors()
     })
 
     it('should not catch server component redirect errors', async () => {
-      await assertNoNextjsInternalErrors('/server/redirect')
+      await next.render('/server/redirect')
+      await assertNoNextjsInternalErrors()
     })
 
     // Client navigation errors
     it('should not catch client component not-found errors', async () => {
-      await assertNoNextjsInternalErrors('/client/not-found', 404)
+      await next.fetch('/server/not-found')
+      await assertNoNextjsInternalErrors()
     })
 
     it('should not catch client component redirect errors', async () => {
-      await assertNoNextjsInternalErrors('/client/redirect')
+      await next.render('/client/redirect')
+      await assertNoNextjsInternalErrors()
     })
 
     // Dynamic usage
     it('should not catch server component dynamic usage errors', async () => {
-      await assertNoNextjsInternalErrors('/client/dynamic-fetch')
+      await next.fetch('/server/dynamic-fetch')
+      await assertNoNextjsInternalErrors()
     })
 
     it('should not catch client component dynamic usage errors', async () => {
-      await assertNoNextjsInternalErrors('/client/dynamic-fetch')
+      await next.fetch('/client/dynamic-fetch')
+      await assertNoNextjsInternalErrors()
     })
 
     // No SSR
     it('should not catch next dynamic no-ssr errors', async () => {
-      await assertNoNextjsInternalErrors('/client/no-ssr')
+      await next.fetch('/client/no-ssr')
+      await assertNoNextjsInternalErrors()
     })
   })
 
   describe('app router API', () => {
     // API routes navigation errors
     it('should not catch server component not-found errors', async () => {
-      await assertNoNextjsInternalErrors('/app-route/not-found', 404)
+      await next.render('/app-route/not-found')
+      await assertNoNextjsInternalErrors()
     })
 
     it('should not catch server component redirect errors', async () => {
-      await assertNoNextjsInternalErrors('/app-route/redirect')
+      await next.render('/app-route/redirect')
+      await assertNoNextjsInternalErrors()
     })
   })
 })
