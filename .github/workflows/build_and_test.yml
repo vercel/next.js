@@ -316,7 +316,7 @@ jobs:
   test-new-tests-deploy:
     name: Test new tests when deployed
     needs: ['test-prod', 'test-new-tests-dev', 'test-new-tests-start']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
     strategy:
       fail-fast: false
