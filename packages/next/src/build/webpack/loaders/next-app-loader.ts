@@ -49,6 +49,7 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
+  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -173,9 +174,13 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    buildInfo,
+    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
+    flyingShuttle?: boolean
+    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -348,9 +353,15 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(
-        ([, filePath]) => filePath !== undefined
-      ) as [ValueOf<typeof FILE_TYPES>, string][]
+      const definedFilePaths = filePaths.filter(([, filePath]) => {
+        if (filePath !== undefined) {
+          if (flyingShuttle && buildInfo.route?.relatedModules) {
+            buildInfo.route.relatedModules.push(filePath)
+          }
+          return true
+        }
+        return false
+      }) as [ValueOf<typeof FILE_TYPES>, string][]
 
       // Add default not found error as root not found if not present
       const hasNotFoundFile = definedFilePaths.some(
@@ -524,6 +535,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
+    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -539,6 +551,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     absolutePagePath: createAbsolutePath(appDir, pagePath),
     preferredRegion,
     middlewareConfig,
+    relatedModules: [],
   }
 
   const extensions = pageExtensions.map((extension) => `.${extension}`)
@@ -708,6 +721,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
+    buildInfo,
+    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -757,6 +772,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
+        buildInfo,
+        flyingShuttle,
       })
     }
   }
@@ -786,13 +803,17 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       ? // Evaluate the imported modules early in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(modulePath)};\nconst ${varName} = () => ${varName}_;\n`
+            return `import * as ${varName}_ from ${JSON.stringify(
+              modulePath
+            )};\nconst ${varName} = () => ${varName}_;\n`
           })
           .join('')
       : // Lazily evaluate the imported modules in the generated code
         collectedDeclarations
           .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(modulePath)});\n`
+            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              modulePath
+            )});\n`
           })
           .join('')
 

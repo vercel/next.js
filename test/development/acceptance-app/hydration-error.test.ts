@@ -59,6 +59,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
+          ...
         +  client
         -  server"
       `)
@@ -123,6 +124,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
+          ...
         +  <main className="only">"
       `)
     } else {
@@ -174,6 +176,7 @@ describe('Error overlay for hydration errors', () => {
       expect(pseudoHtml).toEqual(outdent`
         ...
           ...
+            ...
         +  second
         -  <footer className="3">
       `)
@@ -224,6 +227,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toEqual(outdent`
         ...
+          ...
         -  <main className="only">
       `)
     } else {
@@ -274,6 +278,7 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
+          ...
         -  only"
       `)
     } else {
@@ -322,11 +327,20 @@ describe('Error overlay for hydration errors', () => {
     `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    expect(pseudoHtml).toEqual(outdent`
-      ...
-      +  <table>
-      -  test
-    `)
+    if (isTurbopack) {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+          ...
+        +  <table>
+        -  test
+      `)
+    } else {
+      expect(pseudoHtml).toEqual(outdent`
+        ...
+        +  <table>
+        -  test
+    }`)
+    }
 
     await cleanup()
   })
@@ -405,6 +419,7 @@ describe('Error overlay for hydration errors', () => {
       expect(pseudoHtml).toEqual(outdent`
       ...
         ...
+          ...
       +  <main className="second">
       -  <footer className="3">
     `)
@@ -794,6 +809,7 @@ describe('Error overlay for hydration errors', () => {
       // FIXME: Should not fork on Turbopack i.e. match the snapshot in the else-branch
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
+          ...
         +  client
         -  server"
       `)
@@ -818,38 +834,41 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary router={{...}}>
-              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                  <Page params={{}} searchParams={{}}>
-                    <div>
+          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                    <Page params={{}} searchParams={{}}>
                       <div>
                         <div>
                           <div>
-                            <Mismatch>
-                              <p>
-                                <span>
-        +                          client
-        -                          server"
+                            <div>
+                              <Mismatch>
+                                <p>
+                                  <span>
+                                    ...
+        +                            client
+        -                            server"
       `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary router={{...}}>
-              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
-                  <Page params={{}} searchParams={{}}>
-                    <div>
+          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                  <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
+                    <Page params={{}} searchParams={{}}>
                       <div>
                         <div>
                           <div>
-                            <Mismatch>
-                              <p>
-                                <span>
-        +                          client
-        -                          server"
+                            <div>
+                              <Mismatch>
+                                <p>
+                                  <span>
+        +                            client
+        -                            server"
       `)
     }
 
