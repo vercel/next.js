@@ -47,17 +47,35 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
 
-function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+let pendingHotUpdateWebpack = Promise.resolve()
+let resolvePendingHotUpdateWebpack: () => void = () => {}
+function setPendingHotUpdateWebpack() {
+  pendingHotUpdateWebpack = new Promise((resolve) => {
+    resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+export function waitForWebpackRuntimeHotUpdate() {
+  return pendingHotUpdateWebpack
+}
+
+function handleBeforeHotUpdateWebpack(
+  dispatcher: Dispatcher,
+  hasUpdates: boolean
+) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
   }
 }
 
-function onFastRefresh(
+function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
 
   reportHmrLatency(sendMessage, updatedModules)
@@ -281,12 +299,16 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          onBeforeFastRefresh(dispatcher, hasUpdates)
+          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+          handleSuccessfulHotUpdateWebpack(
+            dispatcher,
+            sendMessage,
+            webpackUpdatedModules
+          )
         },
         sendMessage,
         dispatcher
@@ -320,6 +342,9 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      if (!process.env.TURBOPACK) {
+        setPendingHotUpdateWebpack()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
