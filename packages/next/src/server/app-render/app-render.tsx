@@ -34,11 +34,10 @@ import {
   continueDynamicHTMLResume,
   continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
-import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
@@ -88,8 +87,10 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
+  DYNAMIC_DATA,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  type PostponedState,
 } from './static/static-renderer'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
@@ -101,7 +102,6 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -160,54 +160,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   return ['', {}, loaderTree[2]]
 }
 
-/* This method is important for intercepted routes to function:
- * when a route is intercepted, e.g. /blog/[slug], it will be rendered
- * with the layout of the previous page, e.g. /profile/[id]. The problem is
- * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
- * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
- * so we need to read it from the router state.
- */
-function findDynamicParamFromRouterState(
-  flightRouterState: FlightRouterState | undefined,
-  segment: string
-): {
-  param: string
-  value: string | string[] | null
-  treeSegment: Segment
-  type: DynamicParamTypesShort
-} | null {
-  if (!flightRouterState) {
-    return null
-  }
-
-  const treeSegment = flightRouterState[0]
-
-  if (canSegmentBeOverridden(segment, treeSegment)) {
-    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
-      return null
-    }
-
-    return {
-      param: treeSegment[0],
-      value: treeSegment[1],
-      treeSegment: treeSegment,
-      type: treeSegment[2],
-    }
-  }
-
-  for (const parallelRouterState of Object.values(flightRouterState[1])) {
-    const maybeDynamicParam = findDynamicParamFromRouterState(
-      parallelRouterState,
-      segment
-    )
-    if (maybeDynamicParam) {
-      return maybeDynamicParam
-    }
-  }
-
-  return null
-}
-
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
@@ -215,8 +167,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  pagePath: string,
-  flightRouterState: FlightRouterState | undefined
+  pagePath: string
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -230,11 +181,6 @@ function makeGetDynamicParamFromSegment(
     const key = segmentParam.param
 
     let value = params[key]
-
-    // this is a special marker that will be present for interception routes
-    if (value === '__NEXT_EMPTY_PARAM__') {
-      value = undefined
-    }
 
     if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
@@ -281,8 +227,6 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
-
-      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -296,6 +240,17 @@ function makeGetDynamicParamFromSegment(
       type: type,
     }
   }
+}
+
+function NonIndex({ ctx }: { ctx: AppRenderContext }) {
+  const is404Page = ctx.pagePath === '/404'
+  const isInvalidStatusCode =
+    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+
+  if (is404Page || isInvalidStatusCode) {
+    return <meta name="robots" content="noindex" />
+  }
+  return null
 }
 
 // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
@@ -344,8 +299,11 @@ async function generateFlight(
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
-          // Adding requestId as react key to make metadata remount for each render
-          <MetadataTree key={requestId} />
+          <>
+            <NonIndex ctx={ctx} />
+            {/* Adding requestId as react key to make metadata remount for each render */}
+            <MetadataTree key={requestId} />
+          </>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -459,7 +417,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
-  const { seedData, styles } = await createComponentTree({
+  const seedData = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
@@ -493,15 +451,11 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
       couldBeIntercepted={couldBeIntercepted}
       initialHead={
         <>
-          {typeof ctx.res.statusCode === 'number' &&
-            ctx.res.statusCode > 400 && (
-              <meta name="robots" content="noindex" />
-            )}
+          <NonIndex ctx={ctx} />
           {/* Adding requestId as react key to make metadata remount for each render */}
           <MetadataTree key={ctx.requestId} />
         </>
       }
-      initialLayerAssets={styles}
       globalErrorComponent={GlobalError}
       // This is used to provide debug information (when in development mode)
       // about which slots were not filled by page components while creating the component tree.
@@ -532,7 +486,6 @@ async function ReactServerError({
     },
     requestStore: { url },
     requestId,
-    res,
   } = ctx
 
   const [MetadataTree] = createMetadataComponents({
@@ -547,11 +500,9 @@ async function ReactServerError({
 
   const head = (
     <>
+      <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
-      {typeof res.statusCode === 'number' && res.statusCode >= 400 && (
-        <meta name="robots" content="noindex" />
-      )}
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -582,7 +533,6 @@ async function ReactServerError({
       initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
-      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
@@ -644,7 +594,7 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicResponse,
     serverActions,
-    appDirDevErrorLogger,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -659,6 +609,12 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    // reset isr status at start of request
+    const { pathname } = new URL(req.url || '/', 'http://n')
+    renderOpts.setAppIsrStatus?.(pathname, null)
+  }
+
   if (
     // The type check here ensures that `req` is correctly typed, and the
     // environment variable check provides dead code elimination.
@@ -666,6 +622,25 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      const staticGenStore =
+        ComponentMod.staticGenerationAsyncStorage.getStore()
+
+      if (
+        process.env.NODE_ENV === 'development' &&
+        staticGenStore &&
+        renderOpts.setAppIsrStatus
+      ) {
+        // only node can be ISR so we only need to update the status here
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        let { revalidate } = staticGenStore
+        if (typeof revalidate === 'undefined') {
+          revalidate = false
+        }
+        if (revalidate === false || revalidate > 0) {
+          renderOpts.setAppIsrStatus(pathname, revalidate)
+        }
+      }
+
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
@@ -735,11 +710,21 @@ async function renderToHTMLOrFlightImpl(
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
 
+  const errorContext = {
+    routerKind: 'App Router',
+    routePath: pagePath,
+    routeType: 'render',
+  } as const
+
+  const onReactStreamRenderError = onInstrumentationRequestError
+    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
+    : undefined
+
   const serverComponentsErrorHandler = createErrorHandler({
     source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -747,7 +732,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -755,7 +740,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
@@ -810,19 +795,13 @@ async function renderToHTMLOrFlightImpl(
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request
    * is not a client-side navigation request or if the request is a prefetch
-   * request (except when it's a prefetch request for an interception route
-   * which is always dynamic).
+   * request.
    */
   const shouldProvideFlightRouterState =
-    isRSCRequest &&
-    (!isPrefetchRSCRequest ||
-      !isRoutePPREnabled ||
-      // Interception routes currently depend on the flight router state to
-      // extract dynamic params.
-      isInterceptionRouteAppPath(pagePath))
+    isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
 
   const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+    req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
   )
 
   /**
@@ -844,10 +823,7 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    pagePath,
-    // `FlightRouterState` is unconditionally provided here because this method uses it
-    // to extract dynamic params as a fallback if they're not present in the path.
-    parsedFlightRouterState
+    pagePath
   )
 
   // Get the nonce from the incoming request if it has one.
@@ -1010,15 +986,24 @@ async function renderToHTMLOrFlightImpl(
         tracingMetadata: tracingMetadata,
       })
 
+      let postponed: PostponedState | null = null
+
+      // If provided, the postpone state should be parsed as JSON so it can be
+      // provided to React.
+      if (typeof renderOpts.postponed === 'string') {
+        try {
+          postponed = JSON.parse(renderOpts.postponed)
+        } catch {
+          // If we failed to parse the postponed state, we should default to
+          // performing a dynamic data render.
+          postponed = DYNAMIC_DATA
+        }
+      }
+
       const renderer = createStaticRenderer({
         isRoutePPREnabled,
         isStaticGeneration,
-        // If provided, the postpone state should be parsed as JSON so it can be
-        // provided to React.
-        postponed:
-          typeof renderOpts.postponed === 'string'
-            ? JSON.parse(renderOpts.postponed)
-            : null,
+        postponed,
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
@@ -1034,7 +1019,7 @@ async function renderToHTMLOrFlightImpl(
       })
 
       try {
-        let { stream, postponed, resumed } = await renderer.render(children)
+        const result = await renderer.render(children)
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
@@ -1055,10 +1040,10 @@ async function renderToHTMLOrFlightImpl(
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
-            if (postponed != null) {
+            if (result.postponed != null) {
               // This is the Dynamic HTML case.
               metadata.postponed = JSON.stringify(
-                getDynamicHTMLPostponedState(postponed)
+                getDynamicHTMLPostponedState(result.postponed)
               )
             } else {
               // This is the Dynamic Data case
@@ -1071,7 +1056,7 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
-              stream: await continueDynamicPrerender(stream, {
+              stream: await continueDynamicPrerender(result.stream, {
                 getServerInsertedHTML,
               }),
             }
@@ -1085,10 +1070,10 @@ async function renderToHTMLOrFlightImpl(
 
             if (usedDynamicAPIs(prerenderState)) {
               // This is the same logic above just repeated after ensuring the RSC stream itself has completed
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // This is the Dynamic HTML case.
                 metadata.postponed = JSON.stringify(
-                  getDynamicHTMLPostponedState(postponed)
+                  getDynamicHTMLPostponedState(result.postponed)
                 )
               } else {
                 // This is the Dynamic Data case
@@ -1101,14 +1086,14 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
-                stream: await continueDynamicPrerender(stream, {
+                stream: await continueDynamicPrerender(result.stream, {
                   getServerInsertedHTML,
                 }),
               }
             } else {
               // This is the Static case
               // We still have not used any dynamic APIs. At this point we can produce an entirely static prerender response
-              let renderedHTMLStream = stream
+              let renderedHTMLStream = result.stream
 
               if (staticGenerationStore.forceDynamic) {
                 throw new StaticGenBailoutError(
@@ -1116,13 +1101,13 @@ async function renderToHTMLOrFlightImpl(
                 )
               }
 
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
                 // so we can set all the postponed boundaries to client render mode before we store the HTML response
                 const resumeRenderer = createStaticRenderer({
                   isRoutePPREnabled,
                   isStaticGeneration: false,
-                  postponed: getDynamicHTMLPostponedState(postponed),
+                  postponed: getDynamicHTMLPostponedState(result.postponed),
                   streamOptions: {
                     signal: createPostponedAbortSignal(
                       'static prerender resume'
@@ -1157,7 +1142,7 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(stream, resumeStream)
+                renderedHTMLStream = chainStreams(result.stream, resumeStream)
               }
 
               return {
@@ -1179,10 +1164,10 @@ async function renderToHTMLOrFlightImpl(
             nonce,
             formState
           )
-          if (resumed) {
+          if (result.resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueDynamicHTMLResume(stream, {
+              stream: await continueDynamicHTMLResume(result.stream, {
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
@@ -1190,7 +1175,7 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
-              stream: await continueDynamicDataResume(stream, {
+              stream: await continueDynamicDataResume(result.stream, {
                 inlinedDataStream,
               }),
             }
@@ -1200,7 +1185,7 @@ async function renderToHTMLOrFlightImpl(
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: await continueFizzStream(stream, {
+            stream: await continueFizzStream(result.stream, {
               inlinedDataStream: createInlinedDataReadableStream(
                 dataStream,
                 nonce,
@@ -1269,7 +1254,7 @@ async function renderToHTMLOrFlightImpl(
           setHeader('Location', redirectUrl)
         }
 
-        const is404 = res.statusCode === 404
+        const is404 = ctx.res.statusCode === 404
         if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
           res.statusCode = 500
         }

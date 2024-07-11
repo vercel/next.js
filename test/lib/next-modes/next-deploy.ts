@@ -183,7 +183,10 @@ export class NextDeployInstance extends NextInstance {
     // no-op as the deployment is created during setup()
   }
 
-  public async patchFile(filename: string, content: string): Promise<void> {
+  public async patchFile(
+    filename: string,
+    content: string
+  ): Promise<{ newFile: boolean }> {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {

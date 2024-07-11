@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.0.3
+  TURBO_VERSION: 2.0.6-canary.0
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -197,7 +197,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-${{ matrix.group }}'
     secrets: inherit
@@ -213,7 +213,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-turbopack-production-${{ matrix.group }}'
     secrets: inherit
@@ -229,7 +229,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
@@ -291,7 +291,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --dev-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
 
     secrets: inherit
@@ -308,8 +308,25 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --prod-mode --group ${{ matrix.group }}
+      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
+
+    secrets: inherit
+
+  test-new-tests-deploy:
+    name: Test new tests when deployed
+    needs: ['test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/4, 2/4, 3/4, 4/4]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
 
@@ -366,7 +383,7 @@ jobs:
           - 12/12
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-integration-${{ matrix.group }}'
     secrets: inherit
@@ -391,7 +408,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.17.0
+      nodeVersion: 18.18.2
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
@@ -490,6 +507,7 @@ jobs:
         'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
+        'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]
