@@ -45,8 +45,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5(@babel/core@7.22.5)
       '@edge-runtime/jest-environment':
-        specifier: 2.3.10
-        version: 2.3.10
+        specifier: 3.0.0
+        version: 3.0.0
       '@emotion/cache':
         specifier: 11.11.0
         version: 11.11.0
@@ -903,14 +903,14 @@ importers:
         specifier: 2.2.0
         version: 2.2.0
       '@edge-runtime/cookies':
-        specifier: 4.1.1
-        version: 4.1.1
+        specifier: 5.0.0
+        version: 5.0.0
       '@edge-runtime/ponyfill':
-        specifier: 2.4.2
-        version: 2.4.2
+        specifier: 3.0.0
+        version: 3.0.0
       '@edge-runtime/primitives':
-        specifier: 4.1.0
-        version: 4.1.0
+        specifier: 5.0.0
+        version: 5.0.0
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -1167,8 +1167,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.5.4
-        version: 2.5.4
+        specifier: 3.0.0
+        version: 3.0.0
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -3534,54 +3534,42 @@ packages:
     engines: {node: '>=10.0.0'}
     dev: false
 
-  /@edge-runtime/cookies@4.1.1:
-    resolution: {integrity: sha512-ATZLTOpnCUD9ZLNBIXhxOmP/UVx6BfhCjDy9P1YACpD8vrHb5Uw7YlG9RYUl1AMF7Y10TIIN3jhFbUSMiH2J7g==}
+  /@edge-runtime/cookies@5.0.0:
+    resolution: {integrity: sha512-VTTuKiK86cLuLKoLLwkCLN75CrXElmitD6Q+7XAYOMQyDUgsNEF/muorgZWttrvYQBVG+7Pdb8udFqIcLszyLw==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/format@2.2.0:
-    resolution: {integrity: sha512-gPrS6AVw/qJJL0vcxMXv4kFXCU3ZTCD1uuJpwX15YxHV8BgU9OG5v9LrkkXcr96PBT/9epypfNJMhlWADuEziw==}
+  /@edge-runtime/format@3.0.0:
+    resolution: {integrity: sha512-Mpg9LP4D9fxjXa6p3Wm4WnuK7XU5YKfFGvOje56ipdOvNXLj+DmLQSuX9uDbHmQ2KoJh/EYBAsmHqa+z8/wQgQ==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/jest-environment@2.3.10:
-    resolution: {integrity: sha512-wms2hveQV18DnWkiqzpjzIJ4SoD3+dXzuQ3/GAsklQDCGd4ClkREu5zCy0TFha0mR4I9tqi0DB8nD5Ldd/r1Pg==}
+  /@edge-runtime/jest-environment@3.0.0:
+    resolution: {integrity: sha512-tbp7XZwHafHm/vF3jGimAMtqESG9cZzQcEUNFOU7yOrenrx71CRcmhXwea/7TW9wsX1uNKqDx6VgZxrLQQUXyA==}
     engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/vm': 3.2.0
+      '@edge-runtime/vm': 4.0.0
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
     dev: true
 
-  /@edge-runtime/ponyfill@2.4.2:
-    resolution: {integrity: sha512-oN17GjFr69chu6sDLvXxdhg0Qe8EZviGSuqzR9qOiKh4MhFYGdBBcqRNzdmYeAdeRzOW2mM9yil4RftUQ7sUOA==}
+  /@edge-runtime/ponyfill@3.0.0:
+    resolution: {integrity: sha512-JQm5QjLYv/0P6/TwOjFDBfQVNPKNCRsgP8G9sWPwKzcB5bc5mt6AMtQvMloiOm+7PosvBhGB3V448eSNGd3CTQ==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@4.0.2:
-    resolution: {integrity: sha512-zIzzqvq62O0gxKv/PrfFBn2TEJtJYw6YlNyfLsWr16Lxz6bT8CB1IrfWa9vc5zsQPElP/orwZCu+x80+ihWQyQ==}
+  /@edge-runtime/primitives@5.0.0:
+    resolution: {integrity: sha512-6EHOEnYFVvlLALXNacH0TsNR7lyCfy/58PJs8LMX3YtoR40ezGhh7kws1vuQCUf/QdJFNWN31SqESTzKmDkYLA==}
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@4.1.0:
-    resolution: {integrity: sha512-Vw0lbJ2lvRUqc7/soqygUX216Xb8T3WBZ987oywz6aJqRxcwSVWwr9e+Nqo2m9bxobA9mdbWNNoRY6S9eko1EQ==}
-    engines: {node: '>=16'}
-    dev: true
-
-  /@edge-runtime/vm@3.1.4:
-    resolution: {integrity: sha512-k3AdzA2Bfdr7NCezxER0Ch3MPwMbPqEFJqlgJ7xSIvsuuW+8c2rRQpPDMoy8ZSPbnwzg+SK3cyoLGDt4hFhexQ==}
+  /@edge-runtime/vm@4.0.0:
+    resolution: {integrity: sha512-XHaLSnCVa5Z1pyQcbSVNYSUFWi+y4DTyN8QANdfeDl7aVg6PK4UtCb6WRAjVoFSBsYU/0oqbm4rjb27lhkW6bQ==}
     engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/primitives': 4.0.2
-    dev: true
-
-  /@edge-runtime/vm@3.2.0:
-    resolution: {integrity: sha512-0dEVyRLM/lG4gp1R/Ik5bfPl/1wX00xFwd5KcNH602tzBa09oF7pbTKETEhR1GjZ75K6OJnYFu8II2dyMhONMw==}
-    engines: {node: '>=16'}
-    dependencies:
-      '@edge-runtime/primitives': 4.1.0
+      '@edge-runtime/primitives': 5.0.0
     dev: true
 
   /@emotion/babel-plugin@11.11.0:
@@ -4181,7 +4169,7 @@ packages:
       '@jest/types': 29.6.3
       '@types/node': 20.2.5
       ansi-escapes: 4.3.2
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.8.0
       exit: 0.1.2
       graceful-fs: 4.2.11
@@ -4512,7 +4500,7 @@ packages:
       '@types/istanbul-reports': 3.0.1
       '@types/node': 20.2.5
       '@types/yargs': 17.0.10
-      chalk: 4.0.0
+      chalk: 4.1.2
     dev: true
 
   /@jridgewell/gen-mapping@0.3.1:
@@ -11140,17 +11128,17 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.5.4:
-    resolution: {integrity: sha512-s+FSmEuH9iUvrfBeGDrRrj7rGtGAGl0JoztV0OuUpDbxTWb6ZeBawW/CQjvFmcZRmOSm1aryk8rOsm96PNNuFg==}
+  /edge-runtime@3.0.0:
+    resolution: {integrity: sha512-hUE3VOcAYQHBovAkamow3217Rtlf/XUNo+1VpslcP52oqe6UKBohbj8DIdH7WtSVEbxaypaV46mEkC9+gusyNA==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 2.2.0
-      '@edge-runtime/vm': 3.1.4
+      '@edge-runtime/format': 3.0.0
+      '@edge-runtime/ponyfill': 3.0.0
+      '@edge-runtime/vm': 4.0.0
       async-listen: 3.0.1
       mri: 1.2.0
-      picocolors: 1.0.0
-      pretty-bytes: 5.6.0
+      picocolors: 1.0.1
       pretty-ms: 7.0.1
       signal-exit: 4.0.2
       time-span: 4.0.0
@@ -13810,7 +13798,7 @@ packages:
       '@sidvind/better-ajv-errors': 0.6.10(ajv@6.12.6)
       acorn-walk: 8.2.0
       ajv: 6.12.6
-      chalk: 4.0.0
+      chalk: 4.1.2
       deepmerge: 4.2.2
       eslint: 7.24.0
       espree: 7.3.1
@@ -15166,7 +15154,7 @@ packages:
       '@jest/core': 29.7.0
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      chalk: 4.0.0
+      chalk: 4.1.2
       create-jest: 29.7.0(@types/node@20.2.5)
       exit: 0.1.2
       import-local: 3.0.2
@@ -15235,7 +15223,7 @@ packages:
     resolution: {integrity: sha512-LMIgiIrhigmPrs03JHpxUh2yISK3vLFPkAodPeo0+BuF7wA2FoQbkEg1u8gBYBThncu7e1oEDUfIXVuTqLRUjw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     dependencies:
-      chalk: 4.0.0
+      chalk: 4.1.2
       diff-sequences: 29.6.3
       jest-get-type: 29.6.3
       pretty-format: 29.7.0
@@ -15768,7 +15756,7 @@ packages:
     dependencies:
       '@jest/types': 29.6.3
       '@types/node': 20.2.5
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.8.0
       graceful-fs: 4.2.11
       picomatch: 2.3.1
@@ -19194,6 +19182,10 @@ packages:
 
   /picocolors@1.0.0:
     resolution: {integrity: sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==}
+
+  /picocolors@1.0.1:
+    resolution: {integrity: sha512-anP1Z8qwhkbmu7MFP5iTt+wQKXgwzf7zTyGlcdzabySa9vd0Xt392U0rVmz9poOaBj0uHJKyyo9/upk0HrEQew==}
+    dev: true
 
   /picomatch@2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}

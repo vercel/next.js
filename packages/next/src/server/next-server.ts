@@ -1619,16 +1619,20 @@ export default class NextNodeServer extends BaseServer {
       return { finished: true }
     }
 
-    for (let [key, value] of result.response.headers) {
-      if (key.toLowerCase() !== 'set-cookie') continue
+    // Split compound (comma-separated) set-cookie headers
+    if (result.response.headers.has('set-cookie')) {
+      const cookies = result.response.headers
+        .getSetCookie()
+        .flatMap((maybeCompoundCookie) =>
+          splitCookiesString(maybeCompoundCookie)
+        )
 
-      // Clear existing header.
-      result.response.headers.delete(key)
+      // Clear existing header(s)
+      result.response.headers.delete('set-cookie')
 
       // Append each cookie individually.
-      const cookies = splitCookiesString(value)
       for (const cookie of cookies) {
-        result.response.headers.append(key, cookie)
+        result.response.headers.append('set-cookie', cookie)
       }
 
       // Add cookies to request meta.
