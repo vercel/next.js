@@ -182,7 +182,9 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
     isHmrRefresh,
-    serverComponentsHmrCache,
+    serverComponentsHmrCache:
+      serverComponentsHmrCache ||
+      (globalThis as any).__serverComponentsHmrCache,
   }
 
   if (store.afterContext) {

@@ -14,6 +14,7 @@ export async function SharedPage({ runtime }: { runtime: string }) {
 
   return (
     <>
+      <h1>{runtime}</h1>
       <p id="content">foo</p>
       <p id="value">{value}</p>
       <p>

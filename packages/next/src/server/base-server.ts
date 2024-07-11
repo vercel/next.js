@@ -1352,6 +1352,16 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
+      // set server components HMR cache to request meta so it can be passed
+      // down for edge functions
+      if (!getRequestMeta(req, 'serverComponentsHmrCache')) {
+        addRequestMeta(
+          req,
+          'serverComponentsHmrCache',
+          this.getServerComponentsHmrCache()
+        )
+      }
+
       // when invokePath is specified we can short short circuit resolving
       // we only honor this header if we are inside of a render worker to
       // prevent external users coercing the routing path
