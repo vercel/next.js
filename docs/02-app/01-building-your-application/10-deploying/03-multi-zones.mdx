@@ -32,7 +32,7 @@ With Multi-Zones support, you can create three applications that all are served 
 
 Navigating between pages in the same zone will perform soft navigations, a navigation that does not require reloading the page. For example, in this diagram, navigating from `/` to `/products` will be a soft navigation.
 
-Navigating from a page in one zone to a page in another zone, such as from `/` to `/dashboard`, will perform a full page navigation, unloading the resources of the current page and loading the resources of the new page. Pages that are frequently visited together should live in the same zone to avoid these full page navigations.
+Navigating from a page in one zone to a page in another zone, such as from `/` to `/dashboard`, will perform a hard navigation, unloading the resources of the current page and loading the resources of the new page. Pages that are frequently visited together should live in the same zone to avoid hard navigations.
 
 ## How to define a zone
 
