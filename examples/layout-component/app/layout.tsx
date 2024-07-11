@@ -2,7 +2,7 @@ import Sidebar from "./_components/sidebar";
 import styles from "./layout.module.css";
 
 export const metadata = {
-  title: "Layouts Example"
+  title: "Layouts Example",
 };
 
 export default function RootLayout({
@@ -13,9 +13,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <main className={styles.main}>      
-        <Sidebar />
-        {children}
+        <main className={styles.main}>
+          <Sidebar />
+          {children}
         </main>
       </body>
     </html>

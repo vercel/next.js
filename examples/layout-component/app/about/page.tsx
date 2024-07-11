@@ -3,9 +3,9 @@ export default function Home() {
     <section>
       <h2>Layout Example (About)</h2>
       <p>
-        You can define a layout by default exporting a React component from 
-        a layout.js file. The component should accept a children prop that will
-        be populated with a child layout (if it exists) or a page during rendering.
+        You can define a layout by default exporting a React component from a
+        layout.js file. The component should accept a children prop that will be
+        populated with a child layout (if it exists) or a page during rendering.
       </p>
       <p>
         When navigating between pages, we want to persist page state (input
@@ -26,5 +26,4 @@ export default function Home() {
       </p>
     </section>
   );
-};
-
+}
