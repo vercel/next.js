@@ -85,8 +85,8 @@ use self::{
     },
     cjs::CjsAssetReference,
     esm::{
-        export::EsmExport, EsmAssetReference, EsmAsyncAssetReference, EsmExports, EsmModuleItem,
-        ImportMetaBinding, ImportMetaRef, UrlAssetReference,
+        binding::EsmBindings, export::EsmExport, EsmAssetReference, EsmAsyncAssetReference,
+        EsmExports, EsmModuleItem, ImportMetaBinding, ImportMetaRef, UrlAssetReference,
     },
     node::DirAssetReference,
     raw::FileSourceReference,
@@ -164,6 +164,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: Vc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<Vc<OptionSourceMap>>,
+    bindings: Vec<EsmBinding>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -178,6 +179,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: Vc::cell(None),
             successful: false,
             source_map: None,
+            bindings: Vec::new(),
         }
     }
 
@@ -238,6 +240,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             )));
     }
 
+    pub fn add_binding(&mut self, binding: EsmBinding) {
+        self.bindings.push(binding);
+    }
+
     /// Sets the analysis result ES export.
     pub fn set_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
         self.source_map = Some(source_map);
@@ -264,6 +270,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let bindings = EsmBindings::new(take(&mut self.bindings));
+        if !bindings.await?.bindings.is_empty() {
+            self.add_code_gen(bindings);
+        }
+
         let mut references: Vec<_> = self.references.into_iter().collect();
         for r in references.iter_mut() {
             *r = r.resolve().await?;
@@ -1063,7 +1074,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             .add_reference(EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path)))
                     } else {
                         analysis.add_local_reference(*r);
-                        analysis.add_code_gen(EsmBinding::new(*r, export, Vc::cell(ast_path)));
+                        analysis.add_binding(EsmBinding::new(*r, export, Vc::cell(ast_path)));
                     }
                 }
             }
@@ -1966,7 +1977,7 @@ async fn handle_free_var_reference(
             .resolve()
             .await?;
             analysis.add_reference(esm_reference);
-            analysis.add_code_gen(EsmBinding::new(
+            analysis.add_binding(EsmBinding::new(
                 esm_reference,
                 export.clone(),
                 Vc::cell(ast_path.to_vec()),
