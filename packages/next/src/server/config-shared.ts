@@ -496,6 +496,10 @@ export interface ExperimentalConfig {
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
+
+  // TODO: Add documentation
+  // keys of environment variables that are required
+  requiredEnv?: string[]
 }
 
 export type ExportPathMap = {
@@ -611,10 +615,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
   env?: Record<string, string | undefined>
-
-  // TODO: Add documentation
-  // keys of environment variables that are required
-  requiredEnv?: string[]
 
   /**
    * Destination directory (defaults to `.next`)
@@ -882,7 +882,6 @@ export interface NextConfig extends Record<string, any> {
 
 export const defaultConfig: NextConfig = {
   env: {},
-  requiredEnv: [],
   webpack: null,
   eslint: {
     ignoreDuringBuilds: false,
@@ -982,6 +981,7 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
+    requiredEnv: [],
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

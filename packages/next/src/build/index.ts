@@ -724,14 +724,21 @@ export default async function build(
           )
         )
 
-      if (config.requiredEnv.length > 0) {
+      if (
+        Array.isArray(config.experimental.requiredEnv) &&
+        config.experimental.requiredEnv.length > 0
+      ) {
         const envs = { ...config.env, ...combinedEnv }
-        const missingKeys = config.requiredEnv.filter((key) => !(key in envs))
-
-        Log.error(
-          `Missing required environment variables: ${missingKeys.join(', ')}`
+        const missingKeys = config.experimental.requiredEnv.filter(
+          (key) => !(key in envs)
         )
-        process.exit(1)
+
+        if (missingKeys.length > 0) {
+          Log.error(
+            `Missing required environment variables: ${missingKeys.join(', ')}`
+          )
+          process.exit(1)
+        }
       }
 
       loadedConfig = config

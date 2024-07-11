@@ -439,6 +439,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         ]),
         staticGenerationRetryCount: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
+        requiredEnv: z.array(z.string()).optional(),
       })
       .optional(),
     exportPathMap: z
@@ -569,7 +570,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .args()
       .returns(z.promise(z.array(zRedirect)))
       .optional(),
-    requiredEnv: z.array(z.string()).optional(),
     rewrites: z
       .function()
       .args()
