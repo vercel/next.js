@@ -124,6 +124,15 @@ fn register() {
         ::next_api::register();
         next_core::register();
         include!(concat!(env!("OUT_DIR"), "/register.rs"));
+
+        #[cfg(not(debug_assertions))]
+        {
+            // Don't show lengthy backtraces in release builds. Next.js takes care of logging these to .next/fatal.log
+            use std::panic;
+            panic::set_hook(Box::new(|_| {
+                eprintln!("An unexpected Turbopack error occurred. Please report the content of .next/fatal.log to https://github.com/vercel/next.js/issues/new");
+            }));
+        }
     });
 }
 

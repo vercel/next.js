@@ -11,7 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir } from 'fs/promises'
+import { mkdir, appendFile } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -80,7 +80,10 @@ import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
-import { ModuleBuildError } from '../../dev/turbopack-utils'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
@@ -913,6 +916,31 @@ async function startWatcher(opts: SetupOpts) {
     return { finished: false }
   }
 
+  function logError(
+    err: unknown,
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+  ) {
+    if (err instanceof ModuleBuildError) {
+      // Errors that may come from issues from the user's code
+      Log.error(err.message)
+    } else if (err instanceof TurbopackInternalError) {
+      const fatalLogPath = path.join(opts.dir, '.next', 'fatal.log')
+      appendFile(fatalLogPath, `${err.message}\n`)
+
+      Log.error(
+        `An unexpected ${opts.turbo ? 'Turbopack' : 'webpack'} error occurred. Please report this error, logged in ${fatalLogPath}, to the Next.js team at https://github.com/vercel/next.js/issues/new.`
+      )
+    } else if (type === 'warning') {
+      Log.warn(err)
+    } else if (type === 'app-dir') {
+      logAppDirError(err)
+    } else if (type) {
+      Log.error(`${type}:`, err)
+    } else {
+      Log.error(err)
+    }
+  }
+
   async function logErrorWithOriginalStack(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
@@ -1049,23 +1077,6 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
-  }
-}
-
-function logError(
-  err: unknown,
-  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-) {
-  if (err instanceof ModuleBuildError) {
-    Log.error(err.message)
-  } else if (type === 'warning') {
-    Log.warn(err)
-  } else if (type === 'app-dir') {
-    logAppDirError(err)
-  } else if (type) {
-    Log.error(`${type}:`, err)
-  } else {
-    Log.error(err)
   }
 }
 
