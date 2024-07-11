@@ -18,7 +18,7 @@ For example, let's say you have the following set of pages that you would like t
 
 - `/blog/*` for all blog posts
 - `/docs/*` for all documentation
-- The rest of your website
+- `/*` for the rest of your website not covered by other zones
 
 With Multi-Zones support, you can create three applications that all are served on the same domain and look the same to the user, but you can develop and deploy each of the applications independently.
 
@@ -37,9 +37,11 @@ const nextConfig = {
 
 The default application that will handle all paths not sent to a more specific zone does not need a `basePath`.
 
+If the zone serves pages that don't share a common path prefix, such as `/home` and `/blog`, then you can also set [`assetPrefix`](/docs/app/api-reference/next-config-js/assetPrefix). This option will ensure that all Next.js assets, such as JS and CSS, are served under a unique path prefix without adding a path prefix to the routes in your application.
+
 ## How to route requests to the right zone
 
-With the Multi Zones set-up, you need to route the paths to the correct zone since they are served by different applications. You can use any HTTP proxy to do this, but typically one of the Next.js applications is chosen to be the routing application.
+With the Multi Zones set-up, you need to route the paths to the correct zone since they are served by different applications. You can use any HTTP proxy to do this, but one of the Next.js applications can also be used to route requests for the entire domain.
 
 To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone. For example:
 
@@ -58,11 +60,13 @@ async rewrites() {
 }
 ```
 
-> **Good to know**: URL paths should be unique to a zone. For example, two zones trying to serve `/blog` would create a routing conflict. 
+`destination` should be a URL that is served by the zone, including scheme and domain. This should point to the production domain, but it can also be used to route requests to `localhost` in local development.
+
+> **Good to know**: URL paths should be unique to a zone. For example, two zones trying to serve `/blog` would create a routing conflict.
 
 ## Linking between zones
 
-Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/pages/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones. 
+Links to paths in a different zone should use an `a` tag instead of the Next.js [`<Link>`](/docs/pages/api-reference/components/link) component. This is because Next.js will try to prefetch and soft navigate to any relative path in `<Link>` component, which will not work across zones.
 
 ## Sharing code
 
