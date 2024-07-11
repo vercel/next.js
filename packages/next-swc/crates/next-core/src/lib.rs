@@ -57,6 +57,7 @@ pub fn register() {
     turbo::tasks_fetch::register();
     turbopack::browser::register();
     turbopack::node::register();
+    turbopack::postcss::register();
     turbopack::turbopack::register();
     turbopack::image::register();
     turbopack::ecmascript::register();

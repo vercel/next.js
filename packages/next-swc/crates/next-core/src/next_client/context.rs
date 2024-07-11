@@ -23,6 +23,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        postcss::get_postcss_transform_rule,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -52,8 +53,7 @@ use crate::{
             NextSharedRuntimeResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, postcss::get_postcss_transform_rule,
-            relay::get_relay_transform_rule,
+            emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
