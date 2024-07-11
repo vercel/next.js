@@ -468,8 +468,8 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
     assetPrefix: '',
     reactLoadableManifest: {},
     draftMode: undefined,
-    isFastRefresh: false,
-    fastRefreshFetchCache: undefined,
+    isHmrRefresh: false,
+    serverComponentsHmrCache: undefined,
   }
 
   return new Proxy(partialStore as RequestStore, {

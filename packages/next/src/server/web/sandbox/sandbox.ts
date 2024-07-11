@@ -4,7 +4,7 @@ import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
 import { getModuleContext, requestStore } from './context'
 import { requestToBodyStream } from '../../body-streams'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
-import type { FastRefreshFetchCache } from '../../response-cache'
+import type { ServerComponentsHmrCache } from '../../response-cache'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -24,7 +24,7 @@ interface RunnerFnParams {
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
   distDir: string
   incrementalCache?: any
-  fastRefreshFetchCache?: FastRefreshFetchCache
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
 type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
@@ -72,9 +72,9 @@ export async function getRuntimeContext(
     runtime.context.globalThis.__incrementalCache = params.incrementalCache
   }
 
-  if (params.fastRefreshFetchCache) {
-    runtime.context.globalThis.__fastRefreshFetchCache =
-      params.fastRefreshFetchCache
+  if (params.serverComponentsHmrCache) {
+    runtime.context.globalThis.__serverComponentsHmrCache =
+      params.serverComponentsHmrCache
   }
 
   for (const paramPath of params.paths) {

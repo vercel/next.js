@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('fast-refresh-fetch-cache', () => {
+describe('server-components-hmr-cache', () => {
   const { next } = nextTestSetup({ files: __dirname })
   const loggedAfterValueRegexp = /After: (\d\.\d+)/
   let cliOutputLength: number
@@ -81,12 +81,12 @@ describe('fast-refresh-fetch-cache', () => {
       })
     })
 
-    describe('with experimental.fastRefreshFetchCache not enabled', () => {
+    describe('with experimental.serverComponentsHmrCache not enabled', () => {
       beforeAll(async () => {
         await next.patchFile('next.config.js', (content) =>
           content.replace(
-            'fastRefreshFetchCache: true,',
-            '// fastRefreshFetchCache: true,'
+            'serverComponentsHmrCache: true,',
+            '// serverComponentsHmrCache: true,'
           )
         )
       })
@@ -94,8 +94,8 @@ describe('fast-refresh-fetch-cache', () => {
       afterAll(async () => {
         await next.patchFile('next.config.js', (content) =>
           content.replace(
-            '// fastRefreshFetchCache: true,',
-            'fastRefreshFetchCache: true,'
+            '// serverComponentsHmrCache: true,',
+            'serverComponentsHmrCache: true,'
           )
         )
       })

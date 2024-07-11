@@ -8,7 +8,7 @@
       "id": "appDirname",
       "type": "promptString",
       "description": "Enter an app dirname from examples or test/e2e",
-      "default": "examples/hello-world"
+      "default": "test/development/app-dir/server-components-hmr-cache"
     },
     {
       "id": "nextCommand",

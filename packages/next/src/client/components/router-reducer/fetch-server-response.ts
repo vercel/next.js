@@ -24,7 +24,7 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
-  NEXT_FAST_REFRESH_HEADER,
+  NEXT_HMR_REFRESH_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
@@ -35,7 +35,7 @@ export interface FetchServerResponseOptions {
   readonly nextUrl: string | null
   readonly buildId: string
   readonly prefetchKind?: PrefetchKind
-  readonly isFastRefresh?: boolean
+  readonly isHmrRefresh?: boolean
 }
 
 export type FetchServerResponseResult = [
@@ -81,7 +81,7 @@ export async function fetchServerResponse(
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
-    [NEXT_FAST_REFRESH_HEADER]?: '1'
+    [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
   } = {
@@ -103,8 +103,8 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
-  if (process.env.NODE_ENV === 'development' && options.isFastRefresh) {
-    headers[NEXT_FAST_REFRESH_HEADER] = '1'
+  if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
+    headers[NEXT_HMR_REFRESH_HEADER] = '1'
   }
 
   if (nextUrl) {

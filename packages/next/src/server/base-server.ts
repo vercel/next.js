@@ -18,7 +18,7 @@ import type {
 import type {
   CachedAppPageValue,
   CachedPageValue,
-  FastRefreshFetchCache,
+  ServerComponentsHmrCache,
   ResponseCacheBase,
   ResponseCacheEntry,
   ResponseGenerator,
@@ -413,9 +413,11 @@ export default abstract class Server<
     dev: boolean
   }): ResponseCacheBase
 
-  protected getFastRefreshFetchCache(): FastRefreshFetchCache | undefined {
-    return this.nextConfig.experimental.fastRefreshFetchCache
-      ? (globalThis as any).__fastRefreshFetchCache
+  protected getServerComponentsHmrCache():
+    | ServerComponentsHmrCache
+    | undefined {
+    return this.nextConfig.experimental.serverComponentsHmrCache
+      ? (globalThis as any).__serverComponentsHmrCache
       : undefined
   }
 
@@ -2578,7 +2580,7 @@ export default abstract class Server<
               params: opts.params,
               query,
               renderOpts,
-              fastRefreshFetchCache: this.getFastRefreshFetchCache(),
+              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
             })
           }
         } else {

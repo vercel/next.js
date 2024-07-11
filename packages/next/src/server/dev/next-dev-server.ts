@@ -66,7 +66,7 @@ import { generateInterceptionRoutesRewrites } from '../../lib/generate-intercept
 import { buildCustomRoute } from '../../lib/build-custom-route'
 import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
-import type { FastRefreshFetchCache } from '../response-cache'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -108,13 +108,15 @@ export default class DevServer extends Server {
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private originalFetch?: typeof fetch
-  private readonly fastRefreshFetchCache: FastRefreshFetchCache | undefined
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
   private startServerSpan: Span
+  private readonly serverComponentsHmrCache:
+    | ServerComponentsHmrCache
+    | undefined
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -193,16 +195,16 @@ export default class DevServer extends Server {
     this.pagesDir = pagesDir
     this.appDir = appDir
 
-    if (this.nextConfig.experimental.fastRefreshFetchCache) {
-      this.fastRefreshFetchCache = new LRUCache({
+    if (this.nextConfig.experimental.serverComponentsHmrCache) {
+      this.serverComponentsHmrCache = new LRUCache({
         max: this.nextConfig.cacheMaxMemorySize,
         length: (value) => JSON.stringify(value).length,
       })
     }
   }
 
-  protected override getFastRefreshFetchCache() {
-    return this.fastRefreshFetchCache
+  protected override getServerComponentsHmrCache() {
+    return this.serverComponentsHmrCache
   }
 
   protected getRouteMatchers(): RouteMatcherManager {

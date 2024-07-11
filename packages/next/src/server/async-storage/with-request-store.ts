@@ -22,7 +22,7 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FastRefreshFetchCache } from '../response-cache'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -76,8 +76,8 @@ export type RequestContext = {
   }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
-  isFastRefresh?: boolean
-  fastRefreshFetchCache?: FastRefreshFetchCache
+  isHmrRefresh?: boolean
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
@@ -89,8 +89,8 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     url,
     res,
     renderOpts,
-    isFastRefresh,
-    fastRefreshFetchCache,
+    isHmrRefresh,
+    serverComponentsHmrCache,
   }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
@@ -181,8 +181,8 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
-    isFastRefresh,
-    fastRefreshFetchCache,
+    isHmrRefresh,
+    serverComponentsHmrCache,
   }
 
   if (store.afterContext) {

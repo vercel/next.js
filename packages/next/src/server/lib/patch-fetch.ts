@@ -509,7 +509,7 @@ function createPatchedFetcher(
 
         if (
           staticGenerationStore.incrementalCache &&
-          (isCacheableRevalidate || requestStore?.fastRefreshFetchCache)
+          (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
         ) {
           try {
             cacheKey =
@@ -595,7 +595,7 @@ function createPatchedFetcher(
               res.status === 200 &&
               staticGenerationStore.incrementalCache &&
               cacheKey &&
-              (isCacheableRevalidate || requestStore?.fastRefreshFetchCache)
+              (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
             ) {
               const bodyBuffer = Buffer.from(await res.arrayBuffer())
 
@@ -606,12 +606,10 @@ function createPatchedFetcher(
                 url: res.url,
               }
 
-              if (requestStore?.fastRefreshFetchCache) {
-                requestStore.fastRefreshFetchCache.set(
-                  cacheKey,
-                  cachedFetchData
-                )
-              }
+              requestStore?.serverComponentsHmrCache?.set(
+                cacheKey,
+                cachedFetchData
+              )
 
               if (isCacheableRevalidate) {
                 try {
@@ -654,10 +652,11 @@ function createPatchedFetcher(
           let cachedFetchData: CachedFetchData | undefined
 
           if (
-            requestStore?.isFastRefresh &&
-            requestStore.fastRefreshFetchCache
+            requestStore?.isHmrRefresh &&
+            requestStore.serverComponentsHmrCache
           ) {
-            cachedFetchData = requestStore.fastRefreshFetchCache.get(cacheKey)
+            cachedFetchData =
+              requestStore.serverComponentsHmrCache.get(cacheKey)
           }
 
           if (isCacheableRevalidate && !cachedFetchData) {

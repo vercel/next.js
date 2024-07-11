@@ -439,7 +439,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         ]),
         staticGenerationRetryCount: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
-        fastRefreshFetchCache: z.boolean().optional(),
+        serverComponentsHmrCache: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

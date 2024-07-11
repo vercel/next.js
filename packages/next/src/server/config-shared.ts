@@ -498,10 +498,9 @@ export interface ExperimentalConfig {
   staticGenerationRetryCount?: number
 
   /**
-   * Enables caching of fetched responses in server components for Fast Refresh
-   * requests. See https://nextjs.org/docs/architecture/fast-refresh
+   * Allows previously fetched data to be re-used when editing server components.
    */
-  fastRefreshFetchCache?: boolean
+  serverComponentsHmrCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1008,7 +1007,7 @@ export const defaultConfig: NextConfig = {
     reactCompiler: undefined,
     after: false,
     staticGenerationRetryCount: undefined,
-    fastRefreshFetchCache: false,
+    serverComponentsHmrCache: false,
   },
   bundlePagesRouterDependencies: false,
 }

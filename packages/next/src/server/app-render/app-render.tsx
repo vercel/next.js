@@ -39,7 +39,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_FAST_REFRESH_HEADER,
+  NEXT_HMR_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -121,7 +121,7 @@ import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
-import type { FastRefreshFetchCache } from '../response-cache'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -175,7 +175,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
-  readonly isFastRefresh: boolean
+  readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
 }
@@ -187,8 +187,8 @@ function parseRequestHeaders(
   const isPrefetchRequest =
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
-  const isFastRefresh =
-    headers[NEXT_FAST_REFRESH_HEADER.toLowerCase()] !== undefined
+  const isHmrRefresh =
+    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
 
   const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
 
@@ -211,7 +211,7 @@ function parseRequestHeaders(
   return {
     flightRouterState,
     isPrefetchRequest,
-    isFastRefresh,
+    isHmrRefresh,
     isRSCRequest,
     nonce,
   }
@@ -1554,7 +1554,7 @@ export type AppPageRender = (
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
-  fastRefreshFetchCache?: FastRefreshFetchCache
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1563,7 +1563,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   pagePath,
   query,
   renderOpts,
-  fastRefreshFetchCache
+  serverComponentsHmrCache
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1577,11 +1577,18 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
   })
 
-  const { isFastRefresh } = parsedRequestHeaders
+  const { isHmrRefresh } = parsedRequestHeaders
 
   return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
-    { req, url, res, renderOpts, isFastRefresh, fastRefreshFetchCache },
+    {
+      req,
+      url,
+      res,
+      renderOpts,
+      isHmrRefresh,
+      serverComponentsHmrCache,
+    },
     (requestStore) =>
       withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,

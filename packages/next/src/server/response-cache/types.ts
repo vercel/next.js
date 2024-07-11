@@ -23,7 +23,9 @@ export interface ResponseCacheBase {
   ): Promise<ResponseCacheEntry | null>
 }
 
-export interface FastRefreshFetchCache {
+// The server components HMR cache might store other data as well in the future,
+// at which point this should be refactored to a discriminated union type.
+export interface ServerComponentsHmrCache {
   get(key: string): CachedFetchData | undefined
   set(key: string, data: CachedFetchData): void
 }

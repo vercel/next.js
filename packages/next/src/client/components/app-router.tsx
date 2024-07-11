@@ -20,7 +20,7 @@ import type {
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import {
-  ACTION_FAST_REFRESH,
+  ACTION_HMR_REFRESH,
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
@@ -317,15 +317,15 @@ function Router({
           })
         })
       },
-      fastRefresh: () => {
+      hmrRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
-            'fastRefresh can only be used in development mode. Please use refresh instead.'
+            'hmrRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
           startTransition(() => {
             dispatch({
-              type: ACTION_FAST_REFRESH,
+              type: ACTION_HMR_REFRESH,
               origin: window.location.origin,
             })
           })
