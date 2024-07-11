@@ -13,6 +13,7 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  MissingSlotContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
@@ -634,8 +635,14 @@ function Router({
       const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
         require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
       content = (
-        <DevRootNotFoundBoundary missingSlots={initialRSCPayload.m}>
-          {content}
+        <DevRootNotFoundBoundary>
+          {initialRSCPayload.m ? (
+            <MissingSlotContext.Provider value={initialRSCPayload.m}>
+              {content}
+            </MissingSlotContext.Provider>
+          ) : (
+            content
+          )}
         </DevRootNotFoundBoundary>
       )
     }
