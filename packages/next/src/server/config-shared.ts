@@ -340,6 +340,13 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
+   * Enable type-checking and autocompletion for environment variables.
+   *
+   * @default false
+   */
+  typedEnv?: boolean
+
+  /**
    * Runs the compilations for server and edge in parallel instead of in serial.
    * This will make builds faster if there is enough server and edge functions
    * in the application at the cost of more memory.
@@ -680,6 +687,8 @@ export interface NextConfig extends Record<string, any> {
       | 'bottom-left'
       | 'top-right'
       | 'top-left'
+
+    appIsrStatus?: boolean
   }
 
   /**
@@ -897,6 +906,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
+    appIsrStatus: true,
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
   },
@@ -971,6 +981,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    typedEnv: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

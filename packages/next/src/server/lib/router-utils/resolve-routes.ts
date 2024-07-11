@@ -4,7 +4,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
-import type { Header } from '../../../lib/load-custom-routes'
+import type { Header, Rewrite } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
@@ -37,6 +37,10 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
+import { NEXT_ROUTER_STATE_TREE_HEADER } from '../../../client/components/app-router-headers'
+import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
+import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -689,10 +693,34 @@ export function getResolveRoutes(
 
         // handle rewrite
         if (route.destination) {
+          let rewriteParams = params
+
+          try {
+            // An interception rewrite might reference a dynamic param for a route the user
+            // is currently on, which wouldn't be extractable from the matched route params.
+            // This attempts to extract the dynamic params from the provided router state.
+            if (isInterceptionRouteRewrite(route as Rewrite)) {
+              const stateHeader =
+                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+
+              if (stateHeader) {
+                rewriteParams = {
+                  ...getSelectedParams(
+                    parseAndValidateFlightRouterState(stateHeader)
+                  ),
+                  ...params,
+                }
+              }
+            }
+          } catch (err) {
+            // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+            // so we'll just use the params from the route matcher
+          }
+
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
-            params: params,
+            params: rewriteParams,
             query: parsedUrl.query,
           })
 
