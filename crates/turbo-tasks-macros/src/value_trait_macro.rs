@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{
     parse_macro_input, parse_quote, spanned::Spanned, ExprPath, ItemTrait, TraitItem,
     TraitItemMethod,
@@ -13,7 +13,7 @@ use turbo_tasks_macros_shared::{
 use crate::func::{DefinitionContext, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments { debug } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
 
     let item = parse_macro_input!(input as ItemTrait);
 
@@ -59,7 +59,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             .emit();
     }
 
-    let supertraits = supertraits.into_iter().collect::<Vec<_>>();
+    let supertraits = supertraits.iter().collect::<Vec<_>>();
 
     let trait_type_ident = get_trait_type_ident(trait_ident);
     let trait_type_id_ident = get_trait_type_id_ident(trait_ident);
@@ -194,10 +194,18 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    let mut extended_supertraits = Vec::new();
+    if let Some(span) = resolved {
+        extended_supertraits.push(quote_spanned! {
+            span => turbo_tasks::ResolvedValue
+        });
+    }
+    extended_supertraits.push(quote!(::std::marker::Send));
+
     let expanded = quote! {
         #[must_use]
         #(#attrs)*
-        #vis #trait_token #trait_ident: std::marker::Send + #(#supertraits)+*
+        #vis #trait_token #trait_ident: #(#supertraits +)* #(#extended_supertraits +)*
         {
             #(#items)*
         }
@@ -230,7 +238,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         impl<T> #trait_ident for T
         where
-            T: turbo_tasks::Dynamic<Box<dyn #trait_ident>> #(+ #supertraits)*,
+            T: turbo_tasks::Dynamic<Box<dyn #trait_ident>> + #(#supertraits +)* #(#extended_supertraits +)*,
         {
             #(#dynamic_trait_fns)*
         }

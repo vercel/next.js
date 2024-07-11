@@ -12,7 +12,7 @@ pub fn derive_resolved_value(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
     quote! {
-        unsafe impl #impl_generics ::turbo_tasks::ResolvedValue
+        unsafe impl #impl_generics turbo_tasks::ResolvedValue
             for #ident #ty_generics #where_clause {}
         #assertions
     }
@@ -47,7 +47,9 @@ fn assert_fields_impl_resolved_value(generics: &Generics, data: &Data) -> TokenS
             struct DeriveResolvedValueAssertion #impl_generics (#(#field_types),*) #where_clause;
 
             impl #impl_generics DeriveResolvedValueAssertion #ty_generics #where_clause {
-                fn assert_impl_resolved_value<ExpectedResolvedValue: ResolvedValue + ?Sized>() {}
+                fn assert_impl_resolved_value<
+                    ExpectedResolvedValue: turbo_tasks::ResolvedValue + ?Sized
+                >() {}
                 fn field_types() {
                     #(#assertion_calls)*
                 }
