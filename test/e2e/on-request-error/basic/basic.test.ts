@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('on-request-error - basic', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
     },

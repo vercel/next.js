@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('on-request-error - skip-next-internal-error.test', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
     },
