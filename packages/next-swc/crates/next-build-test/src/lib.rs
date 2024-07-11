@@ -11,7 +11,7 @@ use next_api::{
     route::{Endpoint, Route},
 };
 use turbo_tasks::{RcStr, TransientInstance, TurboTasks, Vc};
-use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+use turbopack_binding::turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend};
 
 pub async fn main_inner(
     tt: &TurboTasks<MemoryBackend>,
@@ -28,7 +28,7 @@ pub async fn main_inner(
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
 
-    if matches!(strat, Strategy::Development) {
+    if matches!(strat, Strategy::Development { .. }) {
         options.dev = true;
         options.watch = true;
     } else {
@@ -45,7 +45,7 @@ pub async fn main_inner(
         .run_once(async move { project.entrypoints().await })
         .await?;
 
-    let routes = if let Some(files) = files {
+    let mut routes = if let Some(files) = files {
         tracing::info!("builing only the files:");
         for file in &files {
             tracing::info!("  {}", file);
@@ -61,13 +61,25 @@ pub async fn main_inner(
                 .map(|(name, route)| (name.clone(), route.clone()))
         })) as Box<dyn Iterator<Item = _> + Send + Sync>
     } else {
-        Box::new(shuffle(entrypoints.routes.clone().into_iter()))
+        Box::new(entrypoints.routes.clone().into_iter())
     };
 
-    let count = render_routes(tt, routes, strat, factor, limit).await?;
-    tracing::info!("rendered {} pages", count);
+    if strat.randomized() {
+        routes = Box::new(shuffle(routes))
+    }
 
-    if matches!(strat, Strategy::Development) {
+    let start = Instant::now();
+    let count = render_routes(tt, routes, strat, factor, limit).await?;
+    tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
+
+    if count == 0 {
+        tracing::info!("No pages found, these pages exist:");
+        for (route, _) in entrypoints.routes.iter() {
+            tracing::info!("  {}", route);
+        }
+    }
+
+    if matches!(strat, Strategy::Development { .. }) {
         hmr(tt, project).await?;
     }
 
@@ -81,19 +93,22 @@ pub fn register() {
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum Strategy {
-    Sequential,
+    Sequential { randomized: bool },
     Concurrent,
-    Parallel,
-    Development,
+    Parallel { randomized: bool },
+    Development { randomized: bool },
 }
 
 impl std::fmt::Display for Strategy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Strategy::Sequential => write!(f, "sequential"),
+            Strategy::Sequential { randomized: false } => write!(f, "sequential"),
+            Strategy::Sequential { randomized: true } => write!(f, "sequential-randomized"),
             Strategy::Concurrent => write!(f, "concurrent"),
-            Strategy::Parallel => write!(f, "parallel"),
-            Strategy::Development => write!(f, "development"),
+            Strategy::Parallel { randomized: false } => write!(f, "parallel"),
+            Strategy::Parallel { randomized: true } => write!(f, "parallel-randomized"),
+            Strategy::Development { randomized: false } => write!(f, "development"),
+            Strategy::Development { randomized: true } => write!(f, "development-randomized"),
         }
     }
 }
@@ -103,11 +118,25 @@ impl FromStr for Strategy {
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "sequential" => Ok(Strategy::Sequential),
+            "sequential" => Ok(Strategy::Sequential { randomized: false }),
+            "sequential-randomized" => Ok(Strategy::Sequential { randomized: true }),
             "concurrent" => Ok(Strategy::Concurrent),
-            "parallel" => Ok(Strategy::Parallel),
-            "development" => Ok(Strategy::Development),
+            "parallel" => Ok(Strategy::Parallel { randomized: false }),
+            "parallel-randomized" => Ok(Strategy::Parallel { randomized: true }),
+            "development" => Ok(Strategy::Development { randomized: false }),
+            "development-randomized" => Ok(Strategy::Development { randomized: true }),
             _ => Err(anyhow::anyhow!("invalid strategy")),
+        }
+    }
+}
+
+impl Strategy {
+    pub fn randomized(&self) -> bool {
+        match self {
+            Strategy::Sequential { randomized } => *randomized,
+            Strategy::Concurrent => false,
+            Strategy::Parallel { randomized } => *randomized,
+            Strategy::Development { randomized } => *randomized,
         }
     }
 }
@@ -137,6 +166,8 @@ pub async fn render_routes(
         .map(move |(name, route)| async move {
             tracing::info!("{name}...");
             let start = Instant::now();
+
+            let memory = TurboMalloc::memory_usage();
 
             tt.run_once({
                 let name = name.clone();
@@ -171,7 +202,27 @@ pub async fn render_routes(
             })
             .await?;
 
-            tracing::info!("{name} {:?}", start.elapsed());
+            let duration = start.elapsed();
+            let memory_after = TurboMalloc::memory_usage();
+            if matches!(strategy, Strategy::Sequential { .. }) {
+                if memory_after > memory {
+                    tracing::info!(
+                        "{name} {:?} {} MiB (memory usage increased by {} MiB)",
+                        duration,
+                        memory_after / 1024 / 1024,
+                        (memory_after - memory) / 1024 / 1024
+                    );
+                } else {
+                    tracing::info!(
+                        "{name} {:?} {} MiB (memory usage decreased by {} MiB)",
+                        duration,
+                        memory_after / 1024 / 1024,
+                        (memory - memory_after) / 1024 / 1024
+                    );
+                }
+            } else {
+                tracing::info!("{name} {:?} {} MiB", duration, memory_after / 1024 / 1024);
+            }
 
             Ok::<_, anyhow::Error>(())
         })

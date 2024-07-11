@@ -11,7 +11,7 @@ import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import {
   withRequestStore,
@@ -133,13 +133,13 @@ export async function adapter(
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
-  // Parameters should only be stripped for middleware
+  // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
-    for (const param of FLIGHT_PARAMETERS) {
-      const key = param.toString().toLowerCase()
+    for (const header of FLIGHT_HEADERS) {
+      const key = header.toLowerCase()
       const value = requestHeaders.get(key)
       if (value) {
-        flightHeaders.set(key, requestHeaders.get(key))
+        flightHeaders.set(key, value)
         requestHeaders.delete(key)
       }
     }

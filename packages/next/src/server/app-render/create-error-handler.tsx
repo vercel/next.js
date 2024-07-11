@@ -33,7 +33,7 @@ export function createErrorHandler({
   source,
   dev,
   isNextExport,
-  errorLogger,
+  onReactStreamRenderError,
   digestErrorsMap,
   allCapturedErrors,
   silenceLogger,
@@ -41,7 +41,7 @@ export function createErrorHandler({
   source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
   isNextExport?: boolean
-  errorLogger?: (err: any) => Promise<void>
+  onReactStreamRenderError?: (err: any) => void
   digestErrorsMap: Map<string, Error>
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
@@ -107,19 +107,18 @@ export function createErrorHandler({
         })
       }
 
-      if (!silenceLogger) {
-        if (errorLogger) {
-          errorLogger(err).catch(() => {})
-        } else {
-          // The error logger is currently not provided in the edge runtime.
-          // Use the exposed `__next_log_error__` instead.
-          // This will trace error traces to the original source code.
-          if (typeof __next_log_error__ === 'function') {
-            __next_log_error__(err)
-          } else {
-            console.error(err)
-          }
-        }
+      if (
+        (!silenceLogger &&
+          // Only log the error from SSR rendering errors and flight data render errors,
+          // as RSC renderer error will still be pipped into SSR renderer as well.
+          source === 'html') ||
+        source === 'flightData'
+      ) {
+        // The error logger is currently not provided in the edge runtime.
+        // Use the exposed `__next_log_error__` instead.
+        // This will trace error traces to the original source code.
+
+        onReactStreamRenderError?.(err)
       }
     }
 

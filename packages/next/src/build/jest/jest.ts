@@ -9,6 +9,8 @@ import { loadBindings, lockfilePatchPromise } from '../swc'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
 
+const DEFAULT_TRANSPILED_PACKAGES: string[] = require('../../lib/default-transpiled-packages.json')
+
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
   return conf
@@ -100,7 +102,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
+      const transpiled = (nextConfig?.transpilePackages ?? [])
+        .concat(DEFAULT_TRANSPILED_PACKAGES)
+        .join('|')
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,

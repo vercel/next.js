@@ -61,8 +61,7 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
@@ -98,43 +97,12 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
-// this function performs a depth-first search of the tree to find the selected
-// params
-function getSelectedParams(
-  currentTree: FlightRouterState,
-  params: Params = {}
-): Params {
-  const parallelRoutes = currentTree[1]
-
-  for (const parallelRoute of Object.values(parallelRoutes)) {
-    const segment = parallelRoute[0]
-    const isDynamicParameter = Array.isArray(segment)
-    const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
-    }
-
-    params = getSelectedParams(parallelRoute, params)
-  }
-
-  return params
-}
-
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   buildId: string
   initialHead: ReactNode
-  initialLayerAssets: ReactNode
   assetPrefix: string
   missingSlots: Set<string>
 }
@@ -184,8 +152,6 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     head: null,
-    layerAssets: null,
-    prefetchLayerAssets: null,
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
@@ -292,7 +258,6 @@ function Head({
 function Router({
   buildId,
   initialHead,
-  initialLayerAssets,
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
@@ -310,7 +275,6 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
-        initialLayerAssets,
         couldBeIntercepted,
       }),
     [
@@ -319,7 +283,6 @@ function Router({
       initialCanonicalUrl,
       initialTree,
       initialHead,
-      initialLayerAssets,
       couldBeIntercepted,
     ]
   )
@@ -668,27 +631,9 @@ function Router({
     head = null
   }
 
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument. We only use the prefetched layer assets
-  // if they are available. Otherwise, we use the non-prefetched version.
-  const resolvedPrefetchLayerAssets =
-    cache.prefetchLayerAssets !== null
-      ? cache.prefetchLayerAssets
-      : cache.layerAssets
-
-  const layerAssets = useDeferredValue(
-    cache.layerAssets,
-    // @ts-expect-error The second argument to `useDeferredValue` is only
-    // available in the experimental builds. When its disabled, it will always
-    // return `cache.layerAssets`.
-    resolvedPrefetchLayerAssets
-  )
-
   let content = (
     <RedirectBoundary>
       {head}
-      {layerAssets}
       {cache.rsc}
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
