@@ -25,7 +25,6 @@ import {
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
-  ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
@@ -34,7 +33,6 @@ import type {
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
-  ServerActionDispatcher,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -55,7 +53,6 @@ import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
-import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
@@ -63,6 +60,7 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
 } from '../../server/app-render/types'
+import { useServerActionDispatcher } from '../app-call-server'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -70,32 +68,9 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
   ? null!
   : new Map()
 
-let globalServerActionDispatcher = null as ServerActionDispatcher | null
-
-export function getServerActionDispatcher() {
-  return globalServerActionDispatcher
-}
-
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-export function urlToUrlWithoutFlightMarker(url: string): URL {
-  const urlWithoutFlightParameters = new URL(url, location.origin)
-  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
-  if (process.env.NODE_ENV === 'production') {
-    if (
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
-    ) {
-      const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
-    }
-  }
-  return urlWithoutFlightParameters
-}
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
@@ -146,21 +121,6 @@ export function createEmptyCacheNode(): CacheNode {
     parallelRoutes: new Map(),
     loading: null,
   }
-}
-
-function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
-  const serverActionDispatcher: ServerActionDispatcher = useCallback(
-    (actionPayload) => {
-      startTransition(() => {
-        dispatch({
-          ...actionPayload,
-          type: ACTION_SERVER_ACTION,
-        })
-      })
-    },
-    [dispatch]
-  )
-  globalServerActionDispatcher = serverActionDispatcher
 }
 
 /**
