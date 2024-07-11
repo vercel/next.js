@@ -14,11 +14,16 @@ function NotAllowedRootNotFoundError() {
 
 export function DevRootNotFoundBoundary({
   children,
+  missingSlots,
 }: {
   children: React.ReactNode
+  missingSlots?: Set<string>
 }) {
   return (
-    <NotFoundBoundary notFound={<NotAllowedRootNotFoundError />}>
+    <NotFoundBoundary
+      notFound={<NotAllowedRootNotFoundError />}
+      missingSlots={missingSlots}
+    >
       {children}
     </NotFoundBoundary>
   )

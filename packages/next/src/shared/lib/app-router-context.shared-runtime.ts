@@ -168,5 +168,3 @@ if (process.env.NODE_ENV !== 'production') {
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
 }
-
-export const MissingSlotContext = React.createContext<Set<string>>(new Set())

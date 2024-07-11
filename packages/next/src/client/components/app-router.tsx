@@ -1,6 +1,5 @@
 'use client'
 
-import type { ReactNode } from 'react'
 import React, {
   use,
   useEffect,
@@ -14,13 +13,11 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
-  MissingSlotContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_FAST_REFRESH,
   ACTION_NAVIGATE,
@@ -51,7 +48,6 @@ import {
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
-import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -62,7 +58,10 @@ import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  InitialRSCPayload,
+} from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -95,16 +94,6 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
     }
   }
   return urlWithoutFlightParameters
-}
-
-type AppRouterProps = Omit<
-  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
-  'initialParallelRoutes'
-> & {
-  buildId: string
-  initialHead: ReactNode
-  assetPrefix: string
-  missingSlots?: Set<string>
 }
 
 function isExternalURL(url: URL) {
@@ -256,34 +245,29 @@ function Head({
  * The global router that wraps the application components.
  */
 function Router({
-  buildId,
-  initialHead,
-  initialTree,
-  initialCanonicalUrl,
-  initialSeedData,
-  couldBeIntercepted,
-  assetPrefix,
-  missingSlots,
-}: AppRouterProps) {
+  initialRSCPayload,
+}: {
+  initialRSCPayload: Omit<InitialRSCPayload, 'G'>
+}) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
-        buildId,
-        initialSeedData,
-        initialCanonicalUrl,
-        initialTree,
+        buildId: initialRSCPayload.b,
+        initialSeedData: initialRSCPayload.d,
+        initialCanonicalUrl: initialRSCPayload.c,
+        initialTree: initialRSCPayload.t,
         initialParallelRoutes,
         location: !isServer ? window.location : null,
-        initialHead,
-        couldBeIntercepted,
+        initialHead: initialRSCPayload.h,
+        couldBeIntercepted: initialRSCPayload.i,
       }),
     [
-      buildId,
-      initialSeedData,
-      initialCanonicalUrl,
-      initialTree,
-      initialHead,
-      couldBeIntercepted,
+      initialRSCPayload.b,
+      initialRSCPayload.c,
+      initialRSCPayload.t,
+      initialRSCPayload.d,
+      initialRSCPayload.h,
+      initialRSCPayload.i,
     ]
   )
   const [reducerState, dispatch, sync] =
@@ -609,13 +593,19 @@ function Router({
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      buildId,
+      buildId: initialRSCPayload.b,
       changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [
+    initialRSCPayload.b,
+    changeByServerResponse,
+    tree,
+    focusAndScrollRef,
+    nextUrl,
+  ])
 
   let head
   if (matchingHead !== null) {
@@ -644,21 +634,17 @@ function Router({
       const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
         require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
       content = (
-        <DevRootNotFoundBoundary>
-          {missingSlots ? (
-            <MissingSlotContext.Provider value={missingSlots}>
-              {content}
-            </MissingSlotContext.Provider>
-          ) : (
-            content
-          )}
+        <DevRootNotFoundBoundary missingSlots={initialRSCPayload.m}>
+          {content}
         </DevRootNotFoundBoundary>
       )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
       require('./react-dev-overlay/app/hot-reloader-client').default
 
-    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+    content = (
+      <HotReloader assetPrefix={initialRSCPayload.p}>{content}</HotReloader>
+    )
   }
 
   return (
@@ -687,14 +673,15 @@ function Router({
   )
 }
 
-export default function AppRouter(
-  props: AppRouterProps & { globalErrorComponent: ErrorComponent }
-) {
-  const { globalErrorComponent, ...rest } = props
-
+export default function AppRouter({
+  initialRSCPayload,
+}: {
+  initialRSCPayload: InitialRSCPayload
+}) {
+  const { G: globalErrorComponent, ...rest } = initialRSCPayload
   return (
     <ErrorBoundary errorComponent={globalErrorComponent}>
-      <Router {...rest} />
+      <Router initialRSCPayload={rest} />
     </ErrorBoundary>
   )
 }

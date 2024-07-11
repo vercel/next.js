@@ -8,6 +8,7 @@ import type {
   Segment,
   CacheNodeSeedData,
   PreloadCallbacks,
+  InitialRSCPayload,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -383,29 +384,8 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   }
 }
 
-export type InitialRSCPayload = {
-  /** buildId */
-  b: string
-  /** assetPrefix */
-  p: string
-  /** initialCanonicalUrl */
-  c: string
-  /** couldBeIntercepted */
-  i: boolean
-  /** initialTree */
-  t: FlightRouterState
-  /** initialSeedData */
-  d: CacheNodeSeedData
-  /** initialHead */
-  h: React.ReactNode
-  /** missingSlots */
-  m: Set<string> | undefined
-  /** GlobalError */
-  G: React.ComponentType<any>
-}
-
-// This is the root component that runs in the RSC context
-async function getRootAppProps(
+// This is the data necessary to render <AppRouter /> when no SSR errors are encountered
+async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   asNotFound: boolean
@@ -478,6 +458,7 @@ async function getRootAppProps(
   )
 
   return {
+    // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
@@ -502,8 +483,8 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
   return null
 }
 
-// This is the root component that runs in the RSC context
-async function getRootErrorProps(
+// This is the data necessary to render <AppRouter /> when an error state is triggered
+async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   errorType: 'not-found' | 'redirect' | undefined
@@ -581,7 +562,7 @@ function ReactServerEntrypoint<T>({
   nonce?: string
 }): JSX.Element {
   preinitScripts()
-  const response = React.use(
+  const initialRSCPayload = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
       clientReferenceManifest,
@@ -589,31 +570,7 @@ function ReactServerEntrypoint<T>({
     )
   )
 
-  const {
-    b: buildId,
-    p: assetPrefix,
-    c: initialCanonicalUrl,
-    t: initialTree,
-    d: initialSeedData,
-    h: initialHead,
-    m: missingSlots,
-    G: GlobalError,
-  } = response
-
-  return (
-    <AppRouter
-      buildId={buildId}
-      assetPrefix={assetPrefix}
-      initialCanonicalUrl={initialCanonicalUrl}
-      // This is the router state tree.
-      initialTree={initialTree}
-      // This is the tree of React nodes that are seeded into the cache
-      initialSeedData={initialSeedData}
-      missingSlots={missingSlots}
-      initialHead={initialHead}
-      globalErrorComponent={GlobalError}
-    />
-  )
+  return <AppRouter initialRSCPayload={initialRSCPayload} />
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -981,11 +938,13 @@ async function renderToHTMLOrFlightImpl(
         nonce
       )
 
+      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        await getRootAppProps(tree, ctx, asNotFound),
+        RSCPayload,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
@@ -1329,8 +1288,10 @@ async function renderToHTMLOrFlightImpl(
           nonce
         )
 
+        const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
+
         const errorServerStream = ComponentMod.renderToReadableStream(
-          await getRootErrorProps(tree, ctx, errorType),
+          errorRSCPayload,
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,
