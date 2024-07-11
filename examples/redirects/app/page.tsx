@@ -9,13 +9,13 @@ export default function Home() {
         <h1 className="text-white">Redirects with Next.js</h1>
         <hr className={styles.hr} />
         <p>
-          The links below are{" "}custom
+          The links below are custom
           <Link
             href="https://nextjs.org/docs/api-reference/next.config.js/redirects"
             legacyBehavior
           >
             <>
-               <Code>redirects</Code>
+              <Code>redirects</Code>
             </>
           </Link>{" "}
           that redirect an incoming request path to a different destination

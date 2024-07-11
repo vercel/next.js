@@ -1,11 +1,11 @@
-"use client"
+"use client";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import styles from "../../../styles.module.css";
 import Code from "../../_components/Code";
 
 export default function News({ params }: Params) {
-  const pathname = usePathname()
+  const pathname = usePathname();
   return (
     <div className={styles.container}>
       <div className={styles.card}>
