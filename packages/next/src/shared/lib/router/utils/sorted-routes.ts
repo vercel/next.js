@@ -94,6 +94,12 @@ class UrlNode {
         isOptional = true
       }
 
+      if (segmentName.startsWith('…')) {
+        throw new Error(
+          `Detected a three-dot character ('…') at ('${segmentName}'). Did you mean ('...')?`
+        )
+      }
+
       if (segmentName.startsWith('...')) {
         // Strip `...`, leaving only `something`
         segmentName = segmentName.substring(3)

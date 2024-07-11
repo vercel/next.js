@@ -717,9 +717,11 @@ describe('app dir - basic', () => {
         await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the ID again, and compare, they should be the same.
-        const thirdID = await browser.elementById('render-id').text()
-        expect(thirdID).not.toBe(firstID)
+        await retry(async () => {
+          // Get the ID again, and compare, they should be the same.
+          const thirdID = await browser.elementById('render-id').text()
+          expect(thirdID).not.toBe(firstID)
+        })
 
         // verify that the flag is still set
         expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)
