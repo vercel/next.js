@@ -419,7 +419,8 @@ async fn parse_content(
                 } else {
                     None
                 };
-                let messages = Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
+                let messages =
+                    Some(messages.unwrap_or_else(|| vec![String::clone(&fm.src).into()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
 
