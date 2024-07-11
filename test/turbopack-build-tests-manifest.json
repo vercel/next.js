@@ -92,22 +92,22 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/actions/app-action-export.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir action handling - next export should error when use export output for server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
         "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
         "app-dir action useActionState should support submitting form state with JS",
         "app-dir action useActionState should support submitting form state without JS"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -126,12 +126,11 @@
       "passed": [
         "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative number",
         "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative size",
-        "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid"
-      ],
-      "failed": [
+        "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid",
         "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit",
         "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit when submitting form"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
