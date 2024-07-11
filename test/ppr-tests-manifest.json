@@ -20,18 +20,6 @@
         "app-dir static/dynamic handling should output debug info for static bailouts"
       ]
     },
-    "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts": {
-      "failed": [
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should re-use the full cache for only 30 seconds",
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should renew the 30s cache once the data is revalidated",
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should refetch the full page after 5 mins"
-      ]
-    },
-    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
-      "failed": [
-        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
-      ]
-    },
     "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
       "failed": [
         "headers-static-bailout it provides a helpful link in case static generation bailout is uncaught"
@@ -92,7 +80,9 @@
       "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
-      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts"
+      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts"
     ]
   }
 }

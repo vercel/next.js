@@ -37,7 +37,7 @@ import {
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
@@ -417,7 +417,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
-  const { seedData, styles } = await createComponentTree({
+  const seedData = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
@@ -456,7 +456,6 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
           <MetadataTree key={ctx.requestId} />
         </>
       }
-      initialLayerAssets={styles}
       globalErrorComponent={GlobalError}
       // This is used to provide debug information (when in development mode)
       // about which slots were not filled by page components while creating the component tree.
@@ -534,7 +533,6 @@ async function ReactServerError({
       initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
-      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
@@ -596,7 +594,7 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicResponse,
     serverActions,
-    appDirDevErrorLogger,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -611,6 +609,12 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    // reset isr status at start of request
+    const { pathname } = new URL(req.url || '/', 'http://n')
+    renderOpts.setAppIsrStatus?.(pathname, null)
+  }
+
   if (
     // The type check here ensures that `req` is correctly typed, and the
     // environment variable check provides dead code elimination.
@@ -618,6 +622,25 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      const staticGenStore =
+        ComponentMod.staticGenerationAsyncStorage.getStore()
+
+      if (
+        process.env.NODE_ENV === 'development' &&
+        staticGenStore &&
+        renderOpts.setAppIsrStatus
+      ) {
+        // only node can be ISR so we only need to update the status here
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        let { revalidate } = staticGenStore
+        if (typeof revalidate === 'undefined') {
+          revalidate = false
+        }
+        if (revalidate === false || revalidate > 0) {
+          renderOpts.setAppIsrStatus(pathname, revalidate)
+        }
+      }
+
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
@@ -687,11 +710,21 @@ async function renderToHTMLOrFlightImpl(
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
 
+  const errorContext = {
+    routerKind: 'App Router',
+    routePath: pagePath,
+    routeType: 'render',
+  } as const
+
+  const onReactStreamRenderError = onInstrumentationRequestError
+    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
+    : undefined
+
   const serverComponentsErrorHandler = createErrorHandler({
     source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -699,7 +732,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -707,7 +740,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
@@ -768,7 +801,7 @@ async function renderToHTMLOrFlightImpl(
     isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
 
   const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+    req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
   )
 
   /**

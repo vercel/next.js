@@ -7,7 +7,7 @@ import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -25,8 +25,8 @@ import type { RequestLifecycleOpts } from '../base-server'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
-  for (const param of FLIGHT_PARAMETERS) {
-    cleaned.delete(param.toString().toLowerCase())
+  for (const header of FLIGHT_HEADERS) {
+    cleaned.delete(header.toLowerCase())
   }
 
   return HeadersAdapter.seal(cleaned)
