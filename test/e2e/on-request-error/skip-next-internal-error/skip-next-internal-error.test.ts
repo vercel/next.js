@@ -1,13 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('on-request-error - skip-next-internal-error.test', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   async function assertNoNextjsInternalErrors(
     pathname: string,
