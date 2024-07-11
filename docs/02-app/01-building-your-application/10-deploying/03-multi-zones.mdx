@@ -17,12 +17,22 @@ Multi-Zones are an approach to micro-frontends that separate a large application
 For example, let's say you have the following set of pages that you would like to split up:
 
 - `/blog/*` for all blog posts
-- `/docs/*` for all documentation
+- `/dashboard/*` for all pages when the user is logged-in to the dashboard
 - `/*` for the rest of your website not covered by other zones
 
 With Multi-Zones support, you can create three applications that all are served on the same domain and look the same to the user, but you can develop and deploy each of the applications independently.
 
-> **Good to know**: Navigating from a page in one zone to a page in another will perform a full page navigation, unloading the resources of the current page and loading the resources of the new page. Pages that are frequently visited together should usually live in the same zone.
+<Image
+  alt="Three zones: A, B, C. Showing a hard navigation between routes from different zones, and soft navigations between routes within the same zone."
+  srcLight="/docs/light/multi-zones.png"
+  srcDark="/docs/dark/multi-zones.png"
+  width="1600"
+  height="750"
+/>
+
+Navigating between pages in the same zone will perform soft navigations, a navigation that does not require reloading the page. For example, in this diagram, navigating from `/` to `/products` will be a soft navigation.
+
+Navigating from a page in one zone to a page in another zone, such as from `/` to `/dashboard`, will perform a full page navigation, unloading the resources of the current page and loading the resources of the new page. Pages that are frequently visited together should live in the same zone to avoid these full page navigations.
 
 ## How to define a zone
 
