@@ -3,7 +3,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "jest --watch",
+    "test-once": "jest --detectOpenHandles"
   },
   "dependencies": {
     "@types/node": "^20.12.7",
@@ -15,5 +17,10 @@
     "react-dom": "^18.2.0",
     "swr": "^2.2.5",
     "typescript": "^5.4.5"
+  },
+  "devDependencies": {
+    "@shelf/jest-mongodb": "^4.3.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.2"
   }
 }
