@@ -1,8 +1,8 @@
 use std::sync::OnceLock;
 
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
-use quote::{quote, ToTokens};
+use proc_macro2::{Ident, Span};
+use quote::{quote, quote_spanned, ToTokens};
 use regex::Regex;
 use syn::{
     parse::{Parse, ParseStream},
@@ -110,6 +110,10 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
+    /// Should we `#[derive(turbo_tasks::ResolvedValue)]`?
+    ///
+    /// `Some(...)` if enabled, containing the span that enabled the derive.
+    resolved: Option<Span>,
 }
 
 impl Parse for ValueArguments {
@@ -119,6 +123,7 @@ impl Parse for ValueArguments {
             into_mode: IntoMode::None,
             cell_mode: CellMode::Shared,
             manual_eq: false,
+            resolved: None,
             transparent: false,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
@@ -174,6 +179,9 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
+                ("resolved", Meta::Path(path)) => {
+                    result.resolved = Some(path.span());
+                }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
@@ -199,6 +207,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
+        resolved,
     } = parse_macro_input!(args as ValueArguments);
 
     let mut inner_type = None;
@@ -328,7 +337,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
         SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(turbo_tasks::trace::TraceRawVcs, serde::Serialize, serde::Deserialize)]
+            #[derive(
+                turbo_tasks::trace::TraceRawVcs,
+                turbo_tasks::macro_helpers::serde::Serialize,
+                turbo_tasks::macro_helpers::serde::Deserialize,
+            )]
+            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
         },
     };
     let debug_derive = if inner_type.is_some() {
@@ -338,7 +352,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {
-            #[derive(turbo_tasks::debug::ValueDebugFormat, turbo_tasks::debug::internal::ValueDebug)]
+            #[derive(
+                turbo_tasks::debug::ValueDebugFormat,
+                turbo_tasks::debug::internal::ValueDebug,
+            )]
         }
     };
     let eq_derive = if manual_eq {
@@ -347,6 +364,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote!(
             #[derive(PartialEq, Eq)]
         )
+    };
+    let resolved_derive = if let Some(span) = resolved {
+        quote_spanned!(
+            span =>
+            #[derive(turbo_tasks::ResolvedValue)]
+        )
+    } else {
+        quote!()
     };
 
     let new_value_type = match serialization_mode {
@@ -406,8 +431,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #derive
-        #eq_derive
         #debug_derive
+        #eq_derive
+        #resolved_derive
         #item
 
         impl #ident {

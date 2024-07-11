@@ -119,6 +119,13 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 ///
 /// Example: `#[turbo_tasks::value(transparent)]`
 ///
+/// ### `resolved`
+///
+/// A shorthand syntax for
+/// [`#[derive(turbo_tasks::ResolvedValue)]`][macro@turbo_tasks::ResolvedValue]
+///
+/// Example: `#[turbo_tasks::value(resolved)]`
+///
 /// TODO: add more documentation: presets, traits
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
@@ -127,6 +134,24 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
 }
 
+/// Allows this trait to be used as part of a trait object inside of a value
+/// cell, in the form of `Vc<dyn MyTrait>`.
+///
+/// ## Arguments
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+///
+/// ### 'no_debug`
+///
+/// Disables the automatic implementation of [`turbo_tasks::debug::ValueDebug`].
+///
+/// Example: `#[turbo_tasks::value_trait(no_debug)]`
+///
+/// ### 'resolved`
+///
+/// Adds [`turbo_tasks::ResolvedValue`] as a supertrait of this trait.
+///
+/// Example: `#[turbo_tasks::value_trait(resolved)]`
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
