@@ -348,7 +348,8 @@ describe('Error overlay - RSC build errors', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
-        Error:   x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
+        Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
+          x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
           | Component. Add the "use client" directive the top of the file to resolve this issue.
           | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
           | 
