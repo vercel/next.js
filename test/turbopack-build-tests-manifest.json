@@ -158,6 +158,7 @@
         "app-dir action handling fetch actions should handle revalidateTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling fetch actions should revalidate when cookies.set is called",
         "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
         "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
@@ -207,7 +208,6 @@
         "app-dir action handling should work with interception routes"
       ],
       "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
@@ -5620,6 +5620,25 @@
         "og-api should work in pages/api"
       ],
       "failed": ["og-api should copy files correctly"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/on-request-error/basic/basic.test.ts": {
+      "passed": [
+        "on-request-error - basic app router should catch app routes error in edge runtime",
+        "on-request-error - basic app router should catch app routes error in node runtime",
+        "on-request-error - basic app router should catch client component page error in edge runtime",
+        "on-request-error - basic app router should catch client component page error in node runtime",
+        "on-request-error - basic app router should catch server component page error in edge runtime",
+        "on-request-error - basic app router should catch server component page error in node runtime",
+        "on-request-error - basic middleware should catch middleware error",
+        "on-request-error - basic pages router should catch pages router api error in edge runtime",
+        "on-request-error - basic pages router should catch pages router api error in node runtime",
+        "on-request-error - basic pages router should catch pages router page error in edge runtime",
+        "on-request-error - basic pages router should catch pages router page error in node runtime"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13750,6 +13769,7 @@
         "Prefetching Links in viewport production mode should inject a <script> tag when onMouseEnter (even with invalid ref)",
         "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled",
         "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled and fetch data",
+        "Prefetching Links in viewport production mode should not duplicate prefetches",
         "Prefetching Links in viewport production mode should not have unhandledRejection when failing to prefetch on link",
         "Prefetching Links in viewport production mode should not prefetch when prefetch is explicitly set to false",
         "Prefetching Links in viewport production mode should not prefetch with bot UA",
@@ -13764,11 +13784,10 @@
         "Prefetching Links in viewport production mode should prefetch with link in viewport when href changes",
         "Prefetching Links in viewport production mode should prefetch with non-bot UA"
       ],
-      "failed": [
-        "Prefetching Links in viewport production mode should not duplicate prefetches",
+      "failed": [],
+      "pending": [
         "Prefetching Links in viewport production mode should not prefetch already loaded scripts"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15684,12 +15703,11 @@
     "test/production/error-hydration/error-hydration.test.ts": {
       "passed": [
         "error-hydration invokes _error's getInitialProps for client-side errors",
+        "error-hydration should log an message for client-side errors, including the full, custom error",
         "error-hydration should log no error messages for server-side errors",
         "error-hydration should not invoke the error page getInitialProps client-side for server-side errors"
       ],
-      "failed": [
-        "error-hydration should log an message for client-side errors, including the full, custom error"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
