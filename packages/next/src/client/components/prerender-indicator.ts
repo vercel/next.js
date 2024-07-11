@@ -116,7 +116,7 @@ function createContainer(prefix: string) {
     <button id="${prefix}close" title="Hide indicator for session">
       <span>×</span>
     </button>
-    <a href="https://nextjs.org/docs/api-reference/next.config.js/devIndicators" target="_blank" rel="noreferrer">
+    <a href="https://nextjs.org/docs/app/api-reference/next-config-js/devIndicators" target="_blank" rel="noreferrer">
       <div id="${prefix}icon-wrapper">
           <svg width="15" height="20" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M36 3L30.74 41H8L36 3Z" fill="black"/>

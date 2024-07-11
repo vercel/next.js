@@ -404,10 +404,6 @@ export default class NextWebServer extends BaseServer<
     return new Set<string>()
   }
 
-  protected async getPrefetchRsc(): Promise<string | null> {
-    return null
-  }
-
   protected getinterceptionRoutePatterns(): RegExp[] {
     return (
       this.serverOptions.webServerConfig.interceptionRouteRewrites?.map(
