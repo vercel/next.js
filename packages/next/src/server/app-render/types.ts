@@ -200,6 +200,8 @@ export interface RenderOptsPartial {
    * the response.
    */
   reactMaxHeadersLength: number | undefined
+
+  isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
