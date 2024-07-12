@@ -27,6 +27,7 @@ use turbopack_binding::{
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
         nodejs::NodeJsChunkingContext,
+        postcss::get_postcss_transform_rule,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -411,8 +412,6 @@ pub async fn get_server_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let mut conditions = vec![mode.await?.condition().into()];
     conditions.extend(
@@ -468,6 +467,7 @@ pub async fn get_server_module_options_context(
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
+        get_postcss_transform_rule(execution_context, postcss_transform_options.cell()).await?,
     ]
     .into_iter()
     .flatten()
@@ -489,6 +489,12 @@ pub async fn get_server_module_options_context(
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
+
+    foreign_next_server_rules.push(
+        get_postcss_transform_rule(execution_context, postcss_foreign_transform_options.cell())
+            .await?
+            .unwrap(),
+    );
 
     let ty = ty.into_value();
     let module_options_context = match ty {
@@ -532,8 +538,6 @@ pub async fn get_server_module_options_context(
                 enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
-                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
 
@@ -547,7 +551,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -587,8 +590,6 @@ pub async fn get_server_module_options_context(
                 enable_typeof_window_inlining: None,
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
-                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -600,7 +601,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -655,8 +655,6 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: foreign_next_server_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
-                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -667,7 +665,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -718,8 +715,6 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
-                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -730,7 +725,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -798,8 +792,6 @@ pub async fn get_server_module_options_context(
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
-                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -810,7 +802,6 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),

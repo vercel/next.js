@@ -45,6 +45,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_hash",
   "__turbopack",
   "__turbopack_nodejs",
+  "__turbopack_postcss",
   "__turbopack_core",
   "__turbopack_browser",
   "__turbopack_ecmascript",

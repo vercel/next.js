@@ -23,6 +23,7 @@ use turbopack_binding::{
             execution_context::ExecutionContext,
             transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
         },
+        postcss::get_postcss_transform_rule,
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -239,23 +240,6 @@ pub async fn get_client_module_options_context(
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
-    let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
-    let additional_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config, project_path).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-
-    next_client_rules.extend(additional_rules);
-
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
@@ -267,15 +251,39 @@ pub async fn get_client_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
+
+    let mut next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
+    let mut foreign_next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
+    let additional_rules: Vec<ModuleRule> = vec![
+        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
+        get_relay_transform_rule(next_config, project_path).await?,
+        get_emotion_transform_rule(next_config).await?,
+        get_styled_components_transform_rule(next_config).await?,
+        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_postcss_transform_rule(execution_context, postcss_transform_options.cell()).await?,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    let additional_foreign_rules: Vec<ModuleRule> = vec![
+        get_postcss_transform_rule(execution_context, postcss_foreign_transform_options.cell())
+            .await?,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+
+    next_client_rules.extend(additional_rules);
+    foreign_next_client_rules.extend(additional_foreign_rules);
 
     let module_options_context = ModuleOptionsContext {
         enable_typeof_window_inlining: Some(TypeofWindow::Object),
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-        enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
@@ -284,9 +292,7 @@ pub async fn get_client_module_options_context(
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_typeof_window_inlining: None,
         enable_webpack_loaders: foreign_enable_webpack_loaders,
-        enable_postcss_transform: enable_foreign_postcss_transform,
         custom_rules: foreign_next_client_rules,
-        // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };
 
