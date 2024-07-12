@@ -17308,19 +17308,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/with-router/test/index.test.js": {
-    "passed": [
-      "withRouter SSR should show an error when trying to use router methods during SSR"
-    ],
-    "failed": [],
-    "pending": [
-      "withRouter production mode allows observation of navigation events using top level Router",
-      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
-      "withRouter production mode allows observation of navigation events using withRouter"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/worker-webpack5/test/index.test.js": {
     "passed": [],
     "failed": [],
