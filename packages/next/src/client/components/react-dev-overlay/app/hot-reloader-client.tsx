@@ -430,6 +430,7 @@ function processMessage(
         router.fastRefresh()
         dispatcher.onRefresh()
       })
+      reportHmrLatency(sendMessage, [])
 
       if (process.env.__NEXT_TEST_MODE) {
         if (self.__NEXT_HMR_CB) {
