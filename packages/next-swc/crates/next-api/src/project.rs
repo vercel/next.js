@@ -568,8 +568,8 @@ impl Project {
                 self.project_path(),
                 node_root,
                 node_root,
-                node_root.join("chunks".into()),
-                node_root.join("assets".into()),
+                node_root.join("build/chunks".into()),
+                node_root.join("build/assets".into()),
                 node_build_environment(),
                 next_mode.runtime_type(),
             )

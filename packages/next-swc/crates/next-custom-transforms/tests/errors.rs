@@ -15,7 +15,7 @@ use turbopack_binding::swc::{
     core::{
         common::{chain, FileName, Mark},
         ecma::{
-            parser::{EsConfig, Syntax},
+            parser::{EsSyntax, Syntax},
             transforms::{
                 base::resolver,
                 testing::{test_fixture, FixtureTestConfig},
@@ -26,7 +26,7 @@ use turbopack_binding::swc::{
 };
 
 fn syntax() -> Syntax {
-    Syntax::Es(EsConfig {
+    Syntax::Es(EsSyntax {
         jsx: true,
         ..Default::default()
     })
