@@ -10,7 +10,7 @@ export function middleware(request) {
     throw new Error('React.useState should not be defined in server layer')
   }
 
-  if (request.nextUrl.pathname === '/react-version') {
+  if (request.nextUrl.pathname === '/middleware') {
     return Response.json({
       React: Object.keys(ReactObject),
     })

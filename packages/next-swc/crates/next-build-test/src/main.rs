@@ -1,10 +1,22 @@
-use std::{convert::Infallible, str::FromStr};
+use std::{convert::Infallible, str::FromStr, time::Instant};
 
 use next_api::project::{DefineEnv, ProjectOptions};
 use next_build_test::{main_inner, Strategy};
+use next_core::tracing_presets::{
+    TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
+    TRACING_NEXT_TURBO_TASKS_TARGETS,
+};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::TurboTasks;
-use turbo_tasks_malloc::TurboMalloc;
-use turbopack_binding::turbo::tasks_memory::MemoryBackend;
+use turbopack_binding::{
+    turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend},
+    turbopack::trace_utils::{
+        exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+    },
+};
+
+#[global_allocator]
+static ALLOC: TurboMalloc = TurboMalloc;
 
 enum Cmd {
     Run,
@@ -23,8 +35,6 @@ impl FromStr for Cmd {
 }
 
 fn main() {
-    tracing_subscriber::fmt::init();
-
     let cmd = std::env::args()
         .nth(1)
         .map(|s| Cmd::from_str(&s))
@@ -38,7 +48,7 @@ fn main() {
                 .map(|s| Strategy::from_str(&s))
                 .transpose()
                 .unwrap()
-                .unwrap_or(Strategy::Sequential);
+                .unwrap_or(Strategy::Sequential { randomized: true });
 
             let mut factor = std::env::args()
                 .nth(3)
@@ -54,7 +64,10 @@ fn main() {
                 .nth(5)
                 .map(|f| f.split(',').map(ToOwned::to_owned).collect());
 
-            if strat == Strategy::Sequential {
+            if matches!(
+                strat,
+                Strategy::Sequential { .. } | Strategy::Development { .. }
+            ) {
                 factor = 1;
             }
 
@@ -67,10 +80,54 @@ fn main() {
                 .build()
                 .unwrap()
                 .block_on(async {
+                    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+
+                    let _guard = if let Some(mut trace) = trace {
+                        // Trace presets
+                        match trace.as_str() {
+                            "overview" | "1" => {
+                                trace = TRACING_NEXT_OVERVIEW_TARGETS.join(",");
+                            }
+                            "next" => {
+                                trace = TRACING_NEXT_TARGETS.join(",");
+                            }
+                            "turbopack" => {
+                                trace = TRACING_NEXT_TURBOPACK_TARGETS.join(",");
+                            }
+                            "turbo-tasks" => {
+                                trace = TRACING_NEXT_TURBO_TASKS_TARGETS.join(",");
+                            }
+                            _ => {}
+                        }
+
+                        let subscriber = Registry::default();
+
+                        let subscriber =
+                            subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+                        let trace_file = "trace.log";
+                        let trace_writer = std::fs::File::create(trace_file).unwrap();
+                        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+                        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+                        let guard = ExitGuard::new(guard).unwrap();
+
+                        subscriber.init();
+
+                        Some(guard)
+                    } else {
+                        tracing_subscriber::fmt::init();
+
+                        None
+                    };
+
                     let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
-                    let x = tt.run_once(main_inner(strat, factor, limit, files)).await;
-                    tracing::debug!("done");
-                    x
+                    let result = main_inner(&tt, strat, factor, limit, files).await;
+                    let memory = TurboMalloc::memory_usage();
+                    tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
+                    let start = Instant::now();
+                    drop(tt);
+                    tracing::info!("drop {:?}", start.elapsed());
+                    result
                 })
                 .unwrap();
         }
@@ -81,24 +138,24 @@ fn main() {
             let canonical_path = std::fs::canonicalize(absolute_dir).unwrap();
 
             let options = ProjectOptions {
-                build_id: "test".to_owned(),
+                build_id: "test".into(),
                 define_env: DefineEnv {
                     client: vec![],
                     edge: vec![],
                     nodejs: vec![],
                 },
                 dev: true,
-                encryption_key: "deadbeef".to_string(),
+                encryption_key: "deadbeef".into(),
                 env: vec![],
-                js_config: include_str!("../jsConfig.json").to_string(),
-                next_config: include_str!("../nextConfig.json").to_string(),
+                js_config: include_str!("../jsConfig.json").into(),
+                next_config: include_str!("../nextConfig.json").into(),
                 preview_props: next_api::project::DraftModeOptions {
-                    preview_mode_encryption_key: "deadbeef".to_string(),
-                    preview_mode_id: "test".to_string(),
-                    preview_mode_signing_key: "deadbeef".to_string(),
+                    preview_mode_encryption_key: "deadbeef".into(),
+                    preview_mode_id: "test".into(),
+                    preview_mode_signing_key: "deadbeef".into(),
                 },
-                project_path: canonical_path.to_string_lossy().to_string(),
-                root_path: "/".to_string(),
+                project_path: canonical_path.to_string_lossy().into(),
+                root_path: "/".into(),
                 watch: false,
             };
 

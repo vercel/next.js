@@ -61,8 +61,7 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
@@ -96,36 +95,6 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
     }
   }
   return urlWithoutFlightParameters
-}
-
-// this function performs a depth-first search of the tree to find the selected
-// params
-function getSelectedParams(
-  currentTree: FlightRouterState,
-  params: Params = {}
-): Params {
-  const parallelRoutes = currentTree[1]
-
-  for (const parallelRoute of Object.values(parallelRoutes)) {
-    const segment = parallelRoute[0]
-    const isDynamicParameter = Array.isArray(segment)
-    const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
-    }
-
-    params = getSelectedParams(parallelRoute, params)
-  }
-
-  return params
 }
 
 type AppRouterProps = Omit<
@@ -185,7 +154,6 @@ export function createEmptyCacheNode(): CacheNode {
     head: null,
     prefetchHead: null,
     parallelRoutes: new Map(),
-    lazyDataResolved: false,
     loading: null,
   }
 }
@@ -356,14 +324,24 @@ function Router({
       forward: () => window.history.forward(),
       prefetch: (href, options) => {
         // Don't prefetch for bots as they don't navigate.
-        // Don't prefetch during development (improves compilation performance)
-        if (
-          isBot(window.navigator.userAgent) ||
-          process.env.NODE_ENV === 'development'
-        ) {
+        if (isBot(window.navigator.userAgent)) {
           return
         }
-        const url = new URL(addBasePath(href), window.location.href)
+
+        let url: URL
+        try {
+          url = new URL(addBasePath(href), window.location.href)
+        } catch (_) {
+          throw new Error(
+            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+          )
+        }
+
+        // Don't prefetch during development (improves compilation performance)
+        if (process.env.NODE_ENV === 'development') {
+          return
+        }
+
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return
@@ -685,6 +663,7 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
+      <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
@@ -714,4 +693,49 @@ export default function AppRouter(
       <Router {...rest} />
     </ErrorBoundary>
   )
+}
+
+const runtimeStyles = new Set<string>()
+let runtimeStyleChanged = new Set<() => void>()
+
+globalThis._N_E_STYLE_LOAD = function (href: string) {
+  let len = runtimeStyles.size
+  runtimeStyles.add(href)
+  if (runtimeStyles.size !== len) {
+    runtimeStyleChanged.forEach((cb) => cb())
+  }
+  // TODO figure out how to get a promise here
+  // But maybe it's not necessary as react would block rendering until it's loaded
+  return Promise.resolve()
+}
+
+function RuntimeStyles() {
+  const [, forceUpdate] = React.useState(0)
+  const renderedStylesSize = runtimeStyles.size
+  useEffect(() => {
+    const changed = () => forceUpdate((c) => c + 1)
+    runtimeStyleChanged.add(changed)
+    if (renderedStylesSize !== runtimeStyles.size) {
+      changed()
+    }
+    return () => {
+      runtimeStyleChanged.delete(changed)
+    }
+  }, [renderedStylesSize, forceUpdate])
+
+  const dplId = process.env.NEXT_DEPLOYMENT_ID
+    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
+    : ''
+  return [...runtimeStyles].map((href, i) => (
+    <link
+      key={i}
+      rel="stylesheet"
+      href={`${href}${dplId}`}
+      // @ts-ignore
+      precedence="next"
+      // TODO figure out crossOrigin and nonce
+      // crossOrigin={TODO}
+      // nonce={TODO}
+    />
+  ))
 }

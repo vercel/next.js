@@ -132,7 +132,7 @@ const API_DOCS: Record<
   },
   metadata: {
     description: 'Next.js Metadata configurations',
-    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/metadata',
+    link: 'https://nextjs.org/docs/app/building-your-application/optimizing/metadata',
   },
   maxDuration: {
     description:

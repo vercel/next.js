@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -22,7 +22,7 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
@@ -39,9 +39,9 @@ use turbopack_binding::{
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
-            exit::ExitGuard,
+            exit::{ExitHandler, ExitReceiver},
             raw_trace::RawTraceLayer,
-            trace_writer::{TraceWriter, TraceWriterGuard},
+            trace_writer::TraceWriter,
         },
     },
 };
@@ -77,9 +77,9 @@ pub struct NapiDraftModeOptions {
 impl From<NapiDraftModeOptions> for DraftModeOptions {
     fn from(val: NapiDraftModeOptions) -> Self {
         DraftModeOptions {
-            preview_mode_id: val.preview_mode_id,
-            preview_mode_encryption_key: val.preview_mode_encryption_key,
-            preview_mode_signing_key: val.preview_mode_signing_key,
+            preview_mode_id: val.preview_mode_id.into(),
+            preview_mode_encryption_key: val.preview_mode_encryption_key.into(),
+            preview_mode_signing_key: val.preview_mode_signing_key.into(),
         }
     }
 }
@@ -186,20 +186,20 @@ pub struct NapiTurboEngineOptions {
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.into(),
+            project_path: val.project_path.into(),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
+            next_config: val.next_config.into(),
+            js_config: val.js_config.into(),
             env: val
                 .env
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             define_env: val.define_env.into(),
             dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
+            encryption_key: val.encryption_key.into(),
+            build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
         }
     }
@@ -208,18 +208,20 @@ impl From<NapiProjectOptions> for ProjectOptions {
 impl From<NapiPartialProjectOptions> for PartialProjectOptions {
     fn from(val: NapiPartialProjectOptions) -> Self {
         PartialProjectOptions {
-            root_path: val.root_path,
-            project_path: val.project_path,
+            root_path: val.root_path.map(From::from),
+            project_path: val.project_path.map(From::from),
             watch: val.watch,
-            next_config: val.next_config,
-            js_config: val.js_config,
-            env: val
-                .env
-                .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
+            next_config: val.next_config.map(From::from),
+            js_config: val.js_config.map(From::from),
+            env: val.env.map(|env| {
+                env.into_iter()
+                    .map(|var| (var.name.into(), var.value.into()))
+                    .collect()
+            }),
             define_env: val.define_env.map(|env| env.into()),
             dev: val.dev,
-            encryption_key: val.encryption_key,
-            build_id: val.build_id,
+            encryption_key: val.encryption_key.map(From::from),
+            build_id: val.build_id.map(From::from),
             preview_props: val.preview_props.map(|props| props.into()),
         }
     }
@@ -231,17 +233,17 @@ impl From<NapiDefineEnv> for DefineEnv {
             client: val
                 .client
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             edge: val
                 .edge
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
             nodejs: val
                 .nodejs
                 .into_iter()
-                .map(|var| (var.name, var.value))
+                .map(|var| (var.name.into(), var.value.into()))
                 .collect(),
         }
     }
@@ -250,8 +252,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 pub struct ProjectInstance {
     turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
     container: Vc<ProjectContainer>,
-    #[allow(dead_code)]
-    guard: Option<ExitGuard<TraceWriterGuard>>,
+    exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
 #[napi(ts_return_type = "{ __napiType: \"Project\" }")]
@@ -262,8 +263,9 @@ pub async fn project_new(
     register();
 
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+    let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    let guard = if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -295,10 +297,12 @@ pub async fn project_new(
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
         let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
-        let guard = ExitGuard::new(guard).unwrap();
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || drop(trace_writer_guard));
+        });
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
@@ -311,11 +315,7 @@ pub async fn project_new(
         }
 
         subscriber.init();
-
-        Some(guard)
-    } else {
-        None
-    };
+    }
 
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
         turbo_engine_options
@@ -323,6 +323,22 @@ pub async fn project_new(
             .map(|m| m as usize)
             .unwrap_or(usize::MAX),
     ));
+    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+    if let Some(stats_path) = stats_path {
+        let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || {
+                let mut file = std::fs::File::create(&stats_path)
+                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                serde_json::to_writer(&file, &task_stats)
+                    .context("failed to serialize or write task statistics")?;
+                file.flush().context("failed to flush file")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        });
+    }
     let options = options.into();
     let container = turbo_tasks
         .run_once(async move {
@@ -342,7 +358,7 @@ pub async fn project_new(
         ProjectInstance {
             turbo_tasks,
             container,
-            guard,
+            exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
         },
         100,
     ))
@@ -357,10 +373,8 @@ pub async fn project_new(
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument]
 async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-    let temp_path = directory.join(format!(
-        "tmp_file_io_benchmark_{:x}",
-        rand::random::<u128>()
-    ));
+    let temp_path =
+        directory.join(format!("tmp_file_io_benchmark_{:x}", rand::random::<u128>()).into());
 
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
@@ -624,7 +638,11 @@ pub fn project_entrypoints_subscribe(
                         .routes
                         .iter()
                         .map(|(pathname, route)| {
-                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
+                            NapiRoute::from_route(
+                                pathname.clone().into(),
+                                route.clone(),
+                                &turbo_tasks,
+                            )
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints
@@ -670,7 +688,7 @@ struct HmrUpdateWithIssues {
 #[turbo_tasks::function]
 async fn hmr_update(
     project: Vc<Project>,
-    identifier: String,
+    identifier: RcStr,
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);
@@ -701,7 +719,7 @@ pub fn project_hmr_events(
             let outer_identifier = identifier.clone();
             let session = session.clone();
             move || {
-                let identifier = outer_identifier.clone();
+                let identifier: RcStr = outer_identifier.clone().into();
                 let session = session.clone();
                 async move {
                     let project = project.project().resolve().await?;
@@ -773,7 +791,7 @@ struct HmrIdentifiers {
 
 #[turbo_tasks::value(serialization = "none")]
 struct HmrIdentifiersWithIssues {
-    identifiers: ReadRef<Vec<String>>,
+    identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
@@ -967,7 +985,9 @@ pub async fn project_trace_source(
                         (
                             path,
                             match module {
-                                Some(module) => Some(urlencoding::decode(&module.1)?.into_owned()),
+                                Some(module) => {
+                                    Some(urlencoding::decode(&module.1)?.into_owned().into())
+                                }
                                 None => None,
                             },
                         )
@@ -992,13 +1012,13 @@ pub async fn project_trace_source(
                 .container
                 .project()
                 .node_root()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.into());
 
             let client_path = project
                 .container
                 .project()
                 .client_relative_path()
-                .join(chunk_base.to_owned());
+                .join(chunk_base.into());
 
             let mut map_result = project
                 .container
@@ -1053,7 +1073,7 @@ pub async fn project_trace_source(
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: name,
+                method_name: name.as_ref().map(ToString::to_string),
                 line,
                 column,
                 is_server: frame.is_server,
@@ -1079,7 +1099,7 @@ pub async fn project_get_source_for_asset(
                 .project_path()
                 .fs()
                 .root()
-                .join(file_path.to_string())
+                .join(file_path.clone().into())
                 .read()
                 .await?;
 
@@ -1093,4 +1113,16 @@ pub async fn project_get_source_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source)
+}
+
+/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
+#[napi]
+pub async fn project_on_exit(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    let exit_receiver = project.exit_receiver.lock().await.take();
+    exit_receiver
+        .expect("`project.onExitSync` must only be called once")
+        .run_exit_handler()
+        .await;
 }

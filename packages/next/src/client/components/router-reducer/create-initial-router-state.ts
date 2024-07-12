@@ -45,7 +45,6 @@ export function createInitialRouterState({
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    lazyDataResolved: false,
     loading: initialSeedData[3],
   }
 
@@ -106,7 +105,9 @@ export function createInitialRouterState({
       location.origin
     )
 
-    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    const initialFlightData: FlightData = [
+      [initialTree, initialSeedData, initialHead],
+    ]
     createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,

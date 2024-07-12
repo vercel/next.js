@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('favicon-short-circuit', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -20,7 +20,7 @@ describe('favicon-short-circuit', () => {
       // Expect we didn't compile the not found route.
       expect(next.cliOutput).not.toContain('compiling /not-found')
     })
-  } else if (isNextStart) {
+  } else {
     it('should not short circuit the favicon in production', async () => {
       const res = await next.fetch('/favicon.ico')
 

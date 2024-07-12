@@ -148,6 +148,11 @@ export interface ExperimentalTurboOptions {
    * Use swc_css instead of lightningcss for turbopakc
    */
   useSwcCss?: boolean
+
+  /**
+   * A target memory limit for turbo, in bytes.
+   */
+  memoryLimit?: number
 }
 
 export interface WebpackConfigContext {
@@ -335,6 +340,13 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
+   * Enable type-checking and autocompletion for environment variables.
+   *
+   * @default false
+   */
+  typedEnv?: boolean
+
+  /**
    * Runs the compilations for server and edge in parallel instead of in serial.
    * This will make builds faster if there is enough server and edge functions
    * in the application at the cost of more memory.
@@ -433,11 +445,6 @@ export interface ExperimentalConfig {
    */
   trustHostHeader?: boolean
 
-  /**
-   * Uses an IPC server to dedupe build-time requests to the cache handler
-   */
-  staticWorkerRequestDeduping?: boolean
-
   useWasmBinary?: boolean
 
   /**
@@ -484,6 +491,11 @@ export interface ExperimentalConfig {
    * Enables `unstable_after`
    */
   after?: boolean
+
+  /**
+   * The number of times to retry static generation (per page) before giving up.
+   */
+  staticGenerationRetryCount?: number
 }
 
 export type ExportPathMap = {
@@ -671,6 +683,8 @@ export interface NextConfig extends Record<string, any> {
       | 'bottom-left'
       | 'top-right'
       | 'top-left'
+
+    appIsrStatus?: boolean
   }
 
   /**
@@ -887,6 +901,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
+    appIsrStatus: true,
     buildActivity: true,
     buildActivityPosition: 'bottom-right',
   },
@@ -916,7 +931,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    flyingShuttle: false,
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -961,6 +976,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    typedEnv: false,
     instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -985,6 +1001,7 @@ export const defaultConfig: NextConfig = {
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
     after: false,
+    staticGenerationRetryCount: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

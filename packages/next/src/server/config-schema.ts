@@ -226,6 +226,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     deploymentId: z.string().optional(),
     devIndicators: z
       .object({
+        appIsrStatus: z.boolean().optional(),
         buildActivity: z.boolean().optional(),
         buildActivityPosition: z
           .union([
@@ -250,6 +251,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .strictObject({
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
+        appIsrStatus: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
@@ -386,6 +388,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
+            memoryLimit: z.number().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -415,7 +418,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
-        staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         useEarlyImport: z.boolean().optional(),
@@ -435,6 +437,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
             .optional(),
         ]),
+        staticGenerationRetryCount: z.number().int().optional(),
+        typedEnv: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

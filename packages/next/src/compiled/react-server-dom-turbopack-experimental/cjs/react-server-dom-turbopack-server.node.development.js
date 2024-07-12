@@ -42,6 +42,9 @@ if (!ReactSharedInternalsServer) {
   throw new Error('The "react" package in this environment is not configured correctly. ' + 'The "react-server" condition must be enabled in any environment that ' + 'runs React Server Components.');
 }
 
+// -----------------------------------------------------------------------------
+var enablePostpone = true;
+
 function error(format) {
   {
     {
@@ -49,37 +52,52 @@ function error(format) {
         args[_key2 - 1] = arguments[_key2];
       }
 
-      printWarning('error', format, args);
+      printWarning('error', format, args, new Error('react-stack-top-frame'));
     }
   }
-}
+} // eslint-disable-next-line react-internal/no-production-logging
 
-function printWarning(level, format, args) {
+var supportsCreateTask = !!console.createTask;
+
+function printWarning(level, format, args, currentStack) {
   // When changing this logic, you might want to also
   // update consoleWithStackDev.www.js as well.
   {
-    var stack = ReactSharedInternalsServer.getStackAddendum();
+    var isErrorLogger = format === '%s\n\n%s\n' || format === '%o\n\n%s\n\n%s\n';
 
-    if (stack !== '') {
-      format += '%s';
-      args = args.concat([stack]);
-    } // eslint-disable-next-line react-internal/safe-string-coercion
+    if (!supportsCreateTask && ReactSharedInternalsServer.getCurrentStack) {
+      // We only add the current stack to the console when createTask is not supported.
+      // Since createTask requires DevTools to be open to work, this means that stacks
+      // can be lost while DevTools isn't open but we can't detect this.
+      var stack = ReactSharedInternalsServer.getCurrentStack(currentStack);
 
+      if (stack !== '') {
+        format += '%s';
+        args = args.concat([stack]);
+      }
+    }
 
-    var argsWithFormat = args.map(function (item) {
-      return String(item);
-    }); // Careful: RN currently depends on this prefix
-
-    argsWithFormat.unshift('Warning: ' + format); // We intentionally don't use spread (or .apply) directly because it
+    if (isErrorLogger) {
+      // Don't prefix our default logging formatting in ReactFiberErrorLoggger.
+      // Don't toString the arguments.
+      args.unshift(format);
+    } else {
+      // TODO: Remove this prefix and stop toStringing in the wrapper and
+      // instead do it at each callsite as needed.
+      // Careful: RN currently depends on this prefix
+      // eslint-disable-next-line react-internal/safe-string-coercion
+      args = args.map(function (item) {
+        return String(item);
+      });
+      args.unshift('Warning: ' + format);
+    } // We intentionally don't use spread (or .apply) directly because it
     // breaks IE9: https://github.com/facebook/react/issues/13610
     // eslint-disable-next-line react-internal/no-production-logging
 
-    Function.prototype.apply.call(console[level], console, argsWithFormat);
+
+    Function.prototype.apply.call(console[level], console, args);
   }
 }
-
-// -----------------------------------------------------------------------------
-var enablePostpone = true;
 
 function scheduleWork(callback) {
   setImmediate(callback);
@@ -1603,10 +1621,41 @@ function isNotExternal(stackFrame) {
   return !externalRegExp.test(stackFrame);
 }
 
+function prepareStackTrace(error, structuredStackTrace) {
+  var name = error.name || 'Error';
+  var message = error.message || '';
+  var stack = name + ': ' + message;
+
+  for (var i = 0; i < structuredStackTrace.length; i++) {
+    stack += '\n    at ' + structuredStackTrace[i].toString();
+  }
+
+  return stack;
+}
+
+function getStack(error) {
+  // We override Error.prepareStackTrace with our own version that normalizes
+  // the stack to V8 formatting even if the server uses other formatting.
+  // It also ensures that source maps are NOT applied to this since that can
+  // be slow we're better off doing that lazily from the client instead of
+  // eagerly on the server. If the stack has already been read, then we might
+  // not get a normalized stack and it might still have been source mapped.
+  // So the client still needs to be resilient to this.
+  var previousPrepare = Error.prepareStackTrace;
+  Error.prepareStackTrace = prepareStackTrace;
+
+  try {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    return String(error.stack);
+  } finally {
+    Error.prepareStackTrace = previousPrepare;
+  }
+}
+
 function initCallComponentFrame() {
   // Extract the stack frame of the callComponentInDEV function.
   var error = callComponentInDEV(Error, 'react-stack-top-frame', {});
-  var stack = error.stack;
+  var stack = getStack(error);
   var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
   var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1625,7 +1674,7 @@ function initCallIteratorFrame() {
     });
     return '';
   } catch (error) {
-    var stack = error.stack;
+    var stack = getStack(error);
     var startIdx = stack.startsWith('TypeError: ') ? stack.indexOf('\n') + 1 : 0;
     var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1644,7 +1693,7 @@ function initCallLazyInitFrame() {
     _init: Error,
     _payload: 'react-stack-top-frame'
   });
-  var stack = error.stack;
+  var stack = getStack(error);
   var startIdx = stack.startsWith('Error: react-stack-top-frame\n') ? 29 : 0;
   var endIdx = stack.indexOf('\n', startIdx);
 
@@ -1660,7 +1709,7 @@ function filterDebugStack(error) {
   // to save bandwidth even in DEV. We'll also replay these stacks on the client so by
   // stripping them early we avoid that overhead. Otherwise we'd normally just rely on
   // the DevTools or framework's ignore lists to filter them out.
-  var stack = error.stack;
+  var stack = getStack(error);
 
   if (stack.startsWith('Error: react-stack-top-frame\n')) {
     // V8's default formatting prefixes with the error message which we
@@ -1718,15 +1767,6 @@ function patchConsole(consoleInst, methodName) {
         // least the line it was called from. We could optimize transfer by keeping just
         // one stack frame but keeping it simple for now and include all frames.
         var stack = filterDebugStack(new Error('react-stack-top-frame'));
-        var firstLine = stack.indexOf('\n');
-
-        if (firstLine === -1) {
-          stack = '';
-        } else {
-          // Skip the console wrapper itself.
-          stack = stack.slice(firstLine + 1);
-        }
-
         request.pendingChunks++; // We don't currently use this id for anything but we emit it so that we can later
         // refer to previous logs in debug info to associate them with a component.
 
@@ -1862,6 +1902,7 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
 
   {
     request.environmentName = environmentName === undefined ? 'Server' : environmentName;
+    request.didWarnForKey = null;
   }
 
   var rootTask = createTask(request, model, null, false, abortSet);
@@ -2263,7 +2304,8 @@ function callLazyInitInDEV(lazy) {
 }
 
 function renderFunctionComponent(request, task, key, Component, props, owner, // DEV-only
-stack) // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   // Reset the task's thenable state before continuing, so that if a later
   // component suspends we can reuse the same task object. If the same
@@ -2303,17 +2345,32 @@ stack) // DEV-only
 
       outlineModel(request, componentDebugInfo);
       emitDebugChunk(request, componentDebugID, componentDebugInfo);
+
+      {
+        warnForMissingKey(request, key, validated, componentDebugInfo);
+      }
     }
 
     prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
     result = callComponentInDEV(Component, props, componentDebugInfo);
   }
 
-  if (typeof result === 'object' && result !== null) {
+  if (typeof result === 'object' && result !== null && !isClientReference(result)) {
     if (typeof result.then === 'function') {
       // When the return value is in children position we can resolve it immediately,
       // to its value without a wrapper if it's synchronously available.
       var thenable = result;
+
+      {
+        // If the thenable resolves to an element, then it was in a static position,
+        // the return value of a Server Component. That doesn't need further validation
+        // of keys. The Server Component itself would have had a key.
+        thenable.then(function (resolvedValue) {
+          if (typeof resolvedValue === 'object' && resolvedValue !== null && resolvedValue.$$typeof === REACT_ELEMENT_TYPE) {
+            resolvedValue._store.validated = 1;
+          }
+        }, function () {});
+      }
 
       if (thenable.status === 'fulfilled') {
         return thenable.value;
@@ -2385,6 +2442,11 @@ stack) // DEV-only
       {
         result._debugInfo = _iterableChild._debugInfo;
       }
+    } else if (result.$$typeof === REACT_ELEMENT_TYPE) {
+      // If the server component renders to an element, then it was in a static position.
+      // That doesn't need further validation of keys. The Server Component itself would
+      // have had a key.
+      result._store.validated = 1;
     }
   } // Track this element's key on the Server Component on the keyPath context..
 
@@ -2410,13 +2472,58 @@ stack) // DEV-only
   return json;
 }
 
+function warnForMissingKey(request, key, validated, componentDebugInfo) {
+  {
+    if (validated !== 2) {
+      return;
+    }
+
+    var didWarnForKey = request.didWarnForKey;
+
+    if (didWarnForKey == null) {
+      didWarnForKey = request.didWarnForKey = new WeakSet();
+    }
+
+    var parentOwner = componentDebugInfo.owner;
+
+    if (parentOwner != null) {
+      if (didWarnForKey.has(parentOwner)) {
+        // We already warned for other children in this parent.
+        return;
+      }
+
+      didWarnForKey.add(parentOwner);
+    } // Call with the server component as the currently rendering component
+    // for context.
+
+
+    callComponentInDEV(function () {
+      error('Each child in a list should have a unique "key" prop.' + '%s%s See https://react.dev/link/warning-keys for more information.', '', '');
+    }, null, componentDebugInfo);
+  }
+}
+
 function renderFragment(request, task, children) {
+  {
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+
+      if (child !== null && typeof child === 'object' && child.$$typeof === REACT_ELEMENT_TYPE) {
+        var element = child;
+
+        if (element.key === null && !element._store.validated) {
+          element._store.validated = 2;
+        }
+      }
+    }
+  }
+
   if (task.keyPath !== null) {
     // We have a Server Component that specifies a key but we're now splitting
     // the tree using a fragment.
     var fragment = [REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, task.keyPath, {
       children: children
-    }];
+    }, null, null, 0]  ;
 
     if (!task.implicitSlot) {
       // If this was keyed inside a set. I.e. the outer Server Component was keyed
@@ -2473,7 +2580,7 @@ function renderAsyncFragment(request, task, children, getAsyncIterator) {
     // the tree using a fragment.
     var fragment = [REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE, task.keyPath, {
       children: children
-    }];
+    }, null, null, 0]  ;
 
     if (!task.implicitSlot) {
       // If this was keyed inside a set. I.e. the outer Server Component was keyed
@@ -2504,7 +2611,8 @@ function renderAsyncFragment(request, task, children, getAsyncIterator) {
 }
 
 function renderClientElement(task, type, key, props, owner, // DEV-only
-stack) // DEV-only
+stack, // DEV-only
+validated) // DEV-only
 {
   // We prepend the terminal client element that actually gets serialized with
   // the keys of any Server Components which are not serialized.
@@ -2516,7 +2624,7 @@ stack) // DEV-only
     key = keyPath + ',' + key;
   }
 
-  var element = [REACT_ELEMENT_TYPE, type, key, props, owner, stack]  ;
+  var element = [REACT_ELEMENT_TYPE, type, key, props, owner, stack, validated]  ;
 
   if (task.implicitSlot && key !== null) {
     // The root Server Component had no key so it was in an implicit slot.
@@ -2555,7 +2663,8 @@ function outlineTask(request, task) {
 }
 
 function renderElement(request, task, type, key, ref, props, owner, // DEV only
-stack) // DEV only
+stack, // DEV only
+validated) // DEV only
 {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
@@ -2577,14 +2686,14 @@ stack) // DEV only
   if (typeof type === 'function') {
     if (isClientReference(type) || isOpaqueTemporaryReference(type)) {
       // This is a reference to a Client Component.
-      return renderClientElement(task, type, key, props, owner, stack);
+      return renderClientElement(task, type, key, props, owner, stack, validated);
     } // This is a Server Component.
 
 
-    return renderFunctionComponent(request, task, key, type, props, owner, stack);
+    return renderFunctionComponent(request, task, key, type, props, owner, stack, validated);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
-    return renderClientElement(task, type, key, props, owner, stack);
+    return renderClientElement(task, type, key, props, owner, stack, validated);
   } else if (typeof type === 'symbol') {
     if (type === REACT_FRAGMENT_TYPE && key === null) {
       // For key-less fragments, we add a small optimization to avoid serializing
@@ -2602,11 +2711,11 @@ stack) // DEV only
     // Any built-in works as long as its props are serializable.
 
 
-    return renderClientElement(task, type, key, props, owner, stack);
+    return renderClientElement(task, type, key, props, owner, stack, validated);
   } else if (type != null && typeof type === 'object') {
     if (isClientReference(type)) {
       // This is a reference to a Client Component.
-      return renderClientElement(task, type, key, props, owner, stack);
+      return renderClientElement(task, type, key, props, owner, stack, validated);
     }
 
     switch (type.$$typeof) {
@@ -2618,17 +2727,17 @@ stack) // DEV only
             wrappedType = callLazyInitInDEV(type);
           }
 
-          return renderElement(request, task, wrappedType, key, ref, props, owner, stack);
+          return renderElement(request, task, wrappedType, key, ref, props, owner, stack, validated);
         }
 
       case REACT_FORWARD_REF_TYPE:
         {
-          return renderFunctionComponent(request, task, key, type.render, props, owner, stack);
+          return renderFunctionComponent(request, task, key, type.render, props, owner, stack, validated);
         }
 
       case REACT_MEMO_TYPE:
         {
-          return renderElement(request, task, type.type, key, ref, props, owner, stack);
+          return renderElement(request, task, type.type, key, ref, props, owner, stack, validated);
         }
     }
   }
@@ -3092,7 +3201,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, ref, props, element._owner , filterDebugStack(element._debugStack) );
+          element.key, ref, props, element._owner , !element._debugStack || typeof element._debugStack === 'string' ? element._debugStack : filterDebugStack(element._debugStack) , element._store.validated );
         }
 
       case REACT_LAZY_TYPE:
@@ -3548,9 +3657,8 @@ function emitPostponeChunk(request, id, postponeInstance) {
 
     try {
       // eslint-disable-next-line react-internal/safe-string-coercion
-      reason = String(postponeInstance.message); // eslint-disable-next-line react-internal/safe-string-coercion
-
-      stack = String(postponeInstance.stack);
+      reason = String(postponeInstance.message);
+      stack = getStack(postponeInstance);
     } catch (x) {}
 
     row = serializeRowHeader('P', id) + stringify({
@@ -3573,9 +3681,8 @@ function emitErrorChunk(request, id, digest, error) {
     try {
       if (error instanceof Error) {
         // eslint-disable-next-line react-internal/safe-string-coercion
-        message = String(error.message); // eslint-disable-next-line react-internal/safe-string-coercion
-
-        stack = String(error.stack);
+        message = String(error.message);
+        stack = getStack(error);
       } else if (typeof error === 'object' && error !== null) {
         message = describeObjectForErrorMessage(error);
       } else {

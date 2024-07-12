@@ -93,21 +93,21 @@ const bundleTypes = {
   app: {
     'app-page': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/app-page/module.js'
+      'dist/esm/server/route-modules/app-page/module.js'
     ),
     'app-route': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/app-route/module.js'
+      'dist/esm/server/route-modules/app-route/module.js'
     ),
   },
   pages: {
     pages: path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/pages/module.js'
+      'dist/esm/server/route-modules/pages/module.js'
     ),
     'pages-api': path.join(
       __dirname,
-      'dist/esm/server/future/route-modules/pages-api/module.js'
+      'dist/esm/server/route-modules/pages-api/module.js'
     ),
   },
   server: {
@@ -152,7 +152,9 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: 'source-map',
+    devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
+      ? 'eval-source-map'
+      : 'source-map',
     optimization: {
       moduleIds: 'named',
       minimize: true,

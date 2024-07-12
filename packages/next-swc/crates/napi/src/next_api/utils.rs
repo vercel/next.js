@@ -120,12 +120,12 @@ impl From<&PlainIssue> for NapiIssue {
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             stage: issue.stage.to_string(),
-            file_path: issue.file_path.clone(),
+            file_path: issue.file_path.to_string(),
             detail: issue
                 .detail
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
-            documentation_link: issue.documentation_link.clone(),
+            documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
@@ -255,9 +255,13 @@ pub struct NapiDiagnostic {
 impl NapiDiagnostic {
     pub fn from(diagnostic: &PlainDiagnostic) -> Self {
         Self {
-            category: diagnostic.category.clone(),
-            name: diagnostic.name.clone(),
-            payload: diagnostic.payload.clone(),
+            category: diagnostic.category.to_string(),
+            name: diagnostic.name.to_string(),
+            payload: diagnostic
+                .payload
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
         }
     }
 }

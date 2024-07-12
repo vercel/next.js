@@ -16,8 +16,9 @@
     "typescript",
     "typescriptreact"
   ],
-  // Disable Jest autoRun as otherwise it will start running all tests the first time.
-  "jest.autoRun": "off",
+  // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
+  // Equivalent to deprecated option "jest.autoRun": "off"
+  "jest.runMode": "on-demand",
   // Debugging.
   "debug.javascript.unmapMissingSources": true,
   "files.exclude": {

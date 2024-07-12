@@ -3,7 +3,7 @@ import { retry, waitFor } from 'next-test-utils'
 import type { Response } from 'playwright'
 
 describe('app dir - navigation', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -151,7 +151,17 @@ describe('app dir - navigation', () => {
 
   describe('hash', () => {
     it('should scroll to the specified hash', async () => {
-      const browser = await next.browser('/hash')
+      let hasRscRequest = false
+      const browser = await next.browser('/hash', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              hasRscRequest = true
+            }
+          })
+        },
+      })
 
       const checkLink = async (
         val: number | string,
@@ -166,13 +176,31 @@ describe('app dir - navigation', () => {
         )
       }
 
-      await checkLink(6, 114)
-      await checkLink(50, 730)
-      await checkLink(160, 2270)
-      await checkLink(300, 4230)
-      await checkLink(500, 7030) // this one is hash only (`href="#hash-500"`)
+      if (isNextStart || isNextDeploy) {
+        await browser.waitForIdleNetwork()
+        // there should be an RSC call for the prefetch
+        expect(hasRscRequest).toBe(true)
+      }
+
+      // Wait for all network requests to finish, and then initialize the flag
+      // used to determine if any RSC requests are made
+      hasRscRequest = false
+
+      await checkLink(6, 128)
+      await checkLink(50, 744)
+      await checkLink(160, 2284)
+      await checkLink(300, 4244)
+      await checkLink(500, 7044) // this one is hash only (`href="#hash-500"`)
       await checkLink('top', 0)
       await checkLink('non-existent', 0)
+
+      // there should have been no RSC calls to fetch data
+      expect(hasRscRequest).toBe(false)
+
+      // There should be an RSC request if the query param is changed
+      await checkLink('query-param', 2284)
+      await browser.waitForIdleNetwork()
+      expect(hasRscRequest).toBe(true)
     })
 
     it('should not scroll to hash when scroll={false} is set', async () => {
@@ -201,11 +229,11 @@ describe('app dir - navigation', () => {
         )
       }
 
-      await checkLink(6, 94)
-      await checkLink(50, 710)
-      await checkLink(160, 2250)
-      await checkLink(300, 4210)
-      await checkLink(500, 7010) // this one is hash only (`href="#hash-500"`)
+      await checkLink(6, 108)
+      await checkLink(50, 724)
+      await checkLink(160, 2264)
+      await checkLink(300, 4224)
+      await checkLink(500, 7024) // this one is hash only (`href="#hash-500"`)
       await checkLink('top', 0)
       await checkLink('non-existent', 0)
     })
@@ -836,16 +864,22 @@ describe('app dir - navigation', () => {
     it('should render the final state of the page with correct metadata', async () => {
       const browser = await next.browser('/metadata-await-promise')
 
-      await browser
-        .elementByCss("[href='/metadata-await-promise/nested']")
-        .click()
+      // dev doesn't trigger the loading boundary as it's not prefetched
+      if (isNextDev) {
+        await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
+      } else {
+        const loadingText = await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
+          .waitForElementByCss('#loading')
+          .text()
+
+        expect(loadingText).toBe('Loading')
+      }
 
       await retry(async () => {
-        // dev doesn't trigger the loading boundary as it's not prefetched
-        if (!isNextDev) {
-          expect(await browser.eval(`window.shownLoading`)).toBe(true)
-        }
-
         expect(await browser.elementById('page-content').text()).toBe('Content')
 
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
