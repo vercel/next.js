@@ -7,7 +7,6 @@ module.exports = {
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
-    flyingShuttle: Boolean(process.env.FLYING_SHUTTLE),
   },
   // output: 'standalone',
   rewrites: async () => {

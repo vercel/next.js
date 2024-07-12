@@ -42,6 +42,7 @@ export class NextStartInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
+
     this._cliOutput = ''
     this.spawnOpts = {
       cwd: this.testDir,

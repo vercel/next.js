@@ -128,10 +128,6 @@ describe('required server files i18n', () => {
         },
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
   })
 
   afterAll(async () => {

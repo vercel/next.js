@@ -34,6 +34,7 @@ import {
 import type ws from 'next/dist/compiled/ws'
 import isInternal from '../../shared/lib/is-internal'
 import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -328,7 +329,8 @@ export async function handleRouteType({
   entrypoints,
   manifestLoader,
   readyIds,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   hooks,
   logErrors,
 }: {
@@ -340,7 +342,8 @@ export async function handleRouteType({
   currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   readyIds?: ReadyIds // dev
@@ -402,8 +405,9 @@ export async function handleRouteType({
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
         await manifestLoader.writeManifests({
-          rewrites,
-          pageEntrypoints: entrypoints.page,
+          devRewrites,
+          productionRewrites,
+          entrypoints,
         })
 
         processIssues(
@@ -460,8 +464,9 @@ export async function handleRouteType({
       await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
@@ -504,8 +509,9 @@ export async function handleRouteType({
       await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
 
       processIssues(currentEntryIssues, key, writtenEndpoint, dev, logErrors)
@@ -529,8 +535,9 @@ export async function handleRouteType({
       }
 
       await manifestLoader.writeManifests({
-        rewrites,
-        pageEntrypoints: entrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints,
       })
       processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
 
@@ -685,7 +692,8 @@ export async function handleEntrypoints({
   currentEntryIssues,
   manifestLoader,
   nextConfig,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   logErrors,
   dev,
 }: {
@@ -696,7 +704,8 @@ export async function handleEntrypoints({
   currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   dev?: HandleEntrypointsDevOpts
@@ -784,8 +793,9 @@ export async function handleEntrypoints({
       'instrumentation'
     )
     await manifestLoader.writeManifests({
-      rewrites: rewrites,
-      pageEntrypoints: currentEntrypoints.page,
+      devRewrites,
+      productionRewrites,
+      entrypoints: currentEntrypoints,
     })
 
     if (dev) {
@@ -842,8 +852,9 @@ export async function handleEntrypoints({
         dev.serverFields.middleware
       )
       await manifestLoader.writeManifests({
-        rewrites: rewrites,
-        pageEntrypoints: currentEntrypoints.page,
+        devRewrites,
+        productionRewrites,
+        entrypoints: currentEntrypoints,
       })
 
       finishBuilding?.()
@@ -935,7 +946,8 @@ export async function handlePagesErrorRoute({
   currentEntryIssues,
   entrypoints,
   manifestLoader,
-  rewrites,
+  devRewrites,
+  productionRewrites,
   logErrors,
 
   hooks,
@@ -943,7 +955,8 @@ export async function handlePagesErrorRoute({
   currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
-  rewrites: SetupOpts['fsChecker']['rewrites']
+  devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+  productionRewrites: CustomRoutes['rewrites'] | undefined
   logErrors: boolean
 
   hooks?: HandleRouteTypeHooks // dev
@@ -993,8 +1006,9 @@ export async function handlePagesErrorRoute({
   await manifestLoader.loadFontManifest('_error')
 
   await manifestLoader.writeManifests({
-    rewrites,
-    pageEntrypoints: entrypoints.page,
+    devRewrites,
+    productionRewrites,
+    entrypoints,
   })
 }
 

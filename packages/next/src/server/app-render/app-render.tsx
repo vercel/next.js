@@ -34,11 +34,10 @@ import {
   continueDynamicHTMLResume,
   continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
-import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
@@ -103,7 +102,6 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../lib/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -162,54 +160,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   return ['', {}, loaderTree[2]]
 }
 
-/* This method is important for intercepted routes to function:
- * when a route is intercepted, e.g. /blog/[slug], it will be rendered
- * with the layout of the previous page, e.g. /profile/[id]. The problem is
- * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
- * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
- * so we need to read it from the router state.
- */
-function findDynamicParamFromRouterState(
-  flightRouterState: FlightRouterState | undefined,
-  segment: string
-): {
-  param: string
-  value: string | string[] | null
-  treeSegment: Segment
-  type: DynamicParamTypesShort
-} | null {
-  if (!flightRouterState) {
-    return null
-  }
-
-  const treeSegment = flightRouterState[0]
-
-  if (canSegmentBeOverridden(segment, treeSegment)) {
-    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
-      return null
-    }
-
-    return {
-      param: treeSegment[0],
-      value: treeSegment[1],
-      treeSegment: treeSegment,
-      type: treeSegment[2],
-    }
-  }
-
-  for (const parallelRouterState of Object.values(flightRouterState[1])) {
-    const maybeDynamicParam = findDynamicParamFromRouterState(
-      parallelRouterState,
-      segment
-    )
-    if (maybeDynamicParam) {
-      return maybeDynamicParam
-    }
-  }
-
-  return null
-}
-
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
@@ -217,8 +167,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  pagePath: string,
-  flightRouterState: FlightRouterState | undefined
+  pagePath: string
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -232,11 +181,6 @@ function makeGetDynamicParamFromSegment(
     const key = segmentParam.param
 
     let value = params[key]
-
-    // this is a special marker that will be present for interception routes
-    if (value === '__NEXT_EMPTY_PARAM__') {
-      value = undefined
-    }
 
     if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
@@ -283,8 +227,6 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
-
-      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -475,7 +417,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     createDynamicallyTrackedSearchParams,
   })
 
-  const { seedData, styles } = await createComponentTree({
+  const seedData = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
@@ -514,7 +456,6 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
           <MetadataTree key={ctx.requestId} />
         </>
       }
-      initialLayerAssets={styles}
       globalErrorComponent={GlobalError}
       // This is used to provide debug information (when in development mode)
       // about which slots were not filled by page components while creating the component tree.
@@ -592,7 +533,6 @@ async function ReactServerError({
       initialCanonicalUrl={url.pathname + url.search}
       initialTree={initialTree}
       initialHead={head}
-      initialLayerAssets={null}
       globalErrorComponent={GlobalError}
       initialSeedData={initialSeedData}
       missingSlots={new Set()}
@@ -654,7 +594,7 @@ async function renderToHTMLOrFlightImpl(
     nextFontManifest,
     supportsDynamicResponse,
     serverActions,
-    appDirDevErrorLogger,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -669,6 +609,12 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    // reset isr status at start of request
+    const { pathname } = new URL(req.url || '/', 'http://n')
+    renderOpts.setAppIsrStatus?.(pathname, null)
+  }
+
   if (
     // The type check here ensures that `req` is correctly typed, and the
     // environment variable check provides dead code elimination.
@@ -676,6 +622,25 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      const staticGenStore =
+        ComponentMod.staticGenerationAsyncStorage.getStore()
+
+      if (
+        process.env.NODE_ENV === 'development' &&
+        staticGenStore &&
+        renderOpts.setAppIsrStatus
+      ) {
+        // only node can be ISR so we only need to update the status here
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        let { revalidate } = staticGenStore
+        if (typeof revalidate === 'undefined') {
+          revalidate = false
+        }
+        if (revalidate === false || revalidate > 0) {
+          renderOpts.setAppIsrStatus(pathname, revalidate)
+        }
+      }
+
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
@@ -745,11 +710,21 @@ async function renderToHTMLOrFlightImpl(
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
 
+  const errorContext = {
+    routerKind: 'App Router',
+    routePath: pagePath,
+    routeType: 'render',
+  } as const
+
+  const onReactStreamRenderError = onInstrumentationRequestError
+    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
+    : undefined
+
   const serverComponentsErrorHandler = createErrorHandler({
     source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -757,7 +732,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -765,7 +740,7 @@ async function renderToHTMLOrFlightImpl(
     source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
+    onReactStreamRenderError,
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
@@ -820,19 +795,13 @@ async function renderToHTMLOrFlightImpl(
    * Router state provided from the client-side router. Used to handle rendering
    * from the common layout down. This value will be undefined if the request
    * is not a client-side navigation request or if the request is a prefetch
-   * request (except when it's a prefetch request for an interception route
-   * which is always dynamic).
+   * request.
    */
   const shouldProvideFlightRouterState =
-    isRSCRequest &&
-    (!isPrefetchRSCRequest ||
-      !isRoutePPREnabled ||
-      // Interception routes currently depend on the flight router state to
-      // extract dynamic params.
-      isInterceptionRouteAppPath(pagePath))
+    isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
 
   const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+    req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
   )
 
   /**
@@ -854,10 +823,7 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    pagePath,
-    // `FlightRouterState` is unconditionally provided here because this method uses it
-    // to extract dynamic params as a fallback if they're not present in the path.
-    parsedFlightRouterState
+    pagePath
   )
 
   // Get the nonce from the incoming request if it has one.
