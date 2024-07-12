@@ -73,8 +73,9 @@ fn skip_filename() -> bool {
         !v.is_empty() && v != "0"
     }
 
-    static SKIP_FILENAME: Lazy<bool> =
-        Lazy::new(|| check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE"));
+    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
+        check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE") || check("NEXT_TEST_JOB")
+    });
 
     *SKIP_FILENAME
 }
