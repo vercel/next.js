@@ -47,20 +47,18 @@ export async function getTurbopackJsConfig(
 // An error generated from emitted Turbopack issues. This can include build
 // errors caused by issues with user code.
 export class ModuleBuildError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'ModuleBuildError'
-  }
+  name = 'ModuleBuildError'
 }
 
 // An error caused by an internal issue in Turbopack. These should be written
 // to a log file and details should not be shown to the user.
 export class TurbopackInternalError extends Error {
-  constructor(message: string, stack: string | undefined) {
-    super()
-    this.name = 'TurbopackInternalError'
-    this.message = message
-    this.stack = stack
+  name = 'TurbopackInternalError'
+  cause: unknown
+
+  constructor(message: string, cause: unknown) {
+    super(message)
+    this.cause = cause
   }
 }
 

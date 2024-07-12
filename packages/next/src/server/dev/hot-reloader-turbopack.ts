@@ -63,7 +63,6 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
-  TurbopackInternalError,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -885,11 +884,6 @@ export async function createHotReloaderTurbopack(
             },
           },
         })
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          throw new TurbopackInternalError(e.message, e.stack)
-        }
-        throw e
       } finally {
         finishBuilding()
       }
