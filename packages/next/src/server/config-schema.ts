@@ -564,6 +564,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
+    reactMaxHeadersLength: z.number().nonnegative().int().optional(),
     redirects: z
       .function()
       .args()

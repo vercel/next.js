@@ -749,6 +749,14 @@ export interface NextConfig extends Record<string, any> {
   reactStrictMode?: boolean | null
 
   /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   *
+   * @see [React Max Headers Length](https://nextjs.org/docs/api-reference/next.config.js/react-max-headers-length)
+   */
+  reactMaxHeadersLength?: number
+
+  /**
    * Add public (in browser) runtime configuration to your app
    *
    * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
@@ -923,6 +931,7 @@ export const defaultConfig: NextConfig = {
   publicRuntimeConfig: {},
   reactProductionProfiling: false,
   reactStrictMode: null,
+  reactMaxHeadersLength: 6000,
   httpAgentOptions: {
     keepAlive: true,
   },

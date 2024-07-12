@@ -1027,7 +1027,7 @@ async function renderToHTMLOrFlightImpl(
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
-          maxHeadersLength: 600,
+          maxHeadersLength: renderOpts.reactMaxHeadersLength,
           nonce,
           // When debugging the static shell, client-side rendering should be
           // disabled to prevent blanking out the page.

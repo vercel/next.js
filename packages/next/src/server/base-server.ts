@@ -580,6 +580,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
     // Initialize next/config with the environment configuration
@@ -2399,7 +2400,6 @@ export default abstract class Server<
         supportsDynamicResponse = false
         renderOpts.nextExport = true
         renderOpts.supportsDynamicResponse = false
-        renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
         renderOpts.isDebugStaticShell = isDebugStaticShell
         renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses

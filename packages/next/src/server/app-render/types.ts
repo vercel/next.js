@@ -194,7 +194,12 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   isDebugDynamicAccesses?: boolean
-  isStaticGeneration?: boolean
+
+  /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   */
+  reactMaxHeadersLength: number | undefined
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
