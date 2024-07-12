@@ -532,6 +532,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/lib/experimental/create-env-definitions.test.ts": {
+    "passed": [
+      "create-env-definitions should allow empty env",
+      "create-env-definitions should create env definitions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/lib/i18n-provider.test.ts": {
     "passed": [
       "I18NProvider analyze for pathname / and defaultLocale en",
@@ -1663,10 +1673,32 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/prerender-indicator/prerender-indicator.test.ts": {
+    "passed": [
+      "prerender indicator should have prerender-indicator by default for static page",
+      "prerender indicator should hide the indicator when changing to dynamic",
+      "prerender indicator should not have the indicator on dynamic page on load",
+      "prerender indicator should not show the indicator if disabled in next.config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/strict-mode-enabled-by-default/strict-mode-enabled-by-default.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["Strict Mode enabled by default should work using browser"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/typed-env/typed-env.test.ts": {
+    "passed": [
+      "typed-env should have env types from next config",
+      "typed-env should rewrite env types if .env is modified"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7731,6 +7763,25 @@
       "og-api should work in app route",
       "og-api should work in app route in node runtime",
       "og-api should work in pages/api"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/on-request-error/basic/basic.test.ts": {
+    "passed": [
+      "on-request-error - basic app router should catch app routes error in edge runtime",
+      "on-request-error - basic app router should catch app routes error in node runtime",
+      "on-request-error - basic app router should catch client component page error in edge runtime",
+      "on-request-error - basic app router should catch client component page error in node runtime",
+      "on-request-error - basic app router should catch server component page error in edge runtime",
+      "on-request-error - basic app router should catch server component page error in node runtime",
+      "on-request-error - basic middleware should catch middleware error",
+      "on-request-error - basic pages router should catch pages router api error in edge runtime",
+      "on-request-error - basic pages router should catch pages router api error in node runtime",
+      "on-request-error - basic pages router should catch pages router page error in edge runtime",
+      "on-request-error - basic pages router should catch pages router page error in node runtime"
     ],
     "failed": [],
     "pending": [],
