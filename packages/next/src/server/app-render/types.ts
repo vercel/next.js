@@ -200,3 +200,26 @@ export interface RenderOptsPartial {
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
   RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]
+
+export type InitialRSCPayload = {
+  /** buildId */
+  b: string
+  /** assetPrefix */
+  p: string
+  /** initialCanonicalUrl */
+  c: string
+  /** couldBeIntercepted */
+  i: boolean
+  /** initialTree */
+  t: FlightRouterState
+  /** initialSeedData */
+  d: CacheNodeSeedData
+  /** initialHead */
+  h: React.ReactNode
+  /** missingSlots */
+  m: Set<string> | undefined
+  /** GlobalError */
+  G: React.ComponentType<any>
+}
