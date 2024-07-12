@@ -33,7 +33,7 @@
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "typescript": "tsc --noEmit",
     "lint-typescript": "turbo run typescript",
-    "lint-eslint": "eslint . --ext js,jsx,ts,tsx --config .eslintrc.json --no-eslintrc",
+    "lint-eslint": "eslint . --ext js,jsx,ts,tsx --config .eslintrc.cli.json --no-eslintrc",
     "lint-no-typescript": "run-p prettier-check lint-eslint lint-language",
     "types-and-precompiled": "run-p lint-typescript check-precompiled validate-externals-doc",
     "validate-externals-doc": "node ./scripts/validate-externals-doc.js",
