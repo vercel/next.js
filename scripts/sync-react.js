@@ -177,7 +177,7 @@ Or run this command again without the --no-install flag to do both automatically
     )
   }
 
-  await fsp.writeFile(path.join(cwd, '.react-version'), newVersionStr)
+  await fsp.writeFile(path.join(cwd, '.github/.react-version'), newVersionStr)
 
   console.log(
     `Successfully updated React from ${baseSha} to ${newSha}.\n` +
