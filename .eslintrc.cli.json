@@ -17,8 +17,7 @@
         "project": true
       },
       "rules": {
-        // TODO: enable in follow-up PR
-        "@typescript-eslint/no-floating-promises": "off"
+        "@typescript-eslint/no-floating-promises": "error"
       }
     }
   ]
