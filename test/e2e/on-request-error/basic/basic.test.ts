@@ -2,12 +2,17 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('on-request-error - basic', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_INSTRUMENTATION: '1',
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   const outputLogPath = 'output-log.json'
 
