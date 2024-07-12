@@ -2,14 +2,12 @@ use std::path::{Path, PathBuf};
 
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
+use swc_core::ecma::parser::TsSyntax;
 use turbopack_binding::swc::{
     core::{
         base::Compiler,
         common::{comments::SingleThreadedComments, Mark},
-        ecma::{
-            parser::{Syntax, TsConfig},
-            transforms::base::pass::noop,
-        },
+        ecma::{parser::Syntax, transforms::base::pass::noop},
     },
     testing::{NormalizedOutput, Tester},
 };
@@ -49,7 +47,7 @@ fn test(input: &Path, minify: bool) {
                             } else {
                                 None
                             },
-                            syntax: Some(Syntax::Typescript(TsConfig {
+                            syntax: Some(Syntax::Typescript(TsSyntax {
                                 tsx: true,
                                 ..Default::default()
                             })),

@@ -209,7 +209,7 @@ import { useActionState } from 'react'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
-  const [state, action] = useActionState(signup, undefined)
+  const [state, action, pending] = useActionState(signup, undefined)
 
   return (
     <form action={action}>

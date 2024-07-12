@@ -92,22 +92,22 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/actions/app-action-export.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir action handling - next export should error when use export output for server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
         "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
         "app-dir action useActionState should support submitting form state with JS",
         "app-dir action useActionState should support submitting form state without JS"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -126,12 +126,11 @@
       "passed": [
         "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative number",
         "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is a negative size",
-        "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid"
-      ],
-      "failed": [
+        "app-dir action size limit invalid config should error if serverActions.bodySizeLimit config is invalid",
         "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit",
         "app-dir action size limit invalid config should respect the size set in serverActions.bodySizeLimit when submitting form"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -158,7 +157,6 @@
         "app-dir action handling fetch actions should handle revalidateTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling fetch actions should revalidate when cookies.set is called",
         "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
         "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
@@ -208,6 +206,7 @@
         "app-dir action handling should work with interception routes"
       ],
       "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
@@ -2314,6 +2313,97 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/next-config-ts/config-as-async-function/index.test.ts": {
+      "passed": [
+        "next-config-ts-config-as-async-function should support config as async function"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/export-as-default/index.test.ts": {
+      "passed": [
+        "next-config-ts-export-as-default should support export { x as default }"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/export-default/index.test.ts": {
+      "passed": [
+        "next-config-ts-export-default should support export default { ... }"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/import-alias/index.test.ts": {
+      "passed": ["next-config-ts-import-alias should support import alias"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/import-from-node-modules/index.test.ts": {
+      "passed": [
+        "next-config-ts-import-from-node-modules should import from node_modules"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/import-json/index.test.ts": {
+      "passed": ["next-config-ts-import-json should support import json"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/nested-imports/index.test.ts": {
+      "passed": ["next-config-ts-nested-imports should handle nested imports"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/node-api/index.test.ts": {
+      "passed": ["next-config-ts-node-api should be able to use Node.js API"],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/pkg-commonjs/index.test.ts": {
+      "passed": [
+        "next-config-ts-pkg-commonjs should handle ESM modules in CommonJS project"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/pkg-module/index.test.ts": {
+      "passed": [
+        "next-config-ts-pkg-module should handle ESM modules in CommonJS project"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
+      "passed": [
+        "next-config-ts-type-error should throw with type error on build"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/next-config/index.test.ts": {
       "passed": [
         "app dir - next config should support importing webpack in next.config"
@@ -3057,6 +3147,15 @@
     "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
       "passed": [
         "loading-tsx-no-partial-rendering when PPR is enabled, loading.tsx boundaries do not cause a partial prefetch"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-navigations/prefetch-navigation/prefetch-navigation.test.ts": {
+      "passed": [
+        "prefetch-navigation should render the prefetch without waiting for the RSC request"
       ],
       "failed": [],
       "pending": [],
@@ -6326,12 +6425,12 @@
         "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
         "AMP Usage production mode combined styles should combine style tags",
         "AMP Usage production mode combined styles should remove sourceMaps from styles",
-        "AMP Usage production mode should have amp optimizer in trace"
+        "AMP Usage production mode should have amp optimizer in trace",
+        "AMP Usage production mode should not contain missing files warning"
       ],
       "failed": [
         "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
-        "AMP Usage production mode should not contain missing files warning"
+        "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
       ],
       "pending": [
         "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
@@ -7371,11 +7470,12 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/browserslist.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Browserslist: New production mode should have compiled successfully",
+        "Browserslist: Old production mode should have compiled successfully"
+      ],
+      "failed": [
         "Browserslist: New production mode should've emitted a single CSS file",
-        "Browserslist: Old production mode should have compiled successfully",
         "Browserslist: Old production mode should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7383,11 +7483,12 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/css-modules.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "CSS Modules: Import Exports production mode should have compiled successfully",
+        "CSS Modules: Import Global CSS production mode should have compiled successfully"
+      ],
+      "failed": [
         "CSS Modules: Import Exports production mode should've emitted a single CSS file",
-        "CSS Modules: Import Global CSS production mode should have compiled successfully",
         "CSS Modules: Import Global CSS production mode should've emitted a single CSS file",
         "CSS Modules: Importing Invalid Global CSS production mode should fail to build",
         "Custom Properties: Fail for :root {} in CSS Modules production mode should fail to build",
@@ -7398,13 +7499,14 @@
       "runtimeError": false
     },
     "test/integration/css-features/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Custom Properties: Pass-Through IE11 production mode should have compiled successfully",
-        "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
         "Custom Properties: Pass-Through Modern production mode should have compiled successfully",
+        "Inline Comments: Minify production mode should have compiled successfully"
+      ],
+      "failed": [
+        "Custom Properties: Pass-Through IE11 production mode should've emitted a single CSS file",
         "Custom Properties: Pass-Through Modern production mode should've emitted a single CSS file",
-        "Inline Comments: Minify production mode should have compiled successfully",
         "Inline Comments: Minify production mode should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7422,29 +7524,29 @@
     },
     "test/integration/css-modules/test/index.test.js": {
       "passed": [
+        "3rd Party CSS Module Support production mode should have compiled successfully",
+        "Basic CSS Module Support production mode should have compiled successfully",
+        "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
         "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
         "Catch-all Route CSS Module Usage production mode should apply styles correctly",
+        "Catch-all Route CSS Module Usage production mode should have compiled successfully",
         "Dynamic Route CSS Module Usage production mode should apply styles correctly",
+        "Dynamic Route CSS Module Usage production mode should have compiled successfully",
         "Has CSS Module in computed styles in Development should have CSS for page",
-        "Has CSS Module in computed styles in Production production mode should have CSS for page"
+        "Has CSS Module in computed styles in Production production mode should have CSS for page",
+        "Has CSS Module in computed styles in Production production mode should have compiled successfully",
+        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully"
       ],
       "failed": [
-        "3rd Party CSS Module Support production mode should have compiled successfully",
         "3rd Party CSS Module Support production mode should've emitted a single CSS file",
         "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-        "Basic CSS Module Support production mode should have compiled successfully",
         "Basic CSS Module Support production mode should've emitted a single CSS file",
         "Basic CSS Module Support production mode should've injected the CSS on server render",
-        "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
         "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
         "CSS Module Composes Usage (External) production mode should have compiled successfully",
         "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-        "Catch-all Route CSS Module Usage production mode should have compiled successfully",
         "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Dynamic Route CSS Module Usage production mode should have compiled successfully",
         "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file",
-        "Has CSS Module in computed styles in Production production mode should have compiled successfully",
-        "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
         "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
         "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
         "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
@@ -7459,39 +7561,40 @@
       "runtimeError": false
     },
     "test/integration/css/test/basic-global-support.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Basic Global Support production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support with special characters in path production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
         "Basic Global Support with src/ dir production mode useLightnincsss(false) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
         "Basic Global Support with src/ dir production mode useLightnincsss(true) should compile successfully",
-        "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
         "CSS URL via `file-loader` and asset prefix (1) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
         "CSS URL via `file-loader` and asset prefix (2) production mode should compile successfully",
-        "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
         "CSS URL via `file-loader` production mode useLightnincsss(false) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
         "CSS URL via `file-loader` production mode useLightnincsss(true) should compile successfully",
-        "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
         "Multi Global Support (reversed) production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
         "Multi Global Support (reversed) production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
         "Multi Global Support production mode useLightnincsss(false) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
         "Multi Global Support production mode useLightnincsss(true) should compile successfully",
-        "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(false) should compile successfully",
+        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully"
+      ],
+      "failed": [
+        "Basic Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Basic Global Support with special characters in path production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support with special characters in path production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Basic Global Support with src/ dir production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Basic Global Support with src/ dir production mode useLightnincsss(true) should've emitted a single CSS file",
+        "CSS URL via `file-loader` and asset prefix (1) production mode should've emitted expected files",
+        "CSS URL via `file-loader` and asset prefix (2) production mode should've emitted expected files",
+        "CSS URL via `file-loader` production mode useLightnincsss(false) should've emitted expected files",
+        "CSS URL via `file-loader` production mode useLightnincsss(true) should've emitted expected files",
+        "Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file",
+        "Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
+        "Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file",
         "Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file",
-        "Nested @import() Global Support production mode useLightnincsss(true) should compile successfully",
         "Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file"
       ],
       "pending": [],
@@ -7501,26 +7604,34 @@
     "test/integration/css/test/css-and-styled-jsx.test.js": {
       "passed": [
         "Ordering with styled-jsx (dev) should have the correct color (css ordering)",
+        "Ordering with styled-jsx (prod) production mode should have compiled successfully",
         "Ordering with styled-jsx (prod) production mode should have the correct color (css ordering)"
       ],
-      "failed": [
-        "Ordering with styled-jsx (prod) production mode should have compiled successfully"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/css/test/css-compilation.test.js": {
-      "passed": [],
+      "passed": [
+        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
+        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
+        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
+      ],
       "failed": [
         "CSS Property Ordering production mode useLightnincsss(false) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(false) should have the border width (property ordering)",
         "CSS Property Ordering production mode useLightnincsss(true) should have compiled successfully",
         "CSS Property Ordering production mode useLightnincsss(true) should have the border width (property ordering)",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should compile successfully",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've compiled and prefixed",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(false) should've emitted a source map",
-        "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should compile successfully",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed",
         "CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map",
         "CSS Support production mode Good CSS Import from node_modules useLightnincsss(false) should compile successfully",
@@ -7531,16 +7642,8 @@
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(false) should've emitted a single CSS file",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should compile successfully",
         "CSS Support production mode Good Nested CSS Import from node_modules useLightnincsss(true) should've emitted a single CSS file",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should have compiled successfully",
         "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(false) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have CSS for page",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(false) should have the correct color on mount after navigation",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have compiled successfully",
-        "CSS Support production mode React Lifecyce Order (production) useLightnincsss(true) should have the correct color on mount after navigation"
+        "CSS Support production mode Has CSS in computed styles in Production useLightnincsss(true) should've preloaded the CSS file and injected it in <head>"
       ],
       "pending": [],
       "flakey": [],
@@ -7555,14 +7658,14 @@
         "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should have the correct color (css ordering)",
         "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should have the correct color (css ordering) during hot reloads",
         "Ordering with Global CSS and Modules (dev) useLightnincsss(true) should not execute scripts in any order",
+        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have compiled successfully",
         "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have the correct color (css ordering)",
+        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
         "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have the correct color (css ordering)",
         "should handle unresolved files gracefully production mode should build correctly"
       ],
       "failed": [
         "Data URLs production mode should have emitted expected files",
-        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(false) should have compiled successfully",
-        "Ordering with Global CSS and Modules (prod) production mode useLightnincsss(true) should have compiled successfully",
         "should handle unresolved files gracefully production mode should have correct file references in CSS output"
       ],
       "pending": [
@@ -7643,12 +7746,13 @@
       "runtimeError": false
     },
     "test/integration/css/test/valid-invalid-css.test.js": {
-      "passed": [],
+      "passed": [
+        "Valid Global CSS from npm production mode should compile successfully"
+      ],
       "failed": [
         "Invalid CSS in _document production mode should fail to build",
         "Invalid Global CSS production mode should fail to build",
         "Invalid Global CSS with Custom App production mode should fail to build",
-        "Valid Global CSS from npm production mode should compile successfully",
         "Valid Global CSS from npm production mode should've emitted a single CSS file",
         "Valid and Invalid Global CSS with Custom App production mode should fail to build"
       ],
@@ -8106,8 +8210,7 @@
       "runtimeError": false
     },
     "test/integration/draft-mode/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Test Draft Mode production mode should compile successfully",
         "Test Draft Mode production mode should enable draft mode",
         "Test Draft Mode production mode should not return fallback page on draft request",
@@ -8120,6 +8223,7 @@
         "Test Draft Mode production mode should return prerendered page on second request",
         "Test Draft Mode production mode should start production application"
       ],
+      "failed": [],
       "pending": [
         "Test Draft Mode development mode should disable draft mode",
         "Test Draft Mode development mode should enable draft mode",
@@ -8903,17 +9007,16 @@
       "passed": [
         "Next Build production mode base directories are linted by default during builds",
         "Next Build production mode custom directories",
+        "Next Build production mode empty directories do not fail the build",
         "Next Build production mode eslint cache lives in the user defined build directory",
         "Next Build production mode eslint caching is enabled",
+        "Next Build production mode eslint ignored directories do not fail the build",
         "Next Build production mode ignore during builds",
         "Next Build production mode invalid older eslint version",
         "Next Build production mode missing Next.js plugin",
         "Next Build production mode shows warnings and errors"
       ],
-      "failed": [
-        "Next Build production mode empty directories do not fail the build",
-        "Next Build production mode eslint ignored directories do not fail the build"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -10612,8 +10715,7 @@
       "runtimeError": false
     },
     "test/integration/getserversideprops-preview/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "ServerSide Props Preview Mode production mode should compile successfully",
         "ServerSide Props Preview Mode production mode should enable preview mode",
         "ServerSide Props Preview Mode production mode should not return fallback page on preview request",
@@ -10624,6 +10726,7 @@
         "ServerSide Props Preview Mode production mode should start production application",
         "ServerSide Props Preview Mode production mode should throw error when setting too large of preview data"
       ],
+      "failed": [],
       "pending": [
         "ServerSide Props Preview Mode development mode should enable preview mode",
         "ServerSide Props Preview Mode development mode should fetch prerendered data",
@@ -12333,9 +12436,10 @@
     },
     "test/integration/jsconfig/test/index.test.js": {
       "passed": [
+        "jsconfig.json production mode should build normally",
         "jsconfig.json production mode should fail on invalid jsconfig.json"
       ],
-      "failed": ["jsconfig.json production mode should build normally"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13518,11 +13622,11 @@
       "runtimeError": false
     },
     "test/integration/nullish-config/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Nullish configs in next.config.js production mode should ignore configs set to `null` in next.config.js",
         "Nullish configs in next.config.js production mode should ignore configs set to `undefined` in next.config.js"
       ],
+      "failed": [],
       "pending": [
         "Nullish configs in next.config.js development mode should ignore configs set to `null` in next.config.js",
         "Nullish configs in next.config.js development mode should ignore configs set to `undefined` in next.config.js"
@@ -13531,10 +13635,10 @@
       "runtimeError": false
     },
     "test/integration/numeric-sep/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Numeric Separator Support production mode should successfully build for a JavaScript file"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13607,10 +13711,10 @@
       "runtimeError": false
     },
     "test/integration/polyfilling-minimal/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Polyfilling (minimal) production mode should compile successfully"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -13640,14 +13744,14 @@
     "test/integration/preload-viewport/test/index.test.js": {
       "passed": [
         "Prefetching Links in viewport production mode should correctly omit pre-generated dynamic pages from SSG manifest",
-        "Prefetching Links in viewport production mode should handle timed out prefetch correctly",
-        "Prefetching Links in viewport production mode should not have unhandledRejection when failing to prefetch on link",
-        "Prefetching Links in viewport production mode should not prefetch when prefetch is explicitly set to false",
-        "Prefetching Links in viewport production mode should not prefetch with bot UA",
         "Prefetching Links in viewport production mode should de-dupe inflight SSG requests",
+        "Prefetching Links in viewport production mode should handle timed out prefetch correctly",
         "Prefetching Links in viewport production mode should inject a <script> tag when onMouseEnter (even with invalid ref)",
         "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled",
         "Prefetching Links in viewport production mode should inject script on hover with prefetching disabled and fetch data",
+        "Prefetching Links in viewport production mode should not have unhandledRejection when failing to prefetch on link",
+        "Prefetching Links in viewport production mode should not prefetch when prefetch is explicitly set to false",
+        "Prefetching Links in viewport production mode should not prefetch with bot UA",
         "Prefetching Links in viewport production mode should not re-prefetch for an already prefetched page",
         "Prefetching Links in viewport production mode should prefetch data files",
         "Prefetching Links in viewport production mode should prefetch data files when mismatched",
@@ -13660,8 +13764,8 @@
         "Prefetching Links in viewport production mode should prefetch with non-bot UA"
       ],
       "failed": [
-        "Prefetching Links in viewport production mode should not prefetch already loaded scripts",
-        "Prefetching Links in viewport production mode should not duplicate prefetches"
+        "Prefetching Links in viewport production mode should not duplicate prefetches",
+        "Prefetching Links in viewport production mode should not prefetch already loaded scripts"
       ],
       "pending": [],
       "flakey": [],
@@ -13734,8 +13838,7 @@
       "runtimeError": false
     },
     "test/integration/prerender-preview/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Prerender Preview Mode production mode should compile successfully",
         "Prerender Preview Mode production mode should enable preview mode",
         "Prerender Preview Mode production mode should expire cookies with a maxAge",
@@ -13751,6 +13854,7 @@
         "Prerender Preview Mode production mode should start production application",
         "Prerender Preview Mode production mode should throw error when setting too large of preview data"
       ],
+      "failed": [],
       "pending": [
         "Prerender Preview Mode development mode should enable preview mode",
         "Prerender Preview Mode development mode should fetch live static props with preview active",
@@ -14979,12 +15083,11 @@
     "test/integration/typescript-ignore-errors/test/index.test.js": {
       "passed": [
         "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors in incremental mode",
-        "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors without incremental mode"
-      ],
-      "failed": [
+        "TypeScript with error handling options production mode ignoreBuildErrors: false Next fails to build the application despite type errors without incremental mode",
         "TypeScript with error handling options production mode ignoreBuildErrors: true Next builds the application despite type errors in incremental mode",
         "TypeScript with error handling options production mode ignoreBuildErrors: true Next builds the application despite type errors without incremental mode"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15042,14 +15145,13 @@
         "TypeScript Features default behavior should render the page",
         "TypeScript Features default behavior should respond to async API route correctly",
         "TypeScript Features default behavior should respond to sync API route correctly",
-        "TypeScript Features production mode should not inform when using default tsconfig path"
-      ],
-      "failed": [
         "TypeScript Features production mode should build the app",
         "TypeScript Features production mode should build the app with functions in next.config.js",
         "TypeScript Features production mode should compile with different types should compile async getInitialProps for _error",
-        "TypeScript Features production mode should compile with different types should compile sync getStaticPaths & getStaticProps"
+        "TypeScript Features production mode should compile with different types should compile sync getStaticPaths & getStaticProps",
+        "TypeScript Features production mode should not inform when using default tsconfig path"
       ],
+      "failed": [],
       "pending": [
         "TypeScript Features default behavior should report type checking to stdout",
         "TypeScript Features default behavior should resolve files in correct order"
@@ -15429,14 +15531,14 @@
       "runtimeError": false
     },
     "test/production/build-spinners/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "build-spinners should handle build spinners correctly app and pages",
         "build-spinners should handle build spinners correctly app dir - (compile workers)",
         "build-spinners should handle build spinners correctly app dir - basic",
         "build-spinners should handle build spinners correctly page dir",
         "build-spinners should handle build spinners correctly page dir (compile workers)"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15942,9 +16044,10 @@
       "runtimeError": false
     },
     "test/production/pnpm-support/index.test.ts": {
-      "passed": [],
+      "passed": [
+        "pnpm support should build with dependencies installed via pnpm"
+      ],
       "failed": [
-        "pnpm support should build with dependencies installed via pnpm",
         "pnpm support should execute client-side JS on each page in output: \"standalone\""
       ],
       "pending": [],

@@ -745,6 +745,12 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
+      if (config.experimental.flyingShuttle) {
+        await fs.mkdir(path.join(distDir, 'cache', 'shuttle'), {
+          recursive: true,
+        })
+      }
+
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
         .traceAsyncFn(() => loadCustomRoutes(config))
@@ -1612,6 +1618,8 @@ export default async function build(
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
+
+          Log.event('Compiled successfully')
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
