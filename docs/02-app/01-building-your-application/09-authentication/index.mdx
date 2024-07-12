@@ -721,7 +721,7 @@ export async function updateSession() {
   const payload = await decrypt(session)
 
   if (!session || !payload) {
-    return '...'
+    return null
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -745,7 +745,7 @@ export async function updateSession() {
   const payload = await decrypt(session)
 
   if (!session || !payload) {
-    return '...'
+    return null
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -1162,7 +1162,7 @@ You can then invoke the `verifySession()` function in your data requests, Server
 ```tsx filename="app/lib/dal.ts" switcher
 export const getUser = cache(async () => {
   const session = await verifySession()
-  if (!session) return '...'
+  if (!session) return null
 
   try {
     const data = await db.query.users.findMany({
@@ -1180,7 +1180,7 @@ export const getUser = cache(async () => {
     return user
   } catch (error) {
     console.log('Failed to fetch user')
-    return '...'
+    return null
   }
 })
 ```
@@ -1188,7 +1188,7 @@ export const getUser = cache(async () => {
 ```jsx filename="app/lib/dal.js" switcher
 export const getUser = cache(async () => {
   const session = await verifySession()
-  if (!session) return '...'
+  if (!session) return null
 
   try {
     const data = await db.query.users.findMany({
@@ -1206,7 +1206,7 @@ export const getUser = cache(async () => {
     return user
   } catch (error) {
     console.log('Failed to fetch user')
-    return '...'
+    return null
   }
 })
 ```
@@ -1369,7 +1369,7 @@ export default async function Layout({ children }) {
 ```ts filename="app/lib/dal.ts" switcher
 export const getUser = cache(async () => {
   const session = await verifySession()
-  if (!session) return '...'
+  if (!session) return null
 
   // Get user ID from session and fetch data
 })
@@ -1378,7 +1378,7 @@ export const getUser = cache(async () => {
 ```js filename="app/lib/dal.js" switcher
 export const getUser = cache(async () => {
   const session = await verifySession()
-  if (!session) return '...'
+  if (!session) return null
 
   // Get user ID from session and fetch data
 })
@@ -1386,7 +1386,7 @@ export const getUser = cache(async () => {
 
 > **Good to know:**
 >
-> - A common pattern in SPAs is to `return '...'` in a layout or a top-level component if a user is not authorized. This pattern is not **not recommended** since Next.js applications have multiple entry points, which will not prevent nested route segments and Server Actions from being accessed.
+> - A common pattern in SPAs is to `return null` in a layout or a top-level component if a user is not authorized. This pattern is not **not recommended** since Next.js applications have multiple entry points, which will not prevent nested route segments and Server Actions from being accessed.
 
 ### Server Actions
 
@@ -1404,7 +1404,7 @@ export async function serverAction(formData: FormData) {
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
-    return '...'
+    return null
   }
 
   // Proceed with the action for authorized users
@@ -1421,7 +1421,7 @@ export async function serverAction() {
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
-    return '...'
+    return null
   }
 
   // Proceed with the action for authorized users
