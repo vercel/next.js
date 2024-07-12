@@ -15,6 +15,8 @@ export type ErrorHandler = (
   errorInfo: unknown
 ) => string | undefined
 
+export type DigestedError = Error & { digest: string }
+
 /**
  * Create error handler for renderers.
  * Tolerate dynamic server errors during prerendering so console
@@ -31,7 +33,7 @@ export function createErrorHandler({
   dev?: boolean
   isNextExport?: boolean
   onReactStreamRenderError?: (err: any) => void
-  getErrorByRenderSource: (err: Error & { digest: string }) => Error
+  getErrorByRenderSource: (err: DigestedError) => Error
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
 }): ErrorHandler {

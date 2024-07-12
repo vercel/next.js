@@ -58,7 +58,11 @@ import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
-import { createErrorHandler, type ErrorHandler } from './create-error-handler'
+import {
+  createErrorHandler,
+  type DigestedError,
+  type ErrorHandler,
+} from './create-error-handler'
 import {
   getShortDynamicParamType,
   dynamicParamTypes,
@@ -723,7 +727,7 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const digestErrorsMap: Map<string, Error & { digest: string }> = new Map()
+  const digestErrorsMap: Map<string, DigestedError> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
@@ -759,7 +763,7 @@ async function renderToHTMLOrFlightImpl(
   } as const
 
   // Including RSC rendering and flight data rendering
-  function getRSCError(err: Error & { digest: string }) {
+  function getRSCError(err: DigestedError) {
     const digest = err.digest
     if (!digestErrorsMap.has(digest)) {
       digestErrorsMap.set(digest, err)
@@ -767,7 +771,7 @@ async function renderToHTMLOrFlightImpl(
     return err
   }
 
-  function getSSRError(err: Error & { digest: string }) {
+  function getSSRError(err: DigestedError) {
     // For SSR errors, if we have the existing digest in errors map,
     // we should use the existing error object to avoid duplicate error logs.
     if (digestErrorsMap.has(err.digest)) {
@@ -776,14 +780,14 @@ async function renderToHTMLOrFlightImpl(
     return err
   }
 
-  function onFlightDataRenderError(err: Error & { digest: string }) {
+  function onFlightDataRenderError(err: DigestedError) {
     return onInstrumentationRequestError?.(err, req, {
       ...errorContext,
       renderSource: 'react-server-components-payload',
     })
   }
 
-  function onServerRenderError(err: Error & { digest: string }) {
+  function onServerRenderError(err: DigestedError) {
     const renderSource = digestErrorsMap.has(err.digest)
       ? 'react-server-components'
       : 'server-rendering'

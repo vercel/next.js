@@ -32,7 +32,7 @@ describe('on-request-error - basic', () => {
   }: {
     name: string
     url: string
-    renderSource?: string
+    renderSource: string | undefined
     isMiddleware?: boolean
   }) {
     await retry(async () => {
@@ -67,7 +67,7 @@ describe('on-request-error - basic', () => {
   }: {
     payload: any
     url: string
-    renderSource?: string
+    renderSource: string | undefined
     isMiddleware: boolean
   }) {
     const { request } = payload
@@ -79,9 +79,7 @@ describe('on-request-error - basic', () => {
       expect(request.url).toBe(url)
     }
 
-    if (renderSource) {
-      expect(payload.context.renderSource).toBe(renderSource)
-    }
+    expect(payload.context.renderSource).toBe(renderSource)
 
     expect(request.method).toBe('GET')
     expect(request.headers['accept']).toBe('*/*')
@@ -133,6 +131,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'route-node-error',
         url: '/app-route',
+        renderSource: undefined,
       })
     })
 
@@ -141,6 +140,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'route-edge-error',
         url: '/app-route/edge',
+        renderSource: undefined,
       })
     })
   })
@@ -151,6 +151,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'pages-page-node-error',
         url: '/page',
+        renderSource: undefined,
       })
     })
 
@@ -159,6 +160,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'pages-page-edge-error',
         url: '/page/edge',
+        renderSource: undefined,
       })
     })
 
@@ -167,6 +169,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'api-node-error',
         url: '/api/pages-route',
+        renderSource: undefined,
       })
     })
 
@@ -175,6 +178,7 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         name: 'api-edge-error',
         url: '/api/pages-route/edge',
+        renderSource: undefined,
       })
     })
   })
@@ -186,6 +190,7 @@ describe('on-request-error - basic', () => {
         name: 'middleware-error',
         url: '/middleware-error',
         isMiddleware: true,
+        renderSource: undefined,
       })
     })
   })
