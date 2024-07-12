@@ -11,7 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir, appendFile } from 'fs/promises'
+import { mkdir, appendFile, readFile, stat, writeFile } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -916,7 +916,7 @@ async function startWatcher(opts: SetupOpts) {
     return { finished: false }
   }
 
-  function logError(
+  async function logError(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
@@ -924,8 +924,29 @@ async function startWatcher(opts: SetupOpts) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
     } else if (err instanceof TurbopackInternalError) {
+      const levelMarker = '[FATAL]'
       const fatalLogPath = path.join(opts.dir, '.next', 'fatal.log')
-      appendFile(fatalLogPath, `${err.message}\n`)
+      let logStat
+      try {
+        logStat = await stat(fatalLogPath)
+      } catch {}
+
+      if (logStat && logStat.size > 500 * 1024) {
+        // If the log file is greater than 500KB, truncate the least recent error
+        // to prevent the log from growing indefinitely
+        await writeFile(
+          fatalLogPath,
+          (await readFile(fatalLogPath, 'utf8'))
+            .split(levelMarker)
+            .slice(1)
+            .join(levelMarker)
+        )
+      }
+
+      await appendFile(
+        fatalLogPath,
+        `${levelMarker} ${new Date().toISOString()} ${err.message}\n\n`
+      )
 
       Log.error(
         `An unexpected ${opts.turbo ? 'Turbopack' : 'webpack'} error occurred. Please report this error, logged in ${fatalLogPath}, to the Next.js team at https://github.com/vercel/next.js/issues/new.`
@@ -1045,7 +1066,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            logError(errorToLog, type)
+            await logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -1058,7 +1079,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      logError(err, type)
+      await logError(err, type)
     }
   }
 
