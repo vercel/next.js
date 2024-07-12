@@ -1,7 +1,5 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const Header = dynamic(import("../components/Header"));
+import Header from "../components/Header";
 
 export default function Home() {
   return (
