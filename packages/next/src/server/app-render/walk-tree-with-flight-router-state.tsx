@@ -18,8 +18,8 @@ import {
 } from './create-flight-router-state-from-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import { createComponentTree } from './create-component-tree'
 
 /**
  * Use router state to decide at what common layout to render the page.

@@ -17,7 +17,8 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
-import type { InitialRSCPayload } from '../server/app-render/types'
+import type { RSCPayload } from '../server/app-render/types'
+import { getInitialRSCPayload } from '../shared/lib/rsc-payload'
 
 // Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
@@ -172,7 +173,8 @@ const initialServerResponse = createFromReadableStream(readable, {
 })
 
 function ServerRoot(): React.ReactNode {
-  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const initialResponse = use<RSCPayload>(initialServerResponse)
+  const initialRSCPayload = getInitialRSCPayload(initialResponse)
 
   return <AppRouter initialRSCPayload={initialRSCPayload} />
 }

@@ -1,7 +1,6 @@
 import type {
   ActionResult,
   DynamicParamTypesShort,
-  FlightData,
   FlightRouterState,
   FlightSegmentPath,
   RenderOpts,
@@ -9,6 +8,8 @@ import type {
   CacheNodeSeedData,
   PreloadCallbacks,
   InitialRSCPayload,
+  FlightDataPath,
+  RSCPayload,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -124,6 +125,7 @@ import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getInitialRSCPayload } from '../../shared/lib/rsc-payload'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -143,7 +145,7 @@ type AppRenderBaseContext = {
   parsedRequestHeaders: ParsedRequestHeaders
 }
 
-export type GenerateFlight = typeof generateFlight
+export type GenerateFlight = typeof generateFlightRenderResult
 
 export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -317,25 +319,20 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   return null
 }
 
-// Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
-async function generateFlight(
+async function generateFlightData(
   ctx: AppRenderContext,
   options?: {
-    actionResult: ActionResult
-    skipFlight: boolean
+    actionResult?: ActionResult
+    skipFlight?: boolean
     asNotFound?: boolean
   }
-): Promise<RenderResult> {
+): Promise<ActionResult | FlightDataPath> {
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
-  let flightData: FlightData | null = null
+  let flightData: FlightDataPath | null = null
 
   const {
-    componentMod: {
-      tree: loaderTree,
-      renderToReadableStream,
-      createDynamicallyTrackedSearchParams,
-    },
+    componentMod: { tree: loaderTree, createDynamicallyTrackedSearchParams },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     requestStore: { url },
@@ -344,9 +341,9 @@ async function generateFlight(
     flightRouterState,
   } = ctx
 
-  const preloadCallbacks: PreloadCallbacks = []
-
   if (!options?.skipFlight) {
+    const preloadCallbacks: PreloadCallbacks = []
+
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       query,
@@ -384,12 +381,28 @@ async function generateFlight(
 
   const buildIdFlightDataPair = [ctx.renderOpts.buildId, flightData]
 
+  return options
+    ? [options.actionResult, buildIdFlightDataPair]
+    : buildIdFlightDataPair
+}
+
+// Handle Flight render request. This data is used by the client router to handle navigations or server actions.
+async function generateFlightRenderResult(
+  ctx: AppRenderContext,
+  options?: {
+    actionResult: ActionResult
+    skipFlight: boolean
+    asNotFound?: boolean
+    componentTree?: CacheNodeSeedData
+    preloadCallbacks?: PreloadCallbacks
+  }
+): Promise<RenderResult> {
+  const flightData = await generateFlightData(ctx, options)
+
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
-  const flightReadableStream = renderToReadableStream(
-    options
-      ? [options.actionResult, buildIdFlightDataPair]
-      : buildIdFlightDataPair,
+  const flightReadableStream = ctx.componentMod.renderToReadableStream(
+    flightData,
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
@@ -402,6 +415,7 @@ async function generateFlight(
 
 type RenderToStreamResult = {
   stream: RenderResultResponse
+  flightRenderResult: FlightRenderResult | undefined
   err?: unknown
 }
 
@@ -417,41 +431,12 @@ type RenderToStreamOptions = {
   formState: any
 }
 
-/**
- * Creates a resolver that eagerly generates a flight payload that is then
- * resolved when the resolver is called.
- */
-function createFlightDataResolver(ctx: AppRenderContext) {
-  // Generate the flight data and as soon as it can, convert it into a string.
-  const promise = generateFlight(ctx)
-    .then(async (result) => ({
-      flightData: await result.toUnchunkedBuffer(true),
-    }))
-    // Otherwise if it errored, return the error.
-    .catch((err) => ({ err }))
-
-  return async () => {
-    // Resolve the promise to get the flight data or error.
-    const result = await promise
-
-    // If the flight data failed to render due to an error, re-throw the error
-    // here.
-    if ('err' in result) {
-      throw result.err
-    }
-
-    // Otherwise, return the flight data.
-    return result.flightData
-  }
-}
-
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   asNotFound: boolean
 ) {
-  // Create full component tree from root to leaf.
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -623,13 +608,15 @@ function ReactServerEntrypoint<T>({
   nonce?: string
 }): JSX.Element {
   preinitScripts()
-  const initialRSCPayload = React.use(
-    useFlightStream<InitialRSCPayload>(
+  const response = React.use(
+    useFlightStream<RSCPayload>(
       reactServerStream,
       clientReferenceManifest,
       nonce
     )
   )
+
+  const initialRSCPayload = getInitialRSCPayload(response)
 
   return <AppRouter initialRSCPayload={initialRSCPayload} />
 }
@@ -936,17 +923,8 @@ async function renderToHTMLOrFlightImpl(
   }
 
   if (isRSCRequest && !isStaticGeneration) {
-    return generateFlight(ctx)
+    return generateFlightRenderResult(ctx)
   }
-
-  // Create the resolver that can get the flight payload when it's ready or
-  // throw the error if it occurred. If we are not generating static HTML, we
-  // don't need to generate the flight payload because it's a dynamic request
-  // which means we're either getting the flight payload only or just the
-  // regular HTML.
-  const flightDataResolver = isStaticGeneration
-    ? createFlightDataResolver(ctx)
-    : null
 
   const validateRootLayout = dev
 
@@ -1004,13 +982,13 @@ async function renderToHTMLOrFlightImpl(
         nonce
       )
 
-      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+      const rscPayload = await getRSCPayload(tree, ctx, asNotFound)
 
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        RSCPayload,
+        rscPayload,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
@@ -1098,6 +1076,15 @@ async function renderToHTMLOrFlightImpl(
         },
       })
 
+      let flightRenderResult: FlightRenderResult | undefined = undefined
+
+      // Tee the data stream so that we can create a static flight payload.
+      if (isStaticGeneration) {
+        const [original, flightSpy] = dataStream.tee()
+        dataStream = original
+        flightRenderResult = new FlightRenderResult(flightSpy)
+      }
+
       try {
         const result = await renderer.render(children)
 
@@ -1139,6 +1126,7 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicPrerender(result.stream, {
                 getServerInsertedHTML,
               }),
+              flightRenderResult,
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
@@ -1169,6 +1157,7 @@ async function renderToHTMLOrFlightImpl(
                 stream: await continueDynamicPrerender(result.stream, {
                   getServerInsertedHTML,
                 }),
+                flightRenderResult,
               }
             } else {
               // This is the Static case
@@ -1234,6 +1223,7 @@ async function renderToHTMLOrFlightImpl(
                   ),
                   getServerInsertedHTML,
                 }),
+                flightRenderResult,
               }
             }
           }
@@ -1251,6 +1241,7 @@ async function renderToHTMLOrFlightImpl(
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
+              flightRenderResult,
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
@@ -1258,6 +1249,7 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicDataResume(result.stream, {
                 inlinedDataStream,
               }),
+              flightRenderResult,
             }
           }
         } else {
@@ -1276,6 +1268,7 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            flightRenderResult,
           }
         }
       } catch (err) {
@@ -1408,6 +1401,7 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
+            flightRenderResult,
           }
         } catch (finalErr: any) {
           if (
@@ -1430,7 +1424,7 @@ async function renderToHTMLOrFlightImpl(
     res,
     ComponentMod,
     serverModuleMap,
-    generateFlight,
+    generateFlight: generateFlightRenderResult,
     staticGenerationStore,
     requestStore,
     serverActions,
@@ -1514,23 +1508,16 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  if (!flightDataResolver) {
-    throw new Error(
-      'Invariant: Flight data resolver is missing when generating static HTML'
-    )
-  }
-
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
   if (buildFailingError) {
     throw buildFailingError
   }
 
-  // Wait for and collect the flight payload data if we don't have it
-  // already
-  const flightData = await flightDataResolver()
-  if (flightData) {
-    metadata.flightData = flightData
+  // If the response included a FlightRenderResult, store it on the page metadata.
+  if (response.flightRenderResult) {
+    metadata.flightData =
+      await response.flightRenderResult.toUnchunkedBuffer(true)
   }
 
   // If force static is specifically set to false, we should not revalidate

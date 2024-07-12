@@ -118,13 +118,13 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 // Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
+export type NavigationFlightResponse = [buildId: string, flightData: FlightData]
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
+export type ActionFlightResponse = [
+  ActionResult,
+  [buildId: string, flightData: FlightData | null],
+]
 
 export type ServerOnInstrumentationRequestError = (
   error: unknown,
@@ -223,3 +223,8 @@ export type InitialRSCPayload = {
   /** GlobalError */
   G: React.ComponentType<any>
 }
+
+export type RSCPayload =
+  | InitialRSCPayload
+  | NavigationFlightResponse
+  | ActionFlightResponse
