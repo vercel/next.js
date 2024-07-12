@@ -590,6 +590,10 @@ async function createComponentTreeInternal({
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
       props.searchParams = createDynamicallyTrackedSearchParams(query)
+
+      // Assign the pathName to the props
+      props.pathName = ctx.pathName
+
       segmentElement = (
         <>
           {metadataOutlet}
