@@ -77,8 +77,7 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         })
 
-        // FIXME: Should have a message to close off the prior "rebuilding"
-        expect(logs).not.toEqual(
+        expect(logs).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               message: expect.stringContaining('[Fast Refresh] done in'),
@@ -114,8 +113,7 @@ describe(`app-dir-hmr`, () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
         })
 
-        // FIXME: Should have a message to close off the prior "rebuilding"
-        expect(logs).not.toEqual(
+        expect(logs).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               message: expect.stringContaining('[Fast Refresh] done in'),
