@@ -63,15 +63,18 @@ pub struct TransformTask {
 }
 
 fn skip_filename() -> bool {
-    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
-        let v = std::env::var("NEXT_TEST_MODE");
+    fn check(name: &str) -> bool {
+        let v = std::env::var(name);
         let v = match v {
             Ok(v) => v,
             Err(_) => return false,
         };
 
         !v.is_empty() && v != "0"
-    });
+    }
+
+    static SKIP_FILENAME: Lazy<bool> =
+        Lazy::new(|| check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE"));
 
     *SKIP_FILENAME
 }
