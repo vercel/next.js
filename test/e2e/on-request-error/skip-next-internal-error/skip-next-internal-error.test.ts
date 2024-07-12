@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('on-request-error - skip-next-internal-error.test', () => {
+describe('on-request-error - skip-next-internal-error', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -18,6 +18,7 @@ describe('on-request-error - skip-next-internal-error.test', () => {
     // No navigation errors
     expect(output).not.toContain('NEXT_REDIRECT')
     expect(output).not.toContain('NEXT_NOT_FOUND')
+    expect(output).not.toContain('BAILOUT_TO_CLIENT_SIDE_RENDERING')
     // No dynamic usage errors
     expect(output).not.toContain('DYNAMIC_SERVER_USAGE')
     // No react postpone errors
