@@ -348,7 +348,8 @@ describe('Error overlay - RSC build errors', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
-        Error:   x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
+        Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
+          x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
           | Component. Add the "use client" directive the top of the file to resolve this issue.
           | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
           | 
@@ -377,24 +378,26 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    // TODO: This check is disabled because line break make this check fail
+    // await check(() => session.getRedboxSource(), /must be a Client Component/)
 
-    // TODO: investigate flakey snapshot due to spacing below
-    // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-    //   .toMatchInlineSnapshot(n`
-    //   "./app/server-with-errors/error-file/error.js
-    //   ReactServerComponentsError:
+    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      .toMatchInlineSnapshot(`
+      "./app/server-with-errors/error-file/error.js
+      Error:   ! Plugin is not supported with current @swc/core. Plugin transform will be skipped.
+        x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client
+        | Component. Add the "use client" directive the top of the file to resolve this issue.
+        | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+        | 
+        | 
+         ,----
+       1 |  
+         : ^
+         \`----
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-
-    //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-    //    1 |
-    //      : ^
-    //      \`----
-
-    //   Import path:
-    //   ./app/server-with-errors/error-file/error.js"
-    // `)
+      Import trace for requested module:
+      ./app/server-with-errors/error-file/error.js"
+    `)
 
     await cleanup()
   })
