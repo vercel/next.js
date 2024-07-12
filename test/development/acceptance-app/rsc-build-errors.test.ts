@@ -377,7 +377,7 @@ describe('Error overlay - RSC build errors', () => {
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
     await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    await check(() => session.getRedboxSource(), /Add the "use client"/)
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
