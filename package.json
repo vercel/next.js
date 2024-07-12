@@ -38,7 +38,7 @@
     "types-and-precompiled": "run-p lint-typescript check-precompiled validate-externals-doc",
     "validate-externals-doc": "node ./scripts/validate-externals-doc.js",
     "lint": "run-p test-types lint-typescript prettier-check lint-eslint lint-language",
-    "lint-fix": "pnpm prettier-fix && eslint . --ext js,jsx,ts,tsx --fix --config .eslintrc.json --no-eslintrc",
+    "lint-fix": "pnpm prettier-fix && pnpm lint-eslint --fix",
     "lint-language": "alex .",
     "prettier-check": "prettier --check .",
     "check-examples": "./scripts/check-examples.sh",
