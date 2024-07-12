@@ -15259,14 +15259,15 @@
     },
     "test/integration/with-router/test/index.test.js": {
       "passed": [
-        "withRouter SSR should show an error when trying to use router methods during SSR",
+        "withRouter SSR should show an error when trying to use router methods during SSR"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [
         "withRouter production mode allows observation of navigation events using top level Router",
         "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
         "withRouter production mode allows observation of navigation events using withRouter"
       ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
       "runtimeError": false
     },
     "test/integration/worker-webpack5/test/index.test.js": {
@@ -15682,7 +15683,6 @@
     },
     "test/production/error-hydration/error-hydration.test.ts": {
       "passed": [
-        "error-hydration invokes _error's getInitialProps for client-side errors",
         "error-hydration should log no error messages for server-side errors",
         "error-hydration should not invoke the error page getInitialProps client-side for server-side errors"
       ],
@@ -15690,7 +15690,9 @@
         "error-hydration should log an message for client-side errors, including the full, custom error"
       ],
       "pending": [],
-      "flakey": [],
+      "flakey": [
+        "error-hydration invokes _error's getInitialProps for client-side errors"
+      ],
       "runtimeError": false
     },
     "test/production/escheck-output/index.test.ts": {
