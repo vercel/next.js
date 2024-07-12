@@ -97,7 +97,9 @@ pub enum MetadataWithAltItem {
 }
 
 /// A single metadata file.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Copy, Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs,
+)]
 pub enum MetadataItem {
     Static { path: Vc<FileSystemPath> },
     Dynamic { path: Vc<FileSystemPath> },
@@ -468,7 +470,16 @@ impl LoaderTree {
 }
 
 #[derive(
-    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, Debug, TaskInput,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    Debug,
+    TaskInput,
 )]
 pub enum Entrypoint {
     AppPage {
