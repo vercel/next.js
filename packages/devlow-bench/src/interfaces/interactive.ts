@@ -1,6 +1,5 @@
 import { Interface, Scenario, ScenarioVariant } from "../index.js";
 import inquirer from "inquirer";
-import chalk from "chalk";
 import { formatUnit } from "../units.js";
 import { formatVariant } from "../utils.js";
 
