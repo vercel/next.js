@@ -58,11 +58,7 @@ import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
-import {
-  createErrorHandler,
-  ErrorHandlerSource,
-  type ErrorHandler,
-} from './create-error-handler'
+import { createErrorHandler, type ErrorHandler } from './create-error-handler'
 import {
   getShortDynamicParamType,
   dynamicParamTypes,
@@ -727,7 +723,7 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const digestErrorsMap: Map<string, Error> = new Map()
+  const digestErrorsMap: Map<string, Error & { digest: string }> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
@@ -762,32 +758,61 @@ async function renderToHTMLOrFlightImpl(
     routeType: 'render',
   } as const
 
-  const onReactStreamRenderError = onInstrumentationRequestError
-    ? (err: Error) => onInstrumentationRequestError(err, req, errorContext)
-    : undefined
+  // Including RSC rendering and flight data rendering
+  function getRSCError(err: Error & { digest: string }) {
+    const digest = err.digest
+    if (!digestErrorsMap.has(digest)) {
+      digestErrorsMap.set(digest, err)
+    }
+    return err
+  }
+
+  function getSSRError(err: Error & { digest: string }) {
+    // For SSR errors, if we have the existing digest in errors map,
+    // we should use the existing error object to avoid duplicate error logs.
+    if (digestErrorsMap.has(err.digest)) {
+      return digestErrorsMap.get(err.digest)!
+    }
+    return err
+  }
+
+  function onFlightDataRenderError(err: Error & { digest: string }) {
+    return onInstrumentationRequestError?.(err, req, {
+      ...errorContext,
+      renderSource: 'react-server-components-payload',
+    })
+  }
+
+  function onServerRenderError(err: Error & { digest: string }) {
+    const renderSource = digestErrorsMap.has(err.digest)
+      ? 'react-server-components'
+      : 'server-rendering'
+    return onInstrumentationRequestError?.(err, req, {
+      ...errorContext,
+      renderSource,
+    })
+  }
 
   const serverComponentsErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    onReactStreamRenderError,
-    digestErrorsMap,
+    // RSC rendering error will report as SSR error
+    onReactStreamRenderError: undefined,
+    getErrorByRenderSource: getRSCError,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    onReactStreamRenderError,
-    digestErrorsMap,
+    onReactStreamRenderError: onFlightDataRenderError,
+    getErrorByRenderSource: getRSCError,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    onReactStreamRenderError,
-    digestErrorsMap,
+    onReactStreamRenderError: onServerRenderError,
+    getErrorByRenderSource: getSSRError,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
   })
