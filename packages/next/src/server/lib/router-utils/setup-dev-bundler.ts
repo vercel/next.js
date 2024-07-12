@@ -949,7 +949,7 @@ async function startWatcher(opts: SetupOpts) {
       )
 
       Log.error(
-        `An unexpected Turbopack error occurred. Please report this error, logged in ${fatalLogPath}, to the Next.js team at https://github.com/vercel/next.js/issues/new.`
+        `An unexpected Turbopack error occurred. Please report the content of ${fatalLogPath} to the Next.js team at https://github.com/vercel/next.js/issues/new.`
       )
     } else if (type === 'warning') {
       Log.warn(err)
