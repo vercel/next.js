@@ -17,6 +17,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { IncomingHttpHeaders } from 'http'
 
 import React, { type JSX } from 'react'
 
@@ -153,6 +154,51 @@ export type AppRenderContext = AppRenderBaseContext & {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+}
+
+interface ParseRequestHeadersOptions {
+  readonly isRoutePPREnabled: boolean
+}
+
+interface ParsedRequestHeaders {
+  /**
+   * Router state provided from the client-side router. Used to handle rendering
+   * from the common layout down. This value will be undefined if the request is
+   * not a client-side navigation request, or if the request is a prefetch
+   * request.
+   */
+  readonly flightRouterState: FlightRouterState | undefined
+  readonly isPrefetchRequest: boolean
+  readonly isRSCRequest: boolean
+  readonly nonce: string | undefined
+}
+
+function parseRequestHeaders(
+  headers: IncomingHttpHeaders,
+  options: ParseRequestHeadersOptions
+): ParsedRequestHeaders {
+  const isPrefetchRequest =
+    headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+
+  const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const shouldProvideFlightRouterState =
+    isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
+
+  const flightRouterState = shouldProvideFlightRouterState
+    ? parseAndValidateFlightRouterState(
+        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+      )
+    : undefined
+
+  const csp =
+    headers['content-security-policy'] ||
+    headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
+  return { flightRouterState, isPrefetchRequest, isRSCRequest, nonce }
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -784,25 +830,10 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  // We read these values from the request object as, in certain cases, base-server
-  // will strip them to opt into different rendering behavior.
-  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
-  const isPrefetchRSCRequest =
-    isRSCRequest &&
-    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
-
-  /**
-   * Router state provided from the client-side router. Used to handle rendering
-   * from the common layout down. This value will be undefined if the request
-   * is not a client-side navigation request or if the request is a prefetch
-   * request.
-   */
-  const shouldProvideFlightRouterState =
-    isRSCRequest && (!isPrefetchRSCRequest || !isRoutePPREnabled)
-
-  const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
-  )
+  const { flightRouterState, isPrefetchRequest, isRSCRequest, nonce } =
+    // We read these values from the request object as, in certain cases,
+    // base-server will strip them to opt into different rendering behavior.
+    parseRequestHeaders(req.headers, { isRoutePPREnabled })
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -826,25 +857,14 @@ async function renderToHTMLOrFlightImpl(
     pagePath
   )
 
-  // Get the nonce from the incoming request if it has one.
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-  let nonce: string | undefined
-  if (csp && typeof csp === 'string') {
-    nonce = getScriptNonceFromHeader(csp)
-  }
-
   const ctx: AppRenderContext = {
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch: isPrefetchRSCRequest,
+    isPrefetch: isPrefetchRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    flightRouterState: shouldProvideFlightRouterState
-      ? parsedFlightRouterState
-      : undefined,
+    flightRouterState,
     requestId,
     defaultRevalidate: false,
     pagePath,
