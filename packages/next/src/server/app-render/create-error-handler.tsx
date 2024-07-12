@@ -3,8 +3,8 @@ import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { isNavigationSignalError } from '../../export/helpers/is-navigation-signal-error'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -66,7 +66,7 @@ export function createErrorHandler({
     if (isBailoutToCSRError(err)) return err.digest
 
     // If this is a navigation error, we don't need to log the error.
-    if (isNavigationSignalError(err)) return err.digest
+    if (isNextRouterError(err)) return err.digest
 
     if (!digestErrorsMap.has(digest)) {
       digestErrorsMap.set(digest, err)
