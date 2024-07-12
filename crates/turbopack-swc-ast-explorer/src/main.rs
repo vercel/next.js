@@ -9,7 +9,7 @@ use swc_core::{
     common::{errors::ColorConfig, source_map::FileName, Globals, SourceMap, GLOBALS},
     ecma::{
         ast::EsVersion,
-        parser::{Syntax, TsConfig},
+        parser::{Syntax, TsSyntax},
     },
 };
 
@@ -30,7 +30,7 @@ fn main() -> Result<()> {
     let sm = Arc::new(SourceMap::default());
     let file = sm.new_source_file(FileName::Anon, contents);
     let target = EsVersion::latest();
-    let syntax = Syntax::Typescript(TsConfig {
+    let syntax = Syntax::Typescript(TsSyntax {
         tsx: true,
         decorators: false,
         dts: false,
