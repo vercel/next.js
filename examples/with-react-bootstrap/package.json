@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "bootstrap": "^4.4.1",
+    "bootstrap": "^5.0.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-bootstrap": "^1.0.1",
