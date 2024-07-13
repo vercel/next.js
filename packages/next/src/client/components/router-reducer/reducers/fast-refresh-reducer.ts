@@ -34,12 +34,11 @@ function fastRefreshReducerImpl(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.lazyData = fetchServerResponse(
-    new URL(href, origin),
-    [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
-    includeNextUrl ? state.nextUrl : null,
-    state.buildId
-  )
+  cache.lazyData = fetchServerResponse(new URL(href, origin), {
+    flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
+    nextUrl: includeNextUrl ? state.nextUrl : null,
+    buildId: state.buildId,
+  })
 
   return cache.lazyData.then(
     ([flightData, canonicalUrlOverride]) => {

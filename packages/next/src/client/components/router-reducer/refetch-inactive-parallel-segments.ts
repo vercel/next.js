@@ -64,11 +64,13 @@ async function refreshInactiveParallelSegmentsImpl({
     // independently on their own cache nodes, and `applyFlightData` will copy anything it doesn't care about from the existing cache.
     const fetchPromise = fetchServerResponse(
       new URL(refetchPath, location.origin),
-      // refetch from the root of the updated tree, otherwise it will be scoped to the current segment
-      // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
-      [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
-      includeNextUrl ? state.nextUrl : null,
-      state.buildId
+      {
+        // refetch from the root of the updated tree, otherwise it will be scoped to the current segment
+        // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
+        flightRouterState: [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
+        nextUrl: includeNextUrl ? state.nextUrl : null,
+        buildId: state.buildId,
+      }
     ).then((fetchResponse) => {
       const flightData = fetchResponse[0]
       if (typeof flightData !== 'string') {
