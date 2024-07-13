@@ -947,7 +947,11 @@ export default async function getBaseWebpackConfig(
 
     ...(config.experimental.flyingShuttle
       ? {
-          recordsPath: path.join(distDir, 'cache', 'shuttle', 'records.json'),
+          recordsPath: path.join(
+            distDir,
+            'cache',
+            `records-${compilerType}.json`
+          ),
         }
       : {}),
 

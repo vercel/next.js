@@ -17,6 +17,7 @@ import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { spans } from './profiling-plugin'
+import { Span } from '../../../trace'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -91,13 +92,18 @@ export function normalizeRewritesForBuildManifest(
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
-function generateClientManifest(
-  compiler: any,
-  compilation: any,
+export function generateClientManifest(
   assetMap: BuildManifest,
-  rewrites: CustomRoutes['rewrites']
+  rewrites: CustomRoutes['rewrites'],
+  compiler?: any,
+  compilation?: any
 ): string | undefined {
-  const compilationSpan = spans.get(compilation) || spans.get(compiler)
+  const compilationSpan = compilation
+    ? spans.get(compilation)
+    : compiler
+      ? spans.get(compiler)
+      : new Span({ name: 'client-manifest' })
+
   const genClientManifestSpan = compilationSpan?.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
@@ -195,6 +201,7 @@ export default class BuildManifestPlugin {
         ampDevFiles: [],
         lowPriorityFiles: [],
         rootMainFiles: [],
+        rootMainFilesTree: [],
         pages: { '/_app': [] },
         ampFirstPages: [],
       }
@@ -308,10 +315,10 @@ export default class BuildManifestPlugin {
 
         assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
-            compiler,
-            compilation,
             assetMap,
-            this.rewrites
+            this.rewrites,
+            compiler,
+            compilation
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
         )
       }

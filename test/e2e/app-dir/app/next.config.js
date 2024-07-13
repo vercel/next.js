@@ -8,6 +8,12 @@ module.exports = {
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
   },
+  webpack(cfg) {
+    // disable the webpack cache to make sure we're
+    // deterministic without
+    cfg.cache = false
+    return cfg
+  },
   // output: 'standalone',
   rewrites: async () => {
     return {
