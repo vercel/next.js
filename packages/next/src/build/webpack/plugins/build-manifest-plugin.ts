@@ -77,9 +77,15 @@ export function normalizeRewritesForBuildManifest(
   rewrites: CustomRoutes['rewrites']
 ): CustomRoutes['rewrites'] {
   return {
-    afterFiles: rewrites.afterFiles?.map((item) => normalizeRewrite(item)),
-    beforeFiles: rewrites.beforeFiles?.map((item) => normalizeRewrite(item)),
-    fallback: rewrites.fallback?.map((item) => normalizeRewrite(item)),
+    afterFiles: rewrites.afterFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    beforeFiles: rewrites.beforeFiles
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
+    fallback: rewrites.fallback
+      ?.map(processRoute)
+      ?.map((item) => normalizeRewrite(item)),
   }
 }
 
@@ -143,7 +149,7 @@ export const processRoute = (r: Rewrite) => {
 
   // omit external rewrite destinations since these aren't
   // handled client-side
-  if (!rewrite.destination.startsWith('/')) {
+  if (!rewrite?.destination?.startsWith('/')) {
     delete (rewrite as any).destination
   }
   return rewrite

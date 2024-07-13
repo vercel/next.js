@@ -2501,18 +2501,6 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getFlightData(dataHref: string) {
-    // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData({
-      dataHref,
-      isServerRender: true,
-      parseJSON: false,
-      inflightCache: this.sdc,
-      persistCache: false,
-      isPrefetch: false,
-    }).then(({ text }) => ({ data: text }))
-  }
-
   getInitialProps(
     Component: ComponentType,
     ctx: NextPageContext

@@ -18,14 +18,13 @@ import type {
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
-import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
@@ -36,6 +35,23 @@ export type FetchServerResponseResult = [
   postponed?: boolean,
   intercepted?: boolean,
 ]
+
+function urlToUrlWithoutFlightMarker(url: string): URL {
+  const urlWithoutFlightParameters = new URL(url, location.origin)
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+    }
+  }
+  return urlWithoutFlightParameters
+}
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
@@ -53,14 +69,16 @@ export async function fetchServerResponse(
 ): Promise<FetchServerResponseResult> {
   const headers: {
     [RSC_HEADER]: '1'
-    [NEXT_ROUTER_STATE_TREE]: string
+    [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    // A header that is only added in test mode to assert on fetch priority
+    'Next-Test-Fetch-Priority'?: RequestInit['priority']
   } = {
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
+    [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
       JSON.stringify(flightRouterState)
     ),
   }
@@ -82,7 +100,7 @@ export async function fetchServerResponse(
   const uniqueCacheQuery = hexHash(
     [
       headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE],
+      headers[NEXT_ROUTER_STATE_TREE_HEADER],
       headers[NEXT_URL],
     ].join(',')
   )
@@ -99,13 +117,28 @@ export async function fetchServerResponse(
       }
     }
 
-    // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
+    // Add unique cache query to avoid caching conflicts on CDN which don't respect the Vary header
     fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+
+    // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
+    // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
+    // Otherwise, all other prefetches are sent with a "low" priority.
+    // We use "auto" for in all other cases to match the existing default, as this function is shared outside of prefetching.
+    const fetchPriority = prefetchKind
+      ? prefetchKind === PrefetchKind.TEMPORARY
+        ? 'high'
+        : 'low'
+      : 'auto'
+
+    if (process.env.__NEXT_TEST_MODE) {
+      headers['Next-Test-Fetch-Priority'] = fetchPriority
+    }
 
     const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
       credentials: 'same-origin',
       headers,
+      priority: fetchPriority,
     })
 
     const responseUrl = urlToUrlWithoutFlightMarker(res.url)
