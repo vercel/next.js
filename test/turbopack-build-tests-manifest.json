@@ -16011,22 +16011,21 @@
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
-        "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
+        "Production Usage should warn when prefetch is true",
         "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
         "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
-        "Production Usage With basic usage should set Cache-Control header",
+        "Production Usage With basic usage should set Cache-Control header"
+      ],
+      "failed": [
         "Production Usage process.browser should eliminate client only code on the server",
         "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should contain the Next.js version in window export",
-        "Production Usage should not contain amp, rsc APIs in main chunk",
-        "Production Usage should not contain currentScript usage for publicPath",
         "Production Usage should output traces"
       ],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
-        "Production Usage With basic usage should allow etag header support with getServerSideProps"
+        "Production Usage With basic usage should allow etag header support with getServerSideProps",
+        "Production Usage should not contain currentScript usage for publicPath",
+        "Production Usage should not contain amp, rsc APIs in main chunk"
       ],
       "flakey": [],
       "runtimeError": false
