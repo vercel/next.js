@@ -15670,7 +15670,6 @@
     },
     "test/production/error-hydration/error-hydration.test.ts": {
       "passed": [
-        "error-hydration invokes _error's getInitialProps for client-side errors",
         "error-hydration should log no error messages for server-side errors",
         "error-hydration should not invoke the error page getInitialProps client-side for server-side errors"
       ],
@@ -15678,7 +15677,9 @@
         "error-hydration should log an message for client-side errors, including the full, custom error"
       ],
       "pending": [],
-      "flakey": [],
+      "flakey": [
+        "error-hydration invokes _error's getInitialProps for client-side errors"
+      ],
       "runtimeError": false
     },
     "test/production/escheck-output/index.test.ts": {
