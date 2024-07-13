@@ -15671,12 +15671,11 @@
     "test/production/error-hydration/error-hydration.test.ts": {
       "passed": [
         "error-hydration invokes _error's getInitialProps for client-side errors",
-        "error-hydration should log no error messages for server-side errors",
+        "error-hydration should log a message for client-side errors, including the full, custom error",
+        "error-hydration should not log server-side errors",
         "error-hydration should not invoke the error page getInitialProps client-side for server-side errors"
       ],
-      "failed": [
-        "error-hydration should log an message for client-side errors, including the full, custom error"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
