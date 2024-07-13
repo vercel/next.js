@@ -170,13 +170,25 @@ impl AppPage {
     }
 
     pub fn push(&mut self, segment: PageSegment) -> Result<()> {
-        if matches!(
-            self.0.last(),
-            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
-        ) && !matches!(segment, PageSegment::PageType(..))
+        let has_catchall = self.0.iter().any(|segment| {
+            matches!(
+                segment,
+                PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
+            )
+        });
+
+        if has_catchall
+            && matches!(
+                segment,
+                PageSegment::Static(..)
+                    | PageSegment::Dynamic(..)
+                    | PageSegment::CatchAll(..)
+                    | PageSegment::OptionalCatchAll(..)
+            )
         {
             bail!(
-                "Invalid segment {:?}, catch all segment must be the last segment (segments: {:?})",
+                "Invalid segment {:?}, catch all segment must be the last segment modifying the \
+                 path (segments: {:?})",
                 segment,
                 self.0
             )
