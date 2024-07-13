@@ -126,6 +126,8 @@ async function main() {
         ...process.env,
         NEXT_TEST_MODE: testMode,
         NEXT_TEST_VERSION: nextTestVersion,
+        NEXT_EXTERNAL_TESTS_FILTERS:
+          testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
       },
     })
   }

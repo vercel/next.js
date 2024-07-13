@@ -382,11 +382,9 @@ describe('Middleware Rewrite', () => {
 
         await browser.elementByCss("[href='/dynamic-no-cache/1']").moveTo()
 
-        if (!(global as any).isNextDev) {
-          await retry(async () => {
-            expect(hasResolvedPrefetch).toBe(true)
-          })
-        }
+        await retry(async () => {
+          expect(hasResolvedPrefetch).toBe(true)
+        })
 
         await browser.elementByCss("[href='/dynamic-no-cache/1']").click()
 
