@@ -1917,6 +1917,10 @@ export default class NextNodeServer extends BaseServer<
       incrementalCache:
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
+      serverComponentsHmrCache: getRequestMeta(
+        params.req,
+        'serverComponentsHmrCache'
+      ),
     })
 
     if (result.fetchMetrics) {

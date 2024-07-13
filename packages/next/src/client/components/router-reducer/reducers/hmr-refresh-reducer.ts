@@ -5,7 +5,7 @@ import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout
 import type {
   ReadonlyReducerState,
   ReducerState,
-  FastRefreshAction,
+  HmrRefreshAction,
   Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
@@ -17,9 +17,9 @@ import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
-function fastRefreshReducerImpl(
+function hmrRefreshReducerImpl(
   state: ReadonlyReducerState,
-  action: FastRefreshAction
+  action: HmrRefreshAction
 ): ReducerState {
   const { origin } = action
   const mutable: Mutable = {}
@@ -38,6 +38,7 @@ function fastRefreshReducerImpl(
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
     buildId: state.buildId,
+    isHmrRefresh: true,
   })
 
   return cache.lazyData.then(
@@ -114,14 +115,14 @@ function fastRefreshReducerImpl(
   )
 }
 
-function fastRefreshReducerNoop(
+function hmrRefreshReducerNoop(
   state: ReadonlyReducerState,
-  _action: FastRefreshAction
+  _action: HmrRefreshAction
 ): ReducerState {
   return state
 }
 
-export const fastRefreshReducer =
+export const hmrRefreshReducer =
   process.env.NODE_ENV === 'production'
-    ? fastRefreshReducerNoop
-    : fastRefreshReducerImpl
+    ? hmrRefreshReducerNoop
+    : hmrRefreshReducerImpl

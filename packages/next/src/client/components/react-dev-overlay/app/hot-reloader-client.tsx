@@ -427,7 +427,7 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.fastRefresh()
+        router.hmrRefresh()
         dispatcher.onRefresh()
       })
       reportHmrLatency(sendMessage, [])
@@ -455,7 +455,7 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return router.fastRefresh()
+      return router.hmrRefresh()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
