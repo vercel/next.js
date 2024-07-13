@@ -6093,8 +6093,7 @@
       "runtimeError": false
     },
     "test/e2e/transpile-packages/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "transpile packages css should handle css modules imports inside transpiled modules",
         "transpile packages css should handle global css imports inside transpiled modules",
         "transpile packages css should handle global scss imports inside transpiled modules",
@@ -6102,6 +6101,7 @@
         "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
         "transpile packages optional deps should not throw an error when optional deps are not installed"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
