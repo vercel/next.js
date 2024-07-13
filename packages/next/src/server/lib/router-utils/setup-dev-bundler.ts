@@ -149,6 +149,7 @@ export async function propagateServerField(
   await opts.renderServer?.instance?.propagateServerField(opts.dir, field, args)
 }
 
+let logFileLock = Promise.resolve()
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
   const { useFileSystemPublicRoutes } = nextConfig
@@ -932,6 +933,9 @@ async function startWatcher(opts: SetupOpts) {
       } catch {}
 
       if (logStat && logStat.size > 500 * 1024) {
+        await logFileLock
+        let releaseLock: () => void
+        logFileLock = new Promise((res) => (releaseLock = res))
         // If the log file is greater than 500KB, truncate the least recent error
         // to prevent the log from growing indefinitely
         await writeFile(
@@ -941,6 +945,7 @@ async function startWatcher(opts: SetupOpts) {
             .slice(1)
             .join(levelMarker)
         )
+        releaseLock!()
       }
 
       await appendFile(
