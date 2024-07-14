@@ -13,15 +13,15 @@ describe('typed-env', () => {
       },
 
       // should not include from production-specific env
-      // e.g. FROM_PROD_ENV_LOCAL: readonly string
+      // e.g. FROM_PROD_ENV_LOCAL: string
       `// Type definitions for Next.js environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      FROM_DEV_ENV_LOCAL: readonly string
-      FROM_ENV_LOCAL: readonly string
-      FROM_ENV: readonly string
-      FROM_NEXT_CONFIG: readonly string
+      FROM_DEV_ENV_LOCAL: string
+      FROM_ENV_LOCAL: string
+      FROM_ENV: string
+      FROM_NEXT_CONFIG: string
     }
   }
 }
@@ -35,15 +35,15 @@ export {}`
         return await next.readFile('.next/types/env.d.ts')
       },
       // env.d.ts is written from original .env
-      /FROM_ENV: readonly string/
+      /FROM_ENV: string/
     )
 
     // modify .env
     await next.patchFile('.env', 'MODIFIED_ENV="MODIFIED_ENV"')
 
     // should not include from original .env
-    // e.g. FROM_ENV: readonly string
-    // but have MODIFIED_ENV: readonly string
+    // e.g. FROM_ENV: string
+    // but have MODIFIED_ENV: string
     await check(
       async () => {
         return await next.readFile('.next/types/env.d.ts')
@@ -52,10 +52,10 @@ export {}`
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      FROM_DEV_ENV_LOCAL: readonly string
-      FROM_ENV_LOCAL: readonly string
-      MODIFIED_ENV: readonly string
-      FROM_NEXT_CONFIG: readonly string
+      FROM_DEV_ENV_LOCAL: string
+      FROM_ENV_LOCAL: string
+      MODIFIED_ENV: string
+      FROM_NEXT_CONFIG: string
     }
   }
 }

@@ -588,7 +588,11 @@ function fetchNextData({
   // without blocking navigation when stale data is available
   if (unstable_skipClientCache && persistCache) {
     return getData({}).then((data) => {
-      inflightCache[cacheKey] = Promise.resolve(data)
+      if (data.response.headers.get('x-middleware-cache') !== 'no-cache') {
+        // only update cache if not marked as no-cache
+        inflightCache[cacheKey] = Promise.resolve(data)
+      }
+
       return data
     })
   }
@@ -2499,18 +2503,6 @@ export default class Router implements BaseRouter {
 
       return data
     })
-  }
-
-  _getFlightData(dataHref: string) {
-    // Do not cache RSC flight response since it's not a static resource
-    return fetchNextData({
-      dataHref,
-      isServerRender: true,
-      parseJSON: false,
-      inflightCache: this.sdc,
-      persistCache: false,
-      isPrefetch: false,
-    }).then(({ text }) => ({ data: text }))
   }
 
   getInitialProps(

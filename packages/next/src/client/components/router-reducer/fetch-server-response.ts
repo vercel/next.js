@@ -24,11 +24,19 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_HMR_REFRESH_HEADER,
 } from '../app-router-headers'
-import { urlToUrlWithoutFlightMarker } from '../app-router'
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+
+export interface FetchServerResponseOptions {
+  readonly flightRouterState: FlightRouterState
+  readonly nextUrl: string | null
+  readonly buildId: string
+  readonly prefetchKind?: PrefetchKind
+  readonly isHmrRefresh?: boolean
+}
 
 export type FetchServerResponseResult = [
   flightData: FlightData,
@@ -37,25 +45,43 @@ export type FetchServerResponseResult = [
   intercepted?: boolean,
 ]
 
+function urlToUrlWithoutFlightMarker(url: string): URL {
+  const urlWithoutFlightParameters = new URL(url, location.origin)
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+    }
+  }
+  return urlWithoutFlightParameters
+}
+
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return [urlToUrlWithoutFlightMarker(url).toString(), undefined, false, false]
 }
 
 /**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
+ * Fetch the flight data for the provided url. Takes in the current router state
+ * to decide what to render server-side.
  */
 export async function fetchServerResponse(
   url: URL,
-  flightRouterState: FlightRouterState,
-  nextUrl: string | null,
-  currentBuildId: string,
-  prefetchKind?: PrefetchKind
+  options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
+  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
+
   const headers: {
     [RSC_HEADER]: '1'
     [NEXT_ROUTER_STATE_TREE_HEADER]: string
     [NEXT_URL]?: string
     [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    [NEXT_HMR_REFRESH_HEADER]?: '1'
     // A header that is only added in test mode to assert on fetch priority
     'Next-Test-Fetch-Priority'?: RequestInit['priority']
   } = {
@@ -75,6 +101,10 @@ export async function fetchServerResponse(
    */
   if (prefetchKind === PrefetchKind.AUTO) {
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+  }
+
+  if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
+    headers[NEXT_HMR_REFRESH_HEADER] = '1'
   }
 
   if (nextUrl) {
@@ -153,14 +183,10 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const [buildId, flightData]: NextFlightResponse = await createFromFetch(
-      Promise.resolve(res),
-      {
-        callServer,
-      }
-    )
+    const [buildIdFromResponse, flightData]: NextFlightResponse =
+      await createFromFetch(Promise.resolve(res), { callServer })
 
-    if (currentBuildId !== buildId) {
+    if (buildId !== buildIdFromResponse) {
       return doMpaNavigation(res.url)
     }
 

@@ -1126,10 +1126,10 @@
     },
     "test/e2e/app-dir/app/flying-shuttle.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "should output updated trace files should have file hashes in trace files"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -6093,8 +6093,7 @@
       "runtimeError": false
     },
     "test/e2e/transpile-packages/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "transpile packages css should handle css modules imports inside transpiled modules",
         "transpile packages css should handle global css imports inside transpiled modules",
         "transpile packages css should handle global scss imports inside transpiled modules",
@@ -6102,6 +6101,7 @@
         "transpile packages optional deps should hide dynammic module dependency errors from node_modules",
         "transpile packages optional deps should not throw an error when optional deps are not installed"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
@@ -15257,18 +15257,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/with-router/test/index.test.js": {
-      "passed": [
-        "withRouter SSR should show an error when trying to use router methods during SSR",
-        "withRouter production mode allows observation of navigation events using top level Router",
-        "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
-        "withRouter production mode allows observation of navigation events using withRouter"
-      ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/integration/worker-webpack5/test/index.test.js": {
       "passed": [],
       "failed": [],
@@ -15683,12 +15671,11 @@
     "test/production/error-hydration/error-hydration.test.ts": {
       "passed": [
         "error-hydration invokes _error's getInitialProps for client-side errors",
-        "error-hydration should log no error messages for server-side errors",
+        "error-hydration should log a message for client-side errors, including the full, custom error",
+        "error-hydration should not log server-side errors",
         "error-hydration should not invoke the error page getInitialProps client-side for server-side errors"
       ],
-      "failed": [
-        "error-hydration should log an message for client-side errors, including the full, custom error"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16023,22 +16010,21 @@
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
-        "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
+        "Production Usage should warn when prefetch is true",
         "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
         "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
-        "Production Usage With basic usage should set Cache-Control header",
+        "Production Usage With basic usage should set Cache-Control header"
+      ],
+      "failed": [
         "Production Usage process.browser should eliminate client only code on the server",
         "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should contain the Next.js version in window export",
-        "Production Usage should not contain amp, rsc APIs in main chunk",
-        "Production Usage should not contain currentScript usage for publicPath",
         "Production Usage should output traces"
       ],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
-        "Production Usage With basic usage should allow etag header support with getServerSideProps"
+        "Production Usage With basic usage should allow etag header support with getServerSideProps",
+        "Production Usage should not contain currentScript usage for publicPath",
+        "Production Usage should not contain amp, rsc APIs in main chunk"
       ],
       "flakey": [],
       "runtimeError": false
