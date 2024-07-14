@@ -32,6 +32,7 @@ struct NextAmpAttributes {}
 
 #[async_trait]
 impl CustomTransformer for NextAmpAttributes {
+    #[tracing::instrument(level = tracing::Level::TRACE, name = "next_amp", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut amp_attributes());

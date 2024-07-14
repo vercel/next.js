@@ -1,7 +1,7 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { Revalidate } from '../lib/revalidate'
-import type { RouteKind } from '../../server/future/route-kind'
+import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
   get(
@@ -17,18 +17,29 @@ export interface ResponseCacheBase {
        * provided it will test the filesystem to check.
        */
       routeKind?: RouteKind
+
+      isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
 }
 
+// The server components HMR cache might store other data as well in the future,
+// at which point this should be refactored to a discriminated union type.
+export interface ServerComponentsHmrCache {
+  get(key: string): CachedFetchData | undefined
+  set(key: string, data: CachedFetchData): void
+}
+
+export type CachedFetchData = {
+  headers: Record<string, string>
+  body: string
+  url: string
+  status?: number
+}
+
 export interface CachedFetchValue {
   kind: 'FETCH'
-  data: {
-    headers: { [k: string]: string }
-    body: string
-    url: string
-    status?: number
-  }
+  data: CachedFetchData
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry
   tags?: string[]
@@ -161,11 +172,16 @@ export interface IncrementalCache {
        * determine the kind from the filesystem.
        */
       kindHint?: IncrementalCacheKindHint
+
+      isRoutePPREnabled?: boolean
     }
   ) => Promise<IncrementalCacheItem>
   set: (
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: { revalidate: Revalidate }
+    ctx: {
+      revalidate: Revalidate
+      isRoutePPREnabled?: boolean
+    }
   ) => Promise<void>
 }

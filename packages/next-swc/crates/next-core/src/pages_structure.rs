@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPathOption;
 use turbopack_binding::turbo::tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
@@ -146,14 +146,14 @@ impl PagesDirectoryStructure {
 pub async fn find_pages_structure(
     project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages".to_string());
+    let pages_root = project_root.join("pages".into());
     let pages_root = Vc::<FileSystemPathOption>::cell(
         if *pages_root.get_type().await? == FileSystemEntryType::Directory {
             Some(pages_root)
         } else {
-            let src_pages_root = project_root.join("src/pages".to_string());
+            let src_pages_root = project_root.join("src/pages".into());
             if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
                 Some(src_pages_root)
             } else {
@@ -181,7 +181,7 @@ async fn get_pages_structure_for_root_directory(
     project_root: Vc<FileSystemPath>,
     project_path: Vc<FileSystemPathOption>,
     next_router_path: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
 
@@ -199,13 +199,16 @@ async fn get_pages_structure_for_root_directory(
             for (name, entry) in entries.iter() {
                 match entry {
                     DirectoryEntry::File(file_project_path) => {
+                        // Do not process .d.ts files as routes
+                        if name.ends_with(".d.ts") {
+                            continue;
+                        }
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };
                         match basename {
                             "_app" => {
-                                let item_next_router_path =
-                                    next_router_path.join("_app".to_string());
+                                let item_next_router_path = next_router_path.join("_app".into());
                                 app_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -214,7 +217,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                             "_document" => {
                                 let item_next_router_path =
-                                    next_router_path.join("_document".to_string());
+                                    next_router_path.join("_document".into());
                                 document_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -222,8 +225,7 @@ async fn get_pages_structure_for_root_directory(
                                 ));
                             }
                             "_error" => {
-                                let item_next_router_path =
-                                    next_router_path.join("_error".to_string());
+                                let item_next_router_path = next_router_path.join("_error".into());
                                 error_item = Some(PagesStructureItem::new(
                                     *file_project_path,
                                     item_next_router_path,
@@ -233,8 +235,7 @@ async fn get_pages_structure_for_root_directory(
                             basename => {
                                 let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
-                                let item_original_path =
-                                    next_router_path.join(basename.to_string());
+                                let item_original_path = next_router_path.join(basename.into());
                                 items.push((
                                     basename,
                                     PagesStructureItem::new(
@@ -246,7 +247,7 @@ async fn get_pages_structure_for_root_directory(
                             }
                         }
                     }
-                    DirectoryEntry::Directory(dir_project_path) => match name.as_ref() {
+                    DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
                             api_directory = Some(get_pages_structure_for_directory(
                                 *dir_project_path,
@@ -292,9 +293,9 @@ async fn get_pages_structure_for_root_directory(
     let app_item = if let Some(app_item) = app_item {
         app_item
     } else {
-        let app_router_path = next_router_path.join("_app".to_string());
+        let app_router_path = next_router_path.join("_app".into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("app.js".to_string()),
+            get_next_package(project_root).join("app.js".into()),
             app_router_path,
             app_router_path,
         )
@@ -303,9 +304,9 @@ async fn get_pages_structure_for_root_directory(
     let document_item = if let Some(document_item) = document_item {
         document_item
     } else {
-        let document_router_path = next_router_path.join("_document".to_string());
+        let document_router_path = next_router_path.join("_document".into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("document.js".to_string()),
+            get_next_package(project_root).join("document.js".into()),
             document_router_path,
             document_router_path,
         )
@@ -314,9 +315,9 @@ async fn get_pages_structure_for_root_directory(
     let error_item = if let Some(error_item) = error_item {
         error_item
     } else {
-        let error_router_path = next_router_path.join("_error".to_string());
+        let error_router_path = next_router_path.join("_error".into());
         PagesStructureItem::new(
-            get_next_package(project_root).join("error.js".to_string()),
+            get_next_package(project_root).join("error.js".into()),
             error_router_path,
             error_router_path,
         )
@@ -339,11 +340,11 @@ async fn get_pages_structure_for_directory(
     project_path: Vc<FileSystemPath>,
     next_router_path: Vc<FileSystemPath>,
     position: u32,
-    page_extensions: Vc<Vec<String>>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = {
-        let path = project_path.to_string().await?;
-        tracing::info_span!("analyse pages structure", name = *path)
+        let path = project_path.to_string().await?.to_string();
+        tracing::info_span!("analyse pages structure", name = path)
     };
     async move {
         let page_extensions_raw = &*page_extensions.await?;
@@ -360,9 +361,9 @@ async fn get_pages_structure_for_directory(
                         };
                         let item_next_router_path = match basename {
                             "index" => next_router_path,
-                            _ => next_router_path.join(basename.to_string()),
+                            _ => next_router_path.join(basename.into()),
                         };
-                        let item_original_name = next_router_path.join(basename.to_string());
+                        let item_original_name = next_router_path.join(basename.into());
                         items.push((
                             basename,
                             PagesStructureItem::new(
@@ -406,10 +407,10 @@ async fn get_pages_structure_for_directory(
     .await
 }
 
-fn page_basename<'a>(name: &'a str, page_extensions: &'a [String]) -> Option<&'a str> {
+fn page_basename<'a>(name: &'a str, page_extensions: &'a [RcStr]) -> Option<&'a str> {
     page_extensions
         .iter()
-        .find_map(|allowed| name.strip_suffix(allowed)?.strip_suffix('.'))
+        .find_map(|allowed| name.strip_suffix(&**allowed)?.strip_suffix('.'))
 }
 
 fn next_router_path_for_basename(
@@ -419,6 +420,6 @@ fn next_router_path_for_basename(
     if basename == "index" {
         next_router_path
     } else {
-        next_router_path.join(basename.to_string())
+        next_router_path.join(basename.into())
     }
 }

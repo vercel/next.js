@@ -76,6 +76,7 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
@@ -117,12 +118,13 @@ export class NextDeployInstance extends NextInstance {
       {
         cwd: this.testDir,
         env: vercelEnv,
+        reject: false,
       }
     )
 
     if (deployRes.exitCode !== 0) {
       throw new Error(
-        `Failed to deploy project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        `Failed to deploy project ${deployRes.stdout} ${deployRes.stderr} (${deployRes.exitCode})`
       )
     }
     // the CLI gives just the deployment URL back when not a TTY
@@ -148,9 +150,20 @@ export class NextDeployInstance extends NextInstance {
     // Use the vercel logs command to get the CLI output from the build.
     const logs = await execa(
       'vercel',
-      ['logs', this._url, '--output', 'raw', ...vercelFlags],
+      [
+        'logs',
+        this._url,
+        '--output',
+        'raw',
+        // The default # of lines to show in the output is 100, but some of our tests have noisy output,
+        // so bump to 1000
+        '-n',
+        1000,
+        ...vercelFlags,
+      ],
       {
         env: vercelEnv,
+        reject: false,
       }
     )
     if (logs.exitCode !== 0) {
@@ -170,7 +183,10 @@ export class NextDeployInstance extends NextInstance {
     // no-op as the deployment is created during setup()
   }
 
-  public async patchFile(filename: string, content: string): Promise<void> {
+  public async patchFile(
+    filename: string,
+    content: string
+  ): Promise<{ newFile: boolean }> {
     throw new Error('patchFile is not available in deploy test mode')
   }
   public async readFile(filename: string): Promise<string> {

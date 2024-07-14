@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check, waitFor, retry } from 'next-test-utils'
 
 describe('app-dir action handling', () => {
   const { next } = nextTestSetup({
@@ -38,10 +38,10 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('a').click()
 
-    await browser.elementByCss('button').click()
+    await browser.elementByCss('#submit').click()
 
-    await check(() => {
-      return (next.cliOutput.match(/addToCart/g) || []).length
-    }, 1)
+    await retry(async () => {
+      expect(await browser.elementById('result').text()).toBe('Added to cart!')
+    })
   })
 })

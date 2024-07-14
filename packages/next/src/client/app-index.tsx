@@ -9,33 +9,45 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
-import { isNextRouterError } from './components/is-next-router-error'
 import {
   ActionQueueContext,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
+import { isNextRouterError } from './components/is-next-router-error'
+import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
+import AppRouter from './components/app-router'
+import type { InitialRSCPayload } from '../server/app-render/types'
 
-// Since React doesn't call onerror for errors caught in error boundaries.
+// Patch console.error to collect information about hydration errors
 const origConsoleError = window.console.error
 window.console.error = (...args) => {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  if (
-    process.env.NODE_ENV !== 'production'
-      ? isNextRouterError(args[1])
-      : isNextRouterError(args[0])
-  ) {
-    return
+  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  if (!isNextRouterError(error)) {
+    if (process.env.NODE_ENV !== 'production') {
+      const storeHydrationErrorStateFromConsoleArgs =
+        require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
+          .storeHydrationErrorStateFromConsoleArgs as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').storeHydrationErrorStateFromConsoleArgs
+      storeHydrationErrorStateFromConsoleArgs()
+
+      storeHydrationErrorStateFromConsoleArgs(...args)
+      handleClientError(error)
+    }
+
+    origConsoleError.apply(window.console, args)
   }
-  origConsoleError.apply(window.console, args)
 }
 
-window.addEventListener('error', (ev: WindowEventMap['error']): void => {
-  if (isNextRouterError(ev.error)) {
-    ev.preventDefault()
-    return
-  }
-})
+if (process.env.NODE_ENV === 'development') {
+  const initializePrerenderIndicator =
+    require('./components/prerender-indicator')
+      .default as typeof import('./components/prerender-indicator').default
+
+  initializePrerenderIndicator((handlers) => {
+    window.next.isrIndicatorHandlers = handlers
+  })
+}
 
 /// <reference types="react-dom/experimental" />
 
@@ -90,6 +102,11 @@ function nextServerDataCallback(
   }
 }
 
+function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
+  // If `desiredSize` is null, it means the stream is closed or errored. If it is lower than 0, the stream is still unfinished.
+  return ctr.desiredSize === null || ctr.desiredSize < 0
+}
+
 // There might be race conditions between `nextServerDataRegisterWriter` and
 // `DOMContentLoaded`. The former will be called when React starts to hydrate
 // the root, the latter will be called when the DOM is fully loaded.
@@ -104,7 +121,15 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      ctr.close()
+      if (isStreamErrorOrUnfinished(ctr)) {
+        ctr.error(
+          new Error(
+            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+          )
+        )
+      } else {
+        ctr.close()
+      }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
     }
@@ -122,11 +147,13 @@ const DOMContentLoaded = function () {
   }
   initialServerDataLoaded = true
 }
+
 // It's possible that the DOM is already loaded.
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', DOMContentLoaded, false)
 } else {
-  DOMContentLoaded()
+  // Delayed in marco task to ensure it's executed later than hydration
+  setTimeout(DOMContentLoaded)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
@@ -145,7 +172,9 @@ const initialServerResponse = createFromReadableStream(readable, {
 })
 
 function ServerRoot(): React.ReactNode {
-  return use(initialServerResponse)
+  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+
+  return <AppRouter initialRSCPayload={initialRSCPayload} />
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -187,16 +216,6 @@ export function hydrate() {
   } satisfies ReactDOMClient.RootOptions
   const isError =
     document.documentElement.id === '__next_error__' || hasMissingTags
-
-  if (process.env.NODE_ENV !== 'production') {
-    // Patch console.error to collect information about hydration errors
-    const patchConsoleError =
-      require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-        .patchConsoleError as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').patchConsoleError
-    if (!isError) {
-      patchConsoleError()
-    }
-  }
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {

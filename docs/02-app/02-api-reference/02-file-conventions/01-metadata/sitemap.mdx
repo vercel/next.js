@@ -41,6 +41,8 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
+> **Good to know**: `sitemap.js` is a special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+
 ```ts filename="app/sitemap.ts" switcher
 import type { MetadataRoute } from 'next'
 
@@ -234,7 +236,7 @@ export default async function sitemap({
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
@@ -256,13 +258,13 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`,
+    url: `${BASE_URL}/product/${product.id}`,
     lastModified: product.date,
   }))
 }
 ```
 
-Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1`.
+Your generated sitemaps will be available at `/.../sitemap/[id]`. For example, `/product/sitemap/1.xml`.
 
 See the [`generateSitemaps` API reference](/docs/app/api-reference/functions/generate-sitemaps) for more information.
 
@@ -293,5 +295,6 @@ type Sitemap = Array<{
 
 | Version   | Changes                                                      |
 | --------- | ------------------------------------------------------------ |
+| `v14.2.0` | Add localizations support.                                   |
 | `v13.4.5` | Add `changeFrequency` and `priority` attributes to sitemaps. |
 | `v13.3.0` | `sitemap` introduced.                                        |

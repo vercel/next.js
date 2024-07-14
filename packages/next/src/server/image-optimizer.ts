@@ -1,6 +1,5 @@
 import { createHash } from 'crypto'
 import { promises } from 'fs'
-import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
@@ -33,6 +32,8 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const TIFF = 'image/tiff'
+const BMP = 'image/bmp'
 const CACHE_VERSION = 3
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -52,7 +53,9 @@ function getSharp() {
       // We more aggressively reduce in dev but also reduce in prod.
       // https://sharp.pixelplumbing.com/api-utility#concurrency
       const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-      _sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+      _sharp.concurrency(
+        Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+      )
     }
   } catch (e: unknown) {
     if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
@@ -157,6 +160,12 @@ export function detectContentType(buffer: Buffer) {
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
   }
+  if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
+    return TIFF
+  }
+  if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
+    return BMP
+  }
   return null
 }
 
@@ -204,6 +213,12 @@ export class ImageOptimizerCache {
       }
     }
 
+    if (url.startsWith('/_next/image')) {
+      return {
+        errorMessage: '"url" parameter cannot be recursive',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
@@ -233,19 +248,28 @@ export class ImageOptimizerCache {
       return { errorMessage: '"w" parameter (width) is required' }
     } else if (Array.isArray(w)) {
       return { errorMessage: '"w" parameter (width) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(w)) {
+      return {
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
+      }
     }
 
     if (!q) {
       return { errorMessage: '"q" parameter (quality) is required' }
     } else if (Array.isArray(q)) {
       return { errorMessage: '"q" parameter (quality) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(q)) {
+      return {
+        errorMessage:
+          '"q" parameter (quality) must be an integer between 1 and 100',
+      }
     }
 
     const width = parseInt(w, 10)
 
     if (width <= 0 || isNaN(width)) {
       return {
-        errorMessage: '"w" parameter (width) must be a number greater than 0',
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
       }
     }
 
@@ -264,12 +288,12 @@ export class ImageOptimizerCache {
       }
     }
 
-    const quality = parseInt(q)
+    const quality = parseInt(q, 10)
 
     if (isNaN(quality) || quality < 1 || quality > 100) {
       return {
         errorMessage:
-          '"q" parameter (quality) must be a number between 1 and 100',
+          '"q" parameter (quality) must be an integer between 1 and 100',
       }
     }
 
@@ -441,12 +465,9 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   const sharp = getSharp()
-  const transformer = sharp(buffer, { sequentialRead: true })
-    .timeout({ seconds: 7 })
-    .rotate()
+  const transformer = sharp(buffer).timeout({ seconds: 7 }).rotate()
 
   if (height) {
     transformer.resize(width, height)
@@ -457,17 +478,16 @@ export async function optimizeImage({
   }
 
   if (contentType === AVIF) {
-    const avifQuality = quality - 15
+    const avifQuality = quality - 20
     transformer.avif({
-      quality: Math.max(avifQuality, 0),
-      chromaSubsampling: '4:2:0', // same as webp
+      quality: Math.max(avifQuality, 1),
     })
   } else if (contentType === WEBP) {
     transformer.webp({ quality })
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, progressive: true })
+    transformer.jpeg({ quality, mozjpeg: true })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -556,7 +576,6 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
-    output: NextConfigComplete['output']
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
@@ -628,7 +647,6 @@ export async function imageOptimizer(
       contentType,
       quality,
       width,
-      nextConfigOutput: nextConfig.output,
     })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {

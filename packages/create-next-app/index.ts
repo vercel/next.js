@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /* eslint-disable import/no-extraneous-dependencies */
+import { basename, resolve } from 'node:path'
+import { existsSync } from 'node:fs'
 import { cyan, green, red, yellow, bold, blue } from 'picocolors'
-import Commander from 'commander'
+import { Command } from 'commander'
 import Conf from 'conf'
-import path from 'path'
 import prompts from 'prompts'
 import type { InitialReturnValue } from 'prompts'
 import checkForUpdate from 'update-check'
@@ -13,7 +14,6 @@ import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import ciInfo from 'ci-info'
 import { isFolderEmpty } from './helpers/is-folder-empty'
-import fs from 'fs'
 
 let projectPath: string = ''
 
@@ -36,10 +36,10 @@ const onPromptState = (state: {
   }
 }
 
-const program = new Commander.Command(packageJson.name)
+const program = new Command(packageJson.name)
   .version(packageJson.version)
-  .arguments('<project-directory>')
-  .usage(`${green('<project-directory>')} [options]`)
+  .argument('[project-directory]')
+  .usage(`${green('[project-directory]')} [options]`)
   .action((name) => {
     projectPath = name
   })
@@ -83,6 +83,13 @@ const program = new Commander.Command(packageJson.name)
     `
 
   Initialize inside a \`src/\` directory.
+`
+  )
+  .option(
+    '--turbo',
+    `
+    
+  Enable Turbopack by default for development.
 `
   )
   .option(
@@ -162,6 +169,7 @@ const program = new Commander.Command(packageJson.name)
   )
   .allowUnknownOption()
   .parse(process.argv)
+  .opts()
 
 const packageManager = !!program.useNpm
   ? 'npm'
@@ -194,7 +202,7 @@ async function run(): Promise<void> {
       message: 'What is your project named?',
       initial: 'my-app',
       validate: (name) => {
-        const validation = validateNpmName(path.basename(path.resolve(name)))
+        const validation = validateNpmName(basename(resolve(name)))
         if (validation.valid) {
           return true
         }
@@ -218,8 +226,8 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
-  const resolvedProjectPath = path.resolve(projectPath)
-  const projectName = path.basename(resolvedProjectPath)
+  const resolvedProjectPath = resolve(projectPath)
+  const projectName = basename(resolvedProjectPath)
 
   const validation = validateNpmName(projectName)
   if (!validation.valid) {
@@ -245,9 +253,9 @@ async function run(): Promise<void> {
   /**
    * Verify the project dir is empty or doesn't exist
    */
-  const root = path.resolve(resolvedProjectPath)
-  const appName = path.basename(root)
-  const folderExists = fs.existsSync(root)
+  const root = resolve(resolvedProjectPath)
+  const appName = basename(root)
+  const folderExists = existsSync(root)
 
   if (folderExists && !isFolderEmpty(root, appName)) {
     process.exit(1)
@@ -272,6 +280,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
+      turbo: false,
     }
     const getPrefOrDefault = (field: string) =>
       preferences[field] ?? defaults[field]
@@ -368,7 +377,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'srcDir',
-          message: `Would you like to use ${styledSrcDir}?`,
+          message: `Would you like your code inside a ${styledSrcDir}?`,
           initial: getPrefOrDefault('srcDir'),
           active: 'Yes',
           inactive: 'No',
@@ -396,6 +405,25 @@ async function run(): Promise<void> {
       }
     }
 
+    if (!program.turbo && !process.argv.includes('--no-turbo')) {
+      if (ciInfo.isCI) {
+        program.turbo = getPrefOrDefault('turbo')
+      } else {
+        const styledTurbo = blue('Turbopack')
+        const { turbo } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'turbo',
+          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
+          initial: getPrefOrDefault('turbo'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.turbo = Boolean(turbo)
+        preferences.turbo = Boolean(turbo)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof program.importAlias !== 'string' ||
@@ -413,7 +441,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
+          message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
@@ -455,6 +483,7 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -485,6 +514,7 @@ async function run(): Promise<void> {
       importAlias: program.importAlias,
       skipInstall: program.skipInstall,
       empty: program.empty,
+      turbo: program.turbo,
     })
   }
   conf.set('preferences', preferences)

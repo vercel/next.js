@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
-
+import { check, waitFor, retry } from 'next-test-utils'
+import type { Page, Request } from 'playwright'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -114,51 +114,6 @@ describe('app dir - prefetching', () => {
     ).toBe(1)
   })
 
-  it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
-    const browser = await next.browser('/404', browserConfigWithFixedTime)
-    let requests: string[] = []
-
-    browser.on('request', (req) => {
-      requests.push(new URL(req.url()).pathname)
-    })
-    await browser.eval('location.href = "/"')
-
-    await browser.eval(
-      `window.nd.router.prefetch("/static-page", {kind: "auto"})`
-    )
-    await check(() => {
-      return requests.some(
-        (req) =>
-          req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
-      )
-        ? 'success'
-        : JSON.stringify(requests)
-    }, 'success')
-
-    await browser
-      .elementByCss('#to-static-page')
-      .click()
-      .waitForElementByCss('#static-page')
-
-    await browser
-      .elementByCss('#to-home')
-      // Go back to home page
-      .click()
-      // Wait for homepage to load
-      .waitForElementByCss('#to-static-page')
-      // Click on the link to the static page again
-      .click()
-      // Wait for the static page to load again
-      .waitForElementByCss('#static-page')
-
-    expect(
-      requests.filter(
-        (request) =>
-          request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
-      ).length
-    ).toBe(1)
-  })
-
   it('should calculate `_rsc` query based on `Next-Url`', async () => {
     const browser = await next.browser('/404', browserConfigWithFixedTime)
     let staticPageRequests: string[] = []
@@ -265,7 +220,8 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).toContain('Page Data!')
+    expect(prefetchResponse).not.toContain('Layout Data!')
     expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
   })
 
@@ -299,7 +255,7 @@ describe('app dir - prefetching', () => {
     })
 
     const prefetchResponse = await response.text()
-    expect(prefetchResponse).not.toContain('Hello World')
+    expect(prefetchResponse).not.toContain('Page Data!')
     expect(prefetchResponse).toContain('Loading Prefetch Auto')
   })
 
@@ -318,6 +274,19 @@ describe('app dir - prefetching', () => {
     expect(await browser.elementById('random-number').text()).toBe(
       initialRandom
     )
+  })
+
+  it('should immediately render the loading state for a dynamic segment when fetched from higher up in the tree', async () => {
+    const browser = await next.browser('/')
+    const loadingText = await browser
+      .elementById('to-dynamic-page')
+      .click()
+      .waitForElementByCss('#loading-text')
+      .text()
+
+    expect(loadingText).toBe('Loading Prefetch Auto')
+
+    await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
   describe('dynamic rendering', () => {
@@ -373,38 +342,108 @@ describe('app dir - prefetching', () => {
         )
       })
     })
+  })
 
-    it('should not re-fetch cached data when navigating back to a route group', async () => {
-      const browser = await next.browser('/prefetch-auto-route-groups')
-      // once the page has loaded, we expect a data fetch
-      expect(await browser.elementById('count').text()).toBe('1')
+  describe('invalid URLs', () => {
+    it('should not throw when an invalid URL is passed to Link', async () => {
+      const browser = await next.browser('/invalid-url/from-link')
 
-      // once navigating to a sub-page, we expect another data fetch
-      await browser
-        .elementByCss("[href='/prefetch-auto-route-groups/sub/foo']")
-        .click()
+      await check(() => browser.hasElementByCssSelector('h1'), true)
+      expect(await browser.elementByCss('h1').text()).toEqual('Hello, world!')
+    })
 
-      // navigating back to the route group page shouldn't trigger any data fetch
-      await browser.elementByCss("[href='/prefetch-auto-route-groups']").click()
+    it('should throw when an invalid URL is passed to router.prefetch', async () => {
+      const browser = await next.browser('/invalid-url/from-router-prefetch')
 
-      // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
-      expect(await browser.elementById('count').text()).toBe('1')
+      await check(() => browser.hasElementByCssSelector('h1'), true)
+      expect(await browser.elementByCss('h1').text()).toEqual(
+        'A prefetch threw an error'
+      )
+    })
+  })
 
-      // navigating to a new sub-page, we expect another data fetch
-      await browser
-        .elementByCss("[href='/prefetch-auto-route-groups/sub/bar']")
-        .click()
+  describe('fetch priority', () => {
+    it('should prefetch links in viewport with low priority', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
+      })
 
-      // finally, going back to the route group page shouldn't trigger any data fetch
-      await browser.elementByCss("[href='/prefetch-auto-route-groups']").click()
+      await browser.waitForIdleNetwork()
 
-      // confirm that the dashboard page is still rendering the stale fetch count, as it should be cached
-      expect(await browser.elementById('count').text()).toBe('1')
+      await retry(async () => {
+        expect(requests.length).toBeGreaterThan(0)
+        expect(requests.every((req) => req.priority === 'low')).toBe(true)
+      })
+    })
 
-      await browser.refresh()
-      // reloading the page, we should now get an accurate total number of fetches
-      // the initial fetch, 2 sub-page fetches, and a final fetch when reloading the page
-      expect(await browser.elementById('count').text()).toBe('4')
+    it('should prefetch with high priority when navigating to a page without a prefetch entry', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/prefetch-false/initial', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
+      })
+
+      await browser.waitForIdleNetwork()
+
+      expect(requests.length).toBe(0)
+
+      await browser.elementByCss('#to-prefetch-false-result').click()
+      await retry(async () => {
+        expect(requests.length).toBe(1)
+        expect(requests[0].priority).toBe('high')
+      })
+    })
+
+    it('should have an auto priority for all other fetch operations', async () => {
+      const requests: { priority: string; url: string }[] = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              requests.push({
+                priority: headers['next-test-fetch-priority'],
+                url: url.pathname,
+              })
+            }
+          })
+        },
+      })
+
+      await browser.elementByCss('#to-dashboard').click()
+      await browser.waitForIdleNetwork()
+
+      await retry(async () => {
+        const dashboardRequests = requests.filter(
+          (req) => req.url === '/dashboard'
+        )
+        expect(dashboardRequests.length).toBe(2)
+        expect(dashboardRequests[0].priority).toBe('low') // the first request is the prefetch
+        expect(dashboardRequests[1].priority).toBe('auto') // the second request is the lazy fetch to fill in missing data
+      })
     })
   })
 })

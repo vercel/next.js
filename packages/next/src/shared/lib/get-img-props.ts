@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -397,9 +399,6 @@ export function getImgProps(
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)

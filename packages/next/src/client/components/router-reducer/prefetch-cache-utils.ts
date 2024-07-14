@@ -195,19 +195,22 @@ function createLazyPrefetchEntry({
   // initiates the fetch request for the prefetch and attaches a listener
   // to the promise to update the prefetch cache entry when the promise resolves (if necessary)
   const data = prefetchQueue.enqueue(() =>
-    fetchServerResponse(url, tree, nextUrl, buildId, kind).then(
-      (prefetchResponse) => {
-        // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
-        // to avoid drift between this cache key prefixing logic
-        // (which is currently directly influenced by the server response)
-        const [, , , intercepted] = prefetchResponse
-        if (intercepted) {
-          prefixExistingPrefetchCacheEntry({ url, nextUrl, prefetchCache })
-        }
-
-        return prefetchResponse
+    fetchServerResponse(url, {
+      flightRouterState: tree,
+      nextUrl,
+      buildId,
+      prefetchKind: kind,
+    }).then((prefetchResponse) => {
+      // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
+      // to avoid drift between this cache key prefixing logic
+      // (which is currently directly influenced by the server response)
+      const [, , , intercepted] = prefetchResponse
+      if (intercepted) {
+        prefixExistingPrefetchCacheEntry({ url, nextUrl, prefetchCache })
       }
-    )
+
+      return prefetchResponse
+    })
   )
 
   const prefetchEntry = {
@@ -239,7 +242,7 @@ export function prunePrefetchCache(
 }
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
-// and default to 5 minutes (static) / 30 seconds (dynamic)
+// and default to 5 minutes (static) / 0 seconds (dynamic)
 const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 

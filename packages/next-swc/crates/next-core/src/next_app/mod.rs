@@ -14,7 +14,7 @@ use std::{
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
@@ -40,17 +40,17 @@ pub use crate::next_app::{
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
-    Static(String),
+    Static(RcStr),
     /// e.g. `/[id]`
-    Dynamic(String),
+    Dynamic(RcStr),
     /// e.g. `/[...slug]`
-    CatchAll(String),
+    CatchAll(RcStr),
     /// e.g. `/[[...slug]]`
-    OptionalCatchAll(String),
+    OptionalCatchAll(RcStr),
     /// e.g. `/(shop)`
-    Group(String),
+    Group(RcStr),
     /// e.g. `/@auth`
-    Parallel(String),
+    Parallel(RcStr),
     /// The final page type appended. (e.g. `/dashboard/page`,
     /// `/api/hello/route`)
     PageType(PageType),
@@ -67,32 +67,32 @@ impl PageSegment {
         }
 
         if let Some(s) = segment.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
-            return Ok(PageSegment::Group(s.to_string()));
+            return Ok(PageSegment::Group(s.into()));
         }
 
         if let Some(s) = segment.strip_prefix('@') {
-            return Ok(PageSegment::Parallel(s.to_string()));
+            return Ok(PageSegment::Parallel(s.into()));
         }
 
         if let Some(s) = segment
             .strip_prefix("[[...")
             .and_then(|s| s.strip_suffix("]]"))
         {
-            return Ok(PageSegment::OptionalCatchAll(s.to_string()));
+            return Ok(PageSegment::OptionalCatchAll(s.into()));
         }
 
         if let Some(s) = segment
             .strip_prefix("[...")
             .and_then(|s| s.strip_suffix(']'))
         {
-            return Ok(PageSegment::CatchAll(s.to_string()));
+            return Ok(PageSegment::CatchAll(s.into()));
         }
 
         if let Some(s) = segment.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-            return Ok(PageSegment::Dynamic(s.to_string()));
+            return Ok(PageSegment::Dynamic(s.into()));
         }
 
-        Ok(PageSegment::Static(segment.to_string()))
+        Ok(PageSegment::Static(segment.into()))
     }
 }
 
@@ -170,13 +170,25 @@ impl AppPage {
     }
 
     pub fn push(&mut self, segment: PageSegment) -> Result<()> {
-        if matches!(
-            self.0.last(),
-            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
-        ) && !matches!(segment, PageSegment::PageType(..))
+        let has_catchall = self.0.iter().any(|segment| {
+            matches!(
+                segment,
+                PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
+            )
+        });
+
+        if has_catchall
+            && matches!(
+                segment,
+                PageSegment::Static(..)
+                    | PageSegment::Dynamic(..)
+                    | PageSegment::CatchAll(..)
+                    | PageSegment::OptionalCatchAll(..)
+            )
         {
             bail!(
-                "Invalid segment {:?}, catch all segment must be the last segment (segments: {:?})",
+                "Invalid segment {:?}, catch all segment must be the last segment modifying the \
+                 path (segments: {:?})",
                 segment,
                 self.0
             )
@@ -308,13 +320,13 @@ impl PartialOrd for AppPage {
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
-    Static(String),
+    Static(RcStr),
     /// e.g. `/[id]`
-    Dynamic(String),
+    Dynamic(RcStr),
     /// e.g. `/[...slug]`
-    CatchAll(String),
+    CatchAll(RcStr),
     /// e.g. `/[[...slug]]`
-    OptionalCatchAll(String),
+    OptionalCatchAll(RcStr),
 }
 
 impl Display for PathSegment {

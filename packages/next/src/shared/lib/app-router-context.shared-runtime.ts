@@ -22,11 +22,6 @@ export type LoadingModuleData =
 
 export type LazyCacheNode = {
   /**
-   * Whether the lazy cache node data promise has been resolved.
-   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
-   */
-  lazyDataResolved: boolean
-  /**
    * When rsc is null, this is a lazily-initialized cache node.
    *
    * If the app attempts to render it, it triggers a lazy data fetch,
@@ -67,11 +62,6 @@ export type LazyCacheNode = {
 }
 
 export type ReadyCacheNode = {
-  /**
-   * Whether the lazy cache node data promise has been resolved.
-   * This value is only true after we've called `use` on the promise (and applied the data to the tree).
-   */
-  lazyDataResolved: boolean
   /**
    * When rsc is not null, it represents the RSC data for the
    * corresponding segment.
@@ -135,7 +125,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  fastRefresh(): void
+  hmrRefresh(): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.

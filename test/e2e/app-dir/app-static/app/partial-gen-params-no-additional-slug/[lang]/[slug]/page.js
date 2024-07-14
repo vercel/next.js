@@ -1,4 +1,5 @@
 export const dynamicParams = false
+export const fetchCache = 'default-cache'
 
 export async function generateStaticParams() {
   const res = await fetch(

@@ -35,7 +35,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
-      lazyDataResolved: false,
     }
     const existingCache: CacheNode = {
       lazyData: null,
@@ -43,7 +42,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
       prefetchRsc: null,
       head: null,
       prefetchHead: null,
-      lazyDataResolved: false,
       loading: null,
       parallelRoutes: new Map([
         [
@@ -57,7 +55,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                 prefetchRsc: null,
                 head: null,
                 prefetchHead: null,
-                lazyDataResolved: false,
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -71,7 +68,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           prefetchRsc: null,
                           head: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                           loading: null,
                           parallelRoutes: new Map(),
                         },
@@ -111,7 +107,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
 
     const expectedCache: CacheNode = {
       lazyData: null,
-      lazyDataResolved: false,
       head: null,
       prefetchHead: null,
       loading: null,
@@ -123,7 +118,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
               'linking',
               {
                 lazyData: null,
-                lazyDataResolved: false,
                 head: null,
                 prefetchHead: null,
                 loading: null,
@@ -141,7 +135,6 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                           prefetchRsc: null,
                           head: null,
                           prefetchHead: null,
-                          lazyDataResolved: false,
                         },
                       ],
                     ]),

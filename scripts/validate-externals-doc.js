@@ -13,7 +13,12 @@ function validate(docPath) {
   const extraPkgs = []
   const missingPkgs = []
 
-  for (let docPkg of docContent.split('opt-ed out:').pop().split('\n')) {
+  for (let docPkg of docContent
+    .split('opt-ed out:')
+    .pop()
+    .split('| Version')
+    .shift()
+    .split('\n')) {
     docPkg = docPkg.split('`')[1]
 
     if (!docPkg) {

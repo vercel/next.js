@@ -79,6 +79,11 @@ declare module 'next/dist/compiled/p-limit' {
   export = m
 }
 
+declare module 'next/dist/compiled/p-queue' {
+  import m from 'p-queue'
+  export = m
+}
+
 declare module 'next/dist/compiled/raw-body' {
   import m from 'raw-body'
   export = m
@@ -444,6 +449,16 @@ declare module 'next/dist/compiled/zod' {
 
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
+
+declare module 'next/dist/compiled/webpack-sources3' {
+  interface StringBufferUtils {
+    disableDualStringBufferCaching: () => boolean
+    disableStringInterning: () => boolean
+    enableDualStringBufferCaching: () => boolean
+    enableStringInterning: () => boolean
+  }
+  export let stringBufferUtils: StringBufferUtils
+}
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import type webpackSources from 'webpack-sources1'

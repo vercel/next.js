@@ -67,7 +67,7 @@ describe('next/swc', () => {
             if (n === "Map" || n === "Set") return Array.from(n);
             if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from "react";
+        import { useState } from 'react';
         var _useState = _sliced_to_array(useState(0), 2), count = _useState[0], setCount = _useState[1];
         "
       `)
@@ -107,7 +107,7 @@ describe('next/swc', () => {
             if (n === "Map" || n === "Set") return Array.from(n);
             if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
         }
-        import { useState } from "react";
+        import { useState } from 'react';
         var _useState = _to_array(useState(0)), copy = _useState.slice(0);
         "
       `)

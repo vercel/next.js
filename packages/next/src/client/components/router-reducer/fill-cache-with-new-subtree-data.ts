@@ -60,7 +60,6 @@ export function fillCacheWithNewSubTreeData(
         parallelRoutes: existingChildCacheNode
           ? new Map(existingChildCacheNode.parallelRoutes)
           : new Map(),
-        lazyDataResolved: false,
       }
 
       if (existingChildCacheNode) {
@@ -99,7 +98,6 @@ export function fillCacheWithNewSubTreeData(
       head: childCacheNode.head,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-      lazyDataResolved: false,
       loading: childCacheNode.loading,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)

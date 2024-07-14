@@ -136,10 +136,10 @@ Next.js will automatically expand variables that use `$` to reference other vari
 
 ```txt filename=".env"
 TWITTER_USER=nextjs
-TWITTER_URL=https://twitter.com/$TWITTER_USER
+TWITTER_URL=https://x.com/$TWITTER_USER
 ```
 
-In the above example, `process.env.TWITTER_URL` would be set to `https://twitter.com/nextjs`.
+In the above example, `process.env.TWITTER_URL` would be set to `https://x.com/nextjs`.
 
 > **Good to know**: If you need to use variable with a `$` in the actual value, it needs to be escaped e.g. `\$`.
 

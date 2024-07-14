@@ -9,7 +9,6 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
-  isWebpackBuiltinReactLayer,
   isWebpackBundledLayer,
   isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
@@ -82,6 +81,7 @@ import {
   createRSCAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
+  createRSCRendererAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
@@ -98,6 +98,9 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
 
+const DEFAULT_TRANSPILED_PACKAGES =
+  require('../lib/default-transpiled-packages.json') as string[]
+
 export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
@@ -105,8 +108,8 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-if (parseInt(React.version) < 18) {
-  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
+if (parseInt(React.version) < 19) {
+  throw new Error('Next.js requires react >= 19.0.0 to be installed.')
 }
 
 export const babelIncludeRegexes: RegExp[] = [
@@ -395,7 +398,9 @@ export default async function getBaseWebpackConfig(
 
   // since `pages` doesn't always bundle by default we need to
   // auto-include optimizePackageImports in transpilePackages
-  const finalTranspilePackages: string[] = config.transpilePackages || []
+  const finalTranspilePackages: string[] = (
+    config.transpilePackages || []
+  ).concat(DEFAULT_TRANSPILED_PACKAGES)
 
   for (const pkg of config.experimental.optimizePackageImports || []) {
     if (!finalTranspilePackages.includes(pkg)) {
@@ -517,6 +522,13 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
+  const nextFlightLoader = {
+    loader: 'next-flight-loader',
+    options: {
+      isEdgeServer,
+    },
+  }
+
   const appServerLayerLoaders = hasAppDir
     ? [
         // When using Babel, we will have to add the SWC loader
@@ -530,6 +542,7 @@ export default async function getBaseWebpackConfig(
     : []
 
   const instrumentLayerLoaders = [
+    nextFlightLoader,
     // When using Babel, we will have to add the SWC loader
     // as an additional pass to handle RSC correctly.
     // This will cause some performance overhead but
@@ -539,6 +552,7 @@ export default async function getBaseWebpackConfig(
   ].filter(Boolean)
 
   const middlewareLayerLoaders = [
+    nextFlightLoader,
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
     // This will cause some performance overhead but
@@ -846,6 +860,7 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackages,
     optOutBundlingPackageRegex,
+    transpiledPackages: finalTranspilePackages,
     dir,
   })
 
@@ -929,10 +944,25 @@ export default async function getBaseWebpackConfig(
                 }
               ),
           ],
+
+    ...(config.experimental.flyingShuttle
+      ? {
+          recordsPath: path.join(distDir, 'cache', 'shuttle', 'records.json'),
+        }
+      : {}),
+
     optimization: {
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            moduleIds: 'deterministic',
+            portableRecords: true,
+          }
+        : {}),
+
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1165,6 +1195,19 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            // ensure we only use contenthash as it's more deterministic
+            filename: isNodeOrEdgeCompilation
+              ? dev || isEdgeServer
+                ? `[name].js`
+                : `../[name].js`
+              : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+                  dev ? '' : '-[contenthash]'
+                }.js`,
+          }
+        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1301,7 +1344,7 @@ export default async function getBaseWebpackConfig(
                 // Ensure that the app page module is in the client layers, this
                 // enables React to work correctly for RSC.
                 layer: WEBPACK_LAYERS.serverSideRendering,
-                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
+                test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
                 issuerLayer: isWebpackBundledLayer,
@@ -1326,7 +1369,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackBuiltinReactLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1350,9 +1393,7 @@ export default async function getBaseWebpackConfig(
                     isEdgeServer,
                   }),
                 },
-                use: {
-                  loader: 'next-flight-loader',
-                },
+                use: nextFlightLoader,
               },
             ]
           : []),
@@ -1388,7 +1429,7 @@ export default async function getBaseWebpackConfig(
                 // Alias react for switching between default set and share subset.
                 oneOf: [
                   {
-                    issuerLayer: isWebpackBuiltinReactLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1460,8 +1501,11 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.api,
               parser: {
-                // Switch back to normal URL handling
-                url: true,
+                // In Node.js, switch back to normal URL handling.
+                // In Edge runtime, we should disable parser.url handling in webpack so URLDependency is not added.
+                // Then there's browser code won't be injected into the edge runtime chunk.
+                // x-ref: https://github.com/webpack/webpack/blob/d9ce3b1f87e63c809d8a19bbd92257d65922e81f/lib/web/JsonpChunkLoadingRuntimeModule.js#L69
+                url: !isEdgeServer,
               },
               use: apiRoutesLayerLoaders,
             },
@@ -1470,7 +1514,10 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
               resolve: {
+                mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
+                // Always use default channels when use installed react
+                alias: createRSCRendererAliases(''),
               },
             },
             {
@@ -1478,7 +1525,10 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.instrument,
               use: instrumentLayerLoaders,
               resolve: {
+                mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
+                // Always use default channels when use installed react
+                alias: createRSCRendererAliases(''),
               },
             },
             ...(hasAppDir
@@ -1731,7 +1781,7 @@ export default async function getBaseWebpackConfig(
               default:
                 runtime = 'pages'
             }
-            resource.request = `next/dist/server/future/route-modules/${runtime}/vendored/contexts/${moduleName}`
+            resource.request = `next/dist/server/route-modules/${runtime}/vendored/contexts/${moduleName}`
           }
         ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
@@ -1767,7 +1817,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      isNodeServer &&
+      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1937,6 +1987,8 @@ export default async function getBaseWebpackConfig(
               ],
               ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
               ['modularizeImports', !!config.modularizeImports],
+              // If esmExternals is not same as default value, it represents customized usage
+              ['esmExternals', config.experimental.esmExternals !== true],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
@@ -2260,29 +2312,50 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  if (!config.images.disableStaticImages) {
-    const rules = webpackConfig.module?.rules || []
-    const hasCustomSvg = rules.some(
-      (rule) =>
-        rule &&
+  const rules = webpackConfig.module?.rules || []
+
+  const customSvgRule = rules.find(
+    (rule): rule is webpack.RuleSetRule =>
+      (rule &&
         typeof rule === 'object' &&
         rule.loader !== 'next-image-loader' &&
         'test' in rule &&
         rule.test instanceof RegExp &&
-        rule.test.test('.svg')
-    )
+        rule.test.test('.svg')) ||
+      false
+  )
+
+  if (customSvgRule && hasAppDir) {
+    // Create React aliases for SVG components that were transformed using a
+    // custom webpack config with e.g. the `@svgr/webpack` loader, or the
+    // `babel-plugin-inline-react-svg` plugin.
+    rules.push({
+      test: customSvgRule.test,
+      oneOf: [
+        WEBPACK_LAYERS.reactServerComponents,
+        WEBPACK_LAYERS.serverSideRendering,
+        WEBPACK_LAYERS.appPagesBrowser,
+      ].map((layer) => ({
+        issuerLayer: layer,
+        resolve: {
+          alias: createRSCAliases(bundledReactChannel, {
+            reactProductionProfiling,
+            layer,
+            isEdgeServer,
+          }),
+        },
+      })),
+    })
+  }
+
+  if (!config.images.disableStaticImages) {
     const nextImageRule = rules.find(
       (rule) =>
         rule && typeof rule === 'object' && rule.loader === 'next-image-loader'
     )
-    if (
-      hasCustomSvg &&
-      nextImageRule &&
-      nextImageRule &&
-      typeof nextImageRule === 'object'
-    ) {
+    if (customSvgRule && nextImageRule && typeof nextImageRule === 'object') {
       // Exclude svg if the user already defined it in custom
-      // webpack config such as `@svgr/webpack` plugin or
+      // webpack config such as the `@svgr/webpack` loader, or
       // the `babel-plugin-inline-react-svg` plugin.
       nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
     }

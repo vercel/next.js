@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use turbo_tasks::Vc;
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_binding::{
     turbo::tasks_hash::hash_xxh3_hash64,
@@ -14,10 +14,10 @@ use super::issue::NextFontIssue;
 /// module.
 #[turbo_tasks::value(shared)]
 pub(crate) struct FontCssProperties {
-    pub font_family: Vc<String>,
-    pub weight: Vc<Option<String>>,
-    pub style: Vc<Option<String>>,
-    pub variable: Vc<Option<String>>,
+    pub font_family: Vc<RcStr>,
+    pub weight: Vc<Option<RcStr>>,
+    pub style: Vc<Option<RcStr>>,
+    pub variable: Vc<Option<RcStr>>,
 }
 
 /// A hash of the requested querymap derived from how the user invoked
@@ -52,35 +52,38 @@ pub(crate) enum FontFamilyType {
 #[turbo_tasks::function]
 pub(crate) async fn get_scoped_font_family(
     ty: Vc<FontFamilyType>,
-    font_family_name: Vc<String>,
-) -> Result<Vc<String>> {
+    font_family_name: Vc<RcStr>,
+) -> Result<Vc<RcStr>> {
     let font_family_base = font_family_name.await?.to_string();
     let font_family_name = match &*ty.await? {
         FontFamilyType::WebFont => font_family_base,
         FontFamilyType::Fallback => format!("{} Fallback", font_family_base),
     };
 
-    Ok(Vc::cell(format!("{}", font_family_name)))
+    Ok(Vc::cell(font_family_name.into()))
 }
 
 /// Returns a [Vc] for [String] uniquely identifying the request for the font.
 #[turbo_tasks::function]
-pub async fn get_request_id(font_family: Vc<String>, request_hash: u32) -> Result<Vc<String>> {
-    Ok(Vc::cell(format!(
-        "{}_{:x?}",
-        font_family.await?.to_lowercase().replace(' ', "_"),
-        request_hash
-    )))
+pub async fn get_request_id(font_family: Vc<RcStr>, request_hash: u32) -> Result<Vc<RcStr>> {
+    Ok(Vc::cell(
+        format!(
+            "{}_{:x?}",
+            font_family.await?.to_lowercase().replace(' ', "_"),
+            request_hash
+        )
+        .into(),
+    ))
 }
 
 #[derive(Debug, Deserialize)]
 struct HasPath {
-    path: String,
+    path: RcStr,
 }
 
 pub(crate) async fn can_use_next_font(
     project_path: Vc<FileSystemPath>,
-    query: Vc<String>,
+    query: Vc<RcStr>,
 ) -> Result<bool> {
     let query_map = qstring::QString::from(&**query.await?);
     let request: HasPath = parse_json_with_source_context(
@@ -98,12 +101,12 @@ pub(crate) async fn can_use_next_font(
         NextFontIssue {
             path,
             title: StyledString::Line(vec![
-                StyledString::Code("next/font:".to_string()),
-                StyledString::Text(" error:".to_string()),
+                StyledString::Code("next/font:".into()),
+                StyledString::Text(" error:".into()),
             ])
             .cell(),
             description: StyledString::Line(vec![
-                StyledString::Text("Cannot be used within ".to_string()),
+                StyledString::Text("Cannot be used within ".into()),
                 StyledString::Code(request.path),
             ])
             .cell(),

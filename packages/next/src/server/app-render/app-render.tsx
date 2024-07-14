@@ -7,18 +7,21 @@ import type {
   RenderOpts,
   Segment,
   CacheNodeSeedData,
+  PreloadCallbacks,
+  InitialRSCPayload,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { IncomingHttpHeaders } from 'http'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -34,17 +37,20 @@ import {
   continueDynamicHTMLResume,
   continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
-import { canSegmentBeOverridden } from '../../client/components/match-segments'
 import { stripInternalQueries } from '../internal-utils'
 import {
+  NEXT_HMR_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
-import { createMetadataComponents } from '../../lib/metadata/metadata'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
+import {
+  createMetadataComponents,
+  createMetadataContext,
+} from '../../lib/metadata/metadata'
+import { withRequestStore } from '../async-storage/with-request-store'
+import { withStaticGenerationStore } from '../async-storage/with-static-generation-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -57,7 +63,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createErrorHandler,
-  ErrorHandlerSource,
+  type DigestedError,
   type ErrorHandler,
 } from './create-error-handler'
 import {
@@ -67,7 +73,6 @@ import {
 import { getSegmentParam } from './get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
-import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
@@ -86,8 +91,10 @@ import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
   createStaticRenderer,
+  DYNAMIC_DATA,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  type PostponedState,
 } from './static/static-renderer'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
@@ -99,7 +106,6 @@ import {
   StaticGenBailoutError,
   isStaticGenBailoutError,
 } from '../../client/components/static-generation-bailout'
-import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   usedDynamicAPIs,
@@ -113,6 +119,9 @@ import {
 import { createServerModuleMap } from './action-utils'
 import { isNodeNextRequest } from '../base-http/helpers'
 import { parseParameter } from '../../shared/lib/router/utils/route-regex'
+import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
+import AppRouter from '../../client/components/app-router'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -129,6 +138,7 @@ type AppRenderBaseContext = {
   requestStore: RequestStore
   componentMod: AppPageModule
   renderOpts: RenderOpts
+  parsedRequestHeaders: ParsedRequestHeaders
 }
 
 export type GenerateFlight = typeof generateFlight
@@ -152,57 +162,64 @@ export type AppRenderContext = AppRenderBaseContext & {
   res: BaseNextResponse
 }
 
+interface ParseRequestHeadersOptions {
+  readonly isRoutePPREnabled: boolean
+}
+
+interface ParsedRequestHeaders {
+  /**
+   * Router state provided from the client-side router. Used to handle rendering
+   * from the common layout down. This value will be undefined if the request is
+   * not a client-side navigation request, or if the request is a prefetch
+   * request.
+   */
+  readonly flightRouterState: FlightRouterState | undefined
+  readonly isPrefetchRequest: boolean
+  readonly isHmrRefresh: boolean
+  readonly isRSCRequest: boolean
+  readonly nonce: string | undefined
+}
+
+function parseRequestHeaders(
+  headers: IncomingHttpHeaders,
+  options: ParseRequestHeadersOptions
+): ParsedRequestHeaders {
+  const isPrefetchRequest =
+    headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
+
+  const isHmrRefresh =
+    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
+
+  const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
+
+  const shouldProvideFlightRouterState =
+    isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
+
+  const flightRouterState = shouldProvideFlightRouterState
+    ? parseAndValidateFlightRouterState(
+        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+      )
+    : undefined
+
+  const csp =
+    headers['content-security-policy'] ||
+    headers['content-security-policy-report-only']
+
+  const nonce =
+    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+
+  return {
+    flightRouterState,
+    isPrefetchRequest,
+    isHmrRefresh,
+    isRSCRequest,
+    nonce,
+  }
+}
+
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   // Align the segment with parallel-route-default in next-app-loader
   return ['', {}, loaderTree[2]]
-}
-
-/* This method is important for intercepted routes to function:
- * when a route is intercepted, e.g. /blog/[slug], it will be rendered
- * with the layout of the previous page, e.g. /profile/[id]. The problem is
- * that the loader tree needs to know the dynamic param in order to render (id and slug in the example).
- * Normally they are read from the path but since we are intercepting the route, the path would not contain id,
- * so we need to read it from the router state.
- */
-function findDynamicParamFromRouterState(
-  flightRouterState: FlightRouterState | undefined,
-  segment: string
-): {
-  param: string
-  value: string | string[] | null
-  treeSegment: Segment
-  type: DynamicParamTypesShort
-} | null {
-  if (!flightRouterState) {
-    return null
-  }
-
-  const treeSegment = flightRouterState[0]
-
-  if (canSegmentBeOverridden(segment, treeSegment)) {
-    if (!Array.isArray(treeSegment) || Array.isArray(segment)) {
-      return null
-    }
-
-    return {
-      param: treeSegment[0],
-      value: treeSegment[1],
-      treeSegment: treeSegment,
-      type: treeSegment[2],
-    }
-  }
-
-  for (const parallelRouterState of Object.values(flightRouterState[1])) {
-    const maybeDynamicParam = findDynamicParamFromRouterState(
-      parallelRouterState,
-      segment
-    )
-    if (maybeDynamicParam) {
-      return maybeDynamicParam
-    }
-  }
-
-  return null
 }
 
 export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
@@ -212,8 +229,7 @@ export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
  */
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
-  pagePath: string,
-  flightRouterState: FlightRouterState | undefined
+  pagePath: string
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -227,11 +243,6 @@ function makeGetDynamicParamFromSegment(
     const key = segmentParam.param
 
     let value = params[key]
-
-    // this is a special marker that will be present for interception routes
-    if (value === '__NEXT_EMPTY_PARAM__') {
-      value = undefined
-    }
 
     if (Array.isArray(value)) {
       value = value.map((i) => encodeURIComponent(i))
@@ -278,8 +289,6 @@ function makeGetDynamicParamFromSegment(
           treeSegment: [key, value.join('/'), dynamicParamType],
         }
       }
-
-      return findDynamicParamFromRouterState(flightRouterState, segment)
     }
 
     const type = getShortDynamicParamType(segmentParam.type)
@@ -293,6 +302,17 @@ function makeGetDynamicParamFromSegment(
       type: type,
     }
   }
+}
+
+function NonIndex({ ctx }: { ctx: AppRenderContext }) {
+  const is404Page = ctx.pagePath === '/404'
+  const isInvalidStatusCode =
+    typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
+
+  if (is404Page || isInvalidStatusCode) {
+    return <meta name="robots" content="noindex" />
+  }
+  return null
 }
 
 // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
@@ -316,18 +336,19 @@ async function generateFlight(
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    staticGenerationStore: { urlPathname },
+    requestStore: { url },
     query,
     requestId,
     flightRouterState,
   } = ctx
 
+  const preloadCallbacks: PreloadCallbacks = []
+
   if (!options?.skipFlight) {
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
-      pathname: urlPathname,
-      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
+      metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createDynamicallyTrackedSearchParams,
@@ -342,8 +363,11 @@ async function generateFlight(
         isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
-          // Adding requestId as react key to make metadata remount for each render
-          <MetadataTree key={requestId} />
+          <>
+            <NonIndex ctx={ctx} />
+            {/* Adding requestId as react key to make metadata remount for each render */}
+            <MetadataTree key={requestId} />
+          </>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -351,6 +375,7 @@ async function generateFlight(
         rootLayoutIncluded: false,
         asNotFound: ctx.isNotFoundPath || options?.asNotFound,
         metadataOutlet: <MetadataOutlet />,
+        preloadCallbacks,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -418,28 +443,29 @@ function createFlightDataResolver(ctx: AppRenderContext) {
   }
 }
 
-type ReactServerAppProps = {
-  tree: LoaderTree
-  ctx: AppRenderContext
+// This is the data necessary to render <AppRouter /> when no SSR errors are encountered
+async function getRSCPayload(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
   asNotFound: boolean
-}
-// This is the root component that runs in the RSC context
-async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
+) {
   // Create full component tree from root to leaf.
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
-  const missingSlots = new Set<string>()
+  let missingSlots: Set<string> | undefined
+
+  // We only track missing parallel slots in development
+  if (process.env.NODE_ENV === 'development') {
+    missingSlots = new Set<string>()
+  }
+
   const {
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      AppRouter,
-      GlobalError,
-      createDynamicallyTrackedSearchParams,
-    },
-    staticGenerationStore: { urlPathname },
+    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
+    requestStore: { url },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -450,15 +476,16 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
+    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
     createDynamicallyTrackedSearchParams,
   })
 
-  const { seedData, styles } = await createComponentTree({
+  const preloadCallbacks: PreloadCallbacks = []
+
+  const seedData = await createComponentTree({
     ctx,
     createSegmentPath: (child) => child,
     loaderTree: tree,
@@ -471,6 +498,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     asNotFound: asNotFound,
     metadataOutlet: <MetadataOutlet />,
     missingSlots,
+    preloadCallbacks,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -480,66 +508,58 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  return (
+  const initialHead = (
     <>
-      {styles}
-      <AppRouter
-        buildId={ctx.renderOpts.buildId}
-        assetPrefix={ctx.assetPrefix}
-        initialCanonicalUrl={urlPathname}
-        // This is the router state tree.
-        initialTree={initialTree}
-        // This is the tree of React nodes that are seeded into the cache
-        initialSeedData={seedData}
-        couldBeIntercepted={couldBeIntercepted}
-        initialHead={
-          <>
-            {typeof ctx.res.statusCode === 'number' &&
-              ctx.res.statusCode > 400 && (
-                <meta name="robots" content="noindex" />
-              )}
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={ctx.requestId} />
-          </>
-        }
-        globalErrorComponent={GlobalError}
-        // This is used to provide debug information (when in development mode)
-        // about which slots were not filled by page components while creating the component tree.
-        missingSlots={missingSlots}
-      />
+      <NonIndex ctx={ctx} />
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
     </>
   )
+
+  return {
+    // See the comment above the `Preloads` component (below) for why this is part of the payload
+    P: <Preloads preloadCallbacks={preloadCallbacks} />,
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: url.pathname + url.search,
+    i: couldBeIntercepted,
+    t: initialTree,
+    d: seedData,
+    h: initialHead,
+    m: missingSlots,
+    G: GlobalError,
+  } as InitialRSCPayload & { P: React.ReactNode }
 }
 
-type ReactServerErrorProps = {
-  tree: LoaderTree
-  ctx: AppRenderContext
-  errorType: 'not-found' | 'redirect' | undefined
+/**
+ * Preload calls (such as `ReactDOM.preloadStyle` and `ReactDOM.preloadFont`) need to be called during rendering
+ * in order to create the appropriate preload tags in the DOM, otherwise they're a no-op. Since we invoke
+ * renderToReadableStream with a function that returns component props rather than a component itself, we use
+ * this component to "render  " the preload calls.
+ */
+function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
+  preloadCallbacks.forEach((preloadFn) => preloadFn())
+  return null
 }
-// This is the root component that runs in the RSC context
-async function ReactServerError({
-  tree,
-  ctx,
-  errorType,
-}: ReactServerErrorProps) {
+
+// This is the data necessary to render <AppRouter /> when an error state is triggered
+async function getErrorRSCPayload(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  errorType: 'not-found' | 'redirect' | undefined
+) {
   const {
     getDynamicParamFromSegment,
     query,
     appUsingSizeAdjustment,
-    componentMod: {
-      AppRouter,
-      GlobalError,
-      createDynamicallyTrackedSearchParams,
-    },
-    staticGenerationStore: { urlPathname },
+    componentMod: { GlobalError, createDynamicallyTrackedSearchParams },
+    requestStore: { url },
     requestId,
-    res,
   } = ctx
 
   const [MetadataTree] = createMetadataComponents({
     tree,
-    pathname: urlPathname,
-    trailingSlash: ctx.renderOpts.trailingSlash,
+    metadataContext: createMetadataContext(url.pathname, ctx.renderOpts),
     errorType,
     query,
     getDynamicParamFromSegment,
@@ -547,13 +567,11 @@ async function ReactServerError({
     createDynamicallyTrackedSearchParams,
   })
 
-  const head = (
+  const initialHead = (
     <>
+      <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
-      {typeof res.statusCode === 'number' && res.statusCode >= 400 && (
-        <meta name="robots" content="noindex" />
-      )}
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -577,18 +595,17 @@ async function ReactServerError({
     </html>,
     null,
   ]
-  return (
-    <AppRouter
-      buildId={ctx.renderOpts.buildId}
-      assetPrefix={ctx.assetPrefix}
-      initialCanonicalUrl={urlPathname}
-      initialTree={initialTree}
-      initialHead={head}
-      globalErrorComponent={GlobalError}
-      initialSeedData={initialSeedData}
-      missingSlots={new Set()}
-    />
-  )
+
+  return {
+    b: ctx.renderOpts.buildId,
+    p: ctx.assetPrefix,
+    c: url.pathname + url.search,
+    i: false,
+    t: initialTree,
+    d: initialSeedData,
+    h: initialHead,
+    G: GlobalError,
+  } as InitialRSCPayload
 }
 
 // This component must run in an SSR context. It will render the RSC root component
@@ -602,14 +619,17 @@ function ReactServerEntrypoint<T>({
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   nonce?: string
-}): T {
+}): JSX.Element {
   preinitScripts()
-  const response = useFlightStream(
-    reactServerStream,
-    clientReferenceManifest,
-    nonce
+  const initialRSCPayload = React.use(
+    useFlightStream<InitialRSCPayload>(
+      reactServerStream,
+      clientReferenceManifest,
+      nonce
+    )
   )
-  return React.use(response)
+
+  return <AppRouter initialRSCPayload={initialRSCPayload} />
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can
@@ -643,9 +663,9 @@ async function renderToHTMLOrFlightImpl(
     ComponentMod,
     dev,
     nextFontManifest,
-    supportsDynamicHTML,
+    supportsDynamicResponse,
     serverActions,
-    appDirDevErrorLogger,
+    onInstrumentationRequestError,
     assetPrefix = '',
     enableTainting,
   } = renderOpts
@@ -660,6 +680,12 @@ async function renderToHTMLOrFlightImpl(
     globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
+  if (process.env.NODE_ENV === 'development') {
+    // reset isr status at start of request
+    const { pathname } = new URL(req.url || '/', 'http://n')
+    renderOpts.setAppIsrStatus?.(pathname, null)
+  }
+
   if (
     // The type check here ensures that `req` is correctly typed, and the
     // environment variable check provides dead code elimination.
@@ -667,6 +693,25 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
+      const staticGenStore =
+        ComponentMod.staticGenerationAsyncStorage.getStore()
+
+      if (
+        process.env.NODE_ENV === 'development' &&
+        staticGenStore &&
+        renderOpts.setAppIsrStatus
+      ) {
+        // only node can be ISR so we only need to update the status here
+        const { pathname } = new URL(req.url || '/', 'http://n')
+        let { revalidate } = staticGenStore
+        if (typeof revalidate === 'undefined') {
+          revalidate = false
+        }
+        if (revalidate === false || revalidate > 0) {
+          renderOpts.setAppIsrStatus(pathname, revalidate)
+        }
+      }
+
       requestEndedState.ended = true
 
       if ('performance' in globalThis) {
@@ -707,10 +752,10 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const digestErrorsMap: Map<string, Error> = new Map()
+  const digestErrorsMap: Map<string, DigestedError> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
-  const { staticGenerationStore, requestStore } = baseCtx
+  const { staticGenerationStore, requestStore, parsedRequestHeaders } = baseCtx
   const { isStaticGeneration } = staticGenerationStore
 
   /**
@@ -736,33 +781,76 @@ async function renderToHTMLOrFlightImpl(
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
 
+  const errorContext = {
+    routerKind: 'App Router',
+    routePath: pagePath,
+    routeType: 'render',
+  } as const
+
+  // Including RSC rendering and flight data rendering
+  function getRSCError(err: DigestedError) {
+    const digest = err.digest
+    if (!digestErrorsMap.has(digest)) {
+      digestErrorsMap.set(digest, err)
+    }
+    return err
+  }
+
+  function getSSRError(err: DigestedError) {
+    // For SSR errors, if we have the existing digest in errors map,
+    // we should use the existing error object to avoid duplicate error logs.
+    if (digestErrorsMap.has(err.digest)) {
+      return digestErrorsMap.get(err.digest)!
+    }
+    return err
+  }
+
+  function onFlightDataRenderError(err: DigestedError) {
+    return onInstrumentationRequestError?.(err, req, {
+      ...errorContext,
+      renderSource: 'react-server-components-payload',
+    })
+  }
+
+  function onServerRenderError(err: DigestedError) {
+    const renderSource = digestErrorsMap.has(err.digest)
+      ? 'react-server-components'
+      : 'server-rendering'
+    return onInstrumentationRequestError?.(err, req, {
+      ...errorContext,
+      renderSource,
+    })
+  }
+
   const serverComponentsErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
-    digestErrorsMap,
+    // RSC rendering error will report as SSR error
+    onReactStreamRenderError: undefined,
+    getErrorByRenderSource: getRSCError,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
-    digestErrorsMap,
+    onReactStreamRenderError: onFlightDataRenderError,
+    getErrorByRenderSource: getRSCError,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
-    source: ErrorHandlerSource.html,
     dev,
     isNextExport,
-    errorLogger: appDirDevErrorLogger,
-    digestErrorsMap,
+    onReactStreamRenderError: onServerRenderError,
+    getErrorByRenderSource: getSSRError,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
   })
 
   ComponentMod.patchFetch()
+
+  if (renderOpts.experimental.after) {
+    ComponentMod.patchCacheScopeSupportIntoReact()
+  }
 
   /**
    * Rules of Static & Dynamic HTML:
@@ -777,7 +865,7 @@ async function renderToHTMLOrFlightImpl(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  const generateStaticHTML = supportsDynamicResponse !== true
 
   // Pull out the hooks/references from the component.
   const { tree: loaderTree, taintObjectReference } = ComponentMod
@@ -796,30 +884,8 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const isRSCRequest = req.headers[RSC_HEADER.toLowerCase()] !== undefined
-
-  const isPrefetchRSCRequest =
-    isRSCRequest &&
-    req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
-
-  /**
-   * Router state provided from the client-side router. Used to handle rendering
-   * from the common layout down. This value will be undefined if the request
-   * is not a client-side navigation request or if the request is a prefetch
-   * request (except when it's a prefetch request for an interception route
-   * which is always dynamic).
-   */
-  const shouldProvideFlightRouterState =
-    isRSCRequest &&
-    (!isPrefetchRSCRequest ||
-      !isRoutePPREnabled ||
-      // Interception routes currently depend on the flight router state to
-      // extract dynamic params.
-      isInterceptionRouteAppPath(pagePath))
-
-  const parsedFlightRouterState = parseAndValidateFlightRouterState(
-    req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-  )
+  const { flightRouterState, isPrefetchRequest, isRSCRequest, nonce } =
+    parsedRequestHeaders
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -840,31 +906,17 @@ async function renderToHTMLOrFlightImpl(
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
-    pagePath,
-    // `FlightRouterState` is unconditionally provided here because this method uses it
-    // to extract dynamic params as a fallback if they're not present in the path.
-    parsedFlightRouterState
+    pagePath
   )
-
-  // Get the nonce from the incoming request if it has one.
-  const csp =
-    req.headers['content-security-policy'] ||
-    req.headers['content-security-policy-report-only']
-  let nonce: string | undefined
-  if (csp && typeof csp === 'string') {
-    nonce = getScriptNonceFromHeader(csp)
-  }
 
   const ctx: AppRenderContext = {
     ...baseCtx,
     getDynamicParamFromSegment,
     query,
-    isPrefetch: isPrefetchRSCRequest,
+    isPrefetch: isPrefetchRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
-    flightRouterState: shouldProvideFlightRouterState
-      ? parsedFlightRouterState
-      : undefined,
+    flightRouterState,
     requestId,
     defaultRevalidate: false,
     pagePath,
@@ -946,11 +998,13 @@ async function renderToHTMLOrFlightImpl(
         nonce
       )
 
+      const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
+
       // We kick off the Flight Request (render) here. It is ok to initiate the render in an arbitrary
       // place however it is critical that we only construct the Flight Response inside the SSR
       // render so that directives like preloads are correctly piped through
       const serverStream = ComponentMod.renderToReadableStream(
-        <ReactServerApp tree={tree} ctx={ctx} asNotFound={asNotFound} />,
+        RSCPayload,
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
@@ -1006,27 +1060,40 @@ async function renderToHTMLOrFlightImpl(
         tracingMetadata: tracingMetadata,
       })
 
+      let postponed: PostponedState | null = null
+
+      // If provided, the postpone state should be parsed as JSON so it can be
+      // provided to React.
+      if (typeof renderOpts.postponed === 'string') {
+        try {
+          postponed = JSON.parse(renderOpts.postponed)
+        } catch {
+          // If we failed to parse the postponed state, we should default to
+          // performing a dynamic data render.
+          postponed = DYNAMIC_DATA
+        }
+      }
+
       const renderer = createStaticRenderer({
         isRoutePPREnabled,
         isStaticGeneration,
-        // If provided, the postpone state should be parsed as JSON so it can be
-        // provided to React.
-        postponed:
-          typeof renderOpts.postponed === 'string'
-            ? JSON.parse(renderOpts.postponed)
-            : null,
+        postponed,
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
           maxHeadersLength: 600,
           nonce,
-          bootstrapScripts: [bootstrapScript],
+          // When debugging the static shell, client-side rendering should be
+          // disabled to prevent blanking out the page.
+          bootstrapScripts: renderOpts.isDebugStaticShell
+            ? []
+            : [bootstrapScript],
           formState,
         },
       })
 
       try {
-        let { stream, postponed, resumed } = await renderer.render(children)
+        const result = await renderer.render(children)
 
         const prerenderState = staticGenerationStore.prerenderState
         if (prerenderState) {
@@ -1047,10 +1114,10 @@ async function renderToHTMLOrFlightImpl(
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
-            if (postponed != null) {
+            if (result.postponed != null) {
               // This is the Dynamic HTML case.
               metadata.postponed = JSON.stringify(
-                getDynamicHTMLPostponedState(postponed)
+                getDynamicHTMLPostponedState(result.postponed)
               )
             } else {
               // This is the Dynamic Data case
@@ -1063,7 +1130,7 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
-              stream: await continueDynamicPrerender(stream, {
+              stream: await continueDynamicPrerender(result.stream, {
                 getServerInsertedHTML,
               }),
             }
@@ -1077,10 +1144,10 @@ async function renderToHTMLOrFlightImpl(
 
             if (usedDynamicAPIs(prerenderState)) {
               // This is the same logic above just repeated after ensuring the RSC stream itself has completed
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // This is the Dynamic HTML case.
                 metadata.postponed = JSON.stringify(
-                  getDynamicHTMLPostponedState(postponed)
+                  getDynamicHTMLPostponedState(result.postponed)
                 )
               } else {
                 // This is the Dynamic Data case
@@ -1093,14 +1160,14 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
-                stream: await continueDynamicPrerender(stream, {
+                stream: await continueDynamicPrerender(result.stream, {
                   getServerInsertedHTML,
                 }),
               }
             } else {
               // This is the Static case
               // We still have not used any dynamic APIs. At this point we can produce an entirely static prerender response
-              let renderedHTMLStream = stream
+              let renderedHTMLStream = result.stream
 
               if (staticGenerationStore.forceDynamic) {
                 throw new StaticGenBailoutError(
@@ -1108,13 +1175,13 @@ async function renderToHTMLOrFlightImpl(
                 )
               }
 
-              if (postponed != null) {
+              if (result.postponed != null) {
                 // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
                 // so we can set all the postponed boundaries to client render mode before we store the HTML response
                 const resumeRenderer = createStaticRenderer({
                   isRoutePPREnabled,
                   isStaticGeneration: false,
-                  postponed: getDynamicHTMLPostponedState(postponed),
+                  postponed: getDynamicHTMLPostponedState(result.postponed),
                   streamOptions: {
                     signal: createPostponedAbortSignal(
                       'static prerender resume'
@@ -1149,7 +1216,7 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } =
                   await resumeRenderer.render(resumeChildren)
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = chainStreams(stream, resumeStream)
+                renderedHTMLStream = chainStreams(result.stream, resumeStream)
               }
 
               return {
@@ -1171,10 +1238,10 @@ async function renderToHTMLOrFlightImpl(
             nonce,
             formState
           )
-          if (resumed) {
+          if (result.resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueDynamicHTMLResume(stream, {
+              stream: await continueDynamicHTMLResume(result.stream, {
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
@@ -1182,7 +1249,7 @@ async function renderToHTMLOrFlightImpl(
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
             return {
-              stream: await continueDynamicDataResume(stream, {
+              stream: await continueDynamicDataResume(result.stream, {
                 inlinedDataStream,
               }),
             }
@@ -1192,7 +1259,7 @@ async function renderToHTMLOrFlightImpl(
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
           return {
-            stream: await continueFizzStream(stream, {
+            stream: await continueFizzStream(result.stream, {
               inlinedDataStream: createInlinedDataReadableStream(
                 dataStream,
                 nonce,
@@ -1261,7 +1328,7 @@ async function renderToHTMLOrFlightImpl(
           setHeader('Location', redirectUrl)
         }
 
-        const is404 = res.statusCode === 404
+        const is404 = ctx.res.statusCode === 404
         if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
           res.statusCode = 500
         }
@@ -1281,8 +1348,10 @@ async function renderToHTMLOrFlightImpl(
           nonce
         )
 
+        const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
+
         const errorServerStream = ComponentMod.renderToReadableStream(
-          <ReactServerError tree={tree} ctx={ctx} errorType={errorType} />,
+          errorRSCPayload,
           clientReferenceManifest.clientModules,
           {
             onError: serverComponentsErrorHandler,
@@ -1403,7 +1472,7 @@ async function renderToHTMLOrFlightImpl(
     ])
   }
 
-  addImplicitTags(staticGenerationStore)
+  addImplicitTags(staticGenerationStore, requestStore)
 
   if (staticGenerationStore.tags) {
     metadata.fetchTags = staticGenerationStore.tags.join(',')
@@ -1429,7 +1498,7 @@ async function renderToHTMLOrFlightImpl(
   if (
     staticGenerationStore.prerenderState &&
     usedDynamicAPIs(staticGenerationStore.prerenderState) &&
-    staticGenerationStore.prerenderState?.isDebugSkeleton
+    staticGenerationStore.prerenderState?.isDebugDynamicAccesses
   ) {
     warn('The following dynamic usage was detected:')
     for (const access of formatDynamicAPIAccesses(
@@ -1484,7 +1553,8 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1492,19 +1562,38 @@ export const renderToHTMLOrFlight: AppPageRender = (
   res,
   pagePath,
   query,
-  renderOpts
+  renderOpts,
+  serverComponentsHmrCache
 ) => {
-  // TODO: this includes query string, should it?
-  const pathname = validateURL(req.url)
+  if (!req.url) {
+    throw new Error('Invalid URL')
+  }
 
-  return RequestAsyncStorageWrapper.wrap(
+  const url = parseRelativeUrl(req.url, undefined, false)
+
+  // We read these values from the request object as, in certain cases,
+  // base-server will strip them to opt into different rendering behavior.
+  const parsedRequestHeaders = parseRequestHeaders(req.headers, {
+    isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+  })
+
+  const { isHmrRefresh } = parsedRequestHeaders
+
+  return withRequestStore(
     renderOpts.ComponentMod.requestAsyncStorage,
-    { req, res, renderOpts },
+    {
+      req,
+      url,
+      res,
+      renderOpts,
+      isHmrRefresh,
+      serverComponentsHmrCache,
+    },
     (requestStore) =>
-      StaticGenerationAsyncStorageWrapper.wrap(
+      withStaticGenerationStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
-          urlPathname: pathname,
+          page: renderOpts.routeModule.definition.page,
           renderOpts,
           requestEndedState: { ended: false },
         },
@@ -1520,6 +1609,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
               staticGenerationStore,
               componentMod: renderOpts.ComponentMod,
               renderOpts,
+              parsedRequestHeaders,
             },
             staticGenerationStore.requestEndedState || {}
           )
