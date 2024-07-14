@@ -2493,6 +2493,15 @@ export default async function build(
               distDir,
               shuttleDir,
               rewrites,
+              edgePreviewProps: {
+                __NEXT_PREVIEW_MODE_ID:
+                  NextBuildContext.previewProps!.previewModeId,
+                __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                  NextBuildContext.previewProps!.previewModeEncryptionKey,
+                __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                  NextBuildContext.previewProps!.previewModeSigningKey,
+              },
+              encryptionKey,
             },
             {
               changed: {

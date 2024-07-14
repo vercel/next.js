@@ -9,9 +9,11 @@ module.exports = {
     webpackBuildWorker: true,
   },
   webpack(cfg) {
-    // disable the webpack cache to make sure we're
-    // deterministic without
-    cfg.cache = false
+    if (process.env.NEXT_PRIVATE_FLYING_SHUTTLE) {
+      // disable the webpack cache to make sure we're
+      // deterministic without
+      cfg.cache = false
+    }
     return cfg
   },
   // output: 'standalone',

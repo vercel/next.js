@@ -157,7 +157,7 @@ export async function detectChangedEntries({
       changed = true
     }
 
-    if (changed) {
+    if (changed || entry.match(/(_app|_document|_error)/)) {
       changedEntries[type].push(entry)
     } else {
       unchangedEntries[type].push(entry)
@@ -181,11 +181,11 @@ export async function detectChangedEntries({
   // TODO: if _app or _document change it invalidates all pages
   for (const entry of pagesPaths || []) {
     let normalizedEntry = getPageFromPath(entry, pageExtensions)
-    
+
     if (normalizedEntry === '/') {
       normalizedEntry = '/index'
     }
-    
+
     await detectChange({ entry, normalizedEntry, type: 'pages' })
   }
 

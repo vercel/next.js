@@ -5,9 +5,9 @@ import fs from 'fs'
 import path from 'path'
 import { getPageFromPath } from '../entries'
 import { Sema } from 'next/dist/compiled/async-sema'
-import { resolveFrom } from '../../lib/resolve-from'
 import { recursiveCopy } from '../../lib/recursive-copy'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
+import { generateClientManifest } from '../webpack/plugins/build-manifest-plugin'
 import {
   hasShuttle,
   type DetectedEntriesResult,
@@ -36,6 +36,8 @@ export async function stitchBuilds(
     shuttleDir,
     buildId,
     rewrites,
+    encryptionKey,
+    edgePreviewProps,
   }: {
     buildId: string
     distDir: string
@@ -45,6 +47,8 @@ export async function stitchBuilds(
       afterFiles: Rewrite[]
       fallback: Rewrite[]
     }
+    encryptionKey: string
+    edgePreviewProps: Record<string, string>
   },
   entries: {
     changed: DetectedEntriesResult
@@ -125,28 +129,15 @@ export async function stitchBuilds(
           if (normalizedEntry === '/') {
             normalizedEntry = '/index'
           }
-          await copyPageChunk(
-            normalizedEntry,
-            type
-          )
+          await copyPageChunk(normalizedEntry, type)
         } finally {
           copySema.release()
         }
       })
     )
   }
-
-  // now we need to stitch the manifests together
-  const nextPath = path.dirname(resolveFrom(distDir, 'next/package.json'))
-  const { generateClientManifest } = require(
-    path.join(
-      nextPath,
-      'dist',
-      'build',
-      'webpack',
-      'plugins/build-manifest-plugin.js'
-    )
-  )
+  // always attempt copying not-found chunk
+  await copyPageChunk('/_not-found/page', 'app').catch(() => {})
 
   // for build-manifest we use latest runtime files
   // and only merge previous page chunk entries
@@ -159,33 +150,44 @@ export async function stitchBuilds(
   )
   const mergedBuildManifest = {
     // we want to re-use original runtime
-    // chunks so we favor restored version 
+    // chunks so we favor restored version
     // over new
-    ...restoreBuildManifest,
+    ...currentBuildManifest,
     pages: {
       ...restoreBuildManifest.pages,
       ...currentBuildManifest.pages,
     },
   }
-  
-  // get original runtime chunks for pages if present
-  // so that we can restore that under new entries
-  const nonApiUnchangedPages = entries.unchanged.pages.filter(item => !item.startsWith('/api'))
-  
-  if (nonApiUnchangedPages.length > 0) {
-    const restoreEntryKey = getPageFromPath(nonApiUnchangedPages[0], entries.pageExtensions)
-    const runtimeRegex = /chunks\/(main-|framework-|webpack-).*?\.js$/
-    const originalRuntimeChunks = restoreBuildManifest.pages[
-      restoreEntryKey
-    ].filter((item: string) => item.match(runtimeRegex))
-  
-    for (const key of ['/_app', '/_error', ...entries.changed.pages.map(entry => getPageFromPath(entry, entries.pageExtensions))]) {
-      mergedBuildManifest.pages[key] = [
-        ...originalRuntimeChunks,
-        ...mergedBuildManifest.pages[key].filter((item: string) => 
-        !item.match(runtimeRegex))
-      ]
+
+  // _app and _error is unique per runtime
+  // so nest under each specific entry in build-manifest
+  const internalEntries = ['/_error', '/_app']
+
+  for (const entry of Object.keys(restoreBuildManifest.pages)) {
+    if (currentBuildManifest.pages[entry]) {
+      continue
     }
+    for (const internalEntry of internalEntries) {
+      for (const chunk of restoreBuildManifest.pages[internalEntry]) {
+        if (!restoreBuildManifest.pages[entry].includes(chunk)) {
+          mergedBuildManifest.pages[entry].unshift(chunk)
+        }
+      }
+    }
+  }
+
+  for (const entry of Object.keys(currentBuildManifest.pages)) {
+    for (const internalEntry of internalEntries) {
+      for (const chunk of currentBuildManifest.pages[internalEntry]) {
+        if (!currentBuildManifest.pages[entry].includes(chunk)) {
+          mergedBuildManifest.pages[entry].unshift(chunk)
+        }
+      }
+    }
+  }
+
+  for (const key of internalEntries) {
+    mergedBuildManifest.pages[key] = []
   }
 
   /* 
@@ -204,6 +206,12 @@ export async function stitchBuilds(
     is broken out into it's own split chunk correctly so 
     we don't reference new runtime chunks in a previous build
   */
+  for (const entry of entries.unchanged.app || []) {
+    const normalizedEntry = getPageFromPath(entry, entries.pageExtensions)
+    mergedBuildManifest.rootMainFilesTree[normalizedEntry] =
+      restoreBuildManifest.rootMainFilesTree[normalizedEntry] ||
+      restoreBuildManifest.rootMainFiles
+  }
 
   await fs.promises.writeFile(
     path.join(distDir, BUILD_MANIFEST),
@@ -264,6 +272,18 @@ export async function stitchBuilds(
       ...currentMiddlewareManifest.functions,
     },
   }
+  // update edge function env
+  const updatedEdgeEnv: Record<string, string> = {
+    __NEXT_BUILD_ID: buildId,
+    NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: encryptionKey,
+    ...edgePreviewProps,
+  }
+  if (mergedMiddlewareManifest.middleware['/']) {
+    Object.assign(mergedMiddlewareManifest.middleware['/'].env, updatedEdgeEnv)
+  }
+  for (const key of Object.keys(mergedMiddlewareManifest.functions)) {
+    Object.assign(mergedMiddlewareManifest.functions[key].env, updatedEdgeEnv)
+  }
 
   await fs.promises.writeFile(
     path.join(distDir, 'server', MIDDLEWARE_MANIFEST),
@@ -302,10 +322,7 @@ export async function stitchBuilds(
   )
 
   // for server/font-manifest.json we just merge the arrays
-  for (const file of [
-    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
-    path.join('chunks', AUTOMATIC_FONT_OPTIMIZATION_MANIFEST),
-  ]) {
+  for (const file of [AUTOMATIC_FONT_OPTIMIZATION_MANIFEST]) {
     const [restoreFontManifest, currentFontManifest] = await Promise.all(
       [
         path.join(shuttleDir, 'server', file),

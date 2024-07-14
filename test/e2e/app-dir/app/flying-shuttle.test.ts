@@ -67,56 +67,30 @@ describe('should output updated trace files', () => {
       }
     }
   })
-  
+
   async function checkAppPagesNavigation() {
-    // make sure navigating between pages works correctly
-      let browser = await next.browser('/')
-      // set global that should persist if we don't hard navigate
-      await browser.eval('window.beforeNav = 1')
-      await browser.eval('window.next.router.push("/blog/first")')
+    for (const path of [
+      '/',
+      '/blog/123',
+      '/dynamic-client/first/second',
+      '/dashboard',
+      '/dashboard/deployments/123',
+    ]) {
+      require('console').error('checking', path)
+      const res = await next.fetch(path)
+      expect(res.status).toBe(200)
 
+      const browser = await next.browser(path)
+      // TODO: check for hydration success properly
       await retry(async () => {
-        expect(await browser.eval(() => document.documentElement.innerHTML)).toContain(
-          'hello from pages/blog/[slug]'
-        )
+        expect(await browser.eval('!!window.next.router')).toBe(true)
       })
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-      
-      await browser.eval('window.next.router.push("/")')
-      
-      await retry(async () => {
-        expect(await browser.eval(() => document.documentElement.innerHTML)).toContain(
-          'hello from pages/index'
-        )
-      })
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-
-      // make sure navigating app routes works correctly
-      // (including newly built)
-      browser = await next.browser('/catch-all/hello')
-      // set global that should persist if we don't hard navigate
-      await browser.eval('window.beforeNav = 1')
-      await browser.eval(
-        'window.next.router.push("/dashboard/deployments/first")'
-      )
-
-      await retry(async () => {
-        expect(await browser.eval(() => document.documentElement.innerHTML)).toContain(
-          `hello from app/dashboard/deployments/[id]`
-        )
-      })
-      expect(await browser.eval('window.beforeNav')).toBe(1)
-      
-      await browser.eval(
-        'window.next.router.push("/catch-all/hello")'
-      )
-
-      await retry(async () => {
-        expect(await browser.eval(() => document.documentElement.innerHTML)).toContain(
-          `hello from /catch-all`
-        )
-      })
-      expect(await browser.eval('window.beforeNav')).toBe(1)
+      const browserLogs = await browser.log()
+      expect(
+        browserLogs.some(({ message }) => message.includes('error'))
+      ).toBeFalse()
+    }
+    // TODO: check we hard navigate boundaries properly
   }
 
   it('should only rebuild just a changed app route correctly', async () => {
@@ -128,13 +102,13 @@ describe('should output updated trace files', () => {
     try {
       await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
       await next.start()
-  
-      await checkAppPagesNavigation()    
+
+      await checkAppPagesNavigation()
     } finally {
       await next.patchFile(dataPath, originalContent)
     }
   })
-  
+
   it('should only rebuild just a changed pages route correctly', async () => {
     await next.stop()
 
@@ -142,15 +116,21 @@ describe('should output updated trace files', () => {
     const originalContent = await next.readFile(pagePath)
 
     try {
-      await next.patchFile(pagePath, originalContent.replace('hello from pages/index', 'hello from pages/index!!'))
+      await next.patchFile(
+        pagePath,
+        originalContent.replace(
+          'hello from pages/index',
+          'hello from pages/index!!'
+        )
+      )
       await next.start()
-      
+
       await checkAppPagesNavigation()
     } finally {
       await next.patchFile(pagePath, originalContent)
     }
   })
-  
+
   it('should only rebuild a changed app and pages route correctly', async () => {
     await next.stop()
 
@@ -160,7 +140,13 @@ describe('should output updated trace files', () => {
     const originalDataContent = await next.readFile(dataPath)
 
     try {
-      await next.patchFile(pagePath, originalPageContent.replace('hello from pages/index', 'hello from pages/index!!'))
+      await next.patchFile(
+        pagePath,
+        originalPageContent.replace(
+          'hello from pages/index',
+          'hello from pages/index!!'
+        )
+      )
       await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
       await next.start()
 

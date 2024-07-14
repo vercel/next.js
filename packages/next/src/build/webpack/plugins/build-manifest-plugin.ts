@@ -201,7 +201,7 @@ export default class BuildManifestPlugin {
         ampDevFiles: [],
         lowPriorityFiles: [],
         rootMainFiles: [],
-        rootMainFilesTree: [],
+        rootMainFilesTree: {},
         pages: { '/_app': [] },
         ampFirstPages: [],
       }

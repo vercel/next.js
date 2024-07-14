@@ -984,7 +984,8 @@ async function renderToHTMLOrFlightImpl(
         renderOpts.crossOrigin,
         subresourceIntegrityManifest,
         getAssetQueryString(ctx, true),
-        nonce
+        nonce,
+        renderOpts.page
       )
 
       const RSCPayload = await getRSCPayload(tree, ctx, asNotFound)
@@ -1334,7 +1335,8 @@ async function renderToHTMLOrFlightImpl(
           renderOpts.crossOrigin,
           subresourceIntegrityManifest,
           getAssetQueryString(ctx, false),
-          nonce
+          nonce,
+          '/_not-found/page'
         )
 
         const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
