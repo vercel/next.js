@@ -381,6 +381,7 @@ impl LoaderTreeBuilder {
             page,
             default,
             error,
+            global_error: _,
             layout,
             loading,
             template,

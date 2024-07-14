@@ -49,6 +49,12 @@ pub async fn get_app_page_entry(
         nodejs_context
     };
 
+    let components = loader_tree.clone().await?.components.await?;
+    let global_error = match components.global_error {
+        Some(value) => value.to_string().await?.clone_value(),
+        None => "next/dist/client/components/error-boundary".into(),
+    };
+
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let base_path = next_config.await?.base_path.clone();
@@ -82,7 +88,7 @@ pub async fn get_app_page_entry(
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             // TODO(alexkirsz) Support custom global error.
-            "VAR_MODULE_GLOBAL_ERROR" => "next/dist/client/components/error-boundary".into(),
+            "VAR_MODULE_GLOBAL_ERROR" => global_error,
         },
         indexmap! {
             "tree" => loader_tree_code,
