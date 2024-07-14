@@ -6251,9 +6251,7 @@
         "404 Page Support development mode 2 does not show error with getStaticProps in pages/404 dev",
         "404 Page Support development mode 2 falls back to _error correctly without pages/404",
         "404 Page Support development mode 2 shows error with getInitialProps in pages/404 dev",
-        "404 Page Support development mode 2 shows error with getServerSideProps in pages/404 dev"
-      ],
-      "failed": [
+        "404 Page Support development mode 2 shows error with getServerSideProps in pages/404 dev",
         "404 Page Support production mode does not show error with getStaticProps in pages/404 build",
         "404 Page Support production mode should add /404 to pages-manifest correctly",
         "404 Page Support production mode should not cache for custom 404 page with gssp and revalidate disabled",
@@ -6268,6 +6266,7 @@
         "404 Page Support production mode shows error with getInitialProps in pages/404 build",
         "404 Page Support production mode shows error with getServerSideProps in pages/404 build"
       ],
+      "failed": [],
       "pending": [
         "404 Page Support development mode should not error when visited directly",
         "404 Page Support development mode should render _error for a 500 error still",
