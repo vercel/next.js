@@ -92,7 +92,10 @@ export function getRender({
         ? {
             ...prerenderManifest,
             preview: {
-              previewModeId: process.env.__NEXT_PREVIEW_MODE_ID!,
+              previewModeId:
+                process.env.NODE_ENV === 'production'
+                  ? process.env.__NEXT_PREVIEW_MODE_ID!
+                  : 'development-id',
               previewModeSigningKey:
                 process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY!,
               previewModeEncryptionKey:
