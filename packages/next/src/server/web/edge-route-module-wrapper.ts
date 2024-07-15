@@ -15,6 +15,7 @@ import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 import type { RequestLifecycleOpts } from '../base-server'
 import { CloseController, trackStreamConsumed } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -93,15 +94,7 @@ export class EdgeRouteModuleWrapper {
       closeController = new CloseController()
     }
 
-    const previewProps = {
-      previewModeId:
-        process.env.NODE_ENV === 'production'
-          ? process.env.__NEXT_PREVIEW_MODE_ID!
-          : 'development-id',
-      previewModeSigningKey: process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY || '',
-      previewModeEncryptionKey:
-        process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY || '',
-    }
+    const previewProps = getEdgePreviewProps()
 
     // Create the context for the handler. This contains the params from the
     // match (if any).

@@ -21,6 +21,7 @@ import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -191,16 +192,7 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: {
-            previewModeId:
-              process.env.NODE_ENV === 'production'
-                ? process.env.__NEXT_PREVIEW_MODE_ID!
-                : 'development-id',
-            previewModeSigningKey:
-              process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY || '',
-            previewModeEncryptionKey:
-              process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY || '',
-          } as any, // `preview` is special case read in next-dev-server
+          preview: getEdgePreviewProps(),
         }
       },
     })
@@ -242,17 +234,7 @@ export async function adapter(
         },
         async () => {
           try {
-            // For edge runtime, preview props are injected through the environment variables
-            const previewProps = {
-              previewModeId:
-                process.env.NODE_ENV === 'production'
-                  ? process.env.__NEXT_PREVIEW_MODE_ID!
-                  : 'development-id',
-              previewModeSigningKey:
-                process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY || '',
-              previewModeEncryptionKey:
-                process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY || '',
-            }
+            const previewProps = getEdgePreviewProps()
 
             return await withRequestStore(
               requestAsyncStorage,

@@ -2,9 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('app-dir - draft-mode-middleware', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should be able to enable draft mode with middleware present', async () => {
     const browser = await next.browser(

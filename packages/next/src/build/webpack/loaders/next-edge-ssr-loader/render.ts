@@ -20,6 +20,7 @@ import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/int
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
+import { getEdgePreviewProps } from '../../../../server/web/get-edge-preview-props'
 
 export function getRender({
   dev,
@@ -91,16 +92,7 @@ export function getRender({
       prerenderManifest: prerenderManifest
         ? {
             ...prerenderManifest,
-            preview: {
-              previewModeId:
-                process.env.NODE_ENV === 'production'
-                  ? process.env.__NEXT_PREVIEW_MODE_ID!
-                  : 'development-id',
-              previewModeSigningKey:
-                process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY!,
-              previewModeEncryptionKey:
-                process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY!,
-            },
+            preview: getEdgePreviewProps(),
           }
         : undefined,
       interceptionRouteRewrites,
