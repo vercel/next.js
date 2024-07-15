@@ -3,16 +3,18 @@ use std::{
     collections::VecDeque,
     fmt::Debug,
     mem::take,
+    num::NonZeroU32,
     sync::atomic::{AtomicU32, AtomicUsize, Ordering},
     time::Duration,
 };
 
 use concurrent_queue::ConcurrentQueue;
+use dashmap::DashSet;
 use parking_lot::Mutex;
 use tracing::field::{debug, Empty};
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskId, TurboTasksBackendApi};
 
-use crate::MemoryBackend;
+use crate::{task::GcResult, MemoryBackend};
 
 /// The priority of a task for garbage collection.
 /// Any action will shrink the internal memory structures of the task in a
@@ -30,7 +32,7 @@ pub struct GcPriority {
 pub struct GcTaskState {
     pub priority: GcPriority,
     /// The generation where the task was last accessed.
-    pub generation: u32,
+    pub generation: Option<NonZeroU32>,
 }
 
 impl GcTaskState {
@@ -38,9 +40,9 @@ impl GcTaskState {
         &mut self,
         duration: Duration,
         memory_usage: usize,
-        generation: u32,
+        generation: NonZeroU32,
     ) {
-        self.generation = generation;
+        self.generation = Some(generation);
         self.priority = GcPriority {
             memory_per_time: ((memory_usage + TASK_BASE_MEMORY_USAGE) as u64
                 / (duration.as_micros() as u64 + TASK_BASE_COMPUTE_DURATION_IN_MICROS))
@@ -49,16 +51,22 @@ impl GcTaskState {
         };
     }
 
-    pub(crate) fn on_read(&mut self, generation: u32) -> bool {
-        if self.generation < generation {
-            self.generation = generation;
-            true
+    pub(crate) fn on_read(&mut self, generation: NonZeroU32) -> bool {
+        if let Some(old_generation) = self.generation {
+            if old_generation < generation {
+                self.generation = Some(generation);
+                true
+            } else {
+                false
+            }
         } else {
-            false
+            self.generation = Some(generation);
+            true
         }
     }
 }
 
+const MAX_DEACTIVATIONS: usize = 100_000;
 const TASKS_PER_NEW_GENERATION: usize = 100_000;
 const MAX_TASKS_PER_OLD_GENERATION: usize = 200_000;
 const PERCENTAGE_TO_COLLECT: usize = 30;
@@ -69,11 +77,16 @@ pub const PERCENTAGE_IDLE_TARGET_MEMORY: usize = 75;
 
 struct OldGeneration {
     tasks: Vec<TaskId>,
-    generation: u32,
+    generation: NonZeroU32,
 }
 
 struct ProcessGenerationResult {
     priority: Option<GcPriority>,
+    content_dropped_count: usize,
+    unloaded_count: usize,
+}
+
+struct ProcessDeactivationsResult {
     count: usize,
 }
 
@@ -88,34 +101,66 @@ pub struct GcQueue {
     /// Tasks from old generations. The oldest generation will be garbage
     /// collected next.
     generations: Mutex<VecDeque<OldGeneration>>,
+    /// Tasks that have become inactive. Processing them should ensure them for
+    /// GC, if they are not already ensured and put all child tasks into the
+    /// activation_queue
+    deactivation_queue: ConcurrentQueue<TaskId>,
+    /// Tasks that are active and not enqueued in the deactivation queue.
+    // TODO Could be a bit field with locks, an array of atomics or an AMQF.
+    active_tasks: DashSet<TaskId>,
 }
 
 impl GcQueue {
     pub fn new() -> Self {
         Self {
-            generation: AtomicU32::new(0),
+            // SAFETY: Starting at 1 to produce NonZeroU32s
+            generation: AtomicU32::new(1),
             incoming_tasks: ConcurrentQueue::unbounded(),
             incoming_tasks_count: AtomicUsize::new(0),
             generations: Mutex::new(VecDeque::with_capacity(128)),
+            deactivation_queue: ConcurrentQueue::unbounded(),
+            active_tasks: DashSet::new(),
         }
     }
 
     /// Get the current generation number.
-    pub fn generation(&self) -> u32 {
-        self.generation.load(Ordering::Relaxed)
+    pub fn generation(&self) -> NonZeroU32 {
+        // SAFETY: We are sure that the generation is not 0, since we start at 1.
+        unsafe { NonZeroU32::new_unchecked(self.generation.load(Ordering::Relaxed)) }
     }
 
     /// Notify the GC queue that a task has been executed.
-    pub fn task_executed(&self, task: TaskId) -> u32 {
+    #[must_use]
+    pub fn task_executed(&self, task: TaskId) -> NonZeroU32 {
         self.add_task(task)
     }
 
     /// Notify the GC queue that a task has been accessed.
-    pub fn task_accessed(&self, task: TaskId) -> u32 {
+    #[must_use]
+    pub fn task_accessed(&self, task: TaskId) -> NonZeroU32 {
         self.add_task(task)
     }
 
-    fn add_task(&self, task: TaskId) -> u32 {
+    /// Notify the GC queue that a task should be enqueue for GC because it is
+    /// inactive.
+    #[must_use]
+    pub fn task_inactive(&self, task: TaskId) -> NonZeroU32 {
+        self.add_task(task)
+    }
+
+    /// Notify the GC queue that a task was active during GC
+    pub fn task_gc_active(&self, task: TaskId) {
+        self.active_tasks.insert(task);
+    }
+
+    /// Notify the GC queue that a task might be inactive now.
+    pub fn task_potentially_no_longer_active(&self, task: TaskId) {
+        if self.active_tasks.remove(&task).is_some() {
+            let _ = self.deactivation_queue.push(task);
+        }
+    }
+
+    fn add_task(&self, task: TaskId) -> NonZeroU32 {
         let _ = self.incoming_tasks.push(task);
         if self.incoming_tasks_count.fetch_add(1, Ordering::Acquire) % TASKS_PER_NEW_GENERATION
             == TASKS_PER_NEW_GENERATION - 1
@@ -123,7 +168,10 @@ impl GcQueue {
             self.incoming_tasks_count
                 .fetch_sub(TASKS_PER_NEW_GENERATION, Ordering::Release);
             // We are selected to move TASKS_PER_NEW_GENERATION tasks into a generation
-            let gen = self.generation.fetch_add(1, Ordering::Relaxed);
+            let gen = unsafe {
+                // SAFETY: We are sure that the generation is not 0, since we start at 1.
+                NonZeroU32::new_unchecked(self.generation.fetch_add(1, Ordering::Relaxed))
+            };
             let mut tasks = Vec::with_capacity(TASKS_PER_NEW_GENERATION);
             for _ in 0..TASKS_PER_NEW_GENERATION {
                 match self.incoming_tasks.pop() {
@@ -143,11 +191,38 @@ impl GcQueue {
             });
             gen
         } else {
-            self.generation.load(Ordering::Relaxed)
+            self.generation()
         }
     }
 
-    fn process_old_generation(&self, backend: &MemoryBackend) -> ProcessGenerationResult {
+    fn process_deactivations(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> ProcessDeactivationsResult {
+        let mut i = 0;
+        loop {
+            let Ok(id) = self.deactivation_queue.pop() else {
+                break;
+            };
+            backend.with_task(id, |task| {
+                if !task.potentially_become_inactive(self, backend, turbo_tasks) {
+                    self.active_tasks.insert(id);
+                }
+            });
+            i += 1;
+            if i > MAX_DEACTIVATIONS {
+                break;
+            }
+        }
+        ProcessDeactivationsResult { count: i }
+    }
+
+    fn process_old_generation(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> ProcessGenerationResult {
         let old_generation = {
             let guard = &mut self.generations.lock();
             guard.pop_back()
@@ -160,7 +235,8 @@ impl GcQueue {
             // No old generation to process
             return ProcessGenerationResult {
                 priority: None,
-                count: 0,
+                content_dropped_count: 0,
+                unloaded_count: 0,
             };
         };
         // Check all tasks for the correct generation
@@ -169,8 +245,10 @@ impl GcQueue {
         for (i, task) in tasks.iter().enumerate() {
             backend.with_task(*task, |task| {
                 if let Some(state) = task.gc_state() {
-                    if state.generation <= generation {
-                        indices.push((Reverse(state.priority), i as u32));
+                    if let Some(gen) = state.generation {
+                        if gen <= generation {
+                            indices.push((Reverse(state.priority), i as u32));
+                        }
                     }
                 }
             });
@@ -180,7 +258,8 @@ impl GcQueue {
             // No valid tasks in old generation to process
             return ProcessGenerationResult {
                 priority: None,
-                count: 0,
+                content_dropped_count: 0,
+                unloaded_count: 0,
             };
         }
 
@@ -235,35 +314,66 @@ impl GcQueue {
         }
 
         // GC the tasks
-        let mut count = 0;
+        let mut content_dropped_count = 0;
+        let mut unloaded_count = 0;
         for task in tasks[..tasks_to_collect].iter() {
             backend.with_task(*task, |task| {
-                if task.run_gc(generation) {
-                    count += 1;
+                match task.run_gc(generation, self, backend, turbo_tasks) {
+                    GcResult::NotPossible => {}
+                    GcResult::Stale => {}
+                    GcResult::ContentDropped => {
+                        content_dropped_count += 1;
+                    }
+                    GcResult::Unloaded => {
+                        unloaded_count += 1;
+                    }
                 }
             });
         }
 
         ProcessGenerationResult {
             priority: Some(max_priority),
-            count,
+            content_dropped_count,
+            unloaded_count,
         }
     }
 
     /// Run garbage collection on the queue.
-    pub fn run_gc(&self, backend: &MemoryBackend) -> Option<(GcPriority, usize)> {
-        let span =
-            tracing::trace_span!("garbage collection", priority = Empty, count = Empty).entered();
+    pub fn run_gc(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> Option<(GcPriority, usize)> {
+        let span = tracing::trace_span!(
+            parent: None,
+            "garbage collection",
+            priority = Empty,
+            deactivations_count = Empty,
+            content_dropped_count = Empty,
+            unloaded_count = Empty,
+            already_unloaded_count = Empty
+        )
+        .entered();
 
-        let ProcessGenerationResult { priority, count } = self.process_old_generation(backend);
+        let ProcessDeactivationsResult {
+            count: deactivations_count,
+        } = self.process_deactivations(backend, turbo_tasks);
 
-        span.record("count", count);
+        let ProcessGenerationResult {
+            priority,
+            content_dropped_count,
+            unloaded_count,
+        } = self.process_old_generation(backend, turbo_tasks);
+
+        span.record("deactivations_count", deactivations_count);
+        span.record("content_dropped_count", content_dropped_count);
+        span.record("unloaded_count", unloaded_count);
         if let Some(priority) = &priority {
             span.record("priority", debug(priority));
         } else {
             span.record("priority", "");
         }
 
-        priority.map(|p| (p, count))
+        priority.map(|p| (p, content_dropped_count))
     }
 }

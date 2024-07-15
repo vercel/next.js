@@ -158,9 +158,14 @@ impl Cell {
         }
     }
 
+    /// Assigns a new content to the cell. Will notify dependent tasks if the
+    /// content has changed.
+    /// If clean = true, the task inputs weren't changes since the last
+    /// execution and can be assumed to produce the same content again.
     pub fn assign(
         &mut self,
         content: CellContent,
+        clean: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         match self {
@@ -175,31 +180,46 @@ impl Cell {
                 ref mut dependent_tasks,
             } => {
                 event.notify(usize::MAX);
-                // Assigning to a cell will invalidate all dependent tasks as the content might
-                // have changed.
-                if !dependent_tasks.is_empty() {
-                    turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
+                if clean {
+                    // We can assume that the task is deterministic and produces the same content
+                    // again. No need to notify dependent tasks.
+                    *self = Cell::Value {
+                        content,
+                        dependent_tasks: take(dependent_tasks),
+                    };
+                } else {
+                    // Assigning to a cell will invalidate all dependent tasks as the content might
+                    // have changed.
+                    if !dependent_tasks.is_empty() {
+                        turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
+                    }
+                    *self = Cell::Value {
+                        content,
+                        dependent_tasks: AutoSet::default(),
+                    };
                 }
-                *self = Cell::Value {
-                    content,
-                    dependent_tasks: AutoSet::default(),
-                };
             }
             &mut Cell::TrackedValueless {
                 ref mut dependent_tasks,
             } => {
-                // Assigning to a cell will invalidate all dependent tasks as the content might
-                // have changed.
-                // TODO this leads to flagging task unnecessarily dirty when a GC'ed task is
-                // recomputed. We need to use the notification of changed cells for the current
-                // task to check if it's valid to skip the invalidation here
-                if !dependent_tasks.is_empty() {
-                    turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
+                if clean {
+                    // We can assume that the task is deterministic and produces the same content
+                    // again. No need to notify dependent tasks.
+                    *self = Cell::Value {
+                        content,
+                        dependent_tasks: take(dependent_tasks),
+                    };
+                } else {
+                    // Assigning to a cell will invalidate all dependent tasks as the content might
+                    // have changed.
+                    if !dependent_tasks.is_empty() {
+                        turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
+                    }
+                    *self = Cell::Value {
+                        content,
+                        dependent_tasks: AutoSet::default(),
+                    };
                 }
-                *self = Cell::Value {
-                    content,
-                    dependent_tasks: AutoSet::default(),
-                };
             }
             Cell::Value {
                 content: ref mut cell_content,

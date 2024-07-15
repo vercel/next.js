@@ -81,7 +81,7 @@ impl<I, A> AggregationNode<I, A> {
             AggregationNode::Leaf {
                 aggregation_number, ..
             } => *aggregation_number as u32,
-            AggregationNode::Aggegating(aggegating) => aggegating.aggregation_number,
+            AggregationNode::Aggegating(aggregating) => aggregating.aggregation_number,
         }
     }
 
@@ -92,21 +92,21 @@ impl<I, A> AggregationNode<I, A> {
     fn uppers(&self) -> &CountHashSet<I> {
         match self {
             AggregationNode::Leaf { uppers, .. } => uppers,
-            AggregationNode::Aggegating(aggegating) => &aggegating.uppers,
+            AggregationNode::Aggegating(aggregating) => &aggregating.uppers,
         }
     }
 
     fn uppers_mut(&mut self) -> &mut CountHashSet<I> {
         match self {
             AggregationNode::Leaf { uppers, .. } => uppers,
-            AggregationNode::Aggegating(aggegating) => &mut aggegating.uppers,
+            AggregationNode::Aggegating(aggregating) => &mut aggregating.uppers,
         }
     }
 
     fn followers(&self) -> Option<&CountHashSet<I>> {
         match self {
             AggregationNode::Leaf { .. } => None,
-            AggregationNode::Aggegating(aggegating) => Some(&aggegating.followers),
+            AggregationNode::Aggegating(aggregating) => Some(&aggregating.followers),
         }
     }
 }
