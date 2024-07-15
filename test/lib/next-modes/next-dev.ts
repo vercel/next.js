@@ -111,6 +111,7 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
+          } else if (colorStrippedMsg.startsWith(' ✓ Ready in ')) {
             resolveServer()
           } else if (
             msg.includes('started server on') &&

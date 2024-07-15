@@ -151,8 +151,9 @@ export class NextStartInstance extends NextInstance {
               .pop()
               .trim()
             this._parsedUrl = new URL(this._url)
-            this.off('stdout', readyCb)
+          } else if (colorStrippedMsg.startsWith(' ✓ Ready in ')) {
             resolve()
+            this.off('stdout', readyCb)
           }
         }
         this.on('stdout', readyCb)
