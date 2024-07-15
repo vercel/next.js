@@ -1,3 +1,13 @@
 export function onRequestError(err, request, context) {
-  console.log('[instrumentation]:error', err.message)
+  fetch(`http://localhost:${process.env.PORT}/write-log`, {
+    method: 'POST',
+    body: JSON.stringify({
+      message: err.message,
+      request,
+      context,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
 }

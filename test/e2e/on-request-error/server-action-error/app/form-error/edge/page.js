@@ -2,7 +2,7 @@ export default function Page() {
   async function action(formData) {
     'use server'
 
-    console.log('[form-action]', formData.get('payload'))
+    throw new Error('[server-action]:form:edge')
   }
 
   return (
@@ -12,3 +12,6 @@ export default function Page() {
     </form>
   )
 }
+
+export const runtime = 'edge'
+export const dynamic = 'force-dynamic'

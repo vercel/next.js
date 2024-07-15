@@ -9,7 +9,3 @@ export async function redirectAction() {
 export async function notFoundAction() {
   notFound()
 }
-
-export async function serverLog(content) {
-  throw new Error('[server-action]:' + content)
-}

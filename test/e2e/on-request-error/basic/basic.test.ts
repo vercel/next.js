@@ -52,7 +52,7 @@ describe('on-request-error - basic', () => {
     expect(count).toBe(1)
 
     validateRequestByName({
-      payload: payload,
+      payload,
       url,
       isMiddleware,
       renderSource,
