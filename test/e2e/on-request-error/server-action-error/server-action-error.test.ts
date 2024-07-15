@@ -25,70 +25,43 @@ describe('on-request-error - server-action-error', () => {
   }
 
   async function validateErrorRecord({
-    name,
+    errorMessage,
     url,
-    renderSource,
-    renderType,
-    isMiddleware = false,
   }: {
-    name: string
+    errorMessage: string
     url: string
-    renderSource: string | undefined
-    renderType: string | undefined
-    isMiddleware?: boolean
   }) {
+    // Assert the instrumentation is called
     await retry(async () => {
       const recordLogs = next.cliOutput
         .split('\n')
         .filter((log) => log.includes('[instrumentation] write-log'))
-      const expectedLog = recordLogs.find((log) => log.includes(name))
+      const expectedLog = recordLogs.find((log) => log.includes(errorMessage))
       expect(expectedLog).toBeDefined()
     }, 5000)
 
     const json = await getOutputLogJson()
-    const record = json[name]
+    const record = json[errorMessage]
 
-    expect(record).toBeDefined()
-    const { payload, count } = record
-    expect(payload.message).toBe(name)
-    expect(count).toBe(1)
-
-    validateRequestByName({
-      payload,
-      url,
-      isMiddleware,
-      renderSource,
-      renderType,
+    // Assert error is recorded in the output log
+    expect(record).toMatchObject({
+      payload: {
+        message: errorMessage,
+        request: {
+          url,
+          method: 'POST',
+          headers: expect.objectContaining({
+            accept: 'text/x-component',
+          }),
+        },
+        context: {
+          routerKind: 'App Router',
+          routeType: 'action',
+          renderSource: 'react-server-components-payload',
+        },
+      },
+      count: 1,
     })
-  }
-
-  function validateRequestByName({
-    payload,
-    url,
-    renderSource,
-    renderType,
-    isMiddleware = false,
-  }: {
-    payload: any
-    url: string
-    renderSource: string | undefined
-    renderType: string | undefined
-    isMiddleware: boolean
-  }) {
-    const { request } = payload
-    if (isMiddleware) {
-      // For middleware, the URL is absolute url with host
-      expect(request.url).toMatch(/^http:\/\//)
-      expect(request.url).toMatch(url)
-    } else {
-      expect(request.url).toBe(url)
-    }
-
-    expect(payload.context.renderSource).toBe(renderSource)
-    expect(payload.context.routeType).toBe(renderType)
-
-    expect(request.method).toBe('POST')
-    expect(request.headers['accept']).toBe('text/x-component')
   }
 
   beforeAll(async () => {
@@ -100,10 +73,8 @@ describe('on-request-error - server-action-error', () => {
     await browser.elementByCss('button').click()
 
     await validateErrorRecord({
-      name: '[server-action]:callback',
+      errorMessage: '[server-action]:callback',
       url: '/client/callback',
-      renderSource: 'react-server-components-payload',
-      renderType: 'action',
     })
   })
 
@@ -112,10 +83,8 @@ describe('on-request-error - server-action-error', () => {
     await browser.elementByCss('button').click()
 
     await validateErrorRecord({
-      name: '[server-action]:callback:edge',
+      errorMessage: '[server-action]:callback:edge',
       url: '/client/callback/edge',
-      renderSource: 'react-server-components-payload',
-      renderType: 'action',
     })
   })
 
@@ -124,10 +93,8 @@ describe('on-request-error - server-action-error', () => {
     await browser.elementByCss('button').click()
 
     await validateErrorRecord({
-      name: '[server-action]:form',
+      errorMessage: '[server-action]:form',
       url: '/form-error',
-      renderSource: 'react-server-components-payload',
-      renderType: 'action',
     })
   })
 
@@ -136,10 +103,8 @@ describe('on-request-error - server-action-error', () => {
     await browser.elementByCss('button').click()
 
     await validateErrorRecord({
-      name: '[server-action]:form:edge',
+      errorMessage: '[server-action]:form:edge',
       url: '/form-error/edge',
-      renderSource: 'react-server-components-payload',
-      renderType: 'action',
     })
   })
 })
