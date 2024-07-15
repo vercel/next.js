@@ -19,7 +19,6 @@ import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
-import { getEdgePreviewProps } from '../../../../server/web/get-edge-preview-props'
 
 export function getRender({
   dev,
@@ -86,12 +85,6 @@ export function getRender({
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest:
-        process.env.NODE_ENV === 'production'
-          ? {
-              preview: getEdgePreviewProps(),
-            }
-          : undefined,
       interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
