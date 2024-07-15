@@ -73,7 +73,7 @@ export default async function Cart() {
 export default function Navigation() {
   return (
     <>
-      <Suspense loading={<LoadingIcon />}>
+      <Suspense fallback={<LoadingIcon />}>
         <Cart />
       </Suspense>
     <>
