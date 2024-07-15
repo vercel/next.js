@@ -274,7 +274,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
 #[turbo_tasks::value(transparent)]
 pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
     Ok {
         #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -296,13 +296,7 @@ pub enum ParseCssResult {
     NotFound,
 }
 
-impl PartialEq for ParseCssResult {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum CssWithPlaceholderResult {
     Ok {
         parse_result: Vc<ParseCssResult>,
@@ -322,12 +316,6 @@ pub enum CssWithPlaceholderResult {
     },
     Unparseable,
     NotFound,
-}
-
-impl PartialEq for CssWithPlaceholderResult {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
 }
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
@@ -390,10 +378,10 @@ pub async fn process_css_with_placeholder(
                 url_references: *url_references,
                 placeholders: HashMap::new(),
             }
-            .into())
+            .cell())
         }
-        ParseCssResult::Unparseable => Ok(CssWithPlaceholderResult::Unparseable.into()),
-        ParseCssResult::NotFound => Ok(CssWithPlaceholderResult::NotFound.into()),
+        ParseCssResult::Unparseable => Ok(CssWithPlaceholderResult::Unparseable.cell()),
+        ParseCssResult::NotFound => Ok(CssWithPlaceholderResult::NotFound.cell()),
     }
 }
 
@@ -602,7 +590,7 @@ async fn process_content(
                                 }
                                 .cell()
                                 .emit();
-                                return Ok(ParseCssResult::Unparseable.into());
+                                return Ok(ParseCssResult::Unparseable.cell());
                             }
 
                             _ => {
@@ -629,7 +617,7 @@ async fn process_content(
                     }
                     .cell()
                     .emit();
-                    return Ok(ParseCssResult::Unparseable.into());
+                    return Ok(ParseCssResult::Unparseable.cell());
                 }
             }
         })
@@ -669,12 +657,12 @@ async fn process_content(
             Ok(v) => v,
             Err(err) => {
                 err.to_diagnostics(&handler).emit();
-                return Ok(ParseCssResult::Unparseable.into());
+                return Ok(ParseCssResult::Unparseable.cell());
             }
         };
 
         if handler.has_errors() {
-            return Ok(ParseCssResult::Unparseable.into());
+            return Ok(ParseCssResult::Unparseable.cell());
         }
 
         if matches!(ty, CssModuleAssetType::Module) {
@@ -722,7 +710,7 @@ async fn process_content(
         url_references: Vc::cell(url_references),
         options: config,
     }
-    .into())
+    .cell())
 }
 
 /// Visitor that lints wrong css module usage.
