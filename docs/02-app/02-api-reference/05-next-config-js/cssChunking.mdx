@@ -32,7 +32,7 @@ module.exports = nextConfig
 
 ## Options
 
-- **`'loose'` (default)**: Next.js will try to merge CSS files whenever possible, guessing the dependencies between files to reduce the number of chunks and therefore the number of requests.
+- **`'loose'` (default)**: Next.js will try to merge CSS files whenever possible, determining explicit and implicit dependencies between files from import order to reduce the number of chunks and therefore the number of requests.
 - **`'strict'`**: Next.js will merge CSS files in the correct order they are imported into your application, which can lead to more chunks and requests.
 
 You may consider using `'strict'` if you run into CSS issues where the order of CSS files is important. However, we recommend using `'loose'` for most applications, as it leads to fewer requests and better performance.
