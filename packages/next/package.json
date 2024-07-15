@@ -94,7 +94,8 @@
   },
   "dependencies": {
     "@next/env": "15.0.0-canary.67",
-    "@swc/helpers": "0.5.11",
+    "@swc/counter": "0.1.3",
+    "@swc/helpers": "0.5.12",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
@@ -163,7 +164,7 @@
     "@next/swc": "15.0.0-canary.67",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
-    "@swc/core": "1.6.6",
+    "@swc/core": "1.7.0-nightly-20240714.1",
     "@swc/types": "0.1.7",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
