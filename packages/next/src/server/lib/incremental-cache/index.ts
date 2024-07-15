@@ -258,7 +258,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
-  async fetchCacheKey(
+  async generateCacheKey(
     url: string,
     init: RequestInit | Request = {}
   ): Promise<string> {

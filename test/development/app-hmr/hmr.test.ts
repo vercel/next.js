@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 const envFile = '.env.development.local'
 
@@ -40,11 +40,10 @@ describe(`app-dir-hmr`, () => {
 
       try {
         // Should be 404 in a few seconds
-        await check(async () => {
+        await retry(async () => {
           const body = await browser.elementByCss('body').text()
           expect(body).toContain('404')
-          return 'success'
-        }, 'success')
+        })
 
         // The new page should be rendered
         const newHTML = await next.render('/folder-renamed')
@@ -61,11 +60,31 @@ describe(`app-dir-hmr`, () => {
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
+      const logs = await browser.log()
+      await retry(async () => {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: '[Fast Refresh] rebuilding',
+              source: 'log',
+            }),
+          ])
+        )
+      })
+
       try {
-        await check(async () => {
+        await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
-          return 'success'
-        }, /success/)
+        })
+
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: expect.stringContaining('[Fast Refresh] done in'),
+              source: 'log',
+            }),
+          ])
+        )
       } finally {
         await next.patchFile(envFile, envContent)
       }
@@ -77,11 +96,31 @@ describe(`app-dir-hmr`, () => {
       expect(await browser.elementByCss('p').text()).toBe('mac')
       await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
+      const logs = await browser.log()
+      await retry(async () => {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: '[Fast Refresh] rebuilding',
+              source: 'log',
+            }),
+          ])
+        )
+      })
+
       try {
-        await check(async () => {
+        await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
-          return 'success'
-        }, /success/)
+        })
+
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message: expect.stringContaining('[Fast Refresh] done in'),
+              source: 'log',
+            }),
+          ])
+        )
       } finally {
         await next.patchFile(envFile, envContent)
       }
