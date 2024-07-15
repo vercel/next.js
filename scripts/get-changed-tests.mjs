@@ -47,8 +47,11 @@ export default async function getChangedTests() {
   }
 
   let diffRevision
-  if (process.env.GITHUB_ACTIONS === 'true') {
-    // GH Actions run on the merge commit so HEAD~1:
+  if (
+    process.env.GITHUB_ACTIONS === 'true' &&
+    process.env.GITHUB_EVENT_NAME === 'pull_request'
+  ) {
+    // GH Actions for `pull_request` run on the merge commit so HEAD~1:
     // 1. includes all changes in the PR
     //    e.g. in
     //    A-B-C-main - F
