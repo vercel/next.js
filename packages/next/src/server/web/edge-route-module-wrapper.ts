@@ -3,7 +3,6 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from '../route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
@@ -84,11 +83,6 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
-        ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
-
     const isAfterEnabled = !!process.env.__NEXT_AFTER
 
     let waitUntil: RequestLifecycleOpts['waitUntil'] = undefined
@@ -99,6 +93,20 @@ export class EdgeRouteModuleWrapper {
       closeController = new CloseController()
     }
 
+    const previewProps =
+      process.env.NODE_ENV === 'production'
+        ? {
+            previewModeId: process.env.__NEXT_PREVIEW_MODE_ID!,
+            previewModeSigningKey: process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY!,
+            previewModeEncryptionKey:
+              process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY!,
+          }
+        : {
+            previewModeId: 'development-id',
+            previewModeSigningKey: '',
+            previewModeEncryptionKey: '',
+          }
+
     // Create the context for the handler. This contains the params from the
     // match (if any).
     const context: AppRouteRouteHandlerContext = {
@@ -107,11 +115,7 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
-        },
+        preview: previewProps,
         notFoundRoutes: [],
       },
       renderOpts: {

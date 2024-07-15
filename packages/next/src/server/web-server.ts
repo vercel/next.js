@@ -147,7 +147,11 @@ export default class NextWebServer extends BaseServer<
         dynamicRoutes: {},
         notFoundRoutes: [],
         preview: {
-          previewModeId: 'development-id',
+          previewModeId: process.env.__NEXT_PREVIEW_MODE_ID || 'development-id',
+          previewModeSigningKey:
+            process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY || '',
+          previewModeEncryptionKey:
+            process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY || '',
         } as any, // `preview` is special case read in next-dev-server
       }
     }
