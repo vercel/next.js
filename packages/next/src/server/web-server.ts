@@ -36,6 +36,7 @@ import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { getEdgeInstrumentationModule } from './web/globals'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { getEdgePreviewProps } from './web/get-edge-preview-props'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -146,9 +147,7 @@ export default class NextWebServer extends BaseServer<
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
-        preview: {
-          previewModeId: 'development-id',
-        } as any, // `preview` is special case read in next-dev-server
+        preview: getEdgePreviewProps(),
       }
     }
     return prerenderManifest
