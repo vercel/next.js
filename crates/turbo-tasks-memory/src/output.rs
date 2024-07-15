@@ -56,7 +56,17 @@ impl Output {
 
     pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         debug_assert!(*self != target);
-        self.assign(OutputContent::Link(target), turbo_tasks)
+        if let OutputContent::Link(old_target) = &self.content {
+            if *old_target == target {
+                // unchanged
+                return;
+            }
+        }
+        self.content = OutputContent::Link(target);
+        // notify
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
+        }
     }
 
     pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
@@ -73,18 +83,6 @@ impl Output {
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.content = OutputContent::Panic(message.map(Box::new));
-        // notify
-        if !self.dependent_tasks.is_empty() {
-            turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
-        }
-    }
-
-    pub fn assign(
-        &mut self,
-        content: OutputContent,
-        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) {
-        self.content = content;
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
