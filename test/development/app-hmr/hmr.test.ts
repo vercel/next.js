@@ -131,6 +131,11 @@ describe(`app-dir-hmr`, () => {
     })
 
     it('should update server components pages when env files is changed (nodejs)', async () => {
+      // If "should update server components after navigating to a page with a different runtime" failed, the dev server is in a corrupted state.
+      // Restart fixes this.
+      await next.stop()
+      await next.start()
+
       const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/node')
       expect(await browser.elementByCss('p').text()).toBe('mac')
@@ -167,6 +172,10 @@ describe(`app-dir-hmr`, () => {
     })
 
     it('should update server components pages when env files is changed (edge)', async () => {
+      // Restart to work around a bug highlighted in the flakiness of "should update server components after navigating to a page with a different runtime"
+      await next.stop()
+      await next.start()
+
       const envContent = await next.readFile(envFile)
       const browser = await next.browser('/env/edge')
       expect(await browser.elementByCss('p').text()).toBe('mac')
