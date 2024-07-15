@@ -1572,7 +1572,7 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
-  packages/next-swc/crates/next-core/js: {}
+  crates/next-core/js: {}
 
   packages/react-refresh-utils:
     devDependencies:

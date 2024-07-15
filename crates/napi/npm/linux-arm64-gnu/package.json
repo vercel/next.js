@@ -4,7 +4,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
-    "directory": "packages/next-swc/crates/napi/npm/linux-arm64-gnu"
+    "directory": "crates/napi/npm/linux-arm64-gnu"
   },
   "os": [
     "linux"

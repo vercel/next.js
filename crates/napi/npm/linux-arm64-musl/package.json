@@ -1,20 +1,23 @@
 {
-  "name": "@next/swc-win32-arm64-msvc",
+  "name": "@next/swc-linux-arm64-musl",
   "version": "0.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
-    "directory": "packages/next-swc/crates/napi/npm/win32-arm64-msvc"
+    "directory": "crates/napi/npm/linux-arm64-musl"
   },
   "os": [
-    "win32"
+    "linux"
   ],
   "cpu": [
     "arm64"
   ],
-  "main": "next-swc.win32-arm64-msvc.node",
+  "libc": [
+    "musl"
+  ],
+  "main": "next-swc.linux-arm64-musl.node",
   "files": [
-    "next-swc.win32-arm64-msvc.node"
+    "next-swc.linux-arm64-musl.node"
   ],
   "license": "MIT",
   "engines": {
