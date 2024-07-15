@@ -32,7 +32,6 @@ pub async fn run_turbo_tracing(
         turbo_tasks.as_ref(),
         Some(ModuleOptionsContext {
             enable_types: true,
-            enable_mdx: true,
             ..Default::default()
         }),
         Some(ResolveOptionsContext {

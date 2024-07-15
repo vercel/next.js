@@ -1,4 +1,5 @@
 pub(crate) mod emotion;
+pub(crate) mod mdx;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_amp_attributes;
 pub(crate) mod next_cjs_optimizer;

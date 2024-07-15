@@ -60,6 +60,7 @@ use crate::{
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
+            mdx::get_mdx_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
             relay::get_relay_transform_rule,
             styled_components::get_styled_components_transform_rule,
@@ -468,6 +469,7 @@ pub async fn get_server_module_options_context(
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
+        get_mdx_transform_rule(jsx_runtime_options, enable_mdx_rs, tsconfig).await?,
     ]
     .into_iter()
     .flatten()
@@ -549,7 +551,6 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -602,7 +603,6 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -669,7 +669,6 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -732,7 +731,6 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
@@ -812,7 +810,6 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
-                enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
