@@ -440,6 +440,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticGenerationRetryCount: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
+        customPublicEnvPrefix: z.string().optional(),
       })
       .optional(),
     exportPathMap: z
