@@ -22,7 +22,7 @@ use turbopack_binding::{
 use super::app_entry::AppEntry;
 use crate::{
     app_structure::LoaderTree,
-    loader_tree::{process_module, LoaderTreeModule},
+    loader_tree::LoaderTreeModule,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -41,8 +41,6 @@ pub async fn get_app_page_entry(
     project_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
-    const GLOBAL_ERROR: &str = "GLOBAL_ERROR_MODULE";
-
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let context = if is_edge {
@@ -51,20 +49,13 @@ pub async fn get_app_page_entry(
         nodejs_context
     };
 
-    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
-
     let components = loader_tree.clone().await?.components.await?;
     let global_error = match components.global_error {
-        Some(global_error) => {
-            let global_error_module =
-                process_module(&context, &server_component_transition, global_error);
-            let result = global_error_module.ident().path().to_string().await?;
-            println!("global_error: {}", result);
-
-            Some(result)
-        }
-        None => None,
+        Some(value) => value.to_string().await?.clone_value(),
+        None => "next/dist/client/components/error-boundary".into(),
     };
+
+    let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let base_path = next_config.await?.base_path.clone();
     let loader_tree =
@@ -96,10 +87,8 @@ pub async fn get_app_page_entry(
         indexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_MODULE_GLOBAL_ERROR" => match global_error {
-                Some(global_error) => RcStr::from(global_error.to_string()),
-                None => RcStr::from("next/dist/client/components/error-boundary"),
-            },
+            // TODO(alexkirsz) Support custom global error.
+            "VAR_MODULE_GLOBAL_ERROR" => global_error,
         },
         indexmap! {
             "tree" => loader_tree_code,
