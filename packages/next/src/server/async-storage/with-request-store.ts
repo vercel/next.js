@@ -7,7 +7,7 @@ import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -20,13 +20,14 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
-import { createAfterContext, type AfterContext } from '../after/after-context'
+import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
-  for (const param of FLIGHT_PARAMETERS) {
-    cleaned.delete(param.toString().toLowerCase())
+  for (const header of FLIGHT_HEADERS) {
+    cleaned.delete(header.toLowerCase())
   }
 
   return HeadersAdapter.seal(cleaned)
@@ -75,17 +76,24 @@ export type RequestContext = {
   }
   res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
+  isHmrRefresh?: boolean
+  serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
 export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   Result,
 >(
   storage: AsyncLocalStorage<RequestStore>,
-  { req, url, res, renderOpts }: RequestContext,
+  {
+    req,
+    url,
+    res,
+    renderOpts,
+    isHmrRefresh,
+    serverComponentsHmrCache,
+  }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
-  const [wrapWithAfter, afterContext] = createAfterWrapper(renderOpts)
-
   function defaultOnUpdateCookies(cookies: string[]) {
     if (res) {
       res.setHeader('Set-Cookie', cookies)
@@ -172,33 +180,37 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
 
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
-    afterContext,
+    afterContext: createAfterContext(renderOpts),
+    isHmrRefresh,
+    serverComponentsHmrCache:
+      serverComponentsHmrCache ||
+      (globalThis as any).__serverComponentsHmrCache,
   }
-  return wrapWithAfter(store, () => storage.run(store, callback, store))
+
+  if (store.afterContext) {
+    return store.afterContext.run(store, () =>
+      storage.run(store, callback, store)
+    )
+  }
+
+  return storage.run(store, callback, store)
 }
 
-function createAfterWrapper(
+function createAfterContext(
   renderOpts: WrapperRenderOpts | undefined
-): [
-  wrap: <Result>(requestStore: RequestStore, callback: () => Result) => Result,
-  afterContext: AfterContext | undefined,
-] {
-  const isAfterEnabled = renderOpts?.experimental?.after ?? false
-  if (!renderOpts || !isAfterEnabled) {
-    return [(_, callback) => callback(), undefined]
+): AfterContext | undefined {
+  if (!isAfterEnabled(renderOpts)) {
+    return undefined
   }
 
-  const { waitUntil, onClose } = renderOpts
-  const cacheScope = renderOpts.ComponentMod?.createCacheScope()
+  const { waitUntil, onClose, ComponentMod } = renderOpts
+  const cacheScope = ComponentMod?.createCacheScope()
 
-  const afterContext = createAfterContext({
-    waitUntil,
-    onClose,
-    cacheScope,
-  })
+  return new AfterContext({ waitUntil, onClose, cacheScope })
+}
 
-  const wrap = <Result>(requestStore: RequestStore, callback: () => Result) =>
-    afterContext.run(requestStore, callback)
-
-  return [wrap, afterContext]
+function isAfterEnabled(
+  renderOpts: WrapperRenderOpts | undefined
+): renderOpts is WrapperRenderOpts {
+  return renderOpts?.experimental?.after ?? false
 }

@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use anyhow::{bail, Result};
 use futures::Future;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 use tracing::Level;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
+    trace::TraceRawVcs,
     RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
@@ -145,18 +147,29 @@ pub(crate) async fn collect_next_dynamic_imports(
         .visit(
             server_entries
                 .into_iter()
-                .map(|module| async move { Ok((module, module.ident().to_string().await?)) })
+                .map(|module| async move {
+                    Ok(NextDynamicVisitEntry::Module(
+                        module.resolve().await?,
+                        module.ident().to_string().await?,
+                    ))
+                })
                 .try_join()
                 .await?
                 .into_iter(),
-            NextDynamicVisit,
+            NextDynamicVisit {
+                client_asset_context: client_asset_context.resolve().await?,
+            },
         )
         .await
         .completed()?
         .into_inner()
         .into_iter()
-        .map(|(server_module, _)| {
-            build_dynamic_imports_map_for_module(client_asset_context, server_module)
+        .filter_map(|entry| {
+            if let NextDynamicVisitEntry::DynamicImportsMap(dynamic_imports_map) = entry {
+                Some(dynamic_imports_map)
+            } else {
+                None
+            }
         });
 
     // Consolifate import mappings into a single indexmap
@@ -164,44 +177,84 @@ pub(crate) async fn collect_next_dynamic_imports(
         IndexMap::new();
 
     for module_mapping in imported_modules_mapping {
-        if let Some(module_mapping) = &*module_mapping.await? {
-            let (origin_module, dynamic_imports) = &*module_mapping.await?;
-            import_mappings
-                .entry(*origin_module)
-                .or_insert_with(Vec::new)
-                .append(&mut dynamic_imports.clone())
-        }
+        let (origin_module, dynamic_imports) = &*module_mapping.await?;
+        import_mappings
+            .entry(*origin_module)
+            .or_insert_with(Vec::new)
+            .append(&mut dynamic_imports.clone())
     }
 
     Ok(import_mappings)
 }
 
-struct NextDynamicVisit;
+#[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]
+enum NextDynamicVisitEntry {
+    Module(Vc<Box<dyn Module>>, ReadRef<RcStr>),
+    DynamicImportsMap(Vc<DynamicImportsMap>),
+}
 
-impl turbo_tasks::graph::Visit<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> for NextDynamicVisit {
-    type Edge = (Vc<Box<dyn Module>>, ReadRef<RcStr>);
-    type EdgesIntoIter = Vec<Self::Edge>;
+#[turbo_tasks::value(transparent)]
+struct NextDynamicVisitEntries(Vec<NextDynamicVisitEntry>);
+
+#[turbo_tasks::function]
+async fn get_next_dynamic_edges(
+    client_asset_context: Vc<Box<dyn AssetContext>>,
+    module: Vc<Box<dyn Module>>,
+) -> Result<Vc<NextDynamicVisitEntries>> {
+    let dynamic_imports_map = build_dynamic_imports_map_for_module(client_asset_context, module);
+    let mut edges = primary_referenced_modules(module)
+        .await?
+        .iter()
+        .map(|&referenced_module| async move {
+            Ok(NextDynamicVisitEntry::Module(
+                referenced_module,
+                referenced_module.ident().to_string().await?,
+            ))
+        })
+        .try_join()
+        .await?;
+    if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
+        edges.reserve_exact(1);
+        edges.push(NextDynamicVisitEntry::DynamicImportsMap(
+            dynamic_imports_map,
+        ));
+    }
+    Ok(Vc::cell(edges))
+}
+
+struct NextDynamicVisit {
+    client_asset_context: Vc<Box<dyn AssetContext>>,
+}
+
+impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
+    type Edge = NextDynamicVisitEntry;
+    type EdgesIntoIter = impl Iterator<Item = NextDynamicVisitEntry>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
-    fn visit(
-        &mut self,
-        edge: Self::Edge,
-    ) -> VisitControlFlow<(Vc<Box<dyn Module>>, ReadRef<RcStr>)> {
-        VisitControlFlow::Continue(edge)
-    }
-
-    fn edges(&mut self, &(parent, _): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> Self::EdgesFuture {
-        async move {
-            primary_referenced_modules(parent)
-                .await?
-                .iter()
-                .map(|&module| async move { Ok((module, module.ident().to_string().await?)) })
-                .try_join()
-                .await
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<NextDynamicVisitEntry> {
+        match edge {
+            NextDynamicVisitEntry::Module(..) => VisitControlFlow::Continue(edge),
+            NextDynamicVisitEntry::DynamicImportsMap(_) => VisitControlFlow::Skip(edge),
         }
     }
 
-    fn span(&mut self, (_, name): &(Vc<Box<dyn Module>>, ReadRef<RcStr>)) -> tracing::Span {
+    fn edges(&mut self, entry: &NextDynamicVisitEntry) -> Self::EdgesFuture {
+        let &NextDynamicVisitEntry::Module(module, _) = entry else {
+            unreachable!();
+        };
+        let client_asset_context = self.client_asset_context;
+        async move {
+            Ok(get_next_dynamic_edges(client_asset_context, module)
+                .await?
+                .into_iter()
+                .cloned())
+        }
+    }
+
+    fn span(&mut self, entry: &NextDynamicVisitEntry) -> tracing::Span {
+        let NextDynamicVisitEntry::Module(_, name) = entry else {
+            unreachable!();
+        };
         tracing::span!(Level::INFO, "next/dynamic visit", name = display(name))
     }
 }

@@ -129,7 +129,7 @@ where
     let relay_plugin = {
         if let Some(config) = &opts.relay {
             Either::Left(turbopack_binding::swc::custom_transform::relay::relay(
-                config,
+                Arc::new(config.clone()),
                 file.name.clone(),
                 std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),

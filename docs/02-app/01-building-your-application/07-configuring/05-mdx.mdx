@@ -60,9 +60,9 @@ export default withMDX(nextConfig)
 
 This allows `.md` and `.mdx` files to act as pages, routes, or imports in your application.
 
-## Add a `mdx-components.tsx` file
+## Add an `mdx-components.tsx` file
 
-Create a `mdx-components.tsx` (or `.js`) file in the root of your project to define global MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
+Create an `mdx-components.tsx` (or `.js`) file in the root of your project to define global MDX Components. For example, at the same level as `pages` or `app`, or inside `src` if applicable.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
@@ -781,6 +781,10 @@ module.exports = withMDX({
   },
 })
 ```
+
+> **Good to know**:
+>
+> This option is required when processing markdown and MDX while using [Turbopack](/docs/architecture/turbopack) (`next dev --turbo`).
 
 ## Helpful Links
 

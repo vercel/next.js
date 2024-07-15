@@ -5,6 +5,8 @@ import path from 'path'
 describe('Provided page/app paths', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Deployments are unable to inspect the `.next` directory.
+    skipDeployment: true,
     dependencies: {
       nanoid: '4.0.1',
     },
