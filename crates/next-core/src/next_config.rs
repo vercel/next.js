@@ -582,7 +582,7 @@ pub struct ExperimentalConfig {
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
-    disable_tree_shaking: Option<bool>,
+    tree_shaking: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
