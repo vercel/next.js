@@ -88,7 +88,15 @@ export function getRender({
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest,
+      prerenderManifest: {
+        ...prerenderManifest,
+        preview: {
+          previewModeId: process.env.__NEXT_PREVIEW_MODE_ID!,
+          previewModeSigningKey: process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY!,
+          previewModeEncryptionKey:
+            process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY!,
+        },
+      },
       interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,

@@ -1,6 +1,5 @@
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -93,10 +92,6 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
-  const prerenderManifest: PrerenderManifest | undefined =
-    typeof self.__PRERENDER_MANIFEST === 'string'
-      ? JSON.parse(self.__PRERENDER_MANIFEST)
-      : undefined
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -197,7 +192,8 @@ export async function adapter(
           dynamicRoutes: {},
           notFoundRoutes: [],
           preview: {
-            previewModeId: 'development-id',
+            previewModeId:
+              process.env.__NEXT_PREVIEW_MODE_ID || 'development-id',
           } as any, // `preview` is special case read in next-dev-server
         }
       },
@@ -240,11 +236,21 @@ export async function adapter(
         },
         async () => {
           try {
-            const previewProps = prerenderManifest?.preview || {
-              previewModeId: 'development-id',
-              previewModeEncryptionKey: '',
-              previewModeSigningKey: '',
-            }
+            // For edge runtime, preview props are injected through the environment variables
+            const previewProps =
+              process.env.NODE_ENV === 'production'
+                ? {
+                    previewModeId: process.env.__NEXT_PREVIEW_MODE_ID!,
+                    previewModeSigningKey:
+                      process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY!,
+                    previewModeEncryptionKey:
+                      process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY!,
+                  }
+                : {
+                    previewModeId: 'development-id',
+                    previewModeSigningKey: '',
+                    previewModeEncryptionKey: '',
+                  }
 
             return await withRequestStore(
               requestAsyncStorage,
