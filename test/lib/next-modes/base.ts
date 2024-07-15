@@ -36,6 +36,7 @@ export interface NextInstanceOpts {
   dirSuffix?: string
   turbo?: boolean
   forcedPort?: string
+  serverReadyPattern?: RegExp
 }
 
 /**
@@ -68,6 +69,7 @@ export class NextInstance {
   public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
+  public serverReadyPattern?: RegExp = /^\s* ✓ Ready in /
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -332,6 +334,19 @@ export class NextInstance {
           }
         }
       })
+  }
+
+  protected setServerReadyTimeout(
+    reject: (reason?: unknown) => void,
+    ms = 5000
+  ): NodeJS.Timeout {
+    return setTimeout(() => {
+      reject(
+        new Error(
+          `Failed to start server after ${ms}ms, waiting for this log pattern: ${this.serverReadyPattern}`
+        )
+      )
+    }, ms)
   }
 
   // normalize snapshots or stack traces being tested
