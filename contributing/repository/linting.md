@@ -30,7 +30,7 @@ We recommend installing the [Prettier plugin for VS Code](https://marketplace.vi
 
 You can find the format configuration in the [Prettier config](../../.prettierrc.json).
 
-## Alex
+## alex
 
 We recommend installing the [AlexJS Linter extension for VSCode](https://marketplace.visualstudio.com/items?itemName=TLahmann.alex-linter)
 
