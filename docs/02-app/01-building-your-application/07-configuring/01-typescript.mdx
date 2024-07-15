@@ -86,7 +86,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-> **Good to know**: If you have a `next.config.js` or `next.config.mjs` file, you can safely rename it to `next.config.ts`.
+> **Good to know**: You can import Native ESM modules in `next.config.ts` without any additional configuration. Supports importing extensions like `.cjs`, `.cts`, `.mjs`, and `.mts`.
 
 <AppOnly>
 
@@ -321,7 +321,7 @@ When you need to declare custom types, you might be tempted to modify `next-env.
 
 | Version   | Changes                                                                                                                              |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `v15.0.0` | `next.config.ts` support added for TypeScript projects.                                                                              |
+| `v15.0.0` | [`next.config.ts`](#type-checking-with-nextconfigts) support added for TypeScript projects.                                          |
 | `v13.2.0` | Statically typed links are available in beta.                                                                                        |
 | `v12.0.0` | [SWC](/docs/architecture/nextjs-compiler) is now used by default to compile TypeScript and TSX for faster builds.                    |
 | `v10.2.1` | [Incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) support added when enabled in your `tsconfig.json`. |
