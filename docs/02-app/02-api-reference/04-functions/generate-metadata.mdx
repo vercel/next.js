@@ -921,6 +921,51 @@ export const metadata = {
 <meta name="category" content="technology" />
 ```
 
+### `facebook`
+
+You can connect a Facebook app or Facebook account to you webpage for certain Facebook Social Plugins [Facebook Documentation](https://developers.facebook.com/docs/plugins/comments/#moderation-setup-instructions)
+
+> **Good to know**: You can specify either appId or admins, but not both.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    appId: '12345678',
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:app_id" content="12345678" />
+```
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    admins: '12345678',
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:admins" content="12345678" />
+```
+
+If you want to generate multiple fb:admins meta tags you can use array value.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  facebook: {
+    admins: ['12345678', '87654321'],
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta property="fb:admins" content="12345678" />
+<meta property="fb:admins" content="87654321" />
+```
+
 ### `other`
 
 All metadata options should be covered using the built-in support. However, there may be custom metadata tags specific to your site, or brand new metadata tags just released. You can use the `other` option to render any custom metadata tag.

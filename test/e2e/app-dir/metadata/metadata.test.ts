@@ -299,6 +299,16 @@ describe('app dir - metadata', () => {
       )
     })
 
+    it('should support facebook related tags', async () => {
+      const browser = await next.browser('/facebook')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'property', 'content', {
+        'fb:app_id': '12345678',
+        'fb:admins': ['120', '122', '124'],
+      })
+    })
+
     it('should support alternate tags', async () => {
       const browser = await next.browser('/alternates')
       const matchDom = createDomMatcher(browser)

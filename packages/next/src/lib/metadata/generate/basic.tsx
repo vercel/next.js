@@ -114,6 +114,23 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
   return <meta name="apple-itunes-app" content={content} />
 }
 
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
+}
+
 const formatDetectionKeys = [
   'telephone',
   'date',

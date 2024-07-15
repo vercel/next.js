@@ -13,6 +13,7 @@ import {
   BasicMeta,
   ViewportMeta,
   VerificationMeta,
+  FacebookMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -130,6 +131,7 @@ export function createMetadataComponents({
       BasicMeta({ metadata }),
       AlternatesMetadata({ alternates: metadata.alternates }),
       ItunesMeta({ itunes: metadata.itunes }),
+      FacebookMeta({ facebook: metadata.facebook }),
       FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
       VerificationMeta({ verification: metadata.verification }),
       AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
