@@ -353,6 +353,7 @@ struct AnalysisState<'a> {
     // the object allocation.
     first_import_meta: bool,
     tree_shaking_mode: Option<TreeShakingMode>,
+    special_exports: Vc<Vec<RcStr>>,
     import_externals: bool,
     ignore_dynamic_requests: bool,
 }
@@ -412,6 +413,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let options = raw_module.options;
     let compile_time_info = raw_module.compile_time_info;
     let options = options.await?;
+    let special_exports = options.special_exports;
     let import_externals = options.import_externals;
 
     let origin = Vc::upcast::<Box<dyn ResolveOrigin>>(module);
@@ -428,7 +430,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed);
+        let split_data = split(source.ident(), source, parsed, special_exports);
         part_of_module(split_data, part)
     } else {
         parse(source, ty, transforms)
@@ -576,7 +578,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
-                    ImportedSymbol::Namespace => None,
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
@@ -586,10 +587,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => None,
-                    ImportedSymbol::Namespace => None,
                 },
                 None => None,
             },
+            special_exports,
             import_externals,
         );
 
@@ -814,6 +815,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
+        special_exports: options.special_exports,
         ignore_dynamic_requests: options.ignore_dynamic_requests,
     };
 
@@ -1972,6 +1974,7 @@ async fn handle_free_var_reference(
                         .map(|export| ModulePart::export(export.clone())),
                     None => None,
                 },
+                state.special_exports,
                 state.import_externals,
             )
             .resolve()

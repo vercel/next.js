@@ -281,10 +281,13 @@ graph TD
     Item17 --> Item12;
     Item18 --> Item13;
     Item4 --> Item8;
+    Item4 --> Item1;
     Item7 -.-> Item9;
     Item7 -.-> Item10;
+    Item7 --> Item1;
     Item13 --> Item11;
     Item13 --> Item8;
+    Item13 --> Item1;
 ```
 # Phase 4
 ```mermaid
@@ -338,10 +341,13 @@ graph TD
     Item17 --> Item12;
     Item18 --> Item13;
     Item4 --> Item8;
+    Item4 --> Item1;
     Item7 -.-> Item9;
     Item7 -.-> Item10;
+    Item7 --> Item1;
     Item13 --> Item11;
     Item13 --> Item8;
+    Item13 --> Item1;
     Item14 --> Item3;
     Item14 --> Item6;
     Item14 --> Item9;
@@ -371,9 +377,10 @@ graph TD
     N3 --> N13;
     N4 --> N13;
     N4 --> N11;
+    N4 --> N6;
     N5 --> N11;
-    N5 --> N12;
     N5 --> N6;
+    N5 --> N12;
     N7 --> N6;
     N8 --> N7;
     N8 --> N6;
@@ -463,6 +470,9 @@ import { cat } from "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
+import { dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 export { getChimera };
 function getChimera() {
     return cat + dog;
@@ -477,11 +487,11 @@ export { getChimera } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
 import { dog } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 12
 };
 function getDog() {
     return dog;
@@ -713,6 +723,9 @@ import { cat } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
+};
+import { dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
 export { getChimera };
 function getChimera() {

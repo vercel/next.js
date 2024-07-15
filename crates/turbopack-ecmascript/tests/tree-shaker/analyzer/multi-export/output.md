@@ -45,6 +45,7 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
+    Item4 --> Item1;
     Item5 --> Item2;
 ```
 # Phase 3
@@ -58,6 +59,7 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
+    Item4 --> Item1;
     Item5 --> Item2;
 ```
 # Phase 4
@@ -71,8 +73,8 @@ graph TD
     Item4["export DOG"];
     Item5;
     Item5["export cat"];
-    Item5 --> Item2;
     Item4 --> Item1;
+    Item5 --> Item2;
 ```
 # Final
 ```mermaid
