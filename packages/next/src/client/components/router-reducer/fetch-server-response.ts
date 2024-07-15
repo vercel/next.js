@@ -193,7 +193,19 @@ export async function fetchServerResponse(
       isNavigation &&
       !process.env.TURBOPACK
     ) {
-      await waitForWebpackRuntimeHotUpdate()
+      const webpackHMRTimedOut = await Promise.race([
+        waitForWebpackRuntimeHotUpdate().then(() => false),
+        new Promise((resolve) => setTimeout(() => resolve(true), 2000)),
+      ])
+
+      // Work around existing bugs where we receive an HRM update but no message that it was finished.
+      // Having the log before an MPA is pretty bad since it'll just flash the page and then navigate.
+      if (webpackHMRTimedOut) {
+        console.error(
+          'Webpack runtime hot update timed out. Falling back to browser navigation.'
+        )
+        return doMpaNavigation(responseUrl.toString())
+      }
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
