@@ -421,6 +421,19 @@ impl LoaderTreeBuilder {
     }
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
+        let components = loader_tree.clone().await?.components.await?;
+        match components.global_error {
+            Some(global_error) => {
+                let module = process_module(
+                    &self.context,
+                    &self.server_component_transition,
+                    global_error,
+                );
+                self.inner_assets.insert(GLOBAL_ERROR.into(), module);
+            }
+            None => {}
+        };
+
         self.walk_tree(loader_tree, true).await?;
         Ok(LoaderTreeModule {
             imports: self.imports,
@@ -451,7 +464,9 @@ impl LoaderTreeModule {
     }
 }
 
-pub fn process_module(
+pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR_MODULE";
+
+fn process_module(
     &context: &Vc<ModuleAssetContext>,
     &server_component_transition: &Vc<Box<dyn Transition>>,
     component: Vc<FileSystemPath>,
