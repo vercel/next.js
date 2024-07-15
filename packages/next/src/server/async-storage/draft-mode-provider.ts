@@ -41,9 +41,9 @@ export class DraftModeProvider {
       !isOnDemandRevalidate &&
         cookieValue &&
         previewProps &&
-        (process.env.NODE_ENV !== 'production'
-          ? previewProps.previewModeId === 'development-id'
-          : cookieValue === previewProps.previewModeId)
+        (cookieValue === previewProps.previewModeId ||
+          (process.env.NODE_ENV !== 'production' &&
+            previewProps.previewModeId === 'development-id'))
     )
 
     this._previewModeId = previewProps?.previewModeId
