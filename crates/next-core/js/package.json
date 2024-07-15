@@ -5,6 +5,10 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
+    "build": "pnpm check",
     "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "workspace:*"
   }
 }
