@@ -1,6 +1,6 @@
 # activeClassName example
 
-Next.js has a convenience property on the `Link` element to allow an author to set the _active_ className on a link. This example replicates that functionality using Next's own `Link` component with the new app router.
+ReactRouter has a convenience property on the `Link` element to allow an author to set the _active_ className on a link. This example replicates that functionality using Next's own `Link` component with the new app router.
 
 ## Deploy your own
 
