@@ -551,7 +551,7 @@ export const metadata = {
 
 ### `robots`
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -1060,7 +1060,7 @@ You can add type safety to your metadata by using the `Metadata` type. If you ar
 
 ### `metadata` object
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -1072,7 +1072,7 @@ export const metadata: Metadata = {
 
 #### Regular function
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export function generateMetadata(): Metadata {
@@ -1084,7 +1084,7 @@ export function generateMetadata(): Metadata {
 
 #### Async function
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -1096,7 +1096,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 #### With segment props
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata } from 'next'
 
 type Props = {
@@ -1115,7 +1115,7 @@ export default function Page({ params, searchParams }: Props) {}
 
 #### With parent metadata
 
-```tsx
+```tsx filename="layout.tsx | page.tsx"
 import type { Metadata, ResolvingMetadata } from 'next'
 
 export async function generateMetadata(
@@ -1132,7 +1132,7 @@ export async function generateMetadata(
 
 For JavaScript projects, you can use JSDoc to add type safety.
 
-```js
+```js filename="layout.js | page.js"
 /** @type {import("next").Metadata} */
 export const metadata = {
   title: 'Next.js',

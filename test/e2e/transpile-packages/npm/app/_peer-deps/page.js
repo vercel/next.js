@@ -1,5 +1,5 @@
 import { hello } from 'package-with-optional-deps'
 
 export default function Page() {
-  return hello()
+  return <h1>{hello()}</h1>
 }

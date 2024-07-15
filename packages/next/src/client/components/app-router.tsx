@@ -1,6 +1,5 @@
 'use client'
 
-import type { ReactNode } from 'react'
 import React, {
   use,
   useEffect,
@@ -20,14 +19,12 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { ErrorComponent } from './error-boundary'
 import {
-  ACTION_FAST_REFRESH,
+  ACTION_HMR_REFRESH,
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
-  ACTION_SERVER_ACTION,
   ACTION_SERVER_PATCH,
   PrefetchKind,
 } from './router-reducer/router-reducer-types'
@@ -36,7 +33,6 @@ import type {
   ReducerActions,
   RouterChangeByServerResponse,
   RouterNavigate,
-  ServerActionDispatcher,
 } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
@@ -51,18 +47,20 @@ import {
 } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import { createInitialRouterState } from './router-reducer/create-initial-router-state'
-import type { InitialRouterStateParameters } from './router-reducer/create-initial-router-state'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
-import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  InitialRSCPayload,
+} from '../../server/app-render/types'
+import { useServerActionDispatcher } from '../app-call-server'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -70,42 +68,9 @@ let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
   ? null!
   : new Map()
 
-let globalServerActionDispatcher = null as ServerActionDispatcher | null
-
-export function getServerActionDispatcher() {
-  return globalServerActionDispatcher
-}
-
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-export function urlToUrlWithoutFlightMarker(url: string): URL {
-  const urlWithoutFlightParameters = new URL(url, location.origin)
-  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
-  if (process.env.NODE_ENV === 'production') {
-    if (
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
-    ) {
-      const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
-    }
-  }
-  return urlWithoutFlightParameters
-}
-
-type AppRouterProps = Omit<
-  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
-  'initialParallelRoutes'
-> & {
-  buildId: string
-  initialHead: ReactNode
-  assetPrefix: string
-  missingSlots: Set<string>
-}
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
@@ -156,21 +121,6 @@ export function createEmptyCacheNode(): CacheNode {
     parallelRoutes: new Map(),
     loading: null,
   }
-}
-
-function useServerActionDispatcher(dispatch: React.Dispatch<ReducerActions>) {
-  const serverActionDispatcher: ServerActionDispatcher = useCallback(
-    (actionPayload) => {
-      startTransition(() => {
-        dispatch({
-          ...actionPayload,
-          type: ACTION_SERVER_ACTION,
-        })
-      })
-    },
-    [dispatch]
-  )
-  globalServerActionDispatcher = serverActionDispatcher
 }
 
 /**
@@ -256,34 +206,29 @@ function Head({
  * The global router that wraps the application components.
  */
 function Router({
-  buildId,
-  initialHead,
-  initialTree,
-  initialCanonicalUrl,
-  initialSeedData,
-  couldBeIntercepted,
-  assetPrefix,
-  missingSlots,
-}: AppRouterProps) {
+  initialRSCPayload,
+}: {
+  initialRSCPayload: Omit<InitialRSCPayload, 'G'>
+}) {
   const initialState = useMemo(
     () =>
       createInitialRouterState({
-        buildId,
-        initialSeedData,
-        initialCanonicalUrl,
-        initialTree,
+        buildId: initialRSCPayload.b,
+        initialSeedData: initialRSCPayload.d,
+        initialCanonicalUrl: initialRSCPayload.c,
+        initialTree: initialRSCPayload.t,
         initialParallelRoutes,
         location: !isServer ? window.location : null,
-        initialHead,
-        couldBeIntercepted,
+        initialHead: initialRSCPayload.h,
+        couldBeIntercepted: initialRSCPayload.i,
       }),
     [
-      buildId,
-      initialSeedData,
-      initialCanonicalUrl,
-      initialTree,
-      initialHead,
-      couldBeIntercepted,
+      initialRSCPayload.b,
+      initialRSCPayload.c,
+      initialRSCPayload.t,
+      initialRSCPayload.d,
+      initialRSCPayload.h,
+      initialRSCPayload.i,
     ]
   )
   const [reducerState, dispatch, sync] =
@@ -372,15 +317,15 @@ function Router({
           })
         })
       },
-      fastRefresh: () => {
+      hmrRefresh: () => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
-            'fastRefresh can only be used in development mode. Please use refresh instead.'
+            'hmrRefresh can only be used in development mode. Please use refresh instead.'
           )
         } else {
           startTransition(() => {
             dispatch({
-              type: ACTION_FAST_REFRESH,
+              type: ACTION_HMR_REFRESH,
               origin: window.location.origin,
             })
           })
@@ -609,13 +554,19 @@ function Router({
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      buildId,
+      buildId: initialRSCPayload.b,
       changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [
+    initialRSCPayload.b,
+    changeByServerResponse,
+    tree,
+    focusAndScrollRef,
+    nextUrl,
+  ])
 
   let head
   if (matchingHead !== null) {
@@ -645,16 +596,22 @@ function Router({
         require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
       content = (
         <DevRootNotFoundBoundary>
-          <MissingSlotContext.Provider value={missingSlots}>
-            {content}
-          </MissingSlotContext.Provider>
+          {initialRSCPayload.m ? (
+            <MissingSlotContext.Provider value={initialRSCPayload.m}>
+              {content}
+            </MissingSlotContext.Provider>
+          ) : (
+            content
+          )}
         </DevRootNotFoundBoundary>
       )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
       require('./react-dev-overlay/app/hot-reloader-client').default
 
-    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+    content = (
+      <HotReloader assetPrefix={initialRSCPayload.p}>{content}</HotReloader>
+    )
   }
 
   return (
@@ -683,14 +640,15 @@ function Router({
   )
 }
 
-export default function AppRouter(
-  props: AppRouterProps & { globalErrorComponent: ErrorComponent }
-) {
-  const { globalErrorComponent, ...rest } = props
-
+export default function AppRouter({
+  initialRSCPayload,
+}: {
+  initialRSCPayload: InitialRSCPayload
+}) {
+  const { G: globalErrorComponent, ...rest } = initialRSCPayload
   return (
     <ErrorBoundary errorComponent={globalErrorComponent}>
-      <Router {...rest} />
+      <Router initialRSCPayload={rest} />
     </ErrorBoundary>
   )
 }

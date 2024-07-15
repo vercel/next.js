@@ -15,11 +15,7 @@ export type ErrorHandler = (
   errorInfo: unknown
 ) => string | undefined
 
-export const ErrorHandlerSource = {
-  serverComponents: 'serverComponents',
-  flightData: 'flightData',
-  html: 'html',
-} as const
+export type DigestedError = Error & { digest: string }
 
 /**
  * Create error handler for renderers.
@@ -27,22 +23,17 @@ export const ErrorHandlerSource = {
  * isn't spammed with unactionable errors
  */
 export function createErrorHandler({
-  /**
-   * Used for debugging
-   */
-  source,
   dev,
   isNextExport,
   onReactStreamRenderError,
-  digestErrorsMap,
+  getErrorByRenderSource,
   allCapturedErrors,
   silenceLogger,
 }: {
-  source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
   isNextExport?: boolean
   onReactStreamRenderError?: (err: any) => void
-  digestErrorsMap: Map<string, Error>
+  getErrorByRenderSource: (err: DigestedError) => Error
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
 }): ErrorHandler {
@@ -55,7 +46,6 @@ export function createErrorHandler({
         err.message + (errorInfo?.stack || err.stack || '')
       ).toString()
     }
-    const digest = err.digest
 
     if (allCapturedErrors) allCapturedErrors.push(err)
 
@@ -68,13 +58,7 @@ export function createErrorHandler({
     // If this is a navigation error, we don't need to log the error.
     if (isNextRouterError(err)) return err.digest
 
-    if (!digestErrorsMap.has(digest)) {
-      digestErrorsMap.set(digest, err)
-    } else if (source === ErrorHandlerSource.html) {
-      // For SSR errors, if we have the existing digest in errors map,
-      // we should use the existing error object to avoid duplicate error logs.
-      err = digestErrorsMap.get(digest)
-    }
+    err = getErrorByRenderSource(err)
 
     // If this error occurs, we know that we should be stopping the static
     // render. This is only thrown in static generation when PPR is not enabled,
@@ -86,8 +70,7 @@ export function createErrorHandler({
     if (dev) {
       formatServerError(err)
     }
-    // Used for debugging error source
-    // console.error(source, err)
+
     // Don't log the suppressed error during export
     if (
       !(
@@ -107,17 +90,7 @@ export function createErrorHandler({
         })
       }
 
-      if (
-        (!silenceLogger &&
-          // Only log the error from SSR rendering errors and flight data render errors,
-          // as RSC renderer error will still be pipped into SSR renderer as well.
-          source === 'html') ||
-        source === 'flightData'
-      ) {
-        // The error logger is currently not provided in the edge runtime.
-        // Use the exposed `__next_log_error__` instead.
-        // This will trace error traces to the original source code.
-
+      if (!silenceLogger) {
         onReactStreamRenderError?.(err)
       }
     }
