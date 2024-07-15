@@ -193,7 +193,9 @@ export async function adapter(
           notFoundRoutes: [],
           preview: {
             previewModeId:
-              process.env.__NEXT_PREVIEW_MODE_ID || 'development-id',
+              process.env.NODE_ENV === 'production'
+                ? process.env.__NEXT_PREVIEW_MODE_ID!
+                : 'development-id',
           } as any, // `preview` is special case read in next-dev-server
         }
       },
