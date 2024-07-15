@@ -1,5 +1,4 @@
 import { Command } from 'commander'
-import console from 'console'
 
 import PQueue from 'p-queue'
 import {
@@ -24,7 +23,7 @@ program.option('-f, --force-crash', 'Force function crash')
 
 program.parse(process.argv)
 
-const options = program.opts()
+const {path, skipBuild, forceCrash} = program.opts()
 
 if (options.path) {
   console.log('Running benchmark for path: ', options.path)
@@ -37,8 +36,6 @@ if (options.skipBuild) {
 if (options.forceCrash) {
   console.log('Forcing function crash')
 }
-
-export const forceCrash = options.forceCrash
 
 try {
   const [originDeploymentURL, headDeploymentURL] = options.skipBuild

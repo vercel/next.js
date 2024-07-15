@@ -2,7 +2,6 @@
 import * as Mermaid from 'mermaid'
 
 console.log(Mermaid)
-// console.log(Mantine.Button.Group.classes);
 
 export function MermaidComponent() {
   return (
