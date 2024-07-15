@@ -338,7 +338,7 @@ export class NextInstance {
 
   protected setServerReadyTimeout(
     reject: (reason?: unknown) => void,
-    ms = 5000
+    ms = 10_000
   ): NodeJS.Timeout {
     return setTimeout(() => {
       reject(
