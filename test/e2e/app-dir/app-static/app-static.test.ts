@@ -3253,6 +3253,26 @@ describe('app-dir static/dynamic handling', () => {
       expect(data).not.toEqual(data2)
     })
 
+    it('should not cache new result in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/unstable-cache/dynamic', {
+        headers: cookieHeader,
+      })
+      const html = await res.text()
+      const data = cheerio.load(html)('#cached-data').text()
+
+      const res2 = await next.fetch('/unstable-cache/dynamic')
+      const html2 = await res2.text()
+      const data2 = cheerio.load(html2)('#cached-data').text()
+
+      expect(data).not.toEqual(data2)
+    })
+
     it('should not error when retrieving the value undefined', async () => {
       const res = await next.fetch('/unstable-cache/dynamic-undefined')
       const html = await res.text()
