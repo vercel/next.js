@@ -469,11 +469,21 @@ pub async fn get_server_module_options_context(
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,
         get_emotion_transform_rule(next_config).await?,
-        get_mdx_transform_rule(jsx_runtime_options, enable_mdx_rs, tsconfig).await?,
     ]
     .into_iter()
     .flatten()
     .collect();
+
+    if let Some(mdx_rule) = get_mdx_transform_rule(
+        jsx_runtime_options,
+        enable_mdx_rs,
+        tsconfig,
+        decorators_options,
+    )
+    .await?
+    {
+        next_server_rules.insert(0, mdx_rule);
+    }
 
     // Custom ecma transform rules selectively being applied depends on the server
     // context type.

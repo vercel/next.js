@@ -26,8 +26,8 @@ use turbopack_binding::{
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                module_options_context::ModuleOptionsContext, JsxTransformOptions, ModuleRule,
-                TypeofWindow, TypescriptTransformOptions,
+                module_options_context::ModuleOptionsContext, JsxTransformOptions, TypeofWindow,
+                TypescriptTransformOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -240,23 +240,36 @@ pub async fn get_client_module_options_context(
     let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false).await?;
-    let foreign_next_client_rules =
-        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
-    let additional_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config, project_path).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
-        get_mdx_transform_rule(jsx_runtime_options, enable_mdx_rs, tsconfig).await?,
-    ]
-    .into_iter()
+    let custom_rules = once(
+        get_mdx_transform_rule(
+            jsx_runtime_options,
+            enable_mdx_rs,
+            tsconfig,
+            decorators_options,
+        )
+        .await?,
+    )
     .flatten()
+    .chain(
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false)
+            .await?
+            .into_iter(),
+    )
+    .chain(
+        vec![
+            get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
+            get_relay_transform_rule(next_config, project_path).await?,
+            get_emotion_transform_rule(next_config).await?,
+            get_styled_components_transform_rule(next_config).await?,
+            get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        ]
+        .into_iter()
+        .flatten(),
+    )
     .collect();
 
-    next_client_rules.extend(additional_rules);
+    let foreign_next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true).await?;
 
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -315,7 +328,7 @@ pub async fn get_client_module_options_context(
                 .cell(),
             ),
         ],
-        custom_rules: next_client_rules,
+        custom_rules,
         use_swc_css,
         ..module_options_context
     }
