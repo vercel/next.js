@@ -149,6 +149,8 @@ function wrapRequestStoreForAfterCallbacks(
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
     afterContext: requestStore.afterContext,
+    isHmrRefresh: requestStore.isHmrRefresh,
+    serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }
 }
 

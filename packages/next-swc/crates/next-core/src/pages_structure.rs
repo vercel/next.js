@@ -199,6 +199,10 @@ async fn get_pages_structure_for_root_directory(
             for (name, entry) in entries.iter() {
                 match entry {
                     DirectoryEntry::File(file_project_path) => {
+                        // Do not process .d.ts files as routes
+                        if name.ends_with(".d.ts") {
+                            continue;
+                        }
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };

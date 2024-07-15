@@ -2,6 +2,7 @@ import type {
   FlightDataPath,
   FlightRouterState,
   FlightSegmentPath,
+  PreloadCallbacks,
   Segment,
 } from './types'
 import {
@@ -39,6 +40,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound,
   metadataOutlet,
   ctx,
+  preloadCallbacks,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -54,6 +56,7 @@ export async function walkTreeWithFlightRouterState({
   asNotFound?: boolean
   metadataOutlet: React.ReactNode
   ctx: AppRenderContext
+  preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -152,6 +155,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         }
       )
 
@@ -212,6 +216,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
           metadataOutlet,
+          preloadCallbacks,
         })
 
         return path

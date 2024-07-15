@@ -234,7 +234,7 @@ mod tests {
         common::{errors::ColorConfig, FilePathMapping, SourceMap, GLOBALS},
         ecma::{
             ast::Program,
-            parser::{EsConfig, Syntax, TsConfig},
+            parser::{EsSyntax, Syntax, TsSyntax},
         },
     };
 
@@ -247,13 +247,13 @@ mod tests {
             let options = ParseOptions {
                 is_module: IsModule::Unknown,
                 syntax: if file_path.ends_with(".ts") || file_path.ends_with(".tsx") {
-                    Syntax::Typescript(TsConfig {
+                    Syntax::Typescript(TsSyntax {
                         tsx: true,
                         decorators: true,
                         ..Default::default()
                     })
                 } else {
-                    Syntax::Es(EsConfig {
+                    Syntax::Es(EsSyntax {
                         jsx: true,
                         decorators: true,
                         ..Default::default()
