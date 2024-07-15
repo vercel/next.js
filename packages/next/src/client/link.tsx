@@ -88,17 +88,21 @@ type InternalLinkProps = {
    */
   legacyBehavior?: boolean
   /**
-   * Optional event handler for when the mouse pointer is moved onto Link
+   * Optional event handler triggered when the mouse pointer is moved onto Link
    */
   onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
   /**
-   * Optional event handler for when Link is touched.
+   * Optional event handler triggered when Link is touched.
    */
   onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
   /**
-   * Optional event handler for when Link is clicked.
+   * Optional event handler triggered after the Link is pressed and released.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  /**
+   * Optional event handler triggered immediately when the Link is pressed.
+   */
+  onMouseDown?: React.MouseEventHandler<HTMLAnchorElement>
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -283,6 +287,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       scroll,
       locale,
       onClick,
+      onMouseDown,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
@@ -365,6 +370,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         prefetch: true,
         locale: true,
         onClick: true,
+        onMouseDown: true,
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
@@ -393,6 +399,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else if (
           key === 'onClick' ||
+          key === 'onMouseDown' ||
           key === 'onMouseEnter' ||
           key === 'onTouchStart'
         ) {
@@ -495,6 +502,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         if (onClick) {
           console.warn(
             `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+          )
+        }
+        if (onMouseDown) {
+          console.warn(
+            `"onMouseDown" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseDown be set on the child of next/link`
           )
         }
         if (onMouseEnterProp) {
@@ -601,6 +613,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
       onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
       onClick: React.MouseEventHandler<HTMLAnchorElement>
+      onMouseDown?: React.MouseEventHandler<HTMLAnchorElement>
       href?: string
       ref?: any
     } = {
@@ -624,6 +637,47 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           typeof child.props.onClick === 'function'
         ) {
           child.props.onClick(e)
+        }
+
+        if (!router) {
+          return
+        }
+
+        if (e.defaultPrevented) {
+          return
+        }
+
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          scroll,
+          locale,
+          isAppRouter
+        )
+      },
+      onMouseDown(e) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (!e) {
+            throw new Error(
+              `Component rendered inside next/link has to pass click event to "onMouseDown" prop.`
+            )
+          }
+        }
+
+        if (!legacyBehavior && typeof onMouseDown === 'function') {
+          onMouseDown(e)
+        }
+
+        if (
+          legacyBehavior &&
+          child.props &&
+          typeof child.props.onMouseDown === 'function'
+        ) {
+          child.props.onMouseDown(e)
         }
 
         if (!router) {
