@@ -107,14 +107,8 @@ impl LoaderTreeBuilder {
             let i = self.unique_number();
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
-            let source = Vc::upcast(FileSource::new(component));
-            let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            ));
-            let module = self
-                .server_component_transition
-                .process(source, self.context, reference_ty)
-                .module();
+            let module =
+                process_module(&self.context, &self.server_component_transition, component);
 
             writeln!(
                 self.loader_tree_code,
@@ -455,4 +449,20 @@ impl LoaderTreeModule {
             .build(loader_tree)
             .await
     }
+}
+
+pub fn process_module(
+    &context: &Vc<ModuleAssetContext>,
+    &server_component_transition: &Vc<Box<dyn Transition>>,
+    component: Vc<FileSystemPath>,
+) -> Vc<Box<dyn Module>> {
+    let source = Vc::upcast(FileSource::new(component));
+    let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
+        EcmaScriptModulesReferenceSubType::Undefined,
+    ));
+    let module = server_component_transition
+        .process(source, context, reference_ty)
+        .module();
+
+    module
 }
