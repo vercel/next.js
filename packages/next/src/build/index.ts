@@ -101,7 +101,7 @@ import {
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createPagesMapping, sortByPageExts } from './entries'
+import { createPagesMapping, getPageFromPath, sortByPageExts } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -296,6 +296,9 @@ export type RoutesManifest = {
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
+  // routes that should trigger hard navigation
+  // instead of client-navigation
+  routeNamespaces?: string[]
 }
 
 function pageToRoute(page: string) {
@@ -1135,6 +1138,23 @@ export default async function build(
       const restrictedRedirectPaths = ['/_next'].map((p) =>
         config.basePath ? `${config.basePath}${p}` : p
       )
+      const routeNamespaces: string[] = []
+
+      if (config.experimental.flyingShuttle) {
+        if (changedAppPathsResult?.unchanged.app.length) {
+          for (const appEntry of changedAppPathsResult.changed.app || []) {
+            const appKey = getPageFromPath(appEntry, config.pageExtensions)
+            const normalizedAppPageKey = normalizeAppPath(appKey)
+            routeNamespaces.push(normalizedAppPageKey)
+          }
+        }
+        if (changedPagePathsResult?.unchanged.pages.length) {
+          for (const pageEntry of changedPagePathsResult.changed.pages || []) {
+            const pageKey = getPageFromPath(pageEntry, config.pageExtensions)
+            routeNamespaces.push(pageKey)
+          }
+        }
+      }
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
       let routesManifest: RoutesManifest = nextBuildSpan
@@ -1180,6 +1200,11 @@ export default async function build(
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
+            ...(config.experimental.flyingShuttle
+              ? {
+                  routeNamespaces,
+                }
+              : {}),
           } as RoutesManifest
         })
 
@@ -1200,19 +1225,34 @@ export default async function build(
           ),
         }
       }
+      let clientRouterFilters:
+        | undefined
+        | ReturnType<typeof createClientRouterFilter>
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
           (r: any) => !r.internal
         )
-        const clientRouterFilters = createClientRouterFilter(
-          appPaths,
+        const filterPaths: string[] = []
+
+        if (config.experimental.flyingShuttle) {
+          if (changedAppPathsResult?.unchanged.app.length) {
+            filterPaths.push(...(changedAppPathsResult?.unchanged.app || []))
+          } else {
+            filterPaths.push(...appPaths)
+          }
+          filterPaths.push(...routeNamespaces)
+        } else {
+          filterPaths.push(...appPaths)
+        }
+
+        clientRouterFilters = createClientRouterFilter(
+          filterPaths,
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
             : [],
           config.experimental.clientRouterFilterAllowedRate
         )
-
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
@@ -1383,7 +1423,7 @@ export default async function build(
             env: process.env as Record<string, string>,
             defineEnv: createDefineEnv({
               isTurbopack: true,
-              clientRouterFilters: NextBuildContext.clientRouterFilters,
+              clientRouterFilters,
               config,
               dev,
               distDir,
@@ -2493,6 +2533,7 @@ export default async function build(
               distDir,
               shuttleDir,
               rewrites,
+              redirects,
               edgePreviewProps: {
                 __NEXT_PREVIEW_MODE_ID:
                   NextBuildContext.previewProps!.previewModeId,
@@ -2502,6 +2543,8 @@ export default async function build(
                   NextBuildContext.previewProps!.previewModeSigningKey,
               },
               encryptionKey,
+              allowedErrorRate:
+                config.experimental.clientRouterFilterAllowedRate,
             },
             {
               changed: {

@@ -1,4 +1,4 @@
-import type { Rewrite } from '../../lib/load-custom-routes'
+import type { Rewrite, Redirect } from '../../lib/load-custom-routes'
 import type { PagesManifest } from '../webpack/plugins/pages-manifest-plugin'
 
 import fs from 'fs'
@@ -8,6 +8,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { recursiveCopy } from '../../lib/recursive-copy'
 import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { generateClientManifest } from '../webpack/plugins/build-manifest-plugin'
+import { createClientRouterFilter } from '../../lib/create-client-router-filter'
 import {
   hasShuttle,
   type DetectedEntriesResult,
@@ -29,6 +30,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../shared/lib/constants'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export async function stitchBuilds(
   {
@@ -36,6 +38,8 @@ export async function stitchBuilds(
     shuttleDir,
     buildId,
     rewrites,
+    redirects,
+    allowedErrorRate,
     encryptionKey,
     edgePreviewProps,
   }: {
@@ -47,6 +51,8 @@ export async function stitchBuilds(
       afterFiles: Rewrite[]
       fallback: Rewrite[]
     }
+    redirects: Redirect[]
+    allowedErrorRate?: number
     encryptionKey: string
     edgePreviewProps: Record<string, string>
   },
@@ -139,6 +145,43 @@ export async function stitchBuilds(
   // always attempt copying not-found chunk
   await copyPageChunk('/_not-found/page', 'app').catch(() => {})
 
+  // merge dynamic/static routes in routes-manifest
+  const [restoreRoutesManifest, currentRoutesManifest] = await Promise.all(
+    [
+      path.join(shuttleDir, 'manifests', ROUTES_MANIFEST),
+      path.join(distDir, ROUTES_MANIFEST),
+    ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
+  )
+  const dynamicRouteMap: Record<string, any> = {}
+  const combinedDynamicRoutes: Record<string, any>[] = [
+    ...currentRoutesManifest.dynamicRoutes,
+    ...restoreRoutesManifest.dynamicRoutes,
+  ]
+  for (const route of combinedDynamicRoutes) {
+    dynamicRouteMap[route.page] = route
+  }
+
+  const mergedRoutesManifest = {
+    ...currentRoutesManifest,
+    dynamicRoutes: getSortedRoutes(
+      combinedDynamicRoutes.map((item) => item.page)
+    ).map((page) => dynamicRouteMap[page]),
+    staticRoutes: [
+      ...currentRoutesManifest.staticRoutes,
+      ...restoreRoutesManifest.staticRoutes,
+    ],
+    routeNamespaces: [
+      ...new Set([
+        ...(currentRoutesManifest.routeNamespaces || []),
+        ...(restoreRoutesManifest.routeNamespaces || []),
+      ]),
+    ],
+  }
+  await fs.promises.writeFile(
+    path.join(distDir, ROUTES_MANIFEST),
+    JSON.stringify(mergedRoutesManifest, null, 2)
+  )
+
   // for build-manifest we use latest runtime files
   // and only merge previous page chunk entries
   // middleware-build-manifest.js (needs to be regenerated)
@@ -225,7 +268,23 @@ export async function stitchBuilds(
     path.join(distDir, 'static', buildId, `_buildManifest.js`),
     `self.__BUILD_MANIFEST = ${generateClientManifest(
       mergedBuildManifest,
-      rewrites
+      rewrites,
+      createClientRouterFilter(
+        [
+          // namespaces will contain the combined list
+          // of any changed entries
+          ...mergedRoutesManifest.routeNamespaces,
+          ...[
+            // client filter always has all app paths
+            ...(entries.unchanged?.app || []),
+            ...(entries.changed?.app || []),
+          ].map((entry) =>
+            normalizeAppPath(getPageFromPath(entry, entries.pageExtensions))
+          ),
+        ],
+        redirects,
+        allowedErrorRate
+      )
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
   )
 
@@ -407,37 +466,6 @@ export async function stitchBuilds(
       mergedPagesManifest = mergedAppManifest
     }
   }
-
-  // merge dynamic/static routes in routes-manifest
-  const [restoreRoutesManifest, currentRoutesManifest] = await Promise.all(
-    [
-      path.join(shuttleDir, 'manifests', ROUTES_MANIFEST),
-      path.join(distDir, ROUTES_MANIFEST),
-    ].map(async (f) => JSON.parse(await fs.promises.readFile(f, 'utf8')))
-  )
-  const dynamicRouteMap: Record<string, any> = {}
-  const combinedDynamicRoutes: Record<string, any>[] = [
-    ...currentRoutesManifest.dynamicRoutes,
-    ...restoreRoutesManifest.dynamicRoutes,
-  ]
-  for (const route of combinedDynamicRoutes) {
-    dynamicRouteMap[route.page] = route
-  }
-
-  const mergedRoutesManifest = {
-    ...currentRoutesManifest,
-    dynamicRoutes: getSortedRoutes(
-      combinedDynamicRoutes.map((item) => item.page)
-    ).map((page) => dynamicRouteMap[page]),
-    staticRoutes: [
-      ...currentRoutesManifest.staticRoutes,
-      ...restoreRoutesManifest.staticRoutes,
-    ],
-  }
-  await fs.promises.writeFile(
-    path.join(distDir, ROUTES_MANIFEST),
-    JSON.stringify(mergedRoutesManifest, null, 2)
-  )
 
   // for server/server-reference-manifest.json we merge
   // and regenerate server/server-reference-manifest.js

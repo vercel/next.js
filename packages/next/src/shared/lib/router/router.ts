@@ -761,45 +761,6 @@ export default class Router implements BaseRouter {
       ],
     }
 
-    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const { BloomFilter } =
-        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
-
-      type Filter = ReturnType<
-        import('../../lib/bloom-filter').BloomFilter['export']
-      >
-
-      const routerFilterSValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_S_FILTER as any
-
-      const staticFilterData: Filter | undefined = routerFilterSValue
-        ? routerFilterSValue
-        : undefined
-
-      const routerFilterDValue: Filter | false = process.env
-        .__NEXT_CLIENT_ROUTER_D_FILTER as any
-
-      const dynamicFilterData: Filter | undefined = routerFilterDValue
-        ? routerFilterDValue
-        : undefined
-
-      if (staticFilterData?.numHashes) {
-        this._bfl_s = new BloomFilter(
-          staticFilterData.numItems,
-          staticFilterData.errorRate
-        )
-        this._bfl_s.import(staticFilterData)
-      }
-
-      if (dynamicFilterData?.numHashes) {
-        this._bfl_d = new BloomFilter(
-          dynamicFilterData.numItems,
-          dynamicFilterData.errorRate
-        )
-        this._bfl_d.import(dynamicFilterData)
-      }
-    }
-
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
     this.events = Router.events
@@ -1056,10 +1017,68 @@ export default class Router implements BaseRouter {
     skipNavigate?: boolean
   ) {
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      if (!this._bfl_s && !this._bfl_d) {
+        const { BloomFilter } =
+          require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+        type Filter = ReturnType<
+          import('../../lib/bloom-filter').BloomFilter['export']
+        >
+
+        let {
+          __routerFilterStatic: staticFilterData,
+          __routerFilterDynamic: dynamicFilterData,
+        } = (await getClientBuildManifest()) as any as {
+          __routerFilterStatic?: Filter
+          __routerFilterDynamic?: Filter
+        }
+
+        const routerFilterSValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+        if (!staticFilterData && routerFilterSValue) {
+          staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
+        }
+
+        const routerFilterDValue: Filter | false = process.env
+          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+        if (!dynamicFilterData && routerFilterDValue) {
+          dynamicFilterData = routerFilterDValue
+            ? routerFilterDValue
+            : undefined
+        }
+
+        if (staticFilterData?.numHashes) {
+          this._bfl_s = new BloomFilter(
+            staticFilterData.numItems,
+            staticFilterData.errorRate
+          )
+          this._bfl_s.import(staticFilterData)
+        }
+
+        if (dynamicFilterData?.numHashes) {
+          this._bfl_d = new BloomFilter(
+            dynamicFilterData.numItems,
+            dynamicFilterData.errorRate
+          )
+          this._bfl_d.import(dynamicFilterData)
+        }
+      }
+
       let matchesBflStatic = false
       let matchesBflDynamic = false
+      const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
+        [{ as }, { as: resolvedAs }]
 
-      for (const curAs of [as, resolvedAs]) {
+      if (process.env.__NEXT_FLYING_SHUTTLE) {
+        // if existing page changed we hard navigate to
+        // avoid runtime conflict with new page
+        // TODO: check buildManifest files instead?
+        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
+      }
+
+      for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
             new URL(curAs, 'http://n').pathname
@@ -1069,8 +1088,9 @@ export default class Router implements BaseRouter {
           )
 
           if (
+            allowMatchCurrent ||
             asNoSlash !==
-            removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
+              removeTrailingSlash(new URL(this.asPath, 'http://n').pathname)
           ) {
             matchesBflStatic =
               matchesBflStatic ||

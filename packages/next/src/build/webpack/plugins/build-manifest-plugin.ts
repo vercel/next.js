@@ -1,3 +1,4 @@
+import type { BloomFilter } from '../../../shared/lib/bloom-filter'
 import type { Rewrite, CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -95,6 +96,10 @@ export function normalizeRewritesForBuildManifest(
 export function generateClientManifest(
   assetMap: BuildManifest,
   rewrites: CustomRoutes['rewrites'],
+  clientRouterFilters?: {
+    staticFilter: ReturnType<BloomFilter['export']>
+    dynamicFilter: ReturnType<BloomFilter['export']>
+  },
   compiler?: any,
   compilation?: any
 ): string | undefined {
@@ -111,6 +116,8 @@ export function generateClientManifest(
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      __routerFilterStatic: clientRouterFilters?.staticFilter as any,
+      __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
     const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
@@ -168,12 +175,14 @@ export default class BuildManifestPlugin {
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private appDirEnabled: boolean
+  private clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     appDirEnabled: boolean
+    clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
   }) {
     this.buildId = options.buildId
     this.isDevFallback = !!options.isDevFallback
@@ -183,6 +192,7 @@ export default class BuildManifestPlugin {
       fallback: [],
     }
     this.appDirEnabled = options.appDirEnabled
+    this.clientRouterFilters = options.clientRouterFilters
     this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
     this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
@@ -317,6 +327,7 @@ export default class BuildManifestPlugin {
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             assetMap,
             this.rewrites,
+            this.clientRouterFilters,
             compiler,
             compilation
           )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`

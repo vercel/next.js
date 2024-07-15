@@ -1799,7 +1799,6 @@ export default async function getBaseWebpackConfig(
         }),
       getDefineEnvPlugin({
         isTurbopack: false,
-        clientRouterFilters,
         config,
         dev,
         distDir,
@@ -1897,6 +1896,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
           isDevFallback,
           appDirEnabled: hasAppDir,
+          clientRouterFilters,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       config.optimizeFonts &&
