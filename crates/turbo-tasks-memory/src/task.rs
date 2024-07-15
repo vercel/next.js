@@ -1621,22 +1621,22 @@ impl Task {
                 }
                 state.gc.generation = None;
 
-                if active {
-                    let mut cells_to_drop = Vec::new();
-
-                    match &mut state.state_type {
-                        TaskStateType::Done { stateful, edges: _ } => {
-                            if *stateful {
-                                return GcResult::NotPossible;
-                            }
-                        }
-                        TaskStateType::Dirty { .. } => {}
-                        _ => {
-                            // GC can't run in this state. We will reschedule it when the execution
-                            // completes.
+                match &mut state.state_type {
+                    TaskStateType::Done { stateful, edges: _ } => {
+                        if *stateful {
                             return GcResult::NotPossible;
                         }
                     }
+                    TaskStateType::Dirty { .. } => {}
+                    _ => {
+                        // GC can't run in this state. We will reschedule it when the execution
+                        // completes.
+                        return GcResult::NotPossible;
+                    }
+                }
+
+                if active {
+                    let mut cells_to_drop = Vec::new();
 
                     // shrinking memory and dropping cells
                     state.aggregation_node.shrink_to_fit();
