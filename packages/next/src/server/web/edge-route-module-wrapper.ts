@@ -3,7 +3,6 @@ import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
 } from '../future/route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
 
 import './globals'
 
@@ -14,6 +13,7 @@ import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
 import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -82,10 +82,7 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
-        ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
+    const previewProps = getEdgePreviewProps()
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
@@ -95,11 +92,7 @@ export class EdgeRouteModuleWrapper {
         version: 4,
         routes: {},
         dynamicRoutes: {},
-        preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
-        },
+        preview: previewProps,
         notFoundRoutes: [],
       },
       renderOpts: {

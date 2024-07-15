@@ -1,6 +1,5 @@
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders } from './utils'
 import { NextFetchEvent } from './spec-extension/fetch-event'
@@ -19,6 +18,7 @@ import { requestAsyncStorage } from '../../client/components/request-async-stora
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
+import { getEdgePreviewProps } from './get-edge-preview-props'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -90,10 +90,6 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
-  const prerenderManifest: PrerenderManifest | undefined =
-    typeof self.__PRERENDER_MANIFEST === 'string'
-      ? JSON.parse(self.__PRERENDER_MANIFEST)
-      : undefined
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -197,9 +193,7 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: {
-            previewModeId: 'development-id',
-          } as any, // `preview` is special case read in next-dev-server
+          preview: getEdgePreviewProps(),
         }
       },
     })
@@ -233,11 +227,7 @@ export async function adapter(
                   cookiesFromResponse = cookies
                 },
                 // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-                previewProps: prerenderManifest?.preview || {
-                  previewModeId: 'development-id',
-                  previewModeEncryptionKey: '',
-                  previewModeSigningKey: '',
-                },
+                previewProps: getEdgePreviewProps(),
               },
             },
             () => params.handler(request, event)
