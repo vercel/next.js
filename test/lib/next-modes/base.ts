@@ -382,7 +382,7 @@ export class NextInstance {
   public async stop(): Promise<void> {
     if (this.childProcess) {
       this.isStopping = true
-      const exitPromise = once(this.childProcess, 'exit')
+      const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
@@ -392,7 +392,7 @@ export class NextInstance {
         })
       })
       this.childProcess.kill('SIGKILL')
-      await exitPromise
+      await closePromise
       this.childProcess = undefined
       this.isStopping = false
       require('console').log(`Stopped next server`)
