@@ -56,7 +56,7 @@ pub fn benchmark(c: &mut Criterion) {
                 program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context =
-                    EvalContext::new(&program, unresolved_mark, top_level_mark, None);
+                    EvalContext::new(&program, unresolved_mark, top_level_mark, false, None);
                 let var_graph = create_graph(&program, &eval_context);
 
                 let input = BenchInput {

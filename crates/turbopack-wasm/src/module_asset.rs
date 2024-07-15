@@ -19,6 +19,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
     references::async_module::OptionAsyncModule,
+    EcmascriptModuleAsset,
 };
 
 use crate::{
@@ -61,43 +62,24 @@ impl WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn loader_as_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-        let query = &*this.source.ident().query().await?;
+    async fn loader(&self) -> Result<Vc<EcmascriptModuleAsset>> {
+        let query = &*self.source.ident().query().await?;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(this.source)
+            compiling_loader_source(self.source)
         } else {
-            instantiating_loader_source(this.source)
+            instantiating_loader_source(self.source)
         };
 
-        let module = this.asset_context.process(
+        let module = self.asset_context.process(
             loader_source,
             Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(this.source, this.asset_context)),
+                "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(self.source, self.asset_context)),
             }))),
         ).module();
 
-        Ok(module)
-    }
-    #[turbo_tasks::function]
-    async fn loader_as_resolve_origin(self: Vc<Self>) -> Result<Vc<Box<dyn ResolveOrigin>>> {
-        let module = self.loader_as_module();
-
-        let Some(esm_asset) = Vc::try_resolve_sidecast::<Box<dyn ResolveOrigin>>(module).await?
-        else {
-            bail!("WASM loader was not processed into an EcmascriptModuleAsset");
-        };
-
-        Ok(esm_asset)
-    }
-
-    #[turbo_tasks::function]
-    async fn loader(self: Vc<Self>) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let module = self.loader_as_module();
-
         let Some(esm_asset) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
         else {
             bail!("WASM loader was not processed into an EcmascriptModuleAsset");
         };
@@ -174,7 +156,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
-        self.loader_as_resolve_origin().get_inner_asset(request)
+        self.loader().get_inner_asset(request)
     }
 }
 

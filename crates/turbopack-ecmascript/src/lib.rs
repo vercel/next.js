@@ -120,9 +120,6 @@ pub enum TreeShakingMode {
     ReexportsOnly,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
-
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
@@ -142,11 +139,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]

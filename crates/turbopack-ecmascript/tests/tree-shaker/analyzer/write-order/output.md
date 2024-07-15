@@ -171,7 +171,6 @@ graph TD
     Item10 --> Item2;
     Item11 --> Item6;
     Item2 --> Item7;
-    Item2 --> Item1;
     Item2 -.-> Item9;
 ```
 # Phase 4
@@ -208,7 +207,6 @@ graph TD
     Item10 --> Item2;
     Item11 --> Item6;
     Item2 --> Item7;
-    Item2 --> Item1;
     Item2 -.-> Item9;
     Item8 --> Item3;
     Item8 --> Item4;
@@ -235,7 +233,6 @@ graph TD
     N1 --> N9;
     N1 --> N4;
     N2 --> N9;
-    N2 --> N4;
     N2 --> N1;
     N3 --> N8;
     N5 --> N4;
@@ -301,9 +298,6 @@ export { order };
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
-};
-import { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
@@ -470,9 +464,6 @@ export { order };
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
-};
-import { order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
 };
 export { func };
 function func() {
