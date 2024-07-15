@@ -1203,6 +1203,3 @@ impl Issue for OutdatedConfigIssue {
         Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
     }
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionTreeShaking(Option<TreeShakingMode>);
