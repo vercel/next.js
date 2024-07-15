@@ -52,7 +52,9 @@ interface WebServerOptions extends Options {
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
+    prerenderManifest:
+      | DeepReadonly<Pick<PrerenderManifest, 'preview'>>
+      | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
