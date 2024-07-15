@@ -259,15 +259,19 @@ export function unstable_cache<T extends Callback>(
         cb,
         ...args
       )
-      cacheNewResult(
-        result,
-        incrementalCache,
-        cacheKey,
-        tags,
-        options.revalidate,
-        fetchIdx,
-        fetchUrl
-      )
+
+      if (!store.isDraftMode) {
+        cacheNewResult(
+          result,
+          incrementalCache,
+          cacheKey,
+          tags,
+          options.revalidate,
+          fetchIdx,
+          fetchUrl
+        )
+      }
+
       return result
     } else {
       noStoreFetchIdx += 1
