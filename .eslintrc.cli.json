@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/eslintrc",
+  "extends": [".eslintrc.json"],
+  "overrides": [
+    {
+      // This override adds type-checked rules.
+      "files": ["**/*.ts", "**/*.tsx"],
+      // Linting with type-checked rules is very slow and needs a lot of memory,
+      // so we exclude non-essential files.
+      "excludedFiles": ["examples/**/*", "test/**/*", "**/*.d.ts"],
+      "parserOptions": {
+        "project": true
+      },
+      "rules": {
+        // TODO: enable in follow-up PR
+        "@typescript-eslint/no-floating-promises": "off"
+      }
+    }
+  ]
+}

@@ -3835,7 +3835,7 @@
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
       "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in edge runtime should generate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should have set-cookie header on enable",
       "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
       "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
@@ -3844,7 +3844,7 @@
       "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
       "app dir - draft mode in nodejs runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in nodejs runtime should genenerate rand when draft mode enabled",
+      "app dir - draft mode in nodejs runtime should generate rand when draft mode enabled",
       "app dir - draft mode in nodejs runtime should have set-cookie header on enable",
       "app dir - draft mode in nodejs runtime should have set-cookie header with redirect location",
       "app dir - draft mode in nodejs runtime should not perform full page navigation on router.refresh()",
@@ -17305,19 +17305,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/with-router/test/index.test.js": {
-    "passed": [
-      "withRouter SSR should show an error when trying to use router methods during SSR"
-    ],
-    "failed": [],
-    "pending": [
-      "withRouter production mode allows observation of navigation events using top level Router",
-      "withRouter production mode allows observation of navigation events using top level Router deprecated behavior",
-      "withRouter production mode allows observation of navigation events using withRouter"
-    ],
     "flakey": [],
     "runtimeError": false
   },

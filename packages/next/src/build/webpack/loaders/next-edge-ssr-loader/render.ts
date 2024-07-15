@@ -20,6 +20,7 @@ import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/int
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
+import { getEdgePreviewProps } from '../../../../server/web/get-edge-preview-props'
 
 export function getRender({
   dev,
@@ -88,7 +89,12 @@ export function getRender({
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest,
+      prerenderManifest: prerenderManifest
+        ? {
+            ...prerenderManifest,
+            preview: getEdgePreviewProps(),
+          }
+        : undefined,
       interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,

@@ -47,6 +47,7 @@ export function createDefaultMetadata(): ResolvedMetadata {
     appleWebApp: null,
     formatDetection: null,
     itunes: null,
+    facebook: null,
     abstract: null,
     appLinks: null,
     archives: null,

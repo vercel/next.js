@@ -357,12 +357,10 @@ async function writeEdgePartialPrerenderManifest(
       dynamicRoutes: {},
       notFoundRoutes: [],
       version: manifest.version,
-      preview: {
-        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
-        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
-        previewModeEncryptionKey:
-          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-      },
+      // Preview props are inlined in the code with dynamic env vars,
+      // During edge runtime build:
+      // - local: env vars will be injected through edge-runtime as runtime env vars
+      // - deployment: env vars will be replaced by edge build pipeline as inline values
     }
   await writeFileUtf8(
     path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
