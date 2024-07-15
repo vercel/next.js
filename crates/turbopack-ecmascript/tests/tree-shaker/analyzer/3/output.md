@@ -563,6 +563,7 @@ export { c2_2 };
 ```
 ## Part 4
 ```js
+function d1() {}
 function d2() {}
 function c1_1() {
     return c1_2();
@@ -573,6 +574,9 @@ function c1_2() {
 function c1_3() {
     return c1_1(d2);
 }
+export { d1 } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { d2 } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -589,6 +593,7 @@ export { c1_3 } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+function d3() {}
 function c2_1() {
     return c2_2(d3);
 }
@@ -598,6 +603,9 @@ function c2_2() {
 function c2_3() {
     return c2_1();
 }
+export { d3 } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { c2_1 } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };

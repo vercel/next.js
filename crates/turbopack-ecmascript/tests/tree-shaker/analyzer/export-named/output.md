@@ -41,6 +41,7 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
+    Item4 --> Item2;
 ```
 # Phase 3
 ```mermaid
@@ -51,6 +52,7 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
+    Item4 --> Item2;
 ```
 # Phase 4
 ```mermaid
@@ -61,8 +63,8 @@ graph TD
     Item3["ModuleEvaluation"];
     Item4;
     Item4["export fakeCat"];
-    Item3 --> Item1;
     Item4 --> Item2;
+    Item3 --> Item1;
 ```
 # Final
 ```mermaid
