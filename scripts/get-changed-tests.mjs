@@ -50,6 +50,11 @@ export default async function getChangedTests() {
   if (process.env.GITHUB_ACTIONS === 'true') {
     // GH Actions run on the merge commit so HEAD~1:
     // 1. includes all changes in the PR
+    //    e.g. in
+    //    A-B-C-main - F
+    //     \          /
+    //      D-E-branch
+    //    GH actions for `branch` runs on F, so a diff for HEAD~1 includes the diff of D and E combined
     // 2. Includes all changes of the commit for pushes
     diffRevision = 'HEAD~1'
   } else {
