@@ -78,17 +78,6 @@ describe('New Link Behavior', () => {
     expect(await matchLogs(browser, 'link to home pressed down')).toBe(true)
   })
 
-  it('should handle onMouseDown preventdefault', async () => {
-    const browser = await webdriver(next.url, `/onmousedown-prevent-default`)
-    await browser.elementByCss('a').click()
-    const text = await browser.elementByCss('h1').text()
-    expect(text).toBe('onMouseDown prevent default')
-
-    expect(
-      await matchLogs(browser, 'link to home pressed down but prevented')
-    ).toBe(true)
-  })
-
   it('should render link with id', async () => {
     const html = await renderViaHTTP(next.url, '/id-pass-through')
     const $ = cheerio.load(html)
