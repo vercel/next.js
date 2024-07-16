@@ -12,8 +12,7 @@ describe('ssg-single-pass', () => {
   }
 
   it('should only render the page once during build', async () => {
-    const logOccurrences = next.cliOutput.split('home page rendered').length - 1
-    expect(logOccurrences).toBe(1)
+    expect(next.cliOutput).toIncludeRepeated('home page rendered', 1)
   })
 
   it('should only render the page once during an ISR revalidation', async () => {
@@ -41,10 +40,10 @@ describe('ssg-single-pass', () => {
       expect(newRandomNumber).toMatch(/\d+/)
       expect(newRandomNumber).not.toBe(initialRandomNumber)
 
-      logOccurrences =
-        next.cliOutput.slice(outputIndex).split('home page rendered').length - 1
-
-      expect(logOccurrences).toBe(1)
+      expect(next.cliOutput.slice(outputIndex)).toIncludeRepeated(
+        'home page rendered',
+        1
+      )
     })
   })
 })

@@ -417,12 +417,12 @@ async function generateDynamicFlightRenderResult(
     preloadCallbacks?: PreloadCallbacks
   }
 ): Promise<RenderResult> {
-  const flightData = await generateDynamicRSCPayload(ctx, options)
+  const rscPayload = await generateDynamicRSCPayload(ctx, options)
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = ctx.componentMod.renderToReadableStream(
-    flightData,
+    rscPayload,
     ctx.clientReferenceManifest.clientModules,
     {
       onError: ctx.flightDataRendererErrorHandler,
