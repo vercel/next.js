@@ -120,7 +120,7 @@ impl LoaderTreeBuilder {
             self.imports.push(
                 formatdoc!(
                     r#"
-                    import {} from "COMPONENT_{}";
+                    import * as {} from "COMPONENT_{}";
                     "#,
                     identifier,
                     i

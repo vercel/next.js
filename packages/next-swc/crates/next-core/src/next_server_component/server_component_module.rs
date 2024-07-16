@@ -95,17 +95,14 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        let exports = BTreeMap::from([(
-            "default".into(),
-            EsmExport::ImportedNamespace(Vc::upcast(NextServerComponentModuleReference::new(
-                Vc::upcast(self.module),
-            ))),
-        )]);
+        let module_reference = Vc::upcast(NextServerComponentModuleReference::new(Vc::upcast(
+            self.module,
+        )));
 
         EcmascriptExports::EsmExports(
             EsmExports {
-                exports,
-                star_exports: Default::default(),
+                exports: Default::default(),
+                star_exports: vec![module_reference],
             }
             .cell(),
         )
@@ -139,9 +136,7 @@ impl EcmascriptChunkItem for BuildServerComponentChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"
-                    __turbopack_esm__({{
-                        default: () => __turbopack_import__({}),
-                    }});
+                    __turbopack_export_namespace__(__turbopack_import__({}));
                 "#,
                 StringifyJs(&module_id),
             )
