@@ -1121,7 +1121,7 @@ export default class NextNodeServer extends BaseServer<
       const loggingFetchesConfig =
         typeof this.nextConfig.logging === 'object'
           ? this.nextConfig.logging?.fetches
-          : undefined
+          : { fullUrl: undefined }
 
       const enabledVerboseLogging =
         this.nextConfig.logging === true || !!loggingFetchesConfig
