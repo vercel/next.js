@@ -23,9 +23,9 @@ function isRootRSCPayload(payload: RSCPayload): payload is InitialRSCPayload {
 function isNavigationRSCPayload(
   payload: RSCPayload
 ): payload is NavigationFlightResponse {
-  // Navigation responses (for non-static pages) use FlightRouterState to diff the tree on the server
+  // Regular RSC responses (for non-static pages) use FlightRouterState to diff the tree on the server
   // to preserve common layout(s) and only start rendering from the new segment. They are represented as
-  // a tuple of [BuildId, FlightData]
+  // a tuple of [BuildId, FlightData]. Used by the client router for navigations or refreshes.
   return Array.isArray(payload) && typeof payload[0] === 'string'
 }
 

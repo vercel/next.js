@@ -387,20 +387,28 @@ async function generateDynamicRSCPayload(
   }
 
   // If we have an action result, then this is a server action response.
+  // We can rely on this because `ActionResult` will always be a promise, even if
+  // the result is falsey.
   if (options?.actionResult) {
     return [
       options.actionResult,
+      // We don't check the validity of flightData here, since it's possible for server actions to
+      // return `null` for flightData (for example, if the action didn't trigger a revalidation).
+      // `null` flightData tells the client router to skip applying the server response to the tree.
       [ctx.renderOpts.buildId, flightData],
     ] satisfies ActionFlightResponse
-  } else {
-    // Otherwise, it's a regular RSC response.
-    return [
-      ctx.renderOpts.buildId,
-      // We know that `flightData` is not null here, because if `skipFlight` is false,
-      // `walkTreeWithFlightRouterState` will always return a non-null value.
-      flightData!,
-    ] satisfies NavigationFlightResponse
   }
+
+  // Otherwise, it's a regular RSC response.
+  return [
+    ctx.renderOpts.buildId,
+    // Anything besides an action response should have non-null flightData.
+    // We don't ever expect this to be null because `skipFlight` is only
+    // used when invoked by a server action, which is covered above.
+    // The client router can handle an empty string (treating it as an MPA navigation),
+    // so we'll use that as a fallback.
+    flightData ?? '',
+  ] satisfies NavigationFlightResponse
 }
 
 /**
