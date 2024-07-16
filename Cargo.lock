@@ -3079,6 +3079,7 @@ dependencies = [
  "next-core",
  "next-custom-transforms",
  "once_cell",
+ "owo-colors 3.5.0",
  "rand",
  "serde",
  "serde_json",
