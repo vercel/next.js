@@ -15889,8 +15889,8 @@
       "runtimeError": false
     },
     "test/production/jest/index.test.ts": {
-      "passed": [],
-      "failed": ["next/jest should work"],
+      "passed": ["next/jest should work"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": true
