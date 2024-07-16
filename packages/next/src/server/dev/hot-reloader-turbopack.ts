@@ -251,16 +251,15 @@ export async function createHotReloaderTurbopack(
       return () => {}
     }
     if (buildingIds.size === 0) {
-      if (opts.nextConfig.logging !== false) {
-        consoleStore.setState(
-          {
-            loading: true,
-            trigger: id,
-            url: requestUrl,
-          } as OutputState,
-          true
-        )
-      }
+      consoleStore.setState(
+        {
+          loading: true,
+          trigger: id,
+          url: requestUrl,
+          logging: nextConfig.logging,
+        } as OutputState,
+        true
+      )
     }
     buildingIds.add(id)
     return function finishBuilding() {
@@ -271,14 +270,13 @@ export async function createHotReloaderTurbopack(
       buildingIds.delete(id)
       if (buildingIds.size === 0) {
         hmrEventHappened = false
-        if (opts.nextConfig.logging !== false) {
-          consoleStore.setState(
-            {
-              loading: false,
-            } as OutputState,
-            true
-          )
-        }
+        consoleStore.setState(
+          {
+            loading: false,
+            logging: nextConfig.logging,
+          } as OutputState,
+          true
+        )
       }
     }
   }
