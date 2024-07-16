@@ -409,7 +409,7 @@ ${ENDGROUP}`)
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
-      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-dfd30974ab-20240613'
+      process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc-01172397-20240716'
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
