@@ -79,7 +79,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: Vc<FileSystemPath>,
