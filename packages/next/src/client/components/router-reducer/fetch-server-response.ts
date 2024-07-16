@@ -14,7 +14,7 @@ const { createFromFetch } = (
 import type {
   FlightRouterState,
   FlightData,
-  RSCPayload,
+  NavigationFlightResponse,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -29,10 +29,6 @@ import {
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
-import {
-  getBuildIdFromRSCPayload,
-  getFlightDataFromRSCPayload,
-} from '../../../shared/lib/rsc-payload'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -187,24 +183,18 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const response: RSCPayload = await createFromFetch(Promise.resolve(res), {
-      callServer,
-    })
+    const response: NavigationFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
 
-    const buildIdFromResponse = getBuildIdFromRSCPayload(response)
-    const flightData = getFlightDataFromRSCPayload(response)
-
-    if (buildId !== buildIdFromResponse) {
+    if (buildId !== response.b) {
       return doMpaNavigation(res.url)
     }
 
-    if (!flightData) {
-      throw new Error(
-        'Invariant: Expected flight data to be present in RSC payload. This is a bug in Next.js.'
-      )
-    }
-
-    return [flightData, canonicalUrl, postponed, interception]
+    return [response.f, canonicalUrl, postponed, interception]
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
