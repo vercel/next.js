@@ -226,8 +226,6 @@ function linkClicked(
     return
   }
 
-  e.preventDefault()
-
   const navigate = () => {
     // If the router is an NextRouter instance it will have `beforePopState`
     const routerScroll = scroll ?? true
@@ -286,7 +284,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       shallow,
       scroll,
       locale,
-      onClick,
+      onClick: onClickProp,
       onMouseDown: onMouseDownProp,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
@@ -499,7 +497,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     let child: any
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
-        if (onClick) {
+        if (onClickProp) {
           console.warn(
             `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
           )
@@ -627,8 +625,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         }
 
-        if (!legacyBehavior && typeof onClick === 'function') {
-          onClick(e)
+        if (!legacyBehavior && typeof onClickProp === 'function') {
+          onClickProp(e)
         }
 
         if (
@@ -638,26 +636,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         ) {
           child.props.onClick(e)
         }
-
-        if (!router) {
-          return
-        }
-
-        if (e.defaultPrevented) {
-          return
-        }
-
-        linkClicked(
-          e,
-          router,
-          href,
-          as,
-          replace,
-          shallow,
-          scroll,
-          locale,
-          isAppRouter
-        )
       },
       onMouseDown(e) {
         if (process.env.NODE_ENV !== 'production') {
@@ -680,11 +658,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           child.props.onMouseDown(e)
         }
 
-        if (!router) {
+        // if there's onClickProp set, let it handle the event.
+        if (typeof onClickProp === 'function') {
           return
         }
 
-        if (e.defaultPrevented) {
+        if (!router) {
           return
         }
 
