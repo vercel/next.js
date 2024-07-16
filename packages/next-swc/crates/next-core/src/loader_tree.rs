@@ -472,9 +472,8 @@ fn process_module(
     let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
         EcmaScriptModulesReferenceSubType::Undefined,
     ));
-    let module = server_component_transition
-        .process(source, context, reference_ty)
-        .module();
 
-    module
+    server_component_transition
+        .process(source, context, reference_ty)
+        .module()
 }
