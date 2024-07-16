@@ -38,7 +38,7 @@ use std::{
     io::prelude::*,
     panic::set_hook,
     sync::{Arc, Mutex, Once},
-    time::SystemTime,
+    time::Instant,
 };
 
 use backtrace::Backtrace;
@@ -76,8 +76,7 @@ shadow_rs::shadow!(build);
 static ALLOC: turbopack_binding::turbo::malloc::TurboMalloc =
     turbopack_binding::turbo::malloc::TurboMalloc;
 
-static LOG_FILE_MUTEX: Mutex<()> = Mutex::new(());
-static LOG_THROTTLE: Mutex<SystemTime> = Mutex::new(SystemTime::UNIX_EPOCH);
+static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_FILE_PATH: &str = ".next/turbopack.log";
 
 #[cfg(feature = "__internal_dhat-heap")]
@@ -92,18 +91,19 @@ fn init() {
 
     set_hook(Box::new(|panic_info| {
         let mut last_error_time = LOG_THROTTLE.lock().unwrap();
-        if last_error_time.elapsed().unwrap().as_secs() < 1 {
-            // Throttle panic logging to once per second
-            return;
+        if let Some(last_error_time) = last_error_time.as_ref() {
+            if last_error_time.elapsed().as_secs() < 1 {
+                // Throttle panic logging to once per second
+                return;
+            }
         }
-        *last_error_time = SystemTime::now();
+        *last_error_time = Some(Instant::now());
 
         let backtrace = Backtrace::new();
         let info = format!("Panic: {}\nBacktrace: {:?}", panic_info, backtrace);
-        if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
+        if cfg!(debug_assertions) || env::var("SWC_DEBUG") == Ok("1".to_string()) {
             eprintln!("{}", info);
         } else {
-            let _log_guard = LOG_FILE_MUTEX.lock().unwrap();
             let size = std::fs::metadata(LOG_FILE_PATH).map(|m| m.len());
             if let Ok(size) = size {
                 if size > 512 * 1024 {
