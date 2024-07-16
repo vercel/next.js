@@ -90,6 +90,7 @@ fn init() {
     use std::{fs::OpenOptions, io};
 
     set_hook(Box::new(|panic_info| {
+        // hold open this mutex guard to prevent concurrent writes to the file!
         let mut last_error_time = LOG_THROTTLE.lock().unwrap();
         if let Some(last_error_time) = last_error_time.as_ref() {
             if last_error_time.elapsed().as_secs() < 1 {
