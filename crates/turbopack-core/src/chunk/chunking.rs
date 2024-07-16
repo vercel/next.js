@@ -141,8 +141,7 @@ async fn handle_split_group(
     })
 }
 
-/// Creates a chunk with the given `chunk_items. `key` should be unique and is
-/// used with [keyed_cell] to place the chunk items into a cell.
+/// Creates a chunk with the given `chunk_items. `key` should be unique.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
     chunk_items: Vec<ChunkItemWithInfo>,
