@@ -48,7 +48,6 @@ mod id;
 mod id_factory;
 mod invalidation;
 mod join_iter_ext;
-mod keyed_cell;
 #[doc(hidden)]
 pub mod macro_helpers;
 mod magic_any;
@@ -85,7 +84,6 @@ pub use invalidation::{
     DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
-pub use keyed_cell::{global_keyed_cell, keyed_cell};
 pub use manager::{
     dynamic_call, emit, get_invalidator, mark_finished, mark_stateful, prevent_gc, run_once,
     run_once_with_reason, spawn_blocking, spawn_thread, trait_call, turbo_tasks, CurrentCellRef,
