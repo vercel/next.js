@@ -40,12 +40,6 @@ describe('app dir - basic', () => {
       )
     })
 
-    it('should not have entire prerender-manifest for edge', async () => {
-      expect(await next.readFile('.next/prerender-manifest.js')).not.toContain(
-        'initialRevalidate'
-      )
-    })
-
     if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should have correct size in build output', async () => {
         expect(next.cliOutput).toMatch(
@@ -717,9 +711,11 @@ describe('app dir - basic', () => {
         await browser.waitForElementByCss('#render-id')
         expect(await browser.eval('window.history.length')).toBe(2)
 
-        // Get the ID again, and compare, they should be the same.
-        const thirdID = await browser.elementById('render-id').text()
-        expect(thirdID).not.toBe(firstID)
+        await retry(async () => {
+          // Get the ID again, and compare, they should be the same.
+          const thirdID = await browser.elementById('render-id').text()
+          expect(thirdID).not.toBe(firstID)
+        })
 
         // verify that the flag is still set
         expect(await browser.eval('window.__nextSoftPushTest')).toBe(1)

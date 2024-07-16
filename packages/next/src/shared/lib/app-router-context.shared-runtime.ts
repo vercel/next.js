@@ -52,8 +52,6 @@ export type LazyCacheNode = {
 
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
   loading: LoadingModuleData
 
@@ -96,8 +94,6 @@ export type ReadyCacheNode = {
   lazyData: null
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
   loading: LoadingModuleData
 
@@ -129,7 +125,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  fastRefresh(): void
+  hmrRefresh(): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.

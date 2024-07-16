@@ -19,10 +19,7 @@ where
 
 /// Log the url to view the trace in the browser.
 fn log_web_url(jaeger_web_ui_url: &str, trace_id: &str) {
-    println!(
-        "Jaeger trace will be available on {}/trace/{}",
-        jaeger_web_ui_url, trace_id
-    )
+    println!("Jaeger trace will be available on {jaeger_web_ui_url}/trace/{trace_id}")
 }
 
 /// Send trace JSON to Jaeger using ZipKin API.
@@ -45,7 +42,7 @@ fn send_json_to_zipkin(zipkin_api: &str, value: String) {
 fn pad_zeros(num: u64) -> String {
     let mut num_str = num.to_string();
     while num_str.len() < 16 {
-        num_str = format!("0{}", num_str);
+        num_str = format!("0{num_str}");
     }
     num_str
 }
@@ -54,9 +51,9 @@ fn main() {
     let service_name = "nextjs";
     let ipv4 = "127.0.0.1";
     let port = 9411;
-    let zipkin_url = format!("http://{}:{}", ipv4, port);
-    let jaeger_web_ui_url = format!("http://{}:16686", ipv4);
-    let zipkin_api = format!("{}/api/v2/spans", zipkin_url);
+    let zipkin_url = format!("http://{ipv4}:{port}");
+    let jaeger_web_ui_url = format!("http://{ipv4}:16686");
+    let zipkin_api = format!("{zipkin_url}/api/v2/spans");
     let mut logged_url = false;
 
     let mut local_endpoint = Map::new();
@@ -100,7 +97,7 @@ fn main() {
                     })
                     .collect::<Value>(),
                 Err(e) => {
-                    println!("{}", e);
+                    println!("{e}");
                     continue;
                 }
             };

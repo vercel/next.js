@@ -92,6 +92,11 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * The page that's being rendered.
    */
   page: string
+
+  /**
+   * The error handler for the request.
+   */
+  onError?: Parameters<typeof apiResolver>[8]
 }
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
@@ -146,7 +151,8 @@ export class PagesAPIRouteModule extends RouteModule<
       },
       context.minimalMode,
       context.dev,
-      context.page
+      context.page,
+      context.onError
     )
   }
 }

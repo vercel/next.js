@@ -804,7 +804,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.warn(
+      console.log(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)

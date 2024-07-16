@@ -11,6 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
+import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -82,6 +83,8 @@ import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
 import { ModuleBuildError } from '../../dev/turbopack-utils'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import { createEnvDefinitions } from '../experimental/create-env-definitions'
+import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -96,6 +99,7 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
+  onCleanup: (listener: () => Promise<void>) => void
 }
 
 export type ServerFields = {
@@ -113,6 +117,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
+  setAppIsrStatus?: (key: string, value: false | number | null) => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -148,6 +153,14 @@ async function startWatcher(opts: SetupOpts) {
   const usingTypeScript = await verifyTypeScript(opts)
 
   const distDir = path.join(opts.dir, opts.nextConfig.distDir)
+
+  // we ensure the types directory exists here
+  if (usingTypeScript) {
+    const distTypesDir = path.join(distDir, 'types')
+    if (!fs.existsSync(distTypesDir)) {
+      await mkdir(distTypesDir, { recursive: true })
+    }
+  }
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -545,10 +558,24 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          // only log changes in router server
-          loadEnvConfig(dir, true, Log, true, (envFilePath) => {
-            Log.info(`Reload env: ${envFilePath}`)
-          })
+          const { parsedEnv } = loadEnvConfig(
+            dir,
+            true,
+            Log,
+            true,
+            (envFilePath) => {
+              Log.info(`Reload env: ${envFilePath}`)
+            }
+          )
+
+          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
+            // do not await, this is not essential for further process
+            createEnvDefinitions({
+              distDir,
+              env: { ...parsedEnv, ...nextConfig.env },
+            })
+          }
+
           await propagateServerField(opts, 'loadEnvConfig', [
             { dev: true, forceReload: true, silent: true },
           ])
@@ -600,16 +627,16 @@ async function startWatcher(opts: SetupOpts) {
             config.resolve?.plugins?.forEach((plugin: any) => {
               // look for the JsConfigPathsPlugin and update with
               // the latest paths/baseUrl config
-              if (plugin && plugin.jsConfigPlugin && tsconfigResult) {
+              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
                 const { resolvedBaseUrl, jsConfig } = tsconfigResult
                 const currentResolvedBaseUrl = plugin.resolvedBaseUrl
                 const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl
+                  (item) => item === currentResolvedBaseUrl?.baseUrl
                 )
 
                 if (resolvedBaseUrl) {
                   if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
                   ) {
                     // remove old baseUrl and add new one
                     if (resolvedUrlIndex && resolvedUrlIndex > -1) {

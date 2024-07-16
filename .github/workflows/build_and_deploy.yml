@@ -443,7 +443,7 @@ jobs:
           name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
 
-  deployTarball:
+  deploy-tarball:
     if: ${{ needs.deploy-target.outputs.value != 'production' }}
     name: Deploy preview tarball
     runs-on: ubuntu-latest
