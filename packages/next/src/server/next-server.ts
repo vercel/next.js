@@ -1137,6 +1137,9 @@ export default class NextNodeServer extends BaseServer<
         const isMiddlewareRequest = getRequestMeta(req, 'middlewareInvoke')
 
         const reqCallback = () => {
+          const fetchMetrics = normalizedReq.fetchMetrics || []
+          delete normalizedReq.fetchMetrics
+
           if (this.nextConfig.logging === false) return
 
           // we don't log for non-route requests
@@ -1149,7 +1152,6 @@ export default class NextNodeServer extends BaseServer<
           const isRSC = getRequestMeta(normalizedReq, 'isRSCRequest')
 
           const reqEnd = Date.now()
-          const fetchMetrics = normalizedReq.fetchMetrics || []
           const reqDuration = reqEnd - reqStart
 
           const statusColor = (status?: number) => {
@@ -1259,7 +1261,6 @@ export default class NextNodeServer extends BaseServer<
               }
             }
           }
-          delete normalizedReq.fetchMetrics
           originalResponse.off('close', reqCallback)
         }
         originalResponse.on('close', reqCallback)
