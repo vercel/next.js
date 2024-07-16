@@ -25,6 +25,6 @@
     "fontkit": "2.0.2"
   },
   "peerDependencies": {
-    "next": "14.3.0-canary.15"
+    "next": ">= 15.0.0-0"
   }
 }
