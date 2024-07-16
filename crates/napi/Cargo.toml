@@ -49,6 +49,7 @@ workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
+async-recursion = { workspace = true }
 backtrace = "0.3"
 fxhash = "0.2.1"
 dhat = { workspace = true, optional = true }

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::MAIN_SEPARATOR, sync::Arc};
 
 use anyhow::{anyhow, Result};
+use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use napi::{
     bindgen_prelude::External,
@@ -35,7 +36,7 @@ async fn project_fs(project_dir: RcStr, watching: bool) -> Result<Vc<Box<dyn Fil
 #[serde(rename_all = "camelCase")]
 struct LoaderTreeForJs {
     segment: RcStr,
-    parallel_routes: IndexMap<RcStr, ReadRef<LoaderTreeForJs>>,
+    parallel_routes: IndexMap<RcStr, LoaderTreeForJs>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
     #[turbo_tasks(trace_ignore)]
@@ -250,20 +251,32 @@ async fn prepare_loader_tree_for_js(
     project_path: Vc<FileSystemPath>,
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<LoaderTreeForJs>> {
+    Ok(
+        prepare_loader_tree_for_js_internal(project_path, &*loader_tree.await?)
+            .await?
+            .cell(),
+    )
+}
+
+#[async_recursion]
+async fn prepare_loader_tree_for_js_internal(
+    project_path: Vc<FileSystemPath>,
+    loader_tree: &LoaderTree,
+) -> Result<LoaderTreeForJs> {
     let LoaderTree {
         page: _,
         segment,
         parallel_routes,
         components,
         global_metadata,
-    } = &*loader_tree.await?;
+    } = loader_tree;
 
     let parallel_routes = parallel_routes
         .iter()
-        .map(|(key, &value)| async move {
+        .map(|(key, value)| async move {
             Ok((
                 key.clone(),
-                prepare_loader_tree_for_js(project_path, value).await?,
+                prepare_loader_tree_for_js_internal(project_path, value).await?,
             ))
         })
         .try_join()
@@ -285,8 +298,7 @@ async fn prepare_loader_tree_for_js(
         parallel_routes,
         components,
         global_metadata: meta,
-    }
-    .cell())
+    })
 }
 
 #[turbo_tasks::function]
