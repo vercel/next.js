@@ -1781,15 +1781,14 @@
     },
     "test/e2e/app-dir/global-error/basic/index.test.ts": {
       "passed": [
-        "app dir - global error should catch metadata error in error boundary if presented"
-      ],
-      "failed": [
+        "app dir - global error should catch metadata error in error boundary if presented",
         "app dir - global error should catch metadata error in global-error if no error boundary is presented",
         "app dir - global error should catch the client error thrown in the nested routes",
         "app dir - global error should render global error for error in client components",
         "app dir - global error should render global error for error in server components",
         "app dir - global error should trigger error component when an error happens during rendering"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -1797,20 +1796,19 @@
     "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
       "passed": [
         "app dir - global error - with catch-all route should render 404 page correctly",
-        "app dir - global error - with catch-all route should render catch-all route correctly"
-      ],
-      "failed": [
+        "app dir - global error - with catch-all route should render catch-all route correctly",
         "app dir - global error - with catch-all route should render global error correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/global-error/layout-error/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - global error - layout error should render global error for error in server components"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
