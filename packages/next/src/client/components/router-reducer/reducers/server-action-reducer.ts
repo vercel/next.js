@@ -120,7 +120,6 @@ async function fetchServerAction(
     })
 
     const actionFlightData = getFlightDataFromRSCPayload(response)
-    const actionResult = getActionResultFromRSCPayload(response)
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
@@ -130,6 +129,8 @@ async function fetchServerAction(
         revalidatedParts,
       }
     }
+
+    const actionResult = getActionResultFromRSCPayload(response)
 
     return {
       actionResult: actionResult ?? undefined,

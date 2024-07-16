@@ -48,8 +48,9 @@ export function getFlightDataFromRSCPayload(
     return payload[1]
   }
 
-  // TODO: A null FlightData is valid, but should we throw here?
-  return null
+  throw new Error(
+    'Invariant: Received an unexpected RSC payload. This is a bug in Next.js.'
+  )
 }
 
 /**
@@ -86,7 +87,9 @@ export function getActionResultFromRSCPayload(
     return payload[0]
   }
 
-  return null
+  throw new Error(
+    'Invariant: Received an unexpected RSC payload. This is a bug in Next.js.'
+  )
 }
 
 export function getInitialRSCPayload(payload: RSCPayload): InitialRSCPayload {

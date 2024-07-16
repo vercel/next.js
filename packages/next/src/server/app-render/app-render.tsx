@@ -443,7 +443,6 @@ async function generateDynamicFlightRenderResult(
 
 type RenderToStreamResult = {
   stream: RenderResultResponse
-  flightRenderResult: FlightRenderResult | undefined
   err?: unknown
 }
 
@@ -1133,6 +1132,10 @@ async function renderToHTMLOrFlightImpl(
            *                      all server inserted HTML and flight data
            */
 
+          // We need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
+
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
             if (result.postponed != null) {
@@ -1154,7 +1157,6 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicPrerender(result.stream, {
                 getServerInsertedHTML,
               }),
-              flightRenderResult,
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
@@ -1185,7 +1187,6 @@ async function renderToHTMLOrFlightImpl(
                 stream: await continueDynamicPrerender(result.stream, {
                   getServerInsertedHTML,
                 }),
-                flightRenderResult,
               }
             } else {
               // This is the Static case
@@ -1251,7 +1252,6 @@ async function renderToHTMLOrFlightImpl(
                   ),
                   getServerInsertedHTML,
                 }),
-                flightRenderResult,
               }
             }
           }
@@ -1269,7 +1269,6 @@ async function renderToHTMLOrFlightImpl(
                 inlinedDataStream,
                 getServerInsertedHTML,
               }),
-              flightRenderResult,
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
@@ -1277,13 +1276,17 @@ async function renderToHTMLOrFlightImpl(
               stream: await continueDynamicDataResume(result.stream, {
                 inlinedDataStream,
               }),
-              flightRenderResult,
             }
           }
         } else {
           // This may be a static render or a dynamic render
           // @TODO factor this further to make the render types more clearly defined and remove
           // the deluge of optional params that passed to configure the various behaviors
+
+          // Since this is a potentially static branch, we need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
+
           return {
             stream: await continueFizzStream(result.stream, {
               inlinedDataStream: createInlinedDataReadableStream(
@@ -1296,7 +1299,6 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
-            flightRenderResult,
           }
         }
       } catch (err) {
@@ -1405,6 +1407,10 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
+          // Since this is a potentially static branch, we need to provide flightData to the page metadata so it can be written to disk
+          metadata.flightData =
+            await flightRenderResult?.toUnchunkedBuffer(true)
+
           return {
             // Returning the error that was thrown so it can be used to handle
             // the response in the caller.
@@ -1429,7 +1435,6 @@ async function renderToHTMLOrFlightImpl(
               serverInsertedHTMLToHead: true,
               validateRootLayout,
             }),
-            flightRenderResult,
           }
         } catch (finalErr: any) {
           if (
@@ -1540,12 +1545,6 @@ async function renderToHTMLOrFlightImpl(
   // prerendering phase and the build.
   if (buildFailingError) {
     throw buildFailingError
-  }
-
-  // If the response included a FlightRenderResult, store it on the page metadata.
-  if (response.flightRenderResult) {
-    metadata.flightData =
-      await response.flightRenderResult.toUnchunkedBuffer(true)
   }
 
   // If force static is specifically set to false, we should not revalidate
