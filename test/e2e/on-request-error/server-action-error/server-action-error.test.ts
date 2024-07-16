@@ -33,11 +33,13 @@ describe('on-request-error - server-action-error', () => {
   }) {
     // Assert the instrumentation is called
     await retry(async () => {
-      const recordLogs = next.cliOutput
+      const recordLogLines = next.cliOutput
         .split('\n')
         .filter((log) => log.includes('[instrumentation] write-log'))
-      const expectedLog = recordLogs.find((log) => log.includes(errorMessage))
-      expect(expectedLog).toBeDefined()
+
+      expect(recordLogLines).toEqual(
+        expect.arrayContaining([expect.stringContaining(errorMessage)])
+      )
     }, 5000)
 
     const json = await getOutputLogJson()
