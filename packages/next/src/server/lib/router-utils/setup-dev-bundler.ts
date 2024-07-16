@@ -917,27 +917,6 @@ async function startWatcher(opts: SetupOpts) {
     return { finished: false }
   }
 
-  function logError(
-    err: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ) {
-    if (err instanceof ModuleBuildError) {
-      // Errors that may come from issues from the user's code
-      Log.error(err.message)
-    } else if (err instanceof TurbopackInternalError) {
-      // An internal Turbopack error that has been handled by next-swc, written
-      // to disk and a simplified message shown to user on the Rust side.
-    } else if (type === 'warning') {
-      Log.warn(err)
-    } else if (type === 'app-dir') {
-      logAppDirError(err)
-    } else if (type) {
-      Log.error(`${type}:`, err)
-    } else {
-      Log.error(err)
-    }
-  }
-
   async function logErrorWithOriginalStack(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
@@ -1074,6 +1053,27 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
+  }
+}
+
+function logError(
+  err: unknown,
+  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+) {
+  if (err instanceof ModuleBuildError) {
+    // Errors that may come from issues from the user's code
+    Log.error(err.message)
+  } else if (err instanceof TurbopackInternalError) {
+    // An internal Turbopack error that has been handled by next-swc, written
+    // to disk and a simplified message shown to user on the Rust side.
+  } else if (type === 'warning') {
+    Log.warn(err)
+  } else if (type === 'app-dir') {
+    logAppDirError(err)
+  } else if (type) {
+    Log.error(`${type}:`, err)
+  } else {
+    Log.error(err)
   }
 }
 
