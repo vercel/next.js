@@ -1143,8 +1143,6 @@ export default class NextNodeServer extends BaseServer<
           const fetchMetrics = normalizedReq.fetchMetrics || []
           delete normalizedReq.fetchMetrics
 
-          if (this.nextConfig.logging === false) return
-
           // we don't log for non-route requests
           const routeMatch = getRequestMeta(req).match
 
