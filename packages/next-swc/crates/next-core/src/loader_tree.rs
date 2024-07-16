@@ -421,7 +421,7 @@ impl LoaderTreeBuilder {
     }
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
-        let components = loader_tree.clone().await?.components.await?;
+        let components = loader_tree.await?.components.await?;
         if let Some(global_error) = components.global_error {
             let module = process_module(
                 &self.context,
