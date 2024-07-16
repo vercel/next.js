@@ -12,6 +12,6 @@ describe('instrumentation-hook - register-once', () => {
 
   it('should only register once', async () => {
     await next.fetch('/foo')
-    expect(next.cliOutput.split('register-log').length).toBe(2)
+    expect(next.cliOutput).toIncludeRepeated('register-log', 1)
   })
 })

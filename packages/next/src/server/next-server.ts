@@ -306,15 +306,11 @@ export default class NextNodeServer extends BaseServer<
     // development.
   }
 
-  private isProductionInstrumentationEnabled = () => {
-    return (
+  protected async loadInstrumentationModule() {
+    if (
       !this.serverOptions.dev &&
       !!this.nextConfig.experimental.instrumentationHook
-    )
-  }
-
-  protected async loadInstrumentationModule() {
-    if (this.isProductionInstrumentationEnabled()) {
+    ) {
       try {
         this.instrumentation = await dynamicRequire(
           resolve(
@@ -336,10 +332,11 @@ export default class NextNodeServer extends BaseServer<
 
   protected async prepareImpl() {
     await super.prepareImpl()
+    await this.runInstrumentationHookIfAvailable()
+  }
 
-    if (this.isProductionInstrumentationEnabled()) {
-      await this.instrumentation?.register?.()
-    }
+  protected async runInstrumentationHookIfAvailable() {
+    await this.instrumentation?.register?.()
   }
 
   protected loadEnvConfig({
