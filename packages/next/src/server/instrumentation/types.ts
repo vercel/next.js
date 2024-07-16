@@ -1,4 +1,4 @@
-type RequestErrorContext = {
+export type RequestErrorContext = {
   routerKind: 'Pages Router' | 'App Router'
   routePath: string // the route file path, e.g. /app/blog/[dynamic]
   routeType: 'render' | 'route' | 'action' | 'middleware'

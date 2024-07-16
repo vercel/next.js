@@ -122,6 +122,8 @@ import { parseParameter } from '../../shared/lib/router/utils/route-regex'
 import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
+import type { RequestErrorContext } from '../instrumentation/types'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -780,12 +782,16 @@ async function renderToHTMLOrFlightImpl(
   // intentionally silence the error logger in this case to avoid double
   // logging.
   const silenceStaticGenerationErrors = isRoutePPREnabled && isStaticGeneration
+  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
 
-  const errorContext = {
+  const errorContext: Pick<
+    RequestErrorContext,
+    'routerKind' | 'routePath' | 'routeType'
+  > = {
     routerKind: 'App Router',
     routePath: pagePath,
-    routeType: 'render',
-  } as const
+    routeType: isActionRequest ? 'action' : 'render',
+  }
 
   // Including RSC rendering and flight data rendering
   function getRSCError(err: DigestedError) {
