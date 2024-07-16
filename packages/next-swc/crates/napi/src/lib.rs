@@ -88,7 +88,7 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 #[napi::module_init]
 
 fn init() {
-    use std::{fs::OpenOptions, io, thread};
+    use std::{fs::OpenOptions, io};
 
     set_hook(Box::new(|panic_info| {
         let mut last_error_time = LOG_THROTTLE.lock().unwrap();
