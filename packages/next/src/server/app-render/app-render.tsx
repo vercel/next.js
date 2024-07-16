@@ -8,8 +8,10 @@ import type {
   CacheNodeSeedData,
   PreloadCallbacks,
   InitialRSCPayload,
-  FlightDataPath,
   RSCPayload,
+  NavigationFlightResponse,
+  ActionFlightResponse,
+  FlightData,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -145,7 +147,7 @@ type AppRenderBaseContext = {
   parsedRequestHeaders: ParsedRequestHeaders
 }
 
-export type GenerateFlight = typeof generateFlightRenderResult
+export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
@@ -319,17 +321,22 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   return null
 }
 
-async function generateFlightData(
+/**
+ * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
+ * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
+ * It uses request headers (namely `Next-Router-State-Tree`) to determine where to start rendering.
+ */
+async function generateDynamicRSCPayload(
   ctx: AppRenderContext,
   options?: {
-    actionResult?: ActionResult
-    skipFlight?: boolean
+    actionResult: ActionResult
+    skipFlight: boolean
     asNotFound?: boolean
   }
-): Promise<ActionResult | FlightDataPath> {
+): Promise<NavigationFlightResponse | ActionFlightResponse> {
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
-  let flightData: FlightDataPath | null = null
+  let flightData: FlightData | null = null
 
   const {
     componentMod: { tree: loaderTree, createDynamicallyTrackedSearchParams },
@@ -379,15 +386,28 @@ async function generateFlightData(
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
 
-  const buildIdFlightDataPair = [ctx.renderOpts.buildId, flightData]
-
-  return options
-    ? [options.actionResult, buildIdFlightDataPair]
-    : buildIdFlightDataPair
+  // If we have an action result, then this is a server action response.
+  if (options?.actionResult) {
+    return [
+      options.actionResult,
+      [ctx.renderOpts.buildId, flightData],
+    ] satisfies ActionFlightResponse
+  } else {
+    // Otherwise, it's a regular RSC response.
+    return [
+      ctx.renderOpts.buildId,
+      // We know that `flightData` is not null here, because if `skipFlight` is false,
+      // `walkTreeWithFlightRouterState` will always return a non-null value.
+      flightData!,
+    ] satisfies NavigationFlightResponse
+  }
 }
 
-// Handle Flight render request. This data is used by the client router to handle navigations or server actions.
-async function generateFlightRenderResult(
+/**
+ * Produces a RenderResult containing the Flight data for the given request. See
+ * `generateDynamicRSCPayload` for information on the contents of the render result.
+ */
+async function generateDynamicFlightRenderResult(
   ctx: AppRenderContext,
   options?: {
     actionResult: ActionResult
@@ -397,7 +417,7 @@ async function generateFlightRenderResult(
     preloadCallbacks?: PreloadCallbacks
   }
 ): Promise<RenderResult> {
-  const flightData = await generateFlightData(ctx, options)
+  const flightData = await generateDynamicRSCPayload(ctx, options)
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
@@ -923,7 +943,7 @@ async function renderToHTMLOrFlightImpl(
   }
 
   if (isRSCRequest && !isStaticGeneration) {
-    return generateFlightRenderResult(ctx)
+    return generateDynamicFlightRenderResult(ctx)
   }
 
   const validateRootLayout = dev
@@ -1424,7 +1444,7 @@ async function renderToHTMLOrFlightImpl(
     res,
     ComponentMod,
     serverModuleMap,
-    generateFlight: generateFlightRenderResult,
+    generateFlight: generateDynamicFlightRenderResult,
     staticGenerationStore,
     requestStore,
     serverActions,
