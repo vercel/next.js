@@ -824,10 +824,6 @@ importers:
         version: 8.56.0
 
   packages/font:
-    dependencies:
-      next:
-        specifier: '>= 15.0.0-0'
-        version: link:../next
     devDependencies:
       '@types/fontkit':
         specifier: 2.0.0
