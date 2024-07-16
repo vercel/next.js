@@ -299,8 +299,9 @@ async function createTreeCodeFromPath(
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
 
           // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-          props[normalizeParallelKey(parallelKey)] =
-            `['${PAGE_SEGMENT_KEY}', {}, {
+          props[
+            normalizeParallelKey(parallelKey)
+          ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [${varName}, ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
@@ -410,8 +411,8 @@ async function createTreeCodeFromPath(
         parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
           ? 'children'
           : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+          ? PAGE_SEGMENT_KEY
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode
@@ -463,8 +464,9 @@ async function createTreeCodeFromPath(
       ]`
     }
 
-    const adjacentParallelSegments =
-      await resolveAdjacentParallelSegments(segmentPath)
+    const adjacentParallelSegments = await resolveAdjacentParallelSegments(
+      segmentPath
+    )
 
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
@@ -634,20 +636,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   // This can be more efficient than checking them with `fs.stat` one by one
   // because all the thousands of files are likely in a few possible directories.
   // Note that it should only be cached for this compilation, not globally.
-  const filesInDir = new Map<string, Set<string>>()
+  const filesInDir = new Map<string, Promise<Set<string>>>()
   const fileExistsInDirectory = async (dirname: string, fileName: string) => {
-    const existingFiles = filesInDir.get(dirname)
-    if (existingFiles) {
-      return existingFiles.has(fileName)
+    if (!filesInDir.has(dirname)) {
+      filesInDir.set(
+        dirname,
+        getFilesInDir(dirname).catch(() => new Set())
+      )
     }
-    try {
-      const files = await getFilesInDir(dirname)
-      const fileNames = new Set<string>(files)
-      filesInDir.set(dirname, fileNames)
-      return fileNames.has(fileName)
-    } catch (err) {
-      return false
-    }
+    return ((await filesInDir.get(dirname)) || new Set()).has(fileName)
   }
 
   const resolver: PathResolver = async (pathname) => {
