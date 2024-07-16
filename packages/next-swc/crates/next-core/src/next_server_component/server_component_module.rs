@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Vc};
@@ -12,10 +10,7 @@ use turbopack_binding::turbopack::{
         module::Module,
         reference::ModuleReferences,
     },
-    ecmascript::{
-        chunk::EcmascriptChunkType,
-        references::esm::{EsmExport, EsmExports},
-    },
+    ecmascript::{chunk::EcmascriptChunkType, references::esm::EsmExports},
     turbopack::ecmascript::{
         chunk::{
             EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
