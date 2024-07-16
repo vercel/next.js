@@ -111,23 +111,6 @@
           );
         }
     }
-    function error$jscomp$0(format) {
-      for (
-        var _len2 = arguments.length,
-          args = Array(1 < _len2 ? _len2 - 1 : 0),
-          _key2 = 1;
-        _key2 < _len2;
-        _key2++
-      )
-        args[_key2 - 1] = arguments[_key2];
-      _len2 = format;
-      _key2 = Error("react-stack-top-frame");
-      ReactSharedInternals.getCurrentStack &&
-        ((_key2 = ReactSharedInternals.getCurrentStack(_key2)),
-        "" !== _key2 && ((_len2 += "%s"), (args = args.concat([_key2]))));
-      args.unshift(_len2);
-      Function.prototype.apply.call(console.error, console, args);
-    }
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -448,12 +431,12 @@
           originalValue === value ||
           originalValue instanceof Date ||
           ("Object" !== objectName(originalValue)
-            ? error$jscomp$0(
+            ? console.error(
                 "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
                 objectName(originalValue),
                 describeObjectForErrorMessage(this, key)
               )
-            : error$jscomp$0(
+            : console.error(
                 "Only plain objects can be passed to Server Functions from the Client. Objects with toJSON methods are not supported. Convert it manually to a simple value before passing it to props.%s",
                 describeObjectForErrorMessage(this, key)
               ));
@@ -636,17 +619,18 @@
           ) {
             if (void 0 === temporaryReferences)
               throw Error(
-                "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
+                "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported." +
+                  describeObjectForErrorMessage(this, key)
               );
             return "$T";
           }
           value.$$typeof === REACT_CONTEXT_TYPE
-            ? error$jscomp$0(
+            ? console.error(
                 "React Context Providers cannot be passed to Server Functions from the Client.%s",
                 describeObjectForErrorMessage(this, key)
               )
             : "Object" !== objectName(value)
-            ? error$jscomp$0(
+            ? console.error(
                 "Only plain objects can be passed to Server Functions from the Client. %s objects are not supported.%s",
                 objectName(value),
                 describeObjectForErrorMessage(this, key)
@@ -655,12 +639,12 @@
             ? Object.getOwnPropertySymbols &&
               ((parentReference = Object.getOwnPropertySymbols(value)),
               0 < parentReference.length &&
-                error$jscomp$0(
+                console.error(
                   "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
                   parentReference[0].description,
                   describeObjectForErrorMessage(this, key)
                 ))
-            : error$jscomp$0(
+            : console.error(
                 "Only plain objects can be passed to Server Functions from the Client. Classes or other objects with methods are not supported.%s",
                 describeObjectForErrorMessage(this, key)
               );
@@ -862,7 +846,7 @@
         reference = knownServerReferences.get(this);
       if (reference) {
         null != arguments[0] &&
-          error$jscomp$0(
+          console.error(
             'Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().'
           );
         var args = ArraySlice.call(arguments, 1),
@@ -917,7 +901,7 @@
       if ("object" === typeof type)
         switch (
           ("number" === typeof type.tag &&
-            error$jscomp$0(
+            console.error(
               "Received an unexpected object in getComponentNameFromType(). This is likely a bug in React. Please file an issue."
             ),
           type.$$typeof)
@@ -1080,8 +1064,8 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
-      } catch (error$1) {
-        (chunk.status = "rejected"), (chunk.reason = error$1);
+      } catch (error) {
+        (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
         initializingHandler = prevHandler;
       }
@@ -1104,8 +1088,8 @@
             : moduleExports[metadata[2]];
         chunk.status = "fulfilled";
         chunk.value = value;
-      } catch (error$2) {
-        (chunk.status = "rejected"), (chunk.reason = error$2);
+      } catch (error) {
+        (chunk.status = "rejected"), (chunk.reason = error);
       }
     }
     function reportGlobalError(response, error) {
@@ -1398,6 +1382,17 @@
             } catch (x) {
               return function () {};
             }
+          case "Y":
+            return (
+              Object.defineProperty(parentObject, key, {
+                get: function () {
+                  throw "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                },
+                enumerable: !0,
+                configurable: !1
+              }),
+              null
+            );
           default:
             return (
               (value = value.slice(1)),
@@ -1419,7 +1414,8 @@
       encodeFormAction,
       nonce,
       temporaryReferences,
-      findSourceMapURL
+      findSourceMapURL,
+      replayConsole
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -1434,6 +1430,7 @@
       this._buffer = [];
       this._tempRefs = temporaryReferences;
       this._debugFindSourceMapURL = findSourceMapURL;
+      this._replayConsole = replayConsole;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -1697,7 +1694,7 @@
       );
       resolveBuffer(response, id, constructor);
     }
-    function processFullRow(response, id, tag, buffer, chunk) {
+    function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {
         case 65:
           resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
@@ -1749,46 +1746,46 @@
         i++
       )
         row += stringDecoder.decode(buffer[i], decoderOptions);
-      row += stringDecoder.decode(chunk);
+      buffer = row += stringDecoder.decode(chunk);
       switch (tag) {
         case 73:
-          resolveModule(response, id, row);
+          resolveModule(response, id, buffer);
           break;
         case 72:
-          id = row[0];
-          row = row.slice(1);
-          response = JSON.parse(row, response._fromJSON);
-          row = ReactDOMSharedInternals.d;
+          id = buffer[0];
+          buffer = buffer.slice(1);
+          response = JSON.parse(buffer, response._fromJSON);
+          buffer = ReactDOMSharedInternals.d;
           switch (id) {
             case "D":
-              row.D(response);
+              buffer.D(response);
               break;
             case "C":
               "string" === typeof response
-                ? row.C(response)
-                : row.C(response[0], response[1]);
+                ? buffer.C(response)
+                : buffer.C(response[0], response[1]);
               break;
             case "L":
               id = response[0];
               tag = response[1];
               3 === response.length
-                ? row.L(id, tag, response[2])
-                : row.L(id, tag);
+                ? buffer.L(id, tag, response[2])
+                : buffer.L(id, tag);
               break;
             case "m":
               "string" === typeof response
-                ? row.m(response)
-                : row.m(response[0], response[1]);
+                ? buffer.m(response)
+                : buffer.m(response[0], response[1]);
               break;
             case "X":
               "string" === typeof response
-                ? row.X(response)
-                : row.X(response[0], response[1]);
+                ? buffer.X(response)
+                : buffer.X(response[0], response[1]);
               break;
             case "S":
               "string" === typeof response
-                ? row.S(response)
-                : row.S(
+                ? buffer.S(response)
+                : buffer.S(
                     response[0],
                     0 === response[1] ? void 0 : response[1],
                     3 === response.length ? response[2] : void 0
@@ -1796,72 +1793,75 @@
               break;
             case "M":
               "string" === typeof response
-                ? row.M(response)
-                : row.M(response[0], response[1]);
+                ? buffer.M(response)
+                : buffer.M(response[0], response[1]);
           }
           break;
         case 69:
-          tag = JSON.parse(row);
-          buffer = tag.digest;
-          row = Error(
+          tag = JSON.parse(buffer);
+          chunk = tag.digest;
+          stringDecoder = tag.env;
+          buffer = Error(
             tag.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          row.stack = tag.stack;
-          row.digest = buffer;
+          buffer.stack = tag.stack;
+          buffer.digest = chunk;
+          buffer.environmentName = stringDecoder;
           tag = response._chunks;
-          (buffer = tag.get(id))
-            ? triggerErrorOnChunk(buffer, row)
-            : tag.set(id, new Chunk("rejected", null, row, response));
+          (chunk = tag.get(id))
+            ? triggerErrorOnChunk(chunk, buffer)
+            : tag.set(id, new Chunk("rejected", null, buffer, response));
           break;
         case 84:
           tag = response._chunks;
-          (buffer = tag.get(id)) && "pending" !== buffer.status
-            ? buffer.reason.enqueueValue(row)
-            : tag.set(id, new Chunk("fulfilled", row, null, response));
+          (chunk = tag.get(id)) && "pending" !== chunk.status
+            ? chunk.reason.enqueueValue(buffer)
+            : tag.set(id, new Chunk("fulfilled", buffer, null, response));
           break;
         case 68:
-          row = JSON.parse(row, response._fromJSON);
+          buffer = JSON.parse(buffer, response._fromJSON);
           response = getChunk(response, id);
-          (response._debugInfo || (response._debugInfo = [])).push(row);
+          (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
         case 87:
-          row = JSON.parse(row, response._fromJSON);
-          response = row[0];
-          id = row[3];
-          tag = row.slice(4);
-          b: {
-            row = 0;
-            switch (response) {
-              case "dir":
-              case "dirxml":
-              case "groupEnd":
-              case "table":
-                console[response].apply(console, tag);
-                break b;
-              case "assert":
-                row = 1;
+          if (response._replayConsole)
+            b: {
+              (buffer = JSON.parse(buffer, response._fromJSON)),
+                (response = buffer[0]),
+                (id = buffer[3]),
+                (tag = buffer.slice(4)),
+                (buffer = 0);
+              switch (response) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  console[response].apply(console, tag);
+                  break b;
+                case "assert":
+                  buffer = 1;
+              }
+              tag = tag.slice(0);
+              "string" === typeof tag[buffer]
+                ? tag.splice(
+                    buffer,
+                    1,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + tag[buffer],
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + id + " ",
+                    ""
+                  )
+                : tag.splice(
+                    buffer,
+                    0,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + id + " ",
+                    ""
+                  );
+              console[response].apply(console, tag);
             }
-            tag = tag.slice(0);
-            "string" === typeof tag[row]
-              ? tag.splice(
-                  row,
-                  1,
-                  "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + tag[row],
-                  "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                  " " + id + " ",
-                  ""
-                )
-              : tag.splice(
-                  row,
-                  0,
-                  "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
-                  "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                  " " + id + " ",
-                  ""
-                );
-            console[response].apply(console, tag);
-          }
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -1878,13 +1878,16 @@
         case 67:
           (response = response._chunks.get(id)) &&
             "fulfilled" === response.status &&
-            response.reason.close("" === row ? '"$undefined"' : row);
+            response.reason.close("" === buffer ? '"$undefined"' : buffer);
           break;
         default:
           (tag = response._chunks),
-            (buffer = tag.get(id))
-              ? resolveModelChunk(buffer, row)
-              : tag.set(id, new Chunk("resolved_model", row, null, response));
+            (chunk = tag.get(id))
+              ? resolveModelChunk(chunk, buffer)
+              : tag.set(
+                  id,
+                  new Chunk("resolved_model", buffer, null, response)
+                );
       }
     }
     function createFromJSONCallback(response) {
@@ -1964,7 +1967,8 @@
         options && options.temporaryReferences
           ? options.temporaryReferences
           : void 0,
-        options && options.findSourceMapURL ? options.findSourceMapURL : void 0
+        options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
+        options ? !0 === options.replayConsoleLogs : !1
       );
     }
     function startReadingFromStream(response, stream) {
@@ -2034,7 +2038,7 @@
             var offset = value.byteOffset + i;
             if (-1 < lastIdx)
               (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-                processFullRow(response, _ref, rowTag, buffer, rowLength),
+                processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
                 (i = lastIdx),
                 3 === rowState && i++,
                 (rowLength = _ref = rowTag = rowState = 0),
@@ -2064,13 +2068,10 @@
       reader.read().then(progress).catch(error);
     }
     var ReactDOM = require("react-dom"),
-      React = require("react"),
       decoderOptions = { stream: !0 },
       chunkCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
-      ReactSharedInternals =
-        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),

@@ -66,6 +66,9 @@ var textEncoder = new TextEncoder();
 function stringToChunk(content) {
   return textEncoder.encode(content);
 }
+function byteLengthOfChunk(chunk) {
+  return chunk.byteLength;
+}
 function closeWithError(destination, error) {
   "function" === typeof destination.error
     ? destination.error(error)
@@ -120,6 +123,10 @@ var PROMISE_PROTOTYPE = Promise.prototype,
         case "Provider":
           throw Error(
             "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
+          );
+        case "then":
+          throw Error(
+            "Cannot await or return from a thenable. You cannot await a client module from a server component."
           );
       }
       throw Error(
@@ -576,7 +583,13 @@ var DefaultAsyncDispatcher = {
       return entry;
     }
   },
-  isArrayImpl = Array.isArray,
+  ReactSharedInternalsServer =
+    React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+if (!ReactSharedInternalsServer)
+  throw Error(
+    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
+  );
+var isArrayImpl = Array.isArray,
   getPrototypeOf = Object.getPrototypeOf;
 function objectName(object) {
   return Object.prototype.toString
@@ -687,12 +700,6 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       "\n  " + str + "\n  " + objectOrArray)
     : "\n  " + str;
 }
-var ReactSharedInternalsServer =
-  React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-if (!ReactSharedInternalsServer)
-  throw Error(
-    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
-  );
 var ObjectPrototype = Object.prototype,
   stringify = JSON.stringify,
   AbortSigil = {};
@@ -761,7 +768,7 @@ function serializeThenable(request, task, thenable) {
       );
     case "rejected":
       return (
-        (task = logRecoverableError(request, thenable.reason)),
+        (task = logRecoverableError(request, thenable.reason, null)),
         emitErrorChunk(request, newTask.id, task),
         newTask.id
       );
@@ -795,7 +802,7 @@ function serializeThenable(request, task, thenable) {
     },
     function (reason) {
       newTask.status = 4;
-      reason = logRecoverableError(request, reason);
+      reason = logRecoverableError(request, reason, newTask);
       emitErrorChunk(request, newTask.id, reason);
       request.abortableTasks.delete(newTask);
       enqueueFlush(request);
@@ -827,7 +834,7 @@ function serializeReadableStream(request, task, stream) {
     if (!aborted) {
       aborted = !0;
       request.abortListeners.delete(error);
-      var digest = logRecoverableError(request, reason);
+      var digest = logRecoverableError(request, reason, streamTask);
       emitErrorChunk(request, streamTask.id, digest);
       enqueueFlush(request);
       reader.cancel(reason).then(error, error);
@@ -894,7 +901,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
     if (!aborted) {
       aborted = !0;
       request.abortListeners.delete(error);
-      var digest = logRecoverableError(request, reason);
+      var digest = logRecoverableError(request, reason, streamTask);
       emitErrorChunk(request, streamTask.id, digest);
       enqueueFlush(request);
       "function" === typeof iterator.throw &&
@@ -1017,43 +1024,36 @@ function renderFragment(request, task, children) {
       task.implicitSlot ? [request] : request)
     : children;
 }
-function renderClientElement(task, type, key, props) {
-  var keyPath = task.keyPath;
-  null === key
-    ? (key = keyPath)
-    : null !== keyPath && (key = keyPath + "," + key);
-  type = [REACT_ELEMENT_TYPE, type, key, props];
-  return task.implicitSlot && null !== key ? [type] : type;
-}
 function renderElement(request, task, type, key, ref, props) {
   if (null !== ref && void 0 !== ref)
     throw Error(
       "Refs cannot be used in Server Components, nor passed to Client Components."
     );
-  if ("function" === typeof type)
-    return type.$$typeof === CLIENT_REFERENCE_TAG$1 ||
-      type.$$typeof === TEMPORARY_REFERENCE_TAG
-      ? renderClientElement(task, type, key, props)
-      : renderFunctionComponent(request, task, key, type, props);
-  if ("string" === typeof type)
-    return renderClientElement(task, type, key, props);
-  if ("symbol" === typeof type)
-    return type === REACT_FRAGMENT_TYPE && null === key
-      ? ((key = task.implicitSlot),
-        null === task.keyPath && (task.implicitSlot = !0),
-        (request = renderModelDestructive(
-          request,
-          task,
-          emptyRoot,
-          "",
-          props.children
-        )),
-        (task.implicitSlot = key),
-        request)
-      : renderClientElement(task, type, key, props);
-  if (null != type && "object" === typeof type) {
-    if (type.$$typeof === CLIENT_REFERENCE_TAG$1)
-      return renderClientElement(task, type, key, props);
+  if (
+    "function" === typeof type &&
+    type.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+    type.$$typeof !== TEMPORARY_REFERENCE_TAG
+  )
+    return renderFunctionComponent(request, task, key, type, props);
+  if (type === REACT_FRAGMENT_TYPE && null === key)
+    return (
+      (type = task.implicitSlot),
+      null === task.keyPath && (task.implicitSlot = !0),
+      (props = renderModelDestructive(
+        request,
+        task,
+        emptyRoot,
+        "",
+        props.children
+      )),
+      (task.implicitSlot = type),
+      props
+    );
+  if (
+    null != type &&
+    "object" === typeof type &&
+    type.$$typeof !== CLIENT_REFERENCE_TAG$1
+  )
     switch (type.$$typeof) {
       case REACT_LAZY_TYPE:
         var init = type._init;
@@ -1065,10 +1065,14 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_MEMO_TYPE:
         return renderElement(request, task, type.type, key, ref, props);
     }
-  }
-  throw Error(
-    "Unsupported Server Component type: " + describeValueForErrorMessage(type)
-  );
+  request = key;
+  key = task.keyPath;
+  null === request
+    ? (request = key)
+    : null !== key && (request = key + "," + request);
+  props = [REACT_ELEMENT_TYPE, type, request, props];
+  task = task.implicitSlot && null !== request ? [props] : props;
+  return task;
 }
 function pingTask(request, task) {
   var pingedTasks = request.pingedTasks;
@@ -1158,7 +1162,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
               (task.implicitSlot = prevImplicitSlot),
               request.pendingChunks++,
               (prevKeyPath = request.nextChunkId++),
-              (prevImplicitSlot = logRecoverableError(request, value)),
+              (prevImplicitSlot = logRecoverableError(request, value, task)),
               emitErrorChunk(request, prevKeyPath, prevImplicitSlot),
               (JSCompiler_inline_result = parentPropertyName
                 ? "$L" + prevKeyPath.toString(16)
@@ -1230,7 +1234,7 @@ function serializeClientReference(
     return (
       request.pendingChunks++,
       (parent = request.nextChunkId++),
-      (parentPropertyName = logRecoverableError(request, x)),
+      (parentPropertyName = logRecoverableError(request, x, null)),
       emitErrorChunk(request, parent, parentPropertyName),
       serializeByValueID(parent)
     );
@@ -1263,7 +1267,7 @@ function serializeBlob(request, blob) {
     if (!aborted) {
       aborted = !0;
       request.abortListeners.delete(error);
-      var digest = logRecoverableError(request, reason);
+      var digest = logRecoverableError(request, reason, newTask);
       emitErrorChunk(request, newTask.id, digest);
       request.abortableTasks.delete(newTask);
       enqueueFlush(request);
@@ -1425,9 +1429,9 @@ function renderModelDestructive(
       return serializeTypedArray(request, "V", value);
     if ("function" === typeof Blob && value instanceof Blob)
       return serializeBlob(request, value);
-    if ((parentPropertyName = getIteratorFn(value)))
+    if ((elementReference = getIteratorFn(value)))
       return (
-        (parentPropertyName = parentPropertyName.call(value)),
+        (parentPropertyName = elementReference.call(value)),
         parentPropertyName === value
           ? "$i" +
             outlineModel(request, Array.from(parentPropertyName)).toString(16)
@@ -1435,8 +1439,8 @@ function renderModelDestructive(
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
       return serializeReadableStream(request, task, value);
-    parentPropertyName = value[ASYNC_ITERATOR];
-    if ("function" === typeof parentPropertyName)
+    elementReference = value[ASYNC_ITERATOR];
+    if ("function" === typeof elementReference)
       return (
         null !== task.keyPath
           ? ((request = [
@@ -1446,7 +1450,7 @@ function renderModelDestructive(
               { children: value }
             ]),
             (request = task.implicitSlot ? [request] : request))
-          : ((parentPropertyName = parentPropertyName.call(value)),
+          : ((parentPropertyName = elementReference.call(value)),
             (request = serializeAsyncIterable(
               request,
               task,
@@ -1461,7 +1465,8 @@ function renderModelDestructive(
       (null === request || null !== getPrototypeOf(request))
     )
       throw Error(
-        "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported."
+        "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
+          describeObjectForErrorMessage(parent, parentPropertyName)
       );
     return value;
   }
@@ -1471,7 +1476,7 @@ function renderModelDestructive(
       parent[parentPropertyName] instanceof Date
     )
       return "$D" + value;
-    if (1024 <= value.length)
+    if (1024 <= value.length && null !== byteLengthOfChunk)
       return (
         request.pendingChunks++,
         (task = request.nextChunkId++),
@@ -1617,6 +1622,10 @@ function emitTypedArrayChunk(request, id, tag, typedArray) {
   request.completedRegularChunks.push(id, typedArray);
 }
 function emitTextChunk(request, id, text) {
+  if (null === byteLengthOfChunk)
+    throw Error(
+      "Existence of byteLengthOfChunk should have already been checked. This is a bug in React."
+    );
   request.pendingChunks++;
   text = stringToChunk(text);
   var binaryLength = text.byteLength;
@@ -1626,7 +1635,7 @@ function emitTextChunk(request, id, text) {
 }
 function emitChunk(request, task, value) {
   var id = task.id;
-  "string" === typeof value
+  "string" === typeof value && null !== byteLengthOfChunk
     ? emitTextChunk(request, id, value)
     : value instanceof ArrayBuffer
     ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value))
@@ -1707,7 +1716,7 @@ function retryTask(request, task) {
       } else {
         request.abortableTasks.delete(task);
         task.status = 4;
-        var digest = logRecoverableError(request, x);
+        var digest = logRecoverableError(request, x, task);
         emitErrorChunk(request, task.id, digest);
       }
     } finally {
@@ -1727,7 +1736,7 @@ function performWork(request) {
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
   } catch (error) {
-    logRecoverableError(request, error), fatalError(request, error);
+    logRecoverableError(request, error, null), fatalError(request, error);
   } finally {
     (ReactSharedInternalsServer.H = prevDispatcher),
       (currentRequest$1 = null),
@@ -1805,7 +1814,7 @@ function abort(request, reason) {
               "function" === typeof reason.then
             ? Error("The render was aborted by the server with a promise.")
             : reason,
-        digest = logRecoverableError(request, error);
+        digest = logRecoverableError(request, error, null);
       emitErrorChunk(request, errorId, digest, error);
       abortableTasks.forEach(function (task) {
         if (5 !== task.status) {
@@ -1835,7 +1844,7 @@ function abort(request, reason) {
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
   } catch (error$27) {
-    logRecoverableError(request, error$27), fatalError(request, error$27);
+    logRecoverableError(request, error$27, null), fatalError(request, error$27);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2664,7 +2673,8 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
           try {
             flushCompletedChunks(request, controller);
           } catch (error) {
-            logRecoverableError(request, error), fatalError(request, error);
+            logRecoverableError(request, error, null),
+              fatalError(request, error);
           }
         }
       },
