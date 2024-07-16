@@ -1091,11 +1091,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
       inputFileSystem.purge!()
     })
-    watchCompilers(
-      this.multiCompiler.compilers[0],
-      this.multiCompiler.compilers[1],
-      this.multiCompiler.compilers[2]
-    )
+    if (this.config.logging !== false) {
+      watchCompilers(
+        this.multiCompiler.compilers[0],
+        this.multiCompiler.compilers[1],
+        this.multiCompiler.compilers[2]
+      )
+    }
 
     // Watch for changes to client/server page files so we can tell when just
     // the server file changes and trigger a reload for GS(S)P pages
