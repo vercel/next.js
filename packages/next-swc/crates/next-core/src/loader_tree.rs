@@ -422,16 +422,13 @@ impl LoaderTreeBuilder {
 
     async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
         let components = loader_tree.clone().await?.components.await?;
-        match components.global_error {
-            Some(global_error) => {
-                let module = process_module(
-                    &self.context,
-                    &self.server_component_transition,
-                    global_error,
-                );
-                self.inner_assets.insert(GLOBAL_ERROR.into(), module);
-            }
-            None => {}
+        if let Some(global_error) = components.global_error {
+            let module = process_module(
+                &self.context,
+                &self.server_component_transition,
+                global_error,
+            );
+            self.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
 
         self.walk_tree(loader_tree, true).await?;
