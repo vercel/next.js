@@ -917,7 +917,7 @@ async function startWatcher(opts: SetupOpts) {
     return { finished: false }
   }
 
-  async function logError(
+  function logError(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
@@ -1042,7 +1042,7 @@ async function startWatcher(opts: SetupOpts) {
               errorToLog = err
             }
 
-            await logError(errorToLog, type)
+            logError(errorToLog, type)
             console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
             usedOriginalStack = true
           }
@@ -1055,7 +1055,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      await logError(err, type)
+      logError(err, type)
     }
   }
 
