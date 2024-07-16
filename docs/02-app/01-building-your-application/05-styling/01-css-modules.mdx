@@ -347,7 +347,10 @@ To maintain a predictable order, we recommend the following:
 - Extract shared styles into a separate shared component.
 - If using [Tailwind](/docs/app/building-your-application/styling/tailwind-css), import the stylesheet at the top of the file, preferably in the [Root Layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).
 
-> **Good to know:** CSS ordering behaves differently in development mode, always ensure to check preview deployments to verify the final CSS order in your production build.
+> **Good to know:**
+>
+> - CSS ordering can behave differently in development mode, always ensure to check the build (`next build`) to verify the final CSS order.
+> - You can use the [`cssChunking`](/docs/app/api-reference/next-config-js/cssChunking) option in `next.config.js` to control how CSS is chunked.
 
 </AppOnly>
 

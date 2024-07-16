@@ -89,8 +89,11 @@ export class NextDevInstance extends NextInstance {
           }
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(reject)
+
         const readyCb = (msg) => {
           const resolveServer = () => {
+            clearTimeout(serverReadyTimeoutId)
             try {
               this._parsedUrl = new URL(this._url)
             } catch (err) {
@@ -111,12 +114,9 @@ export class NextDevInstance extends NextInstance {
               .split(/\s*- Local:/)
               .pop()
               .trim()
-            resolveServer()
-          } else if (
-            msg.includes('started server on') &&
-            msg.includes('url:')
-          ) {
-            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
+          }
+
+          if (this.serverReadyPattern.test(colorStrippedMsg)) {
             resolveServer()
           }
         }
