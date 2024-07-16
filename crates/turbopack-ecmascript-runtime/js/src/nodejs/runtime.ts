@@ -49,6 +49,8 @@ type ModuleFactory = (
 ) => undefined;
 
 const url = require("url");
+const fs = require("fs/promises");
+const vm = require("vm");
 
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache = Object.create(null);
@@ -118,15 +120,45 @@ async function loadChunkAsync(
   source: SourceInfo,
   chunkData: ChunkData
 ): Promise<any> {
-  return new Promise<void>((resolve, reject) => {
-    try {
-      loadChunk(chunkData, source);
-    } catch (err) {
-      reject(err);
-      return;
+  const chunkPath = typeof chunkData === "string" ? chunkData : chunkData.path;
+  if (!chunkPath.endsWith(".js")) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return;
+  }
+
+  const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+
+  try {
+    const contents = await fs.readFile(resolved, "utf-8");
+
+    const module = {
+      exports: {},
+    };
+    vm.runInThisContext(
+      "(function(module, exports, require, __dirname, __filename) {" +
+        contents +
+        "\n})",
+      resolved
+    )(module, module.exports, require, path.dirname(resolved), resolved);
+
+    const chunkModules: ModuleFactories = module.exports;
+    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
+      if (!moduleFactories[moduleId]) {
+        moduleFactories[moduleId] = moduleFactory;
+      }
     }
-    resolve();
-  });
+  } catch (e) {
+    let errorMessage = `Failed to load chunk ${chunkPath}`;
+
+    if (source) {
+      errorMessage += ` from ${stringifySourceInfo(source)}`;
+    }
+
+    throw new Error(errorMessage, {
+      cause: e,
+    });
+  }
 }
 
 function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
