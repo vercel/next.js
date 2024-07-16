@@ -1,8 +1,8 @@
 import type webpack from 'webpack'
-import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { getLoaderModuleNamedExports } from './utils'
+import { promisify } from 'util'
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -52,6 +52,7 @@ function getContentType(resourcePath: string) {
 }
 
 async function getStaticAssetRouteCode(
+  readFile: typeof import('fs').promises.readFile,
   resourcePath: string,
   fileBaseName: string
 ) {
@@ -67,7 +68,7 @@ import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
-    (await fs.promises.readFile(resourcePath)).toString('base64')
+    (await readFile(resourcePath)).toString('base64')
   )}, 'base64'
   )
 
@@ -246,6 +247,10 @@ ${staticGenerationCode}
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
+    const readFile = promisify(
+      this.fs.readFile
+    ) as any as typeof import('fs').promises.readFile
+
     const { isDynamicRouteExtension, filePath } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(filePath)
     this.addDependency(filePath)
@@ -260,7 +265,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(filePath)
       }
     } else {
-      code = await getStaticAssetRouteCode(filePath, fileBaseName)
+      code = await getStaticAssetRouteCode(readFile, filePath, fileBaseName)
     }
 
     return code

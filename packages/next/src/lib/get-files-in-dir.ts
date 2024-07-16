@@ -1,22 +1,23 @@
+import type FsType from 'fs'
 import { join } from 'path'
-import fs from 'fs/promises'
-import type { Dirent, StatsBase } from 'fs'
 
-export async function getFilesInDir(path: string): Promise<string[]> {
-  const dir = await fs.opendir(path)
-  const results = []
+export async function getFilesInDir(
+  path: string,
+  fs: Pick<typeof FsType.promises, 'readdir' | 'stat'>
+): Promise<string[]> {
+  const files = await fs.readdir(path)
+  const results: string[] = []
 
-  for await (const file of dir) {
-    let resolvedFile: Dirent | StatsBase<number> = file
+  await Promise.all(
+    files.map(async (file) => {
+      const fullPath = join(path, file)
+      const resolvedFile = await fs.stat(fullPath)
 
-    if (file.isSymbolicLink()) {
-      resolvedFile = await fs.stat(join(path, file.name))
-    }
-
-    if (resolvedFile.isFile()) {
-      results.push(file.name)
-    }
-  }
+      if (resolvedFile.isFile()) {
+        results.push(file)
+      }
+    })
+  )
 
   return results
 }

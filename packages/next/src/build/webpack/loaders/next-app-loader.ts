@@ -17,7 +17,6 @@ import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
 } from './metadata/discover'
-import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { NextConfig } from '../../../server/config-shared'
@@ -35,6 +34,7 @@ import {
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import type { PageExtensions } from '../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
+import { promisify } from 'util'
 
 export type AppLoaderOptions = {
   name: string
@@ -91,6 +91,8 @@ export type ComponentsType = {
 } & {
   readonly defaultPage?: ModuleReference
 }
+
+type FsType = Pick<typeof import('fs').promises, 'readdir' | 'stat'>
 
 async function createAppRouteCode({
   name,
@@ -155,7 +157,7 @@ async function createAppRouteCode({
 const normalizeParallelKey = (key: string) =>
   key.startsWith('@') ? key.slice(1) : key
 
-const isDirectory = async (pathname: string) => {
+const isDirectory = async (fs: FsType, pathname: string) => {
   try {
     const stat = await fs.stat(pathname)
     return stat.isDirectory()
@@ -177,7 +179,9 @@ async function createTreeCodeFromPath(
     buildInfo,
     flyingShuttle,
     collectedDeclarations,
+    fs,
   }: {
+    fs: FsType
     page: string
     flyingShuttle?: boolean
     buildInfo: ReturnType<typeof getModuleBuildInfo>
@@ -222,24 +226,28 @@ async function createTreeCodeFromPath(
       return []
     }
 
-    const segmentIsDirectory = await isDirectory(absoluteSegmentPath)
+    const segmentIsDirectory = await isDirectory(fs, absoluteSegmentPath)
 
     if (!segmentIsDirectory) {
       return []
     }
 
     // We need to resolve all parallel routes in this level.
-    const files = await fs.opendir(absoluteSegmentPath)
+    const files = await fs.readdir(absoluteSegmentPath)
 
     const parallelSegments: string[] = ['children']
 
-    for await (const dirent of files) {
-      // Make sure name starts with "@" and is a directory.
-      if (dirent.isDirectory() && dirent.name.charCodeAt(0) === 64) {
-        parallelSegments.push(dirent.name)
-      }
-    }
+    await Promise.all(
+      files.map(async (file) => {
+        if (file.charCodeAt(0) === 64) {
+          const stats = await fs.stat(path.join(absoluteSegmentPath, file))
 
+          if (stats.isDirectory()) {
+            parallelSegments.push(file)
+          }
+        }
+      })
+    )
     return parallelSegments
   }
 
@@ -307,7 +315,6 @@ async function createTreeCodeFromPath(
           continue
         }
       }
-
       // if the parallelSegment was not matched to the __PAGE__ slot, then it's a parallel route at this level.
       // the code below recursively traverses the parallel slots directory to match the corresponding __PAGE__ for each parallel slot
       // while also filling in layout/default/etc files into the loader tree at each segment level.
@@ -522,6 +529,11 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
 }
 
 const nextAppLoader: AppLoader = async function nextAppLoader() {
+  const webpackFs = this.fs
+  const fs: FsType = {
+    readdir: promisify(webpackFs.readdir as any),
+    stat: promisify(webpackFs.stat as any),
+  }
   const loaderOptions = this.getOptions()
   const {
     name,
@@ -641,7 +653,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       return existingFiles.has(fileName)
     }
     try {
-      const files = await getFilesInDir(dirname)
+      const files = await getFilesInDir(dirname, fs)
       const fileNames = new Set<string>(files)
       filesInDir.set(dirname, fileNames)
       return fileNames.has(fileName)
@@ -723,6 +735,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     collectedDeclarations,
     buildInfo,
     flyingShuttle,
+    fs,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -774,6 +787,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         collectedDeclarations,
         buildInfo,
         flyingShuttle,
+        fs,
       })
     }
   }
