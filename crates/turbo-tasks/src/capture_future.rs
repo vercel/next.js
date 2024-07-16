@@ -51,7 +51,7 @@ pub fn add_allocation_info(alloc_info: AllocationInfo) {
 }
 
 impl<T, F: Future<Output = T>> Future for CaptureFuture<T, F> {
-    type Output = (T, Duration, Instant, usize);
+    type Output = (T, Duration, usize);
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
@@ -68,7 +68,7 @@ impl<T, F: Future<Output = T>> Future for CaptureFuture<T, F> {
                 let (duration, allocations, deallocations) = *this.cell.lock().unwrap();
                 let memory_usage = (*this.allocations + allocations)
                     .saturating_sub(*this.deallocations + deallocations);
-                Poll::Ready((r, *this.duration + duration, start + elapsed, memory_usage))
+                Poll::Ready((r, *this.duration + duration, memory_usage))
             }
             Poll::Pending => Poll::Pending,
         }

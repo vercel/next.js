@@ -445,7 +445,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             };
 
                             async {
-                                let (result, duration, _instant, memory_usage) =
+                                let (result, duration, memory_usage) =
                                     CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
                                         .await;
 
