@@ -42,13 +42,6 @@ type BuildStatusStore = {
   trigger: string | undefined
   url: string | undefined
   amp: AmpPageStatus
-  logging?:
-    | boolean
-    | {
-        fetches?: {
-          fullUrl?: boolean
-        }
-      }
 }
 
 export function formatAmpMessages(amp: AmpPageStatus) {
@@ -119,7 +112,7 @@ let serverWasLoading = true
 let edgeServerWasLoading = false
 
 buildStore.subscribe((state) => {
-  const { amp, client, server, edgeServer, trigger, url, logging } = state
+  const { amp, client, server, edgeServer, trigger, url } = state
 
   const { appUrl } = consoleStore.getState()
 
@@ -132,7 +125,6 @@ buildStore.subscribe((state) => {
         loading: true,
         trigger,
         url,
-        logging,
       } as OutputState,
       true
     )
@@ -164,7 +156,6 @@ buildStore.subscribe((state) => {
         ...partialState,
         errors: client.errors,
         warnings: null,
-        logging,
       } as OutputState,
       true
     )
@@ -174,7 +165,6 @@ buildStore.subscribe((state) => {
         ...partialState,
         errors: server.errors,
         warnings: null,
-        logging,
       } as OutputState,
       true
     )
@@ -184,7 +174,6 @@ buildStore.subscribe((state) => {
         ...partialState,
         errors: edgeServer.errors,
         warnings: null,
-        logging,
       } as OutputState,
       true
     )
@@ -201,7 +190,6 @@ buildStore.subscribe((state) => {
         ...partialState,
         errors: null,
         warnings: warnings.length === 0 ? null : warnings,
-        logging,
       } as OutputState,
       true
     )
@@ -237,14 +225,7 @@ export function ampValidation(
 export function watchCompilers(
   client: webpack.Compiler,
   server: webpack.Compiler,
-  edgeServer: webpack.Compiler,
-  logging?:
-    | boolean
-    | {
-        fetches?: {
-          fullUrl?: boolean
-        }
-      }
+  edgeServer: webpack.Compiler
 ) {
   buildStore.setState({
     client: { loading: true },
@@ -252,7 +233,6 @@ export function watchCompilers(
     edgeServer: { loading: true },
     trigger: 'initial',
     url: undefined,
-    logging,
   })
 
   function tapCompiler(

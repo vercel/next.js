@@ -1094,8 +1094,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     watchCompilers(
       this.multiCompiler.compilers[0],
       this.multiCompiler.compilers[1],
-      this.multiCompiler.compilers[2],
-      this.config.logging
+      this.multiCompiler.compilers[2]
     )
 
     // Watch for changes to client/server page files so we can tell when just
