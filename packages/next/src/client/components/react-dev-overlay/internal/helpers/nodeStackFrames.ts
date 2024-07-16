@@ -29,7 +29,7 @@ export function getServerError(error: Error, type: ErrorSourceType): Error {
     // If this is an internal Turbopack error we shouldn't show internal details
     // to the user. These are written to a log file instead.
     const turbopackInternalError = new Error(
-      'An unexpected Turbopack error occurred. Please report the content of .next/fatal.log to the Next.js team at https://github.com/vercel/next.js/issues/new'
+      'An unexpected Turbopack error occurred. Please report the content of .next/turbopack.log to the Next.js team at https://github.com/vercel/next.js/issues/new'
     )
     decorateServerError(turbopackInternalError, type)
     return turbopackInternalError

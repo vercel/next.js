@@ -11,7 +11,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
-import { mkdir, appendFile, readFile, stat, writeFile } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
@@ -150,7 +150,6 @@ export async function propagateServerField(
   await opts.renderServer?.instance?.propagateServerField(opts.dir, field, args)
 }
 
-let logFileLock = Promise.resolve()
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
   const { useFileSystemPublicRoutes } = nextConfig
@@ -926,37 +925,8 @@ async function startWatcher(opts: SetupOpts) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
     } else if (err instanceof TurbopackInternalError) {
-      const levelMarker = '[FATAL]'
-      const fatalLogPath = path.join(opts.dir, '.next', 'fatal.log')
-      let logStat
-      try {
-        logStat = await stat(fatalLogPath)
-      } catch {}
-
-      if (logStat && logStat.size > 500 * 1024) {
-        await logFileLock
-        let releaseLock: () => void
-        logFileLock = new Promise((res) => (releaseLock = res))
-        // If the log file is greater than 500KB, truncate the least recent error
-        // to prevent the log from growing indefinitely
-        await writeFile(
-          fatalLogPath,
-          (await readFile(fatalLogPath, 'utf8'))
-            .split(levelMarker)
-            .slice(1)
-            .join(levelMarker)
-        )
-        releaseLock!()
-      }
-
-      await appendFile(
-        fatalLogPath,
-        `${levelMarker} ${new Date().toISOString()} ${err.message}\n\n`
-      )
-
-      Log.error(
-        `An unexpected Turbopack error occurred. Please report the content of ${fatalLogPath} to the Next.js team at https://github.com/vercel/next.js/issues/new.`
-      )
+      // An internal Turbopack error that has been handled by next-swc, written
+      // to disk and a simplified message shown to user on the Rust side.
     } else if (type === 'warning') {
       Log.warn(err)
     } else if (type === 'app-dir') {
