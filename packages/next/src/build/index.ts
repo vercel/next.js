@@ -814,7 +814,7 @@ export default async function build(
         .startsWith('src')
       const hasPublicDir = existsSync(publicDir)
 
-      telemetry.record(
+      void telemetry.record(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
@@ -827,11 +827,11 @@ export default async function build(
         })
       )
 
-      eventNextPlugins(path.resolve(dir)).then((events) =>
+      void eventNextPlugins(path.resolve(dir)).then((events) =>
         telemetry.record(events)
       )
 
-      eventSwcPlugins(path.resolve(dir), config).then((events) =>
+      void eventSwcPlugins(path.resolve(dir), config).then((events) =>
         telemetry.record(events)
       )
 
@@ -902,7 +902,7 @@ export default async function build(
         featureName: 'build-lint',
         invocationCount: shouldLint ? 1 : 0,
       }
-      telemetry.record({
+      void telemetry.record({
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: buildLintEvent,
       })
@@ -1641,7 +1641,7 @@ export default async function build(
 
           Log.event('Compiled successfully')
 
-          telemetry.record(
+          void telemetry.record(
             eventBuildCompleted(pagesPaths, {
               durationInSeconds: compilerDuration,
               totalAppPagesCount,
@@ -1728,7 +1728,7 @@ export default async function build(
 
             Log.event('Compiled successfully')
 
-            telemetry.record(
+            void telemetry.record(
               eventBuildCompleted(pagesPaths, {
                 durationInSeconds,
                 totalAppPagesCount,
@@ -1743,7 +1743,7 @@ export default async function build(
 
             buildTraceContext = rest.buildTraceContext
 
-            telemetry.record(
+            void telemetry.record(
               eventBuildCompleted(pagesPaths, {
                 durationInSeconds: compilerDuration,
                 totalAppPagesCount,
@@ -2587,7 +2587,7 @@ export default async function build(
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
       ]
-      telemetry.record(
+      void telemetry.record(
         features.map((feature) => {
           return {
             eventName: EVENT_BUILD_FEATURE_USAGE,
@@ -2892,6 +2892,9 @@ export default async function build(
               turborepoAccessTraceResult,
               ...exportResult.turborepoAccessTraceResults.values(),
             ],
+          }).catch((error) => {
+            console.error(error)
+            process.exit(1)
           })
 
           prerenderManifest.notFoundRoutes = Array.from(
@@ -3514,7 +3517,7 @@ export default async function build(
       worker.end()
 
       const analysisEnd = process.hrtime(analysisBegin)
-      telemetry.record(
+      void telemetry.record(
         eventBuildOptimize(pagesPaths, {
           durationInSeconds: analysisEnd[0],
           staticPageCount: staticPages.size,
@@ -3546,8 +3549,8 @@ export default async function build(
         const events = eventBuildFeatureUsage(
           NextBuildContext.telemetryState.usages
         )
-        telemetry.record(events)
-        telemetry.record(
+        void telemetry.record(events)
+        void telemetry.record(
           eventPackageUsedInGetServerSideProps(
             NextBuildContext.telemetryState.packagesUsedInServerSideProps
           )

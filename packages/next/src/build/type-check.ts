@@ -56,8 +56,8 @@ function verifyTypeScriptSetup(
       hasAppDir,
       hasPagesDir,
     })
-    .then((result) => {
-      typeCheckWorker.end()
+    .then(async (result) => {
+      await typeCheckWorker.end()
       return result
     })
     .catch(() => {
@@ -159,7 +159,7 @@ export async function startTypeChecking({
     typeCheckingAndLintingSpinner?.stopAndPersist()
 
     if (!ignoreTypeScriptErrors && verifyResult) {
-      telemetry.record(
+      void telemetry.record(
         eventTypeCheckCompleted({
           durationInSeconds: typeCheckEnd[0],
           typescriptVersion: verifyResult.version,

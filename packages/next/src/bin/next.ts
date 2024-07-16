@@ -189,9 +189,13 @@ program
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
   .action(
-    (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+    async (
+      directory: string,
+      options: NextDevOptions,
+      { _optionValueSources }
+    ) => {
       const portSource = _optionValueSources.port
-      import('../cli/next-dev.js').then((mod) =>
+      return import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
       )
     }
@@ -388,9 +392,13 @@ program
   )
   .allowUnknownOption()
   .action(
-    (directory: string, testRunnerArgs: string[], options: NextTestOptions) => {
-      return import('../cli/next-test.js').then((mod) => {
-        mod.nextTest(directory, testRunnerArgs, options)
+    async (
+      directory: string,
+      testRunnerArgs: string[],
+      options: NextTestOptions
+    ) => {
+      return import('../cli/next-test.js').then(async (mod) => {
+        await mod.nextTest(directory, testRunnerArgs, options)
       })
     }
   )

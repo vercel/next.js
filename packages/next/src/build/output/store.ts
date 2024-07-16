@@ -75,6 +75,17 @@ function hasStoreChanged(nextStore: OutputState) {
   return true
 }
 
+async function teardownAfterCompilation(): Promise<void> {
+  try {
+    // Ensure traces are flushed after each compile in development mode
+    await flushAllTraces()
+    teardownTraceSubscriber()
+    teardownHeapProfiler()
+  } catch (error) {
+    Log.error(error)
+  }
+}
+
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
 let triggerUrl: string | undefined = undefined
@@ -149,10 +160,7 @@ store.subscribe((state) => {
       }
     }
     startTime = 0
-    // Ensure traces are flushed after each compile in development mode
-    flushAllTraces()
-    teardownTraceSubscriber()
-    teardownHeapProfiler()
+    void teardownAfterCompilation()
     return
   }
 
@@ -173,10 +181,7 @@ store.subscribe((state) => {
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    // Ensure traces are flushed after each compile in development mode
-    flushAllTraces()
-    teardownTraceSubscriber()
-    teardownHeapProfiler()
+    void teardownAfterCompilation()
     return
   }
 
@@ -204,8 +209,5 @@ store.subscribe((state) => {
     trigger = ''
   }
 
-  // Ensure traces are flushed after each compile in development mode
-  flushAllTraces()
-  teardownTraceSubscriber()
-  teardownHeapProfiler()
+  void teardownAfterCompilation()
 })

@@ -86,6 +86,7 @@ export function runCompiler(
             )
           return resolve([result, compiler.inputFileSystem])
         })
+        .catch(reject)
     })
   })
 }

@@ -177,7 +177,7 @@ function scheduleUpdate() {
 
   if (canApplyUpdate(module.hot.status())) {
     // Apply update on the next tick.
-    Promise.resolve().then(() => {
+    void Promise.resolve().then(() => {
       applyUpdate()
     })
     return

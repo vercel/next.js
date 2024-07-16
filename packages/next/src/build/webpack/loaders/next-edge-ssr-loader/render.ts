@@ -160,7 +160,7 @@ export function getRender({
       !!process.env.__NEXT_AFTER
     )
 
-    handler(extendedReq, extendedRes)
+    await handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
     request.fetchMetrics = extendedReq.fetchMetrics
 
