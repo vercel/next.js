@@ -72,9 +72,26 @@ The TypeScript plugin can help with:
 
 It is highly recommended to be on at least `v4.5.2` of TypeScript to get syntax features such as [type modifiers on import names](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#type-on-import-names) and [performance improvements](https://devblogs.microsoft.com/typescript/announcing-typescript-4-5/#real-path-sync-native).
 
-## Type checking with `next.config.ts`
+## Type checking in Next.js Configuration
 
-You can use TypeScript in your Next.js configuration by using `next.config.ts`.
+### Type checking next.config.js
+
+When using the `next.config.js` file, you can add some type checking in your IDE using JSDoc as below:
+
+```js filename="next.config.js"
+// @ts-check
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+### Type checking next.config.ts
+
+You can use TypeScript and import types in your Next.js configuration by using `next.config.ts`.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
