@@ -31,7 +31,7 @@ Add TypeScript to your project by renaming a file to `.ts` / `.tsx`. Run `next d
 
 If you already had a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
-We also recommend you to use [`next.config.ts`](#type-checking-in-nextjs-configuration) over `next.config.js` for better type inference.
+We also recommend you to use [`next.config.ts`](#type-checking-nextconfigts) over `next.config.js` for better type inference.
 
 <AppOnly>
 
@@ -338,7 +338,7 @@ When you need to declare custom types, you might be tempted to modify `next-env.
 
 | Version   | Changes                                                                                                                              |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `v15.0.0` | [`next.config.ts`](#type-checking-in-nextjs-configuration) support added for TypeScript projects.                                    |
+| `v15.0.0` | [`next.config.ts`](#type-checking-nextconfigts) support added for TypeScript projects.                                               |
 | `v13.2.0` | Statically typed links are available in beta.                                                                                        |
 | `v12.0.0` | [SWC](/docs/architecture/nextjs-compiler) is now used by default to compile TypeScript and TSX for faster builds.                    |
 | `v10.2.1` | [Incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) support added when enabled in your `tsconfig.json`. |
