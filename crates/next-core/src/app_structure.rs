@@ -431,44 +431,41 @@ async fn get_directory_tree_internal(
 pub struct LoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    pub parallel_routes: IndexMap<RcStr, Vc<LoaderTree>>,
+    pub parallel_routes: IndexMap<RcStr, LoaderTree>,
     pub components: Vc<Components>,
     pub global_metadata: Vc<GlobalMetadata>,
 }
 
-#[turbo_tasks::value_impl]
 impl LoaderTree {
     /// Returns true if there's a page match in this loader tree.
-    #[turbo_tasks::function]
-    pub async fn has_page(&self) -> Result<Vc<bool>> {
+    pub fn has_page(&self) -> bool {
         if &*self.segment == "__PAGE__" {
-            return Ok(Vc::cell(true));
+            return true;
         }
 
         for (_, tree) in &self.parallel_routes {
-            if *tree.has_page().await? {
-                return Ok(Vc::cell(true));
+            if tree.has_page() {
+                return true;
             }
         }
 
-        Ok(Vc::cell(false))
+        false
     }
 
-    /// Returns whether or not the only match in this tree is for a catch-all
+    /// Returns whether the only match in this tree is for a catch-all
     /// route.
-    #[turbo_tasks::function]
-    pub async fn has_only_catchall(&self) -> Result<Vc<bool>> {
+    pub fn has_only_catchall(&self) -> bool {
         if &*self.segment == "__PAGE__" && !self.page.is_catchall() {
-            return Ok(Vc::cell(false));
+            return false;
         }
 
         for (_, tree) in &self.parallel_routes {
-            if !*tree.has_only_catchall().await? {
-                return Ok(Vc::cell(false));
+            if !tree.has_only_catchall() {
+                return false;
             }
         }
 
-        Ok(Vc::cell(true))
+        true
     }
 }
 
@@ -761,9 +758,7 @@ impl Issue for DuplicateParallelRouteIssue {
 }
 
 #[async_recursion]
-async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option<AppPage>> {
-    let loader_tree = loader_tree.await?;
-
+async fn page_path_except_parallel(loader_tree: &LoaderTree) -> Result<Option<AppPage>> {
     if loader_tree.page.iter().any(|v| {
         matches!(
             v,
@@ -780,7 +775,7 @@ async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option
     }
 
     if let Some(children) = loader_tree.parallel_routes.get("children") {
-        return page_path_except_parallel(*children).await;
+        return page_path_except_parallel(children).await;
     }
 
     Ok(None)
@@ -788,12 +783,10 @@ async fn page_path_except_parallel(loader_tree: Vc<LoaderTree>) -> Result<Option
 
 async fn check_duplicate(
     duplicate: &mut FxHashMap<AppPath, AppPage>,
-    loader_tree_vc: Vc<LoaderTree>,
+    loader_tree: &LoaderTree,
     app_dir: Vc<FileSystemPath>,
 ) -> Result<()> {
-    let loader_tree = loader_tree_vc.await?;
-
-    let page_path = page_path_except_parallel(loader_tree_vc).await?;
+    let page_path = page_path_except_parallel(loader_tree).await?;
 
     if let Some(page_path) = page_path {
         if let Some(prev) = duplicate.insert(AppPath::from(page_path.clone()), page_path.clone()) {
@@ -884,8 +877,7 @@ async fn directory_tree_to_loader_tree(
                 }
                 .cell(),
                 global_metadata,
-            }
-            .cell(),
+            },
         );
 
         if current_level_is_parallel_route {
@@ -924,26 +916,29 @@ async fn directory_tree_to_loader_tree(
         }
 
         if let Some(subtree) = subtree {
+            let subtree = &*subtree.await?;
+
             if let Some(key) = parallel_route_key {
-                tree.parallel_routes.insert(key.into(), subtree);
+                tree.parallel_routes.insert(key.into(), subtree.clone());
                 continue;
             }
 
             // skip groups which don't have a page match.
-            if is_group_route(subdir_name) && !*subtree.has_page().await? {
+            if is_group_route(subdir_name) && !subtree.has_page() {
                 continue;
             }
 
-            if *subtree.has_page().await? {
+            if subtree.has_page() {
                 check_duplicate(&mut duplicate, subtree, app_dir).await?;
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if is_current_directory_catchall && *subtree.has_only_catchall().await? {
+                if is_current_directory_catchall && subtree.has_only_catchall() {
                     // there's probably already a more specific page in the
                     // slot.
-                } else if *current_tree.has_only_catchall().await? {
-                    tree.parallel_routes.insert("children".into(), subtree);
+                } else if current_tree.has_only_catchall() {
+                    tree.parallel_routes
+                        .insert("children".into(), subtree.clone());
                 } else {
                     // TODO: Investigate if this is still needed. Emitting the
                     // error causes the test "should
@@ -965,7 +960,8 @@ async fn directory_tree_to_loader_tree(
                     // .emit();
                 }
             } else {
-                tree.parallel_routes.insert("children".into(), subtree);
+                tree.parallel_routes
+                    .insert("children".into(), subtree.clone());
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
@@ -1022,8 +1018,7 @@ async fn directory_tree_to_loader_tree(
                     .cell()
                 },
                 global_metadata,
-            }
-            .cell(),
+            },
         );
     }
 
@@ -1183,11 +1178,11 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                     ..Default::default()
                                 }.cell(),
                                 global_metadata
-                            }.cell()
+                            }
                         },
                         components: Components::default().cell(),
                         global_metadata,
-                    }.cell(),
+                    },
                 },
                 components: components.without_leafs().cell(),
                 global_metadata,
