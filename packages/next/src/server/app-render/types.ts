@@ -118,13 +118,22 @@ export type FlightData = Array<FlightDataPath> | string
 export type ActionResult = Promise<any>
 
 // Response from `createFromFetch` for normal rendering
-export type NavigationFlightResponse = [buildId: string, flightData: FlightData]
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse = [
-  ActionResult,
-  [buildId: string, flightData: FlightData | null],
-]
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData | null
+}
 
 export type ServerOnInstrumentationRequestError = (
   error: unknown,
@@ -212,12 +221,8 @@ export type InitialRSCPayload = {
   c: string
   /** couldBeIntercepted */
   i: boolean
-  /** initialTree */
-  t: FlightRouterState
-  /** initialSeedData */
-  d: CacheNodeSeedData
-  /** initialHead */
-  h: React.ReactNode
+  /** initialFlightData */
+  f: FlightDataPath[]
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
@@ -225,6 +230,18 @@ export type InitialRSCPayload = {
 }
 
 export type RSCPayload =
-  | InitialRSCPayload
-  | NavigationFlightResponse
-  | ActionFlightResponse
+  | {
+      /** Initial RSC Payload. Used for root SSR render & static generation */
+      t: 'i'
+      p: InitialRSCPayload
+    }
+  | {
+      /** Navigation RSC Payload. Used for router events like `push`, `replace`, or `refresh`. */
+      t: 'n'
+      p: NavigationFlightResponse
+    }
+  | {
+      /** Server Action RSC Payload. May contain `null` flightData in certain contexts. */
+      t: 'a'
+      p: ActionFlightResponse
+    }
