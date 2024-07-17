@@ -30,8 +30,8 @@ use crate::{
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, FunctionId, TraitTypeId},
-    id_factory::IdFactoryWithReuse,
+    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId},
+    id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
     registry,
@@ -243,6 +243,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
     task_id_factory: IdFactoryWithReuse<TaskId>,
+    execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
     currently_scheduled_foreground_jobs: AtomicUsize,
@@ -257,7 +258,6 @@ pub struct TurboTasks<B: Backend + 'static> {
     program_start: Instant,
 }
 
-#[derive(Default)]
 struct CurrentTaskState {
     /// Affected tasks, that are tracked during task execution. These tasks will
     /// be invalidated when the execution finishes or before reading a cell
@@ -266,6 +266,26 @@ struct CurrentTaskState {
 
     /// True if the current task has state in cells
     stateful: bool,
+
+    /// A unique identifier created for each unique `CurrentTaskState`. Used to
+    /// check that [`CurrentTaskState::local_cells`] are valid for the current
+    /// `RawVc::LocalCell`.
+    execution_id: ExecutionId,
+
+    /// Cells for locally allocated Vcs (`RawVc::LocalCell`). This is freed
+    /// (along with `CurrentTaskState`) when the task finishes executing.
+    local_cells: Vec<TypedCellContent>,
+}
+
+impl CurrentTaskState {
+    fn new(execution_id: ExecutionId) -> Self {
+        Self {
+            tasks_to_notify: Vec::new(),
+            stateful: false,
+            execution_id,
+            local_cells: Vec::new(),
+        }
+    }
 }
 
 // TODO implement our own thread pool and make these thread locals instead
@@ -293,6 +313,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             this: this.clone(),
             backend,
             task_id_factory,
+            execution_id_factory: IdFactory::new(),
             stopped: AtomicBool::new(false),
             currently_scheduled_tasks: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
@@ -490,53 +511,57 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             #[allow(clippy::blocks_in_conditions)]
             while CURRENT_TASK_STATE
-                .scope(Default::default(), async {
-                    if this.stopped.load(Ordering::Acquire) {
-                        return false;
-                    }
+                .scope(
+                    RefCell::new(CurrentTaskState::new(this.execution_id_factory.get())),
+                    async {
+                        if this.stopped.load(Ordering::Acquire) {
+                            return false;
+                        }
 
-                    // Setup thread locals
-                    CELL_COUNTERS
-                        .scope(Default::default(), async {
-                            let Some(TaskExecutionSpec { future, span }) =
-                                this.backend.try_start_task_execution(task_id, &*this)
-                            else {
-                                return false;
-                            };
+                        // Setup thread locals
+                        CELL_COUNTERS
+                            .scope(Default::default(), async {
+                                let Some(TaskExecutionSpec { future, span }) =
+                                    this.backend.try_start_task_execution(task_id, &*this)
+                                else {
+                                    return false;
+                                };
 
-                            async {
-                                let (result, duration, memory_usage) =
-                                    CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
-                                        .await;
+                                async {
+                                    let (result, duration, memory_usage) =
+                                        CaptureFuture::new(AssertUnwindSafe(future).catch_unwind())
+                                            .await;
 
-                                let result = result.map_err(|any| match any.downcast::<String>() {
-                                    Ok(owned) => Some(Cow::Owned(*owned)),
-                                    Err(any) => match any.downcast::<&'static str>() {
-                                        Ok(str) => Some(Cow::Borrowed(*str)),
-                                        Err(_) => None,
-                                    },
-                                });
-                                this.backend.task_execution_result(task_id, result, &*this);
-                                let stateful = this.finish_current_task_state();
-                                let cell_counters =
-                                    CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
-                                let schedule_again = this.backend.task_execution_completed(
-                                    task_id,
-                                    duration,
-                                    memory_usage,
-                                    cell_counters,
-                                    stateful,
-                                    &*this,
-                                );
-                                // task_execution_completed might need to notify tasks
-                                this.notify_scheduled_tasks();
-                                schedule_again
-                            }
-                            .instrument(span)
+                                    let result =
+                                        result.map_err(|any| match any.downcast::<String>() {
+                                            Ok(owned) => Some(Cow::Owned(*owned)),
+                                            Err(any) => match any.downcast::<&'static str>() {
+                                                Ok(str) => Some(Cow::Borrowed(*str)),
+                                                Err(_) => None,
+                                            },
+                                        });
+                                    this.backend.task_execution_result(task_id, result, &*this);
+                                    let stateful = this.finish_current_task_state();
+                                    let cell_counters =
+                                        CELL_COUNTERS.with(|cc| take(&mut *cc.borrow_mut()));
+                                    let schedule_again = this.backend.task_execution_completed(
+                                        task_id,
+                                        duration,
+                                        memory_usage,
+                                        cell_counters,
+                                        stateful,
+                                        &*this,
+                                    );
+                                    // task_execution_completed might need to notify tasks
+                                    this.notify_scheduled_tasks();
+                                    schedule_again
+                                }
+                                .instrument(span)
+                                .await
+                            })
                             .await
-                        })
-                        .await
-                })
+                    },
+                )
                 .await
             {}
             this.finish_primary_job();
@@ -841,6 +866,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             let CurrentTaskState {
                 tasks_to_notify,
                 stateful,
+                ..
             } = &mut *cell.borrow_mut();
             (*stateful, take(tasks_to_notify))
         });
@@ -1690,5 +1716,49 @@ pub fn find_cell_by_type(ty: ValueTypeId) -> CurrentCellRef {
             current_task,
             index: CellId { type_id: ty, index },
         }
+    })
+}
+
+pub(crate) fn create_local_cell(value: TypedCellContent) -> (ExecutionId, LocalCellId) {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id,
+            local_cells,
+            ..
+        } = &mut *cell.borrow_mut();
+
+        // store in the task-local arena
+        local_cells.push(value);
+
+        // generate a one-indexed id
+        let raw_local_cell_id = local_cells.len();
+        let local_cell_id = if cfg!(debug_assertions) {
+            LocalCellId::from(u32::try_from(raw_local_cell_id).unwrap())
+        } else {
+            unsafe { LocalCellId::new_unchecked(raw_local_cell_id as u32) }
+        };
+
+        (*execution_id, local_cell_id)
+    })
+}
+
+/// Panics if the ExecutionId does not match the expected value.
+pub(crate) fn read_local_cell(
+    execution_id: ExecutionId,
+    local_cell_id: LocalCellId,
+) -> TypedCellContent {
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState {
+            execution_id: expected_execution_id,
+            local_cells,
+            ..
+        } = &*cell.borrow();
+        assert_eq!(
+            execution_id, *expected_execution_id,
+            "This Vc is local. Local Vcs must only be accessed within their own task. Resolve the \
+             Vc to convert it into a non-local version."
+        );
+        // local cell ids are one-indexed (they use NonZeroU32)
+        local_cells[(*local_cell_id as usize) - 1].clone()
     })
 }

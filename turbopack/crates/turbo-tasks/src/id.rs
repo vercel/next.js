@@ -70,6 +70,7 @@ define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(BackendJobId: u32);
 define_id!(ExecutionId: u64, derive(Debug));
+define_id!(LocalCellId: u32, derive(Debug));
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

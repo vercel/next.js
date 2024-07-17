@@ -15,7 +15,8 @@ use thiserror::Error;
 use crate::{
     backend::{CellContent, TypedCellContent},
     event::EventListener,
-    manager::{read_task_cell, read_task_output, TurboTasksApi},
+    id::{ExecutionId, LocalCellId},
+    manager::{read_local_cell, read_task_cell, read_task_output, TurboTasksApi},
     registry::{self, get_value_type},
     turbo_tasks, CollectiblesSource, TaskId, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
 };
@@ -53,6 +54,8 @@ impl Display for CellId {
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
+    #[serde(skip)]
+    LocalCell(ExecutionId, LocalCellId),
 }
 
 impl RawVc {
@@ -60,6 +63,7 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
+            RawVc::LocalCell(_, _) => false,
         }
     }
 
@@ -120,6 +124,7 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
+                RawVc::LocalCell(_, _) => todo!(),
             }
         }
     }
@@ -152,6 +157,7 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
+                RawVc::LocalCell(_, _) => todo!(),
             }
         }
     }
@@ -171,6 +177,7 @@ impl RawVc {
                     current = read_task_output(&*tt, task, false).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
+                RawVc::LocalCell(_, _) => todo!(),
             }
         }
     }
@@ -190,6 +197,7 @@ impl RawVc {
                     current = read_task_output(&*tt, task, true).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
+                RawVc::LocalCell(_, _) => todo!(),
             }
         }
     }
@@ -202,6 +210,7 @@ impl RawVc {
     pub fn get_task_id(&self) -> TaskId {
         match self {
             RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
+            RawVc::LocalCell(_, _) => todo!(),
         }
     }
 }
@@ -224,19 +233,6 @@ impl CollectiblesSource for RawVc {
         map.into_iter()
             .filter_map(|(raw, count)| (count > 0).then_some(raw.into()))
             .collect()
-    }
-}
-
-impl Display for RawVc {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            RawVc::TaskOutput(task) => {
-                write!(f, "output of {}", task)
-            }
-            RawVc::TaskCell(task, index) => {
-                write!(f, "value {} of {}", index, task)
-            }
-        }
     }
 }
 
@@ -357,6 +353,9 @@ impl Future for ReadRawVcFuture {
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),
                     }
+                }
+                RawVc::LocalCell(execution_id, local_cell_id) => {
+                    return Poll::Ready(Ok(read_local_cell(execution_id, local_cell_id)));
                 }
             };
             // SAFETY: listener is from previous pinned this
