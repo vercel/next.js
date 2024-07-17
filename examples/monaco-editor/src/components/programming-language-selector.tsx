@@ -6,16 +6,16 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Language } from "./editor";
+} from '@/components/ui/select'
+import { Language } from './editor'
 
-const languages = ["javascript", "typescript", "php", "python"];
+const languages = ['javascript', 'typescript', 'php', 'python']
 
 export function ProgrammingLanguageSelector(props: {
-  selectedLanguage: Language;
-  onSelectLanguageChange: (language: Language) => void;
+  selectedLanguage: Language
+  onSelectLanguageChange: (language: Language) => void
 }) {
-  const { selectedLanguage, onSelectLanguageChange } = props;
+  const { selectedLanguage, onSelectLanguageChange } = props
   return (
     <Select value={selectedLanguage} onValueChange={onSelectLanguageChange}>
       <SelectTrigger className="w-[180px] m-1">
@@ -32,5 +32,5 @@ export function ProgrammingLanguageSelector(props: {
         </SelectGroup>
       </SelectContent>
     </Select>
-  );
+  )
 }

@@ -1,31 +1,30 @@
-"use client";
-import dynamic from "next/dynamic";
-import { useState } from "react";
-import { type Language } from "../components/editor";
-import { ProgrammingLanguageSelector } from "@/components/programming-language-selector";
+'use client'
+import dynamic from 'next/dynamic'
+import { useState } from 'react'
+import { type Language } from '../components/editor'
+import { ProgrammingLanguageSelector } from '@/components/programming-language-selector'
 
 // The Editor component can only be rendered in the browser environment
-const Editor = dynamic(() => import("../components/editor"), {
+const Editor = dynamic(() => import('../components/editor'), {
   ssr: false,
-});
+})
 
 const initialCodes = {
   php: '<?php echo "Hello world!";',
   javascript: 'console.log("Hello world!")',
   typescript: 'console.log("Hello world!")',
   python: 'print("Hello world!")',
-} as const;
+} as const
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("php");
-  const [initialCode, setInitialCode] = useState<string>(
-    initialCodes[language]
-  );
-  const [code, setCode] = useState<string>("");
+  const [language, setLanguage] = useState<Language>('php')
+  const [initialCode, setInitialCode] = useState<string>(initialCodes[language])
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [code, setCode] = useState<string>('')
 
   function onSelectLanguageChange(language: Language) {
-    setLanguage(language);
-    setInitialCode(initialCodes[language]);
+    setLanguage(language)
+    setInitialCode(initialCodes[language])
   }
 
   return (
@@ -38,9 +37,9 @@ export default function Home() {
         <Editor
           language={language}
           initialValue={initialCode}
-          onChange={(value, event) => setCode(value)}
+          onChange={(value) => setCode(value)}
         />
       </main>
     </>
-  );
+  )
 }
