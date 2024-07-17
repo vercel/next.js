@@ -55,8 +55,8 @@ impl NativeFunction {
     }
 
     /// Creates a functor for execution from a fixed set of inputs.
-    pub fn bind(&'static self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> NativeTaskFn {
-        match (self.implementation).functor(this, inputs) {
+    pub fn bind(&'static self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> NativeTaskFn {
+        match (self.implementation).functor(this, arg) {
             Ok(functor) => functor,
             Err(err) => {
                 let err = SharedError::new(err);

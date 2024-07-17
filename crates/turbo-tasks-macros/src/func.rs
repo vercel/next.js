@@ -326,7 +326,7 @@ impl TurboFn {
                             *#trait_type_id_ident,
                             std::borrow::Cow::Borrowed(stringify!(#ident)),
                             #converted_this,
-                            vec![#converted_inputs],
+                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
                         )
                     )
                 }
@@ -352,7 +352,7 @@ impl TurboFn {
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
                             #converted_this,
-                            vec![#converted_inputs],
+                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
                         )
                     )
                 }
@@ -363,7 +363,7 @@ impl TurboFn {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            vec![#converted_inputs],
+                            turbo_tasks::TaskInput::into_concrete((#converted_inputs)),
                         )
                     )
                 }

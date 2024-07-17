@@ -23,7 +23,7 @@
 
 use std::{future::Future, marker::PhantomData, pin::Pin};
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
 use crate::{ConcreteTaskInput, RawVc, Vc, VcRead, VcValueType};
@@ -32,7 +32,7 @@ pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 pub trait TaskFn: Send + Sync + 'static {
-    fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
+    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
 }
 
 pub trait IntoTaskFn<Mode, Inputs> {
@@ -93,8 +93,8 @@ where
     Mode: TaskFnMode,
     Inputs: TaskInputs,
 {
-    fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
-        TaskFnInputFunction::functor(&self.task_fn, this, inputs)
+    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+        TaskFnInputFunction::functor(&self.task_fn, this, arg)
     }
 }
 
@@ -110,19 +110,19 @@ where
     Mode: TaskFnMode,
     Inputs: TaskInputs,
 {
-    fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
-        TaskFnInputFunctionWithThis::functor(&self.task_fn, this, inputs)
+    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+        TaskFnInputFunctionWithThis::functor(&self.task_fn, this, arg)
     }
 }
 
 trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + Clone + 'static {
-    fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
+    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
 }
 
 trait TaskFnInputFunctionWithThis<Mode: TaskFnMode, Inputs: TaskInputs>:
     Send + Sync + Clone + 'static
 {
-    fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
+    fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn>;
 }
 
 pub trait TaskInputs: Send + Sync + 'static {}
@@ -155,36 +155,8 @@ macro_rules! task_inputs_impl {
     }
 }
 
-macro_rules! as_concrete_task_input {
-    ( $arg:ident ) => {
-        ConcreteTaskInput
-    };
-}
-
 macro_rules! task_fn_impl {
-    ( $helper_module:ident $async_fn_trait:ident $arg_len:literal $( $arg:ident )* ) => {
-        mod $helper_module {
-            use super::*;
-
-            // this is a non-generic helper method to allow code-sharing across monomorphized
-            // instances of this function
-            pub fn get_args(
-                inputs: &[ConcreteTaskInput],
-            ) -> Result<($(&as_concrete_task_input!($arg),)*)> {
-                get_args_iter(inputs.iter())
-            }
-
-            fn get_args_iter(
-                mut iter: std::slice::Iter<'_, ConcreteTaskInput>,
-            ) -> Result<($(&as_concrete_task_input!($arg),)*)> {
-                let args = ($(next_arg(&mut iter, stringify!($arg))?,)*);
-                if iter.next().is_some() {
-                    bail!("task was called with too many arguments");
-                }
-                Ok(args)
-            }
-        }
-
+    ( $async_fn_trait:ident $arg_len:literal $( $arg:ident )* ) => {
         impl<F, Output, $($arg,)*> TaskFnInputFunction<FunctionMode, ($($arg,)*)> for F
         where
             $($arg: TaskInput + 'static,)*
@@ -192,13 +164,11 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, _this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
+            fn functor(&self, _this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 let task_fn = self.clone();
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -221,13 +191,11 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, _this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
+            fn functor(&self, _this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 let task_fn = self.clone();
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -250,14 +218,12 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
 
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -282,14 +248,12 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
 
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -326,14 +290,12 @@ macro_rules! task_fn_impl {
             F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
 
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -357,14 +319,12 @@ macro_rules! task_fn_impl {
             F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: Option<RawVc>, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, this: Option<RawVc>, arg: &ConcreteTaskInput) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this.expect("Method need to have a `self` argument"));
 
-                let ($($arg,)*) = $helper_module::get_args(inputs)?;
-                $(
-                    let $arg = $arg::try_from_concrete($arg)?;
-                )*
+                #[allow(unused_parens)]
+                let ($($arg),*) = <($($arg),*) as TaskInput>::try_from_concrete(arg)?;
 
                 Ok(Box::new(move || {
                     let task_fn = task_fn.clone();
@@ -381,23 +341,23 @@ macro_rules! task_fn_impl {
     };
 }
 
-task_fn_impl! { async_fn_0 AsyncFn0 0 }
-task_fn_impl! { async_fn_1 AsyncFn1 1 A1 }
-task_fn_impl! { async_fn_2 AsyncFn2 2 A1 A2 }
-task_fn_impl! { async_fn_3 AsyncFn3 3 A1 A2 A3 }
-task_fn_impl! { async_fn_4 AsyncFn4 4 A1 A2 A3 A4 }
-task_fn_impl! { async_fn_5 AsyncFn5 5 A1 A2 A3 A4 A5 }
-task_fn_impl! { async_fn_6 AsyncFn6 6 A1 A2 A3 A4 A5 A6 }
-task_fn_impl! { async_fn_7 AsyncFn7 7 A1 A2 A3 A4 A5 A6 A7 }
-task_fn_impl! { async_fn_8 AsyncFn8 8 A1 A2 A3 A4 A5 A6 A7 A8 }
-task_fn_impl! { async_fn_9 AsyncFn9 9 A1 A2 A3 A4 A5 A6 A7 A8 A9 }
-task_fn_impl! { async_fn_10 AsyncFn10 10 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
-task_fn_impl! { async_fn_11 AsyncFn11 11 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
-task_fn_impl! { async_fn_12 AsyncFn12 12 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
-task_fn_impl! { async_fn_13 AsyncFn13 13 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
-task_fn_impl! { async_fn_14 AsyncFn14 14 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 }
-task_fn_impl! { async_fn_15 AsyncFn15 15 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 }
-task_fn_impl! { async_fn_16 AsyncFn16 16 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 }
+task_fn_impl! { AsyncFn0 0 }
+task_fn_impl! { AsyncFn1 1 A1 }
+task_fn_impl! { AsyncFn2 2 A1 A2 }
+task_fn_impl! { AsyncFn3 3 A1 A2 A3 }
+task_fn_impl! { AsyncFn4 4 A1 A2 A3 A4 }
+task_fn_impl! { AsyncFn5 5 A1 A2 A3 A4 A5 }
+task_fn_impl! { AsyncFn6 6 A1 A2 A3 A4 A5 A6 }
+task_fn_impl! { AsyncFn7 7 A1 A2 A3 A4 A5 A6 A7 }
+task_fn_impl! { AsyncFn8 8 A1 A2 A3 A4 A5 A6 A7 A8 }
+task_fn_impl! { AsyncFn9 9 A1 A2 A3 A4 A5 A6 A7 A8 A9 }
+task_fn_impl! { AsyncFn10 10 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
+task_fn_impl! { AsyncFn11 11 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
+task_fn_impl! { AsyncFn12 12 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
+task_fn_impl! { AsyncFn13 13 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
+task_fn_impl! { AsyncFn14 14 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 }
+task_fn_impl! { AsyncFn15 15 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 }
+task_fn_impl! { AsyncFn16 16 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 }
 
 // There needs to be one more implementation than task_fn_impl to account for
 // the receiver.
@@ -419,14 +379,6 @@ task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 }
 task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 A14 A15 A16 A17 }
-
-fn next_arg<'a>(
-    iter: &mut std::slice::Iter<'a, ConcreteTaskInput>,
-    arg_name: &'static str,
-) -> Result<&'a ConcreteTaskInput> {
-    iter.next()
-        .with_context(move || format!("task is missing argument {}", arg_name))
-}
 
 #[cfg(test)]
 mod tests {

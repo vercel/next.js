@@ -320,6 +320,19 @@ where
     }
 }
 
+impl TaskInput for () {
+    fn try_from_concrete(input: &ConcreteTaskInput) -> Result<Self> {
+        match input {
+            ConcreteTaskInput::Nothing => Ok(()),
+            _ => bail!("invalid task input type, expected Nothing"),
+        }
+    }
+
+    fn into_concrete(self) -> ConcreteTaskInput {
+        ConcreteTaskInput::Nothing
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
@@ -335,7 +348,7 @@ macro_rules! tuple_impls {
                         )+
                         Ok(($($name,)+))
                     }
-                    _ => bail!("invalid task input type, expected list"),
+                    _ => bail!("invalid task input type {input:?}, expected tuple {}", stringify!(($($name,)+))),
                 }
             }
 
@@ -349,7 +362,7 @@ macro_rules! tuple_impls {
     };
 }
 
-// Implement `TaskInput` for all tuples of 1 to 12 elements.
+// Implement `TaskInput` for all tuples of 1 to 16 elements.
 tuple_impls! { A }
 tuple_impls! { A B }
 tuple_impls! { A B C }
@@ -362,6 +375,10 @@ tuple_impls! { A B C D E F G H I }
 tuple_impls! { A B C D E F G H I J }
 tuple_impls! { A B C D E F G H I J K }
 tuple_impls! { A B C D E F G H I J K L }
+tuple_impls! { A B C D E F G H I J K L M }
+tuple_impls! { A B C D E F G H I J K L M N }
+tuple_impls! { A B C D E F G H I J K L M N O }
+tuple_impls! { A B C D E F G H I J K L M N O P}
 
 #[cfg(test)]
 mod tests {
