@@ -30,6 +30,28 @@ describe('app dir - basic', () => {
     })
   }
 
+  if (isNextDeploy) {
+    it('should contain framework.json', async () => {
+      const frameworksJson = await next.readJSON(
+        '.next/diagnostics/framework.json'
+      )
+      expect(frameworksJson).toEqual({
+        name: 'Next.js',
+        version: require('next/package.json').version,
+      })
+    })
+
+    it('outputs correct build-diagnostics.json', async () => {
+      const buildDiagnosticsJson = await next.readJSON(
+        '.next/diagnostics/build-diagnostics.json'
+      )
+      expect(buildDiagnosticsJson).toMatchObject({
+        buildStage: 'static-generation',
+        buildOptions: {},
+      })
+    })
+  }
+
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should not have loader generated function for edge runtime', async () => {
       expect(

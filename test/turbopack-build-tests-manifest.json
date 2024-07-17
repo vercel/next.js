@@ -1243,7 +1243,9 @@
       "failed": [
         "app dir - basic should encode chunk path correctly",
         "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime"
+        "app dir - basic should not have loader generated function for edge runtime",
+        "app dir - basic should contain framework.json",
+        "app dir - basic outputs correct build-diagnostics.json"
       ],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
