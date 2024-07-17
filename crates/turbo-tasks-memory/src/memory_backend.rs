@@ -471,6 +471,7 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> AutoMap<RawVc, i32> {
+        Task::add_dependency_to_current(TaskEdge::Collectibles(id, trait_id));
         Task::read_collectibles(id, trait_id, reader, self, turbo_tasks)
     }
 

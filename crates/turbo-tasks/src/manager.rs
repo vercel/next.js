@@ -523,13 +523,16 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 });
                                 this.backend.task_execution_result(task_id, result, &*this);
                                 let stateful = this.finish_current_task_state();
-                                this.backend.task_execution_completed(
+                                let schedule_again = this.backend.task_execution_completed(
                                     task_id,
                                     duration,
                                     memory_usage,
                                     stateful,
                                     &*this,
-                                )
+                                );
+                                // task_execution_completed might need to notify tasks
+                                this.notify_scheduled_tasks();
+                                schedule_again
                             }
                             .instrument(span)
                             .await
