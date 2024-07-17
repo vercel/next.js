@@ -71,7 +71,7 @@ export async function transpileConfig({
     }
 
     // filename & extension don't matter here
-    return requireFromString(code, join(cwd, 'next.config.compiled.js'))
+    return await requireFromString(code, join(cwd, 'next.config.compiled.js'))
   } catch (error) {
     throw error
   } finally {
