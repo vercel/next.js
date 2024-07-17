@@ -14067,11 +14067,11 @@
       "runtimeError": false
     },
     "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Re-export all exports from page is disallowed production mode builds without error when no `export * from \"...\"` is used in pages",
         "Re-export all exports from page is disallowed production mode shows error when a page re-export all exports"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
