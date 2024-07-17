@@ -2155,7 +2155,7 @@
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
       frameRegExp =
-        /^ {3} at (?:(.+) \(([^\)]+):(\d+):(\d+)\)|(?:async )?([^\)]+):(\d+):(\d+))$/;
+        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$$/;
     exports.createFromNodeStream = function (stream, ssrManifest, options) {
       var response = new ResponseInstance(
         ssrManifest.moduleMap,
