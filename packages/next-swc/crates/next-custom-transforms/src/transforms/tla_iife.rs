@@ -1,8 +1,8 @@
 use std::mem::take;
 
 use swc_core::ecma::{
-    ast::{BlockStmt, Function, Module, ModuleItem, Program, Script},
-    visit::{Fold, VisitMut, VisitMutWith},
+    ast::{ArrowExpr, BlockStmt, Function, Module, ModuleItem, Program, Script},
+    visit::{noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
 /// Compiles top-level await into an async IIFE.
@@ -10,10 +10,23 @@ pub fn tla_iife() -> impl VisitMut + Fold {}
 
 #[derive(Default)]
 struct TlaIife {
-    found_await: bool,
+    /// Indicates whether we found a top-level await.
+    found: bool,
 }
 
 impl VisitMut for TlaIife {
+    noop_visit_mut_type!();
+
+    /// `await`s in an arrow function is not a top-level await.
+    fn visit_mut_arrow_expr(&mut self, n: &mut ArrowExpr) {
+        n.params.visit_mut_with(self);
+    }
+
+    /// `await`s in a function is not a top-level await.
+    fn visit_mut_function(&mut self, n: &mut Function) {
+        n.params.visit_mut_with(self);
+    }
+
     fn visit_mut_module(&mut self, n: &mut Module) {
         n.visit_mut_children_with(self);
 
@@ -22,7 +35,7 @@ impl VisitMut for TlaIife {
             return;
         }
 
-        if self.found_await {
+        if self.found {
             let body = take(&mut n.body)
                 .into_iter()
                 .map(ModuleItem::expect_stmt)
@@ -36,7 +49,7 @@ impl VisitMut for TlaIife {
     fn visit_mut_script(&mut self, n: &mut Script) {
         n.visit_mut_children_with(self);
 
-        if self.found_await {
+        if self.found {
             let iife = create_iife(take(&mut n.body));
 
             n.body = iife.body.unwrap().stmts;
