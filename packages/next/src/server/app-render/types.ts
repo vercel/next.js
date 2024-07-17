@@ -229,6 +229,15 @@ export type ActionFlightResponse = {
   f: FlightData | null
 }
 
+export type FetchServerResponseResult = {
+  /** flightData */
+  f: FlightData
+  /** canonicalUrl */
+  c: URL | undefined
+  /** couldBeIntercepted */
+  i: boolean
+}
+
 export type RSCPayload =
   | InitialRSCPayload
   | NavigationFlightResponse
