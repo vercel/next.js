@@ -15,6 +15,7 @@ pub mod react_server_components;
 pub mod server_actions;
 pub mod shake_exports;
 pub mod strip_page_exports;
+pub mod tla_iife;
 
 //[TODO] PACK-1564: need to decide reuse vs. turbopack specific
 pub mod named_import_transform;
