@@ -30,7 +30,7 @@ describe('app dir - basic', () => {
     })
   }
 
-  if (isNextDeploy) {
+  if (isNextStart) {
     it('should contain framework.json', async () => {
       const frameworksJson = await next.readJSON(
         '.next/diagnostics/framework.json'
