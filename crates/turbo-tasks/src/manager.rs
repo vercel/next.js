@@ -28,7 +28,7 @@ use crate::{
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
-    id_factory::IdFactory,
+    id_factory::IdFactoryWithReuse,
     raw_vc::{CellId, RawVc},
     registry,
     trace::TraceRawVcs,
@@ -133,7 +133,7 @@ pub trait TaskIdProvider {
     fn reuse_task_id(&self, id: Unused<TaskId>);
 }
 
-impl TaskIdProvider for IdFactory<TaskId> {
+impl TaskIdProvider for IdFactoryWithReuse<TaskId> {
     fn get_fresh_task_id(&self) -> Unused<TaskId> {
         // Safety: This is a fresh id from the factory
         unsafe { Unused::new_unchecked(self.get()) }
@@ -234,7 +234,7 @@ pub struct UpdateInfo {
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
-    task_id_factory: IdFactory<TaskId>,
+    task_id_factory: IdFactoryWithReuse<TaskId>,
     stopped: AtomicBool,
     currently_scheduled_tasks: AtomicUsize,
     currently_scheduled_foreground_jobs: AtomicUsize,
@@ -279,7 +279,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(mut backend: B) -> Arc<Self> {
-        let task_id_factory = IdFactory::new();
+        let task_id_factory = IdFactoryWithReuse::new();
         backend.initialize(&task_id_factory);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),

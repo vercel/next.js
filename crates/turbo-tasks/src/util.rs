@@ -14,7 +14,11 @@ use anyhow::{anyhow, Error};
 use pin_project_lite::pin_project;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub use super::{id_factory::IdFactory, no_move_vec::NoMoveVec, once_map::*};
+pub use super::{
+    id_factory::{IdFactory, IdFactoryWithReuse},
+    no_move_vec::NoMoveVec,
+    once_map::*,
+};
 
 /// A error struct that is backed by an Arc to allow cloning errors
 #[derive(Debug, Clone)]

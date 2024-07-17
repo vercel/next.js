@@ -1,7 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     mem::transmute_copy,
-    num::NonZeroU32,
+    num::{NonZeroU32, NonZeroU64, TryFromIntError},
     ops::Deref,
 };
 
@@ -17,6 +17,8 @@ macro_rules! define_id {
         }
 
         impl $name {
+            /// Constructs a wrapper type from the numeric identifier.
+            ///
             /// # Safety
             ///
             /// The passed `id` must not be zero.
@@ -39,9 +41,21 @@ macro_rules! define_id {
             }
         }
 
+        /// Converts a numeric identifier to the wrapper type.
+        ///
+        /// Panics if the given id value is zero.
         impl From<u32> for $name {
             fn from(id: u32) -> Self {
                 Self { id: NonZeroU32::new(id).expect("Ids can only be created from non zero values") }
+            }
+        }
+
+        /// Converts a numeric identifier to the wrapper type.
+        impl TryFrom<NonZeroU64> for $name {
+            type Error = TryFromIntError;
+
+            fn try_from(id: NonZeroU64) -> Result<Self, Self::Error> {
+                Ok(Self { id: NonZeroU32::try_from(id)? })
             }
         }
     };

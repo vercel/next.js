@@ -26,7 +26,7 @@ use turbo_tasks::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
-    util::{IdFactory, NoMoveVec, SharedError},
+    util::{IdFactoryWithReuse, NoMoveVec, SharedError},
     CellId, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
@@ -131,7 +131,7 @@ pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph + 'static> {
     pub pg: P,
     tasks: NoMoveVec<Task>,
     cache: DashMap<PersistentTaskType, TaskId>,
-    background_job_id_factory: IdFactory<BackendJobId>,
+    background_job_id_factory: IdFactoryWithReuse<BackendJobId>,
     background_jobs: NoMoveVec<BackgroundJob>,
     only_known_to_memory_tasks: DashSet<TaskId>,
     /// Tasks that were selected to persist
@@ -154,7 +154,7 @@ pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph + 'static> {
 
 impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     pub fn new(pg: P) -> Self {
-        let background_job_id_factory = IdFactory::new();
+        let background_job_id_factory = IdFactoryWithReuse::new();
         let persist_job = background_job_id_factory.get();
         Self {
             pg,
