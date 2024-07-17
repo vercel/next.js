@@ -3022,6 +3022,7 @@ dependencies = [
  "once_cell",
  "qstring",
  "regex",
+ "remove_console",
  "rustc-hash",
  "serde",
  "serde_json",
