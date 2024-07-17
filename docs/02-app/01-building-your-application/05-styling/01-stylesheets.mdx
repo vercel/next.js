@@ -113,7 +113,7 @@ Global styles can be imported into any layout, page, or component inside the `ap
 > **Good to know**:
 >
 > - This is different from the `pages` directory, where you can only import global styles inside the `_app.js` file.
-> - Next.js does not support usage of global styles unless they are actually global, meaning they can apply to all pages and can live for the lifetime of the application. This is because Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate from Page A to Page B. Because of this, we recommend using CSS Modules over global styles.
+> - Next.js does not support usage of global styles unless they are actually global, meaning they can apply to all pages and can live for the lifetime of the application. This is because Next.js uses React's built-in support for stylesheets to integrate with Suspense. This built-in support currently does not remove stylesheets as you navigate between routes. Because of this, we recommend using CSS Modules over global styles.
 
 For example, consider a stylesheet named `app/global.css`:
 
