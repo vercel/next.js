@@ -236,6 +236,8 @@ export type FetchServerResponseResult = {
   c: URL | undefined
   /** couldBeIntercepted */
   i: boolean
+  /** isPrerender */
+  p: boolean
 }
 
 export type RSCPayload =
