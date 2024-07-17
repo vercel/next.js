@@ -4,11 +4,13 @@ use swc_core::ecma::{
     ast::{
         ArrowExpr, AwaitExpr, BlockStmt, Expr, Function, Module, ModuleItem, Program, Script, Stmt,
     },
-    visit::{noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
 };
 
 /// Compiles top-level await into an async IIFE.
-pub fn tla_iife() -> impl VisitMut + Fold {}
+pub fn tla_iife() -> impl VisitMut + Fold {
+    as_folder(TlaIife::default())
+}
 
 #[derive(Default)]
 struct TlaIife {
