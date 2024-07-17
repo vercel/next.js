@@ -7176,12 +7176,12 @@
       "runtimeError": false
     },
     "test/integration/client-404/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 production mode Client Navigation 404 should hard navigate to URL on failing to load missing bundle",
         "Client 404 production mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
       ],
+      "failed": [],
       "pending": [
         "Client 404 development mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
         "Client 404 development mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
