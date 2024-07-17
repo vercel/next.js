@@ -40,6 +40,9 @@ export interface RouteMeta {
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: MiddlewareConfig
+  // references to other modules that this route needs
+  // e.g. related routes, not-found routes, etc
+  relatedModules?: string[]
 }
 
 export interface EdgeMiddlewareMeta {

@@ -98,6 +98,9 @@ type ClientEntries = {
 const EXTERNAL_PACKAGES =
   require('../lib/server-external-packages.json') as string[]
 
+const DEFAULT_TRANSPILED_PACKAGES =
+  require('../lib/default-transpiled-packages.json') as string[]
+
 export const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 export const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
 const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
@@ -395,7 +398,9 @@ export default async function getBaseWebpackConfig(
 
   // since `pages` doesn't always bundle by default we need to
   // auto-include optimizePackageImports in transpilePackages
-  const finalTranspilePackages: string[] = config.transpilePackages || []
+  const finalTranspilePackages: string[] = (
+    config.transpilePackages || []
+  ).concat(DEFAULT_TRANSPILED_PACKAGES)
 
   for (const pkg of config.experimental.optimizePackageImports || []) {
     if (!finalTranspilePackages.includes(pkg)) {
@@ -855,6 +860,7 @@ export default async function getBaseWebpackConfig(
     config,
     optOutBundlingPackages,
     optOutBundlingPackageRegex,
+    transpiledPackages: finalTranspilePackages,
     dir,
   })
 
@@ -938,10 +944,25 @@ export default async function getBaseWebpackConfig(
                 }
               ),
           ],
+
+    ...(config.experimental.flyingShuttle
+      ? {
+          recordsPath: path.join(distDir, 'cache', 'shuttle', 'records.json'),
+        }
+      : {}),
+
     optimization: {
       emitOnErrors: !dev,
       checkWasmTypes: false,
       nodeEnv: false,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            moduleIds: 'deterministic',
+            portableRecords: true,
+          }
+        : {}),
+
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
@@ -1174,6 +1195,19 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+
+      ...(config.experimental.flyingShuttle
+        ? {
+            // ensure we only use contenthash as it's more deterministic
+            filename: isNodeOrEdgeCompilation
+              ? dev || isEdgeServer
+                ? `[name].js`
+                : `../[name].js`
+              : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+                  dev ? '' : '-[contenthash]'
+                }.js`,
+          }
+        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1783,7 +1817,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      isNodeServer &&
+      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -2099,6 +2133,7 @@ export default async function getBaseWebpackConfig(
     modularizeImports: config.modularizeImports,
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
+    serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
   const cache: any = {

@@ -139,11 +139,11 @@ import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import {
-  ACTION,
+  ACTION_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_ROUTER_STATE_TREE,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
@@ -342,34 +342,6 @@ async function writePrerenderManifest(
   manifest: DeepReadonly<PrerenderManifest>
 ): Promise<void> {
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
-  await writeEdgePartialPrerenderManifest(distDir, manifest)
-}
-
-async function writeEdgePartialPrerenderManifest(
-  distDir: string,
-  manifest: DeepReadonly<Partial<PrerenderManifest>>
-): Promise<void> {
-  // We need to write a partial prerender manifest to make preview mode settings available in edge middleware.
-  // Use env vars in JS bundle and inject the actual vars to edge manifest.
-  const edgePartialPrerenderManifest: DeepReadonly<Partial<PrerenderManifest>> =
-    {
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      version: manifest.version,
-      preview: {
-        previewModeId: 'process.env.__NEXT_PREVIEW_MODE_ID',
-        previewModeSigningKey: 'process.env.__NEXT_PREVIEW_MODE_SIGNING_KEY',
-        previewModeEncryptionKey:
-          'process.env.__NEXT_PREVIEW_MODE_ENCRYPTION_KEY',
-      },
-    }
-  await writeFileUtf8(
-    path.join(distDir, PRERENDER_MANIFEST.replace(/\.json$/, '.js')),
-    `self.__PRERENDER_MANIFEST=${JSON.stringify(
-      JSON.stringify(edgePartialPrerenderManifest)
-    )}`
-  )
 }
 
 async function writeClientSsgManifest(
@@ -744,6 +716,12 @@ export default async function build(
         config
       )
       NextBuildContext.buildId = buildId
+
+      if (config.experimental.flyingShuttle) {
+        await fs.mkdir(path.join(distDir, 'cache', 'shuttle'), {
+          recursive: true,
+        })
+      }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
@@ -1136,7 +1114,7 @@ export default async function build(
               header: RSC_HEADER,
               // This vary header is used as a default. It is technically re-assigned in `base-server`,
               // and may include an additional Vary option for `Next-URL`.
-              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1211,8 +1189,6 @@ export default async function build(
         '{"type": "commonjs"}'
       )
 
-      await writeEdgePartialPrerenderManifest(distDir, {})
-
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
 
@@ -1255,7 +1231,6 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
-              PRERENDER_MANIFEST.replace(/\.json$/, '.js'),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               path.join(
@@ -1353,7 +1328,7 @@ export default async function build(
               distDir,
               fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
               hasRewrites,
-              // TODO: Implement
+              // Implemented separately in Turbopack, doesn't have to be passed here.
               middlewareMatchers: undefined,
             }),
             buildId: NextBuildContext.buildId!,
@@ -1404,13 +1379,6 @@ export default async function build(
           encryptionKey,
         })
 
-        // TODO: implement this
-        const emptyRewritesObjToBeImplemented = {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        }
-
         const entrypointsResult = await entrypointsSubscription.next()
         if (entrypointsResult.done) {
           throw new Error('Turbopack did not return any entrypoints')
@@ -1442,7 +1410,8 @@ export default async function build(
           currentEntryIssues,
           manifestLoader,
           nextConfig: config,
-          rewrites: emptyRewritesObjToBeImplemented,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
           logErrors: false,
         })
 
@@ -1477,7 +1446,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1493,7 +1463,8 @@ export default async function build(
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              rewrites: emptyRewritesObjToBeImplemented,
+              devRewrites: undefined,
+              productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
           )
@@ -1504,15 +1475,17 @@ export default async function build(
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            rewrites: emptyRewritesObjToBeImplemented,
+            devRewrites: undefined,
+            productionRewrites: customRoutes.rewrites,
             logErrors: false,
           })
         )
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({
-          rewrites: emptyRewritesObjToBeImplemented,
-          pageEntrypoints: currentEntrypoints.page,
+          devRewrites: undefined,
+          productionRewrites: customRoutes.rewrites,
+          entrypoints: currentEntrypoints,
         })
 
         const errors: {
@@ -1614,6 +1587,8 @@ export default async function build(
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
+
+          Log.event('Compiled successfully')
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
@@ -2701,7 +2676,7 @@ export default async function build(
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
-              { type: 'header', key: ACTION },
+              { type: 'header', key: ACTION_HEADER },
               {
                 type: 'header',
                 key: 'content-type',
