@@ -214,20 +214,16 @@ function Router({
     () =>
       createInitialRouterState({
         buildId: initialRSCPayload.b,
-        initialSeedData: initialRSCPayload.d,
+        initialFlightData: initialRSCPayload.f,
         initialCanonicalUrl: initialRSCPayload.c,
-        initialTree: initialRSCPayload.t,
         initialParallelRoutes,
         location: !isServer ? window.location : null,
-        initialHead: initialRSCPayload.h,
         couldBeIntercepted: initialRSCPayload.i,
       }),
     [
       initialRSCPayload.b,
       initialRSCPayload.c,
-      initialRSCPayload.t,
-      initialRSCPayload.d,
-      initialRSCPayload.h,
+      initialRSCPayload.f,
       initialRSCPayload.i,
     ]
   )

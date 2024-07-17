@@ -172,9 +172,9 @@ const initialServerResponse = createFromReadableStream(readable, {
 })
 
 function ServerRoot(): React.ReactNode {
-  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const initialResponse = use<InitialRSCPayload>(initialServerResponse)
 
-  return <AppRouter initialRSCPayload={initialRSCPayload} />
+  return <AppRouter initialRSCPayload={initialResponse} />
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
