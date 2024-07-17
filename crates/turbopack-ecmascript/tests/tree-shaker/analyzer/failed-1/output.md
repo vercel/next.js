@@ -239,6 +239,7 @@ graph TD
     Export(
         "addMessageListener",
     ): 1,
+    Exports: 6,
     Export(
         "sendMessage",
     ): 2,
@@ -362,6 +363,19 @@ export { eventCallbacks } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
+## Part 6
+```js
+export { addMessageListener } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export addMessageListener"
+};
+export { sendMessage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export sendMessage"
+};
+export { connectHMR } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export connectHMR"
+};
+
+```
 ## Merged (module eval)
 ```js
 "module evaluation";
@@ -378,6 +392,7 @@ export { eventCallbacks } from "__TURBOPACK_VAR__" assert {
     Export(
         "addMessageListener",
     ): 1,
+    Exports: 6,
     Export(
         "sendMessage",
     ): 2,
@@ -498,6 +513,19 @@ export { source } from "__TURBOPACK_VAR__" assert {
 const eventCallbacks = [];
 export { eventCallbacks } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
+};
+
+```
+## Part 6
+```js
+export { addMessageListener } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export addMessageListener"
+};
+export { sendMessage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export sendMessage"
+};
+export { connectHMR } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export connectHMR"
 };
 
 ```

@@ -88,6 +88,7 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
+    Exports: 3,
     Export(
         "b",
     ): 2,
@@ -122,6 +123,16 @@ export { b } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
+## Part 3
+```js
+export { a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export a"
+};
+export { b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export b"
+};
+
+```
 ## Merged (module eval)
 ```js
 "module evaluation";
@@ -132,6 +143,7 @@ export { b } from "__TURBOPACK_VAR__" assert {
 ```
 {
     ModuleEvaluation: 0,
+    Exports: 3,
     Export(
         "b",
     ): 2,
@@ -163,6 +175,16 @@ export { b as b };
 const b = "b";
 export { b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
+};
+
+```
+## Part 3
+```js
+export { a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export a"
+};
+export { b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export b"
 };
 
 ```

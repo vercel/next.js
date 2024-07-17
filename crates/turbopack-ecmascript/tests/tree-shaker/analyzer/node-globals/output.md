@@ -50,6 +50,7 @@ graph TD
 ```
 {
     ModuleEvaluation: 0,
+    Exports: 1,
 }
 ```
 
@@ -59,6 +60,10 @@ graph TD
 ```js
 "module evaluation";
 process.turbopack = {};
+
+```
+## Part 1
+```js
 
 ```
 ## Merged (module eval)
@@ -72,6 +77,7 @@ process.turbopack = {};
 ```
 {
     ModuleEvaluation: 0,
+    Exports: 1,
 }
 ```
 
@@ -81,6 +87,10 @@ process.turbopack = {};
 ```js
 "module evaluation";
 process.turbopack = {};
+
+```
+## Part 1
+```js
 
 ```
 ## Merged (module eval)

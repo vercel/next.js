@@ -13,11 +13,11 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, ExportDecl, ExportNamedSpecifier, ExportSpecifier,
-            Expr, ExprStmt, FnDecl, Id, Ident, ImportDecl, ImportNamedSpecifier, ImportSpecifier,
-            ImportStarAsSpecifier, KeyValueProp, Lit, Module, ModuleDecl, ModuleExportName,
-            ModuleItem, NamedExport, ObjectLit, Prop, PropName, PropOrSpread, Stmt, VarDecl,
-            VarDeclKind, VarDeclarator,
+            op, ClassDecl, Decl, DefaultDecl, ExportAll, ExportDecl, ExportNamedSpecifier,
+            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, ImportDecl, ImportNamedSpecifier,
+            ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit, Module, ModuleDecl,
+            ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop, PropName, PropOrSpread,
+            Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident},
@@ -26,7 +26,9 @@ use swc_core::{
 use turbo_tasks::RcStr;
 
 use super::{
-    util::{ids_captured_by, ids_used_by, ids_used_by_ignoring_nested},
+    util::{
+        collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
+    },
     Key, TURBOPACK_PART_IMPORT_SOURCE,
 };
 use crate::magic_identifier;
@@ -191,6 +193,8 @@ pub(super) struct SplitModuleResult {
     /// Dependency between parts.
     pub part_deps: FxHashMap<u32, Vec<u32>>,
     pub modules: Vec<Module>,
+
+    pub star_reexports: Vec<ExportAll>,
 }
 
 impl DepGraph {
@@ -226,7 +230,13 @@ impl DepGraph {
         let mut exports = FxHashMap::default();
         let mut part_deps = FxHashMap::<_, Vec<_>>::default();
 
+        let star_reexports: Vec<_> = data
+            .values()
+            .filter_map(|v| v.content.as_module_decl()?.as_export_all())
+            .cloned()
+            .collect();
         let mut modules = vec![];
+        let mut exports_module = Module::dummy();
 
         if groups.graph_ix.is_empty() {
             // If there's no dependency, all nodes are in the module evaluaiotn group.
@@ -273,6 +283,24 @@ impl DepGraph {
 
                         if let Some(export) = &data[item].export {
                             exports.insert(Key::Export(export.as_str().into()), ix as u32);
+
+                            let s = ExportSpecifier::Named(ExportNamedSpecifier {
+                                span: DUMMY_SP,
+                                orig: ModuleExportName::Ident(Ident::new(export.clone(), DUMMY_SP)),
+                                exported: None,
+                                is_type_only: false,
+                            });
+                            exports_module.body.push(ModuleItem::ModuleDecl(
+                                ModuleDecl::ExportNamed(NamedExport {
+                                    span: DUMMY_SP,
+                                    specifiers: vec![s],
+                                    src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
+                                    type_only: false,
+                                    with: Some(Box::new(create_turbopack_part_id_assert(
+                                        PartId::Export(export.to_string().into()),
+                                    ))),
+                                }),
+                            ));
                         }
                     }
                     ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
@@ -295,7 +323,7 @@ impl DepGraph {
                     let data = data.get(dep_item).unwrap();
 
                     for var in data.var_decls.iter() {
-                        if required_vars.remove(var) {
+                        if required_vars.contains(var) {
                             specifiers.push(ImportSpecifier::Named(ImportNamedSpecifier {
                                 span: DUMMY_SP,
                                 local: var.clone().into(),
@@ -366,10 +394,21 @@ impl DepGraph {
             modules.push(chunk);
         }
 
+        exports.insert(Key::Exports, modules.len() as u32);
+
+        for star in &star_reexports {
+            exports_module
+                .body
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
+        }
+
+        modules.push(exports_module);
+
         SplitModuleResult {
             entrypoints: exports,
             part_deps,
             modules,
+            star_reexports,
         }
     }
 
@@ -429,7 +468,7 @@ impl DepGraph {
             let ix = self.g.get_node(id);
 
             if let ItemId::Group(_) = id {
-                groups.push((vec![id.clone()], FxHashSet::default()));
+                groups.push((vec![id.clone()], FxHashSet::default(), 1));
                 global_done.insert(ix);
             }
         }
@@ -447,7 +486,8 @@ impl DepGraph {
 
                     global_done.extend(cycle.iter().copied());
 
-                    groups.push((ids, Default::default()));
+                    let len = ids.len();
+                    groups.push((ids, FxHashSet::default(), len));
                 }
             }
         }
@@ -482,7 +522,7 @@ impl DepGraph {
                 .count();
 
             if dependant_count >= 2 && count_of_startings >= 2 {
-                groups.push((vec![id.clone()], FxHashSet::default()));
+                groups.push((vec![id.clone()], FxHashSet::default(), 1));
                 global_done.insert(ix as u32);
             }
         }
@@ -490,11 +530,15 @@ impl DepGraph {
         loop {
             let mut changed = false;
 
-            for (group, group_done) in &mut groups {
-                let start = &group[0];
-                let start_ix = self.g.get_node(start);
-                changed |=
-                    add_to_group(&self.g, data, group, start_ix, &mut global_done, group_done);
+            for (group, group_done, init_len) in &mut groups {
+                // Cycle group
+
+                for i in 0..*init_len {
+                    let start = &group[i];
+                    let start_ix = self.g.get_node(start);
+                    changed |=
+                        add_to_group(&self.g, data, group, start_ix, &mut global_done, group_done);
+                }
             }
 
             if !changed {
@@ -557,6 +601,7 @@ impl DepGraph {
         unresolved_ctxt: SyntaxContext,
         top_level_ctxt: SyntaxContext,
     ) -> (Vec<ItemId>, FxHashMap<ItemId, ItemData>) {
+        let top_level_vars = collect_top_level_decls(module);
         let mut exports = vec![];
         let mut items = FxHashMap::default();
         let mut ids = vec![];
@@ -697,21 +742,41 @@ impl DepGraph {
                         });
 
                         {
-                            let mut used_ids = ids_used_by_ignoring_nested(
-                                &export.decl,
-                                unresolved_ctxt,
-                                top_level_ctxt,
-                            );
+                            let mut used_ids = if export.decl.is_fn_expr() {
+                                ids_used_by_ignoring_nested(
+                                    &export.decl,
+                                    unresolved_ctxt,
+                                    top_level_ctxt,
+                                    &top_level_vars,
+                                )
+                            } else {
+                                ids_used_by(
+                                    &export.decl,
+                                    unresolved_ctxt,
+                                    top_level_ctxt,
+                                    &top_level_vars,
+                                )
+                            };
+                            used_ids.read.remove(&default_var.to_id());
                             used_ids.write.insert(default_var.to_id());
-                            let captured_ids =
-                                ids_captured_by(&export.decl, unresolved_ctxt, top_level_ctxt);
+                            let mut captured_ids = if export.decl.is_fn_expr() {
+                                ids_captured_by(
+                                    &export.decl,
+                                    unresolved_ctxt,
+                                    top_level_ctxt,
+                                    &top_level_vars,
+                                )
+                            } else {
+                                Vars::default()
+                            };
+                            captured_ids.read.remove(&default_var.to_id());
+
                             let data = ItemData {
                                 read_vars: used_ids.read,
                                 eventual_read_vars: captured_ids.read,
                                 write_vars: used_ids.write,
                                 eventual_write_vars: captured_ids.write,
                                 var_decls: [default_var.to_id()].into_iter().collect(),
-                                side_effects: true,
                                 content: ModuleItem::ModuleDecl(item.clone()),
                                 ..Default::default()
                             };
@@ -741,9 +806,14 @@ impl DepGraph {
                                 &export.expr,
                                 unresolved_ctxt,
                                 top_level_ctxt,
+                                &top_level_vars,
                             );
-                            let captured_ids =
-                                ids_captured_by(&export.expr, unresolved_ctxt, top_level_ctxt);
+                            let captured_ids = ids_captured_by(
+                                &export.expr,
+                                unresolved_ctxt,
+                                top_level_ctxt,
+                                &top_level_vars,
+                            );
 
                             used_ids.write.insert(default_var.to_id());
 
@@ -843,11 +913,7 @@ impl DepGraph {
                             kind: ItemIdItemKind::ImportBinding(si as _),
                         };
                         ids.push(id.clone());
-                        let local = match s {
-                            ImportSpecifier::Named(s) => s.local.to_id(),
-                            ImportSpecifier::Default(s) => s.local.to_id(),
-                            ImportSpecifier::Namespace(s) => s.local.to_id(),
-                        };
+                        let local = s.local().to_id();
                         items.insert(
                             id,
                             ItemData {
@@ -875,7 +941,12 @@ impl DepGraph {
                     };
                     ids.push(id.clone());
 
-                    let vars = ids_used_by(&f.function, unresolved_ctxt, top_level_ctxt);
+                    let vars = ids_used_by(
+                        &f.function,
+                        unresolved_ctxt,
+                        top_level_ctxt,
+                        &top_level_vars,
+                    );
                     let var_decls = {
                         let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(f.ident.to_id());
@@ -905,19 +976,19 @@ impl DepGraph {
                     };
                     ids.push(id.clone());
 
-                    let vars = ids_used_by(&c.class, unresolved_ctxt, top_level_ctxt);
+                    let mut vars =
+                        ids_used_by(&c.class, unresolved_ctxt, top_level_ctxt, &top_level_vars);
                     let var_decls = {
                         let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(c.ident.to_id());
                         v
                     };
+                    vars.write.insert(c.ident.to_id());
                     items.insert(
                         id,
                         ItemData {
-                            is_hoisted: true,
-                            eventual_read_vars: vars.read,
-                            eventual_write_vars: vars.write,
-                            write_vars: var_decls.clone(),
+                            read_vars: vars.read,
+                            write_vars: vars.write,
                             var_decls,
                             content: ModuleItem::Stmt(Stmt::Decl(Decl::Class(c.clone()))),
                             ..Default::default()
@@ -937,13 +1008,24 @@ impl DepGraph {
                         ids.push(id.clone());
 
                         let decl_ids: Vec<Id> = find_pat_ids(&decl.name);
-                        let vars = ids_used_by_ignoring_nested(
+                        let vars = ids_used_by(
                             &decl.init,
                             unresolved_ctxt,
                             top_level_ctxt,
+                            &top_level_vars,
                         );
                         let eventual_vars =
-                            ids_captured_by(&decl.init, unresolved_ctxt, top_level_ctxt);
+                            if matches!(decl.init.as_deref(), Some(Expr::Fn(..) | Expr::Arrow(..)))
+                            {
+                                ids_captured_by(
+                                    &decl.init,
+                                    unresolved_ctxt,
+                                    top_level_ctxt,
+                                    &top_level_vars,
+                                )
+                            } else {
+                                Vars::default()
+                            };
 
                         let side_effects = vars.found_unresolved;
 
@@ -972,9 +1054,14 @@ impl DepGraph {
                     expr: box Expr::Assign(assign),
                     ..
                 })) => {
-                    let mut used_ids =
-                        ids_used_by_ignoring_nested(item, unresolved_ctxt, top_level_ctxt);
-                    let captured_ids = ids_captured_by(item, unresolved_ctxt, top_level_ctxt);
+                    let mut used_ids = ids_used_by_ignoring_nested(
+                        item,
+                        unresolved_ctxt,
+                        top_level_ctxt,
+                        &top_level_vars,
+                    );
+                    let captured_ids =
+                        ids_captured_by(item, unresolved_ctxt, top_level_ctxt, &top_level_vars);
 
                     if assign.op != op!("=") {
                         used_ids.read.extend(used_ids.write.iter().cloned());
@@ -983,6 +1070,7 @@ impl DepGraph {
                             &assign.left,
                             unresolved_ctxt,
                             top_level_ctxt,
+                            &top_level_vars,
                         );
                         used_ids.read.extend(extra_ids.read);
                         used_ids.write.extend(extra_ids.write);
@@ -1011,15 +1099,21 @@ impl DepGraph {
                 ModuleItem::ModuleDecl(
                     ModuleDecl::ExportDefaultDecl(..)
                     | ModuleDecl::ExportDefaultExpr(..)
-                    | ModuleDecl::ExportNamed(NamedExport { .. }),
+                    | ModuleDecl::ExportNamed(NamedExport { .. })
+                    | ModuleDecl::ExportAll(..),
                 ) => {}
 
                 _ => {
                     // Default to normal
 
-                    let used_ids =
-                        ids_used_by_ignoring_nested(item, unresolved_ctxt, top_level_ctxt);
-                    let captured_ids = ids_captured_by(item, unresolved_ctxt, top_level_ctxt);
+                    let used_ids = ids_used_by_ignoring_nested(
+                        item,
+                        unresolved_ctxt,
+                        top_level_ctxt,
+                        &top_level_vars,
+                    );
+                    let captured_ids =
+                        ids_captured_by(item, unresolved_ctxt, top_level_ctxt, &top_level_vars);
                     let data = ItemData {
                         read_vars: used_ids.read,
                         eventual_read_vars: captured_ids.read,
@@ -1058,10 +1152,10 @@ impl DepGraph {
 
         for (local, export_name) in exports {
             let name = match &export_name {
-                Some(ModuleExportName::Ident(v)) => v.to_id(),
-                _ => local.clone(),
+                Some(ModuleExportName::Ident(v)) => v.sym.clone(),
+                _ => local.0.clone(),
             };
-            let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), name.0.clone()));
+            let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), name.clone()));
             ids.push(id.clone());
             items.insert(
                 id.clone(),
@@ -1078,8 +1172,8 @@ impl DepGraph {
                         type_only: false,
                         with: None,
                     })),
-                    read_vars: [name.clone()].into_iter().collect(),
-                    export: Some(name.0),
+                    read_vars: [local.clone()].into_iter().collect(),
+                    export: Some(name),
                     ..Default::default()
                 },
             );
