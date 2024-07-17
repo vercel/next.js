@@ -1,7 +1,7 @@
 import type {
+  ActionFlightResponse,
   ActionResult,
   FlightData,
-  RSCPayload,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
@@ -40,10 +40,6 @@ import { createEmptyCacheNode } from '../../app-router'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
-import {
-  getActionResultFromRSCPayload,
-  getFlightDataFromRSCPayload,
-} from '../../../../shared/lib/rsc-payload'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -115,26 +111,25 @@ async function fetchServerAction(
   const contentType = res.headers.get('content-type')
 
   if (contentType === RSC_CONTENT_TYPE_HEADER) {
-    const response: RSCPayload = await createFromFetch(Promise.resolve(res), {
-      callServer,
-    })
-
-    const actionFlightData = getFlightDataFromRSCPayload(response)
+    const response: ActionFlightResponse = await createFromFetch(
+      Promise.resolve(res),
+      {
+        callServer,
+      }
+    )
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
       return {
-        actionFlightData,
+        actionFlightData: response.f,
         redirectLocation,
         revalidatedParts,
       }
     }
 
-    const actionResult = getActionResultFromRSCPayload(response)
-
     return {
-      actionResult: actionResult ?? undefined,
-      actionFlightData,
+      actionResult: response.a,
+      actionFlightData: response.f,
       redirectLocation,
       revalidatedParts,
     }

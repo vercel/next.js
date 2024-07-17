@@ -7,11 +7,9 @@ import type {
   Segment,
   CacheNodeSeedData,
   PreloadCallbacks,
-  InitialRSCPayload,
   RSCPayload,
-  NavigationFlightResponse,
-  ActionFlightResponse,
   FlightData,
+  InitialRSCPayload,
 } from './types'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
@@ -127,7 +125,6 @@ import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
-import { getInitialRSCPayload } from '../../shared/lib/rsc-payload'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -333,7 +330,7 @@ async function generateDynamicRSCPayload(
     skipFlight: boolean
     asNotFound?: boolean
   }
-): Promise<NavigationFlightResponse | ActionFlightResponse> {
+): Promise<RSCPayload> {
   // Flight data that is going to be passed to the browser.
   // Currently a single item array but in the future multiple patches might be combined in a single request.
   let flightData: FlightData | null = null
@@ -390,25 +387,23 @@ async function generateDynamicRSCPayload(
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
   if (options?.actionResult) {
-    return [
-      options.actionResult,
-      // We don't check the validity of flightData here, since it's possible for server actions to
-      // return `null` for flightData (for example, if the action didn't trigger a revalidation).
-      // `null` flightData tells the client router to skip applying the server response to the tree.
-      [ctx.renderOpts.buildId, flightData],
-    ] satisfies ActionFlightResponse
+    return {
+      a: options.actionResult,
+      f: flightData,
+      b: ctx.renderOpts.buildId,
+    }
   }
 
   // Otherwise, it's a regular RSC response.
-  return [
-    ctx.renderOpts.buildId,
+  return {
+    b: ctx.renderOpts.buildId,
     // Anything besides an action response should have non-null flightData.
     // We don't ever expect this to be null because `skipFlight` is only
     // used when invoked by a server action, which is covered above.
     // The client router can handle an empty string (treating it as an MPA navigation),
     // so we'll use that as a fallback.
-    flightData ?? '',
-  ] satisfies NavigationFlightResponse
+    f: flightData ?? '',
+  }
 }
 
 /**
@@ -537,12 +532,10 @@ async function getRSCPayload(
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
     i: couldBeIntercepted,
-    t: initialTree,
-    d: seedData,
-    h: initialHead,
+    f: [[initialTree, seedData, initialHead]],
     m: missingSlots,
     G: GlobalError,
-  } as InitialRSCPayload & { P: React.ReactNode }
+  } satisfies RSCPayload & { P: React.ReactNode }
 }
 
 /**
@@ -614,12 +607,11 @@ async function getErrorRSCPayload(
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: url.pathname + url.search,
+    m: undefined,
     i: false,
-    t: initialTree,
-    d: initialSeedData,
-    h: initialHead,
+    f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
-  } as InitialRSCPayload
+  } satisfies RSCPayload
 }
 
 // This component must run in an SSR context. It will render the RSC root component
@@ -636,16 +628,14 @@ function ReactServerEntrypoint<T>({
 }): JSX.Element {
   preinitScripts()
   const response = React.use(
-    useFlightStream<RSCPayload>(
+    useFlightStream<InitialRSCPayload>(
       reactServerStream,
       clientReferenceManifest,
       nonce
     )
   )
 
-  const initialRSCPayload = getInitialRSCPayload(response)
-
-  return <AppRouter initialRSCPayload={initialRSCPayload} />
+  return <AppRouter initialRSCPayload={response} />
 }
 
 // We use a trick with TS Generics to branch streams with a type so we can

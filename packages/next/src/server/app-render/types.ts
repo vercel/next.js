@@ -117,15 +117,6 @@ export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
 
-// Response from `createFromFetch` for normal rendering
-export type NavigationFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse = [
-  ActionResult,
-  [buildId: string, flightData: FlightData | null],
-]
-
 export type ServerOnInstrumentationRequestError = (
   error: unknown,
   // The request could be middleware, node server or web server request,
@@ -212,16 +203,30 @@ export type InitialRSCPayload = {
   c: string
   /** couldBeIntercepted */
   i: boolean
-  /** initialTree */
-  t: FlightRouterState
-  /** initialSeedData */
-  d: CacheNodeSeedData
-  /** initialHead */
-  h: React.ReactNode
+  /** initialFlightData */
+  f: FlightDataPath[]
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+}
+
+// Response from `createFromFetch` for normal rendering
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData | null
 }
 
 export type RSCPayload =
