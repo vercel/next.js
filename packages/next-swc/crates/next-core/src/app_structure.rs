@@ -44,6 +44,8 @@ pub struct Components {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub global_error: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<Vc<FileSystemPath>>,
@@ -63,6 +65,7 @@ impl Components {
             page: None,
             layout: self.layout,
             error: self.error,
+            global_error: self.global_error,
             loading: self.loading,
             template: self.template,
             not_found: self.not_found,
@@ -333,6 +336,7 @@ async fn get_directory_tree_internal(
                             "page" => components.page = Some(file),
                             "layout" => components.layout = Some(file),
                             "error" => components.error = Some(file),
+                            "global-error" => components.global_error = Some(file),
                             "loading" => components.loading = Some(file),
                             "template" => components.template = Some(file),
                             "not-found" => components.not_found = Some(file),

@@ -23,6 +23,7 @@ import {
 import type { PageExtensions } from '../page-extensions-type'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
+import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -804,7 +805,9 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new Error(nativeError.message, { cause: nativeError })
+      throw new TurbopackInternalError(nativeError.message, {
+        cause: nativeError,
+      })
     }
   }
 
