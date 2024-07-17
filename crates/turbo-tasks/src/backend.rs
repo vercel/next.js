@@ -1,9 +1,9 @@
 use std::{
     any::Any,
     borrow::Cow,
-    fmt,
-    fmt::{Debug, Display, Write},
+    fmt::{self, Debug, Display, Write},
     future::Future,
+    hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
     sync::Arc,
@@ -12,6 +12,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use auto_hash_map::AutoMap;
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
@@ -276,6 +277,8 @@ impl CellContent {
     }
 }
 
+pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
+
 pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
@@ -388,7 +391,7 @@ pub trait Backend: Sync + Send {
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> AutoMap<RawVc, i32>;
+    ) -> TaskCollectiblesMap;
 
     fn emit_collectible(
         &self,

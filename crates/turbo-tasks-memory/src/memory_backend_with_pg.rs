@@ -13,13 +13,13 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoSet;
 use concurrent_queue::ConcurrentQueue;
 use dashmap::{mapref::entry::Entry, DashMap, DashSet};
 use turbo_tasks::{
     backend::{
-        Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
-        TransientTaskType,
+        Backend, BackendJobId, CellContent, PersistentTaskType, TaskCollectiblesMap,
+        TaskExecutionSpec, TransientTaskType,
     },
     event::{Event, EventListener},
     persisted_graph::{
@@ -1446,7 +1446,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
-    ) -> AutoMap<RawVc, i32> {
+    ) -> TaskCollectiblesMap {
         todo!()
     }
 

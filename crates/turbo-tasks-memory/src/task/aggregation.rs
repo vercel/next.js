@@ -10,7 +10,10 @@ use auto_hash_map::{map::Entry, AutoMap};
 use either::Either;
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
-use turbo_tasks::{event::Event, RawVc, TaskId, TaskIdSet, TraitTypeId, TurboTasksBackendApi};
+use turbo_tasks::{
+    backend::TaskCollectiblesMap, event::Event, RawVc, TaskId, TaskIdSet, TraitTypeId,
+    TurboTasksBackendApi,
+};
 
 use super::{
     meta_state::{FullTaskWriteGuard, TaskMetaStateWriteGuard},
@@ -32,7 +35,7 @@ pub enum RootType {
 
 #[derive(Debug, Default)]
 pub struct CollectiblesInfo {
-    collectibles: AutoMap<RawVc, i32>,
+    collectibles: TaskCollectiblesMap,
     dependent_tasks: TaskIdSet,
 }
 
@@ -90,8 +93,8 @@ impl Aggregated {
     ) {
         if let Entry::Occupied(mut entry) = self.collectibles.entry(trait_type) {
             let info = entry.get_mut();
-            info.dependent_tasks.remove(&reader);
-            if info.is_unset() {
+            let removed = info.dependent_tasks.remove(&reader);
+            if removed && info.is_unset() {
                 entry.remove();
             }
         }
@@ -101,7 +104,7 @@ impl Aggregated {
         &mut self,
         trait_type: TraitTypeId,
         reader: TaskId,
-    ) -> AutoMap<RawVc, i32> {
+    ) -> TaskCollectiblesMap {
         match self.collectibles.entry(trait_type) {
             Entry::Occupied(mut e) => {
                 let info = e.get_mut();
@@ -293,7 +296,7 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
                 }
                 Entry::Vacant(e) => {
                     let mut collectibles_info = CollectiblesInfo::default();
-                    update_count_entry(collectibles_info.collectibles.entry(collectible), count);
+                    collectibles_info.collectibles.insert(collectible, count);
                     e.insert(collectibles_info);
                 }
             }
@@ -489,8 +492,10 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     change.dirty_tasks_update.push((self.id, 1));
                 }
                 if let Some(collectibles) = guard.collectibles.as_ref() {
-                    for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                        change.collectibles.push((trait_type_id, collectible, 1));
+                    for (&(trait_type_id, collectible), count) in collectibles.iter() {
+                        change
+                            .collectibles
+                            .push((trait_type_id, collectible, *count));
                     }
                 }
                 if let TaskStateType::InProgress(box InProgressState {
@@ -499,8 +504,10 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                 }) = &guard.state_type
                 {
                     if let Some(collectibles) = outdated_collectibles.as_ref() {
-                        for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                            change.collectibles.push((trait_type_id, collectible, 1));
+                        for (&(trait_type_id, collectible), count) in collectibles.iter() {
+                            change
+                                .collectibles
+                                .push((trait_type_id, collectible, *count));
                         }
                     }
                 }
@@ -541,8 +548,10 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     change.dirty_tasks_update.push((self.id, -1));
                 }
                 if let Some(collectibles) = guard.collectibles.as_ref() {
-                    for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                        change.collectibles.push((trait_type_id, collectible, -1));
+                    for (&(trait_type_id, collectible), count) in collectibles.iter() {
+                        change
+                            .collectibles
+                            .push((trait_type_id, collectible, -count));
                     }
                 }
                 if let TaskStateType::InProgress(box InProgressState {
@@ -551,8 +560,10 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                 }) = &guard.state_type
                 {
                     if let Some(collectibles) = outdated_collectibles.as_ref() {
-                        for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                            change.collectibles.push((trait_type_id, collectible, -1));
+                        for (&(trait_type_id, collectible), count) in collectibles.iter() {
+                            change
+                                .collectibles
+                                .push((trait_type_id, collectible, -*count));
                         }
                     }
                 }
@@ -588,19 +599,13 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
             {
                 data.unfinished_tasks = unfinished_tasks_update.into_iter().collect();
             }
-            data.dirty_tasks = dirty_tasks_update.into_iter().collect();
-            data.collectibles = collectibles
-                .into_iter()
-                .map(|(trait_type_id, collectible, count)| {
-                    (
-                        trait_type_id,
-                        CollectiblesInfo {
-                            collectibles: [(collectible, count)].iter().cloned().collect(),
-                            dependent_tasks: TaskIdSet::default(),
-                        },
-                    )
-                })
-                .collect();
+            for (t, n) in dirty_tasks_update.into_iter() {
+                data.dirty_tasks.insert(t, n);
+            }
+            for (trait_type_id, collectible, count) in collectibles.into_iter() {
+                let info = data.collectibles.entry(trait_type_id).or_default();
+                update_count_entry(info.collectibles.entry(collectible), count);
+            }
         }
         data
     }
