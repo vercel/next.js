@@ -54,8 +54,10 @@ export class RedirectErrorBoundary extends React.Component<
       const redirectType = getRedirectTypeFromError(error)
       return { redirect: url, redirectType }
     }
-    // Re-throw if error is not for redirect
-    throw error
+    return {
+      redirect: null,
+      redirectType: null,
+    }
   }
 
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.

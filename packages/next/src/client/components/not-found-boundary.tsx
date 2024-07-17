@@ -66,8 +66,9 @@ class NotFoundErrorBoundary extends React.Component<
         notFoundTriggered: true,
       }
     }
-    // Re-throw if error is not for 404
-    throw error
+    return {
+      notFoundTriggered: false,
+    }
   }
 
   static getDerivedStateFromProps(
