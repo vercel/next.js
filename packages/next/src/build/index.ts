@@ -794,11 +794,6 @@ export default async function build(
         expFeatureInfo,
       })
 
-      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
-      await updateBuildDiagnostics({
-        buildStage: 'start',
-      })
-
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
@@ -1188,6 +1183,12 @@ export default async function build(
         path.join(distDir, 'package.json'),
         '{"type": "commonjs"}'
       )
+
+      // These are written to distDir, so they need to come after creating and cleaning distDr.
+      await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
+      await updateBuildDiagnostics({
+        buildStage: 'start',
+      })
 
       const outputFileTracingRoot =
         config.experimental.outputFileTracingRoot || dir
